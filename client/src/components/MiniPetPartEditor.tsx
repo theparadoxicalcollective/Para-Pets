@@ -14,6 +14,7 @@ const RENDER_ORDER: MiniPetPartType[] = [
   "left_ear",
   "right_ear",
   "eyes",
+  "closed_eyes",
 ];
 
 type PreviewPart = {
@@ -81,8 +82,13 @@ export default function MiniPetPartEditor({ petName, partType, source, previewPa
   }, [source]);
 
   const orderedPreview = useMemo(
-    () => [...previewParts].sort((a, b) => RENDER_ORDER.indexOf(a.partType) - RENDER_ORDER.indexOf(b.partType)),
-    [previewParts],
+    () => [...previewParts]
+      // Closed Eyes is an alternate blink frame, not a layer that should sit
+      // over the open Eyes while positioning other parts. When editing Closed
+      // Eyes, hide the open Eyes so the alternate frame can be aligned cleanly.
+      .filter(part => partType === "closed_eyes" ? part.partType !== "eyes" : part.partType !== "closed_eyes")
+      .sort((a, b) => RENDER_ORDER.indexOf(a.partType) - RENDER_ORDER.indexOf(b.partType)),
+    [partType, previewParts],
   );
   const activeIndex = RENDER_ORDER.indexOf(partType);
 

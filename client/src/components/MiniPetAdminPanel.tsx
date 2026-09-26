@@ -89,7 +89,7 @@ export default function MiniPetAdminPanel() {
       reset();
       qc.invalidateQueries({ queryKey: ["/api/admin/mini-pets"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
-      toast({ title: wasEditing ? "Mini Pet updated" : "Mini Pet added", description: wasEditing ? "Price and details saved." : "Now add and position its eight animation parts." });
+      toast({ title: wasEditing ? "Mini Pet updated" : "Mini Pet added", description: wasEditing ? "Price and details saved." : "Now add and position its animation parts. Closed Eyes is optional and pairs with Eyes for blinking." });
     },
     onError: (error: any) => toast({ title: editingPet ? "Could not update Mini Pet" : "Could not add Mini Pet", description: error.message, variant: "destructive" }),
   });
@@ -130,7 +130,7 @@ export default function MiniPetAdminPanel() {
                   <p className="text-xs text-amber-300">{"★".repeat(pet.rarity)}{"☆".repeat(5 - pet.rarity)}</p>
                   <p className="text-[10px] text-yellow-200">{pet.price.toLocaleString()} coins</p>
                   <p className="mt-1 text-[10px] text-stone-300">+{pet.atkBoost || 0} ATK · +{pet.healthBoost || 0} HP · +{pet.defBoost || 0} DEF</p>
-                  <p className="text-[10px] capitalize text-emerald-300/70">{pet.animationStyle} animation · {pet.parts.length}/8 parts</p>
+                  <p className="text-[10px] capitalize text-emerald-300/70">{pet.animationStyle} animation · {pet.parts.length}/9 parts</p>
                 </div>
                 <div className="flex flex-col">
                   <button type="button" data-testid={`button-edit-mini-pet-${pet.shopItemId}`} aria-label={`Edit ${pet.name}`} onClick={() => openEdit(pet)} className="p-2 text-amber-200"><Pencil size={15} /></button>

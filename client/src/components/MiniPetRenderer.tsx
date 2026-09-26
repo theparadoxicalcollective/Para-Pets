@@ -24,17 +24,18 @@ interface Props {
 }
 
 // Lower entries draw first. Wings/tail sit behind the body, ears sit behind the
-// head, and eyes are always the final face layer.
-const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "left_ear", "right_ear", "head", "eyes"];
+// head, and the open/closed eye frames are the final face layers.
+const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "left_ear", "right_ear", "head", "eyes", "closed_eyes"];
 
-function motionClassForPart(partType: MiniPetPartType): string {
+function motionClassForPart(partType: MiniPetPartType, hasBlinkPair: boolean): string {
   switch (partType) {
     case "left_wing": return "mini-pet-wing mini-pet-wing-left";
     case "right_wing": return "mini-pet-wing mini-pet-wing-right";
     case "left_ear": return "mini-pet-ear mini-pet-ear-left";
     case "right_ear": return "mini-pet-ear mini-pet-ear-right";
     case "tail": return "mini-pet-tail";
-    case "eyes": return "mini-pet-eyes";
+    case "eyes": return hasBlinkPair ? "mini-pet-eyes mini-pet-eyes-open" : "mini-pet-eyes mini-pet-eyes-fallback";
+    case "closed_eyes": return "mini-pet-eyes mini-pet-eyes-closed";
     default: return "";
   }
 }
@@ -86,12 +87,17 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
   if (!pet) return anchor;
 
   const parts = [...(pet.parts ?? [])].sort((a, b) => ORDER.indexOf(a.partType) - ORDER.indexOf(b.partType));
+  const hasBlinkPair = parts.some(part => part.partType === "eyes")
+    && parts.some(part => part.partType === "closed_eyes");
+  // Closed Eyes is optional. It only renders when an open Eyes layer exists too;
+  // otherwise the existing eyes-only blink remains the safe fallback.
+  const renderParts = parts.filter(part => part.partType !== "closed_eyes" || hasBlinkPair);
   // Mini Pets are not required to use every supported layer. Some designs may
   // only need a head/body/eyes while others use ears, tail and wings too. As
-  // soon as an admin authors at least one layered part, render the authored
-  // layer set exactly as-is. The complete preview image remains the fallback
-  // only for Mini Pets that have no authored parts at all.
-  const useLayeredParts = parts.length > 0;
+  // soon as an admin authors at least one usable layered part, render the
+  // authored layer set. The complete preview image remains the fallback only
+  // when there are no usable authored parts.
+  const useLayeredParts = renderParts.length > 0;
 
   const visual = (
     <div
@@ -103,14 +109,14 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
     >
       <style>{MINI_PET_MOTION}</style>
       <div className={pet.animationStyle === "float" ? "mini-pet-float" : "mini-pet-breath"} style={{ position: "absolute", inset: 0, transformOrigin: "center bottom" }}>
-        {useLayeredParts ? parts.map(part => (
+        {useLayeredParts ? renderParts.map(part => (
           <img
             key={part.id}
             src={part.imageUrl}
             alt=""
             draggable={false}
             data-mini-pet-part={part.partType}
-            className={motionClassForPart(part.partType)}
+            className={motionClassForPart(part.partType, hasBlinkPair)}
             style={{
               position: "absolute",
               inset: 0,
@@ -209,9 +215,17 @@ body:has([data-testid="button-close-equip-accessories"]) [data-testid="active-pe
   0%,88%,100%{transform:rotate(0deg)}
   94%{transform:rotate(-1deg)}
 }
-@keyframes miniPetBlink {
+@keyframes miniPetBlinkFallback {
   0%,44%,48%,100%{opacity:1}
   45%,47%{opacity:.04}
+}
+@keyframes miniPetBlinkOpen {
+  0%,44%,48%,100%{opacity:1}
+  45%,47%{opacity:0}
+}
+@keyframes miniPetBlinkClosed {
+  0%,44%,48%,100%{opacity:0}
+  45%,47%{opacity:1}
 }
 
 .mini-pet-breath{animation:miniPetBreath 4.8s ease-in-out infinite}
@@ -223,7 +237,9 @@ body:has([data-testid="button-close-equip-accessories"]) [data-testid="active-pe
 .mini-pet-tail{animation:miniPetTail 5.1s ease-in-out infinite}
 .mini-pet-ear-left{animation:miniPetEarLeft 5.6s ease-in-out infinite}
 .mini-pet-ear-right{animation:miniPetEarRight 5.6s ease-in-out infinite}
-.mini-pet-eyes{animation:miniPetBlink 5.4s steps(1,end) infinite}
+.mini-pet-eyes-fallback{opacity:1;animation:miniPetBlinkFallback 5.4s steps(1,end) infinite}
+.mini-pet-eyes-open{opacity:1;animation:miniPetBlinkOpen 5.4s steps(1,end) infinite}
+.mini-pet-eyes-closed{opacity:0;animation:miniPetBlinkClosed 5.4s steps(1,end) infinite}
 .mini-pet-wing{transform-origin:50% 55%!important;will-change:transform}
 .mini-pet-ear{transform-origin:50% 45%!important;will-change:transform}
 .mini-pet-tail{transform-origin:50% 62%!important;will-change:transform}

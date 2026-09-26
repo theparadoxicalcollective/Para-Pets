@@ -1,12 +1,28 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { MINI_PET_PART_TYPES, miniPetCreateSchema } from "../shared/miniPet";
+import { MINI_PET_PART_TYPES, miniPetCreateSchema, miniPetPartSchema } from "../shared/miniPet";
 
-test("Mini Pets expose exactly the supported eight part types", () => {
+test("Mini Pets expose the supported animation part types including optional Closed Eyes", () => {
   assert.deepEqual(MINI_PET_PART_TYPES, [
-    "body", "tail", "left_wing", "right_wing", "head", "left_ear", "right_ear", "eyes",
+    "body", "tail", "left_wing", "right_wing", "head", "left_ear", "right_ear", "eyes", "closed_eyes",
   ]);
+  assert.equal(miniPetPartSchema.safeParse({
+    partType: "closed_eyes",
+    imageData: "data:image/png;base64,AA==",
+  }).success, true);
+});
+
+test("Mini Pet blinking pairs open and closed eye frames with an eyes-only fallback", () => {
+  const renderer = readFileSync(new URL("../client/src/components/MiniPetRenderer.tsx", import.meta.url), "utf8");
+  const editor = readFileSync(new URL("../client/src/components/MiniPetPartEditor.tsx", import.meta.url), "utf8");
+  assert.match(renderer, /const hasBlinkPair = parts\.some/);
+  assert.match(renderer, /part\.partType !== "closed_eyes" \|\| hasBlinkPair/);
+  assert.match(renderer, /mini-pet-eyes-open/);
+  assert.match(renderer, /mini-pet-eyes-closed/);
+  assert.match(renderer, /mini-pet-eyes-fallback/);
+  assert.match(renderer, /miniPetBlinkClosed/);
+  assert.match(editor, /"eyes",\s*"closed_eyes"/);
 });
 
 test("Mini Pet validation permits combined stat boosts and only subtle animation profiles", () => {
