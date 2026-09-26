@@ -63,14 +63,20 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
 
-test("admin can apply one star-row horizontal center to all rarity layouts", () => {
+test("admin can apply consistent star size and placement to all rarity layouts", () => {
   assert.match(adminPanel, /data-testid="button-apply-card-star-x-to-all"/);
   assert.match(adminPanel, /const centerX = currentLayout\.starX \+ currentLayout\.starWidth \/ 2/);
+  assert.match(adminPanel, /const perStarWidth = currentLayout\.starWidth \/ layoutRarity/);
+  assert.match(adminPanel, /const starY = currentLayout\.starY/);
   assert.match(adminPanel, /CARD_RARITIES\.map\(\(rarity\) =>/);
-  assert.match(adminPanel, /centerX - existing\.starWidth \/ 2/);
+  assert.match(adminPanel, /const starWidth = Number\(Math\.min\(80, perStarWidth \* rarity\)\.toFixed\(1\)\)/);
+  assert.match(adminPanel, /centerX - starWidth \/ 2/);
+  assert.match(adminPanel, /starY,/);
+  assert.match(adminPanel, /starWidth,/);
   assert.match(adminPanel, /\/api\/admin\/card-border-layouts\/\$\{layout\.rarity\}/);
-  assert.match(adminPanel, /Star position applied to all rarities/);
-  assert.match(adminPanel, /Each rarity keeps its own height and star size/);
+  assert.match(adminPanel, /Star size and placement applied to all rarities/);
+  assert.match(adminPanel, /Apply Size \+ Placement to All/);
+  assert.match(adminPanel, /same individual star size, vertical position, and horizontal center/);
 });
 
 test("card text editor uses simple nudge, center, size, and title-only curve controls", () => {
