@@ -9,7 +9,7 @@ import { applyCostumeWingUpload, CostumeWingUploadError } from "../costumeWingUp
 export function registerCostumeAdminRoutes(app: Express, processImage: (data: string) => Promise<string>) {
   app.get("/api/admin/costumes", requireAdmin, async (_req: Request, res: Response) => {
     try {
-      const items = await db.select({ id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl })
+      const items = await db.select({ id: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl, adornmentSlot: shopItems.adornmentSlot, adornmentEffect: shopItems.adornmentEffect })
         .from(shopItems)
         .where(eq(shopItems.type, "costume"));
       res.json(items);
