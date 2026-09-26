@@ -122,6 +122,7 @@ test("admin reward pickers integrate cards with the normal reward categories", (
   assert.match(redeemAdmin, /title="Select Code Reward"/);
   assert.match(redeemAdmin, /cards=\{cardCatalog\.filter/);
   assert.match(redeemAdmin, /cards: cards\.map/);
-  assert.match(redeemRoutes, /function parseAdminCodePayload/);\n  assert.match(redeemRoutes, /cards = parseBundleCards\(body\?\.cards\)/);
+  assert.match(redeemRoutes, /function parseAdminCodePayload/);
+  assert.match(redeemRoutes, /cards = parseBundleCards\(body\?\.cards\)/);
   assert.match(redeemRoutes, /INSERT INTO reward_bundle_cards/);
 });
