@@ -158,6 +158,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
               >
                 <div
                   data-testid="card-front-face"
+                  aria-hidden={flipped}
                   style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                 >
                   <CardPreview
@@ -193,7 +194,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                       position: "absolute",
                       inset: "4.5% 4.5%",
                       borderRadius: "8% / 5%",
-                      background: `linear-gradient(145deg, ${CARD_BACK_SURFACE_COLORS[card.rarity]}, color-mix(in srgb, ${CARD_BACK_SURFACE_COLORS[card.rarity]} 88%, #cfae75 12%))`,
+                      background: CARD_BACK_SURFACE_COLORS[card.rarity],
                       boxShadow: "inset 0 0 30px rgba(120,76,24,.12)",
                     }}
                   />
@@ -221,7 +222,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                       padding: "4% 3%",
                       color: CARD_TITLE_COLORS[card.rarity],
                       fontFamily: "Georgia, 'Times New Roman', serif",
-                      fontSize: "clamp(12px, 3.55cqw, 17px)",
+                      fontSize: "clamp(12px, 3.55vw, 17px)",
                       lineHeight: 1.48,
                       textAlign: "center",
                       whiteSpace: "pre-wrap",
