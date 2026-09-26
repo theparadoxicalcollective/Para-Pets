@@ -49,7 +49,7 @@ test("costume pointer movement only updates a local draft", () => {
 
 test("costume placement persists only from the explicit Save action", () => {
   assert.match(editor, /const saveCostumePlacement = \(\) => \{/);
-  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, instance: selectedCostumeInstance, rotation:/);
+  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, form: costumeArtworkForm, instance: selectedCostumeIsWings \? 1 : selectedCostumeInstance, rotation:/);
   assert.match(editor, /queryClient\.setQueryData<CostumeDefinition\[]>/);
   assert.match(editor, /data-testid="costume-save-dock"/);
   assert.match(editor, /fixed left-4 right-4/);
