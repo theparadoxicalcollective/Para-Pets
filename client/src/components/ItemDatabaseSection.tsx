@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
 import type { CardDefinition } from "@/lib/cardCatalog";
 import { ADORNMENT_SLOT_DEFINITIONS, isAdornmentSlotKey, type AdornmentSlotKey } from "@shared/costumeFeature";
-import { ADORNMENT_GENERAL_ITEM_EFFECTS, ADORNMENT_ITEM_EFFECT_LABELS, isAdornmentItemEffect, type AdornmentItemEffect } from "@shared/adornmentAnimation";
+import { ADORNMENT_ITEM_EFFECTS, ADORNMENT_ITEM_EFFECT_LABELS, isAdornmentItemEffect, type AdornmentItemEffect } from "@shared/adornmentAnimation";
 
 export interface ShopItemFull {
   id: string;
@@ -596,7 +596,7 @@ function AdminItemForm({
   const [type, setType] = useState(defaultType);
   const initialAdornmentSlot = item?.adornmentSlot;
   const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(initialAdornmentSlot) ? initialAdornmentSlot : "head");
-  const [adornmentEffect, setAdornmentEffect] = useState<AdornmentItemEffect | "">(initialAdornmentSlot === "wings" ? "wings" : isAdornmentItemEffect(item?.adornmentEffect) ? item!.adornmentEffect as AdornmentItemEffect : "");
+  const [adornmentEffect, setAdornmentEffect] = useState<AdornmentItemEffect | "">(isAdornmentItemEffect(item?.adornmentEffect) ? item!.adornmentEffect as AdornmentItemEffect : "");
   const [hideAboveHeadPart, setHideAboveHeadPart] = useState(!!item?.hideAboveHeadPart);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
@@ -642,11 +642,6 @@ function AdminItemForm({
     ],
   };
   const affectsOptions = affectsOptionsByType[skillType] || [];
-
-  const handleAdornmentSlotChange = (next: AdornmentSlotKey) => {
-    setAdornmentSlot(next);
-    setAdornmentEffect((current) => next === "wings" ? "wings" : current === "wings" ? "" : current);
-  };
 
   // When the admin changes Skill Type, snap Affects to a sensible default
   // and clear any percent that no longer applies to the new type.
@@ -705,7 +700,7 @@ function AdminItemForm({
       const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
       const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all" };
       payload.adornmentSlot = effectiveType === "costume" ? adornmentSlot : null;
-      payload.adornmentEffect = effectiveType === "costume" ? (adornmentSlot === "wings" ? "wings" : adornmentEffect || null) : null;
+      payload.adornmentEffect = effectiveType === "costume" && adornmentSlot !== "wings" ? (adornmentEffect || null) : null;
       payload.hideAboveHeadPart = effectiveType === "costume" && adornmentSlot === "head" ? hideAboveHeadPart : false;
       if (imageData) payload.imageData = imageData;
 
@@ -1000,7 +995,7 @@ function AdminItemForm({
               <select
                 data-testid="select-adornment-slot"
                 value={adornmentSlot}
-                onChange={(e) => handleAdornmentSlotChange(e.target.value as AdornmentSlotKey)}
+                onChange={(e) => setAdornmentSlot(e.target.value as AdornmentSlotKey)}
                 className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
                 style={inputStyle}
               >
@@ -1031,7 +1026,7 @@ function AdminItemForm({
                     style={inputStyle}
                   >
                     <option value="">Use fitted/default motion</option>
-                    {ADORNMENT_GENERAL_ITEM_EFFECTS.map((effect) => (
+                    {ADORNMENT_ITEM_EFFECTS.map((effect) => (
                       <option key={effect} value={effect}>{ADORNMENT_ITEM_EFFECT_LABELS[effect]}</option>
                     ))}
                   </select>
