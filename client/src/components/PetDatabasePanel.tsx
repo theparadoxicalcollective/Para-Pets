@@ -502,9 +502,12 @@ export default function PetDatabasePanel({
   const costumeAnchorPoint = getCostumePlacementAnchorPoint(costumeAnchor, selectedCostumePlacement);
   const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);
   const previewHiddenWings = new Set<string>();
+  if (selectedCostumeIsWings && selectedCostumePlacement) {
+    viewParts.forEach(part => { if (part.partType.toLowerCase().includes("wing")) previewHiddenWings.add(part.partType); });
+  }
   for (const instance of costumeInstances) {
     const placement = instance === selectedCostumeInstance ? selectedCostumePlacement
-      : selectedCostumeDefinition?.placements.find(p => p.view === currentCostumeView && (p.instance ?? 1) === instance);
+      : formPlacements.find(p => p.view === currentCostumeView && (p.instance ?? 1) === instance);
     if (!placement) continue;
     if (placement.anchorPart === "independent" && placement.replacesWings) {
       viewParts.forEach(part => { if (part.partType.includes("wing")) previewHiddenWings.add(part.partType); });
@@ -524,7 +527,7 @@ export default function PetDatabasePanel({
     }
     if (costumeDraftDirty) return;
     setCostumeDraft(savedCostumePlacement ?? defaultCostumePlacement());
-  }, [selectedTemplateId, selectedCostumeId, selectedCostumeInstance, currentCostumeView, selectedCostumeDefinition]);
+  }, [selectedTemplateId, selectedCostumeId, selectedCostumeInstance, currentCostumeView, costumeArtworkForm, selectedCostumeDefinition]);
 
   useEffect(() => {
     if (!costumeDraftDirty) return;
