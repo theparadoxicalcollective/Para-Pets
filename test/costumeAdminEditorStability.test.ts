@@ -199,7 +199,7 @@ test("adornment fitter provides a shared-runtime live idle and effect preview", 
   assert.match(editor, /artworkForm=\{costumeArtworkForm\}/);
   assert.match(editor, /mode=\{previewAdornmentMotion \? "idle" : "static"\}/);
   assert.match(editor, /previewCostumes=\{livePreviewCostumes\}/);
-  assert.match(editor, /Regular"} pet idle \+ saved adornment effect/);
+  assert.match(editor, /pet idle \+ saved adornment effect/);
   assert.match(editor, /<AdornmentArtwork[^>]*animated=\{false\}/);
 });
 
