@@ -196,10 +196,16 @@ test("4 and 5 star card titles share the same warm readable name color", () => {
   assert.doesNotMatch(preview, /\[data-card-title-rarity="5"\] > span/);
 });
 
-test("1 and 2 star card artwork bleeds behind the lower CB frame without changing higher rarities", () => {
-  assert.match(preview, /if \(rarity <= 2\) return depth3d \? "12% 7% 4\.5%" : "12% 10% 4\.5%"/);
-  assert.match(preview, /return rarity <= 2 \? "11% 6% 4%" : "11% 6%"/);
+test("1 and 2 star artwork overscans inside a safe clipped inner viewport", () => {
+  assert.match(preview, /if \(rarity <= 2\) return "12\.5% 11\.5% 8%"/);
+  assert.match(preview, /function artworkMediaInsetForRarity\(rarity: CardRarity\)/);
+  assert.match(preview, /return rarity <= 2 \? "-1\.5% -2% -5%" : "0"/);
+  assert.match(preview, /return rarity <= 2 \? "11\.5% 10\.5% 7%" : "11% 6%"/);
   assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
+  assert.match(preview, /WebkitClipPath: "inset\(0 round 9% \/ 7%\)"/);
+  assert.match(preview, /contain: "paint"/);
+  assert.match(preview, /inset: artworkMediaInsetForRarity\(rarity\)/);
 });
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
@@ -256,8 +262,10 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /function artworkInsetForRarity\(rarity: CardRarity, depth3d: boolean\)/);
-  assert.match(preview, /rarity <= 2\) return depth3d \? "12% 7% 4\.5%" : "12% 10% 4\.5%"/);
+  assert.match(preview, /rarity <= 2\) return "12\.5% 11\.5% 8%"/);
   assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
+  assert.match(preview, /inset: artworkMediaInsetForRarity\(rarity\)/);
   assert.match(preview, /inset: artworkInsetForRarity\(rarity, depth3d\)/);
   assert.match(preview, /artworkBackingInsetForRarity\(rarity\)/);
   assert.match(preview, /inset 0 0 24px 8px/);
