@@ -176,15 +176,17 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.doesNotMatch(preview, /stroke-dasharray: 17 83/);
   assert.match(preview, /showSparkles && rarity >= 3/);
   assert.match(preview, /data-testid="card-border-gold-glow"/);
+  assert.match(preview, /linear-gradient\(108deg/); // single narrow gold shine band
+  assert.doesNotMatch(preview, /\), linear-gradient\(108deg/);
   assert.match(preview, /zIndex: 3/);
   assert.match(preview, /maskImage: `url/);
   assert.match(preview, /mixBlendMode: "screen"/);
-  assert.match(preview, /backgroundRepeat: "no-repeat, no-repeat"/);
-  assert.match(preview, /backgroundPosition: depth3d \? "var\(--card-turn-position, 0%\) 0, 190% 0" : "0% 0, 190% 0"/);
-  assert.match(preview, /from \{ background-position: 0% 0, 190% 0; \}/);
-  assert.match(preview, /to \{ background-position: -190% 0, 0% 0; \}/);
+  assert.match(preview, /backgroundRepeat: "no-repeat"/);
+  assert.match(preview, /backgroundPosition: depth3d \? "var\(--card-turn-position, 0%\) 0" : "145% 0"/);
+  assert.match(preview, /from \{ background-position: 145% 0; \}/);
+  assert.match(preview, /to \{ background-position: -45% 0; \}/);
   assert.match(preview, /cardBorderGlowTravel 11\.5s linear infinite/);
-  assert.match(preview, /drop-shadow\(0 0 \$\{6\.5 \+ rarity \* \.9\}px rgba\(255,184,34,\.7\)\)/);
+  assert.match(preview, /drop-shadow\(0 0 \$\{3\.8 \+ rarity \* \.42\}px rgba\(255,188,42,\.34\)\)/);
   assert.match(preview, /showSparkles && rarity === 5/);
   assert.match(preview, /data-testid="card-border-sparkles"/);
   assert.match(preview, /animationDuration: "3\.2s"/);
