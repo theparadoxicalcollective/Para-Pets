@@ -485,6 +485,7 @@ export default function PetDatabasePanel({
     animation: "none",
     animationSpeed: 1,
     replacesWings: false,
+    ...(selectedCostumeItem?.adornmentSlot === "head" ? { followPartIndex: 1 } : {}),
     instance: selectedCostumeInstance,
     posX: 500,
     posY: 500,
@@ -1326,7 +1327,7 @@ export default function PetDatabasePanel({
                       pointerEvents: isActive ? "auto" : "none",
                     }}
                   >
-                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume && !placement.dontMove} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
+                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={false} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
                   </div>
                 );
               })}
