@@ -42,3 +42,50 @@ test("Hub and administration surfaces expose redeem-code controls", () => {
   assert.match(admin, /\{ key: "code", label: "Code" \}/);
   assert.match(admin, /rewardsTab === "code" && <RedeemCodeAdminPanel/);
 });
+
+test("admin redeem-code editing is server-locked until the first redemption", () => {
+  const route = readFileSync(path.join(root, "server", "routes", "redeemCode.routes.ts"), "utf8");
+  const panel = readFileSync(path.join(root, "client", "src", "components", "RedeemCodeAdminPanel.tsx"), "utf8");
+
+  assert.match(route, /app\.put\("\/api\/admin\/redeem-codes\/:id", requireAdmin/);
+  assert.match(route, /SELECT id, bundle_id FROM redeem_codes[\s\S]*?FOR UPDATE/);
+  assert.match(route, /SELECT COUNT\(\*\)::int AS total[\s\S]*?FROM redeem_code_redemptions/);
+  assert.match(route, /CODE_ALREADY_REDEEMED/);
+  assert.match(route, /can no longer be edited/);
+  assert.match(route, /UPDATE reward_bundles/);
+  assert.match(route, /DELETE FROM reward_bundle_items/);
+  assert.match(route, /DELETE FROM reward_bundle_cards/);
+
+  assert.match(panel, /button-edit-code-/);
+  assert.match(panel, /const canEdit = redemptionCount === 0/);
+  assert.match(panel, /disabled=\{!canEdit/);
+  assert.match(panel, /Editing locked after first redemption/);
+  assert.match(panel, /apiRequest\("PUT",/);
+});
+
+test("admins can delete redeem codes without breaking already-delivered rewards", () => {
+  const route = readFileSync(path.join(root, "server", "routes", "redeemCode.routes.ts"), "utf8");
+  const panel = readFileSync(path.join(root, "client", "src", "components", "RedeemCodeAdminPanel.tsx"), "utf8");
+
+  assert.match(route, /app\.delete\("\/api\/admin\/redeem-codes\/:id", requireAdmin/);
+  assert.match(route, /DELETE FROM redeem_codes WHERE id/);
+  assert.match(route, /NOT EXISTS \(SELECT 1 FROM user_rewards WHERE bundle_id/);
+  assert.match(route, /DELETE FROM reward_bundles/);
+
+  assert.match(panel, /button-delete-code-/);
+  assert.match(panel, /window\.confirm\(warning\)/);
+  assert.match(panel, /Existing rewards already delivered to players will stay intact/);
+  assert.match(panel, /apiRequest\("DELETE",/);
+});
+
+test("admin code list includes reward contents so zero-redemption codes can be fully edited", () => {
+  const route = readFileSync(path.join(root, "server", "routes", "redeemCode.routes.ts"), "utf8");
+  const panel = readFileSync(path.join(root, "client", "src", "components", "RedeemCodeAdminPanel.tsx"), "utf8");
+
+  assert.match(route, /AS shop_item_ids/);
+  assert.match(route, /json_build_object\('cardId', rbc\.card_id, 'quantity', rbc\.quantity\)/);
+  assert.match(panel, /shop_item_ids\?: string\[\]/);
+  assert.match(panel, /cards\?: Array<\{ cardId: string; quantity: number \}>/);
+  assert.match(panel, /setItems\(resolvedItems\)/);
+  assert.match(panel, /setCards\(resolvedCards\)/);
+});
