@@ -39,7 +39,7 @@ test("evolution artwork is authored separately and can be selected for raid boss
 
 test("costume pointer movement only updates a local draft", () => {
   const pointerMove = editor.match(/const moveCostumeDrag = \(event:[\s\S]*?\n  \};/)?.[0] ?? "";
-  assert.match(editor, /onPointerMove=\{moveCostumeDrag\}/);
+  assert.match(editor, /onPointerMove=\{previewAdornmentMotion \? undefined : moveCostumeDrag\}/);
   assert.match(pointerMove, /updateCostumeDraft\(/);
   assert.doesNotMatch(pointerMove, /saveCostumeMutation\.mutate/);
   assert.match(editor, /setCostumeDraft\(current =>/);
@@ -197,9 +197,11 @@ test("adornment fitter provides a shared-runtime live idle and effect preview", 
   assert.match(editor, /data-testid="toggle-live-adornment-preview"/);
   assert.match(editor, /<PetAnimator/);
   assert.match(editor, /artworkForm=\{costumeArtworkForm\}/);
-  assert.match(editor, /mode=\{previewAdornmentMotion \? "idle" : "static"\}/);
+  assert.match(editor, /mode="idle"/);
   assert.match(editor, /previewCostumes=\{livePreviewCostumes\}/);
-  assert.match(editor, /pet idle \+ saved adornment effect/);
+  assert.match(editor, /pet idle \+ selected adornment effect/);
+  assert.match(editor, /previewAdornmentMotion \? \(/);
+  assert.match(editor, /fitAdornmentStage\(viewParts\.filter\(part => !previewHiddenWings\.has\(part\.partType\)\)\)/);
   assert.match(editor, /<AdornmentArtwork[^>]*animated=\{false\}/);
 });
 
@@ -231,6 +233,3 @@ test("production boot creates the costume definition table used by the save rout
   assert.match(bootMigrations, /CREATE TABLE IF NOT EXISTS pet_costume_definitions/);
   assert.match(bootMigrations, /CREATE UNIQUE INDEX IF NOT EXISTS pet_costume_definitions_item_template_uidx/);
 });
-
-
-
