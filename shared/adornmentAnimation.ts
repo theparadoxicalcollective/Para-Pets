@@ -1,11 +1,10 @@
 export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
 export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
 
-export const ADORNMENT_ITEM_EFFECTS = ["still", "follow_part", "dont_move", "float", "spin", "sway", "pulse"] as const;
+export const ADORNMENT_ITEM_EFFECTS = ["follow_part", "dont_move", "float", "spin", "sway", "pulse"] as const;
 export type AdornmentItemEffect = typeof ADORNMENT_ITEM_EFFECTS[number];
 
 export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> = {
-  still: "Still — no extra motion",
   follow_part: "Follow Part — move with matching pet layer",
   dont_move: "Don't Move — stay fixed in fitted position",
   float: "Float — balloon-like loop",
@@ -30,11 +29,17 @@ export function isAdornmentItemEffect(value: unknown): value is AdornmentItemEff
   return typeof value === "string" && ADORNMENT_ITEM_EFFECTS.includes(value as AdornmentItemEffect);
 }
 
+/** Treat old saved "still" values as the new Don't Move choice when editing. */
+export function normalizeAdornmentItemEffect(value: unknown): AdornmentItemEffect | null {
+  if (value === "still") return "dont_move";
+  return isAdornmentItemEffect(value) ? value : null;
+}
+
 /** Item-level effect overrides legacy fitted motion while preserving its saved placement. */
-export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | null | undefined): AdornmentAnimation | null {
+export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | "still" | null | undefined): AdornmentAnimation | null {
   if (!effect) return null;
+  if (effect === "still") return "none";
   const effectMap: Record<AdornmentItemEffect, AdornmentAnimation> = {
-    still: "none",
     follow_part: "none",
     dont_move: "none",
     float: "float",
