@@ -3,6 +3,8 @@ export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
 
 export const ADORNMENT_ITEM_EFFECTS = ["follow_part", "dont_move", "float", "spin", "sway", "pulse"] as const;
 export type AdornmentItemEffect = typeof ADORNMENT_ITEM_EFFECTS[number];
+/** Runtime-only compatibility for existing DB rows saved before Still was removed from Admin. */
+export type RuntimeAdornmentItemEffect = AdornmentItemEffect | "still";
 
 export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> = {
   follow_part: "Follow Part — move with matching pet layer",
@@ -36,7 +38,7 @@ export function normalizeAdornmentItemEffect(value: unknown): AdornmentItemEffec
 }
 
 /** Item-level effect overrides legacy fitted motion while preserving its saved placement. */
-export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | "still" | null | undefined): AdornmentAnimation | null {
+export function adornmentItemEffectAnimation(effect: RuntimeAdornmentItemEffect | null | undefined): AdornmentAnimation | null {
   if (!effect) return null;
   if (effect === "still") return "none";
   const effectMap: Record<AdornmentItemEffect, AdornmentAnimation> = {
