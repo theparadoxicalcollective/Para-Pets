@@ -441,7 +441,11 @@ function CostumeLayer({
     const canonicalPlacements = costume.slot === ADORNMENT_SLOT_MAP.wings
       ? viewPlacements.slice(0, 1)
       : viewPlacements;
-    const placements = canonicalPlacements.filter((item) => item.depth === depth);
+    // Back is a true rear adornment, regardless of the depth saved in an
+    // older fitting. It must sit behind the core pet and every other piece.
+    const placements = canonicalPlacements.filter((item) =>
+      costume.slot === ADORNMENT_SLOT_MAP.back ? depth === "back" : item.depth === depth
+    );
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((savedPlacement) => {
@@ -584,7 +588,12 @@ function CostumeLayer({
     })}</>;
   };
 
-  return <>{costumes.map(renderCostume)}</>;
+  // Other rear pieces can share this layer; paint Back first so they remain
+  // in front of it even when the server returns a different equip order.
+  const orderedCostumes = depth === "back"
+    ? [...costumes].sort((a, b) => Number(b.slot === ADORNMENT_SLOT_MAP.back) - Number(a.slot === ADORNMENT_SLOT_MAP.back))
+    : costumes;
+  return <>{orderedCostumes.map(renderCostume)}</>;
 }
 
 function AboveHeadTopLayer({
@@ -771,6 +780,9 @@ export default function PetAnimator({
       if (hasVisibleWingsAdornment) {
         for (const part of viewParts) if (part.partType.toLowerCase().includes("wing")) hidden.add(part.partType);
       }
+      // A Back adornment sits behind the complete native pet. Its fitting
+      // anchor must never replace or hide a pet wing layer.
+      if (costume.slot === ADORNMENT_SLOT_MAP.back) continue;
       for (const placement of placements) {
         if (!placement || placement.view !== costumeView) continue;
         if (placement.anchorPart === "independent" && placement.replacesWings) {
