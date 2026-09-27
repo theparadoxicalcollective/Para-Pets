@@ -133,6 +133,17 @@ export function getUnlockedCostumeSlotCount(extraSlots: number): number {
   return Math.min(COSTUME_SLOT_COUNT, COSTUME_BASE_SLOTS + Math.max(0, extraSlots));
 }
 
+/** Back artwork is a background layer and may share any pet-part positioning anchor. */
+export function costumeLayersConflict(
+  requestedSlot: number,
+  requestedLayers: ReadonlySet<string>,
+  equippedSlot: number,
+  equippedLayers: readonly Pick<CostumePlacement, "anchorPart">[],
+): boolean {
+  if (requestedSlot === ADORNMENT_SLOT_MAP.back || equippedSlot === ADORNMENT_SLOT_MAP.back) return false;
+  return equippedLayers.some((placement) => requestedLayers.has(placement.anchorPart));
+}
+
 
 /**
  * A costume fitted to a wing replaces the pet's original wing artwork.

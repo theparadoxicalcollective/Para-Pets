@@ -81,14 +81,23 @@ test("Stacked costume copies are counted and unequipped individually", () => {
   assert.match(routes, /eq\(petEquippedCostumes\.id, equippedCostumeId\)/);
 });
 
-test("Layer conflicts protect ordinary spaces while Wings and Back can share a body anchor", () => {
+test("Layer conflicts protect ordinary spaces while Back can share anchors", () => {
   assert.match(routes, /requestedLayers = new Set/);
-  assert.match(routes, /requestedLayers\.has\(placement\.anchorPart\)/);
+  assert.match(costumeFeature, /requestedLayers\.has\(placement\.anchorPart\)/);
   assert.match(routes, /another costume on the same pet layer/);
-  assert.match(routes, /shareBodyAnchor = isWingOrBack\(slot\) && isWingOrBack\(equippedCostume\.slot\)/);
-  assert.match(routes, /!\(shareBodyAnchor && placement\.anchorPart === "body"\)/);
+  assert.match(routes, /costumeLayersConflict\(slot, requestedLayers, equippedCostume\.slot/);
   assert.match(routes, /slot: petEquippedCostumes\.slot/);
   assert.match(routes, /eq\(userInventory\.id, petInventoryId\)[\s\S]*?\.for\("update"\)/);
+});
+
+test("Back adornments can coexist with any anchored adornment without weakening other layer conflicts", async () => {
+  const { costumeLayersConflict, ADORNMENT_SLOT_MAP } = await import("../shared/costumeFeature.ts");
+  const body = [{ anchorPart: "body" }] as Parameters<typeof costumeLayersConflict>[3];
+  const head = [{ anchorPart: "head" }] as Parameters<typeof costumeLayersConflict>[3];
+  assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.back, new Set(["body"]), ADORNMENT_SLOT_MAP.wings, body), false);
+  assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.back, new Set(["head"]), ADORNMENT_SLOT_MAP.head, head), false);
+  assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.head, new Set(["body"]), ADORNMENT_SLOT_MAP.back, body), false);
+  assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.head, new Set(["body"]), ADORNMENT_SLOT_MAP.wings, body), true);
 });
 
 test("Admin costume library marks pieces already fitted for the selected pet", () => {

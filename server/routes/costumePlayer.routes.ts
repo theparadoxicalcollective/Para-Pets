@@ -11,7 +11,7 @@ import {
 } from "@shared/costumeSchema";
 import {
   COSTUME_SLOT_COUNT,
-  ADORNMENT_SLOT_MAP,
+  costumeLayersConflict,
   getAdornmentSlotDefinition,
   getCostumeSlotUnlockCost,
   getUnlockedCostumeSlotCount,
@@ -230,16 +230,9 @@ export function registerCostumePlayerRoutes(app: Express) {
             eq(petCostumeDefinitions.templateId, templateId),
           ))
           .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
-        const layerConflict = equippedLayers.find((equippedCostume) => {
-          // Wings and Back are separate spaces. Both are commonly fitted to the
-          // body as a positioning anchor, so sharing that anchor is intentional.
-          const isWingOrBack = (value: number) =>
-            value === ADORNMENT_SLOT_MAP.wings || value === ADORNMENT_SLOT_MAP.back;
-          const shareBodyAnchor = isWingOrBack(slot) && isWingOrBack(equippedCostume.slot);
-          return placementsForPetForm(equippedCostume.placements, !!target.pet.isEvolved)
-            .some((placement) => requestedLayers.has(placement.anchorPart)
-              && !(shareBodyAnchor && placement.anchorPart === "body"));
-        });
+        const layerConflict = equippedLayers.find((equippedCostume) =>
+          costumeLayersConflict(slot, requestedLayers, equippedCostume.slot,
+            placementsForPetForm(equippedCostume.placements, !!target.pet.isEvolved)));
         if (layerConflict) {
           throw new Error(`Unequip ${layerConflict.name} before equipping another costume on the same pet layer`);
         }
