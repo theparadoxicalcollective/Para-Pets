@@ -9,11 +9,13 @@ import { COSTUME_SLOT_COUNT, getAdornmentSlotDefinition, getCostumeSlotUnlockCos
 
 interface InventoryCostume {
   inventoryId: string;
+  shopItemId: string;
   name: string;
   type: string;
   adornmentSlot?: string | null;
   imageUrl: string | null;
   quantity: number;
+  isListed: boolean;
 }
 
 interface EquippedCostume {
@@ -29,6 +31,17 @@ interface EquippedCostume {
 interface CostumeResponse {
   equipped: EquippedCostume[];
   extraSlots: number;
+  fittedShopItemIds: string[];
+}
+
+function equipErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const response = raw.replace(/^\d{3}:\s*/, "");
+  try {
+    const parsed = JSON.parse(response) as { message?: unknown };
+    if (typeof parsed.message === "string" && parsed.message) return parsed.message;
+  } catch { /* Network errors are already plain text. */ }
+  return response || "This adornment could not be equipped.";
 }
 
 interface Props {
@@ -41,14 +54,15 @@ interface Props {
 
 export default function PetCostumeEquipmentSection({ petInventoryId, petName, rarityColor, userCoins, closetMode = false }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [equipError, setEquipError] = useState<string | null>(null);
   const [removeCostume, setRemoveCostume] = useState<EquippedCostume | null>(null);
   const [unlockSlot, setUnlockSlot] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data } = useQuery<CostumeResponse>({
-    queryKey: ["/api/pet", petInventoryId, "costumes"],
-    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/costumes`)).json(),
+    queryKey: ["/api/pet", petInventoryId, "costumes", "picker"],
+    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/costumes?includeFittings=1`)).json(),
     staleTime: 0,
   });
   const equipped = data?.equipped ?? [];
@@ -59,6 +73,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const selectedSlotDefinition = selectedSlot ? getAdornmentSlotDefinition(selectedSlot) : undefined;
   const available = inventory.filter((item) =>
     item.type === "costume"
+    && !item.isListed
     && item.quantity > (equippedCounts[item.inventoryId] ?? 0)
     && (!selectedSlotDefinition || !item.adornmentSlot || item.adornmentSlot === selectedSlotDefinition.key)
   );
@@ -72,8 +87,8 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const equip = useMutation({
     mutationFn: async ({ costumeInventoryId, slot }: { costumeInventoryId: string; slot: number }) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/equip`, { costumeInventoryId, slot })).json(),
-    onSuccess: () => { setSelectedSlot(null); refresh(); toast({ title: "Adornment equipped!" }); },
-    onError: (error: any) => toast({ title: "Could not equip adornment", description: error?.message || "This adornment could not be equipped.", variant: "destructive" }),
+    onSuccess: () => { setEquipError(null); setSelectedSlot(null); refresh(); toast({ title: "Adornment equipped!" }); },
+    onError: (error: unknown) => setEquipError(equipErrorMessage(error)),
   });
 
   const unequip = useMutation({
@@ -86,7 +101,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const unlock = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/unlock`, {})).json(),
     onSuccess: (result: { extraSlots: number; coins: number }) => {
-      queryClient.setQueryData<CostumeResponse>(["/api/pet", petInventoryId, "costumes"], current =>
+      queryClient.setQueryData<CostumeResponse>(["/api/pet", petInventoryId, "costumes", "picker"], current =>
         current ? { ...current, extraSlots: result.extraSlots } : current,
       );
       queryClient.setQueryData<{ coins: number }>(["/api/auth/me"], current =>
@@ -106,6 +121,11 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
       return;
     }
     setUnlockSlot(slot);
+  };
+
+  const openAdornmentPicker = (slot: number) => {
+    setEquipError(null);
+    setSelectedSlot(slot);
   };
 
   return (
@@ -132,7 +152,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
               type="button"
               data-testid={`slot-costume-${slot}`}
               aria-label={locked ? `Unlock ${slotDefinition.label} adornment space` : costume ? `Unequip ${costume.name} from ${slotDefinition.label}` : `Choose adornment for ${slotDefinition.label}`}
-              onClick={() => locked ? requestLockedSlot(slot) : costume ? setRemoveCostume(costume) : setSelectedSlot(slot)}
+              onClick={() => locked ? requestLockedSlot(slot) : costume ? setRemoveCostume(costume) : openAdornmentPicker(slot)}
               className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl transition-transform active:scale-95"
               style={closetMode ? { background: "transparent", border: "2px solid transparent", padding: 3, cursor: "pointer" } : { minHeight: 92, padding: 8, background: costume ? "rgba(16,28,20,.92)" : "rgba(3,10,7,.78)", border: `1.5px solid ${locked ? "rgba(80,90,82,.35)" : costume ? rarityColor + "88" : "rgba(139,92,246,.32)"}`, cursor: "pointer" }}
             >
@@ -148,10 +168,12 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
 
       {selectedSlot && <div className="fixed inset-0 z-[1000] grid place-items-center px-5 py-8" style={{ background: "rgba(2,5,3,.94)" }}>
         <div className="max-h-full w-full max-w-[380px] overflow-y-auto rounded-2xl p-5" style={{ background: "#07120d", border: "1px solid rgba(202,164,76,.48)", boxShadow: "0 0 30px rgba(0,0,0,.72)" }}>
-          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="font-fantasy text-sm" style={{ color: "#ead9a8" }}>Choose Adornment</p><p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to {getAdornmentSlotDefinition(selectedSlot)?.label}</p></div><button type="button" aria-label="Close adornment inventory" onClick={() => setSelectedSlot(null)} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#dfc27d", border: "1px solid rgba(202,164,76,.32)" }}>CLOSE</button></div>
+          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="font-fantasy text-sm" style={{ color: "#ead9a8" }}>Choose Adornment</p><p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to {getAdornmentSlotDefinition(selectedSlot)?.label}</p></div><button type="button" aria-label="Close adornment inventory" onClick={() => { setEquipError(null); setSelectedSlot(null); }} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#dfc27d", border: "1px solid rgba(202,164,76,.32)" }}>CLOSE</button></div>
+          {equipError && <p role="alert" data-testid="adornment-equip-error" className="mb-3 rounded-lg border border-red-300/40 bg-red-950/70 px-3 py-2 text-[11px] text-red-100">{equipError}</p>}
           {available.length ? <div className="grid grid-cols-3 gap-2" data-testid="costume-slot-inventory">{available.map((item) => {
             const remaining = item.quantity - (equippedCounts[item.inventoryId] ?? 0);
-            return <button key={item.inventoryId} type="button" data-testid={`bag-costume-${item.inventoryId}`} disabled={equip.isPending} onClick={() => equip.mutate({ costumeInventoryId: item.inventoryId, slot: selectedSlot })} className="flex flex-col items-center gap-1 rounded-xl p-2 active:scale-95 disabled:opacity-45" style={{ background: "rgba(7,14,11,.9)", border: "1px solid rgba(202,164,76,.26)" }}><div className="grid h-12 w-12 place-items-center overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.48)" }}>{item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" /> : <Sparkles size={24} style={{ color: "#dfc27d" }} />}</div><span className="w-full truncate font-fantasy text-[7px]" style={{ color: "rgba(239,226,194,.8)" }}>{item.name}</span>{remaining > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{remaining}</span>}</button>;
+            const fitted = !data?.fittedShopItemIds || data.fittedShopItemIds.includes(item.shopItemId);
+            return <button key={item.inventoryId} type="button" data-testid={`bag-costume-${item.inventoryId}`} disabled={equip.isPending || !fitted} onClick={() => { setEquipError(null); equip.mutate({ costumeInventoryId: item.inventoryId, slot: selectedSlot }); }} className="flex flex-col items-center gap-1 rounded-xl p-2 active:scale-95 disabled:opacity-60" style={{ background: "rgba(7,14,11,.9)", border: "1px solid rgba(202,164,76,.26)" }}><div className="grid h-12 w-12 place-items-center overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.48)" }}>{item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" /> : <Sparkles size={24} style={{ color: "#dfc27d" }} />}</div><span className="w-full truncate font-fantasy text-[7px]" style={{ color: "rgba(239,226,194,.8)" }}>{item.name}</span>{!fitted ? <span className="text-center text-[8px] text-amber-200">Not fitted for this pet</span> : remaining > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{remaining}</span>}</button>;
           })}</div> : <p className="py-8 text-center font-fantasy text-[10px]" style={{ color: "rgba(255,255,255,.32)" }}>No available adornments in your bag</p>}
         </div>
       </div>}

@@ -91,13 +91,24 @@ test("Layer conflicts protect ordinary spaces while Back can share anchors", () 
 });
 
 test("Back adornments can coexist with any anchored adornment without weakening other layer conflicts", async () => {
-  const { costumeLayersConflict, ADORNMENT_SLOT_MAP } = await import("../shared/costumeFeature.ts");
+  const { costumeLayersConflict, ADORNMENT_SLOT_MAP, getAdornmentSlotDefinition } = await import("../shared/costumeFeature.ts");
+  assert.deepEqual([getAdornmentSlotDefinition(4)?.key, getAdornmentSlotDefinition(5)?.key], ["wings", "back"]);
   const body = [{ anchorPart: "body" }] as Parameters<typeof costumeLayersConflict>[3];
   const head = [{ anchorPart: "head" }] as Parameters<typeof costumeLayersConflict>[3];
   assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.back, new Set(["body"]), ADORNMENT_SLOT_MAP.wings, body), false);
   assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.back, new Set(["head"]), ADORNMENT_SLOT_MAP.head, head), false);
   assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.head, new Set(["body"]), ADORNMENT_SLOT_MAP.back, body), false);
   assert.equal(costumeLayersConflict(ADORNMENT_SLOT_MAP.head, new Set(["body"]), ADORNMENT_SLOT_MAP.wings, body), true);
+});
+
+test("The player picker distinguishes Back from Wings and explains equip failures in place", () => {
+  assert.match(section, /item\.adornmentSlot === selectedSlotDefinition\.key/);
+  assert.match(routes, /fittedShopItemIds/);
+  assert.match(section, /data\.fittedShopItemIds\.includes\(item\.shopItemId\)/);
+  assert.match(section, /Not fitted for this pet/);
+  assert.match(section, /data-testid="adornment-equip-error"/);
+  assert.match(section, /setEquipError\(equipErrorMessage\(error\)\)/);
+  assert.match(section, /!item\.isListed/);
 });
 
 test("Admin costume library marks pieces already fitted for the selected pet", () => {
@@ -119,6 +130,9 @@ test("Production boot creates both player costume persistence tables safely", ()
   assert.match(boot, /UNIQUE\(costume_inventory_id, copy_index\)/);
   assert.match(boot, /DROP CONSTRAINT IF EXISTS pet_equipped_costumes_costume_inventory_id_key/);
   assert.match(boot, /UNIQUE\(pet_inventory_id, slot\)/);
+  assert.match(boot, /pet_equipped_costumes_slot_1_to_5_check CHECK\(slot BETWEEN 1 AND 5\)/);
+  assert.match(boot, /DROP CONSTRAINT IF EXISTS pet_equipped_costumes_slot_check/);
+  assert.doesNotMatch(boot, /slot INTEGER NOT NULL CHECK\(slot BETWEEN 1 AND 3\)/);
 });
 
 test("public costume display is read-only and does not require pet ownership", () => {
