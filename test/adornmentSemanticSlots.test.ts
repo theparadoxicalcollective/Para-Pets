@@ -64,7 +64,7 @@ test("administration can assign safe item-level effects to adornments", () => {
   assert.match(boot, /ADD COLUMN IF NOT EXISTS adornment_effect TEXT/);
 
   assert.match(routes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
-  assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
+  assert.match(animator, /adornmentEffect\?: RuntimeAdornmentItemEffect \| null/);
   assert.match(animator, /effect=\{costume\.adornmentEffect\}/);
   assert.match(artwork, /const overrideProfile = adornmentItemEffectAnimation\(effect\)/);
   assert.match(artwork, /const safeFittedProfile = fittedProfile === "wings" \? "none" : fittedProfile/);
