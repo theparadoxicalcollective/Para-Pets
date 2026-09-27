@@ -21,7 +21,7 @@ import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
 import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
-import { itemTypeLabel } from "@/lib/itemTypeFilters";
+import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -1235,11 +1235,16 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
   // Show every known Bag category (even when currently empty), then append any
   // future item type discovered in a player's inventory. Pets are never added.
   const configuredTabs = new Set(BAG_TABS.map(tab => tab.key));
-  const discoveredTabs = [...new Set(allDisplayItems.map(({ item }) => bagCategoryKey(item)))];
+  const storedTypes = itemTypeOptions(allDisplayItems.map(({ item }) => item))
+    .filter(type => type !== "pet");
+  const discoveredTabs = [
+    ...storedTypes,
+    ...(allDisplayItems.some(({ item }) => item.fishingType === "fish") ? ["fish"] : []),
+  ];
   const visibleTabs = [
     ...BAG_TABS,
     ...discoveredTabs
-      .filter(type => type !== "pet" && !configuredTabs.has(type))
+      .filter(type => !configuredTabs.has(type))
       .map(type => ({ key: type, label: itemTypeLabel(type), icon: tabIconItem })),
   ].sort((a, b) => a.label.localeCompare(b.label));
 
