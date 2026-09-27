@@ -80,8 +80,8 @@ const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
  * the decorative frame's transparent outer silhouette.
  */
 function artworkInsetForRarity(rarity: CardRarity, depth3d: boolean): string {
-  if (rarity <= 2) return "12.5% 11.5% 8%";
-  return depth3d ? "12% 7%" : "12% 10%";
+  if (rarity <= 2) return "11.5% 10% 7%";
+  return depth3d ? "11% 8% 7%" : "12% 10%";
 }
 
 /**
@@ -326,7 +326,7 @@ export default function CardPreview({
             inset: artworkBackingInsetForRarity(rarity),
             background: "#050604",
             boxShadow: "0 0 14px 8px rgba(0,0,0,.8)",
-            transform: "translateZ(-18px)",
+            transform: "translateZ(var(--card-backing-depth, 0px))",
             pointerEvents: "none",
           }}
         />
@@ -347,7 +347,7 @@ export default function CardPreview({
           contain: "paint",
           background: "linear-gradient(145deg, #162219, #070a08)",
           pointerEvents: "none",
-          transform: depth3d ? "translateZ(-12px)" : undefined,
+          transform: depth3d ? "translateZ(var(--card-art-depth, 0px))" : undefined,
           backfaceVisibility: "hidden",
         }}
       >
@@ -494,7 +494,7 @@ export default function CardPreview({
             inset: 0,
             zIndex: 3,
             pointerEvents: "none",
-            transform: depth3d ? "translateZ(28px)" : undefined,
+            transform: depth3d ? "translateZ(var(--card-glow-depth, 0px))" : undefined,
             WebkitMaskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             maskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             WebkitMaskRepeat: "no-repeat",
@@ -524,7 +524,7 @@ export default function CardPreview({
             inset: 0,
             zIndex: 3,
             pointerEvents: "none",
-            transform: depth3d ? "translateZ(30px)" : undefined,
+            transform: depth3d ? "translateZ(var(--card-sparkle-depth, 0px))" : undefined,
             WebkitMaskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             maskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             WebkitMaskRepeat: "no-repeat",
@@ -568,7 +568,7 @@ export default function CardPreview({
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
         draggable={false}
-        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(24px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 9px 14px rgba(0,0,0,.55))" : undefined }}
+        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(var(--card-frame-depth, 0px))" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 9px 14px rgba(0,0,0,.55))" : undefined }}
       />
       {label && <CardCornerBanner label={label} depth3d={depth3d} />}
       {renderTextBox("name")}

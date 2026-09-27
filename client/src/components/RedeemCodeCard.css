@@ -1,0 +1,55 @@
+.redeem-reward-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  background: radial-gradient(circle at center, rgba(40, 93, 48, .97), rgba(3, 21, 16, .98));
+  color: #ffeab0;
+  text-align: center;
+  animation: redeem-reveal-in 220ms ease-out both;
+}
+
+.redeem-reward-heading { font: 700 12px 'Cinzel', serif; }
+.redeem-reward-name { font-size: 10px; color: #c2e2bb; }
+.redeem-reward-bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  max-height: 108px;
+  overflow: auto;
+}
+.redeem-reward-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 135px;
+  padding: 5px 7px;
+  border: 1px solid rgba(236, 220, 138, .6);
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 20%, rgba(255,255,220,.25), rgba(73,143,102,.28) 45%, rgba(16,51,36,.9));
+  box-shadow: 0 0 10px rgba(208, 247, 173, .25), inset 0 1px 4px rgba(255,255,255,.22);
+  font-size: 9px;
+  animation: redeem-bubble-rise 520ms ease-out both;
+}
+.redeem-reward-bubble img { width: 21px; height: 21px; object-fit: contain; flex: none; }
+.redeem-reward-bubble span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.redeem-reward-reveal button {
+  padding: 2px 10px;
+  border: 1px solid rgba(255,233,169,.5);
+  border-radius: 999px;
+  font-size: 10px;
+}
+@keyframes redeem-reveal-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes redeem-bubble-rise {
+  from { opacity: 0; transform: translateY(18px) scale(.7); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .redeem-reward-reveal, .redeem-reward-bubble { animation: none; }
+}
