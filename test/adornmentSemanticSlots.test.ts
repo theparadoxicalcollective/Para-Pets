@@ -92,9 +92,9 @@ test("Still Head and hand adornments follow the matching animated pet part", () 
 
   assert.match(animator, /function semanticFollowPartType/);
   assert.match(animator, /placement\.followPartIndex/);
-  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[placement\.followPartIndex - 1\]/);
+  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[\(placement\.followPartIndex \?\? 1\) - 1\]/);
   assert.match(animator, /costume\.adornmentEffect !== "still"/);
-  assert.match(animator, /ADORNMENT_SLOT_MAP\.head\) return "head"/);
+  assert.match(animator, /if \(costume\.slot === ADORNMENT_SLOT_MAP\.head\)/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
   assert.match(animator, /function rebasePlacementToPart/);
