@@ -50,12 +50,13 @@ test("evolved pets prefer evolution fittings and Follow Part semantic slots inhe
   assert.match(animator, /artworkForm=\{resolvedArtworkForm\}/);
   assert.match(animator, /function semanticFollowPartType/);
   assert.match(animator, /const explicitFollow = costume\.adornmentEffect === "follow_part"/);
-  assert.match(animator, /const legacyStillFollow = costume\.adornmentEffect === "still"/);
+  assert.doesNotMatch(animator, /legacyStillFollow/);
   assert.match(animator, /\["head", "h2_head", "h3_head"\]\[\(placement\.followPartIndex \?\? 1\) - 1\]/);
   assert.match(animator, /costume\.adornmentEffect === "follow_part"/);
   assert.match(animator, /const explicitDontMove = costume\.adornmentEffect === "dont_move"/);
+  assert.match(animator, /const legacyStillDontMove = costume\.adornmentEffect === "still"/);
   assert.match(animator, /const legacyDontMove = !costume\.adornmentEffect && savedPlacement\.dontMove === true/);
-  assert.match(animator, /const dontMove = !forcePartFollow && \(explicitDontMove \|\| legacyDontMove\)/);
+  assert.match(animator, /const dontMove = !forcePartFollow && \(explicitDontMove \|\| legacyStillDontMove \|\| legacyDontMove\)/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
   assert.match(animator, /rebasePlacementToPart\(savedPlacement, followPart, sortedParts\)/);
@@ -63,8 +64,9 @@ test("evolved pets prefer evolution fittings and Follow Part semantic slots inhe
 
 test("Don't Move item effects stay fixed and legacy flags remain a no-effect fallback", () => {
   assert.match(animator, /const explicitDontMove = costume\.adornmentEffect === "dont_move"/);
+  assert.match(animator, /const legacyStillDontMove = costume\.adornmentEffect === "still"/);
   assert.match(animator, /const legacyDontMove = !costume\.adornmentEffect && savedPlacement\.dontMove === true/);
-  assert.match(animator, /const dontMove = !forcePartFollow && \(explicitDontMove \|\| legacyDontMove\)/);
+  assert.match(animator, /const dontMove = !forcePartFollow && \(explicitDontMove \|\| legacyStillDontMove \|\| legacyDontMove\)/);
   assert.match(animator, /const followPartType = dontMove \? null : semanticFollowPartType\(costume, savedPlacement\)/);
   assert.match(animator, /adornment-fixed-/);
   assert.match(animator, /const fixedAnchor = placement\.anchorPart === "independent"/);
