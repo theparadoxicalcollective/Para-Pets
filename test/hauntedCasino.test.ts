@@ -194,28 +194,14 @@ test("Slaughter Slots wagers and payouts use the player's real global coin walle
   assert.doesNotMatch(routes, /req\.body\?\.(?:reward|reels|itemId|shopItemId)/);
 });
 
-test("decorative prizes keep the original machine sizing and footer footprint", () => {
+test("slot machine keeps its result while removing the redundant bottom prize strip", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
-  const strip = fs.readFileSync("client/src/components/world/SlotPrizeStrip.tsx", "utf8");
   assert.match(client, /maxWidth: 520, width: "min\(100%, calc\(\(var\(--fh, 100dvh\) - 228px/);
   assert.doesNotMatch(client, /var\(--fh, 100dvh\) - 340px/);
-  assert.match(client, /data-testid="slaughter-slots-footer"[^\n]*height: 112/);
-  assert.match(client, /data-testid="slaughter-slots-winnings-area"[^\n]*absolute inset-x-0 bottom-20/);
-  assert.match(strip, /absolute inset-x-0 bottom-0 h-\[72px\]/);
-  assert.match(strip, /slot-prize-coin-image/);
-  assert.match(strip, /slot-prize-essence-image/);
-  assert.match(strip, /currencyAssets\.coin/);
-  assert.match(strip, /currencyAssets\.essenceToken/);
-  assert.doesNotMatch(strip, /PvP tickets|currency-tickets/);
-  assert.match(strip, /\.\.\.prizes\.map/);
-  assert.match(strip, /scrollbarWidth: "none"/);
-  assert.match(strip, /::-webkit-scrollbar \{ display: none/);
-  assert.match(strip, /overflow-x-auto/);
-  assert.doesNotMatch(strip, /<button|setPaused|Pause scrolling|Resume scrolling|onFocus=/);
-  assert.match(strip, /requestAnimationFrame\(advance\)/);
-  assert.match(strip, /cancelAnimationFrame\(frame\)/);
-  assert.match(strip, /prefers-reduced-motion: reduce/);
-  assert.match(strip, /position = scroller.scrollLeft/);
+  assert.match(client, /data-testid="slaughter-slots-footer"[^\n]*minHeight: 72/);
+  assert.match(client, /data-testid="slaughter-slots-winnings-area"/);
+  assert.match(client, /result\.reward\.message/);
+  assert.doesNotMatch(client, /SlotPrizeStrip/);
 });
 
 test("Casino item and egg pools are separate, and rare prizes retain their weighting", () => {

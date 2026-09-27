@@ -188,3 +188,12 @@ test("player Closet filters assigned adornments by space and Wings replaces nati
   assert.match(animator, /costume\.slot === ADORNMENT_SLOT_MAP\.wings/);
   assert.match(animator, /part\.partType\.toLowerCase\(\)\.includes\("wing"\)/);
 });
+
+test("Back adornments always render behind the pet and every other adornment", () => {
+  const animator = read("client/src/components/PetAnimator.tsx");
+
+  assert.match(animator, /costume\.slot === ADORNMENT_SLOT_MAP\.back \? depth === "back" : item\.depth === depth/);
+  assert.match(animator, /orderedCostumes = depth === "back"[\s\S]*?b\.slot === ADORNMENT_SLOT_MAP\.back/);
+  assert.match(animator, /if \(costume\.slot === ADORNMENT_SLOT_MAP\.back\) continue/);
+  assert.match(animator, /\{renderCostumes && costumeLayer\("back"\)\}[\s\S]*?<PetAnimatorCore[\s\S]*?\{renderCostumes && costumeLayer\("front"\)\}/);
+});

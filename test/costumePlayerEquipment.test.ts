@@ -50,6 +50,8 @@ test("Player costume controls use five slots with three free and two paid", () =
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/equip/);
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/unequip/);
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/unlock/);
+  assert.match(section, /coins: result\.coins/);
+  assert.match(routes, /return \{ extraSlots: extraSlots \+ 1, coins: updatedUser\.coins, cost \}/);
   assert.match(section, /item\.type === "costume"/);
   assert.match(accessoryPage, /petInventoryId=\{petInventoryId\}/);
   assert.doesNotMatch(section, /EquippedCostumePreview/);
@@ -79,10 +81,13 @@ test("Stacked costume copies are counted and unequipped individually", () => {
   assert.match(routes, /eq\(petEquippedCostumes\.id, equippedCostumeId\)/);
 });
 
-test("A pet cannot equip two costumes attached to the same saved layer", () => {
+test("Layer conflicts protect ordinary spaces while Wings and Back can share a body anchor", () => {
   assert.match(routes, /requestedLayers = new Set/);
   assert.match(routes, /requestedLayers\.has\(placement\.anchorPart\)/);
   assert.match(routes, /another costume on the same pet layer/);
+  assert.match(routes, /shareBodyAnchor = isWingOrBack\(slot\) && isWingOrBack\(equippedCostume\.slot\)/);
+  assert.match(routes, /!\(shareBodyAnchor && placement\.anchorPart === "body"\)/);
+  assert.match(routes, /slot: petEquippedCostumes\.slot/);
   assert.match(routes, /eq\(userInventory\.id, petInventoryId\)[\s\S]*?\.for\("update"\)/);
 });
 

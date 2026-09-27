@@ -9,21 +9,15 @@ import CardRewardCoin from "@/components/CardRewardCoin";
 import { getCardBorderLayout, type CardCollection } from "@/lib/cardCatalog";
 import { setNavHidden } from "@/lib/navVisibility";
 
-import emptyCard from "@assets/uploads/EmptyCard.png";
 import decorDivider from "@assets/uploads/DecorDivider.png";
-import oneStarButton from "@assets/uploads/1StarButton.png";
-import twoStarButton from "@assets/uploads/2StarButton.png";
-import threeStarButton from "@assets/uploads/3StarButton.png";
-import fourStarButton from "@assets/uploads/4StarButton.png";
-import fiveStarButton from "@assets/uploads/5StarButton.png";
 import closeButton from "@assets/uploads/ClosetCloseButton.png";
 
 const RARITY_FILTERS = [
-  { rarity: 1, src: oneStarButton, label: "1 star" },
-  { rarity: 2, src: twoStarButton, label: "2 stars" },
-  { rarity: 3, src: threeStarButton, label: "3 stars" },
-  { rarity: 4, src: fourStarButton, label: "4 stars" },
-  { rarity: 5, src: fiveStarButton, label: "5 stars" },
+  { rarity: 1, label: "1 star" },
+  { rarity: 2, label: "2 stars" },
+  { rarity: 3, label: "3 stars" },
+  { rarity: 4, label: "4 stars" },
+  { rarity: 5, label: "5 stars" },
 ] as const;
 
 const mutedGold = "rgba(216,176,74,.34)";
@@ -163,48 +157,50 @@ export default function CardsCollectionPage() {
           <nav
             aria-label="Filter cards by rarity"
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-              alignItems: "center",
-              gap: "clamp(1px, .6vw, 4px)",
-              width: "calc(100% + 16px)",
-              margin: "0 -8px",
-              padding: "0",
+              width: "100%",
+              margin: "5px auto 0",
+              padding: "9px 10px 10px",
+              border: "1px solid rgba(207,166,80,.34)",
+              borderRadius: 18,
+              background: "linear-gradient(180deg, rgba(5,31,20,.88), rgba(3,20,14,.78))",
+              boxShadow: "inset 0 1px 0 rgba(246,215,138,.08), 0 6px 15px rgba(0,0,0,.18)",
               boxSizing: "border-box",
             }}
           >
-            {RARITY_FILTERS.map(filter => {
+            <div style={{ marginBottom: 7, color: "rgba(230,205,146,.74)", fontSize: 9, letterSpacing: ".22em" }}>FILTER BY RARITY</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 5 }}>
+            {[{ rarity: null, label: "All cards" }, ...RARITY_FILTERS].map(filter => {
               const selected = rarityFilter === filter.rarity;
-              const subdued = rarityFilter !== null && !selected;
 
               return (
                 <button
-                  key={filter.rarity}
+                  key={filter.rarity ?? "all"}
                   type="button"
-                  aria-label={`Filter ${filter.label} cards`}
+                  aria-label={filter.rarity === null ? "Show all cards" : `Filter ${filter.label} cards`}
                   aria-pressed={selected}
-                  data-testid={`button-card-filter-${filter.rarity}`}
-                  onClick={() => setRarityFilter(current => (current === filter.rarity ? null : filter.rarity))}
+                  data-testid={`button-card-filter-${filter.rarity ?? "all"}`}
+                  onClick={() => setRarityFilter(filter.rarity)}
                   style={{
                     appearance: "none",
-                    border: 0,
-                    padding: "1px 0",
-                    minHeight: 48,
-                    background: selected ? "radial-gradient(ellipse, rgba(231,192,86,.12), transparent 68%)" : "transparent",
-                    borderRadius: 18,
+                    border: selected ? "1px solid #e9c77c" : "1px solid rgba(202,170,102,.3)",
+                    padding: "0 2px",
+                    minHeight: 36,
+                    background: selected ? "linear-gradient(180deg, #795927, #3b311d)" : "rgba(7,34,23,.9)",
+                    borderRadius: 11,
                     cursor: "pointer",
-                    opacity: subdued ? 0.42 : 1,
-                    transform: selected ? "translateY(-2px) scale(1.12)" : "scale(1.06)",
-                    filter: selected
-                      ? "drop-shadow(0 0 9px rgba(249,214,102,.9)) drop-shadow(0 3px 5px rgba(0,0,0,.4))"
-                      : "drop-shadow(0 3px 5px rgba(0,0,0,.36))",
-                    transition: "transform 150ms ease, opacity 150ms ease, filter 150ms ease",
+                    color: selected ? "#fff1bb" : "#cfbf8e",
+                    fontFamily: "inherit",
+                    fontSize: "clamp(11px, 3vw, 13px)",
+                    fontWeight: selected ? 700 : 500,
+                    boxShadow: selected ? "0 0 12px rgba(232,189,89,.28), inset 0 1px 0 rgba(255,239,188,.23)" : "none",
+                    transition: "background 150ms ease, box-shadow 150ms ease",
                   }}
                 >
-                  <img src={filter.src} alt="" draggable={false} style={{ display: "block", width: "108%", height: "auto", marginLeft: "-4%", objectFit: "contain", userSelect: "none" }} />
+                  {filter.rarity === null ? "All" : `${filter.rarity}★`}
                 </button>
               );
             })}
+            </div>
           </nav>
 
           <img
@@ -328,67 +324,47 @@ export default function CardsCollectionPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 textAlign: "center",
-                padding: "8px 10px 28px",
+                padding: "12px 4px 36px",
                 boxSizing: "border-box",
               }}
             >
               <div
-                data-testid="card-collection-placeholder-1"
-                aria-hidden="true"
+                data-testid="card-collection-empty-panel"
                 style={{
                   position: "relative",
-                  width: "min(48vw, 174px)",
-                  maxWidth: "100%",
-                  marginBottom: 12,
+                  width: "min(100%, 320px)",
+                  padding: "24px 18px 22px",
+                  border: "1px solid rgba(211,175,92,.43)",
+                  borderRadius: "min(30vw, 112px) min(30vw, 112px) 22px 22px",
+                  background: "radial-gradient(ellipse at 50% 22%, rgba(55,116,77,.32), transparent 62%), linear-gradient(165deg, rgba(10,44,30,.88), rgba(4,24,17,.94))",
+                  boxShadow: "0 18px 38px rgba(0,0,0,.3), inset 0 0 0 5px rgba(5,21,15,.8), inset 0 0 0 6px rgba(207,167,78,.16)",
+                  boxSizing: "border-box",
                 }}
               >
-                <div style={{
-                  position: "absolute",
-                  inset: "12% -35%",
-                  borderRadius: "50%",
-                  background: "radial-gradient(ellipse, rgba(212,172,83,.22), rgba(83,133,84,.12) 38%, transparent 72%)",
-                  filter: "blur(13px)",
-                }} />
-                <img
-                  src={emptyCard}
-                  alt=""
-                  draggable={false}
-                  style={{
-                    position: "relative",
-                    display: "block",
-                    width: "100%",
-                    opacity: .77,
-                    filter: "grayscale(.72) sepia(.18) drop-shadow(0 12px 14px rgba(0,0,0,.42))",
-                  }}
-                />
-                <span style={{ position: "absolute", top: "18%", left: "-16%", color: "#e8ca79", opacity: .8, fontSize: 20, textShadow: "0 0 12px #e8ca79" }}>✦</span>
-                <span style={{ position: "absolute", top: "43%", right: "-19%", color: "#e8ca79", opacity: .7, fontSize: 14, textShadow: "0 0 10px #e8ca79" }}>✦</span>
-                <span style={{ position: "absolute", bottom: "20%", left: "-12%", color: "#e8ca79", opacity: .6, fontSize: 11, textShadow: "0 0 9px #e8ca79" }}>✦</span>
-              </div>
-              <h2 style={{
-                margin: "0 0 6px",
-                color: "#f3d995",
-                fontSize: "clamp(18px, 5vw, 22px)",
-                lineHeight: 1.3,
-                textShadow: "0 2px 8px rgba(0,0,0,.55)",
-              }}>
-                {rarityFilter ? `No ${rarityFilter}-star cards yet` : "Your collection begins here"}
-              </h2>
-              <p style={{
-                margin: 0,
-                maxWidth: 255,
-                color: "#c9c1a5",
-                fontSize: "clamp(12px, 3.2vw, 14px)",
-                lineHeight: 1.55,
-              }}>
-                {rarityFilter ? "Cards you collect at this rarity will appear here." : "Find your first card and watch your collection come to life."}
-              </p>
+                <div aria-hidden="true" style={{ color: "#dcba72", fontSize: 13, letterSpacing: ".5em", margin: "3px auto 16px", textShadow: "0 0 10px rgba(244,206,125,.65)" }}>✦ ✧ ✦</div>
+                <div data-testid="card-collection-placeholder-1" aria-hidden="true" style={{ position: "relative", width: 172, height: 172, margin: "0 auto 24px", display: "grid", placeItems: "center" }}>
+                  <div style={{ position: "absolute", inset: 3, border: "1px solid rgba(225,188,106,.42)", borderRadius: "50%", boxShadow: "0 0 28px rgba(219,182,100,.13), inset 0 0 18px rgba(31,102,65,.3)" }} />
+                  <div style={{ position: "absolute", inset: 18, border: "1px dashed rgba(225,188,106,.48)", borderRadius: "50%", transform: "rotate(22deg)" }} />
+                  <div style={{ position: "absolute", inset: 38, border: "1px solid rgba(225,188,106,.36)", borderRadius: "50%", background: "radial-gradient(circle, rgba(58,134,84,.52), rgba(7,35,23,.62) 68%)", boxShadow: "0 0 24px rgba(81,196,116,.18)" }} />
+                  <span style={{ position: "relative", color: "#f2d996", fontSize: 57, lineHeight: 1, textShadow: "0 0 12px rgba(255,225,145,.8), 0 0 32px rgba(116,227,148,.55)" }}>✦</span>
+                  <span style={{ position: "absolute", top: 3, color: "#ebd193", fontSize: 12 }}>✧</span>
+                  <span style={{ position: "absolute", bottom: 3, color: "#ebd193", fontSize: 12 }}>✧</span>
+                  <span style={{ position: "absolute", left: 2, color: "#ebd193", fontSize: 12 }}>✧</span>
+                  <span style={{ position: "absolute", right: 2, color: "#ebd193", fontSize: 12 }}>✧</span>
+                </div>
+                <div aria-hidden="true" style={{ width: "72%", height: 1, margin: "0 auto 15px", background: "linear-gradient(90deg, transparent, #b99558, transparent)" }} />
+                <h2 style={{ margin: "0 0 7px", color: "#f3d995", fontSize: "clamp(17px, 4.8vw, 21px)", lineHeight: 1.3, textShadow: "0 2px 8px rgba(0,0,0,.55)" }}>
+                  {rarityFilter ? `No ${rarityFilter}-star cards yet` : "Your collection begins here"}
+                </h2>
+                <p style={{ margin: "0 auto", maxWidth: 235, color: "#c9c1a5", fontSize: "clamp(11px, 3vw, 13px)", lineHeight: 1.55 }}>
+                  {rarityFilter ? "Cards you collect at this rarity will appear here." : "A little magic is waiting to be found. Your first card will appear here."}
+                </p>
               {rarityFilter ? (
                 <button
                   type="button"
                   onClick={() => setRarityFilter(null)}
                   style={{
-                    marginTop: 18,
+                    marginTop: 19,
                     minHeight: 40,
                     padding: "8px 18px",
                     border: `1px solid ${mutedGold}`,
@@ -403,8 +379,8 @@ export default function CardsCollectionPage() {
                   View all cards
                 </button>
               ) : (
-                <div style={{ width: "min(100%, 230px)", marginTop: 22 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: "#ebd59b", fontSize: 12 }}>
+                <div style={{ width: "min(100%, 235px)", margin: "21px auto 0", padding: "12px 13px", border: "1px solid rgba(215,178,99,.22)", borderRadius: 12, background: "rgba(2,16,10,.45)", boxSizing: "border-box" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: "#ebd59b", fontSize: 11 }}>
                     <span>Your Collection</span>
                     <span>{cards.length} / {data?.totalCards ?? 0}</span>
                   </div>
@@ -415,7 +391,7 @@ export default function CardsCollectionPage() {
                     aria-valuemax={data?.totalCards ?? 0}
                     aria-valuenow={cards.length}
                     style={{
-                      height: 6,
+                      height: 5,
                       marginTop: 8,
                       borderRadius: 6,
                       border: `1px solid ${mutedGold}`,
@@ -425,6 +401,7 @@ export default function CardsCollectionPage() {
                   />
                 </div>
               )}
+              </div>
             </div>
           )}
           {visibleCards.map(card => {

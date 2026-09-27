@@ -8,7 +8,6 @@ import slotMinusButton from "@assets/uploads/SlotMinusButton.png";
 import slotPlusButton from "@assets/uploads/SlotPlusButton.png";
 import { currencyAssets } from "@/lib/currencyAssets";
 import SlotPrizeAdminDialog from "./SlotPrizeAdminDialog";
-import SlotPrizeStrip from "./SlotPrizeStrip";
 import { queryClient } from "@/lib/queryClient";
 import type { HauntedSlotPrizePreview, HauntedSlotSymbolId } from "@shared/hauntedCasino";
 
@@ -521,10 +520,9 @@ export default function SlaughterSlotsOverlay({
 
         </div>
 
-        {/* Keep the original 112px footer footprint so prizes never shrink or
-            reposition the machine. Winnings float just above the decorative strip. */}
-        <div data-testid="slaughter-slots-footer" className="relative w-full shrink-0" style={{ height: 112 }}>
-        <div data-testid="slaughter-slots-winnings-area" className="absolute inset-x-0 bottom-20 z-[10] w-full overflow-y-auto" style={{ maxHeight: 112, overscrollBehavior: "contain" }} role="status" aria-live="polite" aria-atomic="true">
+        {/* The spin result stays visible without a second prize catalogue below it. */}
+        <div data-testid="slaughter-slots-footer" className="relative w-full shrink-0" style={{ minHeight: 72 }}>
+        <div data-testid="slaughter-slots-winnings-area" className="w-full overflow-y-auto" style={{ maxHeight: 112, overscrollBehavior: "contain" }} role="status" aria-live="polite" aria-atomic="true">
         <div className="mt-0 min-h-[16px] shrink-0 text-center text-[9px] sm:text-xs text-violet-100/80" aria-live="polite">
           {holding ? "Auto spin active — tap STOP AUTO to stop" : null}
         </div>
@@ -556,8 +554,6 @@ export default function SlaughterSlotsOverlay({
 
         </div>
 
-        <SlotPrizeStrip prizes={(state?.prizes ?? []).filter(prize => bet >= 1000 ? prize.rarity >= 3 :
-          (state?.prizes ?? []).some(other => other.category === prize.category && other.rarity <= 2))} loaded={Boolean(state)} />
         </div>
 
         <p className="sr-only">

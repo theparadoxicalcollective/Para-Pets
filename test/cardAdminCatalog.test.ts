@@ -288,12 +288,23 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.match(collection, /data-testid="card-collection-progress-overlay"/);
   assert.match(collection, /fontSize: "clamp\(39px, 10\.5vw, 52px\)"/);
   assert.match(collection, /width: 40[\s\S]*?height: 40/);
-  assert.match(collection, /width: "108%"/);
+  assert.match(collection, /gridTemplateColumns: "repeat\(6, minmax\(0, 1fr\)\)"/);
+  assert.match(collection, /button-card-filter-\$\{filter\.rarity \?\? "all"\}/);
+  assert.match(collection, /FILTER BY RARITY/);
   assert.match(collection, /width: "min\(82%, 342px\)"/);
   assert.match(collection, /columnGap: "clamp\(8px, 2\.4vw, 12px\)"/);
   assert.match(collection, /rowGap: "clamp\(8px, 2\.4vw, 12px\)"/);
   assert.match(collection, /rewardNeedsClearance = !card\.firstRewardClaimed/);
   assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
+});
+
+test("empty collection has a decorative card display without an image dependency", () => {
+  assert.match(collection, /data-testid="card-collection-empty-panel"/);
+  assert.match(collection, /data-testid="card-collection-placeholder-1"/);
+  assert.match(collection, /role="progressbar"/);
+  assert.match(collection, /View all cards/);
+  assert.doesNotMatch(collection, /EmptyCard\.png/);
+  assert.doesNotMatch(collection, /[1-5]StarButton\.png/);
 });
 
 test("detail cards preserve a 3D front, flat contained back, and stable full turns", () => {
