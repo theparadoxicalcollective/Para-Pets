@@ -1,18 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateWorldFitScale, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
+import { calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
 
-test("a narrow phone keeps both sides of the haunted world visible", () => {
-  const scale = calculateWorldFitScale(390, 844, 1440, false);
-  assert.equal(scale, 390 / WORLD_MAP_WIDTH);
-  assert.equal(WORLD_MAP_WIDTH * scale, 390);
-  assert.ok(1440 * scale <= 844);
+test("a narrow phone fills its height while the authored sides remain pannable", () => {
+  const frameW = 390;
+  const frameH = 844;
+  const mapH = 1440;
+  const scale = calculateWorldFitScale(frameW, frameH, mapH, false);
+  assert.equal(scale, frameH / mapH);
+  assert.ok(WORLD_MAP_WIDTH * scale > frameW);
+  const left = clampWorldMapOffset(-10000, 0, scale, frameW, frameH, mapH);
+  const right = clampWorldMapOffset(10000, 0, scale, frameW, frameH, mapH);
+  assert.equal(left.x + WORLD_MAP_WIDTH * scale, frameW);
+  assert.equal(right.x, 0);
 });
 
-test("a wide frame fits the complete world height", () => {
-  const scale = calculateWorldFitScale(1440, 900, 1440, false);
-  assert.equal(scale, 900 / 1440);
-  assert.ok(WORLD_MAP_WIDTH * scale <= 1440);
+test("a wide frame fills its width and allows vertical panning", () => {
+  const frameW = 1440;
+  const frameH = 900;
+  const mapH = 1440;
+  const scale = calculateWorldFitScale(frameW, frameH, mapH, false);
+  assert.equal(scale, frameW / WORLD_MAP_WIDTH);
+  const top = clampWorldMapOffset(0, 10000, scale, frameW, frameH, mapH);
+  const bottom = clampWorldMapOffset(0, -10000, scale, frameW, frameH, mapH);
+  assert.equal(top.y, 0);
+  assert.equal(bottom.y + mapH * scale, frameH);
 });
 
 test("invalid dimensions fall back safely", () => {

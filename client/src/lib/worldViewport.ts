@@ -2,9 +2,9 @@ const WORLD_MAP_WIDTH = 1080;
 const WORLD_MAP_HEIGHT = 1920;
 
 /**
- * Fit the entire authored map in the visible frame. Background, NPCs, decor,
- * and hotspots all share this one map transform, so placements keep their
- * admin-authored coordinates across narrow phones and wider screens.
+ * Fill the visible frame with the authored map. Background, NPCs, decor,
+ * and hotspots all share this one transform, so placements keep their
+ * admin-authored coordinates while the player pans to off-screen areas.
  * WorldPage supplies a fixed per-world height for each background's aspect.
  */
 export function calculateWorldFitScale(
@@ -15,7 +15,20 @@ export function calculateWorldFitScale(
 ): number {
   if (!Number.isFinite(frameWidth) || frameWidth <= 0 || !Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
   const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
-  return Math.min(frameWidth / WORLD_MAP_WIDTH, frameHeight / safeMapHeight);
+  return Math.max(frameWidth / WORLD_MAP_WIDTH, frameHeight / safeMapHeight);
+}
+
+/** Keep an oversized world draggable to every edge without showing empty space. */
+export function clampWorldMapOffset(
+  x: number, y: number, scale: number,
+  frameWidth: number, frameHeight: number, mapHeight: number,
+): { x: number; y: number } {
+  const width = WORLD_MAP_WIDTH * scale;
+  const height = mapHeight * scale;
+  return {
+    x: width <= frameWidth ? (frameWidth - width) / 2 : Math.max(frameWidth - width, Math.min(0, x)),
+    y: height <= frameHeight ? (frameHeight - height) / 2 : Math.max(frameHeight - height, Math.min(0, y)),
+  };
 }
 
 export { WORLD_MAP_WIDTH, WORLD_MAP_HEIGHT };

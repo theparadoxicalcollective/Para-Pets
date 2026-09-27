@@ -3,7 +3,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
-import { calculateWorldFitScale } from "@/lib/worldViewport";
+import { calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "@/lib/worldViewport";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -157,8 +157,8 @@ interface WorldApiData {
   isDefault: boolean;
 }
 
-const MAP_W = 1080;
-const MAP_H_DEFAULT = 1920;
+const MAP_W = WORLD_MAP_WIDTH;
+const MAP_H_DEFAULT = WORLD_MAP_HEIGHT;
 
 // Per-world fixed map heights (in MAP_W=1080 pixel space).
 // NEVER change these after admin has placed items — all positions are stored
@@ -1281,11 +1281,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [worldId, world?.bg, !!worldApiData]);
 
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
-    const mw = MAP_W * sc;
-    const mh = mapHRef.current * sc;
-    const cx = mw <= frameWRef.current ? (frameWRef.current - mw) / 2 : Math.max(frameWRef.current - mw, Math.min(0, x));
-    const cy = mh <= frameHRef.current ? (frameHRef.current - mh) / 2 : Math.max(frameHRef.current - mh, Math.min(0, y));
-    return { x: cx, y: cy };
+    return clampWorldMapOffset(x, y, sc, frameWRef.current, frameHRef.current, mapHRef.current);
   }, []);
 
   const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
