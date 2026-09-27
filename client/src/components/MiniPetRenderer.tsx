@@ -20,6 +20,7 @@ export interface EquippedMiniPet {
 interface Props {
   petInventoryId: string;
   access?: "owner" | "public";
+  animated?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -28,7 +29,8 @@ interface Props {
 // head, and the open/closed eye frames are the final face layers.
 const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "left_ear", "right_ear", "head", "eyes", "closed_eyes", "head_accessory"];
 
-function motionClassForPart(partType: MiniPetPartType, hasBlinkPair: boolean): string {
+function motionClassForPart(partType: MiniPetPartType, hasBlinkPair: boolean, animated: boolean): string {
+  if (!animated) return "";
   switch (partType) {
     case "left_wing": return "mini-pet-wing mini-pet-wing-left";
     case "right_wing": return "mini-pet-wing mini-pet-wing-right";
@@ -42,7 +44,7 @@ function motionClassForPart(partType: MiniPetPartType, hasBlinkPair: boolean): s
   }
 }
 
-export default function MiniPetRenderer({ petInventoryId, access = "owner", className = "", style }: Props) {
+export default function MiniPetRenderer({ petInventoryId, access = "owner", animated = true, className = "", style }: Props) {
   // The hidden anchor identifies the dedicated Active Pet Mini Pet host. On the
   // Active Pet page we portal the companion into display-active-pet itself so
   // its placement is relative to the pet artwork area, not the taller page/stage
@@ -106,11 +108,12 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", clas
       className={className}
       data-testid="equipped-mini-pet"
       data-mini-pet-render-mode={useLayeredParts ? "layers" : "preview"}
+      data-mini-pet-motion={animated ? "animated" : "static"}
       aria-label={pet.name}
       style={{ position: "relative", width: "100%", height: "100%", pointerEvents: "none", ...style }}
     >
       <style>{MINI_PET_MOTION}</style>
-      <div className={pet.animationStyle === "float" ? "mini-pet-float" : "mini-pet-breath"} style={{ position: "absolute", inset: 0, transformOrigin: "center bottom" }}>
+      <div className={animated ? (pet.animationStyle === "float" ? "mini-pet-float" : "mini-pet-breath") : ""} style={{ position: "absolute", inset: 0, transformOrigin: "center bottom" }}>
         {useLayeredParts ? renderParts.map(part => (
           <img
             key={part.id}
@@ -118,7 +121,7 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", clas
             alt=""
             draggable={false}
             data-mini-pet-part={part.partType}
-            className={motionClassForPart(part.partType, hasBlinkPair)}
+            className={motionClassForPart(part.partType, hasBlinkPair, animated)}
             style={{
               position: "absolute",
               inset: 0,
@@ -127,6 +130,7 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", clas
               objectFit: "contain",
               transformOrigin: "center center",
               filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))",
+              opacity: !animated && part.partType === "closed_eyes" ? 0 : undefined,
             }}
           />
         )) : pet.imageUrl ? (
