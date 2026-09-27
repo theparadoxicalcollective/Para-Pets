@@ -44,14 +44,16 @@ test("item-level effects compose with independent and pet-part-mounted adornment
   assert.match(costumeRoutes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
 });
 
-test("evolved pets prefer evolution adornment fittings and Still semantic slots follow their pet parts", () => {
+test("evolved pets prefer evolution fittings and Follow Part semantic slots inherit pet-part motion", () => {
   assert.match(animator, /function placementsForArtworkForm/);
   assert.match(animator, /artworkForm === "base"/);
   assert.match(animator, /artworkForm=\{resolvedArtworkForm\}/);
   assert.match(animator, /function semanticFollowPartType/);
-  assert.match(animator, /costume\.adornmentEffect !== "still"\) return null/);
+  assert.match(animator, /const explicitFollow = costume\.adornmentEffect === "follow_part"/);
+  assert.match(animator, /const legacyStillFollow = costume\.adornmentEffect === "still"/);
   assert.match(animator, /\["head", "h2_head", "h3_head"\]\[\(placement\.followPartIndex \?\? 1\) - 1\]/);
-  assert.match(animator, /!\(costume\.slot === ADORNMENT_SLOT_MAP\.head && costume\.adornmentEffect === "still"\)/);
+  assert.match(animator, /costume\.adornmentEffect === "follow_part"/);
+  assert.match(animator, /const dontMove = savedPlacement\.dontMove === true && !forcePartFollow/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
   assert.match(animator, /rebasePlacementToPart\(savedPlacement, followPart, sortedParts\)/);
