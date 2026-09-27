@@ -146,8 +146,8 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                       />
                     )}
                     {activePet.inventoryId && (
-                      <div data-testid="friend-profile-mini-pet" style={{ position: "absolute", right: -3, bottom: -3, width: 25, height: 25, pointerEvents: "none" }}>
-                        <MiniPetRenderer petInventoryId={activePet.inventoryId} access="public" />
+                      <div data-testid="friend-profile-mini-pet" style={{ position: "absolute", left: -3, bottom: -3, width: 25, height: 25, pointerEvents: "none" }}>
+                        <MiniPetRenderer petInventoryId={activePet.inventoryId} access="public" animated={false} />
                       </div>
                     )}
                   </div>
