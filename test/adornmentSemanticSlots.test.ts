@@ -50,9 +50,11 @@ test("administration can assign safe item-level effects to adornments", () => {
   assert.match(animation, /pulse: "Pulse — subtle magical breathing"/);
   assert.match(admin, /payload\.adornmentEffect = effectiveType === "costume" && adornmentSlot !== "wings" \? \(adornmentEffect \|\| null\) : null/);
 
-  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "follow_part", "float", "spin", "sway", "pulse"\]/);
+  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "follow_part", "dont_move", "float", "spin", "sway", "pulse"\]/);
   assert.match(animation, /follow_part: "Follow Part — move with matching pet layer"/);
+  assert.match(animation, /dont_move: "Don't Move — stay fixed in fitted position"/);
   assert.match(animation, /follow_part:\s*"none"/);
+  assert.match(animation, /dont_move:\s*"none"/);
   assert.match(animation, /spin:\s*"rotate"/);
   assert.match(animation, /pulse:\s*"breathe"/);
   assert.match(schema, /adornmentEffect:\s*text\("adornment_effect"\)/);
@@ -107,17 +109,20 @@ test("Follow Part adornments use the matching animated pet part while preserving
   assert.match(animator, /animation: animName \? buildAnimation\(animName, duration, partDelay\) : undefined/);
 });
 
-test("Don\'t Move is distinct from the Still item effect", () => {
+test("Don't Move is an item effect while legacy placement flags remain readable", () => {
   const feature = read("shared/costumeFeature.ts");
+  const admin = read("client/src/components/ItemDatabaseSection.tsx");
   const editor = read("client/src/components/PetDatabasePanel.tsx");
   const animator = read("client/src/components/PetAnimator.tsx");
 
   assert.match(feature, /dontMove\?: boolean/);
   assert.match(feature, /placement\.dontMove === true \? \{ dontMove: true \}/);
-  assert.match(editor, /DON\'T MOVE/);
-  assert.match(editor, /will not follow a moving pet part or play its own motion effect/);
-  assert.match(animator, /costume\.adornmentEffect === "follow_part"/);
-  assert.match(animator, /const dontMove = savedPlacement\.dontMove === true && !forcePartFollow/);
+  assert.match(admin, /ADORNMENT_ITEM_EFFECTS\.map/);
+  assert.match(admin, /Don't Move keeps the fitted artwork fixed to the pet canvas/);
+  assert.doesNotMatch(editor, /toggle-adornment-dont-move/);
+  assert.match(animator, /const explicitDontMove = costume\.adornmentEffect === "dont_move"/);
+  assert.match(animator, /const legacyDontMove = !costume\.adornmentEffect && savedPlacement\.dontMove === true/);
+  assert.match(animator, /const dontMove = !forcePartFollow && \(explicitDontMove \|\| legacyDontMove\)/);
   assert.match(animator, /animated=\{false\}/);
 });
 
