@@ -79,10 +79,12 @@ test("Stacked costume copies are counted and unequipped individually", () => {
   assert.match(routes, /eq\(petEquippedCostumes\.id, equippedCostumeId\)/);
 });
 
-test("A pet cannot equip two costumes attached to the same saved layer", () => {
+test("Layer conflicts protect ordinary spaces while Wings and Back can share a body anchor", () => {
   assert.match(routes, /requestedLayers = new Set/);
   assert.match(routes, /requestedLayers\.has\(placement\.anchorPart\)/);
   assert.match(routes, /another costume on the same pet layer/);
+  assert.match(routes, /isWingOrBack\(slot\) && isWingOrBack\(equippedCostume\.slot\)/);
+  assert.match(routes, /slot: petEquippedCostumes\.slot/);
   assert.match(routes, /eq\(userInventory\.id, petInventoryId\)[\s\S]*?\.for\("update"\)/);
 });
 
