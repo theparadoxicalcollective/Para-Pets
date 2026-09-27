@@ -17,7 +17,7 @@ export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> =
 export const ADORNMENT_IMAGE_URL_PATTERN = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const ADORNMENT_ANIMATION_LABELS: Record<AdornmentAnimation, string> = {
-  none: "Still", breathe: "Breathe", float: "Subtle float",
+  none: "No extra motion", breathe: "Breathe", float: "Subtle float",
   wings: "Wings (mirrored pair)", sway: "Sway", rotate: "Slow rotation",
 };
 
