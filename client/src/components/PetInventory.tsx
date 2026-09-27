@@ -23,6 +23,38 @@ import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
 import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
 import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
+import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
+import ErrorBoundary from "@/components/ErrorBoundary";
+
+function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }: {
+  petInventoryId: string;
+  petTemplateId: string;
+  imageUrl: string | null;
+  name: string;
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = host.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { rootMargin: "160px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const fallback = imageUrl ? <img src={imageUrl} alt={name} style={{ width: 140, height: 140, objectFit: "contain" }} /> : null;
+  return <div ref={host} data-testid={`inventory-pet-portrait-${petInventoryId}`} style={{ position: "relative", width: 140, height: 140 }}>
+    {visible ? <ErrorBoundary context="PetInventory.PetPortrait" resetKey={petInventoryId} fallback={fallback}>
+      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} lowMemory performanceStatic style={{ width: 140, height: 140 }} />
+      <div style={{ position: "absolute", left: 0, bottom: 2, width: 42, height: 42, pointerEvents: "none" }}>
+        <MiniPetRenderer petInventoryId={petInventoryId} animated={false} />
+      </div>
+    </ErrorBoundary> : fallback}
+  </div>;
+}
 
 function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string; borderOpacity: number; glowStrength: number } {
   // Unified gold palette — intensity scales with rarity, no rainbow colors
@@ -837,7 +869,9 @@ function PetView({
                         : `radial-gradient(circle at 50% 55%, rgba(240,192,64,${Math.min(0.5, rs.glowStrength + 0.05)}) 0%, rgba(240,192,64,${Math.min(0.18, rs.glowStrength * 0.55)}) 35%, transparent 65%)`,
                       pointerEvents: "none",
                     }} />
-                    {displayImage ? (
+                    {!isEgg && pet.petTemplateId ? (
+                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={displayImage} name={pet.name} />
+                    ) : displayImage ? (
                       <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", position: "relative" }} />
                     ) : (
                       <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", position: "relative" }} />
