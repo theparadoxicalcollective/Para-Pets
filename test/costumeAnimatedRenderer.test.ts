@@ -40,7 +40,7 @@ test("item-level effects compose with independent and pet-part-mounted adornment
   assert.ok((animator.match(/effect=\{costume\.adornmentEffect\}/g) ?? []).length >= 2);
   assert.ok((animator.match(/wingPair=\{costume\.slot === ADORNMENT_SLOT_MAP\.wings\}/g) ?? []).length >= 2);
   assert.match(animator, /viewPlacements\.slice\(0, 1\)/);
-  assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
+  assert.match(animator, /adornmentEffect\?: RuntimeAdornmentItemEffect \| null/);
   assert.match(costumeRoutes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
 });
 
