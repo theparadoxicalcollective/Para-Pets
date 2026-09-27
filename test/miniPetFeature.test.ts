@@ -87,6 +87,9 @@ test("public profile Mini Pets use a read-only lookup while owner actions stay p
   assert.match(routes, /return res\.json\(\{ equipped: await getEquippedMiniPet\(petInventoryId\) \}\)/);
   assert.match(renderer, /queryKey: \["\/api\/pet", petInventoryId, "mini-pet", access\]/);
   assert.match(renderer, /access === "public" \? "\/public" : ""/);
+  assert.match(renderer, /animated = true/);
+  assert.match(renderer, /data-mini-pet-motion=\{animated \? "animated" : "static"\}/);
+  assert.match(renderer, /opacity: !animated && part\.partType === "closed_eyes" \? 0 : undefined/);
 });
 
 test("admins can set and edit a validated Mini Pet coin price", () => {

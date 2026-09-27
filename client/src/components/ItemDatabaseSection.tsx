@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
 import type { CardDefinition } from "@/lib/cardCatalog";
 import { ADORNMENT_SLOT_DEFINITIONS, isAdornmentSlotKey, type AdornmentSlotKey } from "@shared/costumeFeature";
-import { ADORNMENT_ITEM_EFFECTS, ADORNMENT_ITEM_EFFECT_LABELS, isAdornmentItemEffect, type AdornmentItemEffect } from "@shared/adornmentAnimation";
+import { ADORNMENT_ITEM_EFFECTS, ADORNMENT_ITEM_EFFECT_LABELS, normalizeAdornmentItemEffect, type AdornmentItemEffect } from "@shared/adornmentAnimation";
 
 export interface ShopItemFull {
   id: string;
@@ -596,7 +596,7 @@ function AdminItemForm({
   const [type, setType] = useState(defaultType);
   const initialAdornmentSlot = item?.adornmentSlot;
   const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(initialAdornmentSlot) ? initialAdornmentSlot : "head");
-  const [adornmentEffect, setAdornmentEffect] = useState<AdornmentItemEffect | "">(isAdornmentItemEffect(item?.adornmentEffect) ? item!.adornmentEffect as AdornmentItemEffect : "");
+  const [adornmentEffect, setAdornmentEffect] = useState<AdornmentItemEffect | "">(normalizeAdornmentItemEffect(item?.adornmentEffect) ?? "");
   const [hideAboveHeadPart, setHideAboveHeadPart] = useState(!!item?.hideAboveHeadPart);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
@@ -1031,7 +1031,7 @@ function AdminItemForm({
                     ))}
                   </select>
                   <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">
-                    Applies wherever this adornment is equipped. Still adds no extra effect; Head, Left Hand, and Right Hand adornments still follow the matching animated pet part.
+                    Applies wherever this adornment is equipped. Follow Part moves with the matching animated pet layer (Head 1/2/3, Left Hand, Right Hand, or Body for Back). Don't Move keeps the fitted artwork fixed to the pet canvas.
                   </p>
                 </div>
               )}

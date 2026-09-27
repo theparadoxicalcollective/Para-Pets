@@ -55,8 +55,11 @@ test("all animation choices survive schema validation and runtime normalization"
 });
 
 test("item-level adornment effects map to lightweight CSS motion", () => {
-  assert.deepEqual(ADORNMENT_ITEM_EFFECTS, ["still", "float", "spin", "sway", "pulse"]);
+  assert.deepEqual(ADORNMENT_ITEM_EFFECTS, ["follow_part", "dont_move", "float", "spin", "sway", "pulse"]);
   assert.equal(adornmentItemEffectAnimation(null), null);
+  assert.equal(adornmentItemEffectAnimation("follow_part"), "none");
+  assert.equal(adornmentItemEffectAnimation("dont_move"), "none");
+  // Legacy DB rows saved before Still was removed remain render-safe.
   assert.equal(adornmentItemEffectAnimation("still"), "none");
   assert.equal(adornmentItemEffectAnimation("float"), "float");
   assert.equal(adornmentItemEffectAnimation("spin"), "rotate");

@@ -3,7 +3,7 @@ import {
   adornmentItemEffectAnimation,
   adornmentMotion,
   normalizeAdornmentAnimation,
-  type AdornmentItemEffect,
+  type RuntimeAdornmentItemEffect,
 } from "@shared/adornmentAnimation";
 
 /** Shared by the fitting preview and player renderer; placement owns its pivot. */
@@ -11,7 +11,7 @@ export default function AdornmentArtwork({ src, placement, animated = true, effe
   src: string;
   placement: CostumePlacement;
   animated?: boolean;
-  effect?: AdornmentItemEffect | null;
+  effect?: RuntimeAdornmentItemEffect | null;
   wingPair?: boolean;
 }) {
   const fittedProfile = placement.anchorPart === "independent" ? normalizeAdornmentAnimation(placement.animation) : "none";

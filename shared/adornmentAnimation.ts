@@ -1,11 +1,14 @@
 export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
 export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
 
-export const ADORNMENT_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse"] as const;
+export const ADORNMENT_ITEM_EFFECTS = ["follow_part", "dont_move", "float", "spin", "sway", "pulse"] as const;
 export type AdornmentItemEffect = typeof ADORNMENT_ITEM_EFFECTS[number];
+/** Runtime-only compatibility for existing DB rows saved before Still was removed from Admin. */
+export type RuntimeAdornmentItemEffect = AdornmentItemEffect | "still";
 
 export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> = {
-  still: "Still",
+  follow_part: "Follow Part — move with matching pet layer",
+  dont_move: "Don't Move — stay fixed in fitted position",
   float: "Float — balloon-like loop",
   spin: "Spin — slow clockwise",
   sway: "Sway — gentle side to side",
@@ -16,7 +19,7 @@ export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> =
 export const ADORNMENT_IMAGE_URL_PATTERN = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const ADORNMENT_ANIMATION_LABELS: Record<AdornmentAnimation, string> = {
-  none: "Still", breathe: "Breathe", float: "Subtle float",
+  none: "No extra motion", breathe: "Breathe", float: "Subtle float",
   wings: "Wings (mirrored pair)", sway: "Sway", rotate: "Slow rotation",
 };
 
@@ -28,11 +31,19 @@ export function isAdornmentItemEffect(value: unknown): value is AdornmentItemEff
   return typeof value === "string" && ADORNMENT_ITEM_EFFECTS.includes(value as AdornmentItemEffect);
 }
 
+/** Treat old saved "still" values as the new Don't Move choice when editing. */
+export function normalizeAdornmentItemEffect(value: unknown): AdornmentItemEffect | null {
+  if (value === "still") return "dont_move";
+  return isAdornmentItemEffect(value) ? value : null;
+}
+
 /** Item-level effect overrides legacy fitted motion while preserving its saved placement. */
-export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | null | undefined): AdornmentAnimation | null {
+export function adornmentItemEffectAnimation(effect: RuntimeAdornmentItemEffect | null | undefined): AdornmentAnimation | null {
   if (!effect) return null;
+  if (effect === "still") return "none";
   const effectMap: Record<AdornmentItemEffect, AdornmentAnimation> = {
-    still: "none",
+    follow_part: "none",
+    dont_move: "none",
     float: "float",
     spin: "rotate",
     sway: "sway",

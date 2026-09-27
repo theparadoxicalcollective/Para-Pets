@@ -117,8 +117,10 @@ test("player detail cards show the active pet's equipped Mini Pet beside its ado
   const compact = read("client/src/components/FriendProfileModal.tsx");
   for (const source of [full, compact]) {
     assert.match(source, /costumeAccess="public"/);
-    assert.match(source, /<MiniPetRenderer petInventoryId=\{(?:profile\.)?activePet\.inventoryId\} access="public"/);
+    assert.match(source, /<MiniPetRenderer petInventoryId=\{(?:profile\.)?activePet\.inventoryId\} access="public" animated=\{false\}/);
   }
+  assert.match(full, /bottom-3 left-0 h-14 w-14/);
+  assert.match(compact, /left: -3, bottom: -3/);
   assert.match(full, /data-testid="player-detail-mini-pet"/);
   assert.match(compact, /data-testid="friend-profile-mini-pet"/);
 });
