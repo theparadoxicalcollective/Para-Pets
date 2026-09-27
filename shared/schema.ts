@@ -121,6 +121,16 @@ export const shopItems = pgTable("shop_items", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Optional expression images for catalog NPCs. The base NPC image stays in
+// shop_items; phase artwork is saved independently until dialogue uses it.
+export const npcPhases = pgTable("npc_phases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  npcId: varchar("npc_id").notNull().references(() => shopItems.id, { onDelete: "cascade" }),
+  phase: text("phase").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [uniqueIndex("npc_phases_npc_phase_unique").on(table.npcId, table.phase)]);
+
 export const userInventory = pgTable("user_inventory", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),

@@ -7,6 +7,7 @@ import {
   serializeNpcMetadata,
   type NpcAnimationType,
 } from "@/lib/npcMetadata";
+import { NPC_PHASES, npcPhaseLabel, type NpcPhase } from "@shared/npcPhases";
 
 interface NpcRow {
   id: string;
@@ -20,12 +21,36 @@ interface NpcRow {
 const NPC_WORLD_ID = "__npc_catalog__";
 const EMPTY_MESSAGES = ["", "", ""];
 
-const fileData = (file: File) => new Promise<string>((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result));
-  reader.onerror = reject;
-  reader.readAsDataURL(file);
-});
+interface SavedPhase { phase: NpcPhase; imageUrl: string }
+
+// Upload a compact transparent image. Full-resolution phone photos previously
+// kept NPC saves uploading for minutes until the browser abandoned the request.
+const fileData = async (file: File): Promise<string> => {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 25 * 1024 * 1024) {
+    throw new Error("Choose a PNG, JPEG, or WebP image under 25 MB.");
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Could not read that image."));
+      image.src = url;
+    });
+    const scale = Math.min(1, 1000 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not prepare that image on this device.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const data = canvas.toDataURL("image/webp", 0.85);
+    if (data.length > 12 * 1024 * 1024) throw new Error("The compressed image is too large. Choose a smaller file.");
+    return data;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+};
 
 export default function NpcAdminPanel() {
   const [npcs, setNpcs] = useState<NpcRow[]>([]);
@@ -37,7 +62,14 @@ export default function NpcAdminPanel() {
   const [animation, setAnimation] = useState<NpcAnimationType>("none");
   const [npcMessages, setNpcMessages] = useState<string[]>(EMPTY_MESSAGES);
   const [saving, setSaving] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [phasesNpc, setPhasesNpc] = useState<NpcRow | null>(null);
+  const [savedPhases, setSavedPhases] = useState<SavedPhase[]>([]);
+  const [phase, setPhase] = useState<NpcPhase>("happy");
+  const [phaseImageData, setPhaseImageData] = useState("");
+  const [phaseBusy, setPhaseBusy] = useState(false);
+  const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
 
   const formQuests = useMemo(() => getNpcQuestAssociations(name), [name]);
 
@@ -98,9 +130,51 @@ export default function NpcAdminPanel() {
     setNpcMessages(previous => previous.map((entry, entryIndex) => entryIndex === index ? value : entry));
   };
 
+  const openPhases = async (npc: NpcRow) => {
+    setPhasesNpc(npc);
+    setSavedPhases([]);
+    setPhase("happy");
+    setPhaseImageData("");
+    setPhaseMessage(null);
+    try {
+      const response = await apiRequest("GET", `/api/admin/npcs/${npc.id}/phases`);
+      setSavedPhases(await response.json());
+    } catch (error: any) {
+      setPhaseMessage(error?.message || "Could not load NPC phases.");
+    }
+  };
+
+  const savePhase = async () => {
+    if (!phasesNpc || !phaseImageData || phaseBusy) return;
+    setPhaseBusy(true);
+    setPhaseMessage(null);
+    try {
+      const response = await apiRequest("PUT", `/api/admin/npcs/${phasesNpc.id}/phases/${phase}`, { imageData: phaseImageData });
+      const saved = await response.json() as SavedPhase;
+      setSavedPhases(previous => [...previous.filter(item => item.phase !== saved.phase), saved]);
+      setPhaseImageData("");
+      setPhaseMessage(`${npcPhaseLabel(phase)} phase saved.`);
+    } catch (error: any) {
+      setPhaseMessage(error?.message || "Could not save NPC phase.");
+    } finally { setPhaseBusy(false); }
+  };
+
+  const deletePhase = async (selected: NpcPhase) => {
+    if (!phasesNpc || phaseBusy || !window.confirm(`Remove the ${npcPhaseLabel(selected)} phase?`)) return;
+    setPhaseBusy(true);
+    setPhaseMessage(null);
+    try {
+      await apiRequest("DELETE", `/api/admin/npcs/${phasesNpc.id}/phases/${selected}`);
+      setSavedPhases(previous => previous.filter(item => item.phase !== selected));
+      setPhaseMessage(`${npcPhaseLabel(selected)} phase removed.`);
+    } catch (error: any) {
+      setPhaseMessage(error?.message || "Could not remove NPC phase.");
+    } finally { setPhaseBusy(false); }
+  };
+
   const save = async () => {
     const trimmedName = name.trim();
-    if (!trimmedName || (!editing && !imageData)) return;
+    if (!trimmedName || (!editing && !imageData) || processingImage) return;
     setSaving(true);
     setMessage(null);
     try {
@@ -209,17 +283,59 @@ export default function NpcAdminPanel() {
 
                 <button
                   type="button"
-                  data-testid={`button-npc-parts-${npc.id}`}
-                  disabled
-                  title="NPC parts will be enabled in a future update"
-                  className="mt-3 w-full cursor-not-allowed rounded-lg py-2 font-fantasy text-[10px] tracking-wider opacity-55"
+                  data-testid={`button-npc-phases-${npc.id}`}
+                  onClick={() => void openPhases(npc)}
+                  className="mt-3 w-full rounded-lg py-2 font-fantasy text-[10px] tracking-wider"
                   style={{ color: "#a7f3d0", border: "1px solid rgba(52,211,153,.24)", background: "rgba(5,70,48,.22)" }}
                 >
-                  PARTS — COMING LATER
+                  PHASES
                 </button>
               </article>
             );
           })}
+        </div>
+      )}
+
+      {phasesNpc && (
+        <div className="fixed inset-0 z-[1200] grid place-items-center overflow-y-auto bg-black/80 p-4" data-testid="npc-phases-panel">
+          <div className="my-4 w-full max-w-md space-y-4 rounded-2xl p-5" style={{ background: "#17100c", border: "1px solid rgba(52,211,153,.4)", maxHeight: "92vh", overflowY: "auto" }}>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-fantasy text-sm text-emerald-200">{phasesNpc.name} — PHASES</h2>
+              <button type="button" aria-label="Close NPC phases" onClick={() => setPhasesNpc(null)} className="text-stone-300"><X size={18} /></button>
+            </div>
+            <p className="text-[10px] text-stone-400">Save expression images now for future NPC dialogue. The main NPC image stays as the world artwork.</p>
+            {phaseMessage && <p role="status" className="text-xs text-emerald-200">{phaseMessage}</p>}
+            <label className="block text-xs text-stone-300">Image phase
+              <select data-testid="select-npc-phase" value={phase} onChange={event => { setPhase(event.target.value as NpcPhase); setPhaseImageData(""); }} className="mt-1 w-full rounded-lg border border-white/10 bg-stone-900 p-2 text-white">
+                {NPC_PHASES.map(option => <option key={option} value={option}>{npcPhaseLabel(option)}</option>)}
+              </select>
+            </label>
+            <label className="block text-xs text-stone-300">Upload image
+              <input key={phase} data-testid="input-npc-phase-image" type="file" accept="image/png,image/webp,image/jpeg" className="mt-1 block w-full text-xs" onChange={async event => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setPhaseImageData("");
+                setPhaseBusy(true);
+                try { setPhaseImageData(await fileData(file)); setPhaseMessage(null); }
+                catch (error: any) { setPhaseMessage(error?.message || "Could not read that image."); }
+                finally { setPhaseBusy(false); }
+              }} />
+            </label>
+            {(phaseImageData || savedPhases.find(item => item.phase === phase)?.imageUrl) && (
+              <img src={phaseImageData || savedPhases.find(item => item.phase === phase)!.imageUrl} alt={`${npcPhaseLabel(phase)} preview`} className="mx-auto h-40 w-40 object-contain" />
+            )}
+            <button type="button" data-testid="button-save-npc-phase" disabled={!phaseImageData || phaseBusy} onClick={() => void savePhase()} className="w-full rounded-lg bg-emerald-800 px-3 py-2 font-fantasy text-xs text-white disabled:opacity-40">{phaseBusy ? "SAVING…" : `SAVE ${npcPhaseLabel(phase).toUpperCase()} PHASE`}</button>
+            <div className="grid grid-cols-4 gap-2">
+              {NPC_PHASES.map(option => {
+                const saved = savedPhases.find(item => item.phase === option);
+                return <div key={option} className="min-w-0 rounded-lg border border-emerald-300/15 bg-black/20 p-1 text-center">
+                  {saved ? <img src={saved.imageUrl} alt="" className="mx-auto h-14 w-14 object-contain" /> : <div className="mx-auto h-14 w-14 rounded bg-white/5" />}
+                  <p className="truncate text-[8px] text-stone-300">{npcPhaseLabel(option)}</p>
+                  {saved && <button type="button" disabled={phaseBusy} aria-label={`Remove ${npcPhaseLabel(option)} phase`} onClick={() => void deletePhase(option)} className="text-[9px] text-red-300">Remove</button>}
+                </div>;
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -253,8 +369,11 @@ export default function NpcAdminPanel() {
                 onChange={async event => {
                   const file = event.target.files?.[0];
                   if (!file) return;
-                  try { setImageData(await fileData(file)); }
-                  catch { setMessage("Could not read that image. Please choose it again."); }
+                  setImageData("");
+                  setProcessingImage(true);
+                  try { setImageData(await fileData(file)); setMessage(null); }
+                  catch (error: any) { setMessage(error?.message || "Could not read that image. Please choose it again."); }
+                  finally { setProcessingImage(false); }
                 }}
               />
             </label>
@@ -326,13 +445,13 @@ export default function NpcAdminPanel() {
 
             <button
               type="button"
-              disabled={!name.trim() || (!editing && !imageData) || saving}
+              disabled={!name.trim() || (!editing && !imageData) || saving || processingImage}
               onClick={() => void save()}
               data-testid="button-save-npc"
               className="w-full rounded-xl py-3 font-fantasy text-xs tracking-wider disabled:opacity-40"
               style={{ color: "#241207", background: "linear-gradient(135deg,#fdba74,#f59e0b)" }}
             >
-              {saving ? "SAVING…" : editing ? "SAVE NPC" : "ADD NPC"}
+              {processingImage ? "PREPARING IMAGE…" : saving ? "SAVING…" : editing ? "SAVE NPC" : "ADD NPC"}
             </button>
           </div>
         </div>
