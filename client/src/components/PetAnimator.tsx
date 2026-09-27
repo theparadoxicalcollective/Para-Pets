@@ -1,5 +1,5 @@
 import AdornmentArtwork from "./AdornmentArtwork";
-import { ADORNMENT_MOTION_CSS, type AdornmentItemEffect } from "@shared/adornmentAnimation";
+import { ADORNMENT_MOTION_CSS, type RuntimeAdornmentItemEffect } from "@shared/adornmentAnimation";
 import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -43,7 +43,7 @@ export interface PetAnimatorPreviewCostume {
   costumeInventoryId?: string;
   name: string;
   imageUrl: string | null;
-  adornmentEffect?: AdornmentItemEffect | null;
+  adornmentEffect?: RuntimeAdornmentItemEffect | null;
   hideAboveHeadPart?: boolean;
   placements?: CostumePlacement[] | null;
 }
