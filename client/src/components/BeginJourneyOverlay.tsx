@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { bjGetStep, bjSetStep, bjRestart, bjGetStarterInventoryId, bjSetStarterInventoryId, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
+import { isHatchedThreeStarPet } from "@/lib/tutorialHatch";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const invCheckRef = useRef<any[]>([]); // latest invCheck data accessible from poll closure
   const potionGrantAttemptedRef = useRef(false);
   const dragPotionCleanupRef = useRef<(() => void) | null>(null);
+  const completionRetryAfterRef = useRef(0);
 
   useEffect(() => () => {
     dragPotionCleanupRef.current?.();
@@ -102,6 +104,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       return res.json();
     },
     onSuccess: () => {
+      completionRetryAfterRef.current = 0;
       // Immediately reflect completion in the cache so FloatingNav shows CLAIM button
       queryClient.setQueryData(["/api/auth/me"], (old: any) =>
         old ? { ...old, tutorial_quest_completed: true } : old
@@ -114,12 +117,11 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setStep("done");
       }, 3500);
     },
-    // Return to hatch verification after a transient failure so the next
-    // inventory refresh retries automatically instead of trapping the player.
+    // The pet is already hatched. Keep the game usable and retry completion
+    // after a pause instead of sending the player back into potion training.
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      bjSetStep(5);
-      setStep(5);
+      completionRetryAfterRef.current = Date.now() + 5000;
     },
   });
 
@@ -288,12 +290,12 @@ export default function BeginJourneyOverlay({ user }: Props) {
       return;
     }
 
-    if (activePet?.isHatched === true && Number(activePet.rarity) === 3) {
+    if (isHatchedThreeStarPet(activePet)) {
       if (step !== 6) {
         bjSetStep(6);
         setStep(6);
       }
-      completeTutorialMutation.mutate();
+      if (Date.now() >= completionRetryAfterRef.current) completeTutorialMutation.mutate();
     }
   }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, showReward]);
 
@@ -559,7 +561,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       </div>
 
       {/* Circle spotlight — skip for free mode */}
-      {!isFree && !step5TapMode && (pr ? (
+      {!isFree && stepNum !== 6 && !step5TapMode && (pr ? (
         <div style={{
           position: "fixed", inset: 0,
           background: `radial-gradient(circle ${radius}px at ${cx}px ${cy}px, transparent ${radius}px, ${OVERLAY_BG} ${radius + 1}px)`,
@@ -631,7 +633,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       )}
 
       {/* Circular click forwarder over spotlight — skip for free mode and step 5 (potions are the target) */}
-      {!isFree && stepNum !== 5 && pr && (
+      {!isFree && stepNum !== 5 && stepNum !== 6 && pr && (
         <div
           onClick={handleForwarderClick}
           style={{

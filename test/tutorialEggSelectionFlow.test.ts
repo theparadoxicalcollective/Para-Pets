@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { isHatchedThreeStarPet } from "../client/src/lib/tutorialHatch.ts";
 
 const overlay = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
 
@@ -35,11 +36,21 @@ test("confirmed activation sends the player to the active pet page", () => {
 test("successful hatching completes automatically without a quest-button loop", () => {
   assert.match(
     overlay,
-    /activePet\?\.isHatched === true && Number\(activePet\.rarity\) === 3[\s\S]*?completeTutorialMutation\.mutate\(\)/,
+    /if \(isHatchedThreeStarPet\(activePet\)\) \{[\s\S]*?completeTutorialMutation\.mutate\(\)/,
   );
   assert.doesNotMatch(overlay, /questEl\?\.click\(\);\s*completeTutorialMutation\.mutate\(\)/);
   assert.doesNotMatch(overlay, /hasAnyPet && !hasUnhatched/);
-  assert.match(overlay, /onError:[\s\S]*?bjSetStep\(5\);[\s\S]*?setStep\(5\)/);
+  assert.match(overlay, /onError:[\s\S]*?completionRetryAfterRef\.current = Date\.now\(\) \+ 5000/);
+  assert.match(overlay, /Date\.now\(\) >= completionRetryAfterRef\.current/);
+  assert.match(overlay, /!isFree && stepNum !== 6 && !step5TapMode/);
+  assert.match(overlay, /stepNum !== 5 && stepNum !== 6 && pr/);
+});
+
+test("hatch completion accepts the same star rarity as starter selection and the server", () => {
+  assert.equal(isHatchedThreeStarPet({ isHatched: true, starRarity: 3, rarity: 1 }), true);
+  assert.equal(isHatchedThreeStarPet({ isHatched: true, starRarity: null, rarity: 3 }), true);
+  assert.equal(isHatchedThreeStarPet({ isHatched: false, starRarity: 3, rarity: 3 }), false);
+  assert.equal(isHatchedThreeStarPet({ isHatched: true, starRarity: 2, rarity: 3 }), false);
 });
 
 test("tutorial stays on potion training until the active egg hatches", () => {

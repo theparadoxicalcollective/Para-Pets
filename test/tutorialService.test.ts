@@ -206,7 +206,7 @@ test("the seven tutorial steps follow starter selection through automatic hatch 
   assert.match(overlay, /tutorialArrow/);
   assert.match(overlay, /createPortal/);
   assert.match(overlay, /document\.body/);
-  assert.match(overlay, /activePet\?\.isHatched === true/);
+  assert.match(overlay, /isHatchedThreeStarPet\(activePet\)/);
   assert.match(overlay, /completeTutorialMutation\.mutate\(\)/);
   assert.match(overlay, /potionGrantAttemptedRef\.current = true/);
   assert.match(app, /!bjIsCurrentFlowVersion\(\)/);
