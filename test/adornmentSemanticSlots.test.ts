@@ -116,8 +116,8 @@ test("Don\'t Move is distinct from the Still item effect", () => {
   assert.match(feature, /placement\.dontMove === true \? \{ dontMove: true \}/);
   assert.match(editor, /DON\'T MOVE/);
   assert.match(editor, /will not follow a moving pet part or play its own motion effect/);
-  assert.match(animator, /costume\.adornmentEffect !== "still"/);
-  assert.match(animator, /const dontMove = savedPlacement\.dontMove === true/);
+  assert.match(animator, /costume\.adornmentEffect === "follow_part"/);
+  assert.match(animator, /const dontMove = savedPlacement\.dontMove === true && !forcePartFollow/);
   assert.match(animator, /animated=\{false\}/);
 });
 
