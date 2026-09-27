@@ -224,6 +224,20 @@ export function registerMiniPetRoutes(app: Express, processImage: (data: string)
     }
   });
 
+  app.get("/api/pet/:petInventoryId/mini-pet/public", requireAuthenticated, async (req: Request, res: Response) => {
+    const petInventoryId = String(req.params.petInventoryId);
+    try {
+      const [pet] = await db.select({ id: userInventory.id }).from(userInventory)
+        .innerJoin(shopItems, eq(shopItems.id, userInventory.shopItemId))
+        .where(and(eq(userInventory.id, petInventoryId), eq(userInventory.isHatched, true), eq(shopItems.type, "pet"))).limit(1);
+      if (!pet) return res.status(404).json({ message: "Pet not found" });
+      return res.json({ equipped: await getEquippedMiniPet(petInventoryId) });
+    } catch (error) {
+      console.error("[mini-pets] public display load failed", error);
+      return res.status(500).json({ message: "Failed to load displayed Mini Pet" });
+    }
+  });
+
   app.post("/api/pet/:petInventoryId/mini-pet/equip", requireAuthenticated, async (req: Request, res: Response) => {
     const user = req.user as { id: string };
     const petInventoryId = String(req.params.petInventoryId);

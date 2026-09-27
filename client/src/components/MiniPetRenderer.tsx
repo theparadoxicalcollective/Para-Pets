@@ -19,6 +19,7 @@ export interface EquippedMiniPet {
 
 interface Props {
   petInventoryId: string;
+  access?: "owner" | "public";
   className?: string;
   style?: React.CSSProperties;
 }
@@ -41,7 +42,7 @@ function motionClassForPart(partType: MiniPetPartType, hasBlinkPair: boolean): s
   }
 }
 
-export default function MiniPetRenderer({ petInventoryId, className = "", style }: Props) {
+export default function MiniPetRenderer({ petInventoryId, access = "owner", className = "", style }: Props) {
   // The hidden anchor identifies the dedicated Active Pet Mini Pet host. On the
   // Active Pet page we portal the companion into display-active-pet itself so
   // its placement is relative to the pet artwork area, not the taller page/stage
@@ -50,8 +51,8 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
   const [activePetStage, setActivePetStage] = useState<HTMLElement | null>(null);
 
   const { data } = useQuery<{ equipped: EquippedMiniPet | null }>({
-    queryKey: ["/api/pet", petInventoryId, "mini-pet"],
-    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/mini-pet`)).json(),
+    queryKey: ["/api/pet", petInventoryId, "mini-pet", access],
+    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/mini-pet${access === "public" ? "/public" : ""}`)).json(),
     enabled: !!petInventoryId,
     // An equip/unequip happens on the Closet page and this renderer can remain
     // mounted behind it. Always treat the equipped-companion lookup as live

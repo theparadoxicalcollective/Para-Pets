@@ -79,6 +79,16 @@ test("Mini Pet routes enforce ownership, listing, exclusivity, and atomic stat d
   assert.match(source, /UPDATE user_inventory pet SET/);
 });
 
+test("public profile Mini Pets use a read-only lookup while owner actions stay protected", () => {
+  const routes = readFileSync(new URL("../server/routes/miniPet.routes.ts", import.meta.url), "utf8");
+  const renderer = readFileSync(new URL("../client/src/components/MiniPetRenderer.tsx", import.meta.url), "utf8");
+  assert.match(routes, /app\.get\("\/api\/pet\/:petInventoryId\/mini-pet\/public", requireAuthenticated/);
+  assert.match(routes, /eq\(userInventory\.isHatched, true\)/);
+  assert.match(routes, /return res\.json\(\{ equipped: await getEquippedMiniPet\(petInventoryId\) \}\)/);
+  assert.match(renderer, /queryKey: \["\/api\/pet", petInventoryId, "mini-pet", access\]/);
+  assert.match(renderer, /access === "public" \? "\/public" : ""/);
+});
+
 test("admins can set and edit a validated Mini Pet coin price", () => {
   const admin = readFileSync(new URL("../client/src/components/MiniPetAdminPanel.tsx", import.meta.url), "utf8");
   const routes = readFileSync(new URL("../server/routes/miniPet.routes.ts", import.meta.url), "utf8");

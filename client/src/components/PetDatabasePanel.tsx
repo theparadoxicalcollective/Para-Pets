@@ -462,6 +462,7 @@ export default function PetDatabasePanel({
     .filter(item => !normalizedCostumeSearch || item.name.toLowerCase().includes(normalizedCostumeSearch))
     .sort((a, b) => a.name.localeCompare(b.name));
   const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);
+  const stillHeadAdornment = selectedCostumeItem?.adornmentSlot === "head" && selectedCostumeItem.adornmentEffect === "still";
   const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);
   const selectedCostumeIsWings = selectedCostumeItem?.adornmentSlot === "wings";
   const formPlacements = (selectedCostumeDefinition?.placements ?? [])
@@ -555,6 +556,7 @@ export default function PetDatabasePanel({
     getWingReplacementPartTypes(placement.anchorPart).forEach(part => previewHiddenWings.add(part));
   }
   const adornmentStageFit = fitAdornmentStage(viewParts.filter(part => !previewHiddenWings.has(part.partType)));
+  const adornmentStageTransform = `translate(${adornmentStageFit.offsetX / 10}%, ${adornmentStageFit.offsetY / 10}%) scale(${adornmentStageFit.scale})`;
   const canSaveCostumePlacement = !costumeDefinitionsLoading && !costumeDefinitionsError && !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
   const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)
     .find(instance => !costumeInstances.includes(instance));
@@ -1295,14 +1297,14 @@ export default function PetDatabasePanel({
               onPointerCancel={(event) => endCostumeDrag(event.pointerId)}
             >
               {previewAdornmentMotion ? (
-                <div data-testid="adornment-live-preview" className="absolute inset-0 pointer-events-none">
+                <div data-testid="adornment-live-preview" className="absolute inset-0 pointer-events-none"
+                  style={{ transform: adornmentStageTransform, transformOrigin: "top left" }}>
                   <PetAnimator
                     petTemplateId={selectedTemplateId}
                     artworkForm={costumeArtworkForm}
                     mode="idle"
                     view={activeView === "back" ? "back" : "front"}
                     fillContainer
-                    fitVisible
                     previewCostumes={livePreviewCostumes}
                     style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
                   />
@@ -1310,7 +1312,7 @@ export default function PetDatabasePanel({
               ) : (
               <div
                 className="absolute inset-0"
-                style={{ transform: `translate(${adornmentStageFit.offsetX / 10}%, ${adornmentStageFit.offsetY / 10}%) scale(${adornmentStageFit.scale})`, transformOrigin: "top left" }}
+                style={{ transform: adornmentStageTransform, transformOrigin: "top left" }}
               >
               {viewParts.filter(part => !previewHiddenWings.has(part.partType)).map(part => (
                 <img
@@ -1434,31 +1436,31 @@ export default function PetDatabasePanel({
                 <button
                   type="button"
                   role="switch"
-                  aria-checked={!!selectedCostumePlacement.dontMove}
+                  aria-checked={!stillHeadAdornment && !!selectedCostumePlacement.dontMove}
                   data-testid="toggle-adornment-dont-move"
                   onClick={() => updateCostumeDraft({ dontMove: !selectedCostumePlacement.dontMove })}
-                  disabled={saveCostumeMutation.isPending}
+                  disabled={saveCostumeMutation.isPending || stillHeadAdornment}
                   className="flex w-full items-center justify-between gap-3 rounded-lg p-2.5 text-left disabled:opacity-50"
                   style={{
-                    background: selectedCostumePlacement.dontMove ? "rgba(192,132,252,.18)" : "rgba(0,0,0,.24)",
-                    border: selectedCostumePlacement.dontMove ? "1px solid rgba(216,180,254,.52)" : "1px solid rgba(192,132,252,.22)",
+                    background: !stillHeadAdornment && selectedCostumePlacement.dontMove ? "rgba(192,132,252,.18)" : "rgba(0,0,0,.24)",
+                    border: !stillHeadAdornment && selectedCostumePlacement.dontMove ? "1px solid rgba(216,180,254,.52)" : "1px solid rgba(192,132,252,.22)",
                     color: "#e7d7b5",
                   }}
                 >
                   <span>
                     <span className="block font-fantasy text-[10px] tracking-wider">DON'T MOVE</span>
                     <span className="mt-0.5 block text-[8px] leading-3" style={{ color: "#8f8198" }}>
-                      Locks this fitted adornment in place. It will not follow a moving pet part or play its own motion effect.
+                      {stillHeadAdornment ? "Still Head adornments follow the selected head layer." : "Locks this fitted adornment in place. It will not follow a moving pet part or play its own motion effect."}
                     </span>
                   </span>
                   <span
                     aria-hidden="true"
                     className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
-                    style={{ background: selectedCostumePlacement.dontMove ? "#9b6cc6" : "#3a3040" }}
+                    style={{ background: !stillHeadAdornment && selectedCostumePlacement.dontMove ? "#9b6cc6" : "#3a3040" }}
                   >
                     <span
                       className="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
-                      style={{ left: 2, transform: selectedCostumePlacement.dontMove ? "translateX(16px)" : "translateX(0)" }}
+                      style={{ left: 2, transform: !stillHeadAdornment && selectedCostumePlacement.dontMove ? "translateX(16px)" : "translateX(0)" }}
                     />
                   </span>
                 </button>

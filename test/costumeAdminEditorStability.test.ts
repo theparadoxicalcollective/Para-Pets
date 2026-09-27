@@ -94,7 +94,8 @@ test("costume controls cannot change the draft while a save is pending", () => {
 test("adornment fitter exposes a persisted Don\'t Move switch", () => {
   assert.match(editor, /data-testid="toggle-adornment-dont-move"/);
   assert.match(editor, /role="switch"/);
-  assert.match(editor, /aria-checked=\{!!selectedCostumePlacement\.dontMove\}/);
+  assert.match(editor, /aria-checked=\{!stillHeadAdornment && !!selectedCostumePlacement\.dontMove\}/);
+  assert.match(editor, /disabled=\{saveCostumeMutation\.isPending \|\| stillHeadAdornment\}/);
   assert.match(editor, /updateCostumeDraft\(\{ dontMove: !selectedCostumePlacement\.dontMove \}\)/);
   assert.match(editor, /Locks this fitted adornment in place/);
   assert.match(costumeSchema, /dontMove: z\.boolean\(\)\.optional\(\)/);
@@ -202,6 +203,8 @@ test("adornment fitter provides a shared-runtime live idle and effect preview", 
   assert.match(editor, /pet idle \+ selected adornment effect/);
   assert.match(editor, /previewAdornmentMotion \? \(/);
   assert.match(editor, /fitAdornmentStage\(viewParts\.filter\(part => !previewHiddenWings\.has\(part\.partType\)\)\)/);
+  assert.match(editor, /data-testid="adornment-live-preview"[\s\S]*?transform: adornmentStageTransform/);
+  assert.doesNotMatch(editor, /\sfitVisible\s/);
   assert.match(editor, /<AdornmentArtwork[^>]*animated=\{false\}/);
 });
 

@@ -8,6 +8,7 @@ import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import aquariumIcon from "@assets/icon_fishbowl.png";
 import RoleBadge from "@/components/RoleBadge";
 import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
 import { AquariumPage } from "@/pages/AquariumPage";
 
 interface PvpStats {
@@ -237,8 +238,6 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   const sortedAccessories = [...equippedAccessories].sort(
     (a, b) => (a.slot ?? 999) - (b.slot ?? 999),
   );
-  const leftAccessories = sortedAccessories.slice(0, 3);
-  const rightAccessories = sortedAccessories.slice(3, 5);
   const anyMutationPending = sendRequestMutation.isPending || acceptRequestMutation.isPending || cancelOrDeclineMutation.isPending;
 
   type FriendBtnDef = {
@@ -438,48 +437,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
             <div className="flex min-w-0 flex-col items-center gap-2">
               {profile.activePet ? (
                 <>
-                  <div
-                    className="grid w-full min-w-0 items-center gap-x-1 min-[375px]:gap-x-2"
-                    style={{ gridTemplateColumns: "minmax(54px, 76px) minmax(0, 1fr) minmax(54px, 76px)" }}
-                    data-testid="companion-showcase"
-                  >
-                    {([leftAccessories, rightAccessories] as const).map((accessories, columnIndex) => (
-                      <div
-                        key={columnIndex}
-                        className={`flex h-full flex-col items-center justify-evenly ${columnIndex === 0 ? "col-start-1 row-start-1" : "col-start-3 row-start-1"}`}
-                        data-testid={columnIndex === 0 ? "equipment-column-left" : "equipment-column-right"}
-                      >
-                        {Array.from({ length: columnIndex === 0 ? 3 : 2 }).map((_, columnItemIndex) => {
-                          const acc = accessories[columnItemIndex];
-                          const i = columnIndex === 0 ? columnItemIndex : columnItemIndex + 3;
-                          const arcOffset = columnIndex === 0
-                            ? [8, 0, 8][columnItemIndex] ?? 0
-                            : [-7, -7][columnItemIndex] ?? 0;
-                          if (!acc) return <span key={`spacer-${columnItemIndex}`} className="h-[54px] w-[54px] min-[390px]:h-16 min-[390px]:w-16" aria-hidden="true" />;
-                          return (
-                          <button
-                            key={acc.id ?? acc.accessoryInventoryId ?? i}
-                            onClick={() => setAccessoryDetail(acc)}
-                            data-testid={`button-acc-${i}`}
-                            aria-label={`View ${acc.name}`}
-                            className="flex shrink-0 items-center justify-center rounded-full bg-transparent transition-[transform,filter] hover:bg-purple-300/5 active:scale-95"
-                            style={{ width: "clamp(54px, 15vw, 64px)", height: "clamp(54px, 15vw, 64px)", transform: `translateX(${arcOffset}px)`, border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
-                          >
-                            {acc.imageUrl ? (
-                              <span className="flex flex-col items-center">
-                                <img src={acc.imageUrl} alt="" className="object-contain" style={{ width: "clamp(44px, 12vw, 54px)", height: "clamp(44px, 12vw, 54px)", filter: "drop-shadow(0 0 5px rgba(192,132,252,0.35)) drop-shadow(0 3px 3px rgba(0,0,0,0.85))" }} />
-                                {!!acc.starRarity && <span className="-mt-1 whitespace-nowrap text-[7px] leading-none text-[#f0c040]" aria-label={`${acc.starRarity} star rarity`}>{"★".repeat(acc.starRarity)}</span>}
-                              </span>
-                            ) : (
-                              <span aria-hidden="true" className="text-lg text-purple-300/50" style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }}>✦</span>
-                            )}
-                          </button>
-                          );
-                        })}
-                      </div>
-                    ))}
-
-                    <div className="col-start-2 row-start-1 flex h-[142px] w-full min-w-0 items-center justify-center min-[380px]:h-[158px]" data-testid="img-active-pet">
+                  <div className="flex h-[190px] w-full min-w-0 items-center justify-center" data-testid="companion-showcase">
+                    <div className="relative flex h-full w-[190px] items-center justify-center" data-testid="img-active-pet">
                       {profile.activePet.petTemplateId ? (
                         <PetAnimator
                           petTemplateId={profile.activePet.petTemplateId}
@@ -496,6 +455,11 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                           style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.78))" }} />
                       ) : (
                         <img src={petPawIcon} alt="" className="h-24 w-24 object-contain" />
+                      )}
+                      {profile.activePet.inventoryId && (
+                        <div className="absolute bottom-0 right-0 h-14 w-14 pointer-events-none" data-testid="player-detail-mini-pet">
+                          <MiniPetRenderer petInventoryId={profile.activePet.inventoryId} access="public" />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -521,6 +485,29 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                         <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>
                           ✦ {profile.activePet.specialSkill}
                         </p>
+                      )}
+                      {sortedAccessories.length > 0 && (
+                        <div className="mt-2 flex w-full min-w-0 justify-center gap-1.5" data-testid="equipped-accessories-row">
+                          {sortedAccessories.slice(0, 5).map((acc, i) => (
+                            <button
+                              key={acc.id ?? acc.accessoryInventoryId ?? i}
+                              type="button"
+                              onClick={() => setAccessoryDetail(acc)}
+                              data-testid={`button-acc-${i}`}
+                              aria-label={`View ${acc.name}`}
+                              title={acc.name}
+                              className="flex h-12 w-12 min-w-0 shrink items-center justify-center rounded-lg transition-transform active:scale-95"
+                              style={{ background: "linear-gradient(135deg, rgba(40,20,55,.9), rgba(17,9,28,.94))", border: "1px solid rgba(192,132,252,.45)", boxShadow: "inset 0 0 8px rgba(192,132,252,.08)" }}
+                            >
+                              {acc.imageUrl ? (
+                                <span className="flex min-w-0 flex-col items-center">
+                                  <img src={acc.imageUrl} alt="" className="h-9 w-9 max-w-full object-contain" />
+                                  {!!acc.starRarity && <span className="-mt-1 whitespace-nowrap text-[7px] leading-none text-[#f0c040]" aria-label={`${acc.starRarity} star rarity`}>{"★".repeat(acc.starRarity)}</span>}
+                                </span>
+                              ) : <span aria-hidden="true" className="text-lg text-purple-300/50">✦</span>}
+                            </button>
+                          ))}
+                        </div>
                       )}
                       <div className="mt-2 flex w-full max-w-[300px] min-w-0 items-center divide-x" style={{ borderColor: "rgba(168,152,120,0.25)" }} data-testid="active-pet-stats">
                         <CompanionStat label="HP" value={profile.activePet.petHealth} color="#d97878" />
