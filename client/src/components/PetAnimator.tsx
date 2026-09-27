@@ -374,12 +374,16 @@ function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: P
 }
 
 function semanticFollowPartType(costume: EquippedCostume, placement: CostumePlacement): string | null {
-  if (costume.adornmentEffect !== "still") return null;
+  const explicitFollow = costume.adornmentEffect === "follow_part";
+  const legacyStillFollow = costume.adornmentEffect === "still";
+  if (!explicitFollow && !legacyStillFollow) return null;
+
   if (costume.slot === ADORNMENT_SLOT_MAP.head) {
     return ["head", "h2_head", "h3_head"][(placement.followPartIndex ?? 1) - 1] ?? "head";
   }
   if (costume.slot === ADORNMENT_SLOT_MAP.left_hand) return "left_hand";
   if (costume.slot === ADORNMENT_SLOT_MAP.right_hand) return "right_hand";
+  if (explicitFollow && costume.slot === ADORNMENT_SLOT_MAP.back) return "body";
   return null;
 }
 
@@ -454,10 +458,13 @@ function CostumeLayer({
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((savedPlacement) => {
-      // Still Head items always travel with their selected head, including
-      // placements saved before this rule with Don't Move switched on.
-      const dontMove = savedPlacement.dontMove === true
-        && !(costume.slot === ADORNMENT_SLOT_MAP.head && costume.adornmentEffect === "still");
+      // Follow Part is authoritative: it must inherit the target pet layer even
+      // if an older placement was previously saved with Don't Move enabled.
+      // Keep the earlier Still-Head compatibility rule so existing fitted items
+      // do not suddenly change behavior when this explicit effect is introduced.
+      const forcePartFollow = costume.adornmentEffect === "follow_part"
+        || (costume.slot === ADORNMENT_SLOT_MAP.head && costume.adornmentEffect === "still");
+      const dontMove = savedPlacement.dontMove === true && !forcePartFollow;
       const followPartType = dontMove ? null : semanticFollowPartType(costume, savedPlacement);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
