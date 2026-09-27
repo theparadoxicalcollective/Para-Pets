@@ -296,6 +296,14 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
 });
 
+test("empty collection has a decorative card display without an image dependency", () => {
+  assert.match(collection, /data-testid="card-collection-empty-panel"/);
+  assert.match(collection, /data-testid="card-collection-placeholder-1"/);
+  assert.match(collection, /role="progressbar"/);
+  assert.match(collection, /View all cards/);
+  assert.doesNotMatch(collection, /EmptyCard\.png/);
+});
+
 test("detail cards preserve a 3D front, flat contained back, and stable full turns", () => {
   assert.match(detail, /data-testid="card-turn-surface"/);
   assert.match(detail, /requestAnimationFrame/);
