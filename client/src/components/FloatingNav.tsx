@@ -15,7 +15,7 @@ import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.webp";
 import cardsIcon from "@/assets/cards-placeholder.svg";
-import friendsNavIcon from "@assets/Photoroom_20260622_114621_AM_1782146930993.png";
+import bagNavIcon from "@assets/icon_bag.png";
 import { QuillBadge } from "@/components/QuillBadge";
 import mapIcon from "@assets/generated_images/nav_icon_map_v3.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
@@ -76,10 +76,10 @@ const LEFT_ITEMS = [
   { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
-// ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag, Friends
+// ── Right column: Cards, Bag, Pet House, Market, Aquarium, Central, Main
 const RIGHT_ITEMS = [
   { id: "cards",    label: "Cards",   icon: cardsIcon      },
-  { id: "friends",  label: "Friends", icon: friendsNavIcon },
+  { id: "bag",      label: "Bag",     icon: bagNavIcon     },
   { id: "pethouse", label: "House",   icon: petHouseIcon   },
   { id: "market",   label: "Market",  icon: marketIcon     },
   { id: "aquarium", label: "Aquarium",icon: fishbowlIcon   },
@@ -269,7 +269,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     || !!jansonData?.quests.some(q => q.status === "completed") || jansonData?.dailyQuest?.status === "completed";
 
   const friendRequestCount = friendReqData?.count ?? 0;
-  const friendBadge: "green" | null = friendRequestCount > 0 ? "green" : null;
 
   const handleLeft = (id: string) => {
     closeAll();
@@ -295,7 +294,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "aquarium") { setTimeout(() => openPanel(() => setShowAquarium(true)), NAV_DELAY); return; }
     if (id === "keepers")  { setTimeout(() => openPanel(() => setShowKeepers(true)), NAV_DELAY); return; }
     if (id === "cards")    { setTimeout(() => navigate("/cards"), NAV_DELAY); return; }
-    if (id === "friends")  { setTimeout(() => navigate("/friends"), NAV_DELAY); return; }
+    if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
   };
 
   if (navHidden) return null;
@@ -390,7 +389,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         {/* RIGHT items – fan up on the right side */}
         {RIGHT_ITEMS.map((item, i) => {
           const isStaff = user.isAdmin || user.isModerator === true;
-          const isLocked = (item.id === "pethouse" || item.id === "keepers") && !isStaff;
+          const isLocked = item.id === "keepers" && !isStaff;
           return (
             <NavButton
               key={item.id}
@@ -401,7 +400,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               translateX={0}
               translateY={-(spacing * (i + 1))}
               locked={isLocked}
-              badge={item.id === "friends" ? friendBadge : null}
               onClick={() => handleRight(item.id)}
               testId={`nav-item-${item.id}`}
             />

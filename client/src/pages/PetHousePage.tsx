@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
@@ -11,6 +12,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
+import friendsNavIcon from "@assets/Photoroom_20260622_114621_AM_1782146930993.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
@@ -745,7 +747,14 @@ function InteriorViewer({
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
+  const { data: friendRequests } = useQuery<{ count: number }>({
+    queryKey: ["/api/friends/requests/count"],
+    staleTime: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
@@ -1528,15 +1537,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       >
         {[
           { key: "pets" as const, label: "Pets", icon: () => <img src={petInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(255,180,50,0.35)", border: "rgba(255,200,80,0.8)" },
+          { key: "friends" as const, label: "Friends", icon: () => <img src={friendsNavIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(70,185,135,0.35)", border: "rgba(110,225,175,0.8)" },
           { key: "home" as const, label: "Home", icon: () => <img src={homeInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(120,200,100,0.35)", border: "rgba(120,220,80,0.8)" },
           { key: "decor" as const, label: "Decor", icon: () => <img src={decorInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(180,120,220,0.35)", border: "rgba(200,120,255,0.8)" },
         ].map(({ key, label, icon, bg, border }) => {
-          const active = openInventory === key;
+          const active = key !== "friends" && openInventory === key;
           return (
             <button
               key={key}
               data-testid={`button-${key}-inventory`}
-              onClick={() => setOpenInventory(active ? null : key)}
+              onClick={() => key === "friends" ? navigate("/friends") : setOpenInventory(active ? null : key)}
               className="flex flex-col items-center gap-0.5 group relative"
             >
               <div
@@ -1550,6 +1560,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               >
                 {icon()}
               </div>
+              {key === "friends" && (friendRequests?.count ?? 0) > 0 && (
+                <span aria-label={`${friendRequests!.count} pending friend requests`} className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-emerald-950 bg-green-500 px-1 text-[10px] font-bold text-white">
+                  {friendRequests!.count}
+                </span>
+              )}
               <span className="text-white font-semibold drop-shadow-md" style={{ fontSize: 9, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{label}</span>
             </button>
           );

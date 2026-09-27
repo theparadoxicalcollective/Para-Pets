@@ -48,7 +48,7 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }:
   const fallback = imageUrl ? <img src={imageUrl} alt={name} style={{ width: 140, height: 140, objectFit: "contain" }} /> : null;
   return <div ref={host} data-testid={`inventory-pet-portrait-${petInventoryId}`} style={{ position: "relative", width: 140, height: 140 }}>
     {visible ? <ErrorBoundary context="PetInventory.PetPortrait" resetKey={petInventoryId} fallback={fallback}>
-      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} lowMemory performanceStatic style={{ width: 140, height: 140 }} />
+      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} fillContainer fitVisible style={{ width: 140, height: 140 }} />
       <div style={{ position: "absolute", left: 0, bottom: 2, width: 42, height: 42, pointerEvents: "none" }}>
         <MiniPetRenderer petInventoryId={petInventoryId} animated={false} />
       </div>

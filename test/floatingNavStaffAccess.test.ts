@@ -4,7 +4,7 @@ import test from "node:test";
 
 const navSource = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
 
-test("Pet Home and Central unlock for administrators and moderators", () => {
+test("Pet House remains available to players while Central is staff-only", () => {
   assert.match(navSource, /const isStaff = user\.isAdmin \|\| user\.isModerator === true/);
-  assert.match(navSource, /\(item\.id === "pethouse" \|\| item\.id === "keepers"\) && !isStaff/);
+  assert.match(navSource, /const isLocked = item\.id === "keepers" && !isStaff/);
 });

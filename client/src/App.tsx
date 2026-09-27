@@ -53,6 +53,7 @@ const BadgePage          = lazy(() => import("@/pages/BadgePage"));
 const MarketPage         = lazy(() => import("@/pages/MarketPage"));
 const PvpArenaPage       = lazy(() => import("@/pages/PvpArenaPage"));
 const PetInventoryPage   = lazy(() => import("@/pages/PetInventoryPage"));
+const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 const CardsCollectionPage = lazy(() => import("@/pages/CardsCollectionPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
 const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
@@ -578,7 +579,12 @@ function AppRouter() {
             <PetInventoryPage />
           </div>
         )}
-        {(location === "/cards" || location === "/bag") && (
+        {location === "/bag" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <BagInventoryPage />
+          </div>
+        )}
+        {location === "/cards" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <CardsCollectionPage />
           </div>
