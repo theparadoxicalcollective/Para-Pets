@@ -59,6 +59,7 @@ import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";
 import { registerCostumePlayerRoutes } from "./routes/costumePlayer.routes";
 import { registerMiniPetRoutes } from "./routes/miniPet.routes";
 import { registerCardAdminRoutes } from "./routes/cardAdmin.routes";
+import { registerNpcPhaseRoutes } from "./routes/npcPhase.routes";
 import { registerCardCollectionRoutes } from "./routes/cardCollection.routes";
 import { registerRedeemCodeRoutes } from "./routes/redeemCode.routes";
 import { registerForumRoutes } from "./routes/forum.routes";
@@ -4907,6 +4908,7 @@ export async function registerRoutes(
   }
 
   registerCardAdminRoutes(app, { db, isAdmin, processCardImage: processWorldImage });
+  registerNpcPhaseRoutes(app, { db, isAdmin, processImage: data => processWorldImage(data, 1000) });
   registerCardCollectionRoutes(app, { db, isAuthenticated });
 
   function processShopItemImage(imageData: string): Promise<string> {
@@ -4930,7 +4932,7 @@ export async function registerRoutes(
 
       let imageUrl: string | null = null;
       if (imageData) {
-        try { imageUrl = await processShopItemImage(imageData); }
+        try { imageUrl = await (parse.data.type === "npc" ? processWorldImage(imageData, 1000) : processShopItemImage(imageData)); }
         catch (e) { console.error("Image error:", e); return res.status(400).json({ message: "Failed to process item image. Please try a different file." }); }
       }
 
@@ -4979,7 +4981,7 @@ export async function registerRoutes(
       }
 
       if (imageData) {
-        try { updateData.imageUrl = await processShopItemImage(imageData); }
+        try { updateData.imageUrl = await (parse.data.type === "npc" ? processWorldImage(imageData, 1000) : processShopItemImage(imageData)); }
         catch (e) { console.error("Image error:", e); return res.status(400).json({ message: "Failed to process item image. Existing image was kept; please try a different file." }); }
       }
       if (eggImageData) {

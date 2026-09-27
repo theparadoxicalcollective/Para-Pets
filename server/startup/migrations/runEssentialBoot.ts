@@ -37,6 +37,20 @@ export async function runEssentialBoot(): Promise<void> {
     `);
   } catch (err) { console.error("media_blobs table setup error (non-fatal):", err); }
 
+  // The NPC editor reads this table immediately after startup. Let startup
+  // fail if the phase schema cannot be created instead of accepting uploads
+  // that have nowhere durable to save.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS npc_phases (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      npc_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+      phase TEXT NOT NULL CHECK (phase IN ('sad', 'happy', 'talking_casual', 'talking_eyes_closed', 'angry', 'shocked', 'flirty', 'scared')),
+      image_url TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      CONSTRAINT npc_phases_npc_phase_unique UNIQUE (npc_id, phase)
+    );
+  `);
+
   const migrations: Array<[string, ReturnType<typeof sql>]> = [
     ["Redeem code schema migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS redeem_codes (
