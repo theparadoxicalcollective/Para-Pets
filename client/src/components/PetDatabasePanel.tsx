@@ -1442,7 +1442,7 @@ export default function PetDatabasePanel({
                     <select
                       data-testid="select-head-adornment-follow-target"
                       value={selectedCostumePlacement.followPartIndex ?? 1}
-                      disabled={saveCostumeMutation.isPending || selectedCostumeItem.adornmentEffect === "dont_move" || (!selectedCostumeItem.adornmentEffect && !!selectedCostumePlacement.dontMove)}
+                      disabled={saveCostumeMutation.isPending || selectedCostumeItem.adornmentEffect === "dont_move" || selectedCostumeItem.adornmentEffect === "still"}
                       onChange={event => updateCostumeDraft({ followPartIndex: Number(event.target.value) })}
                       className="mt-1 block w-full rounded p-2.5"
                       style={{ background: "#201526", color: "#e7d7b5" }}
@@ -1472,12 +1472,14 @@ export default function PetDatabasePanel({
                         Wings motion is automatic: one fitted image is mirrored into a front-facing pair that opens and closes together.
                       </div>
                     ) : (
-                      <label className="block text-xs" style={{ color: "#a89878" }}>Fitted/default animation
+                      <label className="block text-xs" style={{ color: "#a89878" }}>Effect — {costumeArtworkForm === "evolution" ? "Evolution" : "Regular"}
                         <select data-testid="select-adornment-animation" value={selectedCostumePlacement.animation ?? "none"} disabled={saveCostumeMutation.isPending}
-                          onChange={event => updateCostumeDraft({ animation: event.target.value as AdornmentAnimation })}
+                          onChange={event => updateCostumeDraft({ animation: event.target.value as AdornmentAnimation | "follow_part" })}
                           className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
                           {ADORNMENT_ANIMATIONS.filter(animation => animation !== "wings").map(animation => <option key={animation} value={animation}>{ADORNMENT_ANIMATION_LABELS[animation]}</option>)}
+                          <option value="follow_part">Follow Part — move with pet layer</option>
                         </select>
+                        <span className="mt-1 block text-[8px] leading-3">Save placement to apply this effect to this pet form and copy.</span>
                       </label>
                     )}
                     <label className="block text-xs" style={{ color: "#a89878" }}>Speed

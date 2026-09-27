@@ -497,14 +497,14 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                               aria-label={`View ${acc.name}`}
                               title={acc.name}
                               className="flex h-12 w-12 min-w-0 shrink items-center justify-center rounded-lg transition-transform active:scale-95"
-                              style={{ background: "linear-gradient(135deg, rgba(40,20,55,.9), rgba(17,9,28,.94))", border: "1px solid rgba(192,132,252,.45)", boxShadow: "inset 0 0 8px rgba(192,132,252,.08)" }}
+                              style={{ background: "linear-gradient(135deg, rgba(57,53,48,.9), rgba(25,27,28,.94))", border: "1px solid rgba(190,174,143,.42)", boxShadow: "inset 0 1px 6px rgba(230,213,178,.06)" }}
                             >
                               {acc.imageUrl ? (
                                 <span className="flex min-w-0 flex-col items-center">
                                   <img src={acc.imageUrl} alt="" className="h-9 w-9 max-w-full object-contain" />
                                   {!!acc.starRarity && <span className="-mt-1 whitespace-nowrap text-[7px] leading-none text-[#f0c040]" aria-label={`${acc.starRarity} star rarity`}>{"★".repeat(acc.starRarity)}</span>}
                                 </span>
-                              ) : <span aria-hidden="true" className="text-lg text-purple-300/50">✦</span>}
+                              ) : <span aria-hidden="true" className="text-lg text-[#c4b498]/60">✦</span>}
                             </button>
                           ))}
                         </div>

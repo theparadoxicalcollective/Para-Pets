@@ -84,7 +84,7 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
   assert.match(admin, /Upload the wing adornment once/);
   assert.match(admin, /No separate wing spots are needed/);
   assert.match(admin, /adornmentSlot === "wings"/);
-  assert.match(admin, /ADORNMENT_ITEM_EFFECTS\.map/);
+  assert.match(admin, /ADORNMENT_ITEM_EFFECTS\.filter\(effect => effect !== "follow_part"\)\.map/);
   assert.match(admin, /adornmentSlot !== "wings"/);
   assert.doesNotMatch(animation, /ADORNMENT_ITEM_EFFECTS = \[[^\]]*"wings"/);
   assert.match(animation, /@keyframes adornment-wings \{ 0%,100% \{ transform:rotate\(-10deg\) scaleX\(\.74\); \} 50% \{ transform:rotate\(8deg\) scaleX\(1\); \} \}/);
@@ -97,17 +97,11 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
 test("Follow Part adornments use the matching animated pet part without a Still effect", () => {
   const animator = read("client/src/components/PetAnimator.tsx");
 
-  assert.match(animator, /function semanticFollowPartType/);
-  assert.match(animator, /placement\.followPartIndex/);
-  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[\(placement\.followPartIndex \?\? 1\) - 1\]/);
-  assert.match(animator, /const explicitFollow = costume\.adornmentEffect === "follow_part"/);
+  assert.match(animator, /import \{ semanticFollowPartType \} from "@\/lib\/costumeFollowPart"/);
   assert.doesNotMatch(animator, /legacyStillFollow/);
-  assert.match(animator, /ADORNMENT_SLOT_MAP\.back\) return "body"/);
-  assert.match(animator, /if \(costume\.slot === ADORNMENT_SLOT_MAP\.head\)/);
-  assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
-  assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
+  assert.match(animator, /semanticFollowPartType\(costume\.slot, costume\.adornmentEffect, savedPlacement\)/);
   assert.match(animator, /function rebasePlacementToPart/);
-  assert.match(animator, /const followPartType = dontMove \? null : semanticFollowPartType\(costume, savedPlacement\)/);
+  assert.match(animator, /const followPartType = dontMove \? null : semanticFollowPartType\(costume\.slot, costume\.adornmentEffect, savedPlacement\)/);
   assert.match(animator, /const placement = followPart \? rebasePlacementToPart\(savedPlacement, followPart, sortedParts\) : savedPlacement/);
   assert.match(animator, /animation: animName \? buildAnimation\(animName, duration, partDelay\) : undefined/);
 });
@@ -120,12 +114,12 @@ test("Don't Move is an item effect while legacy placement flags remain readable"
 
   assert.match(feature, /dontMove\?: boolean/);
   assert.match(feature, /placement\.dontMove === true \? \{ dontMove: true \}/);
-  assert.match(admin, /ADORNMENT_ITEM_EFFECTS\.map/);
+  assert.match(admin, /ADORNMENT_ITEM_EFFECTS\.filter\(effect => effect !== "follow_part"\)\.map/);
   assert.match(admin, /Don't Move keeps the fitted artwork fixed to the pet canvas/);
   assert.doesNotMatch(editor, /toggle-adornment-dont-move/);
   assert.match(animator, /const explicitDontMove = costume\.adornmentEffect === "dont_move"/);
   assert.match(animator, /const legacyStillDontMove = costume\.adornmentEffect === "still"/);
-  assert.match(animator, /const legacyDontMove = !costume\.adornmentEffect && savedPlacement\.dontMove === true/);
+  assert.match(animator, /const legacyDontMove = !costume\.adornmentEffect && costume\.slot !== ADORNMENT_SLOT_MAP\.head && savedPlacement\.dontMove === true/);
   assert.match(animator, /const dontMove = !forcePartFollow && \(explicitDontMove \|\| legacyStillDontMove \|\| legacyDontMove\)/);
   assert.match(animator, /animated=\{false\}/);
 });
@@ -175,7 +169,7 @@ test("Head adornments can optionally hide the native Above Head pet part", () =>
   assert.match(schema, /hideAboveHeadPart:\s*boolean\("hide_above_head_part"\)\.notNull\(\)\.default\(false\)/);
   assert.match(boot, /ADD COLUMN IF NOT EXISTS hide_above_head_part BOOLEAN NOT NULL DEFAULT false/);
   assert.match(routes, /hideAboveHeadPart:\s*shopItems\.hideAboveHeadPart/);
-  assert.match(animator, /costume\.slot === ADORNMENT_SLOT_MAP\.head/);
+  assert.match(animator, /costume\.slot !== ADORNMENT_SLOT_MAP\.head/);
   assert.match(animator, /costume\.hideAboveHeadPart !== true/);
   assert.match(animator, /hasAboveHead && !hideAboveHeadPart/);
 });

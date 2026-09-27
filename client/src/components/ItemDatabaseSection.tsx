@@ -1026,12 +1026,13 @@ function AdminItemForm({
                     style={inputStyle}
                   >
                     <option value="">Use fitted/default motion</option>
-                    {ADORNMENT_ITEM_EFFECTS.map((effect) => (
+                    {adornmentEffect === "follow_part" && <option value="follow_part">Existing Follow Part (set new fittings in Pet Parts)</option>}
+                    {ADORNMENT_ITEM_EFFECTS.filter(effect => effect !== "follow_part").map((effect) => (
                       <option key={effect} value={effect}>{ADORNMENT_ITEM_EFFECT_LABELS[effect]}</option>
                     ))}
                   </select>
                   <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">
-                    Applies wherever this adornment is equipped. Follow Part moves with the matching animated pet layer (Head 1/2/3, Left Hand, Right Hand, or Body for Back). Don't Move keeps the fitted artwork fixed to the pet canvas.
+                    Applies wherever this adornment is equipped. Set Follow Part for each regular or evolution fitting in Add/Edit Pet Parts. Don't Move keeps the fitted artwork fixed to the pet canvas.
                   </p>
                 </div>
               )}
@@ -1889,4 +1890,3 @@ export function ItemPickerModal({
     </div>
   );
 }
-

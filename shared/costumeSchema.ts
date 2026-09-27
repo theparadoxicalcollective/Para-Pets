@@ -54,7 +54,7 @@ export const costumePlacementSchema = z.object({
   form: z.enum(["base", "evolution"]).default("base"),
   view: z.enum(["front", "side"]),
   anchorPart: z.string().min(1),
-  animation: z.enum(ADORNMENT_ANIMATIONS).optional(),
+  animation: z.union([z.enum(ADORNMENT_ANIMATIONS), z.literal("follow_part")]).optional(),
   animationSpeed: z.number().min(0.25).max(2).optional(),
   mirroredWingImageUrl: z.string().max(100).regex(ADORNMENT_IMAGE_URL_PATTERN).optional(),
   replacesWings: z.boolean().optional(),
@@ -94,4 +94,3 @@ export const insertPetCostumeDefinitionSchema = createInsertSchema(petCostumeDef
 export type PetCostumeSlotUnlock = typeof petCostumeSlotUnlocks.$inferSelect;
 export type PetEquippedCostume = typeof petEquippedCostumes.$inferSelect;
 export type PetCostumeDefinition = typeof petCostumeDefinitions.$inferSelect;
-
