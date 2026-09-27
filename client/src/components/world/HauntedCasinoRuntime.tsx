@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
+import { getStagePortalTarget } from "@/lib/stage";
+import MiniGameFrame from "./MiniGameFrame";
 import { createRoot, type Root } from "react-dom/client";
 import {
   DEFAULT_HAUNTED_CASINO_HOTSPOTS,
@@ -270,17 +272,21 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
       )}
 
       {bingoOpen && createPortal(
-        <HauntedBingoOverlay onClose={() => { setBingoOpen(false); refreshFreePlay(); }} />,
-        document.body,
+        <MiniGameFrame worldId="haunted_woods">
+          <HauntedBingoOverlay onClose={() => { setBingoOpen(false); refreshFreePlay(); }} />
+        </MiniGameFrame>,
+        getStagePortalTarget(),
       )}
 
       {slotsOpen && createPortal(
-        <SlaughterSlotsOverlay
-          isAdmin={isAdmin}
-          onClose={() => { setSlotsOpen(false); refreshFreePlay(); }}
-          onCurrencyChanged={onCurrencyChanged}
-        />,
-        document.body,
+        <MiniGameFrame worldId="haunted_woods">
+          <SlaughterSlotsOverlay
+            isAdmin={isAdmin}
+            onClose={() => { setSlotsOpen(false); refreshFreePlay(); }}
+            onCurrencyChanged={onCurrencyChanged}
+          />
+        </MiniGameFrame>,
+        getStagePortalTarget(),
       )}
     </>
   );

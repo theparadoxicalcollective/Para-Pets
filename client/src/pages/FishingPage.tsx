@@ -591,8 +591,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 
   return (
     <div
-      className="fixed inset-0 z-40 flex flex-col"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, userSelect: "none", WebkitUserSelect: "none" }}
+      className="absolute inset-0 z-40 flex flex-col"
+      style={{ userSelect: "none", WebkitUserSelect: "none" }}
       data-testid="fishing-page"
     >
       {/* Full-screen tap layer — active only during nibble so player can tap anywhere */}

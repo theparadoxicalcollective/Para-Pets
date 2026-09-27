@@ -9,6 +9,11 @@ export const WIDE_BREAKPOINT = 768;
 export const MAX_STAGE_SCALE = 1.5;
 export const MOBILE_KEYBOARD_MIN_DELTA = 180;
 
+/** A mini game uses the same 390×844 logical page on every device. */
+export function calculateMiniGameScale(width: number, height: number): number {
+  return Math.min(Math.max(0, width) / DESIGN_W, Math.max(0, height) / DESIGN_H);
+}
+
 export type StageLayout = {
   designWidth: number;
   designHeight: number;

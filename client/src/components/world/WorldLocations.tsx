@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
+import { getStagePortalTarget } from "@/lib/stage";
+import MiniGameFrame from "./MiniGameFrame";
 import {
   Copy,
   FlipHorizontal,
@@ -447,13 +449,14 @@ export default function WorldLocations({
         })}
 
       {casinoScene && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-[80] bg-[#05020a]"
-          data-testid="haunted-casino-scroll-view"
-          role="dialog"
-          aria-modal="true"
-          aria-label={casinoScene.name}
-        >
+        <MiniGameFrame worldId={worldId}>
+          <div
+            className="absolute inset-0 z-[80] bg-[#05020a]"
+            data-testid="haunted-casino-scroll-view"
+            role="dialog"
+            aria-modal="true"
+            aria-label={casinoScene.name}
+          >
           <div
             ref={casinoScrollRef}
             className="absolute inset-0 overflow-x-auto overflow-y-hidden"
@@ -484,8 +487,9 @@ export default function WorldLocations({
           >
             <X className="h-5 w-5" />
           </button>
-        </div>,
-        document.body,
+          </div>
+        </MiniGameFrame>,
+        getStagePortalTarget(),
       )}
     </div>
   );

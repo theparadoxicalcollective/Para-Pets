@@ -766,7 +766,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
 
   return (
     <div
-      className="fixed inset-0 z-[2200] flex flex-col items-center overflow-hidden text-white"
+      className="absolute inset-0 z-[2200] flex flex-col items-center overflow-hidden text-white"
       role="dialog"
       aria-modal="true"
       aria-label="Beau's Prize Wheel"
@@ -819,7 +819,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
         <div
           ref={stageRef}
           className="relative shrink-0"
-          style={{ width: "min(96vw, 720px, calc((100dvh - 170px) * .8003))", aspectRatio: "1122 / 1402" }}
+          style={{ width: "min(96%, 720px)", aspectRatio: "1122 / 1402" }}
           data-testid="beau-prize-wheel-stage"
         >
           <img src={beauFrame} alt="Beau holding his prize wheel" draggable={false} decoding="async" className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain" />

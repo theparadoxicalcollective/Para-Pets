@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { getStagePortalTarget } from "@/lib/stage";
+import MiniGameFrame from "@/components/world/MiniGameFrame";
 import { fetchAuthenticatedUserCached } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import {
@@ -321,18 +323,20 @@ export default function BeauPrizeWheelBridge() {
       )}
 
       {wheelState && createPortal(
-        <Suspense fallback={
-          <div className="fixed inset-0 z-[2200] grid place-items-center bg-black/90 text-sm text-amber-100">
-            Preparing Beau's wheel…
-          </div>
-        }>
-          <BeauPrizeWheelOverlay
-            initialState={wheelState}
-            onClose={() => setWheelState(null)}
-            onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable)); }}
-          />
-        </Suspense>,
-        document.body,
+        <MiniGameFrame worldId="haunted_woods">
+          <Suspense fallback={
+            <div className="absolute inset-0 z-[2200] grid place-items-center bg-black/90 text-sm text-amber-100">
+              Preparing Beau's wheel…
+            </div>
+          }>
+            <BeauPrizeWheelOverlay
+              initialState={wheelState}
+              onClose={() => setWheelState(null)}
+              onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable)); }}
+            />
+          </Suspense>
+        </MiniGameFrame>,
+        getStagePortalTarget(),
       )}
     </>
   );
