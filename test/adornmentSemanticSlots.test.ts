@@ -50,7 +50,9 @@ test("administration can assign safe item-level effects to adornments", () => {
   assert.match(animation, /pulse: "Pulse — subtle magical breathing"/);
   assert.match(admin, /payload\.adornmentEffect = effectiveType === "costume" && adornmentSlot !== "wings" \? \(adornmentEffect \|\| null\) : null/);
 
-  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "float", "spin", "sway", "pulse"\]/);
+  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "follow_part", "float", "spin", "sway", "pulse"\]/);
+  assert.match(animation, /follow_part: "Follow Part — move with matching pet layer"/);
+  assert.match(animation, /follow_part:\s*"none"/);
   assert.match(animation, /spin:\s*"rotate"/);
   assert.match(animation, /pulse:\s*"breathe"/);
   assert.match(schema, /adornmentEffect:\s*text\("adornment_effect"\)/);
@@ -87,13 +89,15 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
   assert.match(schema, /Wings adornments use automatic mirrored wing motion instead of a selectable effect/);
 });
 
-test("Still Head and hand adornments follow the matching animated pet part", () => {
+test("Follow Part adornments use the matching animated pet part while preserving legacy Still fittings", () => {
   const animator = read("client/src/components/PetAnimator.tsx");
 
   assert.match(animator, /function semanticFollowPartType/);
   assert.match(animator, /placement\.followPartIndex/);
   assert.match(animator, /\["head", "h2_head", "h3_head"\]\[\(placement\.followPartIndex \?\? 1\) - 1\]/);
-  assert.match(animator, /costume\.adornmentEffect !== "still"/);
+  assert.match(animator, /const explicitFollow = costume\.adornmentEffect === "follow_part"/);
+  assert.match(animator, /const legacyStillFollow = costume\.adornmentEffect === "still"/);
+  assert.match(animator, /ADORNMENT_SLOT_MAP\.back\) return "body"/);
   assert.match(animator, /if \(costume\.slot === ADORNMENT_SLOT_MAP\.head\)/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
