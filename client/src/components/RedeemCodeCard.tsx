@@ -4,8 +4,9 @@ import { Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { chestAssets } from "@/lib/chestAssets";
-import coin from "@assets/icon_coin.png";
 import "./RedeemCodeCard.css";
+
+const coin = "/world-assets/icon_coin.png";
 
 interface PendingReward {
   rewardId: string;
