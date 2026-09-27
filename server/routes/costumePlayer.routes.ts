@@ -235,9 +235,10 @@ export function registerCostumePlayerRoutes(app: Express) {
           // body as a positioning anchor, so sharing that anchor is intentional.
           const isWingOrBack = (value: number) =>
             value === ADORNMENT_SLOT_MAP.wings || value === ADORNMENT_SLOT_MAP.back;
-          if (isWingOrBack(slot) && isWingOrBack(equippedCostume.slot)) return false;
+          const shareBodyAnchor = isWingOrBack(slot) && isWingOrBack(equippedCostume.slot);
           return placementsForPetForm(equippedCostume.placements, !!target.pet.isEvolved)
-            .some((placement) => requestedLayers.has(placement.anchorPart));
+            .some((placement) => requestedLayers.has(placement.anchorPart)
+              && !(shareBodyAnchor && placement.anchorPart === "body"));
         });
         if (layerConflict) {
           throw new Error(`Unequip ${layerConflict.name} before equipping another costume on the same pet layer`);
