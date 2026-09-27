@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   calculateStageLayout,
+  calculateMiniGameScale,
+  calculateMiniGamePage,
   clientToPortalPoint,
   DESIGN_H,
   DESIGN_W,
@@ -10,7 +12,26 @@ import {
   MAX_STAGE_SCALE,
   renderedToLogical,
   resolveMobileBrowserHeight,
+  usesNativeMiniGamePage,
 } from "../client/src/lib/stage";
+
+test("iPhone 12 mini games retain their native layout across browser bar heights", () => {
+  for (const height of [844, 760, 700]) {
+    assert.deepEqual(calculateMiniGamePage(390, height), { width: 390, height, scale: 1, native: true });
+  }
+  assert.equal(usesNativeMiniGamePage(360), false);
+  assert.equal(usesNativeMiniGamePage(412), false);
+});
+
+test("mini game pages keep iPhone 12 proportions without clipping controls", () => {
+  assert.equal(calculateMiniGameScale(390, 844), 1);
+  for (const [width, height] of [[360, 760], [412, 700], [390, 1000], [300, 844]]) {
+    const scale = calculateMiniGameScale(width, height);
+    assert.ok(390 * scale <= width + 0.001);
+    assert.ok(844 * scale <= height + 0.001);
+    assert.ok(Math.abs(390 * scale / (844 * scale) - 390 / 844) < 1e-12);
+  }
+});
 
 test("390x844 iPhone design remains pixel-faithful", () => {
   const layout = calculateStageLayout(390, 844);

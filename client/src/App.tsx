@@ -18,6 +18,7 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
 import mainGameBg from "@assets/uploads/MainGameBG.png";
+import MiniGameFrame from "@/components/world/MiniGameFrame";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
@@ -594,12 +595,12 @@ function AppRouter() {
         )}
         {location === "/games/molten-blocks" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-            <MoltenBlocksPage />
+            <MiniGameFrame worldId="volcanic"><MoltenBlocksPage /></MiniGameFrame>
           </div>
         )}
         {location === "/games/lava-crawl" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-            <LavaCrawlPage />
+            <MiniGameFrame worldId="volcanic"><LavaCrawlPage /></MiniGameFrame>
           </div>
         )}
         {location === "/friends" && (

@@ -9,6 +9,21 @@ export const WIDE_BREAKPOINT = 768;
 export const MAX_STAGE_SCALE = 1.5;
 export const MOBILE_KEYBOARD_MIN_DELTA = 180;
 
+/** Keep the admin's 390px phone layout native when browser chrome changes its height. */
+export function usesNativeMiniGamePage(width: number): boolean {
+  return Math.round(width) === DESIGN_W;
+}
+
+/** Other screens fit the 390×844 reference without cropping its controls. */
+export function calculateMiniGameScale(width: number, height: number): number {
+  return Math.min(Math.max(0, width) / DESIGN_W, Math.max(0, height) / DESIGN_H);
+}
+
+export function calculateMiniGamePage(width: number, height: number) {
+  if (usesNativeMiniGamePage(width)) return { width, height, scale: 1, native: true };
+  return { width: DESIGN_W, height: DESIGN_H, scale: calculateMiniGameScale(width, height), native: false };
+}
+
 export type StageLayout = {
   designWidth: number;
   designHeight: number;

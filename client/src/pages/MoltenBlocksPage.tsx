@@ -1020,24 +1020,21 @@ export default function MoltenBlocksPage() {
     const fit = () => {
       const c = canvasRef.current;
       if (c) {
-        const rect = c.getBoundingClientRect();
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        c.width = Math.floor(rect.width * dpr);
-        c.height = Math.floor(rect.height * dpr);
+        c.width = Math.floor(c.clientWidth * dpr);
+        c.height = Math.floor(c.clientHeight * dpr);
       }
       const s = sideCanvasRef.current;
       if (s) {
-        const rect = s.getBoundingClientRect();
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        s.width = Math.floor(rect.width * dpr);
-        s.height = Math.floor(rect.height * dpr);
+        s.width = Math.floor(s.clientWidth * dpr);
+        s.height = Math.floor(s.clientHeight * dpr);
       }
       const h = holdCanvasRef.current;
       if (h) {
-        const rect = h.getBoundingClientRect();
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        h.width = Math.floor(rect.width * dpr);
-        h.height = Math.floor(rect.height * dpr);
+        h.width = Math.floor(h.clientWidth * dpr);
+        h.height = Math.floor(h.clientHeight * dpr);
       }
     };
     fit();
@@ -1070,6 +1067,12 @@ export default function MoltenBlocksPage() {
   const STEP_PX = 28;     // px of travel to step the piece one cell sideways
   const HOLD_MS = 220;    // hold this long without moving → soft drop engages
   const HOLD_MOVE_TOL = 10; // pixels of movement that cancel the hold-arm
+  // Pointer events use screen pixels; the locked game frame may be scaled down.
+  const pointerPoint = (e: React.PointerEvent) => {
+    const element = e.currentTarget as HTMLElement;
+    const scale = element.getBoundingClientRect().width / element.clientWidth || 1;
+    return { x: e.clientX / scale, y: e.clientY / scale };
+  };
 
   const cancelHoldTimer = () => {
     if (gestureRef.current.holdTimer != null) {
@@ -1084,10 +1087,11 @@ export default function MoltenBlocksPage() {
     // Ignore additional fingers while a primary gesture is active.
     if (gestureRef.current.active) return;
     cancelHoldTimer();
+    const point = pointerPoint(e);
     gestureRef.current = {
       active: true, primaryId: e.pointerId,
-      startX: e.clientX, startY: e.clientY,
-      lastStepX: e.clientX, startTime: performance.now(),
+      startX: point.x, startY: point.y,
+      lastStepX: point.x, startTime: performance.now(),
       movedH: 0, movedV: 0,
       holdTimer: window.setTimeout(() => {
         // Finger has stayed put long enough — engage soft drop.
@@ -1103,9 +1107,10 @@ export default function MoltenBlocksPage() {
   const onPointerMove = (e: React.PointerEvent) => {
     const g = gestureRef.current;
     if (!g.active || e.pointerId !== g.primaryId || gameOver || paused) return;
-    const dx = e.clientX - g.lastStepX;
-    const totalDx = e.clientX - g.startX;
-    const totalDy = e.clientY - g.startY;
+    const point = pointerPoint(e);
+    const dx = point.x - g.lastStepX;
+    const totalDx = point.x - g.startX;
+    const totalDy = point.y - g.startY;
     g.movedH = Math.max(g.movedH, Math.abs(totalDx));
     g.movedV = Math.max(g.movedV, Math.abs(totalDy));
 
@@ -1139,8 +1144,9 @@ export default function MoltenBlocksPage() {
     g.softDropArmed = false;
     if (gameOver || paused) return;
     const dt = performance.now() - g.startTime;
-    const totalDy = e.clientY - g.startY;
-    const totalDx = e.clientX - g.startX;
+    const point = pointerPoint(e);
+    const totalDy = point.y - g.startY;
+    const totalDx = point.x - g.startX;
     // Hard drop: fast downward flick (>120 px in <300 ms, mostly vertical).
     // Skipped if the user was already soft-dropping — they meant to hold.
     if (!wasSoftDropping && dt < 300 && totalDy > 120 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {

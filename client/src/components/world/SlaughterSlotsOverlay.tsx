@@ -341,7 +341,7 @@ export default function SlaughterSlotsOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[96] overflow-hidden bg-[#08040d] text-white"
+      className="absolute inset-0 z-[96] overflow-hidden bg-[#08040d] text-white"
       data-testid="slaughter-slots-overlay"
       role="dialog"
       aria-modal="true"
@@ -386,7 +386,7 @@ export default function SlaughterSlotsOverlay({
         aria-label="Close Slaughter Slots"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); stopHold(); onClose(); }}
-        className="fixed right-3 z-[105] active:scale-95 transition-transform"
+        className="absolute right-3 z-[105] active:scale-95 transition-transform"
         style={{
           top: "max(24px, calc(env(safe-area-inset-top) + 12px))",
           width: "clamp(48px, 13vw, 62px)",

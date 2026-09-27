@@ -24,6 +24,7 @@ import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
 import { QuillBadge } from "@/components/QuillBadge";
 import FishingPage from "@/pages/FishingPage";
+import MiniGameFrame from "@/components/world/MiniGameFrame";
 import SellFishPage from "@/pages/SellFishPage";
 import fishBarrelImg from "@assets/fish_barrel.png";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -4608,17 +4609,21 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       })()}
 
       {fishingLocation && (
-        <FishingPage
-          locationId={fishingLocation.id}
-          locationName={fishingLocation.name}
-          bgUrl={fishingLocation.bgUrl ?? activeLocDetail?.bgUrl ?? null}
-          worldId={worldId}
-          user={currentUser}
-          onClose={() => {
-            setFishingLocation(null);
-            setActiveLocationId(null);
-          }}
-        />
+        <div className="absolute inset-0 z-40">
+          <MiniGameFrame worldId={worldId} backgroundUrl={world.bg}>
+            <FishingPage
+              locationId={fishingLocation.id}
+              locationName={fishingLocation.name}
+              bgUrl={fishingLocation.bgUrl ?? activeLocDetail?.bgUrl ?? null}
+              worldId={worldId}
+              user={currentUser}
+              onClose={() => {
+                setFishingLocation(null);
+                setActiveLocationId(null);
+              }}
+            />
+          </MiniGameFrame>
+        </div>
       )}
 
       {showSellFish && (
