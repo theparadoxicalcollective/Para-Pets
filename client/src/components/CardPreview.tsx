@@ -80,7 +80,7 @@ const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
  * the decorative frame's transparent outer silhouette.
  */
 function artworkInsetForRarity(rarity: CardRarity, depth3d: boolean): string {
-  if (rarity <= 2) return "11.5% 10% 7%";
+  if (rarity <= 2) return depth3d ? "11.5% 10% 7%" : "12.5% 11.5% 8%";
   return depth3d ? "11% 8% 7%" : "12% 10%";
 }
 

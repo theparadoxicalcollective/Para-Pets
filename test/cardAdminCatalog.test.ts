@@ -197,7 +197,7 @@ test("4 and 5 star card titles share the same warm readable name color", () => {
 });
 
 test("1 and 2 star artwork fills the clipped viewport on both sides", () => {
-  assert.match(preview, /if \(rarity <= 2\) return "11\.5% 10% 7%"/);
+  assert.match(preview, /if \(rarity <= 2\) return depth3d \? "11\.5% 10% 7%" : "12\.5% 11\.5% 8%"/);
   assert.match(preview, /return rarity <= 2 \? "11\.5% 10\.5% 7%" : "11% 6%"/);
   assert.match(preview, /return depth3d \? "11% 8% 7%" : "12% 10%"/);
   assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
@@ -261,7 +261,7 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /function artworkInsetForRarity\(rarity: CardRarity, depth3d: boolean\)/);
-  assert.match(preview, /rarity <= 2\) return "11\.5% 10% 7%"/);
+  assert.match(preview, /rarity <= 2\) return depth3d \? "11\.5% 10% 7%" : "12\.5% 11\.5% 8%"/);
   assert.match(preview, /return depth3d \? "11% 8% 7%" : "12% 10%"/);
   assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
   assert.match(preview, /transform: rarity <= 2 \? "scale\(1\.04\)" : undefined/);
