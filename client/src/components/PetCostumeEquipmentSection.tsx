@@ -85,9 +85,12 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
 
   const unlock = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/unlock`, {})).json(),
-    onSuccess: (result: { extraSlots: number }) => {
+    onSuccess: (result: { extraSlots: number; coins: number }) => {
       queryClient.setQueryData<CostumeResponse>(["/api/pet", petInventoryId, "costumes"], current =>
         current ? { ...current, extraSlots: result.extraSlots } : current,
+      );
+      queryClient.setQueryData<{ coins: number }>(["/api/auth/me"], current =>
+        current ? { ...current, coins: result.coins } : current,
       );
       setUnlockSlot(null);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
