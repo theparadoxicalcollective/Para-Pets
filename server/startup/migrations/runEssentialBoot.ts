@@ -208,7 +208,7 @@ export async function runEssentialBoot(): Promise<void> {
         pet_inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
         costume_inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
         copy_index INTEGER NOT NULL DEFAULT 0 CHECK(copy_index >= 0),
-        slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 3),
+        slot INTEGER NOT NULL CONSTRAINT pet_equipped_costumes_slot_1_to_5_check CHECK(slot BETWEEN 1 AND 5),
         created_at TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT pet_equipped_costumes_pet_slot_unique UNIQUE(pet_inventory_id, slot),
         CONSTRAINT pet_equipped_costumes_inventory_copy_unique UNIQUE(costume_inventory_id, copy_index)
@@ -400,4 +400,23 @@ export async function runEssentialBoot(): Promise<void> {
     try { await db.execute(statement); }
     catch (err) { console.error(errorMessage, err); }
   }
+
+  // Existing databases still carry the original 1–3 check even though the
+  // Closet now has Wings (4) and Back (5). Repair it before accepting players.
+  // The distinct new name makes this safe to run on every startup.
+  await db.execute(sql`
+    DO $costume_slots$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'pet_equipped_costumes'::regclass
+          AND conname = 'pet_equipped_costumes_slot_1_to_5_check'
+      ) THEN
+        ALTER TABLE pet_equipped_costumes DROP CONSTRAINT IF EXISTS pet_equipped_costumes_slot_check;
+        ALTER TABLE pet_equipped_costumes
+          ADD CONSTRAINT pet_equipped_costumes_slot_1_to_5_check CHECK(slot BETWEEN 1 AND 5);
+      END IF;
+    END
+    $costume_slots$;
+  `);
 }

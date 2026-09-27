@@ -130,6 +130,9 @@ test("Production boot creates both player costume persistence tables safely", ()
   assert.match(boot, /UNIQUE\(costume_inventory_id, copy_index\)/);
   assert.match(boot, /DROP CONSTRAINT IF EXISTS pet_equipped_costumes_costume_inventory_id_key/);
   assert.match(boot, /UNIQUE\(pet_inventory_id, slot\)/);
+  assert.match(boot, /pet_equipped_costumes_slot_1_to_5_check CHECK\(slot BETWEEN 1 AND 5\)/);
+  assert.match(boot, /DROP CONSTRAINT IF EXISTS pet_equipped_costumes_slot_check/);
+  assert.doesNotMatch(boot, /slot INTEGER NOT NULL CHECK\(slot BETWEEN 1 AND 3\)/);
 });
 
 test("public costume display is read-only and does not require pet ownership", () => {
