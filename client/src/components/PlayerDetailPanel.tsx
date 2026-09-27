@@ -457,8 +457,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                         <img src={petPawIcon} alt="" className="h-24 w-24 object-contain" />
                       )}
                       {profile.activePet.inventoryId && (
-                        <div className="absolute bottom-0 right-0 h-14 w-14 pointer-events-none" data-testid="player-detail-mini-pet">
-                          <MiniPetRenderer petInventoryId={profile.activePet.inventoryId} access="public" />
+                        <div className="absolute bottom-3 left-0 h-14 w-14 pointer-events-none" data-testid="player-detail-mini-pet">
+                          <MiniPetRenderer petInventoryId={profile.activePet.inventoryId} access="public" animated={false} />
                         </div>
                       )}
                     </div>
