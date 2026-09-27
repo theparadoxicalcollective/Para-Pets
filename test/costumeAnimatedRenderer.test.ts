@@ -49,8 +49,9 @@ test("evolved pets prefer evolution adornment fittings and Still semantic slots 
   assert.match(animator, /artworkForm === "base"/);
   assert.match(animator, /artworkForm=\{resolvedArtworkForm\}/);
   assert.match(animator, /function semanticFollowPartType/);
-  assert.match(animator, /placement\.followPartIndex/);
-  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[placement\.followPartIndex - 1\]/);
+  assert.match(animator, /costume\.adornmentEffect !== "still"\) return null/);
+  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[\(placement\.followPartIndex \?\? 1\) - 1\]/);
+  assert.match(animator, /!\(costume\.slot === ADORNMENT_SLOT_MAP\.head && costume\.adornmentEffect === "still"\)/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
   assert.match(animator, /rebasePlacementToPart\(savedPlacement, followPart, sortedParts\)/);

@@ -69,14 +69,14 @@ test("shared player card uses a compact octagonal horizontal identity", () => {
   assert.match(source, /flex min-w-0 items-center/);
 });
 
-test("shared player card sorts and divides side-mounted accessory controls", () => {
+test("shared player card places boxed accessories between companion details and stats", () => {
   const source = read("client/src/components/PlayerDetailPanel.tsx");
   assert.match(source, /\[\.\.\.equippedAccessories\]\.sort/);
   assert.match(source, /\(a\.slot \?\? 999\) - \(b\.slot \?\? 999\)/);
-  assert.match(source, /sortedAccessories\.slice\(0, 3\)/);
-  assert.match(source, /sortedAccessories\.slice\(3, 5\)/);
-  assert.match(source, /equipment-column-left/);
-  assert.match(source, /equipment-column-right/);
+  assert.match(source, /sortedAccessories\.slice\(0, 5\)/);
+  assert.match(source, /data-testid="equipped-accessories-row"/);
+  assert.ok(source.indexOf('data-testid="equipped-accessories-row"') < source.indexOf('data-testid="active-pet-stats"'));
+  assert.doesNotMatch(source, /equipment-column-(left|right)/);
   assert.doesNotMatch(source, /data-testid="equipped-accessories-arc"/);
   assert.match(source, /onClick=\{\(\) => setAccessoryDetail\(acc\)\}/);
   assert.match(source, /data-testid=\{`button-acc-\$\{i\}`\}/);

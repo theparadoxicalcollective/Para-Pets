@@ -374,16 +374,10 @@ function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: P
 }
 
 function semanticFollowPartType(costume: EquippedCostume, placement: CostumePlacement): string | null {
-  // Explicit Head-layer choices are allowed for any Head adornment effect so
-  // duplicate hats/horns/etc. can follow Head 1, 2, or 3 independently.
-  if (costume.slot === ADORNMENT_SLOT_MAP.head && placement.followPartIndex) {
-    return ["head", "h2_head", "h3_head"][placement.followPartIndex - 1] ?? "head";
-  }
-
-  // Preserve the existing Still behavior for placements that do not opt into
-  // an explicit semantic layer target.
   if (costume.adornmentEffect !== "still") return null;
-  if (costume.slot === ADORNMENT_SLOT_MAP.head) return "head";
+  if (costume.slot === ADORNMENT_SLOT_MAP.head) {
+    return ["head", "h2_head", "h3_head"][(placement.followPartIndex ?? 1) - 1] ?? "head";
+  }
   if (costume.slot === ADORNMENT_SLOT_MAP.left_hand) return "left_hand";
   if (costume.slot === ADORNMENT_SLOT_MAP.right_hand) return "right_hand";
   return null;
@@ -460,7 +454,10 @@ function CostumeLayer({
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((savedPlacement) => {
-      const dontMove = savedPlacement.dontMove === true;
+      // Still Head items always travel with their selected head, including
+      // placements saved before this rule with Don't Move switched on.
+      const dontMove = savedPlacement.dontMove === true
+        && !(costume.slot === ADORNMENT_SLOT_MAP.head && costume.adornmentEffect === "still");
       const followPartType = dontMove ? null : semanticFollowPartType(costume, savedPlacement);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
@@ -902,4 +899,3 @@ export default function PetAnimator({
     </div>
   );
 }
-
