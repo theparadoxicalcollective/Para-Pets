@@ -375,8 +375,7 @@ function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: P
 
 function semanticFollowPartType(costume: EquippedCostume, placement: CostumePlacement): string | null {
   const explicitFollow = costume.adornmentEffect === "follow_part";
-  const legacyStillFollow = costume.adornmentEffect === "still";
-  if (!explicitFollow && !legacyStillFollow) return null;
+  if (!explicitFollow) return null;
 
   if (costume.slot === ADORNMENT_SLOT_MAP.head) {
     return ["head", "h2_head", "h3_head"][(placement.followPartIndex ?? 1) - 1] ?? "head";
@@ -461,11 +460,11 @@ function CostumeLayer({
       // Item-level motion choices are authoritative now that Don't Move lives in
       // the Effects dropdown. Keep the old per-placement flag only as a fallback
       // for adornments that have never been assigned an item-level effect.
-      const forcePartFollow = costume.adornmentEffect === "follow_part"
-        || (costume.slot === ADORNMENT_SLOT_MAP.head && costume.adornmentEffect === "still");
+      const forcePartFollow = costume.adornmentEffect === "follow_part";
       const explicitDontMove = costume.adornmentEffect === "dont_move";
+      const legacyStillDontMove = costume.adornmentEffect === "still";
       const legacyDontMove = !costume.adornmentEffect && savedPlacement.dontMove === true;
-      const dontMove = !forcePartFollow && (explicitDontMove || legacyDontMove);
+      const dontMove = !forcePartFollow && (explicitDontMove || legacyStillDontMove || legacyDontMove);
       const followPartType = dontMove ? null : semanticFollowPartType(costume, savedPlacement);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
