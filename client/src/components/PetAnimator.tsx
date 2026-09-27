@@ -458,13 +458,14 @@ function CostumeLayer({
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((savedPlacement) => {
-      // Follow Part is authoritative: it must inherit the target pet layer even
-      // if an older placement was previously saved with Don't Move enabled.
-      // Keep the earlier Still-Head compatibility rule so existing fitted items
-      // do not suddenly change behavior when this explicit effect is introduced.
+      // Item-level motion choices are authoritative now that Don't Move lives in
+      // the Effects dropdown. Keep the old per-placement flag only as a fallback
+      // for adornments that have never been assigned an item-level effect.
       const forcePartFollow = costume.adornmentEffect === "follow_part"
         || (costume.slot === ADORNMENT_SLOT_MAP.head && costume.adornmentEffect === "still");
-      const dontMove = savedPlacement.dontMove === true && !forcePartFollow;
+      const explicitDontMove = costume.adornmentEffect === "dont_move";
+      const legacyDontMove = !costume.adornmentEffect && savedPlacement.dontMove === true;
+      const dontMove = !forcePartFollow && (explicitDontMove || legacyDontMove);
       const followPartType = dontMove ? null : semanticFollowPartType(costume, savedPlacement);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
