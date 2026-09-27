@@ -112,6 +112,17 @@ test("player detail cards show active-pet adornments with a lightweight static r
   assert.match(source, /\) : petImg \? \(/);
 });
 
+test("player detail cards show the active pet's equipped Mini Pet beside its adornments", () => {
+  const full = read("client/src/components/PlayerDetailPanel.tsx");
+  const compact = read("client/src/components/FriendProfileModal.tsx");
+  for (const source of [full, compact]) {
+    assert.match(source, /costumeAccess="public"/);
+    assert.match(source, /<MiniPetRenderer petInventoryId=\{(?:profile\.)?activePet\.inventoryId\} access="public"/);
+  }
+  assert.match(full, /data-testid="player-detail-mini-pet"/);
+  assert.match(compact, /data-testid="friend-profile-mini-pet"/);
+});
+
 test("compact friend profile cards also render active-pet adornments statically", () => {
   const source = read("client/src/components/FriendProfileModal.tsx");
   assert.match(source, /import PetAnimator from "\.\/PetAnimator"/);

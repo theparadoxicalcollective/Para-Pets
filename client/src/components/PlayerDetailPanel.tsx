@@ -8,6 +8,7 @@ import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import aquariumIcon from "@assets/icon_fishbowl.png";
 import RoleBadge from "@/components/RoleBadge";
 import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
 import { AquariumPage } from "@/pages/AquariumPage";
 
 interface PvpStats {
@@ -437,7 +438,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
               {profile.activePet ? (
                 <>
                   <div className="flex h-[190px] w-full min-w-0 items-center justify-center" data-testid="companion-showcase">
-                    <div className="flex h-full w-[190px] items-center justify-center" data-testid="img-active-pet">
+                    <div className="relative flex h-full w-[190px] items-center justify-center" data-testid="img-active-pet">
                       {profile.activePet.petTemplateId ? (
                         <PetAnimator
                           petTemplateId={profile.activePet.petTemplateId}
@@ -454,6 +455,11 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                           style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.78))" }} />
                       ) : (
                         <img src={petPawIcon} alt="" className="h-24 w-24 object-contain" />
+                      )}
+                      {profile.activePet.inventoryId && (
+                        <div className="absolute bottom-0 right-0 h-14 w-14 pointer-events-none" data-testid="player-detail-mini-pet">
+                          <MiniPetRenderer petInventoryId={profile.activePet.inventoryId} access="public" />
+                        </div>
                       )}
                     </div>
                   </div>

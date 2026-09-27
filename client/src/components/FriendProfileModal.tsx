@@ -5,6 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import SendGiftModal from "./SendGiftModal";
 import PetAnimator from "./PetAnimator";
+import MiniPetRenderer from "./MiniPetRenderer";
 import coinIconImg from "@assets/icon_coin.webp";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import homeIconImg from "@assets/generated_images/nav_icon_home.png";
@@ -125,7 +126,7 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                 >
                   <div
                     data-testid="friend-profile-active-pet"
-                    style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(0,0,0,0.3)", flexShrink: 0, overflow: "hidden" }}
+                    style={{ width: 54, height: 54, position: "relative", borderRadius: 8, background: "rgba(0,0,0,0.3)", flexShrink: 0 }}
                   >
                     {activePet.petTemplateId && activePet.inventoryId ? (
                       <PetAnimator
@@ -133,7 +134,7 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                         petInventoryId={activePet.inventoryId}
                         costumeAccess="public"
                         mode="static"
-                        size={44}
+                        size={54}
                         fillContainer
                         fitVisible
                       />
@@ -141,8 +142,13 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                       <img
                         src={activePet.hatchedImageUrl || activePet.imageUrl}
                         alt={activePet.name}
-                        style={{ width: 44, height: 44, objectFit: "contain" }}
+                        style={{ width: 54, height: 54, objectFit: "contain" }}
                       />
+                    )}
+                    {activePet.inventoryId && (
+                      <div data-testid="friend-profile-mini-pet" style={{ position: "absolute", right: -3, bottom: -3, width: 25, height: 25, pointerEvents: "none" }}>
+                        <MiniPetRenderer petInventoryId={activePet.inventoryId} access="public" />
+                      </div>
                     )}
                   </div>
                   <div className="min-w-0">
