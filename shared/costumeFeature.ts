@@ -79,7 +79,7 @@ export interface CostumePlacement {
   view: CostumeView;
   /** "independent" uses the pet canvas; all other values retain legacy part attachment. */
   anchorPart: CostumeAnchorPart;
-  animation?: AdornmentAnimation;
+  animation?: AdornmentAnimation | "follow_part";
   animationSpeed?: number;
   /** Optional opposite-facing artwork, used only for independent Wings motion. */
   mirroredWingImageUrl?: string;
@@ -165,12 +165,13 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
       depth,
       anchorPart,
       ...(anchorPart === "independent" ? {
-        animation: normalizeAdornmentAnimation(placement.animation),
+        animation: placement.animation === "follow_part" ? "follow_part" : normalizeAdornmentAnimation(placement.animation),
         animationSpeed: Math.max(0.25, Math.min(2, finitePlacementNumber(placement.animationSpeed, 1))),
         replacesWings: placement.replacesWings === true,
         ...(typeof placement.mirroredWingImageUrl === "string" && ADORNMENT_IMAGE_URL_PATTERN.test(placement.mirroredWingImageUrl)
           ? { mirroredWingImageUrl: placement.mirroredWingImageUrl } : {}),
       } : {}),
+      ...(anchorPart !== "independent" && placement.animation === "follow_part" ? { animation: "follow_part" as const } : {}),
       ...(placement.dontMove === true ? { dontMove: true } : {}),
       ...(Number.isFinite(Number(placement.followPartIndex))
         ? { followPartIndex: Math.max(1, Math.min(3, Math.trunc(Number(placement.followPartIndex)))) }

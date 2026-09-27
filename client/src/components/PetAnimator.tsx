@@ -12,6 +12,7 @@ import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 import { ADORNMENT_SLOT_MAP, getWingReplacementPartTypes, normalizeCostumePlacements, type CostumePlacement } from "@shared/costumeFeature";
 import { normalizePetParts } from "@/lib/petRenderSafety";
+import { semanticFollowPartType } from "@/lib/costumeFollowPart";
 
 interface PetPart {
   id: string;
@@ -373,19 +374,6 @@ function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: P
   return placements.filter((placement) => (placement.form ?? "base") === "base" && inView(placement));
 }
 
-function semanticFollowPartType(costume: EquippedCostume, placement: CostumePlacement): string | null {
-  const explicitFollow = costume.adornmentEffect === "follow_part";
-  if (!explicitFollow) return null;
-
-  if (costume.slot === ADORNMENT_SLOT_MAP.head) {
-    return ["head", "h2_head", "h3_head"][(placement.followPartIndex ?? 1) - 1] ?? "head";
-  }
-  if (costume.slot === ADORNMENT_SLOT_MAP.left_hand) return "left_hand";
-  if (costume.slot === ADORNMENT_SLOT_MAP.right_hand) return "right_hand";
-  if (explicitFollow && costume.slot === ADORNMENT_SLOT_MAP.back) return "body";
-  return null;
-}
-
 function rebasePlacementToPart(placement: CostumePlacement, target: PetPart, parts: PetPart[]): CostumePlacement {
   const sourceAnchor = placement.anchorPart === "independent"
     ? null
@@ -460,12 +448,14 @@ function CostumeLayer({
       // Item-level motion choices are authoritative now that Don't Move lives in
       // the Effects dropdown. Keep the old per-placement flag only as a fallback
       // for adornments that have never been assigned an item-level effect.
-      const forcePartFollow = costume.adornmentEffect === "follow_part";
       const explicitDontMove = costume.adornmentEffect === "dont_move";
       const legacyStillDontMove = costume.adornmentEffect === "still";
-      const legacyDontMove = !costume.adornmentEffect && savedPlacement.dontMove === true;
+      const forcePartFollow = costume.adornmentEffect === "follow_part" || (savedPlacement.animation === "follow_part" && !explicitDontMove && !legacyStillDontMove);
+      // The retired fitting toggle must not freeze Head artwork now that
+      // Head 1/2/3 selection defines its movement. Explicit item effects win.
+      const legacyDontMove = !costume.adornmentEffect && costume.slot !== ADORNMENT_SLOT_MAP.head && savedPlacement.dontMove === true;
       const dontMove = !forcePartFollow && (explicitDontMove || legacyStillDontMove || legacyDontMove);
-      const followPartType = dontMove ? null : semanticFollowPartType(costume, savedPlacement);
+      const followPartType = dontMove ? null : semanticFollowPartType(costume.slot, costume.adornmentEffect, savedPlacement);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
 
