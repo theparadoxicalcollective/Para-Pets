@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   calculateStageLayout,
   calculateMiniGameScale,
+  calculateMiniGamePage,
   clientToPortalPoint,
   DESIGN_H,
   DESIGN_W,
@@ -11,7 +12,16 @@ import {
   MAX_STAGE_SCALE,
   renderedToLogical,
   resolveMobileBrowserHeight,
+  usesNativeMiniGamePage,
 } from "../client/src/lib/stage";
+
+test("iPhone 12 mini games retain their native layout across browser bar heights", () => {
+  for (const height of [844, 760, 700]) {
+    assert.deepEqual(calculateMiniGamePage(390, height), { width: 390, height, scale: 1, native: true });
+  }
+  assert.equal(usesNativeMiniGamePage(360), false);
+  assert.equal(usesNativeMiniGamePage(412), false);
+});
 
 test("mini game pages keep iPhone 12 proportions without clipping controls", () => {
   assert.equal(calculateMiniGameScale(390, 844), 1);

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { calculateMiniGameScale, DESIGN_H, DESIGN_W } from "@/lib/stage";
+import { calculateMiniGamePage, DESIGN_H, DESIGN_W } from "@/lib/stage";
 import volcanicWorld from "@assets/bg_volcanic_map_v4.webp";
 import hauntedWorld from "@assets/bg_haunted_woods_v2.webp";
 import swampWorld from "@assets/bg_bayous_heart.webp";
@@ -10,19 +10,19 @@ const worldBackgrounds: Record<string, string> = {
   swamp: swampWorld,
 };
 
-/** Keep a mini game at the admin's iPhone 12 coordinates, including on short phones. */
+/** Keep iPhone 12 native; fit the same page into other screen sizes. */
 export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   children: ReactNode;
   worldId: string;
   backgroundUrl?: string | null;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [size, setSize] = useState({ width: DESIGN_W, height: DESIGN_H });
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
-    const fit = () => setScale(calculateMiniGameScale(frame.clientWidth, frame.clientHeight));
+    const fit = () => setSize({ width: frame.clientWidth, height: frame.clientHeight });
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(frame);
@@ -30,6 +30,7 @@ export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   }, []);
 
   const artwork = backgroundUrl || worldBackgrounds[worldId];
+  const page = calculateMiniGamePage(size.width, size.height);
   return (
     <div
       ref={frameRef}
@@ -40,7 +41,9 @@ export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
       <div
         data-testid="mini-game-locked-page"
         className="absolute overflow-hidden"
-        style={{ width: DESIGN_W, height: DESIGN_H, left: "50%", top: "50%", transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: "center", background: "#09050d" }}
+        style={page.native
+          ? { inset: 0, width: "100%", height: "100%", background: "#09050d" }
+          : { width: page.width, height: page.height, left: "50%", top: "50%", transform: `translate(-50%, -50%) scale(${page.scale})`, transformOrigin: "center", background: "#09050d" }}
       >
         {children}
       </div>
