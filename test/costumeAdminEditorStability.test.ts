@@ -94,8 +94,10 @@ test("costume controls cannot change the draft while a save is pending", () => {
 test("adornment fitter exposes a persisted Don\'t Move switch", () => {
   assert.match(editor, /data-testid="toggle-adornment-dont-move"/);
   assert.match(editor, /role="switch"/);
-  assert.match(editor, /aria-checked=\{!stillHeadAdornment && !!selectedCostumePlacement\.dontMove\}/);
-  assert.match(editor, /disabled=\{saveCostumeMutation\.isPending \|\| stillHeadAdornment\}/);
+  assert.match(editor, /const followPartAdornment = selectedCostumeItem\?\.adornmentEffect === "follow_part"/);
+  assert.match(editor, /const forcePartFollow = followPartAdornment \|\| stillHeadAdornment/);
+  assert.match(editor, /aria-checked=\{!forcePartFollow && !!selectedCostumePlacement\.dontMove\}/);
+  assert.match(editor, /disabled=\{saveCostumeMutation\.isPending \|\| forcePartFollow\}/);
   assert.match(editor, /updateCostumeDraft\(\{ dontMove: !selectedCostumePlacement\.dontMove \}\)/);
   assert.match(editor, /Locks this fitted adornment in place/);
   assert.match(costumeSchema, /dontMove: z\.boolean\(\)\.optional\(\)/);
