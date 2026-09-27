@@ -9,7 +9,6 @@ import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
 import bagIconImg from "@assets/icon_bag.png";
-import tabIconAll from "@assets/icon_bag.png";
 import tabIconPotion from "@assets/potion_health.png";
 import tabIconItem from "@assets/item_crystal_charm.png";
 import tabIconAccessory from "@assets/acc_gem_amulet.png";
@@ -318,7 +317,6 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const bagItems = inventory.filter((item) =>
     !item.isListed &&
     item.type !== "pet" &&
-    item.fishingType !== "fish" &&
     (item.type !== "accessory" || !equippedAccessoryIdSet.has(item.inventoryId)),
   );
   const hatchTimeItems = bagItems.filter(i => i.type === "special" && i.specialType === "hatch_time");
@@ -1155,24 +1153,26 @@ const POTION_STACK_MAX = 50;
 type BagTabKey = string;
 
 const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
-  { key: "all",       label: "All",     icon: tabIconAll       },
-  { key: "potion",    label: "Potions", icon: tabIconPotion    },
-  { key: "item",      label: "Items",   icon: tabIconItem      },
-  { key: "accessory", label: "Gear",    icon: tabIconAccessory },
-  { key: "special",   label: "Special", icon: tabIconSpecial   },
-  { key: "recipe",    label: "Recipes", icon: recipeScrollIcon },
-  { key: "ingredient",label: "Ingredients", icon: tabIconItem  },
-  { key: "edibles",   label: "Edibles", icon: tabIconPotion    },
-  { key: "gift",      label: "Gifts", icon: tabIconSpecial     },
-  { key: "fishing",   label: "Fishing", icon: tabIconItem      },
-  { key: "clearing",  label: "Clearing Gear", icon: tabIconAccessory },
+  { key: "costume",    label: "Adornments",    icon: tabIconAccessory },
+  { key: "clearing",   label: "Clearing Gear", icon: tabIconAccessory },
+  { key: "edibles",    label: "Edibles",       icon: tabIconPotion    },
+  { key: "fish",       label: "Fish",          icon: tabIconItem      },
+  { key: "fishing",    label: "Fishing",       icon: tabIconItem      },
+  { key: "accessory",  label: "Gear",          icon: tabIconAccessory },
+  { key: "gift",       label: "Gifts",         icon: tabIconSpecial   },
+  { key: "ingredient", label: "Ingredients",   icon: tabIconItem      },
+  { key: "item",       label: "Items",         icon: tabIconItem      },
+  { key: "mini_pet",   label: "Mini Pets",     icon: petPawIcon      },
+  { key: "potion",     label: "Potions",       icon: tabIconPotion    },
+  { key: "recipe",     label: "Recipes",       icon: recipeScrollIcon },
+  { key: "special",    label: "Special",       icon: tabIconSpecial   },
 ];
 
 function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [bagTab, setBagTab] = useState<BagTabKey>("all");
+  const [bagTab, setBagTab] = useState<BagTabKey | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1212,45 +1212,65 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     staleTime: 60 * 1000,
   });
 
-  // Build stacked display items — all non-pet items stack by shopItemId
+  // Build stacked display items. Pets are never part of the Bag, even if a
+  // future caller accidentally passes them through.
   const stackMap = new Map<string, { item: InventoryItem; count: number }>();
-  const petItems: { item: InventoryItem; count: number }[] = [];
   for (const item of items) {
-    if (item.type === "pet") {
-      petItems.push({ item, count: 1 });
+    if (item.type === "pet") continue;
+    const itemQty = item.quantity ?? 1;
+    const existing = stackMap.get(item.shopItemId);
+    if (existing) {
+      existing.count += itemQty;
     } else {
-      const itemQty = item.quantity ?? 1;
-      const existing = stackMap.get(item.shopItemId);
-      if (existing) {
-        existing.count += itemQty;
-      } else {
-        stackMap.set(item.shopItemId, { item, count: itemQty });
-      }
+      stackMap.set(item.shopItemId, { item, count: itemQty });
     }
   }
-  const allDisplayItems: { item: InventoryItem; count: number }[] = [
-    ...petItems,
-    ...Array.from(stackMap.values()),
+  const allDisplayItems: { item: InventoryItem; count: number }[] = Array.from(stackMap.values());
+
+  // Fish share the general "fishing" shop-item type with rods/bait, so give
+  // caught fish their own virtual Bag category without changing stored data.
+  const bagCategoryKey = (item: InventoryItem): BagTabKey =>
+    item.fishingType === "fish" ? "fish" : item.type;
+
+  // Show every known Bag category (even when currently empty), then append any
+  // future item type discovered in a player's inventory. Pets are never added.
+  const configuredTabs = new Set(BAG_TABS.map(tab => tab.key));
+  const storedTypes = itemTypeOptions(allDisplayItems.map(({ item }) => item))
+    .filter(type => type !== "pet");
+  const discoveredTabs = [
+    ...storedTypes,
+    ...(allDisplayItems.some(({ item }) => item.fishingType === "fish") ? ["fish"] : []),
   ];
+  const visibleTabs = [
+    ...BAG_TABS,
+    ...discoveredTabs
+      .filter(type => !configuredTabs.has(type))
+      .map(type => ({ key: type, label: itemTypeLabel(type), icon: tabIconItem })),
+  ].sort((a, b) => a.label.localeCompare(b.label));
 
-  // Every stored item type remains reachable, including future catalog types.
-  const tabsWithItems = itemTypeOptions(allDisplayItems.map(({item})=>item));
-  const configuredTabs = new Set(BAG_TABS.map(tab=>tab.key));
-  const visibleTabs = [...BAG_TABS.filter(tab=>tab.key==="all"||tabsWithItems.includes(tab.key)),...tabsWithItems.filter(type=>!configuredTabs.has(type)).map(type=>({key:type,label:itemTypeLabel(type),icon:tabIconItem}))];
+  // Open to the first alphabetically sorted category that actually contains an
+  // item, rather than dumping the entire Bag on screen.
+  const firstPopulatedTabKey = visibleTabs.find(tab =>
+    allDisplayItems.some(({ item }) => bagCategoryKey(item) === tab.key),
+  )?.key ?? visibleTabs[0]?.key ?? "item";
+  const activeBagTab = bagTab && visibleTabs.some(tab => tab.key === bagTab)
+    ? bagTab
+    : firstPopulatedTabKey;
+  const activeBagTabLabel = visibleTabs.find(tab => tab.key === activeBagTab)?.label
+    ?? itemTypeLabel(activeBagTab);
 
-  // Filter by selected tab; sort alphabetically for "all"
   const displayItems = allDisplayItems
-    .filter(({ item }) => bagTab === "all" || item.type === bagTab)
-    .sort((a, b) => bagTab === "all" ? a.item.name.localeCompare(b.item.name) : 0);
+    .filter(({ item }) => bagCategoryKey(item) === activeBagTab)
+    .sort((a, b) => a.item.name.localeCompare(b.item.name));
 
-  const isEmpty = items.length === 0;
+  const isEmpty = allDisplayItems.length === 0;
 
   return (
     <>
       {/* ── Type tabs ─────────────────────────────────────────────── */}
       <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
         {visibleTabs.map(tab => {
-          const active = bagTab === tab.key;
+          const active = activeBagTab === tab.key;
           return (
             <button
               key={tab.key}
@@ -1290,7 +1310,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
         </div>
       ) : displayItems.length === 0 ? (
         <div className="text-center py-12">
-          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {bagTab}s in your bag</p>
+          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {activeBagTabLabel} in your bag</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
