@@ -1031,7 +1031,7 @@ function AdminItemForm({
                     ))}
                   </select>
                   <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">
-                    Applies wherever this adornment is equipped. Still adds no extra effect; Head, Left Hand, and Right Hand adornments still follow the matching animated pet part.
+                    Applies wherever this adornment is equipped. Follow Part locks the artwork to the matching animated pet layer (Head 1/2/3, Left Hand, Right Hand, or Body for Back). Still adds no extra motion but does not create a new semantic attachment.
                   </p>
                 </div>
               )}
