@@ -197,9 +197,9 @@ test("4 and 5 star card titles share the same warm readable name color", () => {
 });
 
 test("1 and 2 star artwork fills the clipped viewport on both sides", () => {
-  assert.match(preview, /if \(rarity <= 2\) return "12\.5% 11\.5% 8%"/);
+  assert.match(preview, /if \(rarity <= 2\) return depth3d \? "11\.5% 10% 7%" : "12\.5% 11\.5% 8%"/);
   assert.match(preview, /return rarity <= 2 \? "11\.5% 10\.5% 7%" : "11% 6%"/);
-  assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /return depth3d \? "11% 8% 7%" : "12% 10%"/);
   assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
   assert.match(preview, /WebkitClipPath: "inset\(0 round 9% \/ 7%\)"/);
   assert.match(preview, /contain: "paint"/);
@@ -261,8 +261,8 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /function artworkInsetForRarity\(rarity: CardRarity, depth3d: boolean\)/);
-  assert.match(preview, /rarity <= 2\) return "12\.5% 11\.5% 8%"/);
-  assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /rarity <= 2\) return depth3d \? "11\.5% 10% 7%" : "12\.5% 11\.5% 8%"/);
+  assert.match(preview, /return depth3d \? "11% 8% 7%" : "12% 10%"/);
   assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
   assert.match(preview, /transform: rarity <= 2 \? "scale\(1\.04\)" : undefined/);
   assert.match(preview, /inset: artworkInsetForRarity\(rarity, depth3d\)/);
@@ -329,7 +329,7 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /data-testid="card-back-title"/);
   assert.match(detail, /<CardFittedText[\s\S]*text=\{card\.name\}[\s\S]*curve=\{layout\.nameCurve \?\? 0\}/);
   assert.match(detail, /data-testid="card-back-description"/);
-  assert.match(detail, /inset: "23% 17% 19%"/);
+  assert.match(detail, /inset: "24% 23% 20%"/);
   assert.match(detail, /fontSize: "clamp\(10\.5px, 3cqw, 14\.5px\)"/);
   assert.match(detail, /overflowY: "auto"/);
   assert.match(detail, /color: CARD_TITLE_COLORS\[card\.rarity\]/);

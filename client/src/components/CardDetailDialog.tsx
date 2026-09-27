@@ -60,6 +60,11 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     const intensity = frontAngle < 90 ? Math.min(1, frontAngle / 70) : 0;
     turn.style.transform = `rotateY(${angle}deg)`;
     turn.style.setProperty("--card-turn-intensity", String(intensity));
+    turn.style.setProperty("--card-frame-depth", `${intensity * 24}px`);
+    turn.style.setProperty("--card-art-depth", `${intensity * -12}px`);
+    turn.style.setProperty("--card-backing-depth", `${intensity * -18}px`);
+    turn.style.setProperty("--card-glow-depth", `${intensity * 28}px`);
+    turn.style.setProperty("--card-sparkle-depth", `${intensity * 30}px`);
     turn.style.setProperty("--card-turn-opacity", String(intensity * .9));
     turn.style.setProperty(
       "--card-turn-position",
@@ -340,7 +345,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                     data-testid="card-back-description"
                     style={{
                       position: "absolute",
-                      inset: "23% 17% 19%",
+                      inset: "24% 23% 20%",
                       zIndex: 3,
                       overflowY: "auto",
                       overscrollBehavior: "contain",

@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { chestAssets } from "@/lib/chestAssets";
+import "./RedeemCodeCard.css";
+
+const coin = "/world-assets/icon_coin.png";
+
+interface PendingReward {
+  rewardId: string;
+  bundleName: string;
+  coinAmount: number;
+  items: Array<{ id: string; name: string; imageUrl: string | null; eggImageUrl: string | null; quantity?: number }>;
+}
 
 interface RedeemCodeCardProps {
   user?: { emailVerified?: boolean } | null;
@@ -12,15 +22,31 @@ interface RedeemCodeCardProps {
 
 export default function RedeemCodeCard({ user, onSignIn }: RedeemCodeCardProps) {
   const [code, setCode] = useState("");
+  const [revealedReward, setRevealedReward] = useState<PendingReward | null>(null);
+  const [rewardVisible, setRewardVisible] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!rewardVisible) return;
+    const timeout = window.setTimeout(() => setRewardVisible(false), 6500);
+    return () => window.clearTimeout(timeout);
+  }, [rewardVisible, revealedReward]);
   const redeem = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/redeem-code", { code });
       return response.json();
     },
-    onSuccess: async (data: { message: string }) => {
+    onSuccess: async (data: { message: string; rewardId: string }) => {
       setCode("");
+      // Use the newly delivered reward ID; older, unclaimed boxes can also be pending.
+      try {
+        const response = await apiRequest("GET", "/api/rewards/pending");
+        const pending = await response.json() as PendingReward[];
+        setRevealedReward(pending.find(reward => reward.rewardId === data.rewardId) ?? null);
+      } catch {
+        setRevealedReward(null);
+      }
+      setRewardVisible(true);
       await queryClient.invalidateQueries({ queryKey: ["/api/rewards/pending"] });
       toast({ title: "Code Redeemed!", description: data.message });
     },
@@ -132,7 +158,31 @@ export default function RedeemCodeCard({ user, onSignIn }: RedeemCodeCardProps) 
           </p>
         )}
       </div>
+      {rewardVisible && (
+        <div className="redeem-reward-reveal" role="status" aria-live="polite" data-testid="redeem-reward-reveal">
+          <div className="redeem-reward-heading">Treasure sent to your Reward Box!</div>
+          {revealedReward && (
+            <>
+              <div className="redeem-reward-name">{revealedReward.bundleName}</div>
+              <div className="redeem-reward-bubbles">
+                {[
+                  ...(revealedReward.coinAmount > 0 ? [{ id: "coins", name: `${revealedReward.coinAmount.toLocaleString()} coins`, imageUrl: coin }] : []),
+                  ...revealedReward.items.map((item, index) => ({ id: `${item.id}-${index}`, name: `${item.quantity && item.quantity > 1 ? `${item.quantity} × ` : ""}${item.name}`, imageUrl: item.imageUrl || item.eggImageUrl })),
+                ].slice(0, 6).map((reward, index) => (
+                  <div className="redeem-reward-bubble" key={reward.id} style={{ animationDelay: `${index * 110}ms` }}>
+                    {reward.imageUrl && <img src={reward.imageUrl} alt="" />}
+                    <span>{reward.name}</span>
+                  </div>
+                ))}
+                {(revealedReward.items.length + (revealedReward.coinAmount > 0 ? 1 : 0)) > 6 && (
+                  <div className="redeem-reward-bubble redeem-reward-more">+{revealedReward.items.length + (revealedReward.coinAmount > 0 ? 1 : 0) - 6} more</div>
+                )}
+              </div>
+            </>
+          )}
+          <button type="button" onClick={() => setRewardVisible(false)} aria-label="Dismiss reward preview">Close</button>
+        </div>
+      )}
     </section>
   );
 }
-

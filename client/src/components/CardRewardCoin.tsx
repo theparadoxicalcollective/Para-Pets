@@ -1,5 +1,6 @@
-import coin from "@assets/icon_coin.webp";
 import "./CardRewardCoin.css";
+
+const coin = "/world-assets/icon_coin.png";
 
 interface CardRewardCoinProps {
   cardName: string;
