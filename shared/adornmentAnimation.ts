@@ -1,12 +1,13 @@
 export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
 export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
 
-export const ADORNMENT_ITEM_EFFECTS = ["still", "follow_part", "float", "spin", "sway", "pulse"] as const;
+export const ADORNMENT_ITEM_EFFECTS = ["still", "follow_part", "dont_move", "float", "spin", "sway", "pulse"] as const;
 export type AdornmentItemEffect = typeof ADORNMENT_ITEM_EFFECTS[number];
 
 export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> = {
   still: "Still — no extra motion",
   follow_part: "Follow Part — move with matching pet layer",
+  dont_move: "Don't Move — stay fixed in fitted position",
   float: "Float — balloon-like loop",
   spin: "Spin — slow clockwise",
   sway: "Sway — gentle side to side",
@@ -35,6 +36,7 @@ export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | null 
   const effectMap: Record<AdornmentItemEffect, AdornmentAnimation> = {
     still: "none",
     follow_part: "none",
+    dont_move: "none",
     float: "float",
     spin: "rotate",
     sway: "sway",
