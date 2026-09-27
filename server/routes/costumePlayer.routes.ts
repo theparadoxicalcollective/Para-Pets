@@ -121,6 +121,16 @@ export function registerCostumePlayerRoutes(app: Express) {
       const [unlock] = await db.select().from(petCostumeSlotUnlocks)
         .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId))
         .limit(1);
+      // The Closet needs fitting eligibility; ordinary pet portraits do not.
+      const fittedShopItemIds = req.query.includeFittings === "1"
+        ? (await db.select({
+            shopItemId: petCostumeDefinitions.shopItemId,
+            placements: petCostumeDefinitions.placements,
+          }).from(petCostumeDefinitions)
+            .where(eq(petCostumeDefinitions.templateId, target.item.petTemplateId)))
+            .filter((definition) => placementsForPetForm(definition.placements, !!target.pet.isEvolved).length > 0)
+            .map((definition) => definition.shopItemId)
+        : undefined;
       const equipped = await db.select({
         id: petEquippedCostumes.id,
         slot: petEquippedCostumes.slot,
@@ -158,6 +168,7 @@ export function registerCostumePlayerRoutes(app: Express) {
         equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
         anchors,
         extraSlots: unlock?.extraSlots ?? 0,
+        ...(fittedShopItemIds && { fittedShopItemIds }),
       });
     } catch (error) {
       console.error("[costumes] player load failed", error);
