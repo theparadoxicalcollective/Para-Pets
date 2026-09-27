@@ -2,47 +2,35 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateWorldFitScale, WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
 
-test("world maps always match the viewport height exactly", () => {
-  const cases = [
-    { frameW: 390, frameH: 844 },
-    { frameW: 768, frameH: 1024 },
-    { frameW: 1440, frameH: 900 },
-  ];
-
-  for (const { frameW, frameH } of cases) {
-    const scale = calculateWorldFitScale(frameW, frameH, WORLD_MAP_HEIGHT, false);
-    assert.equal(scale, frameH / WORLD_MAP_HEIGHT);
-    assert.ok(Math.abs(WORLD_MAP_HEIGHT * scale - frameH) < 0.000001);
+test("maps remain entirely inside phone, tablet, and desktop frames", () => {
+  for (const { frameW, frameH, mapH } of [
+    { frameW: 390, frameH: 844, mapH: 1440 },
+    { frameW: 390, frameH: 760, mapH: 1980 },
+    { frameW: 768, frameH: 1024, mapH: 1621 },
+    { frameW: 1440, frameH: 900, mapH: 1440 },
+  ]) {
+    const scale = calculateWorldFitScale(frameW, frameH, mapH, false);
+    assert.ok(WORLD_MAP_WIDTH * scale <= frameW + 0.001);
+    assert.ok(mapH * scale <= frameH + 0.001);
+    assert.ok(Math.abs(WORLD_MAP_WIDTH * scale - frameW) < 0.001 || Math.abs(mapH * scale - frameH) < 0.001);
   }
 });
 
-test("narrow portrait viewports may overflow horizontally instead of shrinking the map", () => {
+test("the full x range of saved NPC positions stays visible on a narrow phone", () => {
   const frameW = 390;
-  const frameH = 844;
-  const scale = calculateWorldFitScale(frameW, frameH, WORLD_MAP_HEIGHT, false);
-  assert.ok(WORLD_MAP_WIDTH * scale > frameW);
+  const scale = calculateWorldFitScale(frameW, 844, 1440, false);
+  const mapLeft = (frameW - WORLD_MAP_WIDTH * scale) / 2;
+  for (const xPercent of [0, 25, 50, 75, 100]) {
+    const renderedX = mapLeft + WORLD_MAP_WIDTH * xPercent / 100 * scale;
+    assert.ok(renderedX >= 0 && renderedX <= frameW);
+  }
 });
 
-test("viewport width no longer changes world zoom level", () => {
-  const narrow = calculateWorldFitScale(390, 844, WORLD_MAP_HEIGHT, false);
-  const wide = calculateWorldFitScale(1200, 844, WORLD_MAP_HEIGHT, false);
-  assert.equal(narrow, wide);
-});
-
-test("per-world map height controls height-fit scaling", () => {
-  const frameH = 844;
-  const shortMapHeight = 1440;
-  const tallMapHeight = 2400;
-  const shortScale = calculateWorldFitScale(390, frameH, shortMapHeight, false);
-  const tallScale = calculateWorldFitScale(390, frameH, tallMapHeight, false);
-
-  assert.equal(shortScale, frameH / shortMapHeight);
-  assert.equal(tallScale, frameH / tallMapHeight);
+test("each world's authored height controls its fit", () => {
+  const shortScale = calculateWorldFitScale(1080, 844, 1440, false);
+  const tallScale = calculateWorldFitScale(1080, 844, 2400, false);
+  assert.equal(shortScale, 844 / 1440);
+  assert.equal(tallScale, 844 / 2400);
   assert.notEqual(shortScale, tallScale);
-  assert.ok(Math.abs(shortMapHeight * shortScale - frameH) < 0.000001);
-  assert.ok(Math.abs(tallMapHeight * tallScale - frameH) < 0.000001);
-});
-
-test("invalid viewport height fails safely", () => {
   assert.equal(calculateWorldFitScale(390, 0, WORLD_MAP_HEIGHT, false), 1);
 });

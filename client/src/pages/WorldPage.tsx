@@ -355,8 +355,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // ratios — using the fixed 844 constant under-/over-scaled the "cover" fit
   // and left gaps or mis-cropped backgrounds. Location/collider positions are
   // stored as percentages of the MAP_W×mapH map space, not of the frame, so
-  // measuring the real frame size only affects zoom/pan fit — it never moves
-  // anything on the map.
+  // measuring the real frame size only affects the shared scene fit — it never
+  // moves anything relative to the authored background.
   useEffect(() => {
     const el = vpRef.current;
     if (!el) return;
@@ -1826,7 +1826,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               transformOrigin: "0 0",
               transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
               backgroundImage: committedWorldBg ? `url(${committedWorldBg})` : undefined,
-              backgroundSize: "cover",
+              backgroundSize: "100% 100%",
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center top",
             }}

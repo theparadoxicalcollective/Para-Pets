@@ -1,25 +1,21 @@
-const WORLD_MAP_WIDTH = 924;
-const WORLD_MAP_HEIGHT = 1703;
+const WORLD_MAP_WIDTH = 1080;
+const WORLD_MAP_HEIGHT = 1920;
 
 /**
- * Scale each world from its actual map height so the complete vertical
- * composition stays visible. WorldPage stores a fixed per-world map height
- * (derived from each canonical background image) because worlds do not all
- * share the same aspect ratio.
- *
- * If the height-fit makes the rendered map wider than the viewport,
- * WorldPage's existing horizontal pan/clamp behavior exposes the left/right
- * portions instead of cropping the top or bottom of the artwork.
+ * Fit the entire authored map in the visible frame. Background, NPCs, decor,
+ * and hotspots all share this one map transform, so placements keep their
+ * admin-authored coordinates across narrow phones and wider screens.
+ * WorldPage supplies a fixed per-world height for each background's aspect.
  */
 export function calculateWorldFitScale(
-  _frameWidth: number,
+  frameWidth: number,
   frameHeight: number,
   mapHeight: number,
   _fitFullComposition: boolean,
 ): number {
-  if (!Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
-  if (!Number.isFinite(mapHeight) || mapHeight <= 0) return frameHeight / WORLD_MAP_HEIGHT;
-  return frameHeight / mapHeight;
+  if (!Number.isFinite(frameWidth) || frameWidth <= 0 || !Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
+  const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
+  return Math.min(frameWidth / WORLD_MAP_WIDTH, frameHeight / safeMapHeight);
 }
 
 export { WORLD_MAP_WIDTH, WORLD_MAP_HEIGHT };
