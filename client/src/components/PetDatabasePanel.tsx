@@ -21,6 +21,7 @@ import {
   getDraggedCostumePosition,
   resizeCostumePlacement,
 } from "@/lib/costumePlacement";
+import { fitAdornmentStage, pointInAdornmentStage } from "@/lib/adornmentStageFit";
 import {
   clampPetPartRotation,
   getDraggedPetPartPosition,
@@ -340,7 +341,7 @@ export default function PetDatabasePanel({
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
-  const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(true);
+  const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(false);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
   const costumeDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
@@ -553,6 +554,7 @@ export default function PetDatabasePanel({
     }
     getWingReplacementPartTypes(placement.anchorPart).forEach(part => previewHiddenWings.add(part));
   }
+  const adornmentStageFit = fitAdornmentStage(viewParts.filter(part => !previewHiddenWings.has(part.partType)));
   const canSaveCostumePlacement = !costumeDefinitionsLoading && !costumeDefinitionsError && !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
   const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)
     .find(instance => !costumeInstances.includes(instance));
@@ -804,10 +806,11 @@ export default function PetDatabasePanel({
     const scale = CANVAS_SIZE / rect.width;
     costumeDragRef.current = {
       pointerId: event.pointerId,
-      ...getCostumeDragOffset({
-        x: (event.clientX - rect.left) * scale,
-        y: (event.clientY - rect.top) * scale,
-      }, costumeCanvasPosition),
+      ...getCostumeDragOffset(pointInAdornmentStage(
+        (event.clientX - rect.left) * scale,
+        (event.clientY - rect.top) * scale,
+        adornmentStageFit,
+      ), costumeCanvasPosition),
     };
     setDraggingCostume(true);
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -819,10 +822,11 @@ export default function PetDatabasePanel({
     if (!rect || rect.width <= 0) return;
     event.preventDefault();
     const scale = CANVAS_SIZE / rect.width;
-    updateCostumeDraft(getDraggedCostumePosition({
-      x: (event.clientX - rect.left) * scale,
-      y: (event.clientY - rect.top) * scale,
-    }, drag, costumeAnchorPoint, selectedCostumePlacement));
+    updateCostumeDraft(getDraggedCostumePosition(pointInAdornmentStage(
+      (event.clientX - rect.left) * scale,
+      (event.clientY - rect.top) * scale,
+      adornmentStageFit,
+    ), drag, costumeAnchorPoint, selectedCostumePlacement));
   };
   const endCostumeDrag = (pointerId?: number) => {
     if (pointerId !== undefined && costumeDragRef.current?.pointerId !== pointerId) return;
@@ -1255,13 +1259,28 @@ export default function PetDatabasePanel({
 
           <section className="order-3 xl:order-2 space-y-2">
             <style>{ADORNMENT_MOTION_CSS}</style>
-            <p className="text-center text-[11px]" style={{ color: selectedCostumeItem ? "#d8b4fe" : "#a89878" }}>
-              {selectedCostumeItem ? "Press and drag the adornment to position it. It will not save until you tap Save placement." : "Select an adornment from the library to begin."}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px]" style={{ color: selectedCostumeItem ? "#d8b4fe" : "#a89878" }}>
+                {previewAdornmentMotion
+                  ? `${costumeArtworkForm === "evolution" ? "Evolution" : "Regular"} pet idle + selected adornment effect. Return to Edit to adjust placement.`
+                  : selectedCostumeItem ? "Drag the adornment to position it, then tap Save placement." : "Select an adornment from the library to begin."}
+              </p>
+              <button
+                type="button"
+                data-testid="toggle-live-adornment-preview"
+                aria-pressed={previewAdornmentMotion}
+                onClick={() => setPreviewAdornmentMotion(current => !current)}
+                disabled={draggingCostume}
+                className="shrink-0 rounded-lg px-3 py-2 text-[10px] font-fantasy disabled:opacity-50"
+                style={{ color: "#f3e8ff", background: previewAdornmentMotion ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.35)", border: "1px solid rgba(216,180,254,.55)" }}
+              >
+                {previewAdornmentMotion ? "Edit placement" : "Preview animation"}
+              </button>
+            </div>
             <div
               ref={canvasRef}
               data-testid="costume-placement-canvas"
-              aria-label="Drag adornment placement canvas"
+              aria-label={previewAdornmentMotion ? "Adornment animation preview" : "Drag adornment placement canvas"}
               className="relative aspect-square rounded-lg select-none"
               style={{
                 width: "100%",
@@ -1269,12 +1288,30 @@ export default function PetDatabasePanel({
                 isolation: "isolate",
                 background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
                 border: draggingCostume ? "2px solid rgba(192,132,252,.7)" : "2px dashed rgba(192,132,252,.35)",
-                touchAction: "none",
+                touchAction: previewAdornmentMotion ? "auto" : "none",
               }}
-              onPointerMove={moveCostumeDrag}
+              onPointerMove={previewAdornmentMotion ? undefined : moveCostumeDrag}
               onPointerUp={(event) => endCostumeDrag(event.pointerId)}
               onPointerCancel={(event) => endCostumeDrag(event.pointerId)}
             >
+              {previewAdornmentMotion ? (
+                <div data-testid="adornment-live-preview" className="absolute inset-0 pointer-events-none">
+                  <PetAnimator
+                    petTemplateId={selectedTemplateId}
+                    artworkForm={costumeArtworkForm}
+                    mode="idle"
+                    view={activeView === "back" ? "back" : "front"}
+                    fillContainer
+                    fitVisible
+                    previewCostumes={livePreviewCostumes}
+                    style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+                  />
+                </div>
+              ) : (
+              <div
+                className="absolute inset-0"
+                style={{ transform: `translate(${adornmentStageFit.offsetX / 10}%, ${adornmentStageFit.offsetY / 10}%) scale(${adornmentStageFit.scale})`, transformOrigin: "top left" }}
+              >
               {viewParts.filter(part => !previewHiddenWings.has(part.partType)).map(part => (
                 <img
                   key={part.id}
@@ -1331,42 +1368,8 @@ export default function PetDatabasePanel({
                   </div>
                 );
               })}
-            </div>
-
-            <div
-              data-testid="adornment-live-preview"
-              className="rounded-xl p-3"
-              style={{ background: "rgba(12,8,18,.62)", border: "1px solid rgba(192,132,252,.25)" }}
-            >
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "#d8b4fe" }}>LIVE ANIMATION PREVIEW</p>
-                  <p className="mt-0.5 text-[9px]" style={{ color: "#8f8198" }}>
-                    {costumeArtworkForm === "evolution" ? "Evolution" : "Regular"} pet idle + saved adornment effect.
-                  </p>
-                </div>
-                <label className="flex items-center gap-2 text-[9px]" style={{ color: "#bca7c8" }}>
-                  <input
-                    data-testid="toggle-live-adornment-preview"
-                    type="checkbox"
-                    checked={previewAdornmentMotion}
-                    onChange={event => setPreviewAdornmentMotion(event.target.checked)}
-                  />
-                  Animate
-                </label>
               </div>
-              <div className="relative mx-auto aspect-square w-full max-w-[320px] overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.22)" }}>
-                <PetAnimator
-                  petTemplateId={selectedTemplateId}
-                  artworkForm={costumeArtworkForm}
-                  mode={previewAdornmentMotion ? "idle" : "static"}
-                  view={activeView === "back" ? "back" : "front"}
-                  fillContainer
-                  fitVisible
-                  previewCostumes={livePreviewCostumes}
-                  style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                />
-              </div>
+              )}
             </div>
           </section>
 
