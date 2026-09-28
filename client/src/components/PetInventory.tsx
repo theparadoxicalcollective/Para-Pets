@@ -1269,7 +1269,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     <>
       {/* The category rail scrolls independently of the item shelf on phones. */}
       <div className="flex items-start gap-2 sm:gap-4 min-w-0">
-      <nav aria-label="Bag item categories" className="w-[104px] sm:w-[164px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
+      <nav aria-label="Bag item categories" className="w-[104px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
         <p className="font-fantasy text-[#d8b864] text-[10px] sm:text-xs tracking-widest px-1 pb-1">BAG ITEMS</p>
         {visibleTabs.map(tab => {
           const active = activeBagTab === tab.key;
@@ -1320,7 +1320,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {activeBagTabLabel} in your bag</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {displayItems.map(({ item, count }) => {
             const typeColor = typeColors[item.type] || "#f0c040";
             return (

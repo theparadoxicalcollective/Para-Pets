@@ -128,7 +128,9 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       const special = await db.execute(sql`SELECT a.pet_shop_item_id,s.name,COALESCE(s.rarity,1) rarity,s.egg_image_url,s.hatched_image_url,s.image_url FROM clearing_world_special_mobs a JOIN shop_items s ON s.id=a.pet_shop_item_id WHERE a.world_id='swamp' AND s.type='pet'`);
       if (!configured.rows.length) console.warn("No Clearing enemies configured for swamp; using temporary Elysian fallback");
 
-      const session = createClearingSession(user.id, pet.id, stats, Date.now(), Math.random, configured.rows as any, special.rows as any, { ...stats, ...baseStats });
+      // The Clearing currently hosts free fights and NPC quests. Boss hunts
+      // remain dormant until an NPC explicitly starts one in a future flow.
+      const session = createClearingSession(user.id, pet.id, stats, Date.now(), Math.random, configured.rows as any, special.rows as any, { ...stats, ...baseStats }, false);
       const chests = await getClearingRewardChests(db, { userId: user.id, sessionId: session.id, clearingId: ELYSIAN_CLEARING_COMBAT.locationId });
       const eggDrops = await getSpecialEggDrops(db, { userId: user.id, sessionId: session.id, clearingId: ELYSIAN_CLEARING_COMBAT.locationId });
       return res.json({

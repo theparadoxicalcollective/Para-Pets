@@ -69,10 +69,10 @@ export function selectClearingEncounterTemplates(count:number,templates:Clearing
   return selected;
 }
 
-export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[], scalingStats:ClearingPetStats=stats): ClearingSession {
+export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[], scalingStats:ClearingPetStats=stats, enableBossEncounter=true): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
   // Gear improves this encounter rather than increasing enemy stats alongside it.
-  const scaled=scaleClearingEnemy(scalingStats),special=selectClearingSpecialMob(specialTemplates,random),bossTemplate=resolveClearingBossTemplate(templates),regularTemplates=templates.filter(template=>!template.is_boss&&template.enemy_id!==bossTemplate.enemy_id),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,regularTemplates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
+  const scaled=scaleClearingEnemy(scalingStats),special=selectClearingSpecialMob(specialTemplates,random),bossTemplate=enableBossEncounter?resolveClearingBossTemplate(templates):undefined,regularTemplates=templates.filter(template=>!template.is_boss&&template.enemy_id!==bossTemplate?.enemy_id),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,regularTemplates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     huntBlessing: { huntId: crypto.randomUUID(), selected: null },
@@ -92,6 +92,9 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
 
 export function recordClearingRegularDefeat(sessionId:string,instanceId:string,now=Date.now()){
   const session=sessions.get(sessionId),enemy=session?.enemies.find(candidate=>candidate.instanceId===instanceId);
+  // Free fights and NPC quest defeats do not begin a boss hunt. A future NPC
+  // can explicitly opt a session into the encounter when that quest exists.
+  if(!session?.bossTemplate)return session?.clearingBossProgress??null;
   if(!session||!enemy||enemy.isBoss||!enemy.defeated||session.clearingBossProgress.bossPhase!=="regular")return session?.clearingBossProgress??null;
   const key=`defeat:${instanceId}`;
   if(session.processedAttacks.has(key))return session.clearingBossProgress;

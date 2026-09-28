@@ -16,19 +16,22 @@ type RewardArtSize = "coin" | "reward";
 function RewardImage({src,alt,size}:{src:string|null;alt:string;size:RewardArtSize}){
   const [failed,setFailed]=useState(false);
   const sizeClass=size==="coin"?"h-7 w-7":"h-10 w-10";
-  return failed||!src?<span role="img" aria-label={`${alt} artwork unavailable`} className={`flex ${sizeClass} items-center justify-center ${size==="coin"?"text-lg":"text-2xl"}`}>🎁</span>:<img src={src} alt={alt} className={`${sizeClass} object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,.8)]`} onError={()=>setFailed(true)}/>;
+  return <span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-950/90 ring-2 ring-amber-200 shadow-[0_2px_9px_#000,0_0_10px_#f4cf79]">
+    {failed||!src?<span role="img" aria-label={`${alt} artwork unavailable`} className={`flex ${sizeClass} items-center justify-center ${size==="coin"?"text-lg":"text-2xl"}`}>🎁</span>:<img src={src} alt={alt} className={`${sizeClass} object-contain`} style={{filter:"drop-shadow(1px 0 0 #fff2bd) drop-shadow(-1px 0 0 #fff2bd) drop-shadow(0 1px 0 #fff2bd) drop-shadow(0 -1px 0 #fff2bd) drop-shadow(0 3px 4px #000)"}} onError={()=>setFailed(true)}/>}
+  </span>;
 }
 
 function ChestRewardArc({chest,error,onRetry}:{chest:ClearingRewardChest;error:string|null;onRetry:()=>void}){
   const rewards=[
-    ...(chest.rewards.coins>0?[{key:"coins",name:"Coins",imageUrl:currencyAssets.coin,stars:0,artSize:"coin" as const}]:[]),
-    ...(chest.rewards.essence>0?[{key:"essence",name:"Essence",imageUrl:currencyAssets.essenceToken,stars:0,artSize:"reward" as const}]:[]),
-    ...chest.rewards.items.map((item,index)=>({key:`${item.shopItemId}-${index}`,name:item.name,imageUrl:item.imageUrl,stars:item.starRarity,artSize:"reward" as const})),
+    ...(chest.rewards.coins>0?[{key:"coins",name:`+${chest.rewards.coins} Coins`,imageUrl:currencyAssets.coin,stars:0,artSize:"coin" as const}]:[]),
+    ...(chest.rewards.essence>0?[{key:"essence",name:`+${chest.rewards.essence} Essence`,imageUrl:currencyAssets.essenceToken,stars:0,artSize:"reward" as const}]:[]),
+    ...chest.rewards.items.map((item,index)=>({key:`${item.shopItemId}-${index}`,name:item.quantity>1?`${item.name} ×${item.quantity}`:item.name,imageUrl:item.imageUrl,stars:item.starRarity,artSize:"reward" as const})),
   ];
   const spread=Math.min(140,58+Math.max(0,rewards.length-1)*23);
   return <span data-testid="clearing-chest-reward-arc" className="pointer-events-none absolute left-1/2 top-1/2">
     {rewards.map((reward,index)=>{const angle=rewards.length===1?90:90-spread/2+(spread*index)/(rewards.length-1),radians=angle*Math.PI/180,radius=68+(index%2)*4;return <span aria-label={`${reward.name} received`} key={reward.key} className="clearing-chest-drop absolute flex w-14 flex-col items-center text-center" style={{"--drop-x":`${Math.cos(radians)*radius}px`,"--drop-y":`${-Math.sin(radians)*radius}px`,"--drop-delay":`${index*70}ms`} as CSSProperties}>
       <RewardImage src={reward.imageUrl} alt={reward.name} size={reward.artSize}/>
+      <span className="mt-1 max-w-20 rounded bg-emerald-950/95 px-1 text-[9px] font-bold leading-tight text-amber-100 [text-shadow:0_1px_2px_#000]">{reward.name}</span>
       {reward.stars>0&&<span aria-label={`${reward.stars} star rarity`} className="mt-1 text-[11px] leading-none text-amber-300 drop-shadow-[0_1px_2px_#000]">{"★".repeat(reward.stars)}</span>}
     </span>})}
     {error&&<button type="button" data-interactive data-testid="button-clearing-chest-retry" className="pointer-events-auto absolute left-1/2 top-8 w-40 -translate-x-1/2 rounded-lg border border-red-200/70 bg-emerald-950/95 px-2 py-1 text-[10px] font-bold text-red-100 shadow-xl" onClick={event=>{event.stopPropagation();onRetry()}}>{error} · Tap to retry</button>}
