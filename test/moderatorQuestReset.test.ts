@@ -7,6 +7,7 @@ test("moderator quest reset offers every supported quest family", () => {
 
   assert.match(routes, /BEGIN_JOURNEY_TUTORIAL\.id/);
   assert.match(routes, /GINNY_MINI_PET_QUEST_KEY/);
+  assert.match(routes, /NPC_DISCOVERY_TOUR_QUEST_KEY/);
   assert.match(routes, /SELECT quest_key, title, is_active\s+FROM daily_quests/);
   assert.match(routes, /WHERE is_moderator = true/);
 });
@@ -48,4 +49,23 @@ test("maintenance UI exposes both dropdowns and login reconciles a tutorial rese
   assert.match(app, /tutorial_quest_completed/);
   assert.match(app, /bjGetStatus\(\) === "done"/);
   assert.match(app, /bjRestart\(\)/);
+});
+
+
+test("NPC discovery guide reset is server-backed and moderator-scoped", () => {
+  const routes = fs.readFileSync("server/routes/quest.routes.ts", "utf8");
+  const guide = fs.readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
+
+  assert.match(routes, /\/api\/quests\/npc-discovery-tour\/reset-token/);
+  assert.match(routes, /npc_discovery_tour_reset:\$\{moderatorUserId\}/);
+  assert.match(routes, /INSERT INTO game_settings \(key, value\)/);
+  assert.match(routes, /gen_random_uuid\(\)::text/);
+  assert.match(routes, /Show NPC Quest Guide/);
+  assert.match(guide, /bj_npc_tour_reset_token_v1/);
+  assert.match(guide, /refetchInterval: 5_000/);
+  assert.match(guide, /saveIndex\(user\.id, 0\)/);
+  assert.match(guide, /Array\.from\(new Set\(worlds\.map\(world => world\.worldId\)\)\)/);
+  assert.doesNotMatch(guide, /fetch\("\/api\/quests\/ginny-mini-pet"/);
+  assert.doesNotMatch(guide, /fetch\("\/api\/quests\/janson"/);
+  assert.doesNotMatch(guide, /fetch\("\/api\/quests\/lonelle-lost-adornment"/);
 });

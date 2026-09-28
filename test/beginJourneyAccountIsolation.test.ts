@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   BJ_LS_KEY,
@@ -48,4 +49,21 @@ test("Begin Journey state is isolated when accounts share one browser", () => {
     if (original) Object.defineProperty(globalThis, "localStorage", original);
     else delete (globalThis as { localStorage?: unknown }).localStorage;
   }
+});
+
+
+test("Begin Journey hands off immediately to navigation and the NPC discovery guide", () => {
+  const beginOverlay = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
+  const npcGuide = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
+  const successStart = beginOverlay.indexOf("onSuccess: () => {");
+  const successEnd = beginOverlay.indexOf("onError: () =>", successStart);
+  const completion = beginOverlay.slice(successStart, successEnd);
+
+  assert.match(completion, /tutorial_quest_completed: true/);
+  assert.match(completion, /bjSetStep\("done"\)/);
+  assert.match(completion, /setStep\("done"\)/);
+  assert.doesNotMatch(completion, /setTimeout/);
+  assert.doesNotMatch(beginOverlay, /Quest-complete flash \(shown for 3\.5 s/);
+  assert.match(npcGuide, /const shouldLoadTour = eligible \|\| tutorialStatus === "active"/);
+  assert.match(npcGuide, /enabled: shouldLoadTour && index < worlds\.length/);
 });
