@@ -26,6 +26,7 @@ const expected = [
   ["POST", "/api/quests/daily/claim/:questKey"],
   ["GET", "/api/admin/daily-quests"],
   ["PATCH", "/api/admin/daily-quests/:questKey"],
+  ["GET", "/api/quests/npc-discovery-tour/reset-token"],
   ["GET", "/api/admin/moderator-quests"],
   ["POST", "/api/admin/moderator-quests/reset"],
 ];
