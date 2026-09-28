@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import { getQuestGuideSurface, guideBoundsInSurface, guideFocusPoint, guideTargetOnScreen } from "@/lib/questGuideViewport";
+import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 const pawCoin = "/paw-print-coin.webp";
 const API = "/api/quests/lonelle-lost-adornment";
@@ -65,7 +66,7 @@ function GuideArrow({ selector, label, focus = null, panHint = false }: { select
   const arrowTop = Math.max(4, (marker?.y ?? bounds.top) - (focus ? 100 : 56));
   return createPortal(<div data-testid="lonelle-guide-arrow" aria-live="polite" className={`${surface.inStage ? "absolute" : "fixed"} pointer-events-none`} style={{ zIndex: 2147481800, left: center, top: arrowTop, transform: "translateX(-50%)", textAlign: "center" }}>
     <span className="block rounded-lg px-2 py-1 font-fantasy text-[11px] text-[#fff2c4]" style={{ background: "rgba(15,35,21,.94)", border: "1px solid #e9c46d", boxShadow: "0 3px 12px #000a", maxWidth: 180 }}>{label}</span>
-    <span aria-hidden="true" className="block animate-bounce text-3xl leading-none text-[#ffe082]" style={{ filter: "drop-shadow(0 2px 4px #000)" }}>↓</span>
+    <img src={tutorialArrow} alt="" aria-hidden="true" className="mx-auto h-[60px] w-12 animate-bounce object-contain" style={{ filter: "drop-shadow(0 0 10px rgba(212,168,67,.95)) drop-shadow(0 0 24px rgba(212,168,67,.6))" }} />
     {marker && <span aria-hidden="true" className="absolute rounded-full" style={{ left: "50%", top: marker.y - arrowTop, transform: "translate(-50%, -50%)", width: marker.size, height: marker.size, border: "3px solid #ffe082", boxShadow: "0 0 18px #f9cf6b", pointerEvents: "none" }} />}
   </div>, surface.target);
 }

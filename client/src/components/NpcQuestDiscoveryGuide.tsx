@@ -37,8 +37,9 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     sync();
     return () => window.removeEventListener(BJ_EVENT, sync);
   }, []);
-  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [targetRect, setTargetRect] = useState<{ selector: string; rect: DOMRect } | null>(null);
   const guideCardRef = useRef<HTMLDivElement>(null);
+  const recentTourTap = useRef<{ x: number; y: number; until: number } | null>(null);
   const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
 
   useEffect(() => { setIndex(savedIndex(user.id)); }, [user.id]);
@@ -85,32 +86,64 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
   const mapIsOpen = navMap && getComputedStyle(navMap).pointerEvents !== "none";
   const surface = getQuestGuideSurface();
-  const guideRect = rect ? guideBoundsInSurface(rect, surface) : null;
-  const targetOnScreen = guideTargetOnScreen(guideRect, surface.width, surface.height);
   const selector = atWorld && current ? `[data-testid="location-${current.id}"]`
     : atMap ? `[data-testid="button-location-${current?.worldId}"]`
     : mapIsOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
-  const instruction = atWorld && targetOnScreen ? `This is ${current?.name}. Their quest is ready here!`
+  const rect = targetRect?.selector === selector ? targetRect.rect : null;
+  const guideRect = rect ? guideBoundsInSurface(rect, surface) : null;
+  const targetOnScreen = guideTargetOnScreen(guideRect, surface.width, surface.height);
+  const instruction = atWorld && targetOnScreen ? `This is ${current?.name}. Tap anywhere to see the next NPC — their quest will stay closed.`
     : atWorld ? `Drag the world to find ${current?.name} in ${current?.worldName}.`
     : atMap && !targetOnScreen ? `Drag the map to find ${current?.worldName}.`
     : atMap ? `Choose ${current?.worldName} on the world map.`
     : mapIsOpen ? "Tap World Map." : "Open the main navigation.";
 
   useEffect(() => {
-    if (!eligible || !current) { setRect(null); return; }
-    const interval = window.setInterval(() => {
+    if (!eligible || !current) { setTargetRect(null); return; }
+    const update = () => {
       const node = document.querySelector<HTMLElement>(selector);
       const bounds = node?.getBoundingClientRect();
-      setRect(bounds && bounds.width && bounds.height ? bounds : null);
+      setTargetRect(bounds && bounds.width && bounds.height ? { selector, rect: bounds } : null);
+    };
+    update();
+    const interval = window.setInterval(() => {
+      update();
     }, 250);
     return () => window.clearInterval(interval);
   }, [eligible, current?.id, selector, location]);
+
+  // The NPC is a live world control. During this read-only tour, even a tap on
+  // its visible edge must never start its actual quest.
+  useEffect(() => {
+    if (!eligible || !atWorld || !npcSelector) return;
+    const blockNpcClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest(npcSelector)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    document.addEventListener("click", blockNpcClick, true);
+    return () => document.removeEventListener("click", blockNpcClick, true);
+  }, [eligible, atWorld, npcSelector]);
+
+  // Some Android browsers send a second, delayed click at the same position
+  // after a touch. Swallow that click if the tour has already advanced.
+  useEffect(() => {
+    const blockGhostClick = (event: MouseEvent) => {
+      const tap = recentTourTap.current;
+      if (!tap || Date.now() > tap.until || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 24) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    document.addEventListener("click", blockGhostClick, true);
+    return () => document.removeEventListener("click", blockGhostClick, true);
+  }, []);
 
   if (!eligible || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
   const finish = (next: number) => {
     saveIndex(user.id, next);
     setIndex(next);
   };
+  const advance = () => finish(worlds.findIndex(world => world.worldId === current?.worldId && world.name === current?.name) + 1);
   if (isError) return createPortal(
     <div role="status" className={`${surface.inStage ? "absolute" : "fixed"} bottom-28 left-3 z-[9000] rounded-xl p-3 text-[#f5d98a]`} style={{ background: "#1e2417", border: "1px solid #b58b35" }}>
       World guide could not load. <button type="button" onClick={() => void refetch()} className="underline ml-2">Retry</button>
@@ -121,9 +154,18 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   // The Bayou sits low on the map. Keep the guide clear of whichever world or
   // NPC it points at, including when the map has been panned on a small screen.
   const guideAtTop = targetOnScreen && guideCardShouldMoveUp(guideRect, surface.height, guideCardRef.current?.offsetHeight ?? 130);
+  const highlight = targetOnScreen && guideRect ? {
+    x: Math.max(28, Math.min(surface.width - 28, (guideRect.left + guideRect.right) / 2)),
+    y: Math.max(30, Math.min(surface.height - 30, (guideRect.top + guideRect.bottom) / 2)),
+    size: Math.min(92, Math.max(54, Math.min(guideRect.right - guideRect.left, guideRect.bottom - guideRect.top) + 12)),
+  } : null;
   return createPortal(<>
-    {targetOnScreen && guideRect && <img src={tutorialArrow} alt="" aria-hidden="true" className={`${surface.inStage ? "absolute" : "fixed"} z-[9001] pointer-events-none w-12 animate-bounce`}
-      style={{ left: Math.max(0, Math.min(surface.width - 48, (guideRect.left + guideRect.right) / 2 - 24)), top: Math.max(4, guideRect.top - 55), filter: "drop-shadow(0 2px 5px #000)" }} />}
+    {atWorld && highlight && npcElement && <div data-testid="npc-discovery-advance-surface" role="button" tabIndex={0} aria-label={`Continue from ${current.name} to the next NPC`} className={`${surface.inStage ? "absolute" : "fixed"} inset-0 z-[9000] cursor-pointer`} style={{ touchAction: "none" }}
+      onPointerDown={event => event.stopPropagation()} onClick={event => { event.preventDefault(); event.stopPropagation(); recentTourTap.current = { x: event.clientX, y: event.clientY, until: Date.now() + 450 }; advance(); }}
+      onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); advance(); } }} />}
+    {highlight && <span aria-hidden="true" className={`${surface.inStage ? "absolute" : "fixed"} z-[9001] pointer-events-none rounded-full border-[3px] border-[#ffe082]`} style={{ left: highlight.x, top: highlight.y, width: highlight.size, height: highlight.size, transform: "translate(-50%,-50%)", boxShadow: "0 0 0 5px rgba(255,209,74,.18),0 0 24px rgba(255,201,60,.86),inset 0 0 18px rgba(255,226,130,.18)" }} />}
+    {highlight && <img src={tutorialArrow} alt="" aria-hidden="true" className={`${surface.inStage ? "absolute" : "fixed"} z-[9001] pointer-events-none w-14 h-[70px] object-contain animate-bounce`}
+      style={{ left: highlight.x - 28, top: Math.max(4, highlight.y - highlight.size / 2 - 74), filter: "drop-shadow(0 0 10px rgba(212,168,67,.95)) drop-shadow(0 0 24px rgba(212,168,67,.6))" }} />}
     <div ref={guideCardRef} role="status" data-testid="npc-discovery-guide" className={`${surface.inStage ? "absolute" : "fixed"} z-[9000] left-3 right-3 mx-auto max-w-sm rounded-xl p-3 font-fantasy text-[#f9e4b3]`}
       style={{ top: guideAtTop ? "calc(env(safe-area-inset-top, 0px) + 5rem)" : undefined, bottom: guideAtTop ? undefined : 112, pointerEvents: "none", background: "linear-gradient(130deg, #17251b, #37250e)", border: "1px solid #d4a747", boxShadow: "0 4px 25px #000a" }}>
       <div className="flex justify-between gap-2 text-[11px]">
@@ -131,10 +173,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
         <button type="button" onClick={() => finish(worlds.length)} className="underline" style={{ pointerEvents: "auto" }}>Skip guide</button>
       </div>
       <p className="mt-1 text-sm">{instruction}</p>
-      {atWorld && targetOnScreen && npcElement && <button type="button" data-testid="button-next-npc-guide" className="mt-2 rounded-lg px-3 py-1.5 text-sm text-[#211605]"
-        style={{ background: "#eac56b", pointerEvents: "auto" }} onClick={() => finish(worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name) + 1)}>
-        {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) > worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name)) ? "Show next NPC" : "Finish guide"}
-      </button>}
+      {atWorld && highlight && npcElement && <p className="mt-2 text-xs text-[#f0d060]">Tap the screen to {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) > worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name)) ? "continue" : "finish the guide"}.</p>}
       {!targetOnScreen && <p className="mt-1 text-xs text-[#d9bd85]">Move around until the arrow appears over the location.</p>}
     </div>
   </>, surface.target);
