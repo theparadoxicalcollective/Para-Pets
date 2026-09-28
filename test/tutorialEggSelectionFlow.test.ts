@@ -64,7 +64,7 @@ test("hatch step renders one guide at a time and recovers interrupted completion
   assert.match(overlay, /const isHatchCompletionStep = step === 5 \|\| step === 6/);
   assert.match(overlay, /refetchInterval: isHatchCompletionStep \? 1000 : false/);
   assert.match(overlay, /if \(step === 6 && activePet\?\.isHatched !== true\)/);
-  assert.match(overlay, /completeTutorialMutation\.isPending \|\| showReward/);
+  assert.match(overlay, /completeTutorialMutation\.isPending\) return/);\n  assert.doesNotMatch(overlay, /showReward/);
   assert.doesNotMatch(overlay, /Step 5 tap-mode: bouncing arrow above the egg guides the player to hatch/);
   assert.match(overlay, /\{pr && stepNum !== 5 && \(/);
 });
