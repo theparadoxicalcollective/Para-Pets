@@ -52,6 +52,19 @@ export function guideDialogMaxHeight(surfaceHeight: number, inset = 32): number 
   return Math.max(160, Math.max(0, surfaceHeight) - Math.max(0, inset));
 }
 
+/** Match Begin Journey's compact circular spotlight without inheriting oversized tap wrappers. */
+export function guideSpotlightCircle(bounds: Bounds, width: number, height: number, focus: "pet" | "control" | null = null) {
+  if (focus) return guideFocusPoint(bounds, width, height, focus);
+  const targetWidth = Math.max(0, bounds.right - bounds.left);
+  const targetHeight = Math.max(0, bounds.bottom - bounds.top);
+  const size = Math.min(108, Math.max(60, Math.min(targetWidth, targetHeight) + 28));
+  return {
+    x: Math.min(width - 28, Math.max(28, (bounds.left + bounds.right) / 2)),
+    y: Math.min(height - 36, Math.max(48, (bounds.top + bounds.bottom) / 2)),
+    size,
+  };
+}
+
 /** Keep the Lonelle spotlight on the intended control, never on a full-size tap wrapper. */
 export function guideFocusPoint(bounds: Bounds, width: number, height: number, kind: "pet" | "control") {
   const centerX = Math.min(width - 28, Math.max(28, (bounds.left + bounds.right) / 2));

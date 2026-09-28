@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BJ_EVENT, bjGetStatus } from "@/lib/beginJourney";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { getQuestGuideSurface, guideBoundsInSurface, guideCardShouldMoveUp, guideTargetOnScreen } from "@/lib/questGuideViewport";
-import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
 interface GuideNpc { id: string; name: string; worldId: string; worldName: string }
 interface Location { id: string; name: string; type: string }
@@ -154,26 +154,29 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   // The Bayou sits low on the map. Keep the guide clear of whichever world or
   // NPC it points at, including when the map has been panned on a small screen.
   const guideAtTop = targetOnScreen && guideCardShouldMoveUp(guideRect, surface.height, guideCardRef.current?.offsetHeight ?? 130);
-  const highlight = targetOnScreen && guideRect ? {
-    x: Math.max(28, Math.min(surface.width - 28, (guideRect.left + guideRect.right) / 2)),
-    y: Math.max(30, Math.min(surface.height - 30, (guideRect.top + guideRect.bottom) / 2)),
-    size: Math.min(92, Math.max(54, Math.min(guideRect.right - guideRect.left, guideRect.bottom - guideRect.top) + 12)),
-  } : null;
+  const guideMode = atWorld ? (targetOnScreen && npcElement ? "tour" as const : "pan" as const) : atMap ? "pan" as const : "target" as const;
   return createPortal(<>
-    {atWorld && highlight && npcElement && <div data-testid="npc-discovery-advance-surface" role="button" tabIndex={0} aria-label={`Continue from ${current.name} to the next NPC`} className={`${surface.inStage ? "absolute" : "fixed"} inset-0 z-[9000] cursor-pointer`} style={{ touchAction: "none" }}
-      onPointerDown={event => event.stopPropagation()} onClick={event => { event.preventDefault(); event.stopPropagation(); recentTourTap.current = { x: event.clientX, y: event.clientY, until: Date.now() + 450 }; advance(); }}
-      onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); advance(); } }} />}
-    {highlight && <span aria-hidden="true" className={`${surface.inStage ? "absolute" : "fixed"} z-[9001] pointer-events-none rounded-full border-[3px] border-[#ffe082]`} style={{ left: highlight.x, top: highlight.y, width: highlight.size, height: highlight.size, transform: "translate(-50%,-50%)", boxShadow: "0 0 0 5px rgba(255,209,74,.18),0 0 24px rgba(255,201,60,.86),inset 0 0 18px rgba(255,226,130,.18)" }} />}
-    {highlight && <img src={tutorialArrow} alt="" aria-hidden="true" className={`${surface.inStage ? "absolute" : "fixed"} z-[9001] pointer-events-none w-14 h-[70px] object-contain animate-bounce`}
-      style={{ left: highlight.x - 28, top: Math.max(4, highlight.y - highlight.size / 2 - 74), filter: "drop-shadow(0 0 10px rgba(212,168,67,.95)) drop-shadow(0 0 24px rgba(212,168,67,.6))" }} />}
-    <div ref={guideCardRef} role="status" data-testid="npc-discovery-guide" className={`${surface.inStage ? "absolute" : "fixed"} z-[9000] left-3 right-3 mx-auto max-w-sm rounded-xl p-3 font-fantasy text-[#f9e4b3]`}
+    <QuestGuideSpotlight
+      selector={selector}
+      label={instruction}
+      mode={guideMode}
+      allowedSelectors={['[data-testid="button-skip-npc-guide"]']}
+      baseZ={9000}
+      testId="npc-discovery-spotlight"
+      showHint={false}
+      onTourAdvance={point => {
+        if (point) recentTourTap.current = { x: point.x, y: point.y, until: Date.now() + 450 };
+        advance();
+      }}
+    />
+    <div ref={guideCardRef} role="status" data-testid="npc-discovery-guide" className={`${surface.inStage ? "absolute" : "fixed"} z-[9003] left-3 right-3 mx-auto max-w-sm rounded-xl p-3 font-fantasy text-[#f9e4b3]`}
       style={{ top: guideAtTop ? "calc(env(safe-area-inset-top, 0px) + 5rem)" : undefined, bottom: guideAtTop ? undefined : 112, pointerEvents: "none", background: "linear-gradient(130deg, #17251b, #37250e)", border: "1px solid #d4a747", boxShadow: "0 4px 25px #000a" }}>
       <div className="flex justify-between gap-2 text-[11px]">
         <strong className="text-[#f0c040]">Explore quests · {npcs.indexOf(current) + 1}/{npcs.length}</strong>
-        <button type="button" onClick={() => finish(worlds.length)} className="underline" style={{ pointerEvents: "auto" }}>Skip guide</button>
+        <button type="button" data-testid="button-skip-npc-guide" onClick={() => finish(worlds.length)} className="underline" style={{ pointerEvents: "auto" }}>Skip guide</button>
       </div>
       <p className="mt-1 text-sm">{instruction}</p>
-      {atWorld && highlight && npcElement && <p className="mt-2 text-xs text-[#f0d060]">Tap the screen to {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) > worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name)) ? "continue" : "finish the guide"}.</p>}
+      {atWorld && targetOnScreen && npcElement && <p className="mt-2 text-xs text-[#f0d060]">Tap the screen to {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) > worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name)) ? "continue" : "finish the guide"}.</p>}
       {!targetOnScreen && <p className="mt-1 text-xs text-[#d9bd85]">Move around until the arrow appears over the location.</p>}
     </div>
   </>, surface.target);

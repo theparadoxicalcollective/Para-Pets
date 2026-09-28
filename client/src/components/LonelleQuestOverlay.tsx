@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
-import { getQuestGuideSurface, guideBoundsInSurface, guideDialogMaxHeight, guideFocusPoint, guideTargetOnScreen } from "@/lib/questGuideViewport";
-import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import { getQuestGuideSurface, guideDialogMaxHeight } from "@/lib/questGuideViewport";
+import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
 const pawCoin = "/paw-print-coin.webp";
 const API = "/api/quests/lonelle-lost-adornment";
@@ -38,37 +38,6 @@ function visible(element: HTMLElement | null): element is HTMLElement {
     if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none" || Number(style.opacity || 1) <= 0.1) return false;
   }
   return true;
-}
-
-function GuideArrow({ selector, label, focus = null, panHint = false }: { selector: string | null; label: string; focus?: "pet" | "control" | null; panHint?: boolean }) {
-  const [targetRect, setTargetRect] = useState<{ selector: string; rect: DOMRect } | null>(null);
-  useEffect(() => {
-    if (!selector) { setTargetRect(null); return; }
-    const update = () => {
-      const node = document.querySelector<HTMLElement>(selector);
-      setTargetRect(visible(node) ? { selector, rect: node.getBoundingClientRect() } : null);
-    };
-    update();
-    const timer = window.setInterval(update, 300);
-    return () => window.clearInterval(timer);
-  }, [selector]);
-  const rect = targetRect?.selector === selector ? targetRect.rect : null;
-  if (!rect) return null;
-  const surface = getQuestGuideSurface();
-  const bounds = guideBoundsInSurface(rect, surface);
-  if (!guideTargetOnScreen(bounds, surface.width, surface.height)) {
-    return panHint ? createPortal(<div role="status" className={`${surface.inStage ? "absolute" : "fixed"} bottom-28 left-4 right-4 mx-auto max-w-sm rounded-xl border border-[#e9c46d] bg-[#142b20]/95 p-3 text-center font-fantasy text-sm text-[#fff2c4] shadow-lg`} style={{ zIndex: 2147481800, pointerEvents: "none" }}>Drag to find your destination: {label}</div>, surface.target) : null;
-  }
-  // The pet's tappable wrapper covers the entire large illustration. Place a
-  // small marker near its center rather than outlining that wrapper's bounds.
-  const marker = focus ? guideFocusPoint(bounds, surface.width, surface.height, focus) : null;
-  const center = marker?.x ?? Math.min(surface.width - 28, Math.max(28, (bounds.left + bounds.right) / 2));
-  const arrowTop = Math.max(4, (marker?.y ?? bounds.top) - (focus ? 100 : 56));
-  return createPortal(<div data-testid="lonelle-guide-arrow" aria-live="polite" className={`${surface.inStage ? "absolute" : "fixed"} pointer-events-none`} style={{ zIndex: 2147481800, left: center, top: arrowTop, transform: "translateX(-50%)", textAlign: "center" }}>
-    <span className="block rounded-lg px-2 py-1 font-fantasy text-[11px] text-[#fff2c4]" style={{ background: "rgba(15,35,21,.94)", border: "1px solid #e9c46d", boxShadow: "0 3px 12px #000a", maxWidth: 180 }}>{label}</span>
-    <img src={tutorialArrow} alt="" aria-hidden="true" className="mx-auto h-[60px] w-12 animate-bounce object-contain" style={{ filter: "drop-shadow(0 0 10px rgba(212,168,67,.95)) drop-shadow(0 0 24px rgba(212,168,67,.6))" }} />
-    {marker && <span aria-hidden="true" className="absolute rounded-full" style={{ left: "50%", top: marker.y - arrowTop, transform: "translate(-50%, -50%)", width: marker.size, height: marker.size, border: "3px solid #ffe082", boxShadow: "0 0 18px #f9cf6b", pointerEvents: "none" }} />}
-  </div>, surface.target);
 }
 
 function LonellePortrait({ state, mood }: { state: QuestState; mood: string }) {
@@ -194,6 +163,10 @@ export default function LonelleQuestOverlay() {
     target = pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
     instruction = "Travel to the Elysian Bayou";
   }
+  const guideMode = target && (
+    (pathname === "/map" && target.includes("button-location-"))
+    || (inBayou && (target.includes("location-") || target === '[data-testid="button-talk-lonelle"]'))
+  ) ? "pan" as const : "target" as const;
 
   if (!user || !state) return null;
   const surface = getQuestGuideSurface();
@@ -219,7 +192,13 @@ export default function LonelleQuestOverlay() {
       <p className="mt-1 text-[10px]">{state.status === "accepted" ? `${state.kills}/${state.requiredKills} Clearing monsters defeated` : state.status === "found" ? "Take Lonelle's Scarf from the Clearing" : state.status === "taken" ? state.scarfEquipped ? "Return to Lonelle in the Bayou" : "Equip the scarf in the third adornment space" : "Talk to Lonelle in the Bayou"}</p>
     </div>, questLogMount)}
     {state.status === "accepted" && pathname === CLEARING && createPortal(<div data-testid="lonelle-clearing-progress" className={`${overlayPosition} left-1/2 top-[8%] -translate-x-1/2 rounded-xl border border-[#eed486] bg-[#10291f]/95 px-4 py-2 text-center font-fantasy text-[#fff0c7] shadow-lg`} style={{ zIndex: 2147481000, pointerEvents: "none" }}>Lonelle's Scarf · {state.kills}/{state.requiredKills} monsters</div>, surface.target)}
-    <GuideArrow selector={target} label={instruction} focus={focus} panHint={pathname === "/map" || inBayou} />
+    {!dialogOpen && !prize && !finding && !(pathname === CLEARING && showReturnHome && state.status === "taken") && target && <QuestGuideSpotlight
+      selector={target}
+      label={instruction}
+      focus={focus}
+      mode={guideMode}
+      testId="lonelle-guide-spotlight"
+    />}
     {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000 }} onPointerDown={event => event.stopPropagation()}>
       <section role="dialog" aria-modal="true" aria-label="Scarf found" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#eccc78] bg-[#173126] p-5 text-center font-fantasy text-[#ffefc6] shadow-2xl" style={{ maxHeight: dialogMaxHeight }}>
         {state.scarf?.imageUrl && <img src={state.scarf.imageUrl} alt="Lonelle's Scarf" className="mx-auto h-24 w-24 object-contain" />}

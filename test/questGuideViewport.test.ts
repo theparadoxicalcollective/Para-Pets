@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { guideBoundsInSurface, guideCardShouldMoveUp, guideDialogMaxHeight, guideFocusPoint, guideTargetOnScreen } from "../client/src/lib/questGuideViewport";
+import { readFileSync } from "node:fs";
+import { guideBoundsInSurface, guideCardShouldMoveUp, guideDialogMaxHeight, guideFocusPoint, guideSpotlightCircle, guideTargetOnScreen } from "../client/src/lib/questGuideViewport";
 import { calculateStageLayout } from "../client/src/lib/stage";
 
 test("quest guides distinguish visible targets from panned-off targets on phone and desktop", () => {
@@ -43,4 +44,29 @@ test("Lonelle's pet and closet highlights remain compact on the iPhone 12 refere
   const closet = guideFocusPoint({ left: 139, right: 248, top: 606, bottom: 678 }, 390, 844, "control");
   assert.deepEqual(closet, { x: 193.5, y: 642, size: 66 });
   assert.ok(pet.size < 382 - 8);
+});
+
+test("generic quest spotlights stay compact instead of inheriting oversized world or pet wrappers", () => {
+  assert.deepEqual(guideSpotlightCircle({ left: 100, right: 200, top: 200, bottom: 260 }, 390, 844), { x: 150, y: 230, size: 88 });
+  assert.equal(guideSpotlightCircle({ left: -50, right: 350, top: 100, bottom: 700 }, 390, 844).size, 108);
+});
+
+test("quest guide interaction guard supports target-only, pan, and read-only tour behavior", () => {
+  const spotlightSource = readFileSync("client/src/components/QuestGuideSpotlight.tsx", "utf8");
+  assert.match(spotlightSource, /mode === "pan"/);
+  assert.match(spotlightSource, /document\.addEventListener\("pointerdown", onPointerBoundary, true\)/);
+  assert.match(spotlightSource, /document\.addEventListener\("pointerup", onPointerBoundary, true\)/);
+  assert.match(spotlightSource, /document\.addEventListener\("click", onClick, true\)/);
+  assert.match(spotlightSource, /element\?\.closest\(INTERACTIVE_SELECTOR\)/);
+  assert.match(spotlightSource, /pointerEvents: mode === "tour" \? "auto" : "none"/);
+  assert.match(spotlightSource, /radial-gradient\(circle/);
+
+  const lonelleSource = readFileSync("client/src/components/LonelleQuestOverlay.tsx", "utf8");
+  assert.match(lonelleSource, /<QuestGuideSpotlight/);
+  assert.match(lonelleSource, /mode=\{guideMode\}/);
+
+  const npcSource = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
+  assert.match(npcSource, /targetOnScreen && npcElement \? "tour"/);
+  assert.match(npcSource, /: atMap \? "pan"/);
+  assert.match(npcSource, /button-skip-npc-guide/);
 });
