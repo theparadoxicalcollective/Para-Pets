@@ -59,14 +59,14 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     },
   });
 
+  // Save a position in the stable world registry, not the filtered list:
+  // a quest may be claimed between visits and disappear from the results.
+  const current = npcs?.find(npc => worlds.findIndex(world => world.worldId === npc.worldId) >= index);
   useEffect(() => {
-    if (!eligible || !npcs || index < npcs.length && npcs.length > 0) return;
-    // Quests may become unavailable between visits. Finish instead of trapping the player.
+    if (!eligible || !npcs || current) return;
     saveIndex(user.id, worlds.length);
     setIndex(worlds.length);
-  }, [eligible, npcs, index, user.id]);
-
-  const current = npcs?.[index];
+  }, [eligible, npcs, current, user.id]);
   const atWorld = current && location.split("?")[0] === `/world/${current.worldId}`;
   const atMap = location === "/map";
   const npcSelector = current && `[data-testid="location-${current.id}"]`;
@@ -109,13 +109,13 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     <div role="status" data-testid="npc-discovery-guide" className="fixed z-[9000] left-3 right-3 bottom-28 mx-auto max-w-sm rounded-xl p-3 font-fantasy text-[#f9e4b3]"
       style={{ background: "linear-gradient(130deg, #17251b, #37250e)", border: "1px solid #d4a747", boxShadow: "0 4px 25px #000a" }}>
       <div className="flex justify-between gap-2 text-[11px]">
-        <strong className="text-[#f0c040]">Explore quests · {index + 1}/{npcs.length}</strong>
+        <strong className="text-[#f0c040]">Explore quests · {npcs.indexOf(current) + 1}/{npcs.length}</strong>
         <button type="button" onClick={() => finish(worlds.length)} className="underline">Skip guide</button>
       </div>
       <p className="mt-1 text-sm">{instruction}</p>
       {atWorld && npcElement && <button type="button" data-testid="button-next-npc-guide" className="mt-2 rounded-lg px-3 py-1.5 text-sm text-[#211605]"
-        style={{ background: "#eac56b" }} onClick={() => finish(index + 1)}>
-        {index + 1 < npcs.length ? "Show next NPC" : "Finish guide"}
+        style={{ background: "#eac56b" }} onClick={() => finish(worlds.findIndex(world => world.worldId === current.worldId) + 1)}>
+        {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId) > worlds.findIndex(world => world.worldId === current.worldId)) ? "Show next NPC" : "Finish guide"}
       </button>}
       {!rect && <p className="mt-1 text-xs text-[#d9bd85]">Move around the world to find the highlighted location.</p>}
     </div>
