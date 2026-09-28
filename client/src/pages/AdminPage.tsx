@@ -2812,7 +2812,7 @@ function MaintenanceSection() {
     onSuccess: (data: { message?: string }) => {
       toast({
         title: "Moderator quest reset",
-        description: data.message ?? "The quest will restart on the moderator's next login.",
+        description: data.message ?? "The quest will restart in the moderator's active or next game session.",
       });
       setSelectedModeratorQuestKey("");
     },
@@ -2995,7 +2995,7 @@ function MaintenanceSection() {
             Reset a Moderator Quest
           </p>
           <p className="font-fantasy text-[10px] leading-relaxed tracking-wide mt-1" style={{ color: "#8b6a94" }}>
-            Choose a moderator and one quest. Its progress will restart on that moderator's next login.
+            Choose a moderator and one quest. Its progress will restart in that moderator's active or next game session.
             Existing pets, coins, and earned rewards are kept.
           </p>
         </div>
