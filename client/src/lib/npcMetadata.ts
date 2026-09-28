@@ -33,6 +33,7 @@ export const NPC_QUEST_ASSOCIATIONS: readonly NpcQuestAssociation[] = [
   },
   { key: "catch_fish", title: "Gone Fishing", npcName: "Janson", worldId: "swamp" },
   { key: "sell_fish", title: "Sell Fish", npcName: "Janson", worldId: "swamp" },
+  { key: "lonelle_lost_adornment", title: "Lost Adornment", npcName: "Lonelle", worldId: "swamp" },
 ];
 
 export function normalizeNpcName(value: unknown): string {

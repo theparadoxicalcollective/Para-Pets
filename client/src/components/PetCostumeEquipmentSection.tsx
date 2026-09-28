@@ -70,18 +70,21 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
 
   const { data: inventory = [] } = useQuery<InventoryCostume[]>({ queryKey: ["/api/inventory"], staleTime: 0 });
   const { data: equippedCounts = {} } = useQuery<Record<string, number>>({ queryKey: ["/api/user/equipped-costume-counts"], staleTime: 0 });
+  const { data: lonelleQuest } = useQuery<{ status: string; scarfInventoryId: string | null }>({ queryKey: ["/api/quests/lonelle-lost-adornment"], staleTime: 5_000 });
   const selectedSlotDefinition = selectedSlot ? getAdornmentSlotDefinition(selectedSlot) : undefined;
   const available = inventory.filter((item) =>
     item.type === "costume"
     && !item.isListed
     && item.quantity > (equippedCounts[item.inventoryId] ?? 0)
-    && (!selectedSlotDefinition || !item.adornmentSlot || item.adornmentSlot === selectedSlotDefinition.key)
+    && (!selectedSlotDefinition || !item.adornmentSlot || item.adornmentSlot === selectedSlotDefinition.key
+      || (selectedSlot === 3 && lonelleQuest?.status === "taken" && item.inventoryId === lonelleQuest.scarfInventoryId))
   );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "costumes"] });
     queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-costume-counts"] });
     queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/quests/lonelle-lost-adornment"] });
   };
 
   const equip = useMutation({
@@ -172,7 +175,9 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
           {equipError && <p role="alert" data-testid="adornment-equip-error" className="mb-3 rounded-lg border border-red-300/40 bg-red-950/70 px-3 py-2 text-[11px] text-red-100">{equipError}</p>}
           {available.length ? <div className="grid grid-cols-3 gap-2" data-testid="costume-slot-inventory">{available.map((item) => {
             const remaining = item.quantity - (equippedCounts[item.inventoryId] ?? 0);
-            const fitted = !data?.fittedShopItemIds || data.fittedShopItemIds.includes(item.shopItemId);
+            const fitted = !data?.fittedShopItemIds || data.fittedShopItemIds.includes(item.shopItemId)
+              || (selectedSlot === 3 && lonelleQuest?.status === "taken" && item.inventoryId === lonelleQuest.scarfInventoryId)
+              || item.name.trim().toLowerCase() === "firefly cluster";
             return <button key={item.inventoryId} type="button" data-testid={`bag-costume-${item.inventoryId}`} disabled={equip.isPending || !fitted} onClick={() => { setEquipError(null); equip.mutate({ costumeInventoryId: item.inventoryId, slot: selectedSlot }); }} className="flex flex-col items-center gap-1 rounded-xl p-2 active:scale-95 disabled:opacity-60" style={{ background: "rgba(7,14,11,.9)", border: "1px solid rgba(202,164,76,.26)" }}><div className="grid h-12 w-12 place-items-center overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.48)" }}>{item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" /> : <Sparkles size={24} style={{ color: "#dfc27d" }} />}</div><span className="w-full truncate font-fantasy text-[7px]" style={{ color: "rgba(239,226,194,.8)" }}>{item.name}</span>{!fitted ? <span className="text-center text-[8px] text-amber-200">Not fitted for this pet</span> : remaining > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{remaining}</span>}</button>;
           })}</div> : <p className="py-8 text-center font-fantasy text-[10px]" style={{ color: "rgba(255,255,255,.32)" }}>No available adornments in your bag</p>}
         </div>

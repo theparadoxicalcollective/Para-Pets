@@ -12,6 +12,7 @@ const PROGRESS_KEY = "bj_npc_tour_v1";
 const worlds = [
   { worldId: "haunted_woods", worldName: "Haunted Woods", name: "Ginny" },
   { worldId: "swamp", worldName: "Elysian Swamplands", name: "Janson" },
+  { worldId: "swamp", worldName: "Elysian Swamplands", name: "Lonelle" },
 ];
 
 function savedIndex(userId: string): number {
@@ -45,19 +46,20 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     staleTime: 30_000,
     retry: 2,
     queryFn: async () => {
-      const [ginny, janson, ...locations] = await Promise.all([
+      const [ginny, janson, lonelle, ...locations] = await Promise.all([
         fetch("/api/quests/ginny-mini-pet", { credentials: "include" }),
         fetch("/api/quests/janson", { credentials: "include" }),
+        fetch("/api/quests/lonelle-lost-adornment", { credentials: "include" }),
         ...worlds.map(world => fetch(`/api/world/${world.worldId}/locations`, { credentials: "include" })),
       ]);
-      if ([ginny, janson, ...locations].some(response => !response.ok)) throw new Error("Quest locations are unavailable");
-      const [ginnyState, jansonState, ...worldLocations] = await Promise.all([
-        ginny.json(), janson.json(), ...locations.map(response => response.json()),
+      if ([ginny, janson, lonelle, ...locations].some(response => !response.ok)) throw new Error("Quest locations are unavailable");
+      const [ginnyState, jansonState, lonelleState, ...worldLocations] = await Promise.all([
+        ginny.json(), janson.json(), lonelle.json(), ...locations.map(response => response.json()),
       ]);
       const jansonAvailable = jansonState.quests?.some((quest: { status: string }) => quest.status === "available")
         || jansonState.dailyQuest?.status === "available";
       return worlds.flatMap((world, position) => {
-        const available = position === 0 ? ginnyState.status === "available" : jansonAvailable;
+        const available = position === 0 ? ginnyState.status === "available" : position === 1 ? jansonAvailable : lonelleState.status === "available" && lonelleState.configured;
         const match = (worldLocations[position] as Location[]).find(
           row => row.type === "npc" && npcNamesMatch(row.name, world.name),
         );
@@ -68,7 +70,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
 
   // Save a position in the stable world registry, not the filtered list:
   // a quest may be claimed between visits and disappear from the results.
-  const current = npcs?.find(npc => worlds.findIndex(world => world.worldId === npc.worldId) >= index);
+  const current = npcs?.find(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) >= index);
   useEffect(() => {
     if (!eligible || !npcs || current) return;
     saveIndex(user.id, worlds.length);
@@ -121,8 +123,8 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
       </div>
       <p className="mt-1 text-sm">{instruction}</p>
       {atWorld && npcElement && <button type="button" data-testid="button-next-npc-guide" className="mt-2 rounded-lg px-3 py-1.5 text-sm text-[#211605]"
-        style={{ background: "#eac56b" }} onClick={() => finish(worlds.findIndex(world => world.worldId === current.worldId) + 1)}>
-        {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId) > worlds.findIndex(world => world.worldId === current.worldId)) ? "Show next NPC" : "Finish guide"}
+        style={{ background: "#eac56b" }} onClick={() => finish(worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name) + 1)}>
+        {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) > worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name)) ? "Show next NPC" : "Finish guide"}
       </button>}
       {!rect && <p className="mt-1 text-xs text-[#d9bd85]">Move around the world to find the highlighted location.</p>}
     </div>

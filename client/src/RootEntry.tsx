@@ -7,6 +7,7 @@ import EmailGateScreen from "@/components/EmailGateScreen";
 import LoadingScreen from "@/components/LoadingScreen";
 import GinnyQuestOverlay from "@/components/GinnyQuestOverlay";
 import JansonQuestOverlay from "@/components/JansonQuestOverlay";
+import LonelleQuestOverlay from "@/components/LonelleQuestOverlay";
 import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
 import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
 
@@ -155,6 +156,7 @@ export default function RootEntry() {
       <RootEntryInner />
       <GinnyQuestOverlay />
       <JansonQuestOverlay />
+      <LonelleQuestOverlay />
     </QueryClientProvider>
   );
 }
