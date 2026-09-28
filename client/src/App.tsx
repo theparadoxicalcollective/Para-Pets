@@ -29,6 +29,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
+import NpcQuestDiscoveryGuide from "@/components/NpcQuestDiscoveryGuide";
 import { bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep, bjUsePlayer } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -201,7 +202,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
 }
 
 // Paths where FloatingNav should NOT appear
-const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/games/lava-crawl", "/coins", "/explore/elysian-bayou-clearing"];
+const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/games/lava-crawl", "/coins", "/bag", "/explore/elysian-bayou-clearing"];
 function shouldHideNav(path: string) {
   if (NAV_HIDDEN_PATHS.includes(path)) return true;
   if (path.startsWith("/reset-password/")) return true;
@@ -646,6 +647,7 @@ function AppRouter() {
 
       {/* Begin Journey tutorial overlay */}
       <BeginJourneyOverlay user={user} />
+      <NpcQuestDiscoveryGuide user={user} />
     </>
   );
 }
