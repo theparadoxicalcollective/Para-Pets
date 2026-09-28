@@ -64,4 +64,8 @@ test("NPC discovery guide reset is server-backed and moderator-scoped", () => {
   assert.match(guide, /bj_npc_tour_reset_token_v1/);
   assert.match(guide, /refetchInterval: 5_000/);
   assert.match(guide, /saveIndex\(user\.id, 0\)/);
+  assert.match(guide, /Array\.from\(new Set\(worlds\.map\(world => world\.worldId\)\)\)/);
+  assert.doesNotMatch(guide, /fetch\("\/api\/quests\/ginny-mini-pet"/);
+  assert.doesNotMatch(guide, /fetch\("\/api\/quests\/janson"/);
+  assert.doesNotMatch(guide, /fetch\("\/api\/quests\/lonelle-lost-adornment"/);
 });
