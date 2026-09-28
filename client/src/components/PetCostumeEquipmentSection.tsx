@@ -72,13 +72,14 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const { data: equippedCounts = {} } = useQuery<Record<string, number>>({ queryKey: ["/api/user/equipped-costume-counts"], staleTime: 0 });
   const { data: lonelleQuest } = useQuery<{ status: string; scarfInventoryId: string | null }>({ queryKey: ["/api/quests/lonelle-lost-adornment"], staleTime: 5_000 });
   const selectedSlotDefinition = selectedSlot ? getAdornmentSlotDefinition(selectedSlot) : undefined;
+  const questScarfId = selectedSlot === 3 && lonelleQuest?.status === "taken" ? lonelleQuest.scarfInventoryId : null;
   const available = inventory.filter((item) =>
     item.type === "costume"
     && !item.isListed
     && item.quantity > (equippedCounts[item.inventoryId] ?? 0)
     && (!selectedSlotDefinition || !item.adornmentSlot || item.adornmentSlot === selectedSlotDefinition.key
-      || (selectedSlot === 3 && lonelleQuest?.status === "taken" && item.inventoryId === lonelleQuest.scarfInventoryId))
-  );
+      || item.inventoryId === questScarfId)
+  ).sort((a, b) => Number(b.inventoryId === questScarfId) - Number(a.inventoryId === questScarfId));
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "costumes"] });
