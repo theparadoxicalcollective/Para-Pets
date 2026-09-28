@@ -78,24 +78,21 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     staleTime: 30_000,
     retry: 2,
     queryFn: async () => {
-      const [ginny, janson, lonelle, ...locations] = await Promise.all([
-        fetch("/api/quests/ginny-mini-pet", { credentials: "include" }),
-        fetch("/api/quests/janson", { credentials: "include" }),
-        fetch("/api/quests/lonelle-lost-adornment", { credentials: "include" }),
-        ...worlds.map(world => fetch(`/api/world/${world.worldId}/locations`, { credentials: "include" })),
-      ]);
-      if ([ginny, janson, lonelle, ...locations].some(response => !response.ok)) throw new Error("Quest locations are unavailable");
-      const [ginnyState, jansonState, lonelleState, ...worldLocations] = await Promise.all([
-        ginny.json(), janson.json(), lonelle.json(), ...locations.map(response => response.json()),
-      ]);
-      const jansonAvailable = jansonState.quests?.some((quest: { status: string }) => quest.status === "available")
-        || jansonState.dailyQuest?.status === "available";
-      return worlds.flatMap((world, position) => {
-        const available = position === 0 ? ginnyState.status === "available" : position === 1 ? jansonAvailable : lonelleState.status === "available" && lonelleState.configured;
-        const match = (worldLocations[position] as Location[]).find(
+      // This is a location tour, not an NPC quest-state check. Keeping it
+      // independent means a moderator can replay it after completing the NPC
+      // quests, and new players need only two lightweight world requests.
+      const worldIds = Array.from(new Set(worlds.map(world => world.worldId)));
+      const responses = await Promise.all(
+        worldIds.map(worldId => fetch(`/api/world/${worldId}/locations`, { credentials: "include" })),
+      );
+      if (responses.some(response => !response.ok)) throw new Error("Quest locations are unavailable");
+      const locations = await Promise.all(responses.map(response => response.json() as Promise<Location[]>));
+      const byWorld = new Map(worldIds.map((worldId, position) => [worldId, locations[position]]));
+      return worlds.flatMap(world => {
+        const match = (byWorld.get(world.worldId) ?? []).find(
           row => row.type === "npc" && npcNamesMatch(row.name, world.name),
         );
-        return available && match ? [{ id: match.id, name: world.name, worldId: world.worldId, worldName: world.worldName }] : [];
+        return match ? [{ id: match.id, name: world.name, worldId: world.worldId, worldName: world.worldName }] : [];
       });
     },
   });
