@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { bjGetStatus } from "@/lib/beginJourney";
+import { BJ_EVENT, bjGetStatus } from "@/lib/beginJourney";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
@@ -28,8 +28,15 @@ function saveIndex(userId: string, value: number) {
 export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; tutorial_quest_completed?: boolean; tutorial_reward_claimed?: boolean } }) {
   const [location] = useLocation();
   const [index, setIndex] = useState(() => savedIndex(user.id));
+  const [tutorialStatus, setTutorialStatus] = useState(bjGetStatus);
+  useEffect(() => {
+    const sync = () => setTutorialStatus(bjGetStatus());
+    window.addEventListener(BJ_EVENT, sync);
+    sync();
+    return () => window.removeEventListener(BJ_EVENT, sync);
+  }, []);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && bjGetStatus() === "done";
+  const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
 
   useEffect(() => { setIndex(savedIndex(user.id)); }, [user.id]);
   const { data: npcs, isError, isLoading, refetch } = useQuery<GuideNpc[]>({
