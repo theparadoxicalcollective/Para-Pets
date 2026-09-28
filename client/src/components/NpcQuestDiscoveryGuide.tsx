@@ -10,6 +10,7 @@ import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 interface GuideNpc { id: string; name: string; worldId: string; worldName: string }
 interface Location { id: string; name: string; type: string }
 const PROGRESS_KEY = "bj_npc_tour_v1";
+const RESET_TOKEN_KEY = "bj_npc_tour_reset_token_v1";
 const worlds = [
   { worldId: "haunted_woods", worldName: "Haunted Woods", name: "Ginny" },
   { worldId: "swamp", worldName: "Elysian Swamplands", name: "Janson" },
@@ -27,7 +28,7 @@ function saveIndex(userId: string, value: number) {
 }
 
 /** A separate, read-only tour. It never starts or claims an NPC quest. */
-export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; tutorial_quest_completed?: boolean; tutorial_reward_claimed?: boolean } }) {
+export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; tutorial_quest_completed?: boolean; tutorial_reward_claimed?: boolean; isModerator?: boolean } }) {
   const [location] = useLocation();
   const [index, setIndex] = useState(() => savedIndex(user.id));
   const [tutorialStatus, setTutorialStatus] = useState(bjGetStatus);
@@ -41,32 +42,57 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const guideCardRef = useRef<HTMLDivElement>(null);
   const recentTourTap = useRef<{ x: number; y: number; until: number } | null>(null);
   const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
+  const shouldLoadTour = eligible || tutorialStatus === "active";
 
   useEffect(() => { setIndex(savedIndex(user.id)); }, [user.id]);
+
+  // Admin moderator resets must cross browsers/devices. The server exposes a
+  // per-moderator reset token; a new token restarts only this discovery guide.
+  const { data: resetState } = useQuery<{ resetToken: string | null }>({
+    queryKey: ["/api/quests/npc-discovery-tour/reset-token", user.id],
+    enabled: user.isModerator === true,
+    staleTime: 0,
+    refetchInterval: 5_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const response = await fetch("/api/quests/npc-discovery-tour/reset-token", { credentials: "include" });
+      if (!response.ok) throw new Error("NPC guide reset state is unavailable");
+      return response.json();
+    },
+  });
+  useEffect(() => {
+    const token = resetState?.resetToken;
+    if (!token) return;
+    const storageKey = `${RESET_TOKEN_KEY}:${user.id}`;
+    try {
+      if (localStorage.getItem(storageKey) === token) return;
+      localStorage.setItem(storageKey, token);
+    } catch {}
+    saveIndex(user.id, 0);
+    setIndex(0);
+  }, [resetState?.resetToken, user.id]);
+
   const { data: npcs, isError, isLoading, refetch } = useQuery<GuideNpc[]>({
     queryKey: ["npc-discovery-tour", user.id],
-    enabled: eligible && index < worlds.length,
+    enabled: shouldLoadTour && index < worlds.length,
     staleTime: 30_000,
     retry: 2,
     queryFn: async () => {
-      const [ginny, janson, lonelle, ...locations] = await Promise.all([
-        fetch("/api/quests/ginny-mini-pet", { credentials: "include" }),
-        fetch("/api/quests/janson", { credentials: "include" }),
-        fetch("/api/quests/lonelle-lost-adornment", { credentials: "include" }),
-        ...worlds.map(world => fetch(`/api/world/${world.worldId}/locations`, { credentials: "include" })),
-      ]);
-      if ([ginny, janson, lonelle, ...locations].some(response => !response.ok)) throw new Error("Quest locations are unavailable");
-      const [ginnyState, jansonState, lonelleState, ...worldLocations] = await Promise.all([
-        ginny.json(), janson.json(), lonelle.json(), ...locations.map(response => response.json()),
-      ]);
-      const jansonAvailable = jansonState.quests?.some((quest: { status: string }) => quest.status === "available")
-        || jansonState.dailyQuest?.status === "available";
-      return worlds.flatMap((world, position) => {
-        const available = position === 0 ? ginnyState.status === "available" : position === 1 ? jansonAvailable : lonelleState.status === "available" && lonelleState.configured;
-        const match = (worldLocations[position] as Location[]).find(
+      // This is a location tour, not an NPC quest-state check. Keeping it
+      // independent means a moderator can replay it after completing the NPC
+      // quests, and new players need only two lightweight world requests.
+      const worldIds = Array.from(new Set(worlds.map(world => world.worldId)));
+      const responses = await Promise.all(
+        worldIds.map(worldId => fetch(`/api/world/${worldId}/locations`, { credentials: "include" })),
+      );
+      if (responses.some(response => !response.ok)) throw new Error("Quest locations are unavailable");
+      const locations = await Promise.all(responses.map(response => response.json() as Promise<Location[]>));
+      const byWorld = new Map(worldIds.map((worldId, position) => [worldId, locations[position]]));
+      return worlds.flatMap(world => {
+        const match = (byWorld.get(world.worldId) ?? []).find(
           row => row.type === "npc" && npcNamesMatch(row.name, world.name),
         );
-        return available && match ? [{ id: match.id, name: world.name, worldId: world.worldId, worldName: world.worldName }] : [];
+        return match ? [{ id: match.id, name: world.name, worldId: world.worldId, worldName: world.worldName }] : [];
       });
     },
   });
