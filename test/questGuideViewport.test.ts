@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { guideBoundsInSurface, guideCardShouldMoveUp, guideFocusPoint, guideTargetOnScreen } from "../client/src/lib/questGuideViewport";
+import { guideBoundsInSurface, guideCardShouldMoveUp, guideDialogMaxHeight, guideFocusPoint, guideTargetOnScreen } from "../client/src/lib/questGuideViewport";
 import { calculateStageLayout } from "../client/src/lib/stage";
 
 test("quest guides distinguish visible targets from panned-off targets on phone and desktop", () => {
@@ -15,6 +15,14 @@ test("quest guides distinguish visible targets from panned-off targets on phone 
 test("the guide card moves away from a lower world without moving for an upper target", () => {
   assert.equal(guideCardShouldMoveUp({ left: 100, right: 220, top: 620, bottom: 760 }, 844, 130), true);
   assert.equal(guideCardShouldMoveUp({ left: 100, right: 220, top: 200, bottom: 330 }, 844, 130), false);
+});
+
+test("quest dialogs use the logical game-frame height on phone and short landscape screens", () => {
+  assert.equal(guideDialogMaxHeight(844), 812);
+  assert.equal(guideDialogMaxHeight(740), 708);
+  const landscape = calculateStageLayout(768, 360);
+  const renderedDialogHeight = guideDialogMaxHeight(landscape.designHeight) * landscape.scale;
+  assert.ok(renderedDialogHeight > 330 && renderedDialogHeight < landscape.viewportHeight);
 });
 
 test("desktop stage scaling returns the same guide coordinates as the iPhone 12 layout", () => {

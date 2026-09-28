@@ -47,6 +47,11 @@ export function guideCardShouldMoveUp(bounds: Bounds | null, height: number, car
   return bounds.bottom > bottomCardTop - 12 && bounds.top < height - 100;
 }
 
+/** Size modal content in logical game-frame pixels, not physical browser vh. */
+export function guideDialogMaxHeight(surfaceHeight: number, inset = 32): number {
+  return Math.max(160, Math.max(0, surfaceHeight) - Math.max(0, inset));
+}
+
 /** Keep the Lonelle spotlight on the intended control, never on a full-size tap wrapper. */
 export function guideFocusPoint(bounds: Bounds, width: number, height: number, kind: "pet" | "control") {
   const centerX = Math.min(width - 28, Math.max(28, (bounds.left + bounds.right) / 2));

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
-import { getQuestGuideSurface, guideBoundsInSurface, guideFocusPoint, guideTargetOnScreen } from "@/lib/questGuideViewport";
+import { getQuestGuideSurface, guideBoundsInSurface, guideDialogMaxHeight, guideFocusPoint, guideTargetOnScreen } from "@/lib/questGuideViewport";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 const pawCoin = "/paw-print-coin.webp";
@@ -198,6 +198,7 @@ export default function LonelleQuestOverlay() {
   if (!user || !state) return null;
   const surface = getQuestGuideSurface();
   const overlayPosition = surface.inStage ? "absolute" : "fixed";
+  const dialogMaxHeight = guideDialogMaxHeight(surface.height);
   const finding = pathname === CLEARING && state.status === "found";
   const heading = state.status === "available" ? "I've lost my scarf!" : state.status === "claimed" ? "Thank you, dear friend!" : state.scarfEquipped ? "You found my scarf!" : "My scarf is still out there.";
   const speech = state.status === "available"
@@ -220,7 +221,7 @@ export default function LonelleQuestOverlay() {
     {state.status === "accepted" && pathname === CLEARING && createPortal(<div data-testid="lonelle-clearing-progress" className={`${overlayPosition} left-1/2 top-[8%] -translate-x-1/2 rounded-xl border border-[#eed486] bg-[#10291f]/95 px-4 py-2 text-center font-fantasy text-[#fff0c7] shadow-lg`} style={{ zIndex: 2147481000, pointerEvents: "none" }}>Lonelle's Scarf · {state.kills}/{state.requiredKills} monsters</div>, surface.target)}
     <GuideArrow selector={target} label={instruction} focus={focus} panHint={pathname === "/map" || inBayou} />
     {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000 }} onPointerDown={event => event.stopPropagation()}>
-      <section role="dialog" aria-modal="true" aria-label="Scarf found" className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#eccc78] bg-[#173126] p-5 text-center font-fantasy text-[#ffefc6] shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label="Scarf found" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#eccc78] bg-[#173126] p-5 text-center font-fantasy text-[#ffefc6] shadow-2xl" style={{ maxHeight: dialogMaxHeight }}>
         {state.scarf?.imageUrl && <img src={state.scarf.imageUrl} alt="Lonelle's Scarf" className="mx-auto h-24 w-24 object-contain" />}
         <h2 className="mt-2 text-xl text-[#ffe38a]">You found Lonelle's Scarf!</h2>
         <p className="mt-2 text-sm">She'll be so glad to see it again.</p>
@@ -230,7 +231,7 @@ export default function LonelleQuestOverlay() {
       </section>
     </div>, surface.target)}
     {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/80 p-4`} style={{ zIndex: 2147482000 }} onClick={() => setDialogOpen(false)}>
-      <section role="dialog" aria-modal="true" aria-label="Lonelle's Lost Adornment quest" data-testid="lonelle-quest-dialog" onClick={event => event.stopPropagation()} className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-[#e5c06c] p-4 font-fantasy text-[#fff0c9] shadow-2xl" style={{ background: "linear-gradient(155deg,#244735,#10221c)" }}>
+      <section role="dialog" aria-modal="true" aria-label="Lonelle's Lost Adornment quest" data-testid="lonelle-quest-dialog" onClick={event => event.stopPropagation()} className="w-full max-w-md overflow-y-auto rounded-2xl border border-[#e5c06c] p-4 font-fantasy text-[#fff0c9] shadow-2xl" style={{ maxHeight: dialogMaxHeight, background: "linear-gradient(155deg,#244735,#10221c)" }}>
         <div className="flex gap-3"><LonellePortrait state={state} mood={state.status === "available" ? "sad" : state.scarfEquipped ? "happy" : "talking_casual"} /><div><span className="text-xl font-bold text-[#ffe288]">Lonelle</span><p className="mt-1 text-lg">“{heading}”</p></div></div>
         <p className="mt-4 text-sm leading-relaxed">“{speech}”</p>
         {state.status === "accepted" && <p className="mt-3 text-sm text-[#f8d779]">Clearing monsters: {state.kills}/{state.requiredKills}</p>}
@@ -245,7 +246,7 @@ export default function LonelleQuestOverlay() {
       </section>
     </div>, surface.target)}
     {prize && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/80 p-4`} style={{ zIndex: 2147482100 }}>
-      <section role="dialog" aria-modal="true" aria-label="Quest rewards" data-testid="lonelle-quest-rewards" className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#ffe28b] p-6 text-center font-fantasy text-[#fff6d5] shadow-[0_0_40px_#e8bd6c88]" style={{ background: "radial-gradient(#31513a,#12251e)" }}>
+      <section role="dialog" aria-modal="true" aria-label="Quest rewards" data-testid="lonelle-quest-rewards" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#ffe28b] p-6 text-center font-fantasy text-[#fff6d5] shadow-[0_0_40px_#e8bd6c88]" style={{ maxHeight: dialogMaxHeight, background: "radial-gradient(#31513a,#12251e)" }}>
         <span className="text-3xl">✦</span><h2 className="mt-2 text-2xl text-[#ffe28b]">Quest Complete!</h2><p className="mt-2 text-sm">Lonelle's thanks are yours.</p>
         <div className="mt-5 flex items-center justify-center gap-4 rounded-xl bg-black/20 p-3">{prize.reward?.imageUrl && <img src={prize.reward.imageUrl} alt="Firefly Cluster" className="h-20 w-20 object-contain" />}<strong>{prize.reward?.name ?? "Firefly Cluster"}</strong></div>
         <div className="mt-3 flex items-center justify-center gap-2 text-xl font-bold"><img src={pawCoin} alt="Paw print coins" className="h-8 w-8 object-contain" />+{prize.coinsGranted}</div>
