@@ -70,7 +70,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
-  const [showReward, setShowReward]        = useState(false);
   const [potionsGranted, setPotionsGranted]   = useState(false);
   const [showRescue, setShowRescue]           = useState(false);
   const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
@@ -110,12 +109,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
         old ? { ...old, tutorial_quest_completed: true } : old
       );
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      setShowReward(true);
-      setTimeout(() => {
-        setShowReward(false);
-        bjSetStep("done");
-        setStep("done");
-      }, 3500);
+      // Hand off immediately: the main navigation and NPC discovery guide
+      // should become available as soon as server completion succeeds.
+      bjSetStep("done");
+      setStep("done");
     },
     // The pet is already hatched. Keep the game usable and retry completion
     // after a pause instead of sending the player back into potion training.
@@ -278,7 +275,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (!isHatchCompletionStep || !invHatch || completeTutorialMutation.isPending || showReward) return;
+    if (!isHatchCompletionStep || !invHatch || completeTutorialMutation.isPending) return;
     const starterId = bjGetStarterInventoryId();
     // If a reload lost the active pet selection, return to the actual starter
     // rather than waiting forever on an empty finishing step.
@@ -315,7 +312,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       }
       if (Date.now() >= completionRetryAfterRef.current) completeTutorialMutation.mutate();
     }
-  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, showReward, navigate]);
+  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, navigate]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
@@ -484,45 +481,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
   }, [step, invCheck, user?.activePetId, step3Selecting]);
 
   // ── Render guard ──────────────────────────────────────────────────────────
-  // Keep mounted during reward flash even after step → "done"
-  if ((step === null || step === "done") && !showReward) return null;
-
-  // ── Quest-complete flash (shown for 3.5 s after tutorial finishes) ────────
-  if (showReward) {
-    return createPortal(
-      <>
-        <div style={{
-          position: "fixed", inset: 0,
-          background: "rgba(0,0,0,0.65)",
-          zIndex: 99020, pointerEvents: "none",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div style={{
-            position: "absolute", top: "32%", left: "50%",
-            animation: "bj-reward-rise 3.5s ease-out forwards",
-            textAlign: "center", pointerEvents: "none",
-            maxWidth: 280,
-          }}>
-            <div style={{ fontSize: 52, display: "inline-block", animation: "bj-star-spin 1.4s linear infinite" }}>⭐</div>
-            <div style={{
-              fontFamily: "Lora, Georgia, serif", fontSize: 22, fontWeight: 800,
-              color: "#f0d060", letterSpacing: "0.06em",
-              textShadow: "0 0 24px rgba(212,168,67,0.9), 0 0 50px rgba(212,168,67,0.5)",
-              marginTop: 8,
-            }}>Journey Complete!</div>
-            <div style={{
-              fontFamily: "Lora, Georgia, serif", fontSize: 13, color: "rgba(240,208,96,0.85)",
-              letterSpacing: "0.06em", marginTop: 10, lineHeight: 1.5,
-              background: "rgba(0,0,0,0.4)", borderRadius: 10,
-              padding: "8px 14px",
-              border: "1px solid rgba(212,168,67,0.3)",
-            }}>Claim your reward<br />in the Quest Log! 🎁</div>
-          </div>
-        </div>
-      </>,
-      document.body,
-    );
-  }
+  // Completion hands directly to the next onboarding guide; do not keep a
+  // full-screen completion flash mounted over the main navigation.
+  if (step === null || step === "done") return null;
 
   const stepNum  = step as number;
   const isFree   = stepNum === FREE_STEP;
