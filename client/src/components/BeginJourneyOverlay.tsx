@@ -188,8 +188,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
         const chosenEgg = starterInventoryId
           ? invCheckRef.current.find(i =>
               (i.inventoryId === starterInventoryId || i.id === starterInventoryId) &&
-              i.isHatched === false &&
-              i.type === "pet"
+              i.type === "pet" &&
+              Number(i.starRarity ?? i.rarity) === 3
             )
           : null;
         const el = chosenEgg
@@ -237,16 +237,19 @@ export default function BeginJourneyOverlay({ user }: Props) {
   useEffect(() => {
     if (step === 3 && location === "/pets") {
       const starterInventoryId = bjGetStarterInventoryId();
-      if (starterInventoryId && user?.activePetId === starterInventoryId) {
-        bjSetStep(4);
-        setStep(4);
+      if (starterInventoryId && invCheck && user?.activePetId === starterInventoryId) {
+        const chosen = (invCheck ?? []).find((i: any) => i.inventoryId === starterInventoryId || i.id === starterInventoryId);
+        const nextStep = chosen?.isHatched === true ? 6 : 4;
+        bjSetStep(nextStep);
+        setStep(nextStep);
+        if (nextStep === 6) navigate("/");
         return;
       }
     }
     if (step !== 4 || location !== "/pets") return;
     setStep3Selecting(false);
     navigate("/");
-  }, [step, location, navigate, user?.activePetId]);
+  }, [step, location, navigate, user?.activePetId, invCheck]);
 
   // If the selection request fails or stalls, unlock the highlighted button so
   // the player can retry instead of getting trapped in a pending state.
@@ -275,7 +278,22 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (!isHatchCompletionStep || !invHatch || !user?.activePetId || completeTutorialMutation.isPending || showReward) return;
+    if (!isHatchCompletionStep || !invHatch || completeTutorialMutation.isPending || showReward) return;
+    const starterId = bjGetStarterInventoryId();
+    // If a reload lost the active pet selection, return to the actual starter
+    // rather than waiting forever on an empty finishing step.
+    if (!user?.activePetId || (starterId && user.activePetId !== starterId) || !(invHatch as any[]).some((i: any) => (i.inventoryId === user.activePetId || i.id === user.activePetId) && i.type === "pet")) {
+      const starter = (invHatch as any[]).find((i: any) =>
+        (i.inventoryId === starterId || i.id === starterId) && i.type === "pet"
+      ) ?? (invHatch as any[]).find((i: any) => isHatchedThreeStarPet(i));
+      if (starter) {
+        bjSetStarterInventoryId(String(starter.inventoryId ?? starter.id));
+        bjSetStep(3);
+        setStep(3);
+        navigate("/pets");
+      }
+      return;
+    }
     const activePet = (invHatch as any[]).find(
       (i: any) =>
         (i.inventoryId === user.activePetId || i.id === user.activePetId) &&
@@ -297,7 +315,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       }
       if (Date.now() >= completionRetryAfterRef.current) completeTutorialMutation.mutate();
     }
-  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, showReward]);
+  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, showReward, navigate]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
@@ -429,8 +447,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       const starterInventoryId = bjGetStarterInventoryId();
       const chosenEgg = (invCheck as any[] | undefined)?.find(i =>
         (i.inventoryId === starterInventoryId || i.id === starterInventoryId) &&
-        i.isHatched === false &&
-        i.type === "pet"
+        i.type === "pet" && Number(i.starRarity ?? i.rarity) === 3
       );
       if (!starterInventoryId || !chosenEgg) {
         bjRestart();
