@@ -16,6 +16,7 @@ import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBun
 import { executeRewardClaim } from "./rewardClaim";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { registerQuestRoutes } from "./routes/quest.routes";
+import { LONELLE_KEY, parseLonelleProgress } from "./lonelleQuest";
 import { executeFishCatchRewardClaim } from "./fishCatchRewardClaim";
 import { FishSaleError, sellFish } from "./fishSale";
 import { db } from "./db";
@@ -1972,6 +1973,10 @@ export async function registerRoutes(
       }
       if (item.id === user.activePetId) {
         return res.status(400).json({ message: "Cannot delete your active pet" });
+      }
+      const quest = await db.execute(sql`SELECT value FROM game_settings WHERE key=${LONELLE_KEY(user.id)}`);
+      if (parseLonelleProgress(quest.rows[0]?.value)?.scarfInventoryId === inventoryId) {
+        return res.status(409).json({ message: "Return Lonelle's quest scarf before deleting it" });
       }
       await storage.removeFromInventory(inventoryId);
       return res.json({ success: true });

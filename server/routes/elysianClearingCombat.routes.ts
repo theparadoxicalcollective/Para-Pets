@@ -20,6 +20,7 @@ import { clearingSpecialDamage, resolveClearingAttackStyle, resolveClearingSpeci
 import { claimClearingRewardChest, ClearingChestError, createClearingRewardChest, getClearingRewardChests } from "../clearingRewardChests";
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
 import { collectSpecialEggDrop, createSpecialEggDrop, getSpecialEggDrops } from "../clearingSpecialMobs";
+import { recordLonelleClearingDefeat } from "../lonelleQuest";
 
 type RequestedStrikeTarget = {
   enemyInstanceId: string;
@@ -92,7 +93,8 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
             worldY: enemy.y,
             boss: enemy.isBoss,
           });
-      return { chest, eggDrop, expAwarded: boostedExp, boss: enemy.isBoss, pet: { level, levelPoints: points } };
+      const lonelleQuest = enemy.isBoss ? null : await recordLonelleClearingDefeat(tx, userId);
+      return { chest, eggDrop, expAwarded: boostedExp, boss: enemy.isBoss, pet: { level, levelPoints: points }, lonelleQuest };
     });
   };
 
@@ -288,6 +290,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
           eggDrop: reward.eggDrop,
           boss: reward.boss,
           expAwarded: reward.expAwarded,
+          lonelleQuest: reward.lonelleQuest,
           pet: reward.pet,
           nextEnemy: nextEnemy ? { ...nextEnemy } : null,
           nextEnemies:nextEnemies?.map(enemy=>({...enemy}))??null,
@@ -361,4 +364,3 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     return res.status(204).end();
   });
 }
-

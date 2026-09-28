@@ -10,6 +10,7 @@ import {
   type PlayerMarketListing,
 } from "@shared/schema";
 import { petEquippedCostumes } from "@shared/costumeSchema";
+import { LONELLE_KEY, parseLonelleProgress } from "../lonelleQuest";
 
 type MarketTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -58,6 +59,10 @@ export async function createInventoryListing(input: { actorId: string; inventory
       .where(eq(userInventory.id, input.inventoryId)).for("update");
     if (!inventory || inventory.userId !== input.actorId) throw new MarketplaceError("item_not_owned", "Item not found in your inventory");
     if (inventory.isListed) throw new MarketplaceError("conflict", "Item is already listed");
+    const quest = await tx.execute(sql`SELECT value FROM game_settings WHERE key=${LONELLE_KEY(input.actorId)}`);
+    if (parseLonelleProgress(quest.rows[0]?.value)?.scarfInventoryId === inventory.id) {
+      throw new MarketplaceError("conflict", "Return Lonelle's quest scarf before listing items");
+    }
     if (inventory.quantity < 1) throw new MarketplaceError("invalid_quantity", "Invalid inventory quantity");
     const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
       .from(petEquippedCostumes)

@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { requireAuthenticated } from "../auth";
 import { db } from "../db";
 import { storage } from "../storage";
+import { LONELLE_KEY, parseLonelleProgress } from "../lonelleQuest";
 import { petTemplateParts, shopItems, userInventory, users } from "@shared/schema";
 import {
   petCostumeDefinitions,
@@ -208,7 +209,13 @@ export function registerCostumePlayerRoutes(app: Express) {
         if (!costumeItem || costumeItem.type !== "costume") throw new Error("Item is not a costume");
         const slotDefinition = getAdornmentSlotDefinition(slot);
         if (!slotDefinition) throw new Error("Adornment space is invalid");
-        if (costumeItem.adornmentSlot && costumeItem.adornmentSlot !== slotDefinition.key) {
+        let lonelleScarfForThirdSlot = false;
+        if (slot === 3) {
+          const quest = await tx.execute(sql`SELECT value FROM game_settings WHERE key=${LONELLE_KEY(user.id)}`);
+          const progress = parseLonelleProgress(quest.rows[0]?.value);
+          lonelleScarfForThirdSlot = progress?.status === "taken" && progress.scarfInventoryId === costumeInventoryId;
+        }
+        if (costumeItem.adornmentSlot && costumeItem.adornmentSlot !== slotDefinition.key && !lonelleScarfForThirdSlot) {
           throw new Error(`This adornment belongs in the ${slotDefinition.label} space`);
         }
 
@@ -216,7 +223,7 @@ export function registerCostumePlayerRoutes(app: Express) {
           .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId)).limit(1);
         if (slot > getUnlockedCostumeSlotCount(unlock?.extraSlots ?? 0)) throw new Error("That costume slot is locked");
 
-        const [definition] = await tx.select({
+        let [definition] = await tx.select({
           id: petCostumeDefinitions.id,
           placements: petCostumeDefinitions.placements,
         })
@@ -224,6 +231,20 @@ export function registerCostumePlayerRoutes(app: Express) {
             eq(petCostumeDefinitions.shopItemId, costumeItem.id),
             eq(petCostumeDefinitions.templateId, templateId),
           )).limit(1);
+        // Quest artwork must be wearable even when the active pet has no admin fitting yet.
+        // Existing authored definitions remain authoritative; the fallback is created only once.
+        if (!definition && (lonelleScarfForThirdSlot || costumeItem.name.trim().toLowerCase() === "firefly cluster")) {
+          const placements = (["front", "side"] as const).map(view => ({
+            form: "base", view, anchorPart: "independent", animation: "none",
+            posX: 500, posY: 460, width: 180, height: 180, pivotX: 50, pivotY: 50, depth: "front",
+          }));
+          await tx.insert(petCostumeDefinitions).values({ shopItemId: costumeItem.id, templateId, placements })
+            .onConflictDoNothing();
+          [definition] = await tx.select({ id: petCostumeDefinitions.id, placements: petCostumeDefinitions.placements })
+            .from(petCostumeDefinitions).where(and(
+              eq(petCostumeDefinitions.shopItemId, costumeItem.id), eq(petCostumeDefinitions.templateId, templateId),
+            )).limit(1);
+        }
         if (!definition) throw new Error("This costume has not been fitted for this pet yet");
 
         const requestedPlacements = placementsForPetForm(definition.placements, !!target.pet.isEvolved);

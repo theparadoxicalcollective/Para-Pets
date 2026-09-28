@@ -4,6 +4,8 @@ import { registerRoutes } from "../routes";
 import { registerDailyClaimRoutes } from "../routes/dailyClaim.routes";
 import { registerClientDiagnosticsRoutes } from "../routes/clientDiagnostics.routes";
 import { registerGinnyQuestRoutes } from "../routes/ginnyQuest.routes";
+import { registerLonelleQuestRoutes } from "../routes/lonelleQuest.routes";
+import { ensureLonelleReward } from "./ensureLonelleReward";
 import { registerJansonQuestRoutes } from "../routes/jansonQuest.routes";
 import { registerBeauPrizeWheelRoutes } from "../routes/beauPrizeWheel.routes";
 import { serveStatic } from "../static";
@@ -62,6 +64,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   await ensureGinnyQuestSchema();
   await ensureJansonQuestsSchema();
   await ensureBeauPrizeWheelSchema();
+  await ensureLonelleReward();
 
   // Accessory ownership/equipment is persisted player state and must be valid
   // before any inventory or Closet route can answer. Older versions allowed
@@ -80,6 +83,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   // from the daily-quest reset/progress system.
   registerDailyClaimRoutes(app);
   registerGinnyQuestRoutes(app);
+  registerLonelleQuestRoutes(app);
   registerJansonQuestRoutes(app);
   registerBeauPrizeWheelRoutes(app);
   await registerRoutes(httpServer, app);
