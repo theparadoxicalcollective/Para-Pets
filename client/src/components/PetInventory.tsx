@@ -1267,8 +1267,10 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
 
   return (
     <>
-      {/* ── Type tabs ─────────────────────────────────────────────── */}
-      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+      {/* The category rail scrolls independently of the item shelf on phones. */}
+      <div className="flex items-start gap-2 sm:gap-4 min-w-0">
+      <nav aria-label="Bag item categories" className="w-[104px] sm:w-[164px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
+        <p className="font-fantasy text-[#d8b864] text-[10px] sm:text-xs tracking-widest px-1 pb-1">BAG ITEMS</p>
         {visibleTabs.map(tab => {
           const active = activeBagTab === tab.key;
           return (
@@ -1276,9 +1278,9 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
               key={tab.key}
               data-testid={`button-bag-tab-${tab.key}`}
               onClick={() => setBagTab(tab.key)}
-              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full font-fantasy text-[11px] tracking-wider transition-all active:scale-95"
+              className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[10px] sm:text-xs leading-tight tracking-wide transition-all active:scale-95"
               style={{
-                background: active ? "rgba(240,192,64,0.18)" : "rgba(255,255,255,0.07)",
+                background: active ? "linear-gradient(90deg, rgba(147,105,25,.6), rgba(55,44,19,.88))" : "rgba(255,255,255,0.04)",
                 border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.15)",
                 color: active ? "#f0c040" : "rgba(210,185,145,0.75)",
               }}
@@ -1288,11 +1290,16 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                 alt=""
                 style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.65, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
               />
-              {tab.label}
+              <span className="min-w-0 break-words">{tab.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
+      <section aria-label={activeBagTabLabel} className="flex-1 min-w-0 rounded-xl p-2 sm:p-3" style={{ background: "rgba(15,19,10,.43)", border: "1px solid rgba(212,160,23,.22)" }}>
+        <div className="flex flex-wrap items-baseline justify-between gap-1 mb-3 px-1">
+          <h3 className="font-fantasy text-[#f4d482] text-sm sm:text-base tracking-wider">{activeBagTabLabel}</h3>
+          <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayItems.length} {displayItems.length === 1 ? "item" : "items"}</span>
+        </div>
 
       {isEmpty ? (
         <div className="text-center py-16">
@@ -1313,7 +1320,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {activeBagTabLabel} in your bag</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
           {displayItems.map(({ item, count }) => {
             const typeColor = typeColors[item.type] || "#f0c040";
             return (
@@ -1362,6 +1369,8 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
           })}
         </div>
       )}
+      </section>
+      </div>
 
       {selectedItem && (
         <div
