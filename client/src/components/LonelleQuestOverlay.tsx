@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
-import { getQuestGuideSurface, guideBoundsInSurface, guideTargetOnScreen } from "@/lib/questGuideViewport";
+import { getQuestGuideSurface, guideBoundsInSurface, guideFocusPoint, guideTargetOnScreen } from "@/lib/questGuideViewport";
 
 const pawCoin = "/paw-print-coin.webp";
 const API = "/api/quests/lonelle-lost-adornment";
@@ -30,35 +30,43 @@ interface ClaimResult { alreadyClaimed: boolean; coinsGranted: number; reward: {
 
 function visible(element: HTMLElement | null): element is HTMLElement {
   if (!element) return false;
-  const style = getComputedStyle(element);
   const rect = element.getBoundingClientRect();
-  return style.display !== "none" && style.visibility !== "hidden" && style.pointerEvents !== "none"
-    && Number(style.opacity || 1) > 0.1 && rect.width > 3 && rect.height > 3;
+  if (rect.width <= 3 || rect.height <= 3) return false;
+  for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    const style = getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none" || Number(style.opacity || 1) <= 0.1) return false;
+  }
+  return true;
 }
 
-function GuideArrow({ selector, label, circle = false, panHint = false }: { selector: string | null; label: string; circle?: boolean; panHint?: boolean }) {
-  const [rect, setRect] = useState<DOMRect | null>(null);
+function GuideArrow({ selector, label, focus = null, panHint = false }: { selector: string | null; label: string; focus?: "pet" | "control" | null; panHint?: boolean }) {
+  const [targetRect, setTargetRect] = useState<{ selector: string; rect: DOMRect } | null>(null);
   useEffect(() => {
-    if (!selector) { setRect(null); return; }
+    if (!selector) { setTargetRect(null); return; }
     const update = () => {
       const node = document.querySelector<HTMLElement>(selector);
-      setRect(visible(node) ? node.getBoundingClientRect() : null);
+      setTargetRect(visible(node) ? { selector, rect: node.getBoundingClientRect() } : null);
     };
     update();
     const timer = window.setInterval(update, 300);
     return () => window.clearInterval(timer);
   }, [selector]);
+  const rect = targetRect?.selector === selector ? targetRect.rect : null;
   if (!rect) return null;
   const surface = getQuestGuideSurface();
   const bounds = guideBoundsInSurface(rect, surface);
   if (!guideTargetOnScreen(bounds, surface.width, surface.height)) {
     return panHint ? createPortal(<div role="status" className={`${surface.inStage ? "absolute" : "fixed"} bottom-28 left-4 right-4 mx-auto max-w-sm rounded-xl border border-[#e9c46d] bg-[#142b20]/95 p-3 text-center font-fantasy text-sm text-[#fff2c4] shadow-lg`} style={{ zIndex: 2147481800, pointerEvents: "none" }}>Drag to find your destination: {label}</div>, surface.target) : null;
   }
-  const center = Math.min(surface.width - 28, Math.max(28, (bounds.left + bounds.right) / 2));
-  return createPortal(<div data-testid="lonelle-guide-arrow" aria-live="polite" className={`${surface.inStage ? "absolute" : "fixed"} pointer-events-none`} style={{ zIndex: 2147481800, left: center, top: Math.max(4, bounds.top - 56), transform: "translateX(-50%)", textAlign: "center" }}>
+  // The pet's tappable wrapper covers the entire large illustration. Place a
+  // small marker near its center rather than outlining that wrapper's bounds.
+  const marker = focus ? guideFocusPoint(bounds, surface.width, surface.height, focus) : null;
+  const center = marker?.x ?? Math.min(surface.width - 28, Math.max(28, (bounds.left + bounds.right) / 2));
+  const arrowTop = Math.max(4, (marker?.y ?? bounds.top) - (focus ? 100 : 56));
+  return createPortal(<div data-testid="lonelle-guide-arrow" aria-live="polite" className={`${surface.inStage ? "absolute" : "fixed"} pointer-events-none`} style={{ zIndex: 2147481800, left: center, top: arrowTop, transform: "translateX(-50%)", textAlign: "center" }}>
     <span className="block rounded-lg px-2 py-1 font-fantasy text-[11px] text-[#fff2c4]" style={{ background: "rgba(15,35,21,.94)", border: "1px solid #e9c46d", boxShadow: "0 3px 12px #000a", maxWidth: 180 }}>{label}</span>
     <span aria-hidden="true" className="block animate-bounce text-3xl leading-none text-[#ffe082]" style={{ filter: "drop-shadow(0 2px 4px #000)" }}>↓</span>
-    {circle && <span aria-hidden="true" className="absolute rounded-full" style={{ left: "50%", top: 55, transform: "translateX(-50%)", width: Math.max(64, bounds.right - bounds.left + 12), height: Math.max(64, bounds.bottom - bounds.top + 12), border: "3px solid #ffe082", boxShadow: "0 0 18px #f9cf6b", pointerEvents: "none" }} />}
+    {marker && <span aria-hidden="true" className="absolute rounded-full" style={{ left: "50%", top: marker.y - arrowTop, transform: "translate(-50%, -50%)", width: marker.size, height: marker.size, border: "3px solid #ffe082", boxShadow: "0 0 18px #f9cf6b", pointerEvents: "none" }} />}
   </div>, surface.target);
 }
 
@@ -77,6 +85,7 @@ export default function LonelleQuestOverlay() {
   const [questLogMount, setQuestLogMount] = useState<HTMLElement | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [prize, setPrize] = useState<ClaimResult | null>(null);
+  const [showReturnHome, setShowReturnHome] = useState(false);
   const { data: user } = useQuery<{ id: string } | null>({ queryKey: ["/api/auth/me"] });
   const { data: state } = useQuery<QuestState>({
     queryKey: [API], enabled: Boolean(user?.id), staleTime: 1_000, refetchOnWindowFocus: true,
@@ -84,6 +93,7 @@ export default function LonelleQuestOverlay() {
     queryFn: async () => (await apiRequest("GET", API)).json(),
   });
   const inBayou = pathname.startsWith(WORLD);
+  useEffect(() => { if (pathname !== CLEARING) setShowReturnHome(false); }, [pathname]);
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ["/api/world", "swamp", "locations"], enabled: Boolean(user && inBayou), staleTime: 5_000,
     queryFn: async () => (await apiRequest("GET", "/api/world/swamp/locations")).json(),
@@ -121,7 +131,7 @@ export default function LonelleQuestOverlay() {
   });
   const take = useMutation({
     mutationFn: async () => (await apiRequest("POST", `${API}/take`, {})).json() as Promise<QuestState>,
-    onSuccess: next => { refresh(next); setMessage(null); },
+    onSuccess: next => { refresh(next); setMessage(null); if (pathname === CLEARING) setShowReturnHome(true); },
     onError: (error: Error) => setMessage(error.message),
   });
   const claim = useMutation({
@@ -140,26 +150,37 @@ export default function LonelleQuestOverlay() {
 
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
   const mapOpen = visible(navMap);
+  const adornmentPicker = document.querySelector<HTMLElement>('[data-testid="adornment-inventory-picker"]');
   const guiding = state && (["accepted", "found", "taken"].includes(state.status));
   let target: string | null = null;
   let instruction = "";
-  let circle = false;
+  let focus: "pet" | "control" | null = null;
   if (guiding && state.status === "accepted" && inBayou) {
     target = `[data-testid="location-${ELYSIAN_BAYOU_CLEARING_ID}"]`;
     instruction = "The Clearing is here!";
+  } else if (guiding && state.status === "taken" && !state.scarfOwned) {
+    target = inBayou ? lonelle ? '[data-testid="button-talk-lonelle"]' : null : pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
+    instruction = inBayou ? "Ask Lonelle to recover her scarf" : "Return to Lonelle for the quest scarf";
   } else if (guiding && state.status === "taken" && pathname === "/" && !state.scarfEquipped) {
     const closet = document.querySelector<HTMLElement>('[data-testid="button-action-equip-accessories"]');
     target = visible(closet) ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-actions"]';
     instruction = visible(closet) ? "Open your pet's Closet" : "Tap your pet";
-    circle = !visible(closet);
+    focus = visible(closet) ? "control" : "pet";
   } else if (guiding && state.status === "taken" && pathname === "/equip-accessories") {
     if (state.scarfEquipped) { target = '[data-testid="button-close-equip-accessories"]'; instruction = "Close the Closet"; }
-    else if (state.scarfInventoryId && visible(document.querySelector<HTMLElement>(`[data-testid="bag-costume-${state.scarfInventoryId}"]`))) {
+    else if (visible(document.querySelector<HTMLElement>('[data-testid="button-confirm-unequip-adornment"]'))) {
+      target = '[data-testid="button-confirm-unequip-adornment"]'; instruction = "Make room for Lonelle's Scarf"; focus = "control";
+    } else if (visible(document.querySelector<HTMLElement>('[data-testid="button-cancel-unequip-adornment"]'))) {
+      target = '[data-testid="button-cancel-unequip-adornment"]'; instruction = "Choose the third space instead"; focus = "control";
+    } else if (state.scarfInventoryId && visible(document.querySelector<HTMLElement>(`[data-testid="bag-costume-${state.scarfInventoryId}"]`))) {
       target = `[data-testid="bag-costume-${state.scarfInventoryId}"]`; instruction = "Equip Lonelle's Scarf";
+    } else if (adornmentPicker) {
+      target = '[data-testid="button-close-adornment-inventory"]';
+      instruction = adornmentPicker.dataset.selectedSlot === "3" ? "Scarf not here? Close and check with Lonelle" : "Close this list, then choose the third space";
     } else {
       target = '[data-testid="slot-costume-3"]';
       const occupied = document.querySelector<HTMLElement>(target)?.getAttribute("aria-label")?.startsWith("Unequip");
-      instruction = occupied ? "Free the third adornment space" : "Choose the third adornment space";
+      instruction = occupied ? "Tap to free the third adornment space" : "Choose the third adornment space";
     }
   } else if (guiding && state.status === "taken" && state.scarfEquipped && pathname === "/map") {
     target = '[data-testid="button-location-swamp"]'; instruction = "Return to the Bayou";
@@ -182,7 +203,7 @@ export default function LonelleQuestOverlay() {
     ? "Adornments are simply a way to decorate your pet and make them your own. I lost my favorite scarf in the Bayou Clearing! Will you defeat five monsters, find it, and bring it back to me?"
     : state.status === "claimed" ? "Your kindness will glow in the Bayou whenever I see those fireflies." : state.scarfEquipped
       ? "There it is! Thank you for keeping it safe. May I have my scarf back? Please accept this Firefly Cluster and 300 coins as my thanks."
-      : state.status === "taken" ? "You found it! Try it on your pet in the third adornment space, then come back and show me." : "Defeat five monsters in the Clearing. I know my scarf is out there somewhere!";
+      : state.status === "taken" ? state.scarfOwned ? "You found it! Try it on your pet in the third adornment space, then come back and show me." : "It seems my scarf went missing again. Let me give you the quest scarf so you can try it on your pet." : "Defeat five monsters in the Clearing. I know my scarf is out there somewhere!";
 
   return <>
     <style>{`@media (prefers-reduced-motion: reduce) { [data-testid="lonelle-quest-badge"] { animation: none !important; } }`}</style>
@@ -196,8 +217,8 @@ export default function LonelleQuestOverlay() {
       <p className="mt-1 text-[10px]">{state.status === "accepted" ? `${state.kills}/${state.requiredKills} Clearing monsters defeated` : state.status === "found" ? "Take Lonelle's Scarf from the Clearing" : state.status === "taken" ? state.scarfEquipped ? "Return to Lonelle in the Bayou" : "Equip the scarf in the third adornment space" : "Talk to Lonelle in the Bayou"}</p>
     </div>, questLogMount)}
     {state.status === "accepted" && pathname === CLEARING && createPortal(<div data-testid="lonelle-clearing-progress" className={`${overlayPosition} left-1/2 top-[8%] -translate-x-1/2 rounded-xl border border-[#eed486] bg-[#10291f]/95 px-4 py-2 text-center font-fantasy text-[#fff0c7] shadow-lg`} style={{ zIndex: 2147481000, pointerEvents: "none" }}>Lonelle's Scarf · {state.kills}/{state.requiredKills} monsters</div>, surface.target)}
-    <GuideArrow selector={target} label={instruction} circle={circle} panHint={pathname === "/map" || inBayou} />
-    {(finding || (pathname === CLEARING && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000 }} onPointerDown={event => event.stopPropagation()}>
+    <GuideArrow selector={target} label={instruction} focus={focus} panHint={pathname === "/map" || inBayou} />
+    {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000 }} onPointerDown={event => event.stopPropagation()}>
       <section role="dialog" aria-modal="true" aria-label="Scarf found" className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#eccc78] bg-[#173126] p-5 text-center font-fantasy text-[#ffefc6] shadow-2xl">
         {state.scarf?.imageUrl && <img src={state.scarf.imageUrl} alt="Lonelle's Scarf" className="mx-auto h-24 w-24 object-contain" />}
         <h2 className="mt-2 text-xl text-[#ffe38a]">You found Lonelle's Scarf!</h2>

@@ -14,7 +14,6 @@ import { ClearingInventoryPanel } from "@/components/ClearingEquipmentPanels";
 import { currencyAssets } from "@/lib/currencyAssets";
 import fallbackPet from "@assets/logo_parapets.png";
 import { usePlayerCurrencyBalances } from "@/hooks/usePlayerCurrencyBalances";
-import ClearingHuntHud from "@/components/clearing/ClearingHuntHud";
 import ClearingBlessingPicker from "@/components/clearing/ClearingBlessingPicker";
 import ClearingBossTelegraph from "@/components/clearing/ClearingBossTelegraph";
 import { CLEARING_BLESSING_DEFEATS, clearingBlessedIncomingDamage, clearingBlessedMana, type ClearingBlessingId, type ClearingHuntBlessingState } from "@shared/clearingBlessings";
@@ -275,13 +274,13 @@ export default function ElysianClearingCombat({ activePetInventoryId, petPos, pe
     }catch(error){if(!controller.signal.aborted&&huntBlessingRef.current?.huntId===current.huntId)setBlessingError(error instanceof Error?error.message:"Unable to receive blessing. Try again.");}
     finally{if(blessingRequestRef.current===controller){blessingRequestRef.current=null;setBlessingPending(false);}}
   };
-  const continueHunt=()=>{huntCompleteRef.current=false;setHuntComplete(false);setHunt(emptyClearingHunt());};
 
   const currencyDisplay = <div data-testid="clearing-currency-display" aria-live="polite" className="mx-auto w-fit min-h-9 max-w-full pointer-events-none flex flex-wrap items-center justify-center gap-x-2 gap-y-0 rounded-xl border border-amber-500/70 bg-emerald-950/90 px-2 py-1 text-xs font-bold text-amber-100 shadow-lg"><span className="flex items-center gap-1 tabular-nums"><img src={currencyAssets.essenceToken} alt="Essence" className="h-5 w-5 object-contain"/>{balances.loading?"…":balances.error?"—":balances.formattedEssence}</span><span className="flex items-center gap-1 tabular-nums"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain"/>{balances.loading?"…":balances.error?"—":balances.formattedCoin}</span></div>;
 
   const fixedHud = <>
     <div className="absolute left-1/2 w-[calc(100%-24px)] max-w-[390px] -translate-x-1/2 pointer-events-none" style={{top:"calc(max(12px, env(safe-area-inset-top, 0px)) + 48px)",zIndex:19}}>
-    {sessionState==="ready"&&petHealth>0?<ClearingHuntHud key={session?.sessionId} regularDefeats={bossProgress.regularDefeats} phase={bossProgress.bossPhase} complete={huntComplete} hunt={hunt} blessing={huntBlessing?.selected} blessingAvailable={Boolean(huntBlessing&&!huntBlessing.selected&&bossProgress.regularDefeats>=CLEARING_BLESSING_DEFEATS)} onChooseBlessing={()=>{setBlessingError(null);setBlessingOpen(true);}} onContinue={continueHunt} onReturn={onReturnToWorld}>{currencyDisplay}</ClearingHuntHud>:currencyDisplay}
+    {/* The boss hunt has no starter NPC yet. Keep regular combat and balances visible. */}
+    {currencyDisplay}
     </div>
 
     <div className="absolute pointer-events-auto flex items-center gap-2" style={{left:"max(12px, env(safe-area-inset-left, 0px))",bottom:"max(25px, env(safe-area-inset-bottom, 0px))",zIndex:18}}><button data-interactive data-testid="button-clearing-equipment" aria-label="Open pet equipment" onClick={()=>setEquipmentOpen(true)} className="clearing-action-button h-11 w-11 overflow-hidden rounded-full bg-emerald-950"><img src={activePet?.hatchedImageUrl||activePet?.imageUrl||fallbackPet} onError={e=>{e.currentTarget.src=fallbackPet}} alt="Active pet" className="h-full w-full object-contain"/></button></div>
@@ -343,6 +342,4 @@ export default function ElysianClearingCombat({ activePetInventoryId, petPos, pe
     {hudElement&&createPortal(fixedHud,hudElement)}
   </>;
 }
-
-
 

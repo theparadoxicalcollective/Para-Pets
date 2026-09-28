@@ -15,3 +15,16 @@ test("missing boss configuration falls back to the bundled Bayou Wraith",()=>{co
 test("an existing Bayou Wraith regular can be promoted without also spawning as a regular",()=>{const session=createClearingSession("wraith-user","pet",{level:1,hp:1000,atk:50},1_000,()=>.25,[{enemy_id:"wraith",is_boss:false,name:"Bayou Wraith",image_url:"/custom-wraith.png"},{enemy_id:"regular",is_boss:false,name:"Mireling",image_url:null}]);assert.equal(session.bossTemplate?.enemy_id,"wraith");assert.equal(session.bossTemplate?.is_boss,true);assert.ok(session.regularTemplates.every(template=>template.enemy_id!=="wraith"));assert.ok(session.enemies.every(enemy=>enemy.templateId!=="wraith"));});
 
 test("boss completion is idempotent, resets progress, and resumes regular enemies",()=>{const session=create();session.clearingBossProgress={regularDefeats:CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold,bossPhase:"preparing",bossReadyAt:2_000};const boss=advanceClearingBossEncounter({sessionId:session.id,userId:"user",now:2_000})!;boss.health=1;assert.equal(applyClearingHit({sessionId:session.id,instanceId:boss.instanceId,userId:"user",petId:"pet",petDamage:50,enemyPosition:{x:boss.x,y:boss.y},maxRangePixels:10_000,attackActionId:"boss-kill",now:2_100}).status,"killed");const regulars=completeClearingBossEncounter(session.id,boss.instanceId,2_200,()=>.25);assert.equal(regulars?.length,10);assert.ok(regulars?.every(enemy=>!enemy.isBoss));assert.deepEqual(session.clearingBossProgress,{regularDefeats:0,bossPhase:"regular",bossReadyAt:null});assert.equal(completeClearingBossEncounter(session.id,boss.instanceId,2_300),null,"boss completion cannot repeat");});
+
+test("free Clearing fights respawn regular enemies without counting toward or starting a boss",()=>{
+  const session=createClearingSession("free-user","pet",{level:1,hp:1000,atk:50},1_000,()=>.25,templates,[],{level:1,hp:1000,atk:50},false);
+  assert.equal(session.bossTemplate,undefined);
+  for(let count=0;count<CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold+2;count++){
+    const enemy=session.enemies[0],defeatedId=enemy.instanceId;
+    enemy.defeated=true;enemy.health=0;
+    assert.equal(recordClearingRegularDefeat(session.id,defeatedId,2_000+count)?.regularDefeats,0);
+    assert.ok(respawnClearingEnemy(session.id,defeatedId));
+  }
+  assert.equal(session.clearingBossProgress.bossPhase,"regular");
+  assert.equal(advanceClearingBossEncounter({sessionId:session.id,userId:"free-user",now:99_000}),null);
+});

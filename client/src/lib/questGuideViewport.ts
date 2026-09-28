@@ -46,3 +46,10 @@ export function guideCardShouldMoveUp(bounds: Bounds | null, height: number, car
   const bottomCardTop = height - 112 - cardHeight;
   return bounds.bottom > bottomCardTop - 12 && bounds.top < height - 100;
 }
+
+/** Keep the Lonelle spotlight on the intended control, never on a full-size tap wrapper. */
+export function guideFocusPoint(bounds: Bounds, width: number, height: number, kind: "pet" | "control") {
+  const centerX = Math.min(width - 28, Math.max(28, (bounds.left + bounds.right) / 2));
+  const y = kind === "pet" ? bounds.top + (bounds.bottom - bounds.top) * 0.45 : (bounds.top + bounds.bottom) / 2;
+  return { x: centerX, y: Math.min(height - 36, Math.max(48, y)), size: kind === "pet" ? 108 : 66 };
+}

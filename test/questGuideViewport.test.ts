@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { guideBoundsInSurface, guideCardShouldMoveUp, guideTargetOnScreen } from "../client/src/lib/questGuideViewport";
+import { guideBoundsInSurface, guideCardShouldMoveUp, guideFocusPoint, guideTargetOnScreen } from "../client/src/lib/questGuideViewport";
 import { calculateStageLayout } from "../client/src/lib/stage";
 
 test("quest guides distinguish visible targets from panned-off targets on phone and desktop", () => {
@@ -27,4 +27,12 @@ test("desktop stage scaling returns the same guide coordinates as the iPhone 12 
     for (const side of ["left", "right", "top", "bottom"] as const) assert.ok(Math.abs(converted[side] - phone[side]) < 0.0001);
     assert.equal(guideTargetOnScreen(converted, stage.designWidth, stage.designHeight), true);
   }
+});
+
+test("Lonelle's pet and closet highlights remain compact on the iPhone 12 reference", () => {
+  const pet = guideFocusPoint({ left: 8, right: 382, top: 270, bottom: 735 }, 390, 844, "pet");
+  assert.deepEqual(pet, { x: 195, y: 479.25, size: 108 });
+  const closet = guideFocusPoint({ left: 139, right: 248, top: 606, bottom: 678 }, 390, 844, "control");
+  assert.deepEqual(closet, { x: 193.5, y: 642, size: 66 });
+  assert.ok(pet.size < 382 - 8);
 });
