@@ -22,7 +22,7 @@ function visible(element: HTMLElement | null): element is HTMLElement {
   if (rect.width <= 3 || rect.height <= 3) return false;
   for (let node: HTMLElement | null = element; node; node = node.parentElement) {
     const style = getComputedStyle(node);
-    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity || 1) <= 0.1) return false;
+    if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none" || Number(style.opacity || 1) <= 0.1) return false;
   }
   return true;
 }
