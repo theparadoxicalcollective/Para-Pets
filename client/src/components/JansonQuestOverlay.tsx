@@ -171,7 +171,7 @@ export default function JansonQuestOverlay() {
       @media (prefers-reduced-motion: reduce) { [data-testid="janson-quest-marker-badge"] { animation: none !important; } }
     `}</style>
     {npcMount && createPortal(
-      <><button type="button" data-testid="button-talk-janson" aria-label={state.marketUnlocked && repeatable?.status === "claimed" ? "Open Janson's fish market" : "Talk to Janson"}
+      <><button type="button" data-testid="button-talk-janson" aria-label={state.marketUnlocked && repeatable?.status === "claimed" && npcMessages.length === 0 ? "Open Janson's fish market" : "Talk to Janson"}
         onPointerDown={event => event.stopPropagation()}
         onClick={event => {
           event.preventDefault(); event.stopPropagation(); setMessage(null);
