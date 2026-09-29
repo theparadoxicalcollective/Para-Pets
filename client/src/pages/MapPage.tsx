@@ -448,6 +448,7 @@ export default function MapPage({ user }: MapPageProps) {
           ) : (
             <div
               ref={mapRef}
+              data-quest-guide-pan-surface
               className="relative w-full"
               style={{ paddingBottom: "115%" }}
               onPointerMove={handlePointerMove}
