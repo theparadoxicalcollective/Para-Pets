@@ -161,7 +161,7 @@ export default function MaintenanceSection() {
             aria-label={maintenanceOn ? "Turn off maintenance mode" : "Turn on maintenance mode"}
             aria-pressed={maintenanceOn}
             onClick={() => toggleMutation.mutate(!maintenanceOn)}
-            disabled={maintenanceLoading || maintenanceUnavailable || toggleMutation.isPending}
+            disabled={maintenanceBusy || maintenanceUnavailable || toggleMutation.isPending}
             className="relative flex-shrink-0"
             style={{
               width: 52,
@@ -172,9 +172,9 @@ export default function MaintenanceSection() {
                 : "linear-gradient(135deg, #1a5c38, #27ae60)",
               border: maintenanceOn ? "1px solid rgba(252,165,165,0.5)" : "1px solid rgba(110,231,183,0.5)",
               boxShadow: maintenanceOn ? "0 0 10px rgba(200,50,50,0.3)" : "0 0 10px rgba(39,174,96,0.3)",
-              cursor: (maintenanceLoading || maintenanceUnavailable || toggleMutation.isPending) ? "not-allowed" : "pointer",
+              cursor: (maintenanceBusy || maintenanceUnavailable || toggleMutation.isPending) ? "not-allowed" : "pointer",
               transition: "all 0.3s ease",
-              opacity: (maintenanceLoading || maintenanceUnavailable || toggleMutation.isPending) ? 0.5 : 1,
+              opacity: (maintenanceBusy || maintenanceUnavailable || toggleMutation.isPending) ? 0.5 : 1,
             }}
           >
             <div
