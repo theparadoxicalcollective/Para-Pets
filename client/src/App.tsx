@@ -147,6 +147,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center px-5"
           data-testid="modal-haunted-world-welcome"
+          data-quest-guide-blocker="true"
           role="dialog"
           aria-modal="true"
           aria-labelledby="haunted-world-welcome-title"
