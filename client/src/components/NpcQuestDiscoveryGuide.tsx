@@ -164,7 +164,13 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     return () => document.removeEventListener("click", blockGhostClick, true);
   }, []);
 
-  if (!eligible || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
+  const blockingOverlay = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"], [data-quest-guide-blocker="true"]')).some(node => {
+    const rect = node.getBoundingClientRect();
+    if (rect.width <= 3 || rect.height <= 3) return false;
+    const style = getComputedStyle(node);
+    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0.1;
+  });
+  if (!eligible || blockingOverlay || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
   const finish = (next: number) => {
     saveIndex(user.id, next);
     setIndex(next);
