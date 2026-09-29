@@ -1,12 +1,12 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import type { db as database } from "../db";
-import type { storage as storageService } from "../storage";
+import type { IStorage } from "../storage";
 import { raidBossSelectionSchema, saveRaidBoss } from "../raidBossAdmin";
 
 export interface RaidRouteDependencies {
   db: typeof database;
-  storage: typeof storageService;
+  storage: IStorage;
   isAuthenticated: RequestHandler;
   isAdmin: RequestHandler;
 }
