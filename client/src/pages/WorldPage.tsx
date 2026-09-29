@@ -1807,6 +1807,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
       <div
         ref={vpRef}
+        data-quest-guide-pan-surface
         className="absolute inset-0 overflow-hidden"
         style={{ touchAction: "none" }}
         onPointerDown={handleVpPointerDown}
