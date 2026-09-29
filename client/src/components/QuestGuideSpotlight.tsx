@@ -139,7 +139,10 @@ export default function QuestGuideSpotlight({
     y: Math.min(surface.height - 65, Math.max(130, (bounds.top + bounds.bottom) / 2)),
   } : null;
 
+  const worldDestination = mode === "pan" && selector.startsWith('[data-testid="location-') ? selector : null;
+
   return createPortal(<>
+    {worldDestination && <style>{`[data-quest-guide-pan-surface] [data-testid^="location-"]:not(${worldDestination}), [data-quest-guide-pan-surface] [data-testid^="location-"]:not(${worldDestination}) * { pointer-events: none !important; }`}</style>}
     <div
       data-testid={testId}
       role={mode === "tour" ? "button" : undefined}
