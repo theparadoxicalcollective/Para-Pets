@@ -10,9 +10,12 @@ test("mounts the quest-aware dialogue bridge", () => {
   assert.match(main, /<NpcQuestAwareDialogueBridge \/>/);
 });
 
-test("only restores Ginny generic dialogue after the one-time quest is claimed", () => {
+test("restores Ginny and Lonelle dialogue only after their one-time quests are claimed", () => {
   assert.match(bridge, /const GINNY_QUEST_KEY = "ginny_mini_pet_companion"/);
-  assert.match(bridge, /if \(ginnyStatus !== "claimed"\) return \[\];/);
+  assert.match(bridge, /const LONELLE_QUEST_KEY = "lonelle_lost_adornment"/);
+  assert.match(bridge, /ginnyStatus === "claimed"/);
+  assert.match(bridge, /lonelleStatus === "claimed"/);
+  assert.match(bridge, /if \(!ginnyFinished && !lonelleFinished\) return \[\];/);
 });
 
 test("loads the live player quest state instead of treating registry association as availability", () => {
@@ -26,7 +29,8 @@ test("restores click dialogue for both player and admin interaction paths", () =
   assert.match(bridge, /chooseNpcMessage\(messages/);
 });
 
-test("fails closed while quest state is unknown", () => {
-  assert.match(bridge, /if \(ginnyStatus !== "claimed"\) return \[\];/);
+test("fails closed while either quest state is unknown", () => {
+  assert.match(bridge, /if \(!ginnyFinished && !lonelleFinished\) return \[\];/);
   assert.match(bridge, /setGinnyStatus\(null\)/);
+  assert.match(bridge, /setLonelleStatus\(null\)/);
 });

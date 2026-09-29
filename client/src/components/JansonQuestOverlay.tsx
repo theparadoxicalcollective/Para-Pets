@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { npcNamesMatch } from "@/lib/npcMetadata";
+import { chooseNpcMessage, npcNamesMatch, parseNpcMetadata } from "@/lib/npcMetadata";
 
 type QuestStatus = "locked" | "available" | "accepted" | "completed" | "claimed";
 interface Quest {
@@ -18,7 +18,8 @@ interface Quest {
   rewardItemQuantity: number;
 }
 interface JansonState { quests: Quest[]; dailyQuest: Quest; marketUnlocked: boolean }
-interface WorldNpc { id: string; name: string; type: string; iconUrl?: string | null }
+interface WorldNpc { id: string; name: string; type: string; iconUrl?: string | null; description?: string | null }
+interface CatalogNpc { name: string; type: string; worldId: string; specialSkill?: string | null }
 const API = "/api/quests/janson";
 const WORLD = "swamp";
 
@@ -48,6 +49,10 @@ export default function JansonQuestOverlay() {
   const [npcMount, setNpcMount] = useState<HTMLElement | null>(null);
   const [questListMount, setQuestListMount] = useState<HTMLElement | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [spokenMessage, setSpokenMessage] = useState<string | null>(null);
+  const lastSpokenMessage = useRef<string | null>(null);
+  const speechTimeout = useRef<number | null>(null);
+  useEffect(() => () => { if (speechTimeout.current !== null) window.clearTimeout(speechTimeout.current); }, []);
   const { data: user } = useQuery<{ id: string; isAdmin: boolean } | null>({
     queryKey: ["/api/auth/me"], retry: false, staleTime: 5_000,
     queryFn: async () => {
@@ -71,6 +76,15 @@ export default function JansonQuestOverlay() {
     },
   });
   const janson = useMemo(() => locations.find(location => location.type === "npc" && npcNamesMatch(location.name, "Janson")) ?? null, [locations]);
+  const { data: npcCatalog = [] } = useQuery<CatalogNpc[]>({
+    queryKey: ["/api/shop/__npc_catalog__"], enabled: Boolean(user && inBayou), staleTime: 30_000,
+    queryFn: async () => {
+      const response = await fetch("/api/shop/__npc_catalog__", { credentials: "include" });
+      return response.ok ? response.json() : [];
+    },
+  });
+  const catalogJanson = npcCatalog.find(npc => npc.type === "npc" && npc.worldId === "__npc_catalog__" && npcNamesMatch(npc.name, "Janson"));
+  const npcMessages = parseNpcMetadata(catalogJanson?.specialSkill ?? janson?.description).messages;
 
   useEffect(() => {
     if (!inBayou || !janson) { setNpcMount(null); return; }
@@ -129,8 +143,17 @@ export default function JansonQuestOverlay() {
     : repeatable?.status === "accepted" || repeatable?.status === "completed" ? repeatable : null;
   const openMarket = () => {
     if (!state.marketUnlocked || !inBayou) return;
+    setSpokenMessage(null);
     setDialogOpen(false);
     window.dispatchEvent(new Event("para:open-fish-market"));
+  };
+  const speak = () => {
+    const chosen = chooseNpcMessage(npcMessages, lastSpokenMessage.current);
+    if (!chosen) { openMarket(); return; }
+    lastSpokenMessage.current = chosen;
+    setSpokenMessage(chosen);
+    if (speechTimeout.current !== null) window.clearTimeout(speechTimeout.current);
+    speechTimeout.current = window.setTimeout(() => setSpokenMessage(null), 4_500);
   };
   const onQuestGo = (quest: Quest) => {
     setDialogOpen(false);
@@ -148,11 +171,11 @@ export default function JansonQuestOverlay() {
       @media (prefers-reduced-motion: reduce) { [data-testid="janson-quest-marker-badge"] { animation: none !important; } }
     `}</style>
     {npcMount && createPortal(
-      <button type="button" data-testid="button-talk-janson" aria-label={state.marketUnlocked && repeatable?.status === "claimed" ? "Open Janson's fish market" : "Talk to Janson"}
+      <><button type="button" data-testid="button-talk-janson" aria-label={state.marketUnlocked && repeatable?.status === "claimed" && npcMessages.length === 0 ? "Open Janson's fish market" : "Talk to Janson"}
         onPointerDown={event => event.stopPropagation()}
         onClick={event => {
           event.preventDefault(); event.stopPropagation(); setMessage(null);
-          if (state.marketUnlocked && repeatable?.status === "claimed") openMarket();
+          if (state.marketUnlocked && repeatable?.status === "claimed") speak();
           else setDialogOpen(true);
         }}
         style={{ position: "absolute", inset: user.isAdmin ? "-10%" : "4%", zIndex: 32, background: "transparent", border: 0, cursor: "pointer", touchAction: "manipulation" }}>
@@ -175,7 +198,17 @@ export default function JansonQuestOverlay() {
             }}
           >{current?.status === "completed" ? "✓" : "!"}</span>
         )}
-      </button>, npcMount)}
+      </button>
+       {spokenMessage && <div role="status" aria-live="polite" data-testid="npc-message-janson" style={{
+         position: "absolute", left: "50%", bottom: "98%", transform: "translate(-50%, -8px)", zIndex: 34,
+         width: "max-content", maxWidth: "min(220px, 72vw)", padding: "7px 10px", borderRadius: 10,
+         border: "1px solid rgba(255,220,128,.72)", background: "rgba(18,12,20,.94)",
+         boxShadow: "0 5px 18px rgba(0,0,0,.6), 0 0 12px rgba(255,205,90,.13)", color: "#fff2c7",
+         fontFamily: "Lora, serif", fontSize: 10, lineHeight: 1.35, textAlign: "center", whiteSpace: "normal",
+       }}><strong style={{ display: "block", marginBottom: 2, color: "#ffd978", fontSize: 9 }}>Janson</strong>
+         {spokenMessage}<button type="button" data-testid="button-janson-market-from-message" onClick={openMarket}
+           style={{ ...actionStyle, display: "block", margin: "6px auto 0" }}>Open Fish Market</button>
+       </div>}</>, npcMount)}
     {questListMount && logQuest && createPortal(<QuestCard quest={logQuest} busy={claim.isPending} onGo={() => onQuestGo(logQuest)} onClaim={() => claim.mutate(logQuest.questKey)} />, questListMount)}
     {dialogOpen && inBayou && <div className="fixed inset-0 z-[2147482000] flex items-center justify-center p-3" style={{ background: "rgba(2,10,7,.82)" }} onClick={() => setDialogOpen(false)}>
       <section role="dialog" aria-modal="true" aria-label="Janson's fishing quests" data-testid="janson-quest-dialog" onClick={event => event.stopPropagation()}

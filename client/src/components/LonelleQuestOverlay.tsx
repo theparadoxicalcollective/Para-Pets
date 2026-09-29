@@ -56,6 +56,16 @@ export default function LonelleQuestOverlay() {
   const [message, setMessage] = useState<string | null>(null);
   const [prize, setPrize] = useState<ClaimResult | null>(null);
   const [showReturnHome, setShowReturnHome] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  useEffect(() => {
+    // The radial menu is owned by HomePage, so its opening does not otherwise
+    // rerender this quest overlay. Follow its actual DOM state immediately.
+    const update = () => setActionMenuOpen(Boolean(document.querySelector('[data-testid="button-action-equip-accessories"]')));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
   const { data: user } = useQuery<{ id: string } | null>({ queryKey: ["/api/auth/me"] });
   const { data: state } = useQuery<QuestState>({
     queryKey: [API], enabled: Boolean(user?.id), staleTime: 1_000, refetchOnWindowFocus: true,
@@ -132,10 +142,9 @@ export default function LonelleQuestOverlay() {
     target = inBayou ? lonelle ? '[data-testid="button-talk-lonelle"]' : null : pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
     instruction = inBayou ? "Ask Lonelle to recover her scarf" : "Return to Lonelle for the quest scarf";
   } else if (guiding && state.status === "taken" && pathname === "/" && !state.scarfEquipped) {
-    const closet = document.querySelector<HTMLElement>('[data-testid="button-action-equip-accessories"]');
-    target = visible(closet) ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-actions"]';
-    instruction = visible(closet) ? "Open your pet's Closet" : "Tap your pet";
-    focus = visible(closet) ? "control" : "pet";
+    target = actionMenuOpen ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-actions"]';
+    instruction = actionMenuOpen ? "Open your pet's Closet" : "Tap your pet";
+    focus = actionMenuOpen ? "control" : "pet";
   } else if (guiding && state.status === "taken" && pathname === "/equip-accessories") {
     if (state.scarfEquipped) { target = '[data-testid="button-close-equip-accessories"]'; instruction = "Close the Closet"; }
     else if (visible(document.querySelector<HTMLElement>('[data-testid="button-confirm-unequip-adornment"]'))) {
@@ -182,10 +191,10 @@ export default function LonelleQuestOverlay() {
 
   return <>
     <style>{`@media (prefers-reduced-motion: reduce) { [data-testid="lonelle-quest-badge"] { animation: none !important; } }`}</style>
-    {mount && createPortal(<button type="button" data-testid="button-talk-lonelle" aria-label="Talk to Lonelle" onPointerDown={event => event.stopPropagation()}
+    {mount && state.status !== "claimed" && createPortal(<button type="button" data-testid="button-talk-lonelle" aria-label="Talk to Lonelle" onPointerDown={event => event.stopPropagation()}
       onClick={event => { event.preventDefault(); event.stopPropagation(); setMessage(null); setDialogOpen(true); }}
       style={{ position: "absolute", inset: "4%", zIndex: 33, border: 0, background: "transparent", cursor: "pointer", touchAction: "manipulation" }}>
-      {state.status !== "claimed" && <span data-testid="lonelle-quest-badge" aria-hidden="true" className="absolute left-1/2 -top-2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[#ffe082] bg-[#465a33] text-2xl font-bold text-[#fff4c7] shadow-[0_0_18px_#e9ce6b] animate-pulse">!</span>}
+      <span data-testid="lonelle-quest-badge" aria-hidden="true" className="absolute left-1/2 -top-2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[#ffe082] bg-[#465a33] text-2xl font-bold text-[#fff4c7] shadow-[0_0_18px_#e9ce6b] animate-pulse">!</span>
     </button>, mount)}
     {questLogMount && state.status !== "claimed" && createPortal(<div data-testid="quest-card-lonelle" className="rounded-lg border border-[#a17a37]/50 bg-[#694b25]/10 p-2 font-fantasy text-[#482912]">
       <div className="flex items-center justify-between gap-2"><strong className="text-xs">Lost Adornment · Lonelle</strong><button type="button" className="rounded bg-[#315d37] px-2 py-1 text-[10px] text-white" onClick={() => pathname === WORLD ? setDialogOpen(true) : navigate(WORLD)}>GO</button></div>

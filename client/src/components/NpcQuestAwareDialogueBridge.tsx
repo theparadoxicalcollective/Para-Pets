@@ -29,6 +29,7 @@ interface WorldLocationRow {
 
 const NPC_CATALOG_WORLD = "__npc_catalog__";
 const GINNY_QUEST_KEY = "ginny_mini_pet_companion";
+const LONELLE_QUEST_KEY = "lonelle_lost_adornment";
 
 function currentWorldId(): string {
   return window.location.pathname.match(/^\/world\/([^/]+)/)?.[1] ?? "";
@@ -47,6 +48,7 @@ export default function NpcQuestAwareDialogueBridge() {
   const [locations, setLocations] = useState<WorldLocationRow[]>([]);
   const [catalog, setCatalog] = useState<NpcCatalogRow[]>([]);
   const [ginnyStatus, setGinnyStatus] = useState<GinnyQuestStatus | null>(null);
+  const [lonelleStatus, setLonelleStatus] = useState<string | null>(null);
   const [mounts, setMounts] = useState<Record<string, HTMLElement>>({});
   const [spokenMessages, setSpokenMessages] = useState<Record<string, string>>({});
   const speechTimeouts = useRef<Record<string, number>>({});
@@ -72,6 +74,7 @@ export default function NpcQuestAwareDialogueBridge() {
       setLocations([]);
       setCatalog([]);
       setGinnyStatus(null);
+      setLonelleStatus(null);
       return;
     }
 
@@ -99,6 +102,18 @@ export default function NpcQuestAwareDialogueBridge() {
       setGinnyStatus(null);
     }
 
+    if (worldId === "swamp") {
+      const refreshLonelle = () => {
+        void fetch("/api/quests/lonelle-lost-adornment", { credentials: "include", cache: "no-store" })
+          .then(response => response.ok ? response.json() : null)
+          .then(state => { if (!cancelled) setLonelleStatus(state?.status ?? null); })
+          .catch(() => { if (!cancelled) setLonelleStatus(null); });
+      };
+      refreshLonelle();
+      const timer = window.setInterval(refreshLonelle, 5_000);
+      return () => { cancelled = true; window.clearInterval(timer); };
+    }
+    setLonelleStatus(null);
     return () => { cancelled = true; };
   }, [worldId]);
 
@@ -143,18 +158,17 @@ export default function NpcQuestAwareDialogueBridge() {
   const eligible = useMemo(() => locations.flatMap(location => {
     if (location.type !== "npc") return [];
     const quests = getNpcQuestAssociations(location.name, location.worldId);
-    if (!quests.some(quest => quest.key === GINNY_QUEST_KEY)) return [];
-
-    // available/accepted/completed still have an actionable quest interaction.
-    // claimed means the one-time quest is over, so normal configured NPC
-    // dialogue becomes the interaction again.
-    if (ginnyStatus !== "claimed") return [];
+    const ginnyFinished = quests.some(quest => quest.key === GINNY_QUEST_KEY) && ginnyStatus === "claimed";
+    const lonelleFinished = quests.some(quest => quest.key === LONELLE_QUEST_KEY) && lonelleStatus === "claimed";
+    // Preserve the quest click while a chapter is actionable. After its reward
+    // is claimed, use the same configured speech bubble as other NPCs.
+    if (!ginnyFinished && !lonelleFinished) return [];
 
     const catalogNpc = catalog.find(npc => npcNamesMatch(npc.name, location.name));
     const metadata = parseNpcMetadata(catalogNpc?.specialSkill ?? location.description);
     if (metadata.messages.length === 0) return [];
     return [{ location, messages: metadata.messages }];
-  }), [catalog, ginnyStatus, locations]);
+  }), [catalog, ginnyStatus, lonelleStatus, locations]);
 
   useEffect(() => {
     if (!isAdmin || eligible.length === 0) return;
