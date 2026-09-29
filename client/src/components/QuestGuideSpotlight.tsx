@@ -27,6 +27,12 @@ function visible(element: HTMLElement | null): element is HTMLElement {
   return true;
 }
 
+const BLOCKING_OVERLAY_SELECTOR = '[aria-modal="true"], [data-quest-guide-blocker="true"]';
+
+function hasBlockingOverlay(): boolean {
+  return Array.from(document.querySelectorAll<HTMLElement>(BLOCKING_OVERLAY_SELECTOR)).some(visible);
+}
+
 function swallow(event: Event) {
   if (event.cancelable) event.preventDefault();
   event.stopPropagation();
@@ -68,6 +74,7 @@ export default function QuestGuideSpotlight({
   useEffect(() => {
     if (!selector) { setTargetRect(null); return; }
     const update = () => {
+      if (hasBlockingOverlay()) { setTargetRect(null); return; }
       const node = document.querySelector<HTMLElement>(selector);
       setTargetRect(visible(node) ? { selector, rect: node.getBoundingClientRect() } : null);
     };
@@ -93,7 +100,7 @@ export default function QuestGuideSpotlight({
       if (element.closest(selector)) return true;
       return allowed.some(candidate => element.closest(candidate));
     };
-    const targetReady = () => visible(document.querySelector<HTMLElement>(selector));
+    const targetReady = () => !hasBlockingOverlay() && visible(document.querySelector<HTMLElement>(selector));
 
     const onPointerBoundary = (event: PointerEvent) => {
       if (!targetReady() || insideAllowed(event)) return;
@@ -119,7 +126,7 @@ export default function QuestGuideSpotlight({
     };
   }, [selector, mode, allowedKey]);
 
-  if (!selector) return null;
+  if (!selector || hasBlockingOverlay()) return null;
   const rect = targetRect?.selector === selector ? targetRect.rect : null;
   if (!rect) return null;
 
@@ -140,9 +147,12 @@ export default function QuestGuideSpotlight({
   } : null;
 
   const worldDestination = mode === "pan" && selector.startsWith('[data-testid="location-') ? selector : null;
+  const mapDestination = mode === "pan" && selector.startsWith('[data-testid="button-location-') ? selector : null;
+  const panDestination = worldDestination ?? mapDestination;
+  const panNodePrefix = worldDestination ? "location-" : mapDestination ? "button-location-" : null;
 
   return createPortal(<>
-    {worldDestination && <style>{`[data-quest-guide-pan-surface] [data-testid^="location-"]:not(${worldDestination}), [data-quest-guide-pan-surface] [data-testid^="location-"]:not(${worldDestination}) * { pointer-events: none !important; }`}</style>}
+    {panDestination && panNodePrefix && <style>{`[data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}), [data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}) * { pointer-events: none !important; }`}</style>}
     <div
       data-testid={testId}
       role={mode === "tour" ? "button" : undefined}
