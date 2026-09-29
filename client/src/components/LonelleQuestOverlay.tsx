@@ -194,7 +194,7 @@ export default function LonelleQuestOverlay() {
     {mount && state.status !== "claimed" && createPortal(<button type="button" data-testid="button-talk-lonelle" aria-label="Talk to Lonelle" onPointerDown={event => event.stopPropagation()}
       onClick={event => { event.preventDefault(); event.stopPropagation(); setMessage(null); setDialogOpen(true); }}
       style={{ position: "absolute", inset: "4%", zIndex: 33, border: 0, background: "transparent", cursor: "pointer", touchAction: "manipulation" }}>
-      {state.status !== "claimed" && <span data-testid="lonelle-quest-badge" aria-hidden="true" className="absolute left-1/2 -top-2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[#ffe082] bg-[#465a33] text-2xl font-bold text-[#fff4c7] shadow-[0_0_18px_#e9ce6b] animate-pulse">!</span>}
+      {<span data-testid="lonelle-quest-badge" aria-hidden="true" className="absolute left-1/2 -top-2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[#ffe082] bg-[#465a33] text-2xl font-bold text-[#fff4c7] shadow-[0_0_18px_#e9ce6b] animate-pulse">!</span>}
     </button>, mount)}
     {questLogMount && state.status !== "claimed" && createPortal(<div data-testid="quest-card-lonelle" className="rounded-lg border border-[#a17a37]/50 bg-[#694b25]/10 p-2 font-fantasy text-[#482912]">
       <div className="flex items-center justify-between gap-2"><strong className="text-xs">Lost Adornment · Lonelle</strong><button type="button" className="rounded bg-[#315d37] px-2 py-1 text-[10px] text-white" onClick={() => pathname === WORLD ? setDialogOpen(true) : navigate(WORLD)}>GO</button></div>
