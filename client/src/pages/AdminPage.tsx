@@ -191,7 +191,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "emblems"       as const, label: "Emblems",         icon: adminIconBadges,        desc: "PvP rank trophies",            color: "#fda4af", glow: "rgba(253,164,175,0.30)",  bg: "linear-gradient(145deg, rgba(80,12,24,0.92) 0%, rgba(110,20,36,0.88) 100%)",  border: "rgba(253,164,175,0.45)" },
     { key: "home_bundle"   as const, label: "Home Bundle",     icon: adminIconHouseBundle,   desc: "Decor & bundles",              color: "#fbbf24", glow: "rgba(251,191,36,0.30)",   bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)",    border: "rgba(251,191,36,0.45)" },
     { key: "items"         as const, label: "Items",           icon: adminIconItems,         desc: "Items & fishing supplies",     color: "#5eead4", glow: "rgba(94,234,212,0.30)",   bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)",   border: "rgba(94,234,212,0.45)"  },
-    { key: "maintenance"   as const, label: "Maintenance",     icon: adminIconMaintenance,   desc: "DB cleanup tools",             color: "#e879f9", glow: "rgba(232,121,249,0.30)",  bg: "linear-gradient(145deg, rgba(60,8,60,0.92) 0%, rgba(90,12,90,0.88) 100%)",   border: "rgba(232,121,249,0.45)" },
+    { key: "maintenance"   as const, label: "Maintenance",     icon: adminIconMaintenance,   desc: "Realm health and repair tools",             color: "#e879f9", glow: "rgba(232,121,249,0.30)",  bg: "linear-gradient(145deg, rgba(60,8,60,0.92) 0%, rgba(90,12,90,0.88) 100%)",   border: "rgba(232,121,249,0.45)" },
     { key: "members"       as const, label: "Members",         icon: adminIconMembers,       desc: "Manage players", count: members.length, color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
     { key: "messages"      as const, label: "Messages",        icon: adminIconMessages,      desc: "Support inbox",  count: unreadSupportCount || undefined, color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "metrics"       as const, label: "Metrics",         icon: adminIconPurchases,     desc: "Player login analytics",       color: "#7dd3fc", glow: "rgba(125,211,252,0.30)",  bg: "linear-gradient(145deg, rgba(8,36,60,0.92) 0%, rgba(12,56,90,0.88) 100%)",   border: "rgba(125,211,252,0.45)" },
@@ -2791,39 +2791,9 @@ function MaintenanceSection() {
   const [loadingCrash, setLoadingCrash] = useState(false);
   const [clearingCrash, setClearingCrash] = useState(false);
   const [crashExpanded, setCrashExpanded] = useState<number | null>(null);
-  const [selectedModeratorId, setSelectedModeratorId] = useState("");
-  const [selectedModeratorQuestKey, setSelectedModeratorQuestKey] = useState("");
-
-  const { data: moderatorQuestData, isLoading: moderatorQuestLoading } = useQuery<{
-    moderators: Array<{ id: string; username: string }>;
-    quests: Array<{ key: string; title: string; kind: "tutorial" | "story" | "daily"; isActive: boolean }>;
-  }>({
-    queryKey: ["/api/admin/moderator-quests"],
-  });
-
-  const resetModeratorQuestMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/moderator-quests/reset", {
-        moderatorUserId: selectedModeratorId,
-        questKey: selectedModeratorQuestKey,
-      });
-      return res.json();
-    },
-    onSuccess: (data: { message?: string }) => {
-      toast({
-        title: "Moderator quest reset",
-        description: data.message ?? "The quest will restart in the moderator's active or next game session.",
-      });
-      setSelectedModeratorQuestKey("");
-    },
-    onError: (err: any) => {
-      toast({
-        title: "Quest reset failed",
-        description: err.message || "The moderator quest could not be reset.",
-        variant: "destructive",
-      });
-    },
-  });
+  const [crashError, setCrashError] = useState<string | null>(null);
+  const [crashFilter, setCrashFilter] = useState<"all" | "crash" | "unhandled" | "error">("all");
+  const [crashSearch, setCrashSearch] = useState("");
 
   const fetchCrashLog = async () => {
     setLoadingCrash(true);
@@ -2832,7 +2802,9 @@ function MaintenanceSection() {
       const data = await res.json();
       setCrashLog(data.entries ?? []);
       setCrashTotal(data.total ?? 0);
+      setCrashError(null);
     } catch (err: any) {
+      setCrashError(err.message || "Crash log unavailable");
       toast({ title: "Failed to load crash log", description: err.message, variant: "destructive" });
     } finally {
       setLoadingCrash(false);
@@ -2840,11 +2812,13 @@ function MaintenanceSection() {
   };
 
   const clearCrashLog = async () => {
+    if (!window.confirm("Clear all client errors from this server? This cannot be undone.")) return;
     setClearingCrash(true);
     try {
       await apiRequest("DELETE", "/api/admin/client-errors");
       setCrashLog([]);
       setCrashTotal(0);
+      void refreshDiagnostics();
       toast({ title: "Crash log cleared" });
     } catch (err: any) {
       toast({ title: "Clear failed", description: err.message, variant: "destructive" });
@@ -2855,11 +2829,17 @@ function MaintenanceSection() {
 
   useEffect(() => { fetchCrashLog(); }, []);
 
-  const { data: maintenanceData, isLoading: maintenanceLoading } = useQuery<{ maintenance: boolean }>({
-    queryKey: ["/api/maintenance-status"],
-    staleTime: 10 * 1000,
+  const { data: diagnostics, isLoading: maintenanceLoading, isError: diagnosticsError, refetch: refreshDiagnostics } = useQuery<{
+    maintenance: boolean; database: "online"; uptimeSeconds: number; serverTime: string;
+    clientErrors: number; clientErrorLimit: number;
+  }>({
+    queryKey: ["/api/admin/maintenance/diagnostics"],
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+    retry: 1,
   });
-  const maintenanceOn = maintenanceData?.maintenance === true;
+  const maintenanceOn = diagnostics?.maintenance === true;
+  const maintenanceUnavailable = diagnosticsError || !diagnostics;
 
   const toggleMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -2868,10 +2848,14 @@ function MaintenanceSection() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/maintenance-status"], { maintenance: data.maintenance });
+      queryClient.setQueryData(["/api/admin/maintenance/diagnostics"], (previous: typeof diagnostics) =>
+        previous ? { ...previous, maintenance: data.maintenance } : previous
+      );
+      void refreshDiagnostics();
       toast({
         title: data.maintenance ? "Maintenance mode ON" : "Maintenance mode OFF",
         description: data.maintenance
-          ? "Players are now blocked from logging in."
+          ? "Non-admin logins are blocked; active players see the maintenance page."
           : "The realm is open — players can log in again.",
       });
     },
@@ -2881,6 +2865,7 @@ function MaintenanceSection() {
   });
 
   const runCleanup = async () => {
+    if (!window.confirm("Permanently remove orphaned database rows? This can affect inventory and other records whose original item or template no longer exists.")) return;
     setRunning(true);
     setResult(null);
     try {
@@ -2893,6 +2878,12 @@ function MaintenanceSection() {
       setRunning(false);
     }
   };
+
+  const filteredCrashLog = (crashLog ?? []).filter(entry => {
+    if (crashFilter !== "all" && entry.type !== crashFilter) return false;
+    const term = crashSearch.trim().toLowerCase();
+    return !term || [entry.msg, entry.source, entry.url, entry.ua, entry.userId ?? ""].some(value => value.toLowerCase().includes(term));
+  });
 
   return (
     <div className="space-y-5 py-2">
@@ -2925,15 +2916,18 @@ function MaintenanceSection() {
               className="font-fantasy text-[10px] tracking-wider"
               style={{ color: maintenanceOn ? "#7a3030" : "#2a5a3a" }}
             >
-              {maintenanceLoading ? "Checking status..." : maintenanceOn ? "Realm is closed to players" : "Realm is open to all"}
+              {maintenanceLoading ? "Checking status..." : maintenanceUnavailable ? "Status unavailable — retry the health check" : maintenanceOn ? "Login closed; active players see the maintenance page" : "Realm is open to players"}
             </p>
           </div>
 
           {/* Toggle switch */}
           <button
             data-testid="button-toggle-maintenance"
+            type="button"
+            aria-label={maintenanceOn ? "Turn off maintenance mode" : "Turn on maintenance mode"}
+            aria-pressed={maintenanceOn}
             onClick={() => toggleMutation.mutate(!maintenanceOn)}
-            disabled={maintenanceLoading || toggleMutation.isPending}
+            disabled={maintenanceLoading || maintenanceUnavailable || toggleMutation.isPending}
             className="relative flex-shrink-0"
             style={{
               width: 52,
@@ -2944,9 +2938,9 @@ function MaintenanceSection() {
                 : "linear-gradient(135deg, #1a5c38, #27ae60)",
               border: maintenanceOn ? "1px solid rgba(252,165,165,0.5)" : "1px solid rgba(110,231,183,0.5)",
               boxShadow: maintenanceOn ? "0 0 10px rgba(200,50,50,0.3)" : "0 0 10px rgba(39,174,96,0.3)",
-              cursor: (maintenanceLoading || toggleMutation.isPending) ? "not-allowed" : "pointer",
+              cursor: (maintenanceLoading || maintenanceUnavailable || toggleMutation.isPending) ? "not-allowed" : "pointer",
               transition: "all 0.3s ease",
-              opacity: (maintenanceLoading || toggleMutation.isPending) ? 0.5 : 1,
+              opacity: (maintenanceLoading || maintenanceUnavailable || toggleMutation.isPending) ? 0.5 : 1,
             }}
           >
             <div
@@ -2975,119 +2969,32 @@ function MaintenanceSection() {
         )}
       </div>
 
-      {/* ── Moderator Quest Reset ── */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px" style={{ background: "rgba(232,121,249,0.18)" }} />
-        <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#a855b8" }}>Moderator Quest</p>
-        <div className="flex-1 h-px" style={{ background: "rgba(232,121,249,0.18)" }} />
-      </div>
-
-      <div
-        className="rounded-2xl p-4 flex flex-col gap-3"
-        style={{
-          background: "linear-gradient(145deg, rgba(38,8,48,0.92) 0%, rgba(22,6,34,0.96) 100%)",
-          border: "1px solid rgba(232,121,249,0.3)",
-          boxShadow: "0 0 20px rgba(232,121,249,0.06)",
-        }}
-      >
-        <div>
-          <p className="font-fantasy text-sm tracking-wide" style={{ color: "#e879f9" }}>
-            Reset a Moderator Quest
-          </p>
-          <p className="font-fantasy text-[10px] leading-relaxed tracking-wide mt-1" style={{ color: "#8b6a94" }}>
-            Choose a moderator and one quest. Its progress will restart in that moderator's active or next game session.
-            Existing pets, coins, and earned rewards are kept.
-          </p>
+      {/* ── Live diagnostics ── */}
+      <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(10,24,30,.94)", border: "1px solid rgba(110,231,183,.28)" }}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-fantasy text-sm text-emerald-200">Realm Health</h3>
+            <p className="font-fantasy text-[10px] text-emerald-100/70">Live server and database check</p>
+          </div>
+          <button type="button" data-testid="button-refresh-maintenance-health" onClick={() => void refreshDiagnostics()}
+            disabled={maintenanceLoading} className="rounded-lg border border-emerald-300/40 px-3 py-1.5 font-fantasy text-[10px] text-emerald-100 disabled:opacity-50">
+            {maintenanceLoading ? "Checking…" : "Refresh"}
+          </button>
         </div>
-
-        <label className="flex flex-col gap-1">
-          <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084cf" }}>Moderator</span>
-          <select
-            data-testid="select-moderator-quest-user"
-            value={selectedModeratorId}
-            onChange={(event) => {
-              setSelectedModeratorId(event.target.value);
-              setSelectedModeratorQuestKey("");
-            }}
-            disabled={moderatorQuestLoading || resetModeratorQuestMutation.isPending}
-            style={{
-              width: "100%",
-              padding: "9px 10px",
-              borderRadius: 8,
-              background: "rgba(0,0,0,0.45)",
-              border: "1px solid rgba(232,121,249,0.3)",
-              color: "#f4d8f8",
-              fontSize: 12,
-            }}
-          >
-            <option value="">{moderatorQuestLoading ? "Loading moderators…" : "Select a moderator"}</option>
-            {(moderatorQuestData?.moderators ?? []).map((moderator) => (
-              <option key={moderator.id} value={moderator.id}>@{moderator.username}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084cf" }}>Quest</span>
-          <select
-            data-testid="select-moderator-quest"
-            value={selectedModeratorQuestKey}
-            onChange={(event) => setSelectedModeratorQuestKey(event.target.value)}
-            disabled={!selectedModeratorId || moderatorQuestLoading || resetModeratorQuestMutation.isPending}
-            style={{
-              width: "100%",
-              padding: "9px 10px",
-              borderRadius: 8,
-              background: "rgba(0,0,0,0.45)",
-              border: "1px solid rgba(232,121,249,0.3)",
-              color: "#f4d8f8",
-              fontSize: 12,
-            }}
-          >
-            <option value="">Select a quest</option>
-            {(moderatorQuestData?.quests ?? []).map((quest) => (
-              <option key={quest.key} value={quest.key}>
-                {quest.title}{quest.kind === "daily" ? " — Daily" : ""}{!quest.isActive ? " — Inactive" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {(moderatorQuestData?.moderators.length ?? 0) === 0 && !moderatorQuestLoading && (
-          <p className="font-fantasy text-[10px]" style={{ color: "#b98ac2" }}>
-            No users are currently marked as moderators.
-          </p>
-        )}
-
-        <button
-          data-testid="button-reset-moderator-quest"
-          disabled={!selectedModeratorId || !selectedModeratorQuestKey || resetModeratorQuestMutation.isPending}
-          onClick={() => {
-            const moderator = moderatorQuestData?.moderators.find((entry) => entry.id === selectedModeratorId);
-            const quest = moderatorQuestData?.quests.find((entry) => entry.key === selectedModeratorQuestKey);
-            if (!moderator || !quest) return;
-            if (window.confirm(`Reset "${quest.title}" for @${moderator.username}?`)) {
-              resetModeratorQuestMutation.mutate();
-            }
-          }}
-          className="font-fantasy text-[11px] tracking-wider disabled:opacity-40"
-          style={{
-            padding: "10px 14px",
-            borderRadius: 9,
-            background: "linear-gradient(135deg, rgba(168,85,247,0.35), rgba(126,34,206,0.25))",
-            border: "1px solid rgba(232,121,249,0.45)",
-            color: "#f0b8f8",
-            cursor: (!selectedModeratorId || !selectedModeratorQuestKey || resetModeratorQuestMutation.isPending) ? "not-allowed" : "pointer",
-          }}
-        >
-          {resetModeratorQuestMutation.isPending ? "Resetting…" : "Reset Quest"}
-        </button>
+        {diagnosticsError ? <p role="alert" className="font-fantasy text-xs text-red-200">Health check unavailable. Maintenance controls are paused until the server responds.</p>
+          : maintenanceLoading && !diagnostics ? <p className="font-fantasy text-xs text-emerald-100/70">Checking realm health…</p>
+          : diagnostics && <div className="grid grid-cols-2 gap-2 font-fantasy text-[11px]">
+            <div className="rounded-lg bg-black/30 p-2"><span className="block text-emerald-100/70">Database</span><strong className="text-emerald-200">Connected</strong></div>
+            <div className="rounded-lg bg-black/30 p-2"><span className="block text-emerald-100/70">Server uptime</span><strong className="text-emerald-200">{Math.floor(diagnostics.uptimeSeconds / 3600)}h {Math.floor((diagnostics.uptimeSeconds % 3600) / 60)}m</strong></div>
+            <div className="rounded-lg bg-black/30 p-2"><span className="block text-emerald-100/70">Client errors</span><strong className={diagnostics.clientErrors ? "text-amber-200" : "text-emerald-200"}>{diagnostics.clientErrors} / {diagnostics.clientErrorLimit} stored</strong></div>
+            <div className="rounded-lg bg-black/30 p-2"><span className="block text-emerald-100/70">Checked</span><strong className="text-emerald-200">{new Date(diagnostics.serverTime).toLocaleTimeString()}</strong></div>
+          </div>}
       </div>
 
       {/* ── Divider ── */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
-        <p className="font-fantasy text-[10px] text-[#4a3a28] tracking-wider">Database Tools</p>
+        <p className="font-fantasy text-[10px] text-[#4a3a28] tracking-wider">Client Errors</p>
         <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
       </div>
 
@@ -3140,6 +3047,8 @@ function MaintenanceSection() {
           </div>
         </div>
 
+        {crashError && <div role="alert" className="mx-3 mb-3 rounded-lg border border-red-300/30 bg-red-950/50 p-3 font-fantasy text-[11px] text-red-200">Crash log unavailable: {crashError}. Use Refresh to retry.</div>}
+
         {/* Summary count */}
         {crashLog !== null && (
           <div className="px-4 pb-2 flex items-center gap-2">
@@ -3164,6 +3073,18 @@ function MaintenanceSection() {
           </div>
         )}
 
+        {crashLog !== null && crashLog.length > 0 && <div className="mx-3 mb-3 flex flex-wrap gap-2">
+          <select data-testid="select-crash-type" aria-label="Filter client errors by type" value={crashFilter}
+            onChange={event => setCrashFilter(event.target.value as typeof crashFilter)}
+            className="rounded-lg border border-red-200/30 bg-[#180e1c] px-2 py-1.5 font-fantasy text-[11px] text-red-100">
+            <option value="all">All types</option><option value="crash">Crashes</option><option value="unhandled">Unhandled</option><option value="error">Window errors</option>
+          </select>
+          <input data-testid="input-search-crash-log" aria-label="Search client errors" value={crashSearch}
+            onChange={event => setCrashSearch(event.target.value)} placeholder="Search errors, page, user…"
+            className="min-w-0 flex-1 rounded-lg border border-red-200/30 bg-[#180e1c] px-2 py-1.5 font-fantasy text-[11px] text-red-100 placeholder:text-red-100/50" />
+          <span className="self-center font-fantasy text-[10px] text-red-100/70">{filteredCrashLog.length} shown</span>
+        </div>}
+
         {/* Entry list */}
         {loadingCrash && (
           <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-3"
@@ -3174,9 +3095,9 @@ function MaintenanceSection() {
           </div>
         )}
 
-        {!loadingCrash && crashLog !== null && crashLog.length > 0 && (
+        {!loadingCrash && crashLog !== null && filteredCrashLog.length > 0 && (
           <div className="mx-3 mb-3 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(248,113,113,0.12)", maxHeight: 320, overflowY: "auto" }}>
-            {crashLog.map((entry, idx) => {
+            {filteredCrashLog.map((entry, idx) => {
               const typeColor = entry.type === "crash" ? { bg: "rgba(248,113,113,0.12)", badge: "#fca5a5", badgeBg: "rgba(248,113,113,0.2)", label: "CRASH" }
                 : entry.type === "unhandled" ? { bg: "rgba(251,191,36,0.08)", badge: "#fbbf24", badgeBg: "rgba(251,191,36,0.18)", label: "UNHANDLED" }
                 : { bg: "rgba(253,224,71,0.06)", badge: "#fde047", badgeBg: "rgba(253,224,71,0.14)", label: "ERROR" };
@@ -3202,7 +3123,7 @@ function MaintenanceSection() {
                   key={entry.id}
                   style={{
                     background: typeColor.bg,
-                    borderBottom: idx < crashLog.length - 1 ? "1px solid rgba(248,113,113,0.08)" : "none",
+                    borderBottom: idx < filteredCrashLog.length - 1 ? "1px solid rgba(248,113,113,0.08)" : "none",
                   }}
                 >
                   {/* Collapsed row */}
@@ -3266,6 +3187,10 @@ function MaintenanceSection() {
           </div>
         )}
 
+        {!loadingCrash && crashLog !== null && crashLog.length > 0 && filteredCrashLog.length === 0 && (
+          <p className="mx-3 mb-3 font-fantasy text-[11px] text-red-100/70">No errors match these filters.</p>
+        )}
+
         {!loadingCrash && crashLog !== null && crashLog.length === 0 && (
           <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-2"
             style={{ background: "rgba(8,40,24,0.6)", border: "1px solid rgba(110,231,183,0.2)" }}
@@ -3297,7 +3222,7 @@ function MaintenanceSection() {
             Orphaned Row Cleanup
           </p>
           <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#5a3a50" }}>
-            Removes rows left behind when items, bundles, or templates were deleted
+            Permanently removes references to deleted items, locations, and templates. Review before running.
           </p>
         </div>
 

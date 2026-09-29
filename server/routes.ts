@@ -937,6 +937,28 @@ export async function registerRoutes(
     }
   });
 
+  // Read directly from storage so the admin sees the authoritative state, even
+  // when the public status cache has not refreshed yet.
+  app.get("/api/admin/maintenance/diagnostics", isAdmin, async (_req, res) => {
+    try {
+      const [maintenance] = await Promise.all([
+        storage.getGameSetting("maintenance_mode"),
+        db.execute(sql`SELECT 1`),
+      ]);
+      return res.json({
+        maintenance: maintenance === "true",
+        database: "online",
+        uptimeSeconds: Math.floor(process.uptime()),
+        serverTime: new Date().toISOString(),
+        clientErrors: _clientErrorLog.length,
+        clientErrorLimit: CE_MAX,
+      });
+    } catch (err) {
+      console.error("Maintenance diagnostics error:", err);
+      return res.status(503).json({ message: "Maintenance diagnostics are unavailable" });
+    }
+  });
+
   // ── Public: check raid visibility ─────────────────────────────────────────
   let _raidCache: { value: boolean; at: number } | null = null;
   app.get("/api/raid-status", async (_req, res) => {
