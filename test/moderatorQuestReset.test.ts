@@ -37,14 +37,12 @@ test("each reset clears only the selected quest progress", () => {
   assert.doesNotMatch(resetHandler, /(?:coins|total_coins_earned)\s*=/);
 });
 
-test("maintenance UI exposes both dropdowns and login reconciles a tutorial reset", () => {
+test("maintenance UI omits moderator quest resets while login still reconciles a tutorial reset", () => {
   const adminPage = fs.readFileSync("client/src/pages/AdminPage.tsx", "utf8");
   const app = fs.readFileSync("client/src/App.tsx", "utf8");
 
-  assert.match(adminPage, /data-testid="select-moderator-quest-user"/);
-  assert.match(adminPage, /data-testid="select-moderator-quest"/);
-  assert.match(adminPage, /data-testid="button-reset-moderator-quest"/);
-  assert.match(adminPage, /Existing pets, coins, and earned rewards are kept/);
+  assert.doesNotMatch(adminPage, /data-testid="select-moderator-quest-user"/);
+  assert.doesNotMatch(adminPage, /data-testid="button-reset-moderator-quest"/);
 
   assert.match(app, /tutorial_quest_completed/);
   assert.match(app, /bjGetStatus\(\) === "done"/);
