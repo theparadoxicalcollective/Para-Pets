@@ -99,6 +99,7 @@ export default function QuestGuideSpotlight({
       if (!targetReady() || insideAllowed(event)) return;
       if (mode === "pan") {
         const element = event.target instanceof Element ? event.target : null;
+        if (element?.closest("[data-quest-guide-pan-surface]")) return;
         if (!element?.closest(INTERACTIVE_SELECTOR)) return;
       }
       swallow(event);
@@ -127,12 +128,16 @@ export default function QuestGuideSpotlight({
   const targetOnScreen = guideTargetOnScreen(bounds, surface.width, surface.height);
   const spotlight = targetOnScreen ? guideSpotlightCircle(bounds, surface.width, surface.height, focus) : null;
   const radius = spotlight ? spotlight.size / 2 + 10 : 0;
-  const overlayAlpha = mode === "pan" && !targetOnScreen ? 0.56 : 0.74;
+  const overlayAlpha = mode === "pan" ? (targetOnScreen ? 0.54 : 0.46) : 0.74;
   const position = surface.inStage ? "absolute" : "fixed";
   const background = spotlight
     ? `radial-gradient(circle ${radius}px at ${spotlight.x}px ${spotlight.y}px, transparent ${radius}px, rgba(0,0,0,${overlayAlpha}) ${radius + 1}px)`
     : `rgba(0,0,0,${overlayAlpha})`;
-  const hint = mode === "pan" && !targetOnScreen && label ? `Drag to find your destination: ${label}` : label;
+  const hint = mode === "pan" && !targetOnScreen && label ? `Swipe the world to find it · ${label}` : label;
+  const edgeCue = mode === "pan" && !targetOnScreen ? {
+    x: Math.min(surface.width - 40, Math.max(40, (bounds.left + bounds.right) / 2)),
+    y: Math.min(surface.height - 65, Math.max(130, (bounds.top + bounds.bottom) / 2)),
+  } : null;
 
   return createPortal(<>
     <div
@@ -156,6 +161,10 @@ export default function QuestGuideSpotlight({
         }
       } : undefined}
     />
+    {edgeCue && <div aria-hidden="true" className={`${position} pointer-events-none rounded-full border-[3px] border-[#ffe082] bg-[#193b25]/80`} style={{
+      zIndex: baseZ + 1, left: edgeCue.x, top: edgeCue.y, width: 64, height: 64,
+      transform: "translate(-50%,-50%)", boxShadow: "0 0 22px #ffd66b, inset 0 0 14px #f5cb69",
+    }}><span className="grid h-full w-full place-items-center text-3xl text-[#ffe082]">✦</span></div>}
     {spotlight && <span aria-hidden="true" className={`${position} pointer-events-none rounded-full border-[3px] border-[#ffe082]`} style={{
       zIndex: baseZ + 1,
       left: spotlight.x,
