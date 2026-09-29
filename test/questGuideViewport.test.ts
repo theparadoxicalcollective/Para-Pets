@@ -60,6 +60,9 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   assert.match(spotlightSource, /element\?\.closest\(INTERACTIVE_SELECTOR\)/);
   assert.match(spotlightSource, /pointerEvents: mode === "tour" \? "auto" : "none"/);
   assert.match(spotlightSource, /radial-gradient\(circle/);
+  assert.match(spotlightSource, /\[aria-modal="true"\], \[data-quest-guide-blocker="true"\]/);
+  assert.match(spotlightSource, /selector\.startsWith\('\[data-testid="button-location-'/);
+  assert.match(spotlightSource, /panNodePrefix/);
 
   const lonelleSource = readFileSync("client/src/components/LonelleQuestOverlay.tsx", "utf8");
   assert.match(lonelleSource, /<QuestGuideSpotlight/);
@@ -69,4 +72,9 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   assert.match(npcSource, /targetOnScreen && npcElement \? "tour"/);
   assert.match(npcSource, /: atMap \? "pan"/);
   assert.match(npcSource, /button-skip-npc-guide/);
+  assert.match(npcSource, /blockingOverlay/);
+
+  const appSource = readFileSync("client/src/App.tsx", "utf8");
+  assert.match(appSource, /data-testid="modal-haunted-world-welcome"/);
+  assert.match(appSource, /data-quest-guide-blocker="true"/);
 });
