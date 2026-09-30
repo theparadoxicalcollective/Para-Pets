@@ -20,6 +20,9 @@ import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldSh
 import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
 import { WORLD_IDS, getWorldDefinition, isWorldOpenToPlayers, type WorldId } from "@shared/worlds/worldRegistry";
+import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
+import { VOLCANIC_PRESENTATION } from "@/worlds/volcanic/presentation";
+import { getVolcanicLocationDestination } from "@/worlds/volcanic/destinations";
 import { HAUNTED_WOODS_PRESENTATION } from "@/worlds/haunted-woods/presentation";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
@@ -38,7 +41,6 @@ const mixingTreeTitle = "/mixing-tree-title.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
-import shopVolcanic from "@assets/shop_volcanic.png";
 import shopIsland from "@assets/shop_island.png";
 import shopDesert from "@assets/shop_desert.png";
 import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
@@ -73,7 +75,7 @@ function seededRand(seed: string, n: number): number {
 const WORLD_PRESENTATION: Readonly<Partial<Record<WorldId, { shopIcon: string; accent: string; bgGradient: string }>>> = {
   [WORLD_IDS.frostpeak]: { shopIcon: shopFrostpeak, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
   [WORLD_IDS.skyRealm]: { shopIcon: shopSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
-  [WORLD_IDS.volcanic]: { shopIcon: shopVolcanic, accent: "#ff4500", bgGradient: "linear-gradient(180deg, rgba(40,10,5,0.7) 0%, rgba(80,20,10,0.3) 50%, rgba(20,5,2,0.7) 100%)" },
+  [WORLD_IDS.volcanic]: VOLCANIC_PRESENTATION,
   [WORLD_IDS.lostIsland]: { shopIcon: shopIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
   [WORLD_IDS.scorchedDesert]: { shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
   [WORLD_IDS.enchantedGrove]: { shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
@@ -400,7 +402,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     new URLSearchParams(window.location.search).get("shopHint")
   );
   const [showMoltenHint, setShowMoltenHint] = useState(() =>
-    worldId === "volcanic" && new URLSearchParams(window.location.search).get("moltenHint") === "1"
+    worldId === VOLCANIC_WORLD_ID && new URLSearchParams(window.location.search).get("moltenHint") === "1"
   );
   const [showBarrelHint, setShowBarrelHint] = useState(() =>
     worldId === "swamp" && new URLSearchParams(window.location.search).get("barrelHint") === "1"
@@ -1454,21 +1456,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
-    // The Molten Bastion launches the Molten Blocks mini-game instead of a
-    // generic scenic view. Detect by stable seeded ID so renames don't break it.
-    if (loc.id === "c3d4e5f6-0005-4000-8000-000000000005") {
-      navigate("/games/molten-blocks");
+    const volcanicDestination = getVolcanicLocationDestination(loc.id);
+    if (volcanicDestination?.kind === "route") {
+      navigate(volcanicDestination.route);
       return;
     }
-    // Lava Crawl — launches the side-scrolling platformer mini-game.
-    if (loc.id === "c3d4e5f6-0009-4000-8000-000000000009") {
-      navigate("/games/lava-crawl");
-      return;
-    }
-    // The Ember Kitchen will host the cooking mini-game (still in development).
-    // Until it ships, tapping shows a "coming soon" notice instead of shop/scenic UI.
-    if (loc.id === "c3d4e5f6-0007-4000-8000-000000000007") {
-      toast({ title: "Coming soon!", description: "The cooking mini-game is being prepared." });
+    if (volcanicDestination?.kind === "notice") {
+      toast({
+        title: volcanicDestination.title,
+        description: volcanicDestination.description,
+      });
       return;
     }
     // Soul Pond — future mini-game placeholder: just open the scenic background for now.
@@ -2026,7 +2023,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
 
             {/* Fish Barrel */}
-            {fishBarrel && worldId !== "volcanic" && (() => {
+            {fishBarrel && worldId !== VOLCANIC_WORLD_ID && (() => {
               const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
               const sz = fishBarrel.size;
               return (
@@ -2174,8 +2171,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               })()}
 
               {/* ── Molten Blocks hint arrow — ?moltenHint=1 from quest Go button ── */}
-              {showMoltenHint && worldId === "volcanic" && (() => {
-                const moltenLoc = locations.find(l => l.id === "c3d4e5f6-0005-4000-8000-000000000005");
+              {showMoltenHint && worldId === VOLCANIC_WORLD_ID && (() => {
+                const moltenLoc = locations.find(l => l.id === VOLCANIC_LOCATION_IDS.moltenBastion);
                 if (!moltenLoc) return null;
                 const sz = (moltenLoc as any).iconSize || 120;
                 const cx = `calc(${moltenLoc.posX}% + ${sz / 2}px)`;
