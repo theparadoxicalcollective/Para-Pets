@@ -96,8 +96,15 @@ test("rendered map width controls fit instead of the legacy 1080px fallback", ()
   ));
 });
 
-test("WorldPage passes its actual rendered MAP_W into both fit and clamp helpers", () => {
+test("production build width flows through WorldPage into both fit and clamp helpers", () => {
   const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+  const vite = readFileSync("vite.config.ts", "utf8");
+
+  assert.match(vite, /const WORLD_MAP_DESIGN_W = 924/);
+  assert.match(
+    vite,
+    /\/const MAP_W = WORLD_MAP_WIDTH;\/,[\s\S]*?const MAP_W = \\?\$\{WORLD_MAP_DESIGN_W\}/,
+  );
 
   assert.match(
     source,
