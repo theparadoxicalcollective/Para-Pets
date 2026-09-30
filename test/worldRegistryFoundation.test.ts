@@ -80,7 +80,8 @@ test("client presentation remains separate from shared world identity", () => {
   const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
   assert.match(source, /const WORLD_PRESENTATION/);
   assert.match(source, /shopIcon: shopSwamp/);
-  assert.match(source, /shopIcon: shopVolcanic/);
+  assert.match(source, /VOLCANIC_PRESENTATION/);
+  assert.match(source, /\[WORLD_IDS\.volcanic\]: VOLCANIC_PRESENTATION/);
   assert.match(source, /HAUNTED_WOODS_PRESENTATION/);
   assert.match(source, /\[WORLD_IDS\.hauntedWoods\]: HAUNTED_WOODS_PRESENTATION/);
   assert.match(source, /WORLD_PRESENTATION\[worldDefinition\.id\]/);
