@@ -33,14 +33,16 @@ test("Volcanic client presentation is owned by its world module", () => {
     /linear-gradient\(180deg, rgba\(40,10,5,0\.7\) 0%, rgba\(80,20,10,0\.3\) 50%, rgba\(20,5,2,0\.7\) 100%\)/,
   );
 
+  const clientRegistry = read("client/src/worlds/registry.ts");
   assert.match(
-    worldPage,
+    clientRegistry,
     /import \{ VOLCANIC_PRESENTATION \} from "@\/worlds\/volcanic\/presentation"/,
   );
   assert.match(
-    worldPage,
-    /\[WORLD_IDS\.volcanic\]: VOLCANIC_PRESENTATION/,
+    clientRegistry,
+    /\[WORLD_IDS\.volcanic\]: \{[\s\S]*?presentation: VOLCANIC_PRESENTATION/,
   );
+  assert.doesNotMatch(worldPage, /VOLCANIC_PRESENTATION/);
   assert.doesNotMatch(worldPage, /import shopVolcanic/);
 });
 
@@ -64,17 +66,22 @@ test("Volcanic destination configuration preserves mini-game routes and Ember Ki
 test("WorldPage delegates Volcanic destinations instead of hardcoding their ids", () => {
   const worldPage = read("client/src/pages/WorldPage.tsx");
 
+  const clientRegistry = read("client/src/worlds/registry.ts");
   assert.match(
-    worldPage,
-    /const volcanicDestination = getVolcanicLocationDestination\(loc\.id\)/,
+    clientRegistry,
+    /resolveDestination: getVolcanicLocationDestination/,
   );
   assert.match(
     worldPage,
-    /if \(volcanicDestination\?\.kind === "route"\)[\s\S]*?navigate\(volcanicDestination\.route\)/,
+    /const worldDestination = resolveClientWorldDestination\(worldId, loc\.id\)/,
   );
   assert.match(
     worldPage,
-    /if \(volcanicDestination\?\.kind === "notice"\)[\s\S]*?title: volcanicDestination\.title[\s\S]*?description: volcanicDestination\.description/,
+    /if \(worldDestination\?\.kind === "route"\)[\s\S]*?navigate\(worldDestination\.route\)/,
+  );
+  assert.match(
+    worldPage,
+    /if \(worldDestination\?\.kind === "notice"\)[\s\S]*?title: worldDestination\.title[\s\S]*?description: worldDestination\.description/,
   );
 
   for (const id of Object.values(VOLCANIC_LOCATION_IDS)) {
