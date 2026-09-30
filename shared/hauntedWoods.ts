@@ -1,4 +1,6 @@
-export const HAUNTED_WOODS_WORLD_ID = "haunted_woods";
+import { WORLD_IDS } from "./worlds/worldRegistry";
+
+export const HAUNTED_WOODS_WORLD_ID = WORLD_IDS.hauntedWoods;
 
 export const LEGACY_SOUL_POND_LOCATION_ID = "e2f3a4b5-0003-4000-8000-000000000003";
 
