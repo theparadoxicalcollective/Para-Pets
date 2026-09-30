@@ -77,14 +77,19 @@ test("WorldPage reads identity, access, and authored map height from the shared 
 });
 
 test("client presentation remains separate from shared world identity", () => {
-  const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
-  assert.match(source, /const WORLD_PRESENTATION/);
-  assert.match(source, /shopIcon: shopSwamp/);
-  assert.match(source, /VOLCANIC_PRESENTATION/);
-  assert.match(source, /\[WORLD_IDS\.volcanic\]: VOLCANIC_PRESENTATION/);
-  assert.match(source, /HAUNTED_WOODS_PRESENTATION/);
-  assert.match(source, /\[WORLD_IDS\.hauntedWoods\]: HAUNTED_WOODS_PRESENTATION/);
-  assert.match(source, /WORLD_PRESENTATION\[worldDefinition\.id\]/);
+  const worldPage = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+  const clientRegistry = readFileSync("client/src/worlds/registry.ts", "utf8");
+
+  assert.match(worldPage, /getClientWorldModule\(worldId\)/);
+  assert.match(worldPage, /clientWorldModule\?\.presentation/);
+  assert.doesNotMatch(worldPage, /const WORLD_PRESENTATION/);
+  assert.doesNotMatch(worldPage, /shopIcon: shopSwamp/);
+
+  assert.match(clientRegistry, /VOLCANIC_PRESENTATION/);
+  assert.match(clientRegistry, /HAUNTED_WOODS_PRESENTATION/);
+  assert.match(clientRegistry, /\[WORLD_IDS\.volcanic\]/);
+  assert.match(clientRegistry, /\[WORLD_IDS\.hauntedWoods\]/);
+  assert.match(clientRegistry, /shopSwamp/);
 });
 
 test("server world foundations reuse registry ids without changing their world-specific behavior", () => {
