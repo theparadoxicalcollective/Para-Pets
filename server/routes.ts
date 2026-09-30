@@ -65,7 +65,7 @@ import { registerRedeemCodeRoutes } from "./routes/redeemCode.routes";
 import { registerForumRoutes } from "./routes/forum.routes";
 import { registerRaidRoutes } from "./routes/raid.routes";
 import { registerMaintenanceRoutes } from "./routes/maintenance.routes";
-import { registerClientDiagnosticsRoutes } from "./routes/clientDiagnostics.routes";
+import { registerClientErrorRoutes } from "./routes/clientDiagnostics.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 
@@ -7012,7 +7012,7 @@ export async function registerRoutes(
     }
   });
 
-  registerClientDiagnosticsRoutes(app, { isAdmin });
+  registerClientErrorRoutes(app, { isAdmin });
 
   // ── Player Home Decor Inventory & Placement ───────────────────────────────────
   registerHomeDecorRoutes(app, { storage, isAuthenticated, executeDecorPlacement, executeDecorRemoval });
