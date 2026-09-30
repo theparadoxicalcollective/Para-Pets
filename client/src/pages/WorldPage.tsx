@@ -168,7 +168,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const clientWorldModule = getClientWorldModule(worldId);
   const staticPresentation = clientWorldModule?.presentation;
   const staticWorld = worldDefinition && staticPresentation
-    ? { ...staticPresentation, name: worldDefinition.defaultName }
+    ? {
+        name: worldDefinition.defaultName,
+        shopIcon: staticPresentation.shopIcon,
+        accent: staticPresentation.accent,
+        bgGradient: staticPresentation.bgGradient,
+      }
     : undefined;
 
   const { data: worldApiData } = useQuery<WorldApiData>({
