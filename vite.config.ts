@@ -26,20 +26,44 @@ function fixedWorldMapCanvasPlugin(): Plugin {
     enforce: "pre",
     transform(code, id) {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
+
+      // World identity/layout metadata now lives in the shared registry. Keep
+      // the production-only fixed-canvas behavior exactly where that data is
+      // owned instead of requiring a duplicate WORLD_FIXED_MAP_H table inside
+      // WorldPage.tsx.
+      if (normalizedId.endsWith("/shared/worlds/worldRegistry.ts")) {
+        let replacements = 0;
+        const next = code.replace(/fixedMapHeight:\s*\d+/g, () => {
+          replacements += 1;
+          return `fixedMapHeight: ${WORLD_MAP_DESIGN_H}`;
+        });
+        if (replacements !== 8) {
+          throw new Error(`Expected 8 fixedMapHeight entries in worldRegistry.ts, found ${replacements}`);
+        }
+        return { code: next, map: null };
+      }
+
       if (!normalizedId.endsWith("/client/src/pages/WorldPage.tsx")) return null;
 
+      // Keep the production world canvas pinned to the same dimensions as
+      // before this refactor. WorldPage now imports these shared viewport
+      // constants instead of declaring numeric literals locally.
       let next = code;
-      next = next.replace(/const MAP_W = \d+;/, `const MAP_W = ${WORLD_MAP_DESIGN_W};`);
-      next = next.replace(/const MAP_H_DEFAULT = \d+;/, `const MAP_H_DEFAULT = ${WORLD_MAP_DESIGN_H};`);
+      next = next.replace(
+        /const MAP_W = WORLD_MAP_WIDTH;/,
+        `const MAP_W = ${WORLD_MAP_DESIGN_W};`,
+      );
+      next = next.replace(
+        /const MAP_H_DEFAULT = WORLD_MAP_HEIGHT;/,
+        `const MAP_H_DEFAULT = ${WORLD_MAP_DESIGN_H};`,
+      );
 
-      const blockPattern = /(const WORLD_FIXED_MAP_H:\s*Record<string,\s*number>\s*=\s*\{)([\s\S]*?)(\n\};)/;
-      const match = blockPattern.exec(next);
-      if (!match) throw new Error("Could not locate WORLD_FIXED_MAP_H in WorldPage.tsx");
-
-      const body = match[2].replace(/(^\s*[a-z_]+:\s*)\d+/gm, `$1${WORLD_MAP_DESIGN_H}`);
-      const start = match.index;
-      const end = start + match[0].length;
-      next = next.slice(0, start) + match[1] + body + match[3] + next.slice(end);
+      // WorldPage must continue consuming the registry-backed authored map
+      // height. The registry transform above standardizes that height to the
+      // existing 1703px production canvas without changing source/admin data.
+      if (!next.includes("worldDefinition?.fixedMapHeight")) {
+        throw new Error("Could not locate registry-backed fixedMapHeight in WorldPage.tsx");
+      }
 
       return { code: next, map: null };
     },

@@ -19,6 +19,7 @@ import WorldLocations, { type WorldLocationData } from "@/components/world/World
 import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldShopOverlay";
 import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/hauntedWoods";
+import { WORLD_IDS, getWorldDefinition, isWorldOpenToPlayers, type WorldId } from "@shared/worlds/worldRegistry";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
@@ -69,15 +70,15 @@ function seededRand(seed: string, n: number): number {
   return (h >>> 0) / 4294967295;
 }
 
-const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; accent: string; bgGradient: string }> = {
-  snowy_mountain: { name: "Frostpeak", shopIcon: shopFrostpeak, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
-  sky_realm: { name: "Sky Realm", shopIcon: shopSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
-  volcanic: { name: "Volcanic Isle", shopIcon: shopVolcanic, accent: "#ff4500", bgGradient: "linear-gradient(180deg, rgba(40,10,5,0.7) 0%, rgba(80,20,10,0.3) 50%, rgba(20,5,2,0.7) 100%)" },
-  island: { name: "The Lost Island", shopIcon: shopIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
-  desert: { name: "Scorched Desert", shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
-  enchanted_grove: { name: "Enchanted Grove", shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
-  haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
-  swamp: { name: "Elysian Swamplands", shopIcon: shopSwamp, accent: "#5cb87a", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
+const WORLD_PRESENTATION: Readonly<Partial<Record<WorldId, { shopIcon: string; accent: string; bgGradient: string }>>> = {
+  [WORLD_IDS.frostpeak]: { shopIcon: shopFrostpeak, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
+  [WORLD_IDS.skyRealm]: { shopIcon: shopSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
+  [WORLD_IDS.volcanic]: { shopIcon: shopVolcanic, accent: "#ff4500", bgGradient: "linear-gradient(180deg, rgba(40,10,5,0.7) 0%, rgba(80,20,10,0.3) 50%, rgba(20,5,2,0.7) 100%)" },
+  [WORLD_IDS.lostIsland]: { shopIcon: shopIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
+  [WORLD_IDS.scorchedDesert]: { shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
+  [WORLD_IDS.enchantedGrove]: { shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
+  [WORLD_IDS.hauntedWoods]: { shopIcon: shopHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
+  [WORLD_IDS.elysianBayou]: { shopIcon: shopSwamp, accent: "#5cb87a", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
 };
 
 type ShopItem = WorldShopItem;
@@ -97,9 +98,6 @@ interface WorldPageProps {
   };
   onContentReady?: () => void;
 }
-
-// Worlds open to all players; everything else is admin/moderator only.
-const OPEN_WORLDS = new Set(["swamp", "volcanic"]);
 
 // Rewrite /world-assets/ icon URLs to go through the server-side thumbnail
 // middleware (?w=N). This keeps location icon preloads and renders lean on
@@ -161,21 +159,6 @@ interface WorldApiData {
 const MAP_W = WORLD_MAP_WIDTH;
 const MAP_H_DEFAULT = WORLD_MAP_HEIGHT;
 
-// Per-world fixed map heights (in MAP_W=1080 pixel space).
-// NEVER change these after admin has placed items — all positions are stored
-// as percentages of (MAP_W × mapH), so a different mapH shifts everything.
-// To derive the value: Math.round(1080 * imgH / imgW) for the canonical bg image.
-const WORLD_FIXED_MAP_H: Record<string, number> = {
-  swamp:           1621, // bg_swamp_map_v6.jpeg 2729×4096 — natural at MAP_W=1080
-  snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
-  sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
-  volcanic:        1440, // bg_volcanic_map_v4.webp 1620×2160 — natural at MAP_W=1080
-  haunted_woods:   1440, // IMG_6872_1783621831062.png 1620×2160 — natural at MAP_W=1080
-  enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
-  island:          1980, // bg_island_map.webp 768×1408
-  desert:          1980, // bg_desert_map.webp 768×1408
-};
-
 // Frame dimensions track the real viewport so the map fills every screen.
 // isMobilePhone kept as true to always enable pinch/scroll controls.
 const isMobilePhone = () => true;
@@ -198,7 +181,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const [rawLocation] = useLocation();
   const worldId = params.worldId || rawLocation.replace(/^\/world\//, "").split("/")[0] || "";
-  const staticWorld = WORLD_CONFIG[worldId];
+  const worldDefinition = getWorldDefinition(worldId);
+  const staticPresentation = worldDefinition ? WORLD_PRESENTATION[worldDefinition.id] : undefined;
+  const staticWorld = worldDefinition && staticPresentation
+    ? { ...staticPresentation, name: worldDefinition.defaultName }
+    : undefined;
 
   const { data: worldApiData } = useQuery<WorldApiData>({
     queryKey: ["/api/worlds", worldId],
@@ -329,7 +316,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // Redirect non-admin / non-moderator players away from locked worlds.
   // Must be a useEffect (not conditional return) because hooks must run unconditionally.
   useEffect(() => {
-    if (!currentUser.isAdmin && !currentUser.isModerator && !OPEN_WORLDS.has(worldId)) {
+    if (!currentUser.isAdmin && !currentUser.isModerator && !isWorldOpenToPlayers(worldId)) {
       navigate("/map");
     }
   }, [worldId, currentUser.isAdmin, currentUser.isModerator]);
@@ -1263,7 +1250,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     img.onload = () => {
       if (cancelled) return;
       if (!isVersionRefresh && img.naturalWidth > 0 && img.naturalHeight > 0) {
-        const h = WORLD_FIXED_MAP_H[worldId] ?? Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
+        const h = worldDefinition?.fixedMapHeight ?? Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
         mapHRef.current = h;
         setMapH(h);
       }

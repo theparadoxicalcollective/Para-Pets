@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { storage } from "../storage";
+import { WORLD_IDS } from "@shared/worlds/worldRegistry";
 
 type CanonicalWorldMap = {
   worldId: string;
@@ -16,13 +17,13 @@ type CanonicalWorldMap = {
 // presentation now; each placeholder entry can be swapped to its final asset
 // later without another viewport/layout change.
 const ALWAYS_REFRESH_WORLD_MAPS: CanonicalWorldMap[] = [
-  { worldId: "haunted_woods", assetPath: "uploads/ShadowfenMap.png" },
-  { worldId: "swamp", assetPath: "uploads/ElysianBayouMap.png" },
-  { worldId: "snowy_mountain", assetPath: "uploads/ShadowfenMap.png" },
-  { worldId: "sky_realm", assetPath: "uploads/ShadowfenMap.png" },
-  { worldId: "enchanted_grove", assetPath: "uploads/ShadowfenMap.png" },
-  { worldId: "island", assetPath: "uploads/ShadowfenMap.png" },
-  { worldId: "desert", assetPath: "uploads/SandspireOasis.png" },
+  { worldId: WORLD_IDS.hauntedWoods, assetPath: "uploads/ShadowfenMap.png" },
+  { worldId: WORLD_IDS.elysianBayou, assetPath: "uploads/ElysianBayouMap.png" },
+  { worldId: WORLD_IDS.frostpeak, assetPath: "uploads/ShadowfenMap.png" },
+  { worldId: WORLD_IDS.skyRealm, assetPath: "uploads/ShadowfenMap.png" },
+  { worldId: WORLD_IDS.enchantedGrove, assetPath: "uploads/ShadowfenMap.png" },
+  { worldId: WORLD_IDS.lostIsland, assetPath: "uploads/ShadowfenMap.png" },
+  { worldId: WORLD_IDS.scorchedDesert, assetPath: "uploads/SandspireOasis.png" },
 ];
 
 // Volcanic has historically allowed an admin-uploaded background to persist.
@@ -30,7 +31,7 @@ const ALWAYS_REFRESH_WORLD_MAPS: CanonicalWorldMap[] = [
 // alone instead of clobbering them on every server restart.
 const ONE_SHOT_WORLD_MAPS: Array<CanonicalWorldMap & { settingKey: string }> = [
   {
-    worldId: "volcanic",
+    worldId: WORLD_IDS.volcanic,
     assetPath: "uploads/EmbercraftPeakMap.png",
     settingKey: "volcanic_bg_embercraft_peak_2026_08",
   },

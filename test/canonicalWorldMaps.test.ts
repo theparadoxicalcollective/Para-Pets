@@ -31,26 +31,28 @@ test("new canonical world map assets exist and are valid PNGs", () => {
   }
 });
 
-test("startup reconciliation maps requested worlds and placeholders", () => {
+test("startup reconciliation maps requested worlds and placeholders through the shared registry", () => {
   const source = fs.readFileSync("server/worlds/canonicalWorldMaps.ts", "utf8");
-  assert.match(source, /worldId: "haunted_woods", assetPath: "uploads\/ShadowfenMap\.png"/);
-  assert.match(source, /worldId: "swamp", assetPath: "uploads\/ElysianBayouMap\.png"/);
-  assert.match(source, /worldId: "volcanic"[\s\S]*assetPath: "uploads\/EmbercraftPeakMap\.png"/);
-  for (const worldId of ["snowy_mountain", "sky_realm", "enchanted_grove", "island"]) {
-    assert.match(source, new RegExp(`worldId: "${worldId}", assetPath: "uploads/ShadowfenMap\\.png"`));
+  assert.match(source, /worldId: WORLD_IDS\.hauntedWoods, assetPath: "uploads\/ShadowfenMap\.png"/);
+  assert.match(source, /worldId: WORLD_IDS\.elysianBayou, assetPath: "uploads\/ElysianBayouMap\.png"/);
+  assert.match(source, /worldId: WORLD_IDS\.volcanic[\s\S]*assetPath: "uploads\/EmbercraftPeakMap\.png"/);
+  for (const registryKey of ["frostpeak", "skyRealm", "enchantedGrove", "lostIsland"]) {
+    assert.match(source, new RegExp(`worldId: WORLD_IDS\\.${registryKey}, assetPath: "uploads/ShadowfenMap\\.png"`));
   }
-  assert.match(source, /worldId: "desert", assetPath: "uploads\/SandspireOasis\.png"/);
+  assert.match(source, /worldId: WORLD_IDS\.scorchedDesert, assetPath: "uploads\/SandspireOasis\.png"/);
   assert.match(source, /volcanic_bg_embercraft_peak_2026_08/);
   assert.match(source, /storage\.updateWorld\(worldId, \{ bgUrl \}/);
 });
 
-test("Vite standardizes every WorldPage map canvas to 924x1703", () => {
+test("Vite standardizes every registered world map canvas to 924x1703", () => {
   const source = fs.readFileSync("vite.config.ts", "utf8");
   assert.match(source, /WORLD_MAP_DESIGN_W = 924/);
   assert.match(source, /WORLD_MAP_DESIGN_H = 1703/);
-  assert.match(source, /const MAP_W = \$\{WORLD_MAP_DESIGN_W\}/);
-  assert.match(source, /const MAP_H_DEFAULT = \$\{WORLD_MAP_DESIGN_H\}/);
-  assert.match(source, /WORLD_FIXED_MAP_H/);
+  assert.match(source, /shared\/worlds\/worldRegistry\.ts/);
+  assert.match(source, /fixedMapHeight:\\s\*\\d\+/);
+  assert.match(source, /Expected 8 fixedMapHeight entries/);
+  assert.match(source, /worldDefinition\?\.fixedMapHeight/);
+  assert.doesNotMatch(source, /Could not locate WORLD_FIXED_MAP_H/);
 });
 
 test("main world-selection artwork is not replaced by inside-world maps", () => {
