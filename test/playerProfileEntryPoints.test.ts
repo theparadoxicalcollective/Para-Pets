@@ -55,9 +55,9 @@ test("friend, hub, and world avatar surfaces reuse stable ids with a single page
 });
 
 test("game leaderboard responses expose stable user ids alongside display fields", () => {
-  const routes = read("server/routes.ts");
+  const lavaRoutes = read("server/routes/lavaCrawl.routes.ts");
   const storage = read("server/storage.ts");
-  assert.match(routes, /SELECT u\.id AS user_id, u\.username, u\.profile_image/);
+  assert.match(lavaRoutes, /SELECT u\.id AS user_id, u\.username, u\.profile_image/);
   assert.match(storage, /userId: r\.id/);
 });
 
