@@ -44,13 +44,15 @@ test("startup reconciliation maps requested worlds and placeholders through the 
   assert.match(source, /storage\.updateWorld\(worldId, \{ bgUrl \}/);
 });
 
-test("Vite standardizes every WorldPage map canvas to 924x1703", () => {
+test("Vite standardizes every registered world map canvas to 924x1703", () => {
   const source = fs.readFileSync("vite.config.ts", "utf8");
   assert.match(source, /WORLD_MAP_DESIGN_W = 924/);
   assert.match(source, /WORLD_MAP_DESIGN_H = 1703/);
-  assert.match(source, /const MAP_W = \$\{WORLD_MAP_DESIGN_W\}/);
-  assert.match(source, /const MAP_H_DEFAULT = \$\{WORLD_MAP_DESIGN_H\}/);
-  assert.match(source, /WORLD_FIXED_MAP_H/);
+  assert.match(source, /shared\/worlds\/worldRegistry\.ts/);
+  assert.match(source, /fixedMapHeight:\\s\*\\d\+/);
+  assert.match(source, /Expected 8 fixedMapHeight entries/);
+  assert.match(source, /worldDefinition\?\.fixedMapHeight/);
+  assert.doesNotMatch(source, /Could not locate WORLD_FIXED_MAP_H/);
 });
 
 test("main world-selection artwork is not replaced by inside-world maps", () => {
