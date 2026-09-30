@@ -19,11 +19,9 @@ import WorldLocations, { type WorldLocationData } from "@/components/world/World
 import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldShopOverlay";
 import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
-import { WORLD_IDS, getWorldDefinition, isWorldOpenToPlayers, type WorldId } from "@shared/worlds/worldRegistry";
+import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRegistry";
+import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/registry";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
-import { VOLCANIC_PRESENTATION } from "@/worlds/volcanic/presentation";
-import { getVolcanicLocationDestination } from "@/worlds/volcanic/destinations";
-import { HAUNTED_WOODS_PRESENTATION } from "@/worlds/haunted-woods/presentation";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
@@ -39,12 +37,6 @@ const recipeBookClosed = "/recipe-book-closed.png";
 const recipeBookOpen = "/recipe-book-open.png";
 const mixingTreeTitle = "/mixing-tree-title.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
-import shopFrostpeak from "@assets/shop_frostpeak.png";
-import shopSkyRealm from "@assets/shop_sky_realm.png";
-import shopIsland from "@assets/shop_island.png";
-import shopDesert from "@assets/shop_desert.png";
-import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
-import shopSwamp from "@assets/shop_swamp.png";
 
 
 const LIGHT_ORB_SENTINEL = "__light_orb__";
@@ -71,17 +63,6 @@ function seededRand(seed: string, n: number): number {
   h ^= h >>> 16;
   return (h >>> 0) / 4294967295;
 }
-
-const WORLD_PRESENTATION: Readonly<Partial<Record<WorldId, { shopIcon: string; accent: string; bgGradient: string }>>> = {
-  [WORLD_IDS.frostpeak]: { shopIcon: shopFrostpeak, accent: "#88ccff", bgGradient: "linear-gradient(180deg, rgba(20,30,60,0.7) 0%, rgba(40,80,120,0.3) 50%, rgba(10,15,30,0.7) 100%)" },
-  [WORLD_IDS.skyRealm]: { shopIcon: shopSkyRealm, accent: "#ffd700", bgGradient: "linear-gradient(180deg, rgba(40,30,10,0.7) 0%, rgba(80,60,20,0.3) 50%, rgba(20,15,5,0.7) 100%)" },
-  [WORLD_IDS.volcanic]: VOLCANIC_PRESENTATION,
-  [WORLD_IDS.lostIsland]: { shopIcon: shopIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
-  [WORLD_IDS.scorchedDesert]: { shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
-  [WORLD_IDS.enchantedGrove]: { shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
-  [WORLD_IDS.hauntedWoods]: HAUNTED_WOODS_PRESENTATION,
-  [WORLD_IDS.elysianBayou]: { shopIcon: shopSwamp, accent: "#5cb87a", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
-};
 
 type ShopItem = WorldShopItem;
 
@@ -184,7 +165,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [rawLocation] = useLocation();
   const worldId = params.worldId || rawLocation.replace(/^\/world\//, "").split("/")[0] || "";
   const worldDefinition = getWorldDefinition(worldId);
-  const staticPresentation = worldDefinition ? WORLD_PRESENTATION[worldDefinition.id] : undefined;
+  const clientWorldModule = getClientWorldModule(worldId);
+  const staticPresentation = clientWorldModule?.presentation;
   const staticWorld = worldDefinition && staticPresentation
     ? { ...staticPresentation, name: worldDefinition.defaultName }
     : undefined;
@@ -1456,15 +1438,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
-    const volcanicDestination = getVolcanicLocationDestination(loc.id);
-    if (volcanicDestination?.kind === "route") {
-      navigate(volcanicDestination.route);
+    const worldDestination = resolveClientWorldDestination(worldId, loc.id);
+    if (worldDestination?.kind === "route") {
+      navigate(worldDestination.route);
       return;
     }
-    if (volcanicDestination?.kind === "notice") {
+    if (worldDestination?.kind === "notice") {
       toast({
-        title: volcanicDestination.title,
-        description: volcanicDestination.description,
+        title: worldDestination.title,
+        description: worldDestination.description,
       });
       return;
     }
@@ -1499,7 +1481,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setShowShop(false);
       setShowLocationView(true);
     }
-  }, [currentUser.isAdmin, navigate, toast]);
+  }, [currentUser.isAdmin, navigate, toast, worldId]);
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current || mapJustPannedRef.current) return;
