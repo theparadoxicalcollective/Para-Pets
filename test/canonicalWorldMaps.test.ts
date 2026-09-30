@@ -31,15 +31,15 @@ test("new canonical world map assets exist and are valid PNGs", () => {
   }
 });
 
-test("startup reconciliation maps requested worlds and placeholders", () => {
+test("startup reconciliation maps requested worlds and placeholders through the shared registry", () => {
   const source = fs.readFileSync("server/worlds/canonicalWorldMaps.ts", "utf8");
-  assert.match(source, /worldId: "haunted_woods", assetPath: "uploads\/ShadowfenMap\.png"/);
-  assert.match(source, /worldId: "swamp", assetPath: "uploads\/ElysianBayouMap\.png"/);
-  assert.match(source, /worldId: "volcanic"[\s\S]*assetPath: "uploads\/EmbercraftPeakMap\.png"/);
-  for (const worldId of ["snowy_mountain", "sky_realm", "enchanted_grove", "island"]) {
-    assert.match(source, new RegExp(`worldId: "${worldId}", assetPath: "uploads/ShadowfenMap\\.png"`));
+  assert.match(source, /worldId: WORLD_IDS\.hauntedWoods, assetPath: "uploads\/ShadowfenMap\.png"/);
+  assert.match(source, /worldId: WORLD_IDS\.elysianBayou, assetPath: "uploads\/ElysianBayouMap\.png"/);
+  assert.match(source, /worldId: WORLD_IDS\.volcanic[\s\S]*assetPath: "uploads\/EmbercraftPeakMap\.png"/);
+  for (const registryKey of ["frostpeak", "skyRealm", "enchantedGrove", "lostIsland"]) {
+    assert.match(source, new RegExp(`worldId: WORLD_IDS\\.${registryKey}, assetPath: "uploads/ShadowfenMap\\.png"`));
   }
-  assert.match(source, /worldId: "desert", assetPath: "uploads\/SandspireOasis\.png"/);
+  assert.match(source, /worldId: WORLD_IDS\.scorchedDesert, assetPath: "uploads\/SandspireOasis\.png"/);
   assert.match(source, /volcanic_bg_embercraft_peak_2026_08/);
   assert.match(source, /storage\.updateWorld\(worldId, \{ bgUrl \}/);
 });
