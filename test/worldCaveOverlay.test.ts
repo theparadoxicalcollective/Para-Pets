@@ -13,7 +13,7 @@ test("Murk Cave entry and battle render through one typed overlay boundary", () 
   assert.match(overlaySource, /export interface WorldCaveOverlayProps/);
   assert.equal((overlaySource.match(/<BattleArena/g) ?? []).length, 1);
   assert.equal((pageSource.match(/<BattleArena/g) ?? []).length, 1);
-  assert.match(pageSource, /battleLocationId !== MURK_CAVE_ID/);
+  assert.match(pageSource, /battleLocationId !== ELYSIAN_BAYOU_LOCATION_IDS.murkCave/);
 });
 
 test("all ten cave tiers retain their paired banner and entrance art", () => {
@@ -52,7 +52,7 @@ test("representative early and late tiers preserve locked, unlocked, and cleared
 });
 
 test("the floating main navigation is hidden for both cave entry and battle", () => {
-  assert.match(pageSource, /const caveOpen = battleLocationId === MURK_CAVE_ID && \(showCaveEntry \|\| showBattle\)/);
+  assert.match(pageSource, /const caveOpen = battleLocationId === ELYSIAN_BAYOU_LOCATION_IDS.murkCave && \(showCaveEntry \|\| showBattle\)/);
   assert.match(pageSource, /setNavHidden\([\s\S]*?\|\| caveOpen\)/);
 });
 

@@ -3,7 +3,6 @@ import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopIsland from "@assets/shop_island.png";
 import shopDesert from "@assets/shop_desert.png";
 import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
-import shopSwamp from "@assets/shop_swamp.png";
 import {
   WORLD_IDS,
   isKnownWorldId,
@@ -12,6 +11,8 @@ import {
 import { HAUNTED_WOODS_PRESENTATION } from "@/worlds/haunted-woods/presentation";
 import { VOLCANIC_PRESENTATION } from "@/worlds/volcanic/presentation";
 import { getVolcanicLocationDestination } from "@/worlds/volcanic/destinations";
+import { ELYSIAN_BAYOU_PRESENTATION } from "@/worlds/elysian-bayou/presentation";
+import { getElysianBayouLocationDestination } from "@/worlds/elysian-bayou/destinations";
 import type {
   ClientWorldDestination,
   ClientWorldModule,
@@ -87,12 +88,8 @@ export const CLIENT_WORLD_MODULES: Readonly<Record<WorldId, ClientWorldModule>> 
   },
   [WORLD_IDS.elysianBayou]: {
     worldId: WORLD_IDS.elysianBayou,
-    presentation: presentation(
-      WORLD_IDS.elysianBayou,
-      shopSwamp,
-      "#5cb87a",
-      "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)",
-    ),
+    presentation: ELYSIAN_BAYOU_PRESENTATION,
+    resolveDestination: getElysianBayouLocationDestination,
   },
 };
 
