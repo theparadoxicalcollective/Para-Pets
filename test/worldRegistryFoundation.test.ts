@@ -87,9 +87,11 @@ test("client presentation remains separate from shared world identity", () => {
 
   assert.match(clientRegistry, /VOLCANIC_PRESENTATION/);
   assert.match(clientRegistry, /HAUNTED_WOODS_PRESENTATION/);
+  assert.match(clientRegistry, /ELYSIAN_BAYOU_PRESENTATION/);
   assert.match(clientRegistry, /\[WORLD_IDS\.volcanic\]/);
   assert.match(clientRegistry, /\[WORLD_IDS\.hauntedWoods\]/);
-  assert.match(clientRegistry, /shopSwamp/);
+  assert.match(clientRegistry, /\[WORLD_IDS\.elysianBayou\]/);
+  assert.doesNotMatch(clientRegistry, /shopSwamp/);
 });
 
 test("server world foundations reuse registry ids without changing their world-specific behavior", () => {
