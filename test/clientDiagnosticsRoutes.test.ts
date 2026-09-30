@@ -4,6 +4,7 @@ import test from "node:test";
 
 const legacyRoutes = readFileSync("server/routes.ts", "utf8");
 const diagnosticsRoutes = readFileSync("server/routes/clientDiagnostics.routes.ts", "utf8");
+const startup = readFileSync("server/startup/runStartup.ts", "utf8");
 const errorStore = readFileSync("server/clientErrorStore.ts", "utf8");
 const errorBoundary = readFileSync("client/src/components/ErrorBoundary.tsx", "utf8");
 
@@ -14,15 +15,25 @@ function clientErrorRoutes(source: string): string[] {
     .sort();
 }
 
-test("client error routes are isolated and still registered from the main route registry", () => {
-  assert.match(legacyRoutes, /import \{ registerClientDiagnosticsRoutes \} from "\.\/routes\/clientDiagnostics\.routes"/);
-  assert.match(legacyRoutes, /registerClientDiagnosticsRoutes\(app, \{ isAdmin \}\)/);
+test("legacy client error routes are isolated and still registered from the main route registry", () => {
+  assert.match(legacyRoutes, /import \{ registerClientErrorRoutes \} from "\.\/routes\/clientDiagnostics\.routes"/);
+  assert.match(legacyRoutes, /registerClientErrorRoutes\(app, \{ isAdmin \}\)/);
   assert.deepEqual(clientErrorRoutes(diagnosticsRoutes), [
     "DELETE /api/admin/client-errors",
     "GET /api/admin/client-errors",
     "POST /api/client-error",
   ]);
   assert.deepEqual(clientErrorRoutes(legacyRoutes), []);
+});
+
+test("early startup diagnostics endpoint remains registered before the legacy route registry", () => {
+  assert.match(diagnosticsRoutes, /export function registerClientDiagnosticsRoutes\(app: Express\)/);
+  assert.match(diagnosticsRoutes, /app\.post\("\/api\/client-diagnostics"/);
+  assert.match(startup, /registerClientDiagnosticsRoutes\(app\)/);
+  assert.ok(
+    startup.indexOf("registerClientDiagnosticsRoutes(app)") < startup.indexOf("await registerRoutes(httpServer, app)"),
+    "startup diagnostics must remain available before the legacy route registry",
+  );
 });
 
 test("crashed or logged-out clients can still report while admin log access stays protected", () => {
@@ -44,7 +55,11 @@ test("legacy client-error sanitizing and bounded in-memory behavior are preserve
   assert.match(errorStore, /sequence = 0/);
 });
 
-test("unused alternate diagnostics endpoint is not introduced while extracting the live crash log", () => {
-  assert.doesNotMatch(diagnosticsRoutes, /\/api\/client-diagnostics/);
-  assert.doesNotMatch(legacyRoutes, /\/api\/client-diagnostics/);
+test("startup diagnostics retains its privacy bounds and safe path handling", () => {
+  assert.match(diagnosticsRoutes, /const MAX_MESSAGE = 500/);
+  assert.match(diagnosticsRoutes, /const MAX_SOURCE = 200/);
+  assert.match(diagnosticsRoutes, /const MAX_PATH = 160/);
+  assert.match(diagnosticsRoutes, /return path\.split\(\/\[\?#\]\/, 1\)\[0\] \?\? null/);
+  assert.match(diagnosticsRoutes, /console\.warn\("\[client-diagnostic\]"/);
+  assert.match(diagnosticsRoutes, /return res\.status\(204\)\.end\(\)/);
 });
