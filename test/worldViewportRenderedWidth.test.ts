@@ -100,11 +100,9 @@ test("production build width flows through WorldPage into both fit and clamp hel
   const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
   const vite = readFileSync("vite.config.ts", "utf8");
 
-  assert.match(vite, /const WORLD_MAP_DESIGN_W = 924/);
-  assert.match(
-    vite,
-    /\/const MAP_W = WORLD_MAP_WIDTH;\/,[\s\S]*?const MAP_W = \\?\$\{WORLD_MAP_DESIGN_W\}/,
-  );
+  assert.ok(vite.includes("const WORLD_MAP_DESIGN_W = 924;"));
+  assert.ok(vite.includes("/const MAP_W = WORLD_MAP_WIDTH;/"));
+  assert.ok(vite.includes("const MAP_W = ${WORLD_MAP_DESIGN_W};"));
 
   assert.match(
     source,
