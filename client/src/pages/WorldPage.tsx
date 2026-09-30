@@ -1257,11 +1257,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [worldId, world?.bg, !!worldApiData]);
 
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
-    return clampWorldMapOffset(x, y, sc, frameWRef.current, frameHRef.current, mapHRef.current);
+    return clampWorldMapOffset(x, y, sc, frameWRef.current, frameHRef.current, mapHRef.current, MAP_W);
   }, []);
 
   const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
-    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition);
+    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition, MAP_W);
     const { x: cx, y: cy } = clampTransform(x, y, fitScale);
     mapTransformRef.current = { x: cx, y: cy, scale: fitScale };
     setMapX(cx);
@@ -1270,7 +1270,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [clampTransform, fitFullComposition]);
 
   useEffect(() => {
-    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition);
+    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition, MAP_W);
     const ix = (frameWRef.current - MAP_W * fitScale) / 2;
     const iy = (frameHRef.current - mapHRef.current * fitScale) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: fitScale };
