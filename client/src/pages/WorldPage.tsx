@@ -21,6 +21,7 @@ import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
 import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRegistry";
 import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/registry";
+import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
@@ -158,8 +159,6 @@ function shouldFitFullWorldComposition(): boolean {
     && (viewport?.height ?? window.innerHeight) < DESIGN_H;
 }
 
-const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
-
 export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const [rawLocation] = useLocation();
@@ -263,7 +262,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const showFishing = fishingLocation !== null;
   const [showSellFish, setShowSellFish] = useState(false);
   useEffect(() => {
-    if (worldId !== "swamp") return;
+    if (worldId !== ELYSIAN_BAYOU_WORLD_ID) return;
     const openFishMarket = () => setShowSellFish(true);
     window.addEventListener("para:open-fish-market", openFishMarket);
     return () => window.removeEventListener("para:open-fish-market", openFishMarket);
@@ -377,10 +376,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const mapJustPannedRef = useRef(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
   const [showFishHint, setShowFishHint] = useState(() =>
-    worldId === "swamp" && new URLSearchParams(window.location.search).get("fishHint") === "1"
+    worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("fishHint") === "1"
   );
   useEffect(() => {
-    if (worldId !== "swamp") return;
+    if (worldId !== ELYSIAN_BAYOU_WORLD_ID) return;
     const showFishingSpots = () => setShowFishHint(true);
     window.addEventListener("para:show-fishing-spots", showFishingSpots);
     return () => window.removeEventListener("para:show-fishing-spots", showFishingSpots);
@@ -392,7 +391,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     worldId === VOLCANIC_WORLD_ID && new URLSearchParams(window.location.search).get("moltenHint") === "1"
   );
   const [showBarrelHint, setShowBarrelHint] = useState(() =>
-    worldId === "swamp" && new URLSearchParams(window.location.search).get("barrelHint") === "1"
+    worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("barrelHint") === "1"
   );
   const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
   const autoOpenDone = useRef(false);
@@ -495,7 +494,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // button doesn't float over the UI. Add any future mini-game state here.
   // NOTE: must live after cauldronOpen is declared to avoid TDZ ReferenceError.
   useEffect(() => {
-    const caveOpen = battleLocationId === MURK_CAVE_ID && (showCaveEntry || showBattle);
+    const caveOpen = battleLocationId === ELYSIAN_BAYOU_LOCATION_IDS.murkCave && (showCaveEntry || showBattle);
     setNavHidden(showShop || showFishing || showSellFish || cauldronOpen || caveOpen);
     return () => { setNavHidden(false); };
   }, [showShop, showFishing, showSellFish, cauldronOpen, battleLocationId, showCaveEntry, showBattle]);
@@ -1283,7 +1282,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // Bring the first fishing spot into view when Janson points it out. The
   // map-space arrows alone can be clipped by the viewport on smaller screens.
   useEffect(() => {
-    if (!showFishHint || worldId !== "swamp") return;
+    if (!showFishHint || worldId !== ELYSIAN_BAYOU_WORLD_ID) return;
     const spot = locations.find(loc => loc.type === "fishing" && !loc.isShop);
     if (!spot) return;
     const scale = mapTransformRef.current.scale;
@@ -1439,8 +1438,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     : null;
   const hasHatchedActivePet = activePetInv && activePetInv.isHatched;
 
-  const BAYOUS_HEART_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
-
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
     const worldDestination = resolveClientWorldDestination(worldId, loc.id);
@@ -1460,11 +1457,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setFishingLocation(null);
       setShowShop(false);
       setShowLocationView(true);
-      return;
-    }
-    // Elysian Bayou Clearing — walk-around explore scene.
-    if (loc.id === "a1b2c3d4-0011-4000-8000-000000000011") {
-      navigate("/explore/elysian-bayou-clearing");
       return;
     }
     if (loc.type === "fishing" && !loc.isShop) {
@@ -2114,7 +2106,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   Bright green floating arrows pointing to every fishing spot.
                   Shown from Janson's Gone Fishing guidance, including when
                   the player is already in the Bayou. Opening a spot hides it. */}
-              {showFishHint && worldId === "swamp" && (() => {
+              {showFishHint && worldId === ELYSIAN_BAYOU_WORLD_ID && (() => {
                 const fishingSpots = locations.filter(l => l.type === "fishing" && !l.isShop);
                 if (fishingSpots.length === 0) return null;
                 return (
@@ -2183,7 +2175,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               })()}
 
               {/* ── Barrel hint arrow — ?barrelHint=1 from sell_fish quest Go button ── */}
-              {showBarrelHint && fishBarrel && worldId === "swamp" && (() => {
+              {showBarrelHint && fishBarrel && worldId === ELYSIAN_BAYOU_WORLD_ID && (() => {
                 const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
                 const cx = `${bpos.x}%`;
                 const cy = `${bpos.y}%`;
@@ -3384,7 +3376,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         data-testid="button-start-battle"
                         onClick={() => {
                           setBattleLocationId(activeLoc.id);
-                          if (activeLoc.id === MURK_CAVE_ID) {
+                          if (activeLoc.id === ELYSIAN_BAYOU_LOCATION_IDS.murkCave) {
                             setCaveBattleTier(1);
                             setShowCaveEntry(true);
                             setShowLocationView(false);
@@ -3483,7 +3475,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           )}
 
           {/* Bayou's Heart floating lights */}
-          {activeLoc?.id === BAYOUS_HEART_ID && (
+          {activeLoc?.id === ELYSIAN_BAYOU_LOCATION_IDS.bayousHeart && (
             <>
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -3523,7 +3515,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           )}
 
           <div className="relative z-10 flex flex-col h-full">
-            {activeLoc.id === BAYOUS_HEART_ID ? (
+            {activeLoc.id === ELYSIAN_BAYOU_LOCATION_IDS.bayousHeart ? (
               <div className="flex flex-col">
                 {/* Title row */}
                 <div className="relative flex items-center justify-center px-4 pb-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 8px, 40px)" }}>
@@ -3705,7 +3697,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       data-testid="button-start-battle"
                       onClick={() => {
                         setBattleLocationId(activeLoc.id);
-                        if (activeLoc.id === MURK_CAVE_ID) {
+                        if (activeLoc.id === ELYSIAN_BAYOU_LOCATION_IDS.murkCave) {
                           setCaveBattleTier(1);
                           setShowCaveEntry(true);
                           setShowLocationView(false);
@@ -3893,7 +3885,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDangerWarning(false)} />
             {/* Bayou's Heart entrance mist — renders over backdrop, under modal */}
-            {dangerLoc.id === BAYOUS_HEART_ID && (
+            {dangerLoc.id === ELYSIAN_BAYOU_LOCATION_IDS.bayousHeart && (
               <>
                 <div
                   className="absolute inset-0 pointer-events-none"
@@ -3937,7 +3929,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               </p>
 
               {/* ── Murk Cave only: active pet + potion prep ── */}
-              {dangerLoc.id === MURK_CAVE_ID && (() => {
+              {dangerLoc.id === ELYSIAN_BAYOU_LOCATION_IDS.murkCave && (() => {
                 const petImg = activePetInv?.hatchedImageUrl || activePetInv?.imageUrl || null;
                 const petName = activePetInv?.petNickname || activePetInv?.name || null;
 
@@ -4089,7 +4081,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   onClick={() => {
                     setShowDangerWarning(false);
                     setBattleLocationId(activeLocationId);
-                    if (activeLocationId === MURK_CAVE_ID) {
+                    if (activeLocationId === ELYSIAN_BAYOU_LOCATION_IDS.murkCave) {
                       setCaveBattleTier(1);
                       setShowCaveEntry(true);
                     } else {
@@ -4499,7 +4491,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         );
       })()}
 
-      {(showCaveEntry || (showBattle && battleLocationId === MURK_CAVE_ID)) && battleLocationId === MURK_CAVE_ID && (() => {
+      {(showCaveEntry || (showBattle && battleLocationId === ELYSIAN_BAYOU_LOCATION_IDS.murkCave)) && battleLocationId === ELYSIAN_BAYOU_LOCATION_IDS.murkCave && (() => {
         const caveLocation = locations.find((location) => location.id === battleLocationId);
         if (!caveLocation) return null;
         return (
@@ -4554,7 +4546,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         );
       })()}
 
-      {showBattle && battleLocationId && battleLocationId !== MURK_CAVE_ID && (() => {
+      {showBattle && battleLocationId && battleLocationId !== ELYSIAN_BAYOU_LOCATION_IDS.murkCave && (() => {
         const battleLoc = locations.find((location) => location.id === battleLocationId);
         if (!battleLoc) return null;
         return (
