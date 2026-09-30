@@ -81,13 +81,14 @@ test("client presentation remains separate from shared world identity", () => {
   assert.match(source, /const WORLD_PRESENTATION/);
   assert.match(source, /shopIcon: shopSwamp/);
   assert.match(source, /shopIcon: shopVolcanic/);
-  assert.match(source, /shopIcon: shopHauntedWoods/);
+  assert.match(source, /HAUNTED_WOODS_PRESENTATION/);
+  assert.match(source, /\[WORLD_IDS\.hauntedWoods\]: HAUNTED_WOODS_PRESENTATION/);
   assert.match(source, /WORLD_PRESENTATION\[worldDefinition\.id\]/);
 });
 
 test("server world foundations reuse registry ids without changing their world-specific behavior", () => {
   const canonical = readFileSync("server/worlds/canonicalWorldMaps.ts", "utf8");
-  const haunted = readFileSync("shared/hauntedWoods.ts", "utf8");
+  const haunted = readFileSync("shared/worlds/hauntedWoods.ts", "utf8");
 
   assert.match(canonical, /WORLD_IDS\.hauntedWoods/);
   assert.match(canonical, /WORLD_IDS\.elysianBayou/);

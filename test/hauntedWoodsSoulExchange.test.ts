@@ -5,7 +5,7 @@ import test from "node:test";
 import {
   HAUNTED_WOODS_WORLD_ID,
   SOUL_EXCHANGE_LOCATION,
-} from "../shared/hauntedWoods";
+} from "../shared/worlds/hauntedWoods";
 
 const assetPath = (relativePath: string) =>
   path.join(process.cwd(), "attached_assets", relativePath);
@@ -39,7 +39,7 @@ test("Soul Exchange world marker uses a transparent smoky violet vortex instead 
 });
 
 test("Haunted Woods reconciliation refreshes presentation without overwriting admin layout", () => {
-  const source = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+  const source = fs.readFileSync("server/worlds/haunted-woods/reconcile.ts", "utf8");
   assert.match(source, /ON CONFLICT \(id\) DO UPDATE SET/);
   assert.match(source, /LEGACY_SOUL_POND_LOCATION_ID/);
   assert.match(source, /id = \$\{LEGACY_SOUL_POND_LOCATION_ID\} AND lower\(name\) IN \('phantom hollow', 'soul pond'\)/);
@@ -57,7 +57,7 @@ test("Haunted Woods reconciliation refreshes presentation without overwriting ad
 });
 
 test("legacy Soul Exchange layout and Haunted Woods snapshot migrate before duplicate deletion", () => {
-  const source = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+  const source = fs.readFileSync("server/worlds/haunted-woods/reconcile.ts", "utf8");
   const migrate = source.indexOf("migratedLayout");
   const snapshot = source.indexOf("admin_pos_locs__haunted_woods");
   const deletion = source.indexOf("DELETE FROM world_locations", source.indexOf("Layout and its snapshot"));
@@ -100,7 +100,7 @@ test("Haunted Casino scenic background can pan horizontally without changing sho
 });
 
 test("Haunted Woods reconciliation exposes the seeded casino to the Casino scroller", () => {
-  const source = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+  const source = fs.readFileSync("server/worlds/haunted-woods/reconcile.ts", "utf8");
   assert.match(source, /HAUNTED_CASINO_LOCATION_ID = "e2f3a4b5-0001-4000-8000-000000000001"/);
   assert.match(source, /SET name = 'Haunted Casino'/);
   assert.match(source, /id = \$\{HAUNTED_CASINO_LOCATION_ID\}/);

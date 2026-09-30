@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
-const shared = fs.readFileSync("shared/hauntedWoods.ts", "utf8");
-const reconcile = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+const shared = fs.readFileSync("shared/worlds/hauntedWoods.ts", "utf8");
+const reconcile = fs.readFileSync("server/worlds/haunted-woods/reconcile.ts", "utf8");
 const portal = fs.readFileSync("attached_assets/worlds/haunted_woods/soul-exchange-portal-v4.svg", "utf8");
 const cardPolish = fs.readFileSync("client/src/soulExchangeCardPolish.css", "utf8");
 const main = fs.readFileSync("client/src/main.tsx", "utf8");

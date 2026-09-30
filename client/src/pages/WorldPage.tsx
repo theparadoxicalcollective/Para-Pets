@@ -18,8 +18,9 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import WorldLocations, { type WorldLocationData } from "@/components/world/WorldLocations";
 import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldShopOverlay";
 import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
-import { SOUL_EXCHANGE_LOCATION } from "@shared/hauntedWoods";
+import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
 import { WORLD_IDS, getWorldDefinition, isWorldOpenToPlayers, type WorldId } from "@shared/worlds/worldRegistry";
+import { HAUNTED_WOODS_PRESENTATION } from "@/worlds/haunted-woods/presentation";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
@@ -41,7 +42,6 @@ import shopVolcanic from "@assets/shop_volcanic.png";
 import shopIsland from "@assets/shop_island.png";
 import shopDesert from "@assets/shop_desert.png";
 import shopEnchantedGrove from "@assets/shop_enchanted_grove_v2.png";
-import shopHauntedWoods from "@assets/shop_haunted_woods.png";
 import shopSwamp from "@assets/shop_swamp.png";
 
 
@@ -77,7 +77,7 @@ const WORLD_PRESENTATION: Readonly<Partial<Record<WorldId, { shopIcon: string; a
   [WORLD_IDS.lostIsland]: { shopIcon: shopIsland, accent: "#20b2aa", bgGradient: "linear-gradient(180deg, rgba(5,30,30,0.7) 0%, rgba(10,60,60,0.3) 50%, rgba(5,15,15,0.7) 100%)" },
   [WORLD_IDS.scorchedDesert]: { shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
   [WORLD_IDS.enchantedGrove]: { shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
-  [WORLD_IDS.hauntedWoods]: { shopIcon: shopHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
+  [WORLD_IDS.hauntedWoods]: HAUNTED_WOODS_PRESENTATION,
   [WORLD_IDS.elysianBayou]: { shopIcon: shopSwamp, accent: "#5cb87a", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
 };
 

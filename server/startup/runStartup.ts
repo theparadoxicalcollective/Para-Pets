@@ -11,7 +11,7 @@ import { registerBeauPrizeWheelRoutes } from "../routes/beauPrizeWheel.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileCanonicalWorldMaps } from "../worlds/canonicalWorldMaps";
-import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
+import { reconcileHauntedWoodsWorld } from "../worlds/haunted-woods/reconcile";
 import { runEssentialBoot } from "./migrations/runEssentialBoot";
 import { ensureHauntedBingoSchema } from "./migrations/ensureHauntedBingo";
 import { ensureGinnyQuestSchema } from "./migrations/ensureGinnyQuest";

@@ -85,7 +85,7 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
 });
 
 test("Casino background reconcile points the stable location at HauntedCasinoMainBG", () => {
-  const source = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+  const source = fs.readFileSync("server/worlds/haunted-woods/reconcile.ts", "utf8");
   assert.match(source, /HAUNTED_CASINO_BACKGROUND_PATH = "uploads\/HauntedCasinoMainBG\.png"/);
   assert.match(source, /casinoBackgroundUrl = versionedWorldAssetUrl\(HAUNTED_CASINO_BACKGROUND_PATH\)/);
   assert.match(source, /SET name = 'Haunted Casino',[\s\S]*bg_url = \$\{casinoBackgroundUrl\}/);
