@@ -1,8 +1,7 @@
 import type { Express, Request, RequestHandler, Response } from "express";
-import type { IStorage } from "../storage";
 
 export interface PvpRouteDependencies {
-  storage: IStorage;
+  storage: typeof import("../storage").storage;
   isAuthenticated: RequestHandler;
   publicAccount: (user: any) => any;
   maybeAwardBrawlerBadges: (userId: string, totalWins: number) => Promise<void>;
