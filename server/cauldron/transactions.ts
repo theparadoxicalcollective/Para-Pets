@@ -93,12 +93,12 @@ export async function addCauldronIngredient(
         ui.shop_item_id AS "shopItemId",
         si.type AS "itemType"
       FROM user_inventory ui
-      JOIN shop_items si ON si.id = ui.shop_item_id
+      LEFT JOIN shop_items si ON si.id = ui.shop_item_id
       WHERE ui.id = ${input.inventoryId}
       FOR UPDATE OF ui
     `);
     const item = inventory.rows[0] as
-      | { userId: string; shopItemId: string; itemType: string }
+      | { userId: string; shopItemId: string; itemType: string | null }
       | undefined;
 
     if (!item || item.userId !== input.userId) {
