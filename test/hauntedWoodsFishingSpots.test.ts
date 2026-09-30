@@ -4,9 +4,9 @@ import test from "node:test";
 import {
   HAUNTED_WOODS_FISHING_SPOTS,
   HAUNTED_WOODS_WORLD_ID,
-} from "../shared/hauntedWoods";
+} from "../shared/worlds/hauntedWoods";
 
-const hauntedWorldSource = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+const hauntedWorldSource = fs.readFileSync("server/worlds/haunted-woods/reconcile.ts", "utf8");
 const startupGuardSource = fs.readFileSync("server/startup/preserveDynamicWorldLocations.ts", "utf8");
 const worldPageSource = fs.readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 
