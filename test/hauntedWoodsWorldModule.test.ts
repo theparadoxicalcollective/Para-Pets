@@ -54,14 +54,16 @@ test("Haunted Woods client presentation is owned by its world module", () => {
     /linear-gradient\(180deg, rgba\(30,5,30,0\.7\) 0%, rgba\(60,10,60,0\.3\) 50%, rgba\(15,3,15,0\.7\) 100%\)/,
   );
 
+  const clientRegistry = read("client/src/worlds/registry.ts");
   assert.match(
-    worldPage,
+    clientRegistry,
     /import \{ HAUNTED_WOODS_PRESENTATION \} from "@\/worlds\/haunted-woods\/presentation"/,
   );
   assert.match(
-    worldPage,
-    /\[WORLD_IDS\.hauntedWoods\]: HAUNTED_WOODS_PRESENTATION/,
+    clientRegistry,
+    /\[WORLD_IDS\.hauntedWoods\]: \{[\s\S]*?presentation: HAUNTED_WOODS_PRESENTATION/,
   );
+  assert.doesNotMatch(worldPage, /HAUNTED_WOODS_PRESENTATION/);
   assert.doesNotMatch(worldPage, /import shopHauntedWoods/);
 });
 
