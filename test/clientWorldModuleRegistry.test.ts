@@ -58,7 +58,6 @@ test("existing presentation values moved from WorldPage into the client registry
   assert.match(registry, /shop_island\.png/);
   assert.match(registry, /shop_desert\.png/);
   assert.match(registry, /shop_enchanted_grove_v2\.png/);
-  assert.match(registry, /shop_swamp\.png/);
 
   for (const accent of [
     "#88ccff",
@@ -66,7 +65,6 @@ test("existing presentation values moved from WorldPage into the client registry
     "#20b2aa",
     "#daa520",
     "#7fffd4",
-    "#5cb87a",
   ]) {
     assert.match(registry, new RegExp(accent));
   }
@@ -75,7 +73,7 @@ test("existing presentation values moved from WorldPage into the client registry
   assert.doesNotMatch(worldPage, /shop_frostpeak\.png|shop_sky_realm\.png|shop_swamp\.png/);
 });
 
-test("Haunted Woods and Volcanic dedicated modules plug into the same client registry", () => {
+test("dedicated world modules plug into the same client registry", () => {
   const source = read("client/src/worlds/registry.ts");
 
   assert.match(
@@ -86,6 +84,11 @@ test("Haunted Woods and Volcanic dedicated modules plug into the same client reg
     source,
     /\[WORLD_IDS\.volcanic\]: \{[\s\S]*?presentation: VOLCANIC_PRESENTATION,[\s\S]*?resolveDestination: getVolcanicLocationDestination/,
   );
+  assert.match(
+    source,
+    /\[WORLD_IDS\.elysianBayou\]: \{[\s\S]*?presentation: ELYSIAN_BAYOU_PRESENTATION,[\s\S]*?resolveDestination: getElysianBayouLocationDestination/,
+  );
+  assert.doesNotMatch(source, /shopSwamp/);
 });
 
 test("WorldPage consumes the client world module generically", () => {
