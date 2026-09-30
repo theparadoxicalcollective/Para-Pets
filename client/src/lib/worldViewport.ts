@@ -12,19 +12,24 @@ export function calculateWorldFitScale(
   frameHeight: number,
   mapHeight: number,
   _fitFullComposition: boolean,
+  mapWidth: number = WORLD_MAP_WIDTH,
 ): number {
   if (!Number.isFinite(frameWidth) || frameWidth <= 0 || !Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
+  const safeMapWidth = Number.isFinite(mapWidth) && mapWidth > 0 ? mapWidth : WORLD_MAP_WIDTH;
   const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
-  return Math.max(frameWidth / WORLD_MAP_WIDTH, frameHeight / safeMapHeight);
+  return Math.max(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
 }
 
 /** Keep an oversized world draggable to every edge without showing empty space. */
 export function clampWorldMapOffset(
   x: number, y: number, scale: number,
   frameWidth: number, frameHeight: number, mapHeight: number,
+  mapWidth: number = WORLD_MAP_WIDTH,
 ): { x: number; y: number } {
-  const width = WORLD_MAP_WIDTH * scale;
-  const height = mapHeight * scale;
+  const safeMapWidth = Number.isFinite(mapWidth) && mapWidth > 0 ? mapWidth : WORLD_MAP_WIDTH;
+  const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
+  const width = safeMapWidth * scale;
+  const height = safeMapHeight * scale;
   return {
     x: width <= frameWidth ? (frameWidth - width) / 2 : Math.max(frameWidth - width, Math.min(0, x)),
     y: height <= frameHeight ? (frameHeight - height) / 2 : Math.max(frameHeight - height, Math.min(0, y)),
