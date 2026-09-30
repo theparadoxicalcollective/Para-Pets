@@ -3,6 +3,7 @@ import { bjGetStatus } from "@/lib/beginJourney";
 import { playSpeedUp, playPowerUp } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { prepareActivePetVisualState } from "@/lib/activePetVisuals";
 import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
@@ -153,6 +154,28 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
   const setActivePetMutation = useMutation({
     mutationFn: async (petId: string | null) => {
+      if (petId) {
+        const nextPet = inventory.find((item) => item.inventoryId === petId && item.type === "pet");
+        if (nextPet?.petTemplateId) {
+          // Keep the currently active pet authoritative until the incoming
+          // pet's lightweight renderer metadata is cached. A short budget keeps
+          // this from ever making selection feel stuck on a slow connection.
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 1200);
+          try {
+            await prepareActivePetVisualState({
+              pet: nextPet,
+              cache: queryClient,
+              signal: controller.signal,
+            });
+          } catch {
+            // Rendering can still fall back to the normal query path.
+          } finally {
+            window.clearTimeout(timeout);
+          }
+        }
+      }
+
       const res = await apiRequest("PATCH", "/api/user/active-pet", { activePetId: petId });
       return res.json();
     },

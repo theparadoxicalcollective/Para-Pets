@@ -21,6 +21,20 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const isActivePetUpdate =
+    method.toUpperCase() === "PATCH"
+    && url === "/api/user/active-pet"
+    && data
+    && typeof data === "object"
+    && "activePetId" in data;
+
+  // A focus/interval auth refetch can already be in flight when a player picks
+  // a new active pet. Cancel it before the PATCH so an older /api/auth/me
+  // response cannot arrive afterward and briefly restore the previous pet id.
+  if (isActivePetUpdate) {
+    await queryClient.cancelQueries({ queryKey: ["/api/auth/me"] });
+  }
+
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -33,14 +47,7 @@ export async function apiRequest(
   // Publish an acknowledgement only after the server has accepted the active-pet
   // update. Keep the auth cache in sync first so Begin Journey can safely move
   // to its next screen without outrunning PetInventory's mutation onSuccess.
-  if (
-    typeof window !== "undefined" &&
-    method.toUpperCase() === "PATCH" &&
-    url === "/api/user/active-pet" &&
-    data &&
-    typeof data === "object" &&
-    "activePetId" in data
-  ) {
+  if (typeof window !== "undefined" && isActivePetUpdate) {
     const requestedActivePetId = (data as { activePetId?: unknown }).activePetId;
     const activePetId = typeof requestedActivePetId === "string" ? requestedActivePetId : null;
     queryClient.setQueryData(["/api/auth/me"], (current: any) =>
