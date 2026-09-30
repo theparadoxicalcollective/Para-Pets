@@ -45,14 +45,27 @@ function fixedWorldMapCanvasPlugin(): Plugin {
 
       if (!normalizedId.endsWith("/client/src/pages/WorldPage.tsx")) return null;
 
+      // Keep the production world canvas pinned to the same dimensions as
+      // before this refactor. WorldPage now imports these shared viewport
+      // constants instead of declaring numeric literals locally.
+      let next = code;
+      next = next.replace(
+        /const MAP_W = WORLD_MAP_WIDTH;/,
+        `const MAP_W = ${WORLD_MAP_DESIGN_W};`,
+      );
+      next = next.replace(
+        /const MAP_H_DEFAULT = WORLD_MAP_HEIGHT;/,
+        `const MAP_H_DEFAULT = ${WORLD_MAP_DESIGN_H};`,
+      );
+
       // WorldPage must continue consuming the registry-backed authored map
       // height. The registry transform above standardizes that height to the
       // existing 1703px production canvas without changing source/admin data.
-      if (!code.includes("worldDefinition?.fixedMapHeight")) {
+      if (!next.includes("worldDefinition?.fixedMapHeight")) {
         throw new Error("Could not locate registry-backed fixedMapHeight in WorldPage.tsx");
       }
 
-      return null;
+      return { code: next, map: null };
     },
   };
 }
