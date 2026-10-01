@@ -24,6 +24,7 @@ import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from
 import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
 import { useWorldLocationAdminController } from "@/worlds/useWorldLocationAdminController";
 import { useWorldObjectAdminController } from "@/worlds/useWorldObjectAdminController";
+import { useWorldDecorAdminController } from "@/worlds/useWorldDecorAdminController";
 import { useWorldViewportController } from "@/worlds/useWorldViewportController";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
@@ -279,15 +280,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [editDecorName, setEditDecorName] = useState("");
   const [editDecorMessage, setEditDecorMessage] = useState("");
   const [editDecorImage, setEditDecorImage] = useState<string | null>(null);
-  const [decorDragPos, setDecorDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const decorDragRef = useRef<{ placementId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
-  const decorDidDrag = useRef(false);
-  const panelDragRef = useRef<{ item: { id: string; name: string; imageUrl: string } } | null>(null);
-  const [panelDragGhost, setPanelDragGhost] = useState<{ clientX: number; clientY: number; item: { id: string; name: string; imageUrl: string } } | null>(null);
   const [showDecorMsg, setShowDecorMsg] = useState<{ text: string; clientX: number; clientY: number } | null>(null);
   const locViewRef = useRef<HTMLDivElement>(null);
 
-  const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [barrelSelected, setBarrelSelected] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -843,6 +838,23 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       await apiRequest("DELETE", `/api/admin/world/decor/placements/${id}`);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "decor", "placements"] }),
+  });
+
+  const {
+    selectedPlacementId: selectedDecorId,
+    setSelectedPlacementId: setSelectedDecorId,
+    dragPosition: decorDragPos,
+    panelDragGhost,
+    startPanelDrag: startDecorPanelDrag,
+    handlePointerDown: handleDecorPointerDown,
+    handlePointerMove: handleDecorPointerMove,
+    handlePointerUp: handleDecorPointerUp,
+    cancelPlacementDrag: cancelDecorPlacementDrag,
+  } = useWorldDecorAdminController({
+    isAdmin: currentUser.isAdmin,
+    areaRef,
+    onCommitPlacement: updateDecorPlacementMutation.mutate,
+    onCreatePlacement: addDecorPlacementMutation.mutate,
   });
 
   const assignItemMutation = useMutation({
@@ -1426,79 +1438,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [battlePets, battlePotionSlots, showBattlePrep, battleLocationId]);
 
 
-  // Panel drag: subscribe to document events while dragging a decor item from the inventory panel
-  useEffect(() => {
-    if (!panelDragGhost) return;
-    const onMove = (e: PointerEvent) => {
-      if (!panelDragRef.current) return;
-      setPanelDragGhost(prev => prev ? { ...prev, clientX: e.clientX, clientY: e.clientY } : null);
-    };
-    const onUp = (e: PointerEvent) => {
-      if (!panelDragRef.current) return;
-      const item = panelDragRef.current.item;
-      panelDragRef.current = null;
-      setPanelDragGhost(null);
-      if (areaRef.current) {
-        const rect = areaRef.current.getBoundingClientRect();
-        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
-          const x = ((e.clientX - rect.left) / rect.width) * 100;
-          const y = ((e.clientY - rect.top) / rect.height) * 100;
-          addDecorPlacementMutation.mutate({ item, posX: x, posY: y });
-        }
-      }
-    };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    return () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-    };
-  }, [!!panelDragGhost]);
-
-  const handleDecorPointerDown = useCallback((e: React.PointerEvent, placement: { id: string; posX: number; posY: number }) => {
-    if (!currentUser.isAdmin) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    decorDidDrag.current = false;
-    decorDragRef.current = {
-      placementId: placement.id,
-      startX: e.clientX,
-      startY: e.clientY,
-      origPosX: placement.posX,
-      origPosY: placement.posY,
-    };
-  }, [currentUser.isAdmin]);
-
-  const handleDecorPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!decorDragRef.current || !areaRef.current) return;
-    e.preventDefault();
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - decorDragRef.current.startX;
-    const dy = e.clientY - decorDragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) decorDidDrag.current = true;
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = Math.max(0, Math.min(100, decorDragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(0, Math.min(100, decorDragRef.current.origPosY + dy / pxPerPercY));
-    setDecorDragPos({ id: decorDragRef.current.placementId, x: newX, y: newY });
-  }, []);
-
-  const handleDecorPointerUp = useCallback(() => {
-    if (!decorDragRef.current) return;
-    const d = decorDragRef.current;
-    decorDragRef.current = null;
-    if (decorDidDrag.current && decorDragPos) {
-      updateDecorPlacementMutation.mutate({ id: d.placementId, posX: decorDragPos.x, posY: decorDragPos.y });
-    } else {
-      // Tap (no drag) — toggle selection
-      setSelectedDecorId(prev => prev === d.placementId ? null : d.placementId);
-      setBarrelSelected(false);
-    }
-    decorDidDrag.current = false;
-    setDecorDragPos(null);
-  }, [decorDragPos, updateDecorPlacementMutation]);
-
   const handleBarrelPointerDown = useCallback((e: React.PointerEvent) => {
     if (!currentUser.isAdmin || !fishBarrel) return;
     e.stopPropagation();
@@ -1709,7 +1648,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   onPointerDown={(e) => { handleDecorPointerDown(e, p); clearLocationSelection(); setBarrelSelected(false); }}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
-                  onPointerCancel={() => { decorDragRef.current = null; decorDidDrag.current = false; setDecorDragPos(null); }}
+                  onPointerCancel={cancelDecorPlacementDrag}
                   onClick={(e) => {
                     if (!currentUser.isAdmin && p.message && !isPassThrough) {
                       e.stopPropagation();
@@ -2484,11 +2423,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       cursor: "grab",
                       touchAction: "none",
                     }}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      panelDragRef.current = { item: { id: item.id, name: item.name, imageUrl: item.imageUrl } };
-                      setPanelDragGhost({ clientX: e.clientX, clientY: e.clientY, item: { id: item.id, name: item.name, imageUrl: item.imageUrl } });
-                    }}
+                    onPointerDown={(e) => startDecorPanelDrag(e, { id: item.id, name: item.name, imageUrl: item.imageUrl })}
                   >
                     {PASS_THROUGH_SENTINELS.has(item.imageUrl) ? (
                       item.imageUrl === FIREFLIES_SENTINEL ? (
