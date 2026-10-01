@@ -9,7 +9,8 @@ export interface WorldPresentation {
 
 export type ClientWorldDestination =
   | { kind: "route"; route: string }
-  | { kind: "notice"; title: string; description: string };
+  | { kind: "notice"; title: string; description: string }
+  | { kind: "scenic" };
 
 export interface ClientWorldModule {
   worldId: WorldId;

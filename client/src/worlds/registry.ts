@@ -4,6 +4,7 @@ import {
   type WorldId,
 } from "@shared/worlds/worldRegistry";
 import { HAUNTED_WOODS_PRESENTATION } from "@/worlds/haunted-woods/presentation";
+import { getHauntedWoodsLocationDestination } from "@/worlds/haunted-woods/destinations";
 import { VOLCANIC_PRESENTATION } from "@/worlds/volcanic/presentation";
 import { getVolcanicLocationDestination } from "@/worlds/volcanic/destinations";
 import { ELYSIAN_BAYOU_PRESENTATION } from "@/worlds/elysian-bayou/presentation";
@@ -47,6 +48,7 @@ export const CLIENT_WORLD_MODULES: Readonly<Record<WorldId, ClientWorldModule>> 
   [WORLD_IDS.hauntedWoods]: {
     worldId: WORLD_IDS.hauntedWoods,
     presentation: HAUNTED_WOODS_PRESENTATION,
+    resolveDestination: getHauntedWoodsLocationDestination,
   },
   [WORLD_IDS.elysianBayou]: {
     worldId: WORLD_IDS.elysianBayou,
