@@ -5,7 +5,7 @@ import test from "node:test";
 const ownerPage = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
 const visitorPage = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
 const worldPage = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
-const routes = readFileSync("server/routes.ts", "utf8");
+const positionRoutes = readFileSync("server/routes/petHousePosition.routes.ts", "utf8");
 const storage = readFileSync("server/storage.ts", "utf8");
 
 test("owner house pet taps expose only the placement-removal control", () => {
@@ -25,7 +25,7 @@ test("house removal is retry-safe, refreshes placements, and never deletes inven
   assert.match(ownerPage, /invalidateQueries\(\{ queryKey: \["\/api\/users", user\.id, "pets"\] \}\)/);
   assert.match(ownerPage, /Could not remove this pet from your home/);
 
-  const deleteRoute = routes.match(/app\.delete\("\/api\/pet-house-positions\/:inventoryId"[\s\S]*?\n  \}\);/)?.[0] ?? "";
+  const deleteRoute = positionRoutes.match(/app\.delete\("\/api\/pet-house-positions\/:inventoryId"[\s\S]*?\n  \}\);/)?.[0] ?? "";
   assert.match(deleteRoute, /storage\.deletePetHousePosition\(user\.id, inventoryId\)/);
   assert.doesNotMatch(deleteRoute, /deleteInventory|release|sell/);
 
