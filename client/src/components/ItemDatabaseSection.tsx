@@ -65,7 +65,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "costume", "clearing", "potion", "special", "decor", "edibles", "fishing", "gift", "ingredient", "recipe"];
+const NON_PET_TYPES = ["power_up", "accessory", "costume", "clearing", "potion", "special", "decor", "object", "edibles", "fishing", "gift", "ingredient", "recipe"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -88,6 +88,7 @@ export const ITEM_CATEGORIES = [
   { key: "clearing",    label: "Clearing Equipment", color: "#5eead4" },
   { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
   { key: "decor",       label: "Decor",       color: "#d9f99d" },
+  { key: "objects",     label: "Objects",     color: "#c4b5fd" },
   { key: "ingredients", label: "Ingredients", color: "#fbbf24" },
   { key: "recipes",     label: "Recipes",     color: "#fde68a" },
 ] as const;
@@ -167,6 +168,7 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "clearing") return "clearing";
   if (item.type === "power_up" || item.type === "item") return "power_ups";
   if (item.type === "decor") return "decor";
+  if (item.type === "object") return "objects";
   if (item.type === "ingredient") return "ingredients";
   if (item.type === "recipe") return "recipes";
   return "power_ups";
@@ -1342,8 +1344,12 @@ function AdminItemForm({
             </>
           )}
 
-          {!petOnly && effectiveType === "decor" && (
-            <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Decor items are purely cosmetic — name and price only</p>
+          {!petOnly && (effectiveType === "decor" || effectiveType === "object") && (
+            <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">
+              {effectiveType === "object"
+                ? "Objects are home-scene items and do not count toward home decor limits."
+                : "Decor items are cosmetic home decorations and count toward home decor limits."}
+            </p>
           )}
 
           {!petOnly && effectiveType === "edibles" && (
