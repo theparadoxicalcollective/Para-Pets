@@ -2624,7 +2624,7 @@ export async function registerRoutes(
     }
   });
 
-  registerSupportRoutes(app, { storage, isAuthenticated, isAdmin });
+  registerSupportRoutes(app, { storage, db, isAuthenticated, isAdmin });
 
   app.get("/api/admin/debug-admin-messages", isAdmin, async (_req, res) => {
     try {
@@ -5133,27 +5133,6 @@ export async function registerRoutes(
   registerLavaCrawlRoutes(app, { storage, db, isAuthenticated, applyPetXp });
 
   registerForumRoutes(app, { db, isAuthenticated });
-
-  app.get("/api/support-messages/my", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const rows = await db.execute(sql`
-        SELECT id, subject, message, is_read, created_at
-        FROM support_messages
-        WHERE username = ${user.username}
-        ORDER BY created_at DESC
-      `);
-      return res.json(rows.rows);
-    } catch (err: any) { return res.status(500).json({ message: err.message }); }
-  });
-
-  app.delete("/api/support-messages/my/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      await db.execute(sql`DELETE FROM support_messages WHERE id = ${req.params.id} AND username = ${user.username}`);
-      return res.json({ ok: true });
-    } catch (err: any) { return res.status(500).json({ message: err.message }); }
-  });
 
   // ── Hub notices routes ───────────────────────────────────────────────────────
 
