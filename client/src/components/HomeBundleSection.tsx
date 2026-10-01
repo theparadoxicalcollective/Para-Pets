@@ -731,72 +731,121 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         {selectedId ? (() => {
           const selBuilding = buildings.find(b => b.id === selectedId);
           const hasInterior = !!selBuilding?.interiorImageUrl;
+          const objectType: HouseBuildingType =
+            selBuilding?.buildingType ??
+            ((selBuilding?.name ?? "").toLowerCase().includes("mailbox") ? "mailbox" : "building");
           return (
             <>
-              {/* Size selector for selected building */}
-              <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: "auto" }} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-                <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Size:</span>
-                {BUILDING_SIZES.map(s => {
-                  const current = selBuilding?.size ?? "medium";
-                  const isSelected = current === s.value;
-                  return (
-                    <button
-                      key={s.value}
-                      data-testid={`button-change-size-${s.value}`}
-                      type="button"
-                      onClick={() => {
-                        if (!selectedId || isSelected) return;
-                        apiRequest("PATCH", `/api/admin/house-bundle-buildings/${selectedId}`, { size: s.value }).then(() => refetch()).catch(() => {});
-                      }}
-                      className="flex-1 py-1.5 rounded-lg flex flex-col items-center transition-transform active:scale-95"
-                      style={{
-                        background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
-                        border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
-                        color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
-                        cursor: isSelected ? "default" : "pointer",
-                      }}
-                    >
-                      <span className="font-fantasy text-[10px] tracking-wider">{s.label}</span>
-                      <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Set BG — same label pattern as the working "Change BG" button */}
-              <label
-                data-testid="label-set-building-bg"
-                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl font-fantasy text-sm tracking-widest"
-                style={{
-                  background: buildingBgUploading ? "rgba(255,215,0,0.2)" : GOLD_DIM,
-                  border: `1px solid ${buildingBgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.4)"}`,
-                  color: buildingBgUploading ? GOLD : "rgba(255,215,0,0.8)",
-                  cursor: buildingBgUploading ? "wait" : "pointer",
-                }}
+              <div
+                className="absolute bottom-full left-0 right-0 px-4 pb-2 flex flex-col gap-2"
+                style={{ pointerEvents: "auto" }}
                 onPointerDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
-                <Image className="w-4 h-4" />
-                {buildingBgUploading ? "Uploading…" : hasInterior ? "Change BG" : "Set BG"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={!!buildingBgUploading}
-                  onChange={e => handleBuildingBgUpload(e, selectedId)}
-                />
-              </label>
-              {/* Preview — only when building has a background */}
-              {hasInterior && (
+                <div className="flex items-center gap-2">
+                  <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Type:</span>
+                  {(["building", "mailbox"] as HouseBuildingType[]).map(type => {
+                    const isSelected = objectType === type;
+                    return (
+                      <button
+                        key={type}
+                        data-testid={`button-change-object-type-${type}`}
+                        type="button"
+                        onClick={() => {
+                          if (!selectedId || isSelected) return;
+                          patchBuilding.mutate({ id: selectedId, buildingType: type });
+                        }}
+                        className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+                        style={{
+                          background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                          border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                          color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
+                          cursor: isSelected ? "default" : "pointer",
+                        }}
+                      >
+                        {type === "building" ? "Building" : "Mailbox"}
+                      </button>
+                    );
+                  })}
+                </div>
+                {objectType === "building" && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Size:</span>
+                    {BUILDING_SIZES.map(sizeOption => {
+                      const current = selBuilding?.size ?? "medium";
+                      const isSelected = current === sizeOption.value;
+                      return (
+                        <button
+                          key={sizeOption.value}
+                          data-testid={`button-change-size-${sizeOption.value}`}
+                          type="button"
+                          onClick={() => {
+                            if (!selectedId || isSelected) return;
+                            patchBuilding.mutate({ id: selectedId, size: sizeOption.value });
+                          }}
+                          className="flex-1 py-1.5 rounded-lg flex flex-col items-center transition-transform active:scale-95"
+                          style={{
+                            background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                            border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                            color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
+                            cursor: isSelected ? "default" : "pointer",
+                          }}
+                        >
+                          <span className="font-fantasy text-[10px] tracking-wider">{sizeOption.label}</span>
+                          <span className="font-fantasy text-[8px] opacity-70">{sizeOption.caption}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {objectType === "building" && (
+                <label
+                  data-testid="label-set-building-bg"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl font-fantasy text-sm tracking-widest"
+                  style={{
+                    background: buildingBgUploading ? "rgba(255,215,0,0.2)" : GOLD_DIM,
+                    border: `1px solid ${buildingBgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.4)"}`,
+                    color: buildingBgUploading ? GOLD : "rgba(255,215,0,0.8)",
+                    cursor: buildingBgUploading ? "wait" : "pointer",
+                  }}
+                  onPointerDown={e => e.stopPropagation()}
+                >
+                  <Image className="w-4 h-4" />
+                  {buildingBgUploading ? "Uploading…" : hasInterior ? "Change BG" : "Set BG"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={!!buildingBgUploading}
+                    onChange={e => handleBuildingBgUpload(e, selectedId)}
+                  />
+                </label>
+              )}
+
+              {objectType === "building" && hasInterior && (
                 <button
                   data-testid="button-preview-building-bg"
                   onPointerDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); if (selBuilding?.interiorImageUrl) setPreviewBuilding({ url: selBuilding.interiorImageUrl, buildingId: selBuilding.id, leaveButtonX: selBuilding.leaveButtonX ?? 0.92, leaveButtonY: selBuilding.leaveButtonY ?? 0.06 }); }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (selBuilding?.interiorImageUrl) {
+                      setPreviewBuilding({
+                        url: selBuilding.interiorImageUrl,
+                        buildingId: selBuilding.id,
+                        leaveButtonX: selBuilding.leaveButtonX ?? 0.92,
+                        leaveButtonY: selBuilding.leaveButtonY ?? 0.06,
+                      });
+                    }
+                  }}
                   className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest"
                   style={{ background: "rgba(30,50,120,0.3)", border: "1px solid rgba(100,150,255,0.4)", color: "rgba(150,200,255,0.9)", cursor: "pointer" }}
                 >
                   Preview
                 </button>
               )}
-              {/* Done */}
+
               <button
                 data-testid="button-done-building"
                 onPointerDown={e => e.stopPropagation()}
@@ -810,31 +859,13 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           );
         })() : (
           <>
-            {/* Max outdoor pets row */}
-            <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-3" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-              <span className="font-fantasy text-[10px]" style={{ color: GOLD, whiteSpace: "nowrap" }}>Max outdoor pets</span>
-              <input
-                data-testid="input-max-outdoor-pets"
-                type="number"
-                min="0"
-                value={localMaxOutdoor}
-                onChange={e => setLocalMaxOutdoor(e.target.value)}
-                onBlur={() => {
-                  const val = Math.max(0, Number(localMaxOutdoor) || 0);
-                  setLocalMaxOutdoor(String(val));
-                  apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { maxOutdoorPets: val }).catch(() => {});
-                }}
-                className="w-16 text-center rounded-lg py-1 font-fantasy text-[11px]"
-                style={{ background: "rgba(255,215,0,0.08)", border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
-              />
-            </div>
             <button
               data-testid="button-add-building"
               onClick={() => setShowAddForm(true)}
               className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
               style={{ background: GOLD_DIM, border: "1px solid rgba(255,215,0,0.4)", color: GOLD, cursor: "pointer" }}
             >
-              + Add Building
+              + Add Building / Mailbox
             </button>
             <button
               data-testid="button-save-bundle-editor"
