@@ -328,6 +328,14 @@ export interface IStorage {
   createEnemyPart(data: { enemyId: string; partType: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number }): Promise<EnemyPart>;
   updateEnemyPart(id: string, data: Partial<EnemyPart>): Promise<EnemyPart>;
   deleteEnemyPart(id: string): Promise<void>;
+  getHouseBundles(): Promise<HouseBundle[]>;
+  createHouseBundle(data: { name: string; shopImageUrl?: string; bgImageUrl?: string; price: number }): Promise<HouseBundle>;
+  updateHouseBundle(id: string, data: Partial<HouseBundle>): Promise<HouseBundle>;
+  deleteHouseBundle(id: string): Promise<void>;
+  getHouseBundleBuildings(bundleId: string): Promise<HouseBundleBuilding[]>;
+  createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; size?: string }): Promise<HouseBundleBuilding>;
+  updateHouseBundleBuilding(id: string, data: Partial<HouseBundleBuilding>): Promise<HouseBundleBuilding>;
+  deleteHouseBundleBuilding(id: string): Promise<void>;
   getUserHouseBundles(userId: string): Promise<(UserHouseBundle & { bundle: HouseBundle })[]>;
   hasUserHouseBundle(userId: string, bundleId: string): Promise<boolean>;
   grantUserHouseBundle(userId: string, bundleId: string): Promise<UserHouseBundle>;
