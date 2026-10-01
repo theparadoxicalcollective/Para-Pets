@@ -716,7 +716,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           style={{ zIndex: 10 }}
         >
           <p className="font-fantasy text-[9px] px-3 py-1 rounded-full" style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,215,0,0.5)" }}>
-            Tap a building · drag to move · Set BG to add interior
+            Tap a building or mailbox · drag to move · buildings can have interiors
           </p>
         </div>
       )}
