@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { QuillBadge } from "@/components/QuillBadge";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
@@ -14,20 +15,21 @@ interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
   giftNotificationX?: number; giftNotificationY?: number;
   maxOutdoorPets?: number;
+  maxOutdoorDecor?: number;
 }
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
-  interiorImageUrl: string | null; size: string;
+  interiorImageUrl: string | null; buildingType?: HouseBuildingType; size: BuildingSize;
   leaveButtonX: number; leaveButtonY: number;
   maxPets?: number | null;
   createdAt: string;
 }
 
 const BUILDING_SIZES = [
-  { value: "small",  label: "Small",  caption: "3 pets · 3 items" },
-  { value: "medium", label: "Medium", caption: "5 pets · 6 items" },
-  { value: "large",  label: "Large",  caption: "7 pets · 9 items" },
+  { value: "small", label: "Small", caption: `${BUILDING_SIZE_CAPACITY.small.pets} pets · ${BUILDING_SIZE_CAPACITY.small.decor} decor` },
+  { value: "medium", label: "Medium", caption: `${BUILDING_SIZE_CAPACITY.medium.pets} pets · ${BUILDING_SIZE_CAPACITY.medium.decor} decor` },
+  { value: "large", label: "Large", caption: `${BUILDING_SIZE_CAPACITY.large.pets} pets · ${BUILDING_SIZE_CAPACITY.large.decor} decor` },
 ] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
