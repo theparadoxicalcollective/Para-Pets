@@ -67,6 +67,23 @@ test("Haunted Woods client presentation is owned by its world module", () => {
   assert.doesNotMatch(worldPage, /import shopHauntedWoods/);
 });
 
+test("Haunted Woods owns the legacy Soul Pond scenic destination", () => {
+  const destinations = read("client/src/worlds/haunted-woods/destinations.ts");
+  const clientRegistry = read("client/src/worlds/registry.ts");
+  const worldPage = read("client/src/pages/WorldPage.tsx");
+
+  assert.match(destinations, /LEGACY_SOUL_POND_LOCATION_ID/);
+  assert.match(destinations, /kind: "scenic"/);
+  assert.match(
+    clientRegistry,
+    /resolveDestination: getHauntedWoodsLocationDestination/,
+  );
+  assert.doesNotMatch(
+    worldPage,
+    /e2f3a4b5-0003-4000-8000-000000000003/,
+  );
+});
+
 test("Haunted Woods feature systems remain independent feature modules", () => {
   const reconcile = read("server/worlds/haunted-woods/reconcile.ts");
   const presentation = read("client/src/worlds/haunted-woods/presentation.ts");
