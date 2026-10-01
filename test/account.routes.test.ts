@@ -4,7 +4,7 @@ import { registerAccountRoutes } from "../server/routes/account.routes";
 
 type Handler = (req: any, res: any, next?: () => void) => unknown;
 
-function harness() {
+function harness(options: { freeBundles?: { id: string }[] } = {}) {
   const routes = new Map<string, Handler[]>();
   const app = {
     get(path: string, ...handlers: Handler[]) { routes.set(`GET ${path}`, handlers); },
@@ -36,7 +36,7 @@ function harness() {
     isAuthenticated: auth as any,
     containsBadWord: async () => false,
     findRecentlyDeletedAccounts: async () => [],
-    getFreeHouseBundles: async () => [],
+    getFreeHouseBundles: async () => options.freeBundles ?? [],
     updateSignupReferrer: async () => undefined,
     grantWelcomeV2Bundle: async () => undefined,
     postWatcherMessage: async () => undefined,
@@ -100,6 +100,25 @@ test("registration retains least-privilege defaults and duplicate username/email
   const duplicateEmail = response();
   await invoke(register, { body: { username: "new_user", email: "new@example.com", password: "secret" } }, duplicateEmail.res);
   assert.deepEqual(duplicateEmail.result, { statusCode: 400, body: { field: "email", message: "That email is already registered. Try logging in instead." }, redirect: undefined });
+});
+
+test("new accounts receive and activate free home bundles without a grant-all admin action", async () => {
+  const { routes, storage } = harness({ freeBundles: [{ id: "basic-home" }] });
+  const grants: string[] = [];
+  let activated: string | null = null;
+  storage.grantUserHouseBundle = async (_userId: string, bundleId: string) => { grants.push(bundleId); };
+  storage.setActiveHouseBundle = async (_userId: string, bundleId: string | null) => { activated = bundleId; };
+  storage.getUser = async () => ({ id: "new-user", activeHouseBundleId: null });
+
+  const res = response();
+  await invoke(routes.get("POST /api/auth/register")!, {
+    body: { username: "home_user", email: "home@example.com", password: "secret" },
+    login: (_user: any, callback: any) => callback(),
+  }, res.res);
+
+  assert.equal(res.result.statusCode, 201);
+  assert.deepEqual(grants, ["basic-home"]);
+  assert.equal(activated, "basic-home");
 });
 
 test("reset expiry and verification token responses remain unchanged", async () => {
