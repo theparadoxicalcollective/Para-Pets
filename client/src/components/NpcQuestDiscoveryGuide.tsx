@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BJ_EVENT, bjGetStatus } from "@/lib/beginJourney";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { getQuestGuideSurface, guideBoundsInSurface, guideCardShouldMoveUp, guideTargetOnScreen } from "@/lib/questGuideViewport";
+import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
 interface GuideNpc { id: string; name: string; worldId: string; worldName: string }
@@ -42,7 +43,8 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const guideCardRef = useRef<HTMLDivElement>(null);
   const recentTourTap = useRef<{ x: number; y: number; until: number } | null>(null);
   const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
-  const shouldLoadTour = eligible || tutorialStatus === "active";
+  const shouldLoadTour = eligible;
+  usePrimaryQuestGuideOwner("npc-discovery", eligible && index < worlds.length);
 
   useEffect(() => { setIndex(savedIndex(user.id)); }, [user.id]);
 
@@ -196,6 +198,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
       baseZ={9000}
       testId="npc-discovery-spotlight"
       showHint={false}
+      blockingGuide
       onTourAdvance={point => {
         if (point) recentTourTap.current = { x: point.x, y: point.y, until: Date.now() + 450 };
         advance();
