@@ -51,6 +51,7 @@ import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTrans
 import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerHouseBundleRoutes } from "./routes/houseBundle.routes";
+import { registerPetHousePositionRoutes } from "./routes/petHousePosition.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
 import { registerClearingAdminRoutes } from "./routes/clearingAdmin.routes";
@@ -1241,52 +1242,7 @@ export async function registerRoutes(
     }
   });
 
-  // ── Pet house positions ─────────────────────────────────────────────────────
-  app.get("/api/pet-house-positions", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const positions = await storage.getPetHousePositions(user.id);
-      return res.json(positions);
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to get positions" });
-    }
-  });
-
-  app.patch("/api/pet-house-positions/:inventoryId", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { inventoryId } = req.params as Record<string, string>;
-      const { posLeft, posTop, location } = req.body;
-      if (typeof posLeft !== "string" || typeof posTop !== "string") {
-        return res.status(400).json({ message: "posLeft and posTop are required strings" });
-      }
-      await storage.upsertPetHousePosition(user.id, inventoryId, posLeft, posTop, location ?? "outside");
-      return res.json({ ok: true });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to save position" });
-    }
-  });
-
-  app.delete("/api/pet-house-positions/all", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      await storage.deleteAllPetHousePositions(user.id);
-      return res.json({ ok: true });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to store all pets" });
-    }
-  });
-
-  app.delete("/api/pet-house-positions/:inventoryId", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { inventoryId } = req.params as Record<string, string>;
-      await storage.deletePetHousePosition(user.id, inventoryId);
-      return res.json({ ok: true });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to remove pet position" });
-    }
-  });
+  registerPetHousePositionRoutes(app, { storage, isAuthenticated });
 
   // ── Pet hunger / mood time-decay helper ────────────────────────────────────
   // Hunger drains at HUNGER_DECAY_PER_MIN regardless of placement.
