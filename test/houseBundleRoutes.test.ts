@@ -229,6 +229,12 @@ test("bundle limits and building/mailbox types preserve the requested admin cont
     body: { name: "Bad", imageData: "bad", buildingType: "building", size: "giant" },
   });
   assert.deepEqual([invalid.statusCode, invalid.body], [400, { message: "size must be small, medium, or large" }]);
+
+  const invalidType = await call(app, "POST", "/api/admin/house-bundles/:bundleId/buildings", {
+    params: { bundleId: "bundle-1" },
+    body: { name: "Bad Type", imageData: "bad", buildingType: "shed" },
+  });
+  assert.deepEqual([invalidType.statusCode, invalidType.body], [400, { message: "buildingType must be building or mailbox" }]);
 });
 
 test("building editing keeps current size and placement clamps", async () => {
