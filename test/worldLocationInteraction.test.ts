@@ -116,7 +116,7 @@ test("WorldPage applies resolver actions but no longer owns the location decisio
   assert.match(interactionSection, /switch \(interaction\.kind\)/);
   assert.match(
     interactionSection,
-    /worldLocationRequiresHatchedPet\(loc\) && \(!currentUser\.activePetId \|\| !hasHatchedActivePet\)/,
+    /worldLocationRequiresHatchedPet\(loc\) && \(!currentUser\.activePetId \|\| !hasHatchedActivePet\)[\s\S]*?showNoPetWarning\(\)/,
   );
 
   assert.doesNotMatch(interactionSection, /loc\.type === "fishing" && !loc\.isShop/);
