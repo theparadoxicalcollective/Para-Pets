@@ -73,6 +73,7 @@ test("legacy Soul Exchange layout and Haunted Woods snapshot migrate before dupl
 test("Soul Exchange uses the shared scenic location flow and does not require an active pet", () => {
   assert.equal(SOUL_EXCHANGE_LOCATION.type, "landmark");
   const resolver = fs.readFileSync("client/src/worlds/locationInteraction.ts", "utf8");
+  const uiState = fs.readFileSync("client/src/worlds/useWorldLocationUiState.ts", "utf8");
   const worldPage = fs.readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 
   assert.match(
@@ -88,8 +89,12 @@ test("Soul Exchange uses the shared scenic location flow and does not require an
     /worldLocationRequiresHatchedPet\(loc\) && \(!currentUser\.activePetId \|\| !hasHatchedActivePet\)/,
   );
   assert.match(
+    uiState,
+    /const openScenicLocation = useCallback\(\(\) => \{[\s\S]*?setFishingLocation\(null\);[\s\S]*?setShowShop\(false\);[\s\S]*?setShowLocationView\(true\);/,
+  );
+  assert.match(
     worldPage,
-    /case "scenic":[\s\S]*?setFishingLocation\(null\);[\s\S]*?setShowShop\(false\);[\s\S]*?setShowLocationView\(true\);/,
+    /case "scenic":[\s\S]*?openScenicLocation\(\)/,
   );
 });
 
