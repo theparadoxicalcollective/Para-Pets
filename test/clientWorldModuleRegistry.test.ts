@@ -16,6 +16,7 @@ test("client world-module contract keeps presentation and optional destinations 
   assert.match(source, /export type ClientWorldDestination/);
   assert.match(source, /kind: "route"; route: string/);
   assert.match(source, /kind: "notice"; title: string; description: string/);
+  assert.match(source, /kind: "scenic"/);
   assert.match(source, /export interface ClientWorldModule/);
   assert.match(
     source,
