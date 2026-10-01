@@ -38,6 +38,17 @@ test("world background loading state remains owned by WorldPage", () => {
   assert.doesNotMatch(controller, /worldBgLoaded|committedWorldBg|lastLoadedBgRef/);
 });
 
+test("world background loading state remains owned by WorldPage", () => {
+  const worldPage = read("client/src/pages/WorldPage.tsx");
+  const controller = read("client/src/worlds/useWorldViewportController.ts");
+
+  assert.ok(worldPage.includes("const [worldBgLoaded, setWorldBgLoaded] = useState(false);"));
+  assert.ok(worldPage.includes('const [committedWorldBg, setCommittedWorldBg] = useState<string>("");'));
+  assert.ok(worldPage.includes('const lastLoadedBgRef = useRef("");'));
+
+  assert.doesNotMatch(controller, /worldBgLoaded|committedWorldBg|lastLoadedBgRef/);
+});
+
 test("viewport controller pauses map panning during admin location or object drags", () => {
   const source = read("client/src/worlds/useWorldViewportController.ts");
 
