@@ -32,6 +32,7 @@ import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
 import PondAdminModal from "@/components/world/PondAdminModal";
 import { CauldronOverlay, CauldronPanel } from "@/components/world/MixingTreeCauldron";
+import { RecipeAlreadyRecordedModal, RecipeBookModal, RecipeDetailModal, type MixingTreeRecipe } from "@/components/world/MixingTreeRecipes";
 import { QuillBadge } from "@/components/QuillBadge";
 import FishingPage from "@/pages/FishingPage";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
@@ -39,9 +40,7 @@ import SellFishPage from "@/pages/SellFishPage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 const recipeBookClosed = "/recipe-book-closed.png";
-const recipeBookOpen = "/recipe-book-open.png";
 const mixingTreeTitle = "/mixing-tree-title.png";
-const recipeScrollIcon = "/recipe-scroll-icon.png";
 
 
 const LIGHT_ORB_SENTINEL = "__light_orb__";
@@ -240,7 +239,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [bgUploading, setBgUploading] = useState(false);
   const [showCauldronConstruction, setShowCauldronConstruction] = useState(false);
   const [hasNewUnlock, setHasNewUnlock] = useState(false);
-  const [recipeDetail, setRecipeDetail] = useState<RecipeRowProp | null>(null);
+  const [recipeDetail, setRecipeDetail] = useState<MixingTreeRecipe | null>(null);
   const [showRecipeBook, setShowRecipeBook] = useState(false);
   const [showBattlePrep, setShowBattlePrep] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
@@ -509,34 +508,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     },
   });
 
-  interface RecipeRow {
-    id: string; result_type: string;
-    recipe_item_id?: string | null; recipe_item_name?: string | null; recipe_item_image?: string | null;
-    ing1_id: string; ing1_name: string; ing1_image: string | null;
-    ing2_id: string; ing2_name: string; ing2_image: string | null;
-    result_id: string; result_name: string; result_image: string | null; result_item_type: string;
-  }
-
-  const { data: recipes = [], refetch: refetchRecipes } = useQuery<RecipeRow[]>({
+  const { data: recipes = [] } = useQuery<MixingTreeRecipe[]>({
     queryKey: ["/api/recipes"],
     staleTime: 60 * 1000,
-  });
-
-  const addRecipeMutation = useMutation({
-    mutationFn: async (data: { ingredient1Id: string; ingredient2Id: string; resultId: string; resultType: string }) => {
-      const res = await apiRequest("POST", "/api/admin/recipes", data);
-      return res.json();
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); },
-    onError: () => { toast({ title: "Failed to add recipe", variant: "destructive" }); },
-  });
-
-  const deleteRecipeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/recipes/${id}`);
-      return res.json();
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); },
   });
 
   const { data: unlockedRecipeIds = [] } = useQuery<string[]>({
@@ -571,7 +545,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes/unlocked"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setHasNewUnlock(true);
-      if (data?.recipe) setRecipeDetail(data.recipe as RecipeRowProp);
+      if (data?.recipe) setRecipeDetail(data.recipe as MixingTreeRecipe);
     },
     onError: (err: any) => {
       const msg: string = err?.message || "";
@@ -4212,180 +4186,26 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         />
       )}
 
-      {/* "Recipe already recorded" popup */}
-      {alreadyUnlockedOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0" onClick={() => setAlreadyUnlockedOpen(false)} />
-          <div
-            className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-7 py-6"
-            style={{
-              background: "linear-gradient(160deg, rgba(12,28,22,0.98) 0%, rgba(8,40,32,0.98) 100%)",
-              border: "1.5px solid rgba(94,234,212,0.35)",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
-              minWidth: 240,
-            }}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <img src={recipeScrollIcon} alt="" className="w-7 h-7 object-contain" />
-              <p className="font-fantasy text-base tracking-widest text-center" style={{ color: "#5eead4", letterSpacing: "0.1em" }}>Recipe already recorded</p>
-            </div>
-            <p className="font-fantasy text-xs text-center" style={{ color: "#5eead488" }}>
-              You already know this recipe!
-            </p>
-            <button
-              data-testid="button-close-already-unlocked"
-              onClick={() => setAlreadyUnlockedOpen(false)}
-              className="mt-1 font-fantasy text-xs tracking-wider px-5 py-2 rounded-full active:scale-95 transition-transform"
-              style={{ background: "rgba(94,234,212,0.12)", border: "1.5px solid rgba(94,234,212,0.4)", color: "#5eead4", cursor: "pointer" }}
-            >
-              ✕ Close
-            </button>
-          </div>
-        </div>
-      )}
+      <RecipeAlreadyRecordedModal
+        open={alreadyUnlockedOpen}
+        onClose={() => setAlreadyUnlockedOpen(false)}
+      />
 
-      {/* Recipe Book Modal — shown from the scene-level recipe book button */}
-      {showRecipeBook && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRecipeBook(false)} />
-          <div
-            className="relative z-10 w-full mx-4 rounded-2xl overflow-hidden"
-            style={{
-              maxWidth: 340,
-              background: "linear-gradient(160deg, rgba(12,28,22,0.98) 0%, rgba(8,40,32,0.98) 100%)",
-              border: "1.5px solid rgba(94,234,212,0.35)",
-              boxShadow: "0 0 60px rgba(0,0,0,0.8), 0 0 30px rgba(45,212,191,0.12)",
-            }}
-          >
-            <button
-              data-testid="button-close-recipe-book"
-              onClick={() => setShowRecipeBook(false)}
-              className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center z-10"
-              style={{ background: "rgba(94,234,212,0.15)", border: "1px solid rgba(94,234,212,0.35)", color: "#5eead4", cursor: "pointer" }}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-            <div className="flex flex-col items-center px-4 pt-4 pb-2">
-              <img src={recipeBookOpen} alt="Recipe Book" className="object-contain mb-2" style={{ width: 72, height: 72, filter: "drop-shadow(0 2px 12px rgba(94,234,212,0.35))" }} />
-              <h3 className="font-fantasy text-sm tracking-[0.2em]" style={{ color: "#5eead4", textShadow: "0 0 12px rgba(94,234,212,0.4)" }}>Recipe Book</h3>
-              <p className="font-fantasy text-[10px] mt-0.5" style={{ color: "#5eead466" }}>
-                {unlockedRecipeIds.length}/{(recipes as RecipeRowProp[]).length} unlocked
-              </p>
-            </div>
-            <div className="px-4 pb-4 overflow-y-auto" style={{ maxHeight: "calc(55*var(--vh))" }}>
-              {(recipes as RecipeRowProp[]).length === 0 ? (
-                <div className="flex flex-col items-center py-8 gap-3">
-                  <img src={recipeScrollIcon} alt="" className="w-16 h-16 object-contain opacity-30" />
-                  <p className="font-fantasy text-xs text-center" style={{ color: "#5eead455" }}>
-                    Find recipe scrolls in the market and drag them onto the cauldron to unlock recipes!
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2.5">
-                  {/* Unlocked recipes — clickable, shows ingredients on tap */}
-                  {(recipes as RecipeRowProp[]).filter(r => unlockedRecipeIds.includes(r.id)).map(r => (
-                    <button key={r.id} data-testid={`button-recipe-icon-${r.id}`}
-                      onClick={() => { setShowRecipeBook(false); setRecipeDetail(r); }}
-                      className="flex flex-col items-center gap-1 p-2 rounded-xl active:scale-95 transition-transform"
-                      style={{ background: "rgba(94,234,212,0.07)", border: "1.5px solid rgba(94,234,212,0.28)", cursor: "pointer" }}
-                    >
-                      {/* Scroll icon as the main visual */}
-                      <div className="relative w-14 h-14 flex items-center justify-center">
-                        <img src={recipeScrollIcon} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: 0.55 }} />
-                        {r.result_image && (
-                          <img src={r.result_image} alt="" className="relative w-8 h-8 object-contain" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }} />
-                        )}
-                      </div>
-                      <p className="font-fantasy text-[9px] text-center leading-tight line-clamp-2" style={{ color: "#d1faf3" }}>{r.result_name}</p>
-                      <p className="font-fantasy text-[8px]" style={{ color: "#5eead466" }}>unlocked</p>
-                    </button>
-                  ))}
-                  {/* Locked recipes — greyed scroll icon, no result shown */}
-                  {(recipes as RecipeRowProp[]).filter(r => !unlockedRecipeIds.includes(r.id)).map(r => (
-                    <div key={r.id} className="flex flex-col items-center gap-1 p-2 rounded-xl"
-                      style={{ background: "rgba(255,255,255,0.02)", border: "1.5px solid rgba(80,80,80,0.22)" }}
-                    >
-                      <div className="relative w-14 h-14 flex items-center justify-center">
-                        <img src={recipeScrollIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.18, filter: "grayscale(1)" }} />
-                        <span style={{ position: "absolute", fontSize: 18, color: "#55555588" }}>?</span>
-                      </div>
-                      <p className="font-fantasy text-[9px] text-center" style={{ color: "#55555588" }}>Locked</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <RecipeBookModal
+        open={showRecipeBook}
+        recipes={recipes}
+        unlockedRecipeIds={unlockedRecipeIds}
+        onClose={() => setShowRecipeBook(false)}
+        onSelectRecipe={(recipe) => {
+          setShowRecipeBook(false);
+          setRecipeDetail(recipe);
+        }}
+      />
 
-      {/* Recipe Detail Popup */}
-      {recipeDetail && (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto"
-          style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
-          onClick={() => setRecipeDetail(null)}
-        >
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-          <div
-            className="relative z-10 w-[85%] max-w-[300px] rounded-2xl overflow-hidden p-6 flex flex-col items-center gap-4"
-            style={{
-              background: "linear-gradient(160deg, rgba(12,28,22,0.99) 0%, rgba(8,40,32,0.99) 100%)",
-              border: "1.5px solid rgba(94,234,212,0.4)",
-              boxShadow: "0 0 60px rgba(0,0,0,0.85), 0 0 30px rgba(45,212,191,0.14)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setRecipeDetail(null)}
-              className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(94,234,212,0.15)", border: "1px solid rgba(94,234,212,0.35)", color: "#5eead4", cursor: "pointer" }}
-            ><X className="w-3.5 h-3.5" /></button>
-            {/* Recipe scroll image centered */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-20 h-20 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.2)" }}>
-                {recipeDetail.recipe_item_image ? (
-                  <img src={recipeDetail.recipe_item_image} alt="" className="w-full h-full object-contain" />
-                ) : (
-                  <img src={recipeScrollIcon} alt="" className="w-14 h-14 object-contain opacity-60" />
-                )}
-              </div>
-              <p className="font-fantasy text-sm tracking-wider text-center mt-1" style={{ color: "#5eead4" }}>
-                {recipeDetail.result_name}
-              </p>
-              <p className="font-fantasy text-[10px]" style={{ color: "#5eead455" }}>Recipe</p>
-            </div>
-            {/* Ingredients → Result */}
-            <div className="flex items-center justify-center gap-3 w-full">
-              {/* ing1 */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-14 h-14 rounded-xl overflow-hidden" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.18)" }}>
-                  {recipeDetail.ing1_image ? <img src={recipeDetail.ing1_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
-                </div>
-                <p className="font-fantasy text-[9px] text-center leading-tight" style={{ color: "#c8f4ed", maxWidth: 56 }}>{recipeDetail.ing1_name}</p>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-fantasy text-base" style={{ color: "#5eead488" }}>+</span>
-              </div>
-              {/* ing2 */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-14 h-14 rounded-xl overflow-hidden" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.18)" }}>
-                  {recipeDetail.ing2_image ? <img src={recipeDetail.ing2_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
-                </div>
-                <p className="font-fantasy text-[9px] text-center leading-tight" style={{ color: "#c8f4ed", maxWidth: 56 }}>{recipeDetail.ing2_name}</p>
-              </div>
-              <span className="font-fantasy text-base" style={{ color: "#5eead488" }}>→</span>
-              {/* result */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-14 h-14 rounded-xl overflow-hidden" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.3)" }}>
-                  {recipeDetail.result_image ? <img src={recipeDetail.result_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
-                </div>
-                <p className="font-fantasy text-[9px] text-center leading-tight" style={{ color: "#c8f4ed", maxWidth: 56 }}>{recipeDetail.result_name}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <RecipeDetailModal
+        recipe={recipeDetail}
+        onClose={() => setRecipeDetail(null)}
+      />
 
       {/* Cauldron "Under Construction" modal for non-admins */}
       {showCauldronConstruction && (
@@ -4459,17 +4279,5 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       )}
     </div>
   );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RecipeRowProp — shape returned by /api/recipes for the recipe book and
-// recipe detail popup owned by WorldPage.
-// ─────────────────────────────────────────────────────────────────────────────
-interface RecipeRowProp {
-  id: string; result_type: string;
-  recipe_item_id?: string | null; recipe_item_name?: string | null; recipe_item_image?: string | null;
-  ing1_id: string; ing1_name: string; ing1_image: string | null;
-  ing2_id: string; ing2_name: string; ing2_image: string | null;
-  result_id: string; result_name: string; result_image: string | null; result_item_type: string;
 }
 
