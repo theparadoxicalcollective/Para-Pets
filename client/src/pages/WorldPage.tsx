@@ -25,7 +25,6 @@ import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
 import { useWorldLocationAdminController } from "@/worlds/useWorldLocationAdminController";
 import { useWorldObjectAdminController } from "@/worlds/useWorldObjectAdminController";
 import { useWorldDecorAdminController } from "@/worlds/useWorldDecorAdminController";
-import { useWorldFishBarrelAdminController } from "@/worlds/useWorldFishBarrelAdminController";
 import { useWorldViewportController } from "@/worlds/useWorldViewportController";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
@@ -36,7 +35,6 @@ import { QuillBadge } from "@/components/QuillBadge";
 import FishingPage from "@/pages/FishingPage";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import SellFishPage from "@/pages/SellFishPage";
-import fishBarrelImg from "@assets/fish_barrel.png";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 const mixingTreeCauldronImg = "/mixing-tree-cauldron.png";
@@ -315,9 +313,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   );
   const [showMoltenHint, setShowMoltenHint] = useState(() =>
     worldId === VOLCANIC_WORLD_ID && new URLSearchParams(window.location.search).get("moltenHint") === "1"
-  );
-  const [showBarrelHint, setShowBarrelHint] = useState(() =>
-    worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("barrelHint") === "1"
   );
   const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
   const autoOpenDone = useRef(false);
@@ -741,49 +736,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!worldId,
-  });
-
-  const { data: fishBarrel, refetch: refetchBarrel } = useQuery<{ id: string; worldId: string; posX: number; posY: number; size: number } | null>({
-    queryKey: ["/api/world", worldId, "fish-barrel"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/world/${worldId}/fish-barrel`);
-      const data = await res.json();
-      return data || null;
-    },
-    enabled: !!worldId,
-  });
-
-  const updateBarrelMutation = useMutation({
-    mutationFn: async (data: { posX?: number; posY?: number; size?: number }) => {
-      if (!fishBarrel) return;
-      const res = await apiRequest("PATCH", `/api/admin/fish-barrel/${fishBarrel.id}`, data);
-      return res.json();
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
-  });
-
-  const deleteBarrelMutation = useMutation({
-    mutationFn: async () => {
-      if (!fishBarrel) return;
-      await apiRequest("DELETE", `/api/admin/fish-barrel/${fishBarrel.id}`);
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
-  });
-
-  const {
-    selected: barrelSelected,
-    setSelected: setBarrelSelected,
-    dragPosition: barrelDragPos,
-    didDragRef: barrelDidDrag,
-    handlePointerDown: handleBarrelPointerDown,
-    handlePointerMove: handleBarrelPointerMove,
-    handlePointerUp: handleBarrelPointerUp,
-    cancelDrag: cancelBarrelDrag,
-  } = useWorldFishBarrelAdminController({
-    isAdmin: currentUser.isAdmin,
-    barrel: fishBarrel,
-    areaRef,
-    onCommitPosition: updateBarrelMutation.mutate,
   });
 
   const addDecorItemMutation = useMutation({
@@ -1524,7 +1476,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               if (currentUser.isAdmin) {
                 clearLocationSelection();
                 setSelectedDecorId(null);
-                setBarrelSelected(false);
               }
             }}
           >
@@ -1733,79 +1684,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             })}
 
 
-            {/* Fish Barrel */}
-            {fishBarrel && worldId !== VOLCANIC_WORLD_ID && (() => {
-              const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
-              const sz = fishBarrel.size;
-              return (
-                <div
-                  className="absolute flex flex-col items-center"
-                  style={{
-                    left: `${bpos.x}%`,
-                    top: `${bpos.y}%`,
-                    width: sz,
-                    transform: "translate(-50%, -50%)",
-                    zIndex: 80,
-                    cursor: currentUser.isAdmin ? "grab" : "pointer",
-                    touchAction: "none",
-                  }}
-                  onPointerDown={handleBarrelPointerDown}
-                  onPointerMove={handleBarrelPointerMove}
-                  onPointerUp={handleBarrelPointerUp}
-                  onPointerCancel={cancelBarrelDrag}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (barrelDidDrag.current) return;
-                    if (currentUser.isAdmin) {
-                      setBarrelSelected(prev => !prev);
-                      setSelectedDecorId(null);
-                      clearLocationSelection();
-                    } else {
-                      setShowSellFish(true);
-                    }
-                  }}
-                  data-testid="button-fish-barrel"
-                >
-                  <img
-                    src={fishBarrelImg}
-                    alt="Fish Market"
-                    draggable={false}
-                    style={{
-                      width: sz,
-                      height: sz,
-                      objectFit: "contain",
-                      filter: currentUser.isAdmin && barrelSelected
-                        ? "drop-shadow(0 4px 12px rgba(0,0,0,0.6)) drop-shadow(0 0 8px rgba(255,255,255,0.5))"
-                        : "drop-shadow(0 4px 12px rgba(0,0,0,0.6))",
-                      transition: "filter 0.15s ease",
-                    }}
-                  />
-                  {currentUser.isAdmin && barrelSelected && (
-                    <div className="flex gap-1 mt-1" onPointerDown={(e) => e.stopPropagation()}>
-                      <button
-                        data-testid="button-barrel-shrink"
-                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.max(50, sz - 10) }); }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.3)" }}
-                      >−</button>
-                      <button
-                        data-testid="button-barrel-grow"
-                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.min(220, sz + 10) }); }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.3)" }}
-                      >+</button>
-                      <button
-                        data-testid="button-barrel-delete"
-                        onClick={(e) => { e.stopPropagation(); deleteBarrelMutation.mutate(); setBarrelSelected(false); }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(180,20,20,0.85)", border: "1px solid rgba(255,80,80,0.5)" }}
-                      >✕</button>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
             <WorldLocations
               locations={locations}
               worldId={worldId}
@@ -1900,29 +1778,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           <span style={{ fontFamily: "Lora, serif", color: "#fde68a", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Molten Blocks</span>
                         </div>
                         <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "hue-rotate(-30deg) saturate(1.5) drop-shadow(0 0 10px rgba(240,100,10,0.95)) drop-shadow(0 0 24px rgba(240,100,10,0.6))" }} />
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* ── Barrel hint arrow — ?barrelHint=1 from sell_fish quest Go button ── */}
-              {showBarrelHint && fishBarrel && worldId === ELYSIAN_BAYOU_WORLD_ID && (() => {
-                const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
-                const cx = `${bpos.x}%`;
-                const cy = `${bpos.y}%`;
-                return (
-                  <>
-                    <div className="absolute inset-0" style={{ zIndex: 498, cursor: "pointer" }} onClick={() => setShowBarrelHint(false)} />
-                    <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: "translate(-50%, -100%) translateY(-16px)", zIndex: 499, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(74,222,128,0.95)", boxShadow: "0 0 8px rgba(34,197,94,1), 0 0 18px rgba(34,197,94,0.8)", animation: "hintOrb1 2.4s ease-in-out infinite" }} />
-                      <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(134,239,172,0.9)", boxShadow: "0 0 6px rgba(74,222,128,1), 0 0 14px rgba(34,197,94,0.7)", animation: "hintOrb2 2.1s ease-in-out 0.5s infinite" }} />
-                      <span style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(187,247,208,0.85)", boxShadow: "0 0 5px rgba(74,222,128,0.9), 0 0 10px rgba(34,197,94,0.6)", animation: "hintOrb3 1.8s ease-in-out 1s infinite" }} />
-                      <div style={{ animation: "fishHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                        <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 6, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
-                          <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Sell Fish Here</span>
-                        </div>
-                        <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))" }} />
                       </div>
                     </div>
                   </>
