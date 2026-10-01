@@ -1860,7 +1860,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     touchAction: currentUser.isAdmin ? "none" : "auto",
                     pointerEvents: (!currentUser.isAdmin && isPassThrough) ? "none" : "auto",
                   }}
-                  onPointerDown={(e) => { handleDecorPointerDown(e, p); setSelectedLocId(null); setBarrelSelected(false); }}
+                  onPointerDown={(e) => { handleDecorPointerDown(e, p); clearLocationSelection(); setBarrelSelected(false); }}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
                   onPointerCancel={() => { decorDragRef.current = null; decorDidDrag.current = false; setDecorDragPos(null); }}
@@ -1991,7 +1991,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     if (currentUser.isAdmin) {
                       setBarrelSelected(prev => !prev);
                       setSelectedDecorId(null);
-                      setSelectedLocId(null);
+                      clearLocationSelection();
                     } else {
                       setShowSellFish(true);
                     }
