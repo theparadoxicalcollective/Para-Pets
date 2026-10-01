@@ -1,5 +1,8 @@
 import type { Express, RequestHandler } from "express";
+import { sql } from "drizzle-orm";
 import { deleteOwnedAdminMessage } from "../adminMessages";
+
+type SupportDb = Pick<typeof import("../db").db, "execute">;
 
 type SupportStorage = Pick<typeof import("../storage").storage,
   | "createAdminMessage"
@@ -12,13 +15,14 @@ type SupportStorage = Pick<typeof import("../storage").storage,
 
 export interface SupportRouteDependencies {
   storage: SupportStorage;
+  db: SupportDb;
   isAuthenticated: RequestHandler;
   isAdmin: RequestHandler;
 }
 
 /** Register the adjacent administrator-support and player admin-message routes. */
 export function registerSupportRoutes(app: Express, dependencies: SupportRouteDependencies): void {
-  const { storage, isAuthenticated, isAdmin } = dependencies;
+  const { storage, db, isAuthenticated, isAdmin } = dependencies;
 
   app.get("/api/admin/support-messages", isAdmin, async (_req, res) => {
     try {
@@ -87,4 +91,29 @@ export function registerSupportRoutes(app: Express, dependencies: SupportRouteDe
     isAuthenticated,
     deleteOwnedAdminMessage(storage.deleteAdminMessageForUsername.bind(storage)),
   );
+
+  app.get("/api/support-messages/my", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const rows = await db.execute(sql`
+        SELECT id, subject, message, is_read, created_at
+        FROM support_messages
+        WHERE username = ${user.username}
+        ORDER BY created_at DESC
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/support-messages/my/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await db.execute(sql`DELETE FROM support_messages WHERE id = ${req.params.id} AND username = ${user.username}`);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
 }
