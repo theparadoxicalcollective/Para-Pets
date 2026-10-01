@@ -45,6 +45,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type HouseBuildingType } from "@shared/housing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -114,18 +115,12 @@ interface HousePet {
   rarity: number | null; petLevel: number; petHealth: number; petAtk: number; petDef: number;
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
 }
-interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; }
+interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; }
 interface ActiveBundle extends HouseBundle {
   maxOutdoorPets: number;
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: string | null }[];
+  maxOutdoorDecor: number;
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: string | null; buildingType?: HouseBuildingType | null }[];
 }
-
-const BUILDING_CAPACITY: Record<string, { pets: number; items: number }> = {
-  small:  { pets: 3, items: 3 },
-  medium: { pets: 5, items: 6 },
-  large:  { pets: 7, items: 9 },
-};
-const MAX_OUTDOOR_DECOR = 8;
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number }; }
 interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null }; }
@@ -1068,7 +1063,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
-            const maxPets = building?.maxPets ?? (building?.size ? BUILDING_CAPACITY[building.size]?.pets : undefined) ?? 5;
+            const maxPets = building?.size ? BUILDING_SIZE_CAPACITY[building.size as keyof typeof BUILDING_SIZE_CAPACITY]?.pets ?? BUILDING_SIZE_CAPACITY.medium.pets : BUILDING_SIZE_CAPACITY.medium.pets;
             const currentCount = pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null).length;
             if (currentCount >= maxPets) {
               toast({ title: "Pet limit reached!", description: `This building can hold up to ${maxPets} pets.` });
@@ -1081,7 +1076,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               });
             }
           } else if (imgWidth > 0) {
-            const maxOutdoor = activeBundle?.maxOutdoorPets ?? 6;
+            const maxOutdoor = activeBundle?.maxOutdoorPets ?? DEFAULT_OUTDOOR_PET_LIMIT;
             if (outdoorPets.length >= maxOutdoor) {
               toast({ title: "Pet limit reached!", description: `Your yard can hold up to ${maxOutdoor} pets outdoors.` });
             } else {
@@ -1113,7 +1108,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
-            const maxItems = building?.size ? BUILDING_CAPACITY[building.size]?.items : 6;
+            const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size as keyof typeof BUILDING_SIZE_CAPACITY]?.decor ?? BUILDING_SIZE_CAPACITY.medium.decor : BUILDING_SIZE_CAPACITY.medium.decor;
             if (interiorPlacedRaw.length >= (maxItems ?? 6)) {
               toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems ?? 6} decorations.` });
             } else {
@@ -1125,8 +1120,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               });
             }
           } else if (imgWidth > 0) {
-            if (placedDecorRaw.length >= MAX_OUTDOOR_DECOR) {
-              toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${MAX_OUTDOOR_DECOR} decorations outdoors.` });
+            const maxOutdoorDecor = activeBundle?.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT;
+            if (placedDecorRaw.length >= maxOutdoorDecor) {
+              toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${maxOutdoorDecor} decorations outdoors.` });
             } else {
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
@@ -1354,7 +1350,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
-            const isMailbox = b.name.toLowerCase().includes("mailbox");
+            const isMailbox = b.buildingType === "mailbox" || (!b.buildingType && b.name.toLowerCase().includes("mailbox"));
             const isClickable = hasInterior || isMailbox;
             const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             return (
