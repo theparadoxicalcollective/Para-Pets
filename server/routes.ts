@@ -51,6 +51,7 @@ import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTrans
 import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerHouseBundleRoutes } from "./routes/houseBundle.routes";
+import { registerPetHouseVisitorRoutes } from "./routes/petHouseVisitor.routes";
 import { registerPetHousePositionRoutes } from "./routes/petHousePosition.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
@@ -1197,50 +1198,7 @@ export async function registerRoutes(
 
   registerPlayerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage });
 
-  // Public pet list for visiting another player's pet house
-  app.get("/api/users/:userId/pets", isAuthenticated, async (req, res) => {
-    try {
-      const targetUser = await storage.getUser((req.params.userId as string));
-      if (!targetUser || targetUser.isBanned) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const [inventoryRows, savedPositions] = await Promise.all([
-        storage.getUserInventoryWithItems(targetUser.id),
-        storage.getPetHousePositions(targetUser.id),
-      ]);
-      const posMap = new Map(savedPositions.map(p => [p.inventoryId, { posLeft: p.posLeft, posTop: p.posTop, location: p.location }]));
-
-      const hatchedPets = inventoryRows
-        .filter(r => r.inventory.isHatched && r.shopItem?.type === "pet")
-        .map(r => {
-          const pos = posMap.get(r.inventory.id);
-          return {
-            inventoryId: r.inventory.id,
-            shopItemId: r.shopItem!.id,
-            name: r.shopItem!.name,
-            nickname: r.inventory.petNickname,
-            imageUrl: r.shopItem!.imageUrl,
-            hatchedImageUrl: r.shopItem!.hatchedImageUrl,
-            eggImageUrl: r.shopItem!.eggImageUrl,
-            rarity: r.shopItem!.rarity,
-            petLevel: r.inventory.petLevel,
-            petHealth: r.inventory.petHealth,
-            petAtk: r.inventory.petAtk,
-            petDef: r.inventory.petDef,
-            petTemplateId: r.shopItem!.petTemplateId || null,
-            posLeft: pos?.posLeft ?? null,
-            posTop: pos?.posTop ?? null,
-            location: pos?.location ?? null,
-          };
-        });
-
-      return res.json({ username: targetUser.username, pets: hatchedPets });
-    } catch (err) {
-      console.error("Get user pets error:", err);
-      return res.status(500).json({ message: "Failed to get pets" });
-    }
-  });
+  registerPetHouseVisitorRoutes(app, { storage, isAuthenticated });
 
   registerPetHousePositionRoutes(app, { storage, isAuthenticated });
 
