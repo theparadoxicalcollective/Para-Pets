@@ -1109,8 +1109,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size].decor : BUILDING_SIZE_CAPACITY.medium.decor;
-            if (interiorPlacedRaw.length >= (maxItems ?? 6)) {
-              toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems ?? 6} decorations.` });
+            const placedDecorCount = interiorPlacedRaw.filter(item => item.item.type === "decor").length;
+            if (decorDrag.itemType === "decor" && placedDecorCount >= maxItems) {
+              toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems} decorations.` });
             } else {
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
@@ -1121,7 +1122,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             }
           } else if (imgWidth > 0) {
             const maxOutdoorDecor = activeBundle?.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT;
-            if (placedDecorRaw.length >= maxOutdoorDecor) {
+            const placedDecorCount = placedDecorRaw.filter(item => item.item.type === "decor").length;
+            if (decorDrag.itemType === "decor" && placedDecorCount >= maxOutdoorDecor) {
               toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${maxOutdoorDecor} decorations outdoors.` });
             } else {
               placeDecorMutation.mutate({
@@ -1698,7 +1700,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                             if (!drag || drag.pid !== e.pointerId) return;
                             drag.ghostX = e.clientX; drag.ghostY = e.clientY;
                             if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
-                            if (drag.isDragging) { setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
+                            if (drag.isDragging) { setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, itemType: drag.itemType, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
                           }}
                           onPointerUp={handlePointerUp}
                           onPointerCancel={handlePointerUp}
