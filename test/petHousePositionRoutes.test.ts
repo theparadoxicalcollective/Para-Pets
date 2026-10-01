@@ -133,9 +133,14 @@ test("Pet House position routes register once, in legacy order, behind authentic
     assert.equal(registered.handlers[0], authenticated, registered.path);
   }
 
+  const deleteAllIndex = app.routes.findIndex(
+    (entry) => entry.method === "DELETE" && entry.path === "/api/pet-house-positions/all",
+  );
+  const deleteOneIndex = app.routes.findIndex(
+    (entry) => entry.method === "DELETE" && entry.path === "/api/pet-house-positions/:inventoryId",
+  );
   assert.ok(
-    app.routes.findIndex((entry) => entry.path === "/api/pet-house-positions/all")
-      < app.routes.findIndex((entry) => entry.path === "/api/pet-house-positions/:inventoryId"),
+    deleteAllIndex >= 0 && deleteAllIndex < deleteOneIndex,
     "DELETE /all must remain before DELETE /:inventoryId",
   );
 });
