@@ -466,7 +466,7 @@ export default function GinnyQuestOverlay() {
       {questCard}
       <GuideHighlight target={!primaryGuideActive && guideActive && state.canEquipNow ? guideTarget : null} />
 
-      {guideActive && state.status === "accepted" && !state.canEquipNow && (
+      {!primaryGuideActive && guideActive && state.status === "accepted" && !state.canEquipNow && (
         <div data-testid="ginny-guide-needs-active-pet" style={{ position: "fixed", left: 12, right: 12, bottom: "max(18px,env(safe-area-inset-bottom))", margin: "0 auto", maxWidth: 420, zIndex: 2147483002, padding: "11px 14px", borderRadius: 14, background: "rgba(12,8,18,.97)", border: "1px solid rgba(255,213,92,.65)", color: "#fff0c1", font: "11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72)" }}>
           Set a hatched pet as your active pet first, then return to Ginny's guide. Your Mini Pet choice is safely saved.
         </div>
