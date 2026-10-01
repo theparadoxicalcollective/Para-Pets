@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
-import friendsNavIcon from "@assets/Photoroom_20260622_114621_AM_1782146930993.png";
+import friendsNavIcon from "@assets/uploads/FriendIcon.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
@@ -45,7 +45,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -122,8 +122,8 @@ interface ActiveBundle extends HouseBundle {
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
-interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number }; }
-interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null }; }
+interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType }; }
+interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType }; }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_BG_RATIO = 1920 / 2400;
@@ -776,8 +776,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
   // Inventory drag: decor
-  const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number } | null>(null);
-  const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
+  const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number } | null>(null);
+  const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
   const [isDraggingDecor, setIsDraggingDecor] = useState(false);
 
   // Inventory drag: pet
@@ -1033,7 +1033,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     if (decorDrag && decorDrag.pid === e.pointerId) {
       decorDrag.ghostX = e.clientX; decorDrag.ghostY = e.clientY;
       if (Math.hypot(e.clientX - decorDrag.startX, e.clientY - decorDrag.startY) > 8) decorDrag.isDragging = true;
-      if (decorDrag.isDragging) { setInventoryDragState({ decorItemId: decorDrag.decorItemId, imageUrl: decorDrag.imageUrl, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
+      if (decorDrag.isDragging) { setInventoryDragState({ decorItemId: decorDrag.decorItemId, imageUrl: decorDrag.imageUrl, itemType: decorDrag.itemType, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
       return;
     }
     // Pan
@@ -1228,10 +1228,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [imgWidth, containerH, updatePetPositionMutation]);
 
   // ── Inventory drag starters ────────────────────────────────────────────────
-  const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
+  const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null, itemType: HomeSceneItemType) => {
     e.stopPropagation();
     containerRef.current?.setPointerCapture(e.pointerId);
-    inventoryDragRef.current = { decorItemId, imageUrl, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
+    inventoryDragRef.current = { decorItemId, imageUrl, itemType, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
 
   const handlePetInvDragStart = useCallback((e: React.PointerEvent, pet: HousePet) => {
