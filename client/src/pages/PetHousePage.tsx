@@ -45,7 +45,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1109,8 +1109,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size].decor : BUILDING_SIZE_CAPACITY.medium.decor;
-            const placedDecorCount = interiorPlacedRaw.filter(item => item.item.type === "decor").length;
-            if (decorDrag.itemType === "decor" && placedDecorCount >= maxItems) {
+            const placedDecorCount = interiorPlacedRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
+            if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxItems) {
               toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems} decorations.` });
             } else {
               placeDecorMutation.mutate({
@@ -1122,8 +1122,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             }
           } else if (imgWidth > 0) {
             const maxOutdoorDecor = activeBundle?.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT;
-            const placedDecorCount = placedDecorRaw.filter(item => item.item.type === "decor").length;
-            if (decorDrag.itemType === "decor" && placedDecorCount >= maxOutdoorDecor) {
+            const placedDecorCount = placedDecorRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
+            if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxOutdoorDecor) {
               toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${maxOutdoorDecor} decorations outdoors.` });
             } else {
               placeDecorMutation.mutate({
