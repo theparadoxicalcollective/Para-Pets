@@ -257,9 +257,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
 
-  // ── Max outdoor pets (bundle-level) ──
-  const [localMaxOutdoor, setLocalMaxOutdoor] = useState<string>(String(bundle.maxOutdoorPets ?? 6));
-
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
   const giftYRef = useRef(bundle.giftNotificationY ?? 0.85);
@@ -314,7 +311,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newImage, setNewImage] = useState<string | null>(null);
-  const [newSize, setNewSize] = useState<"small" | "medium" | "large">("medium");
+  const [newBuildingType, setNewBuildingType] = useState<HouseBuildingType>("building");
+  const [newSize, setNewSize] = useState<BuildingSize>("medium");
   const addImgRef = useRef<HTMLInputElement>(null);
 
   // ── Fetch buildings ──
@@ -381,7 +379,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Mutations ──
   const patchBuilding = useMutation({
-    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean }) => {
+    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; buildingType?: HouseBuildingType; size?: BuildingSize }) => {
       const { id, ...rest } = data;
       return apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, rest);
     },
@@ -399,10 +397,13 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     mutationFn: async () => {
       if (!newName.trim() || !newImage) throw new Error("Name and image required");
       return apiRequest("POST", `/api/admin/house-bundles/${bundle.id}/buildings`, {
-        name: newName.trim(), imageData: newImage, size: newSize,
+        name: newName.trim(),
+        imageData: newImage,
+        buildingType: newBuildingType,
+        ...(newBuildingType === "building" ? { size: newSize } : {}),
       });
     },
-    onSuccess: () => { setShowAddForm(false); setNewName(""); setNewImage(null); setNewSize("medium"); refetch(); },
+    onSuccess: () => { setShowAddForm(false); setNewName(""); setNewImage(null); setNewBuildingType("building"); setNewSize("medium"); refetch(); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
