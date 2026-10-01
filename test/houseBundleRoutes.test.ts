@@ -139,10 +139,6 @@ const expected = [
   "POST /api/house-bundles/:bundleId/purchase",
   "POST /api/house-bundles/:bundleId/activate",
   "POST /api/house-bundles/deactivate",
-  "GET /api/admin/location/:locationId/shop-bundles",
-  "POST /api/admin/location/:locationId/assign-bundle/:bundleId",
-  "DELETE /api/admin/location/:locationId/unassign-bundle/:bundleId",
-  "GET /api/locations/:locationId/shop-bundles",
   "GET /api/admin/house-bundles",
   "POST /api/admin/house-bundles",
   "PATCH /api/admin/house-bundles/:id",
@@ -152,6 +148,10 @@ const expected = [
   "PATCH /api/admin/house-bundle-buildings/:id",
   "DELETE /api/admin/house-bundle-buildings/:id",
   "POST /api/admin/house-bundle-buildings/:id/duplicate",
+  "GET /api/admin/location/:locationId/shop-bundles",
+  "POST /api/admin/location/:locationId/assign-bundle/:bundleId",
+  "DELETE /api/admin/location/:locationId/unassign-bundle/:bundleId",
+  "GET /api/locations/:locationId/shop-bundles",
 ];
 
 test("house bundle routes register once in the existing order and preserve auth boundaries", () => {
