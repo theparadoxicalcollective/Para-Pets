@@ -128,17 +128,21 @@ test("WorldPage delegates location admin gesture state to the controller", () =>
 });
 
 test("map panning remains mutually exclusive with location dragging", () => {
-  const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+  const controller = readFileSync(
+    "client/src/worlds/useWorldViewportController.ts",
+    "utf8",
+  );
+  const worldPage = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 
   assert.match(
-    source,
-    /if \(isLocationDragActive\(\) && !mapPanPointersRef\.current\.size\) clearStaleLocationDrag\(\)/,
+    controller,
+    /if \(isLocationDragActive\(\) && !mapPanPointersRef\.current\.size\) \{[\s\S]*?clearStaleLocationDrag\(\)/,
   );
   assert.match(
-    source,
-    /if \(isLocationDragActive\(\) \|\| objDragRef\.current\) return/,
+    controller,
+    /if \(isLocationDragActive\(\) \|\| isObjectDragActive\(\)\) return/,
   );
-  assert.match(source, /onPointerCancel=\{cancelLocationDrag\}/);
+  assert.match(worldPage, /onPointerCancel=\{cancelLocationDrag\}/);
 });
 
 test("decor, barrel and background selection clear location selection through one controller action", () => {
