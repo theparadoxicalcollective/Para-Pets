@@ -180,7 +180,10 @@ export function registerHouseBundleRoutes(
     try {
       const { name, imageData, size, buildingType } = req.body;
       if (!name || !imageData) return res.status(400).json({ message: "name and imageData are required" });
-      const type = isHouseBuildingType(buildingType) ? buildingType : "building";
+      if (buildingType !== undefined && !isHouseBuildingType(buildingType)) {
+        return res.status(400).json({ message: "buildingType must be building or mailbox" });
+      }
+      const type = buildingType ?? "building";
       if (type === "building" && size !== undefined && !isBuildingSize(size)) {
         return res.status(400).json({ message: "size must be small, medium, or large" });
       }
