@@ -58,7 +58,10 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   assert.match(spotlightSource, /document\.addEventListener\("pointerup", onPointerBoundary, true\)/);
   assert.match(spotlightSource, /document\.addEventListener\("click", onClick, true\)/);
   assert.match(spotlightSource, /element\?\.closest\(INTERACTIVE_SELECTOR\)/);
-  assert.match(spotlightSource, /pointerEvents: mode === "tour" \? "auto" : "none"/);
+  assert.match(spotlightSource, /blockingGuide = false/);
+  assert.match(spotlightSource, /const tourInteractive = blockingGuide && mode === "tour"/);
+  assert.match(spotlightSource, /pointerEvents: tourInteractive \? "auto" : "none"/);
+  assert.match(spotlightSource, /!blockingGuide[\s\S]*?"transparent"/);
   assert.match(spotlightSource, /radial-gradient\(circle/);
   assert.match(spotlightSource, /\[aria-modal="true"\], \[data-quest-guide-blocker="true"\]/);
   assert.match(spotlightSource, /selector\.startsWith\('\[data-testid="button-location-'/);
@@ -67,11 +70,14 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   const lonelleSource = readFileSync("client/src/components/LonelleQuestOverlay.tsx", "utf8");
   assert.match(lonelleSource, /<QuestGuideSpotlight/);
   assert.match(lonelleSource, /mode=\{guideMode\}/);
+  assert.match(lonelleSource, /blockingGuide=\{false\}/);
 
   const npcSource = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
   assert.match(npcSource, /targetOnScreen && npcElement \? "tour"/);
   assert.match(npcSource, /: atMap \? "pan"/);
   assert.match(npcSource, /button-skip-npc-guide/);
+  assert.match(npcSource, /blockingGuide/);
+  assert.match(npcSource, /const shouldLoadTour = eligible;/);
   assert.match(npcSource, /blockingOverlay/);
 
   const appSource = readFileSync("client/src/App.tsx", "utf8");
