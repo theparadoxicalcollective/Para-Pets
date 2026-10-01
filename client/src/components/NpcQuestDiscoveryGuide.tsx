@@ -120,7 +120,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const rect = targetRect?.selector === selector ? targetRect.rect : null;
   const guideRect = rect ? guideBoundsInSurface(rect, surface) : null;
   const targetOnScreen = guideTargetOnScreen(guideRect, surface.width, surface.height);
-  const instruction = atWorld && targetOnScreen ? `This is ${current?.name}. Tap anywhere to see the next NPC — their quest will stay closed.`
+  const instruction = atWorld && targetOnScreen ? `This is ${current?.name}. Click to continue.`
     : atWorld ? `Drag the world to find ${current?.name} in ${current?.worldName}.`
     : atMap && !targetOnScreen ? `Drag the map to find ${current?.worldName}.`
     : atMap ? `Choose ${current?.worldName} on the world map.`
@@ -211,7 +211,6 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
         <button type="button" data-testid="button-skip-npc-guide" onClick={() => finish(worlds.length)} className="underline" style={{ pointerEvents: "auto" }}>Skip guide</button>
       </div>
       <p className="mt-1 text-sm">{instruction}</p>
-      {atWorld && targetOnScreen && npcElement && <p className="mt-2 text-xs text-[#f0d060]">Tap the screen to {npcs.some(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) > worlds.findIndex(world => world.worldId === current.worldId && world.name === current.name)) ? "continue" : "finish the guide"}.</p>}
       {!targetOnScreen && <p className="mt-1 text-xs text-[#d9bd85]">Move around until the arrow appears over the location.</p>}
     </div>
   </>, surface.target);
