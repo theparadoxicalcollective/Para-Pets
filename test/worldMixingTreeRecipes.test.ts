@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readFileSync(path, "utf8");\nconst normalizeSource = (source: string) => source.replace(/\\s+/g, " ").trim();
 
 test("WorldPage delegates Mixing Tree recipe UI to focused components", () => {
   const worldPage = read("client/src/pages/WorldPage.tsx");
@@ -37,7 +37,7 @@ test("Mixing Tree recipe component owns the shared recipe shape and existing mod
     "Recipe Book",
     "Find recipe scrolls in the market and drag them onto the cauldron to unlock recipes!",
   ]) {
-    assert.equal(source.includes(marker), true, marker);
+    assert.equal(normalized.includes(marker), true, marker);
   }
 });
 
