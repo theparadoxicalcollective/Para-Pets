@@ -56,6 +56,7 @@ import { registerFounderRoutes } from "./routes/founder.routes";
 import { registerVeridianWatcherQuoteRoutes } from "./routes/veridianWatcherQuote.routes";
 import { registerWatcherShoutoutPreferenceRoutes } from "./routes/watcherShoutoutPreference.routes";
 import { registerChatFilterRoutes } from "./routes/chatFilter.routes";
+import { registerWorldChatReadRoute } from "./routes/worldChatRead.routes";
 import { registerPetHousePositionRoutes } from "./routes/petHousePosition.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
@@ -5453,15 +5454,7 @@ export async function registerRoutes(
 
   registerWatcherShoutoutPreferenceRoutes(app, { storage, isAuthenticated });
 
-  app.get("/api/world-chat", isAuthenticated, async (req, res) => {
-    try {
-      const messages = await storage.getWorldChatMessages();
-      return res.json(messages);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
+  registerWorldChatReadRoute(app, { storage, isAuthenticated });
 
   registerChatFilterRoutes(app, { storage, isAuthenticated, baseBadWords: BASE_BAD_WORDS });
 
