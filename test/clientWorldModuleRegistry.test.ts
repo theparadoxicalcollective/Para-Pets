@@ -95,6 +95,10 @@ test("all registered worlds plug dedicated presentation modules into the client 
 
   assert.match(
     source,
+    /\[WORLD_IDS\.hauntedWoods\]: \{[\s\S]*?presentation: HAUNTED_WOODS_PRESENTATION,[\s\S]*?resolveDestination: getHauntedWoodsLocationDestination/,
+  );
+  assert.match(
+    source,
     /\[WORLD_IDS\.volcanic\]: \{[\s\S]*?presentation: VOLCANIC_PRESENTATION,[\s\S]*?resolveDestination: getVolcanicLocationDestination/,
   );
   assert.match(
@@ -120,7 +124,7 @@ test("WorldPage consumes the client world module generically", () => {
   assert.match(source, /const staticPresentation = clientWorldModule\?\.presentation/);
   assert.match(
     source,
-    /const worldDestination = resolveClientWorldDestination\(worldId, loc\.id\)/,
+    /resolveWorldLocationInteraction\([\s\S]*?resolveClientWorldDestination\(worldId, loc\.id\)/,
   );
 
   assert.doesNotMatch(source, /getVolcanicLocationDestination/);
