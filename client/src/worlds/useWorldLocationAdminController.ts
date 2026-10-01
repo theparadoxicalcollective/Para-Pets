@@ -8,6 +8,28 @@ import {
 } from "react";
 import type { WorldLocationData } from "@/components/world/WorldLocations";
 
+export const WORLD_LOCATION_DRAG_THRESHOLD_PX = 3;
+export const WORLD_LOCATION_MIN_PERCENT = -10;
+export const WORLD_LOCATION_MAX_PERCENT = 110;
+export const WORLD_LOCATION_POST_DRAG_CLICK_MS = 350;
+export const WORLD_LOCATION_ADMIN_SECOND_TAP_MS = 400;
+export const WORLD_LOCATION_DRAG_RESET_MS = 300;
+
+export function clampWorldLocationAdminPercent(value: number): number {
+  return Math.max(
+    WORLD_LOCATION_MIN_PERCENT,
+    Math.min(WORLD_LOCATION_MAX_PERCENT, value),
+  );
+}
+
+export function shouldSuppressWorldLocationClick(
+  didDrag: boolean,
+  lastDragEndAt: number,
+  now: number,
+): boolean {
+  return didDrag || now - lastDragEndAt < WORLD_LOCATION_POST_DRAG_CLICK_MS;
+}
+
 interface WorldLocationPositionUpdate {
   locationId: string;
   posX: number;
@@ -106,19 +128,17 @@ export function useWorldLocationAdminController({
     const dx = currentCanvasX - dragRef.current.startCanvasX;
     const dy = event.clientY - dragRef.current.startY;
 
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    if (Math.abs(dx) > WORLD_LOCATION_DRAG_THRESHOLD_PX || Math.abs(dy) > WORLD_LOCATION_DRAG_THRESHOLD_PX) {
       didDragRef.current = true;
     }
 
     const pxPerPercX = rect.width / 100;
     const pxPerPercY = rect.height / 100;
-    const newX = Math.max(
-      -10,
-      Math.min(110, dragRef.current.origPosX + dx / pxPerPercX),
+    const newX = clampWorldLocationAdminPercent(
+      dragRef.current.origPosX + dx / pxPerPercX,
     );
-    const newY = Math.max(
-      -10,
-      Math.min(110, dragRef.current.origPosY + dy / pxPerPercY),
+    const newY = clampWorldLocationAdminPercent(
+      dragRef.current.origPosY + dy / pxPerPercY,
     );
 
     setDragPosition({
@@ -147,7 +167,7 @@ export function useWorldLocationAdminController({
       });
       setTimeout(() => {
         didDragRef.current = false;
-      }, 300);
+      }, WORLD_LOCATION_DRAG_RESET_MS);
     } else {
       didDragRef.current = false;
     }
@@ -168,10 +188,13 @@ export function useWorldLocationAdminController({
 
   const isLocationDragActive = useCallback(() => dragRef.current !== null, []);
 
-  const shouldIgnoreLocationClick = useCallback(() => {
-    if (didDragRef.current) return true;
-    return Date.now() - lastDragEndTimeRef.current < 350;
-  }, []);
+  const shouldIgnoreLocationClick = useCallback(() => (
+    shouldSuppressWorldLocationClick(
+      didDragRef.current,
+      lastDragEndTimeRef.current,
+      Date.now(),
+    )
+  ), []);
 
   const handleAdminLocationClick = useCallback((
     locationId: string,
@@ -190,7 +213,7 @@ export function useWorldLocationAdminController({
     setSelectedLocationId(locationId);
     const timer = setTimeout(() => {
       adminTapRef.current = null;
-    }, 400);
+    }, WORLD_LOCATION_ADMIN_SECOND_TAP_MS);
     adminTapRef.current = { id: locationId, timer };
     return true;
   }, [clearPendingAdminTap, isAdmin]);
