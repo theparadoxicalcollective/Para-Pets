@@ -27,6 +27,17 @@ test("viewport controller preserves no-blank-space fit and clamp ownership", () 
   assert.match(source, /const initialY = \(frameHRef\.current - mapHRef\.current \* fitScale\) \/ 2/);
 });
 
+test("world background loading state remains owned by WorldPage", () => {
+  const worldPage = read("client/src/pages/WorldPage.tsx");
+  const controller = read("client/src/worlds/useWorldViewportController.ts");
+
+  assert.match(worldPage, /const \[worldBgLoaded, setWorldBgLoaded\] = useState\(false\)/);
+  assert.match(worldPage, /const \[committedWorldBg, setCommittedWorldBg\] = useState<string>\(""\"?\)/);
+  assert.match(worldPage, /const lastLoadedBgRef = useRef\(""\"?\)/);
+
+  assert.doesNotMatch(controller, /worldBgLoaded|committedWorldBg|lastLoadedBgRef/);
+});
+
 test("viewport controller pauses map panning during admin location or object drags", () => {
   const source = read("client/src/worlds/useWorldViewportController.ts");
 
