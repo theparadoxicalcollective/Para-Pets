@@ -5436,37 +5436,7 @@ export async function registerRoutes(
 
   registerHouseBundleRoutes(app, { db, storage, isAdmin, processWorldImage });
 
-  // ── Home Decor Items ──────────────────────────────────────────────────────────
-  app.get("/api/admin/home-decor", isAdmin, async (_req, res) => {
-    try {
-      const items = await storage.getHomeDecorItems();
-      return res.json(items);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/admin/home-decor", isAdmin, async (req, res) => {
-    try {
-      const { name, price, imageData } = req.body;
-      if (!name) return res.status(400).json({ message: "name is required" });
-      let imageUrl: string | undefined;
-      if (imageData) imageUrl = await processWorldImage(imageData, 2000);
-      const item = await storage.createHomeDecorItem({ name, price: price ?? 0, imageUrl });
-      return res.status(201).json(item);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.delete("/api/admin/home-decor/:id", isAdmin, async (req, res) => {
-    try {
-      await storage.deleteHomeDecorItem((req.params.id as string));
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
+  registerHomeDecorRoutes(app, { storage, isAuthenticated, isAdmin, executeDecorPlacement, executeDecorRemoval, processWorldImage });
 
   // ── Admin: location house-bundle shop stock ────────────────────────────────
   app.get("/api/admin/location/:locationId/shop-bundles", isAdmin, async (req, res) => {
@@ -5506,64 +5476,7 @@ export async function registerRoutes(
     }
   });
 
-  // ── Admin: location home-decor shop stock ──────────────────────────────────
-  app.get("/api/admin/location/:locationId/shop-decor", isAdmin, async (req, res) => {
-    try {
-      const rows = await storage.getLocationHomeDecor((req.params.locationId as string));
-      return res.json(rows);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/admin/location/:locationId/assign-decor/:decorId", isAdmin, async (req, res) => {
-    try {
-      const row = await storage.addDecorToShop((req.params.locationId as string), (req.params.decorId as string));
-      return res.json(row);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.delete("/api/admin/location/:locationId/unassign-decor/:decorId", isAdmin, async (req, res) => {
-    try {
-      await storage.removeDecorFromShop((req.params.locationId as string), (req.params.decorId as string));
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  // ── Player: get decor available at a shop ─────────────────────────────────
-  app.get("/api/locations/:locationId/shop-decor", isAuthenticated, async (req, res) => {
-    try {
-      const rows = await storage.getLocationHomeDecor((req.params.locationId as string));
-      return res.json(rows.map(r => r.decor));
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
   registerClientErrorRoutes(app, { isAdmin });
-
-  // ── Player Home Decor Inventory & Placement ───────────────────────────────────
-  registerHomeDecorRoutes(app, { storage, isAuthenticated, executeDecorPlacement, executeDecorRemoval });
-
-  // ── Admin: grant a home decor item to all players ─────────────────────────────
-  app.post("/api/admin/home-decor/:id/grant-everyone", isAdmin, async (req, res) => {
-    try {
-      const decorItemId = (req.params.id as string);
-      const allUsers = await storage.getAllUsers();
-      let granted = 0;
-      for (const u of allUsers) {
-        await storage.grantHomeDecorToUser(u.id, decorItemId);
-        granted++;
-      }
-      return res.json({ ok: true, granted });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
 
   // ── Gifts ──────────────────────────────────────────────────────────────────
   registerGiftRoutes(app, { storage, isAuthenticated, executeSendGift, executeAcceptGift });
