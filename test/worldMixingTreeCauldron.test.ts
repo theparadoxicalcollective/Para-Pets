@@ -54,10 +54,10 @@ test("WorldPage keeps cauldron data ownership and server mutations unchanged", (
   const worldPage = read("client/src/pages/WorldPage.tsx");
 
   assert.match(worldPage, /queryKey: \["\/api\/cauldron\/layout"\]/);
-  assert.match(worldPage, /apiRequest\("PATCH", "\/api\/cauldron\/layout", layout\)/);
+  assert.match(worldPage, /apiRequest\("PATCH", "\/api\/admin\/cauldron\/layout", payload\)/);
   assert.match(worldPage, /queryKey: \["\/api\/cauldron\/contents"\]/);
-  assert.match(worldPage, /apiRequest\("POST", "\/api\/cauldron\/add", \{ inventoryId \}\)/);
-  assert.match(worldPage, /apiRequest\("POST", "\/api\/cauldron\/clear", \{\}\)/);
-  assert.match(worldPage, /apiRequest\("POST", "\/api\/cauldron\/brew", \{\}\)/);
+  assert.match(worldPage, /apiRequest\("POST", "\/api\/cauldron\/contents", \{ inventoryId \}\)/);
+  assert.match(worldPage, /apiRequest\("DELETE", "\/api\/cauldron\/contents"\)/);
+  assert.match(worldPage, /apiRequest\("POST", "\/api\/cauldron\/brew"\)/);
   assert.match(worldPage, /apiRequest\("POST", "\/api\/recipes\/unlock", \{ inventoryId \}\)/);
 });
