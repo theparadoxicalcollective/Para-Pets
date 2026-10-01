@@ -89,7 +89,7 @@ test("WorldPage delegates Volcanic destinations instead of hardcoding their ids"
   }
 });
 
-test("Volcanic hint and fish-market rules use the world module ids", () => {
+test("Volcanic hint rules use the world module ids and remain independent of fish selling", () => {
   const worldPage = read("client/src/pages/WorldPage.tsx");
 
   assert.match(
@@ -104,10 +104,7 @@ test("Volcanic hint and fish-market rules use the world module ids", () => {
     worldPage,
     /locations\.find\(l => l\.id === VOLCANIC_LOCATION_IDS\.moltenBastion\)/,
   );
-  assert.match(
-    worldPage,
-    /fishBarrel && worldId !== VOLCANIC_WORLD_ID/,
-  );
+  assert.doesNotMatch(worldPage, /fishBarrel|fish-barrel|barrelHint/);
 });
 
 test("Volcanic gameplay remains owned by independent mini-game feature modules", () => {
