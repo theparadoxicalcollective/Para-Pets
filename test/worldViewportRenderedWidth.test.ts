@@ -108,8 +108,9 @@ test("rendered map width controls fit instead of the legacy 1080px fallback", ()
   ));
 });
 
-test("production build width flows through WorldPage into both fit and clamp helpers", () => {
-  const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+test("production build width flows through WorldPage into the shared viewport controller", () => {
+  const worldPage = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+  const controller = readFileSync("client/src/worlds/useWorldViewportController.ts", "utf8");
   const vite = readFileSync("vite.config.ts", "utf8");
 
   assert.ok(vite.includes("const WORLD_MAP_DESIGN_W = 924;"));
@@ -117,12 +118,17 @@ test("production build width flows through WorldPage into both fit and clamp hel
   assert.ok(vite.includes("const MAP_W = ${WORLD_MAP_DESIGN_W};"));
 
   assert.match(
-    source,
-    /clampWorldMapOffset\(x, y, sc, frameWRef\.current, frameHRef\.current, mapHRef\.current, MAP_W\)/,
+    worldPage,
+    /useWorldViewportController\(\{[\s\S]*?mapWidth: MAP_W,[\s\S]*?defaultMapHeight: MAP_H_DEFAULT/,
   );
 
-  const fitCalls = source.match(
-    /calculateWorldFitScale\(frameWRef\.current, frameHRef\.current, mapHRef\.current, fitFullComposition, MAP_W\)/g,
+  assert.match(
+    controller,
+    /clampWorldMapOffset\([\s\S]*?mapHRef\.current,[\s\S]*?mapWidth/,
+  );
+
+  const fitCalls = controller.match(
+    /calculateWorldFitScale\([\s\S]*?mapHRef\.current,[\s\S]*?fitFullComposition,[\s\S]*?mapWidth/g,
   ) ?? [];
   assert.equal(fitCalls.length, 2);
 });
