@@ -27,7 +27,7 @@ export function isPrimaryQuestGuideActive(): boolean {
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => { listeners.delete(listener); };
 }
 
 export function usePrimaryQuestGuideActive(): boolean {
