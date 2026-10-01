@@ -4,6 +4,7 @@ import test from "node:test";
 
 const fishingSource = readFileSync("client/src/pages/FishingPage.tsx", "utf8");
 const worldSource = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+const locationUiSource = readFileSync("client/src/worlds/useWorldLocationUiState.ts", "utf8");
 
 test("fishing attempt reset is local and never leaves the world location", () => {
   const resetBody = fishingSource.match(
@@ -30,9 +31,10 @@ test("equipment callbacks only mutate equipment or close their picker", () => {
 
 test("fishing overlay is retained independently of location query refreshes", () => {
   assert.match(
-    worldSource,
+    locationUiSource,
     /const \[fishingLocation, setFishingLocation\] = useState<WorldLocationData \| null>\(null\)/,
   );
+  assert.match(worldSource, /useWorldLocationUiState\(\)/);
   assert.match(worldSource, /\{fishingLocation && \(/);
   assert.doesNotMatch(
     worldSource,
@@ -40,16 +42,17 @@ test("fishing overlay is retained independently of location query refreshes", ()
   );
 });
 
-test("only the explicit FishingPage close callback clears the active fishing location", () => {
+test("only the explicit FishingPage close path clears the active fishing location", () => {
   const overlay = worldSource.slice(
     worldSource.indexOf("{fishingLocation && ("),
     worldSource.indexOf("{showSellFish && ("),
   );
 
-  assert.match(overlay, /onClose=\{\(\) => \{/);
-  assert.match(overlay, /setFishingLocation\(null\)/);
-  assert.match(overlay, /setActiveLocationId\(null\)/);
-  assert.equal((overlay.match(/setActiveLocationId\(null\)/g) ?? []).length, 1);
+  assert.match(overlay, /onClose=\{closeFishingLocation\}/);
+  assert.match(
+    locationUiSource,
+    /const closeFishingLocation = useCallback\(\(\) => \{[\s\S]*?setFishingLocation\(null\);[\s\S]*?setActiveLocationId\(null\);/,
+  );
 });
 
 test("catch and equipment refreshes do not invalidate world locations", () => {
