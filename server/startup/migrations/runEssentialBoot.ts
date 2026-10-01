@@ -315,6 +315,16 @@ export async function runEssentialBoot(): Promise<void> {
       FROM stacked s
       WHERE ui.id = s.id;
     `],
+    ["House bundle capacity/type migration error (non-fatal):", sql`
+      ALTER TABLE house_bundles
+        ADD COLUMN IF NOT EXISTS max_outdoor_decor INTEGER NOT NULL DEFAULT 8;
+      ALTER TABLE house_bundle_buildings
+        ADD COLUMN IF NOT EXISTS building_type TEXT NOT NULL DEFAULT 'building';
+      UPDATE house_bundle_buildings
+      SET building_type = 'mailbox'
+      WHERE building_type = 'building'
+        AND lower(name) LIKE '%mailbox%';
+    `],
     ["watcher_shoutouts_enabled migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`],
     ["is_bot migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false`],
     ["pvp_battle_groups.attack_power migration error (non-fatal):", sql`ALTER TABLE pvp_battle_groups ADD COLUMN IF NOT EXISTS attack_power integer NOT NULL DEFAULT 0`],
