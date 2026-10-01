@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import { getQuestGuideSurface, guideDialogMaxHeight } from "@/lib/questGuideViewport";
+import { usePrimaryQuestGuideActive } from "@/lib/questGuideOwnership";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
 const pawCoin = "/paw-print-coin.webp";
@@ -49,6 +50,7 @@ function LonellePortrait({ state, mood }: { state: QuestState; mood: string }) {
 
 export default function LonelleQuestOverlay() {
   const [pathname, navigate] = useLocation();
+  const primaryGuideActive = usePrimaryQuestGuideActive();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mount, setMount] = useState<HTMLElement | null>(null);
@@ -201,11 +203,12 @@ export default function LonelleQuestOverlay() {
       <p className="mt-1 text-[10px]">{state.status === "accepted" ? `${state.kills}/${state.requiredKills} Clearing monsters defeated` : state.status === "found" ? "Take Lonelle's Scarf from the Clearing" : state.status === "taken" ? state.scarfEquipped ? "Return to Lonelle in the Bayou" : "Equip the scarf in the third adornment space" : "Talk to Lonelle in the Bayou"}</p>
     </div>, questLogMount)}
     {state.status === "accepted" && pathname === CLEARING && createPortal(<div data-testid="lonelle-clearing-progress" className={`${overlayPosition} left-1/2 top-[8%] -translate-x-1/2 rounded-xl border border-[#eed486] bg-[#10291f]/95 px-4 py-2 text-center font-fantasy text-[#fff0c7] shadow-lg`} style={{ zIndex: 2147481000, pointerEvents: "none" }}>Lonelle's Scarf · {state.kills}/{state.requiredKills} monsters</div>, surface.target)}
-    {!dialogOpen && !prize && !finding && !(pathname === CLEARING && showReturnHome && state.status === "taken") && target && <QuestGuideSpotlight
+    {!primaryGuideActive && !dialogOpen && !prize && !finding && !(pathname === CLEARING && showReturnHome && state.status === "taken") && target && <QuestGuideSpotlight
       selector={target}
       label={instruction}
       focus={focus}
       mode={guideMode}
+      blockingGuide={false}
       testId="lonelle-guide-spotlight"
     />}
     {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000 }} onPointerDown={event => event.stopPropagation()}>
