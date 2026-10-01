@@ -21,6 +21,7 @@ import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
 import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRegistry";
 import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/registry";
+import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from "@/worlds/locationInteraction";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
@@ -1440,43 +1441,45 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
-    const worldDestination = resolveClientWorldDestination(worldId, loc.id);
-    if (worldDestination?.kind === "route") {
-      navigate(worldDestination.route);
-      return;
-    }
-    if (worldDestination?.kind === "notice") {
-      toast({
-        title: worldDestination.title,
-        description: worldDestination.description,
-      });
-      return;
-    }
-    // Soul Pond — future mini-game placeholder: just open the scenic background for now.
-    if (loc.id === "e2f3a4b5-0003-4000-8000-000000000003") {
-      setFishingLocation(null);
-      setShowShop(false);
-      setShowLocationView(true);
-      return;
-    }
-    if (loc.type === "fishing" && !loc.isShop) {
-      setShowLocationView(false);
-      setShowShop(false);
-      setFishingLocation(loc);
-      setShowFishHint(false);
-    } else if (loc.isShop) {
-      setFishingLocation(null);
-      setShowLocationView(false);
-      setShowShop(true);
-      shopJustOpened.current = Date.now();
-      playShopBell();
-    } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
-      setFishingLocation(null);
-      setShowDangerWarning(true);
-    } else {
-      setFishingLocation(null);
-      setShowShop(false);
-      setShowLocationView(true);
+
+    const interaction = resolveWorldLocationInteraction(
+      loc,
+      currentUser.isAdmin,
+      resolveClientWorldDestination(worldId, loc.id),
+    );
+
+    switch (interaction.kind) {
+      case "route":
+        navigate(interaction.route);
+        return;
+      case "notice":
+        toast({
+          title: interaction.title,
+          description: interaction.description,
+        });
+        return;
+      case "fishing":
+        setShowLocationView(false);
+        setShowShop(false);
+        setFishingLocation(loc);
+        setShowFishHint(false);
+        return;
+      case "shop":
+        setFishingLocation(null);
+        setShowLocationView(false);
+        setShowShop(true);
+        shopJustOpened.current = Date.now();
+        playShopBell();
+        return;
+      case "danger-warning":
+        setFishingLocation(null);
+        setShowDangerWarning(true);
+        return;
+      case "scenic":
+        setFishingLocation(null);
+        setShowShop(false);
+        setShowLocationView(true);
+        return;
     }
   }, [currentUser.isAdmin, navigate, toast, worldId]);
 
@@ -1497,7 +1500,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       }
       return;
     }
-    if (!loc.isShop && loc.type !== "fishing" && (loc.type === "battle" || loc.type === "explore") && (!currentUser.activePetId || !hasHatchedActivePet)) {
+    if (worldLocationRequiresHatchedPet(loc) && (!currentUser.activePetId || !hasHatchedActivePet)) {
       setShowNoPetMessage(true);
       return;
     }
