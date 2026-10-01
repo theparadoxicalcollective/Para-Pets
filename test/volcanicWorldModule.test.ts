@@ -73,15 +73,15 @@ test("WorldPage delegates Volcanic destinations instead of hardcoding their ids"
   );
   assert.match(
     worldPage,
-    /const worldDestination = resolveClientWorldDestination\(worldId, loc\.id\)/,
+    /resolveWorldLocationInteraction\([\s\S]*?resolveClientWorldDestination\(worldId, loc\.id\)/,
   );
   assert.match(
     worldPage,
-    /if \(worldDestination\?\.kind === "route"\)[\s\S]*?navigate\(worldDestination\.route\)/,
+    /case "route":[\s\S]*?navigate\(interaction\.route\)/,
   );
   assert.match(
     worldPage,
-    /if \(worldDestination\?\.kind === "notice"\)[\s\S]*?title: worldDestination\.title[\s\S]*?description: worldDestination\.description/,
+    /case "notice":[\s\S]*?title: interaction\.title[\s\S]*?description: interaction\.description/,
   );
 
   for (const id of Object.values(VOLCANIC_LOCATION_IDS)) {
