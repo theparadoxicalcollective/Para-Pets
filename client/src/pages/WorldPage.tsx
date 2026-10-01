@@ -1579,7 +1579,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     touchAction: currentUser.isAdmin ? "none" : "auto",
                     pointerEvents: (!currentUser.isAdmin && isPassThrough) ? "none" : "auto",
                   }}
-                  onPointerDown={(e) => { handleDecorPointerDown(e, p); clearLocationSelection(); setBarrelSelected(false); }}
+                  onPointerDown={(e) => { handleDecorPointerDown(e, p); clearLocationSelection(); }}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
                   onPointerCancel={cancelDecorPlacementDrag}
