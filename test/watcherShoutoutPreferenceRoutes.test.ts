@@ -195,6 +195,6 @@ test("legacy route registry owns one Watcher preference registration boundary an
   assert.equal(root.includes('app.post("/api/user/watcher-shoutouts"'), false);
   assert.match(
     root,
-    /registerWatcherShoutoutPreferenceRoutes\(app, \{ storage, isAuthenticated \}\);[\s\S]*app\.get\("\/api\/world-chat"/,
+    /registerWatcherShoutoutPreferenceRoutes\(app, \{ storage, isAuthenticated \}\);[\s\S]*registerWorldChatReadRoute\(app, \{ storage, isAuthenticated \}\);/,
   );
 });
