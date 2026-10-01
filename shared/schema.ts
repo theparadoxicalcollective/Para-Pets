@@ -966,6 +966,7 @@ export const houseBundles = pgTable("house_bundles", {
   giftNotificationX: real("gift_notification_x").notNull().default(0.05),
   giftNotificationY: real("gift_notification_y").notNull().default(0.85),
   maxOutdoorPets: integer("max_outdoor_pets").notNull().default(6),
+  maxOutdoorDecor: integer("max_outdoor_decor").notNull().default(8),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -979,6 +980,7 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   width: integer("width").notNull().default(120),
   flippedX: boolean("flipped_x").notNull().default(false),
   interiorImageUrl: text("interior_image_url"),
+  buildingType: text("building_type").notNull().default("building"),
   size: text("size").notNull().default("medium"),
   leaveButtonX: real("leave_button_x").notNull().default(0.92),
   leaveButtonY: real("leave_button_y").notNull().default(0.06),
@@ -986,13 +988,9 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
-// Capacity limits per building size (pets, decor items)
-export const BUILDING_SIZE_CAPACITY = {
-  small:  { pets: 3, items: 3 },
-  medium: { pets: 5, items: 6 },
-  large:  { pets: 7, items: 9 },
-} as const;
-export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
+// Shared capacity/type rules live outside the Drizzle schema so both client and
+// server behavior use one source of truth.
+export { BUILDING_SIZE_CAPACITY, type BuildingSize } from "./housing";
 
 export type HouseBundle = typeof houseBundles.$inferSelect;
 export type HouseBundleBuilding = typeof houseBundleBuildings.$inferSelect;
