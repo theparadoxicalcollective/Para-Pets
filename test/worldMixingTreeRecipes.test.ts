@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const read = (path: string) => readFileSync(path, "utf8");\nconst normalizeSource = (source: string) => source.replace(/\\s+/g, " ").trim();
+const read = (path: string) => readFileSync(path, "utf8");
+const normalizeSource = (source: string) => source.replace(/\s+/g, " ").trim();
 
 test("WorldPage delegates Mixing Tree recipe UI to focused components", () => {
   const worldPage = read("client/src/pages/WorldPage.tsx");
@@ -23,6 +24,7 @@ test("WorldPage delegates Mixing Tree recipe UI to focused components", () => {
 
 test("Mixing Tree recipe component owns the shared recipe shape and existing modal controls", () => {
   const source = read("client/src/components/world/MixingTreeRecipes.tsx");
+  const normalized = normalizeSource(source);
 
   assert.match(source, /export interface MixingTreeRecipe/);
   assert.match(source, /export function RecipeAlreadyRecordedModal/);
@@ -53,8 +55,8 @@ test("recipe book preserves locked and unlocked presentation behavior", () => {
     /recipes[\s\S]*?filter\(\(recipe\) => !unlockedRecipeIds\.includes\(recipe\.id\)\)/,
   );
   assert.match(source, /onClick=\{\(\) => onSelectRecipe\(recipe\)\}/);
-  assert.match(source, />unlocked<\/p>/);
-  assert.match(source, />Locked<\/p>/);
+  assert.match(source, />\s*unlocked\s*<\/p>/);
+  assert.match(source, />\s*Locked\s*<\/p>/);
 });
 
 test("WorldPage keeps recipe data and unlock behavior while removing dead local admin mutations", () => {
