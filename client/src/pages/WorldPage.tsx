@@ -2,8 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
-import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
-import { calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "@/lib/worldViewport";
+import { WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "@/lib/worldViewport";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -24,6 +23,7 @@ import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/re
 import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from "@/worlds/locationInteraction";
 import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
 import { useWorldLocationAdminController } from "@/worlds/useWorldLocationAdminController";
+import { useWorldViewportController } from "@/worlds/useWorldViewportController";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
@@ -145,22 +145,6 @@ interface WorldApiData {
 
 const MAP_W = WORLD_MAP_WIDTH;
 const MAP_H_DEFAULT = WORLD_MAP_HEIGHT;
-
-// Frame dimensions track the real viewport so the map fills every screen.
-// isMobilePhone kept as true to always enable pinch/scroll controls.
-const isMobilePhone = () => true;
-
-function isStandaloneDisplay(): boolean {
-  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
-  return navigatorWithStandalone.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
-}
-
-function shouldFitFullWorldComposition(): boolean {
-  const viewport = window.visualViewport;
-  return (viewport?.width ?? window.innerWidth) < 768
-    && !isStandaloneDisplay()
-    && (viewport?.height ?? window.innerHeight) < DESIGN_H;
-}
 
 export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
@@ -320,66 +304,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [worldId, currentUser.isAdmin, currentUser.isModerator]);
 
   const areaRef = useRef<HTMLDivElement>(null);
-  const vpRef = useRef<HTMLDivElement>(null);
 
-  // The map measures its own viewport. Normal Safari may expose less height
-  // than the installed app because of browser chrome; that difference is
-  // handled by the map fit below, never by scaling the global game stage.
-  const FRAME_W = getDesignW();
-  const FRAME_H = DESIGN_H;
-  const frameWRef = useRef(FRAME_W);
-  const frameHRef = useRef(FRAME_H);
-  const [frameW, setFrameW] = useState(FRAME_W);
-  const [frameH, setFrameH] = useState(FRAME_H);
-  const [fitFullComposition, setFitFullComposition] = useState(
-    typeof window !== "undefined" && shouldFitFullWorldComposition(),
-  );
-  // The frame's on-screen box is measured directly from vpRef (the real
-  // rendered viewport element) rather than assumed from the 390/470×844
-  // design constants. Phones happen to be close to 844 tall so this was
-  // barely noticeable there, but tablets/desktop have very different aspect
-  // ratios — using the fixed 844 constant under-/over-scaled the "cover" fit
-  // and left gaps or mis-cropped backgrounds. Location/collider positions are
-  // stored as percentages of the MAP_W×mapH map space, not of the frame, so
-  // measuring the real frame size only affects the shared scene fit — it never
-  // moves anything relative to the authored background.
-  useEffect(() => {
-    const el = vpRef.current;
-    if (!el) return;
-    const measure = () => {
-      const w = el.clientWidth || getDesignW();
-      const h = el.clientHeight || DESIGN_H;
-      setFitFullComposition(shouldFitFullWorldComposition());
-      frameWRef.current = w;
-      frameHRef.current = h;
-      setFrameW((prev) => (prev !== w ? w : prev));
-      setFrameH((prev) => (prev !== h ? h : prev));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener("orientationchange", measure);
-    return () => { ro.disconnect(); window.removeEventListener("orientationchange", measure); };
-  }, []);
-
-  const [worldBgLoaded, setWorldBgLoaded] = useState(false);
-  const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
-  const lastLoadedBgRef = useRef("");
-
-  // NOTE: onContentReady is fired by a second effect placed AFTER the
-  // locationsLoading declaration (below) so all three conditions are gated together.
-
-  const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
-  const [mapX, setMapX] = useState(0);
-  const [mapY, setMapY] = useState(0);
-  const [mapScale, setMapScale] = useState(1);
-  const [mapH, setMapH] = useState(MAP_H_DEFAULT);
-  const mapHRef = useRef(MAP_H_DEFAULT);
-  const mapPanPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const mapPanStartRef = useRef<{ x: number; y: number; mapX: number; mapY: number } | null>(null);
-  const mapPinchRef = useRef<{ dist: number; midX: number; midY: number; mapX: number; mapY: number; scale: number } | null>(null);
-  const mapPanningRef = useRef(false);
-  const mapJustPannedRef = useRef(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
   const [showFishHint, setShowFishHint] = useState(() =>
     worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("fishHint") === "1"
@@ -1188,6 +1113,32 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     onCommitPosition: positionMutation.mutate,
   });
 
+  const isObjectDragActive = useCallback(() => objDragRef.current !== null, []);
+
+  const {
+    vpRef,
+    frameW,
+    frameH,
+    mapH,
+    mapX,
+    mapY,
+    mapScale,
+    mapTransformRef,
+    mapJustPannedRef,
+    applyMapTransform,
+    setAuthoredMapHeight,
+    handleVpPointerDown,
+    handleVpPointerMove,
+    handleVpPointerUp,
+  } = useWorldViewportController({
+    worldId,
+    mapWidth: MAP_W,
+    defaultMapHeight: MAP_H_DEFAULT,
+    isLocationDragActive,
+    clearStaleLocationDrag,
+    isObjectDragActive,
+  });
+
   const flipMutation = useMutation({
     mutationFn: async (locationId: string) => {
       const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/flip`, {});
@@ -1226,8 +1177,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // This runs before the bg-load effect, ensuring worldBgLoaded stays false
   // (showing the spinner) until the correct background is confirmed loaded.
   useEffect(() => {
-    mapHRef.current = MAP_H_DEFAULT;
-    setMapH(MAP_H_DEFAULT);
     setWorldBgLoaded(false);
     setCommittedWorldBg("");
     lastLoadedBgRef.current = "";
@@ -1264,8 +1213,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       if (cancelled) return;
       if (!isVersionRefresh && img.naturalWidth > 0 && img.naturalHeight > 0) {
         const h = worldDefinition?.fixedMapHeight ?? Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
-        mapHRef.current = h;
-        setMapH(h);
+        setAuthoredMapHeight(h);
       }
       lastLoadedBgRef.current = world.bg!;
       setCommittedWorldBg(world.bg!);
@@ -1279,30 +1227,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     };
     img.src = world.bg;
     return () => { cancelled = true; };
-  }, [worldId, world?.bg, !!worldApiData]);
-
-  const clampTransform = useCallback((x: number, y: number, sc: number) => {
-    return clampWorldMapOffset(x, y, sc, frameWRef.current, frameHRef.current, mapHRef.current, MAP_W);
-  }, []);
-
-  const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
-    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition, MAP_W);
-    const { x: cx, y: cy } = clampTransform(x, y, fitScale);
-    mapTransformRef.current = { x: cx, y: cy, scale: fitScale };
-    setMapX(cx);
-    setMapY(cy);
-    setMapScale(fitScale);
-  }, [clampTransform, fitFullComposition]);
-
-  useEffect(() => {
-    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition, MAP_W);
-    const ix = (frameWRef.current - MAP_W * fitScale) / 2;
-    const iy = (frameHRef.current - mapHRef.current * fitScale) / 2;
-    mapTransformRef.current = { x: ix, y: iy, scale: fitScale };
-    setMapX(ix);
-    setMapY(iy);
-    setMapScale(fitScale);
-  }, [worldId, mapH, frameW, frameH, fitFullComposition]);
+  }, [worldId, world?.bg, !!worldApiData, setAuthoredMapHeight]);
 
   // Bring the first fishing spot into view when Janson points it out. The
   // map-space arrows alone can be clipped by the viewport on smaller screens.
@@ -1316,61 +1241,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     const centerY = mapH * spot.posY / 100 + size / 2;
     applyMapTransform(frameW / 2 - centerX * scale, frameH / 2 - centerY * scale, scale);
   }, [showFishHint, worldId, locations, mapH, frameW, frameH, applyMapTransform]);
-
-  const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
-    // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)
-    if (isLocationDragActive() && !mapPanPointersRef.current.size) clearStaleLocationDrag();
-    if (isLocationDragActive() || objDragRef.current) return;
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const ptrs = Array.from(mapPanPointersRef.current.values());
-    if (ptrs.length === 1) {
-      mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
-      mapPinchRef.current = null;
-      mapPanningRef.current = false;
-    }
-  }, [clearStaleLocationDrag, isLocationDragActive]);
-
-  const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
-    if (isLocationDragActive() || objDragRef.current) return;
-    if (!mapPanPointersRef.current.has(e.pointerId)) return;
-    mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const ptrs = Array.from(mapPanPointersRef.current.values());
-    if (ptrs.length === 1 && mapPanStartRef.current) {
-      const s = getStageScale();
-      const dx = (e.clientX - mapPanStartRef.current.x) / s;
-      const dy = (e.clientY - mapPanStartRef.current.y) / s;
-      if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
-      if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
-    }
-  }, [applyMapTransform, isLocationDragActive]);
-
-  const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
-    mapPanPointersRef.current.delete(e.pointerId);
-    const remaining = mapPanPointersRef.current.size;
-    if (remaining === 0) {
-      if (mapPanningRef.current) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
-      mapPanStartRef.current = null;
-      mapPanningRef.current = false;
-      mapPinchRef.current = null;
-    } else if (remaining === 1) {
-      mapPinchRef.current = null;
-      const [ptr] = Array.from(mapPanPointersRef.current.values());
-      mapPanStartRef.current = { x: ptr.x, y: ptr.y, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
-      mapPanningRef.current = false;
-    }
-  }, []);
-
-  const handleVpWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-  }, []);
-
-  useEffect(() => {
-    const el = vpRef.current;
-    if (!el) return;
-    el.addEventListener("wheel", handleVpWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleVpWheel);
-  }, [handleVpWheel]);
 
   useEffect(() => {
     setLocBgLoaded(false);
