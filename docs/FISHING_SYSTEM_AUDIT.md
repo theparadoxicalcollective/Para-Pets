@@ -49,8 +49,9 @@ found for player-owned data.
 World-specific behavior: a catch route loads `world_locations` and requires
 `type = fishing`; its location's `worldId` selects leaderboard points and the
 fish-book badge biome. `addFishToPond` and `removeFishFromPond` propagate a
-stock change to every fishing location in the same world. Fish barrels are
-world-position/decor reads, not catch rewards.
+stock change to every fishing location in the same world. Fish selling now enters
+through Janson's Fish Market interaction. The former placed fish-barrel entrance
+and its client/server routes were removed on 2026-10-01.
 
 ## Registered HTTP routes
 
@@ -73,7 +74,7 @@ entity/array and mutations return JSON. Manual admin checks require auth plus
 | POST `/api/fishing/inventory/add` | removed in the direct-mint hardening PR | The prior authenticated-only route had no legitimate production caller and allowed a player-supplied `{shopItemId}` to insert an owned fish without a catch, purchase, reward, market transfer, migration, test fixture, support action, or administrator grant. It is no longer registered; unknown-route behavior applies. |
 | HISTORICAL — removed POST `/api/fishing/catch` | Former FishingPage reel; `{locationId,performanceScore,shopItemId}` | auth; location is server-loaded and must be fishing; supplied fish must be in that pond, but supplied score (clamped 0–100) controls success and supplied fish bypasses random/bait rarity selection. Mutates fish inventory/log, later increments total catches, bait/pole inventory/equipment, quest, leaderboard, badges. `200 {caught,item}` or `{caught:null,reason:'empty_pond'|'miss'}`, `400` location, `500`. **No transaction; browser-authoritative success/fish integrity risk; retry/concurrent requests create additional catches and side effects.** |
 | GET `/api/fishing/leaderboard/:worldId` (6689) | FishingPage | auth; arbitrary path world ID reads public leaderboard and current user's rank; `200 {top,me}`; no validation of world existence or mutation. |
-| GET `/api/world/:worldId/fish-barrel`, PATCH/DELETE `/api/admin/fish-barrel/:id` (7091–7121) | World/admin editing; path and PATCH `{posX,posY,size}` | read is auth; writes manual admin; touches `fish_barrels`; no fishing reward/ownership mutation; success barrel/null or `{ok:true}`, `403` admin. |
+| HISTORICAL — removed GET `/api/world/:worldId/fish-barrel`, PATCH/DELETE `/api/admin/fish-barrel/:id` | Former world/admin fish-barrel placement entrance. Removed after Janson became the sole Fish Market entry point; no runtime caller remains. The legacy table is retained only for migration compatibility. |
 | POST `/api/fishing/aquarium/sync` (7124) | no current client caller located; `{counts:[{shopItemId,count}]}` | auth/current user; resets all their `in_aquarium` flags, then marks selected IDs. `200 {ok}`, `400` non-array. **Nontransactional and count/type unvalidated; concurrent add/remove/sync can overwrite state.** |
 | POST `/api/fishing/aquarium/add`, `/remove` (7140,7154) | AquariumPage; `{shopItemId,slot?}` | auth/current user; read then updates one owned fish matching state/slot. `200 {ok,fishId}` / `{ok:true}`, `400` absent. Comments call these atomic, but storage uses select then unconditional ID update with no transaction/conditional update; simultaneous adds can select the same fish. |
 | GET `/api/aquarium/unlocks`, POST `/api/aquarium/unlock` (7168,7180) | AquariumPage; POST `{aquariumId}` | auth/current user; fixed server `AQUARIUM_PRICES`; reads/inserts `player_aquarium_unlocks`, atomically debits `users.coins`. `200 {unlocks}` / `{ok,coinsRemaining}`, `400` invalid/already/insufficient. **Debit and ownership insert are separate; retry/failure can lose coins, and concurrent requests can double debit before conflict insert.** |
@@ -112,8 +113,9 @@ per fish, aquarium flags), `player_fish_catch_log` (first species and boolean
 reward flag, **no declared unique pair**), `player_fishing_equipment` (unique
 user), `user_inventory` (bait stacks/poles), `users` (coins and
 `total_fish_caught`), `fishing_leaderboard`, `player_aquarium_unlocks` (raw
-SQL conflict pair), `fish_template_parts`, `fish_barrels`, and
-`player_market_listings`. The primary storage methods are
+SQL conflict pair), `fish_template_parts`, and `player_market_listings`.
+The legacy `fish_barrels` table remains declared only to avoid an accidental
+destructive migration; no current route or storage helper uses it. The primary storage methods are
 `getPondFish`/`addFishToPond`, `addFishToPlayerInventory`, `logFishCatch`,
 `decrementPoleUses`, `decrementBaitQuantity`,
 `sync/add/removeFishToAquarium`, `atomicDeductCoins`/`addCoins`,
@@ -291,7 +293,8 @@ The cohesive fishing and aquarium HTTP registrations audited above now live in
 `server/routes/fishing.routes.ts`. `registerFishingRoutes(app, deps)` registers
 the original fish-part, pond/catalog, catch-reward, equipment, inventory, catch,
 and leaderboard block; `registerFishingAquariumRoutes(app, deps)` registers the
-later fish-barrel, aquarium, unlock, and fixed-price sale block. `server/routes.ts`
+later aquarium, unlock, and fixed-price sale block. The obsolete fish-barrel
+registrations were removed on 2026-10-01. `server/routes.ts`
 calls both functions at the blocks' former logical positions, preserving their
 order relative to the market, Lava Crawl, hub-notice, and PvP registrations.
 
@@ -323,8 +326,6 @@ them to the verified-administrator middleware.
 - `GET /api/fishing/inventory`
 - `POST /api/fishing/catch`
 - `GET /api/fishing/leaderboard/:worldId`
-- `GET /api/world/:worldId/fish-barrel`
-- `PATCH`, `DELETE /api/admin/fish-barrel/:id`
 - `POST /api/fishing/aquarium/sync`
 - `POST /api/fishing/aquarium/add`
 - `POST /api/fishing/aquarium/remove`

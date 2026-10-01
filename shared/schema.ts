@@ -767,6 +767,8 @@ export const worldDecorPlacements = pgTable("world_decor_placements", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Legacy table retained for migration compatibility. Fish selling is now owned by Janson
+// and the Fish Market UI; runtime routes/storage no longer read or mutate this table.
 export const fishBarrels = pgTable("fish_barrels", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   worldId: text("world_id").notNull(),

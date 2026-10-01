@@ -91,8 +91,9 @@ test("WorldPage uses Bayou identifiers for Murk Cave and Bayou's Heart", () => {
   assert.doesNotMatch(worldPage, /const BAYOUS_HEART_ID/);
 });
 
-test("Bayou fishing and fish-market guidance keep the same world boundary", () => {
+test("Bayou fishing and Janson fish-market guidance keep the same world boundary", () => {
   const worldPage = read("client/src/pages/WorldPage.tsx");
+  const janson = read("client/src/components/JansonQuestOverlay.tsx");
 
   assert.match(
     worldPage,
@@ -106,13 +107,20 @@ test("Bayou fishing and fish-market guidance keep the same world boundary", () =
     worldPage,
     /if \(worldId !== ELYSIAN_BAYOU_WORLD_ID\) return;[\s\S]*?para:open-fish-market/,
   );
+
   assert.match(
-    worldPage,
-    /worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams\(window\.location\.search\)\.get\("barrelHint"\) === "1"/,
+    janson,
+    /import \{ ELYSIAN_BAYOU_WORLD_ID \} from "@shared\/worlds\/elysianBayou"/,
+  );
+  assert.match(janson, /const WORLD = ELYSIAN_BAYOU_WORLD_ID/);
+  assert.match(
+    janson,
+    /new URLSearchParams\(window\.location\.search\)\.get\("jansonHint"\) === "1"/,
   );
 
   assert.doesNotMatch(worldPage, /worldId === "swamp"/);
   assert.doesNotMatch(worldPage, /worldId !== "swamp"/);
+  assert.doesNotMatch(janson, /const WORLD = "swamp"/);
 });
 
 test("Murk Cave remains page-owned gameplay while its identity is world-owned", () => {

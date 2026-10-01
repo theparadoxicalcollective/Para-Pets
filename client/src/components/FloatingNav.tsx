@@ -635,7 +635,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                               quest.quest_key === "feed_pet"          ? (user.activePetId ? "/?questHint=feed" : "/pet-house") :
                               quest.quest_key === "use_powerup"       ? (user.activePetId ? "/?questHint=powerup" : "/?action=powerup") :
                               quest.quest_key === "play_molten_blocks" ? "/world/volcanic?moltenHint=1" :
-                              quest.quest_key === "sell_fish"         ? "/world/swamp?barrelHint=1" :
+                              quest.quest_key === "sell_fish"         ? "/world/swamp?jansonHint=1" :
                               null;
                             const isDisabled = isDone || goTarget === null;
                             return (

@@ -35,7 +35,6 @@ import { QuillBadge } from "@/components/QuillBadge";
 import FishingPage from "@/pages/FishingPage";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import SellFishPage from "@/pages/SellFishPage";
-import fishBarrelImg from "@assets/fish_barrel.png";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 const mixingTreeCauldronImg = "/mixing-tree-cauldron.png";
@@ -267,9 +266,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     window.addEventListener("para:open-fish-market", openFishMarket);
     return () => window.removeEventListener("para:open-fish-market", openFishMarket);
   }, [worldId]);
-  const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
-  const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
-  const barrelDidDrag = useRef(false);
   const [selectedDecorAdminId, setSelectedDecorAdminId] = useState<string | null>(null);
 
   const [showDecorPanel, setShowDecorPanel] = useState(false);
@@ -283,7 +279,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showDecorMsg, setShowDecorMsg] = useState<{ text: string; clientX: number; clientY: number } | null>(null);
   const locViewRef = useRef<HTMLDivElement>(null);
 
-  const [barrelSelected, setBarrelSelected] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -318,9 +313,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   );
   const [showMoltenHint, setShowMoltenHint] = useState(() =>
     worldId === VOLCANIC_WORLD_ID && new URLSearchParams(window.location.search).get("moltenHint") === "1"
-  );
-  const [showBarrelHint, setShowBarrelHint] = useState(() =>
-    worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("barrelHint") === "1"
   );
   const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
   const autoOpenDone = useRef(false);
@@ -744,33 +736,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!worldId,
-  });
-
-  const { data: fishBarrel, refetch: refetchBarrel } = useQuery<{ id: string; worldId: string; posX: number; posY: number; size: number } | null>({
-    queryKey: ["/api/world", worldId, "fish-barrel"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/world/${worldId}/fish-barrel`);
-      const data = await res.json();
-      return data || null;
-    },
-    enabled: !!worldId,
-  });
-
-  const updateBarrelMutation = useMutation({
-    mutationFn: async (data: { posX?: number; posY?: number; size?: number }) => {
-      if (!fishBarrel) return;
-      const res = await apiRequest("PATCH", `/api/admin/fish-barrel/${fishBarrel.id}`, data);
-      return res.json();
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
-  });
-
-  const deleteBarrelMutation = useMutation({
-    mutationFn: async () => {
-      if (!fishBarrel) return;
-      await apiRequest("DELETE", `/api/admin/fish-barrel/${fishBarrel.id}`);
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
   });
 
   const addDecorItemMutation = useMutation({
@@ -1438,36 +1403,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [battlePets, battlePotionSlots, showBattlePrep, battleLocationId]);
 
 
-  const handleBarrelPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!currentUser.isAdmin || !fishBarrel) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    barrelDidDrag.current = false;
-    barrelDragRef.current = { startX: e.clientX, startY: e.clientY, origPosX: fishBarrel.posX, origPosY: fishBarrel.posY };
-  }, [currentUser.isAdmin, fishBarrel]);
-
-  const handleBarrelPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!barrelDragRef.current || !areaRef.current) return;
-    e.preventDefault();
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - barrelDragRef.current.startX;
-    const dy = e.clientY - barrelDragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) barrelDidDrag.current = true;
-    const newX = Math.max(0, Math.min(100, barrelDragRef.current.origPosX + (dx / rect.width) * 100));
-    const newY = Math.max(0, Math.min(100, barrelDragRef.current.origPosY + (dy / rect.height) * 100));
-    setBarrelDragPos({ x: newX, y: newY });
-  }, []);
-
-  const handleBarrelPointerUp = useCallback(() => {
-    if (!barrelDragRef.current) return;
-    barrelDragRef.current = null;
-    if (barrelDidDrag.current && barrelDragPos) {
-      updateBarrelMutation.mutate({ posX: barrelDragPos.x, posY: barrelDragPos.y });
-    }
-    barrelDidDrag.current = false;
-    setBarrelDragPos(null);
-  }, [barrelDragPos, updateBarrelMutation]);
-
   const isShopItemTransparentClick = useCallback((e: React.MouseEvent<HTMLImageElement>): boolean => {
     const img = e.currentTarget;
     const rect = img.getBoundingClientRect();
@@ -1541,7 +1476,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               if (currentUser.isAdmin) {
                 clearLocationSelection();
                 setSelectedDecorId(null);
-                setBarrelSelected(false);
               }
             }}
           >
@@ -1645,7 +1579,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     touchAction: currentUser.isAdmin ? "none" : "auto",
                     pointerEvents: (!currentUser.isAdmin && isPassThrough) ? "none" : "auto",
                   }}
-                  onPointerDown={(e) => { handleDecorPointerDown(e, p); clearLocationSelection(); setBarrelSelected(false); }}
+                  onPointerDown={(e) => { handleDecorPointerDown(e, p); clearLocationSelection(); }}
                   onPointerMove={handleDecorPointerMove}
                   onPointerUp={handleDecorPointerUp}
                   onPointerCancel={cancelDecorPlacementDrag}
@@ -1750,79 +1684,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             })}
 
 
-            {/* Fish Barrel */}
-            {fishBarrel && worldId !== VOLCANIC_WORLD_ID && (() => {
-              const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
-              const sz = fishBarrel.size;
-              return (
-                <div
-                  className="absolute flex flex-col items-center"
-                  style={{
-                    left: `${bpos.x}%`,
-                    top: `${bpos.y}%`,
-                    width: sz,
-                    transform: "translate(-50%, -50%)",
-                    zIndex: 80,
-                    cursor: currentUser.isAdmin ? "grab" : "pointer",
-                    touchAction: "none",
-                  }}
-                  onPointerDown={handleBarrelPointerDown}
-                  onPointerMove={handleBarrelPointerMove}
-                  onPointerUp={handleBarrelPointerUp}
-                  onPointerCancel={() => { barrelDragRef.current = null; barrelDidDrag.current = false; setBarrelDragPos(null); }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (barrelDidDrag.current) return;
-                    if (currentUser.isAdmin) {
-                      setBarrelSelected(prev => !prev);
-                      setSelectedDecorId(null);
-                      clearLocationSelection();
-                    } else {
-                      setShowSellFish(true);
-                    }
-                  }}
-                  data-testid="button-fish-barrel"
-                >
-                  <img
-                    src={fishBarrelImg}
-                    alt="Fish Market"
-                    draggable={false}
-                    style={{
-                      width: sz,
-                      height: sz,
-                      objectFit: "contain",
-                      filter: currentUser.isAdmin && barrelSelected
-                        ? "drop-shadow(0 4px 12px rgba(0,0,0,0.6)) drop-shadow(0 0 8px rgba(255,255,255,0.5))"
-                        : "drop-shadow(0 4px 12px rgba(0,0,0,0.6))",
-                      transition: "filter 0.15s ease",
-                    }}
-                  />
-                  {currentUser.isAdmin && barrelSelected && (
-                    <div className="flex gap-1 mt-1" onPointerDown={(e) => e.stopPropagation()}>
-                      <button
-                        data-testid="button-barrel-shrink"
-                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.max(50, sz - 10) }); }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.3)" }}
-                      >−</button>
-                      <button
-                        data-testid="button-barrel-grow"
-                        onClick={(e) => { e.stopPropagation(); updateBarrelMutation.mutate({ size: Math.min(220, sz + 10) }); }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,255,255,0.3)" }}
-                      >+</button>
-                      <button
-                        data-testid="button-barrel-delete"
-                        onClick={(e) => { e.stopPropagation(); deleteBarrelMutation.mutate(); setBarrelSelected(false); }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                        style={{ background: "rgba(180,20,20,0.85)", border: "1px solid rgba(255,80,80,0.5)" }}
-                      >✕</button>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
             <WorldLocations
               locations={locations}
               worldId={worldId}
@@ -1917,29 +1778,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           <span style={{ fontFamily: "Lora, serif", color: "#fde68a", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Molten Blocks</span>
                         </div>
                         <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "hue-rotate(-30deg) saturate(1.5) drop-shadow(0 0 10px rgba(240,100,10,0.95)) drop-shadow(0 0 24px rgba(240,100,10,0.6))" }} />
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* ── Barrel hint arrow — ?barrelHint=1 from sell_fish quest Go button ── */}
-              {showBarrelHint && fishBarrel && worldId === ELYSIAN_BAYOU_WORLD_ID && (() => {
-                const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
-                const cx = `${bpos.x}%`;
-                const cy = `${bpos.y}%`;
-                return (
-                  <>
-                    <div className="absolute inset-0" style={{ zIndex: 498, cursor: "pointer" }} onClick={() => setShowBarrelHint(false)} />
-                    <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: "translate(-50%, -100%) translateY(-16px)", zIndex: 499, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(74,222,128,0.95)", boxShadow: "0 0 8px rgba(34,197,94,1), 0 0 18px rgba(34,197,94,0.8)", animation: "hintOrb1 2.4s ease-in-out infinite" }} />
-                      <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(134,239,172,0.9)", boxShadow: "0 0 6px rgba(74,222,128,1), 0 0 14px rgba(34,197,94,0.7)", animation: "hintOrb2 2.1s ease-in-out 0.5s infinite" }} />
-                      <span style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(187,247,208,0.85)", boxShadow: "0 0 5px rgba(74,222,128,0.9), 0 0 10px rgba(34,197,94,0.6)", animation: "hintOrb3 1.8s ease-in-out 1s infinite" }} />
-                      <div style={{ animation: "fishHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                        <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 6, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
-                          <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Sell Fish Here</span>
-                        </div>
-                        <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))" }} />
                       </div>
                     </div>
                   </>
