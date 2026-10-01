@@ -50,6 +50,7 @@ export default function JansonQuestOverlay() {
   const [questListMount, setQuestListMount] = useState<HTMLElement | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [spokenMessage, setSpokenMessage] = useState<string | null>(null);
+  const [showSellHint, setShowSellHint] = useState(false);
   const lastSpokenMessage = useRef<string | null>(null);
   const speechTimeout = useRef<number | null>(null);
   useEffect(() => () => { if (speechTimeout.current !== null) window.clearTimeout(speechTimeout.current); }, []);
@@ -68,6 +69,11 @@ export default function JansonQuestOverlay() {
     queryFn: async () => (await apiRequest("GET", API)).json(),
   });
   const inBayou = pathname.startsWith(`/world/${WORLD}`);
+  useEffect(() => {
+    setShowSellHint(
+      inBayou && new URLSearchParams(window.location.search).get("jansonHint") === "1",
+    );
+  }, [inBayou, pathname]);
   const { data: locations = [] } = useQuery<WorldNpc[]>({
     queryKey: ["/api/world", WORLD, "locations"], enabled: Boolean(user && inBayou), staleTime: 5_000,
     queryFn: async () => {
@@ -175,6 +181,12 @@ export default function JansonQuestOverlay() {
         onPointerDown={event => event.stopPropagation()}
         onClick={event => {
           event.preventDefault(); event.stopPropagation(); setMessage(null);
+          if (showSellHint) {
+            setShowSellHint(false);
+            const url = new URL(window.location.href);
+            url.searchParams.delete("jansonHint");
+            window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+          }
           if (state.marketUnlocked && repeatable?.status === "claimed") speak();
           else setDialogOpen(true);
         }}
@@ -199,6 +211,17 @@ export default function JansonQuestOverlay() {
           >{current?.status === "completed" ? "✓" : "!"}</span>
         )}
       </button>
+      {showSellHint && <div
+        data-testid="janson-sell-fish-hint"
+        className="pointer-events-none"
+        style={{
+          position: "absolute", left: "50%", bottom: "100%", transform: "translate(-50%, -10px)", zIndex: 35,
+          width: "max-content", padding: "6px 10px", borderRadius: 9,
+          border: "1.5px solid rgba(74,222,128,.72)", background: "rgba(8,22,8,.94)",
+          boxShadow: "0 0 14px rgba(34,197,94,.4),0 4px 10px rgba(0,0,0,.7)",
+          color: "#86efac", fontFamily: "Lora,serif", fontSize: 11, fontWeight: 700, letterSpacing: ".04em",
+        }}
+      >Sell Fish Here <span aria-hidden="true">↓</span></div>}
        {spokenMessage && <div role="status" aria-live="polite" data-testid="npc-message-janson" style={{
          position: "absolute", left: "50%", bottom: "98%", transform: "translate(-50%, -8px)", zIndex: 34,
          width: "max-content", maxWidth: "min(220px, 72vw)", padding: "7px 10px", borderRadius: 10,
