@@ -53,6 +53,7 @@ import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerHouseBundleRoutes } from "./routes/houseBundle.routes";
 import { registerPetHouseVisitorRoutes } from "./routes/petHouseVisitor.routes";
 import { registerFounderRoutes } from "./routes/founder.routes";
+import { registerVeridianWatcherQuoteRoutes } from "./routes/veridianWatcherQuote.routes";
 import { registerPetHousePositionRoutes } from "./routes/petHousePosition.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
@@ -5520,41 +5521,7 @@ export async function registerRoutes(
 
   registerFounderRoutes(app, { storage, isAuthenticated });
 
-  // ── Veridian Watcher Quote Admin Routes ───────────────────────────────────
-  app.get("/api/admin/vw-quotes", async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user?.isAdmin && !user?.isModerator) return res.status(403).json({ message: "Forbidden" });
-      const quotes = await storage.getVWQuotes();
-      return res.json(quotes);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/admin/vw-quotes", async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user?.isAdmin && !user?.isModerator) return res.status(403).json({ message: "Forbidden" });
-      const { message } = req.body;
-      if (!message?.trim()) return res.status(400).json({ message: "Message is required" });
-      const quote = await storage.addVWQuote(message.trim(), user.username);
-      return res.json(quote);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.delete("/api/admin/vw-quotes/:id", async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user?.isAdmin && !user?.isModerator) return res.status(403).json({ message: "Forbidden" });
-      await storage.deleteVWQuote(req.params.id);
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
+  registerVeridianWatcherQuoteRoutes(app, { storage });
 
   startVeridianWatcherBackgroundJobs({ db, storage, postWatcherMessage });
 
