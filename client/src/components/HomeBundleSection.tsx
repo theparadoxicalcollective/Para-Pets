@@ -1143,6 +1143,8 @@ function BundlesSubTab() {
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [maxOutdoorPets, setMaxOutdoorPets] = useState(String(DEFAULT_OUTDOOR_PET_LIMIT));
+  const [maxOutdoorDecor, setMaxOutdoorDecor] = useState(String(DEFAULT_OUTDOOR_DECOR_LIMIT));
   const [shopImagePreview, setShopImagePreview] = useState<string | null>(null);
   const [bgImagePreview, setBgImagePreview] = useState<string | null>(null);
 
@@ -1161,6 +1163,8 @@ function BundlesSubTab() {
     setEditingBundle(bundle);
     setName(bundle.name);
     setPrice(String(bundle.price));
+    setMaxOutdoorPets(String(bundle.maxOutdoorPets ?? DEFAULT_OUTDOOR_PET_LIMIT));
+    setMaxOutdoorDecor(String(bundle.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT));
     setShopImagePreview(bundle.shopImageUrl);
     setBgImagePreview(bundle.bgImageUrl);
     setCreateShopImageData(null);
@@ -1171,6 +1175,8 @@ function BundlesSubTab() {
   const openCreate = () => {
     setEditingBundle(null);
     setName(""); setPrice("");
+    setMaxOutdoorPets(String(DEFAULT_OUTDOOR_PET_LIMIT));
+    setMaxOutdoorDecor(String(DEFAULT_OUTDOOR_DECOR_LIMIT));
     setShopImagePreview(null); setBgImagePreview(null);
     setCreateShopImageData(null); setCreateBgImageData(null);
     setShowCreateForm(true);
@@ -1224,6 +1230,8 @@ function BundlesSubTab() {
         price: price.trim() ? parseInt(price, 10) : 0,
         shopImageData: createShopImageData ?? undefined,
         bgImageData: createBgImageData ?? undefined,
+        maxOutdoorPets: Math.max(0, Number(maxOutdoorPets) || 0),
+        maxOutdoorDecor: Math.max(0, Number(maxOutdoorDecor) || 0),
       });
     },
     onSuccess: async res => {
@@ -1247,6 +1255,8 @@ function BundlesSubTab() {
       return apiRequest("PATCH", `/api/admin/house-bundles/${editingBundle.id}`, {
         name: name.trim(),
         price: price.trim() ? parseInt(price, 10) : 0,
+        maxOutdoorPets: Math.max(0, Number(maxOutdoorPets) || 0),
+        maxOutdoorDecor: Math.max(0, Number(maxOutdoorDecor) || 0),
       });
     },
     onSuccess: async res => {
@@ -1261,20 +1271,6 @@ function BundlesSubTab() {
     mutationFn: async (id: string) => apiRequest("DELETE", `/api/admin/house-bundles/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] }); toast({ title: "Deleted" }); closeForm(); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const grantEveryoneMutation = useMutation({
-    mutationFn: async (bundleId: string) => {
-      const res = await apiRequest("POST", `/api/admin/house-bundles/${bundleId}/grant-everyone`, {});
-      return res.json() as Promise<{ granted: number; activated: number; alreadyOwned: number; total: number }>;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Granted to all players!",
-        description: `${data.granted} new grants · ${data.activated} activated · ${data.alreadyOwned} already had it (${data.total} total players)`,
-      });
-    },
-    onError: (e: any) => toast({ title: "Grant failed", description: e.message, variant: "destructive" }),
   });
 
   const hasBg = !!(bgImagePreview ?? editingBundle?.bgImageUrl);
