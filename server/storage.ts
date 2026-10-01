@@ -329,11 +329,11 @@ export interface IStorage {
   updateEnemyPart(id: string, data: Partial<EnemyPart>): Promise<EnemyPart>;
   deleteEnemyPart(id: string): Promise<void>;
   getHouseBundles(): Promise<HouseBundle[]>;
-  createHouseBundle(data: { name: string; shopImageUrl?: string; bgImageUrl?: string; price: number }): Promise<HouseBundle>;
+  createHouseBundle(data: { name: string; shopImageUrl?: string; bgImageUrl?: string; price: number; maxOutdoorPets?: number; maxOutdoorDecor?: number }): Promise<HouseBundle>;
   updateHouseBundle(id: string, data: Partial<HouseBundle>): Promise<HouseBundle>;
   deleteHouseBundle(id: string): Promise<void>;
   getHouseBundleBuildings(bundleId: string): Promise<HouseBundleBuilding[]>;
-  createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; size?: string }): Promise<HouseBundleBuilding>;
+  createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; buildingType?: string; size?: string }): Promise<HouseBundleBuilding>;
   updateHouseBundleBuilding(id: string, data: Partial<HouseBundleBuilding>): Promise<HouseBundleBuilding>;
   deleteHouseBundleBuilding(id: string): Promise<void>;
   getUserHouseBundles(userId: string): Promise<(UserHouseBundle & { bundle: HouseBundle })[]>;
@@ -3044,7 +3044,7 @@ export class DatabaseStorage implements IStorage {
     return b;
   }
 
-  async createHouseBundle(data: { name: string; shopImageUrl?: string; bgImageUrl?: string; price: number }): Promise<HouseBundle> {
+  async createHouseBundle(data: { name: string; shopImageUrl?: string; bgImageUrl?: string; price: number; maxOutdoorPets?: number; maxOutdoorDecor?: number }): Promise<HouseBundle> {
     const [b] = await db.insert(houseBundles).values(data).returning();
     return b;
   }
@@ -3070,7 +3070,7 @@ export class DatabaseStorage implements IStorage {
     return b ?? null;
   }
 
-  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; size?: string }): Promise<HouseBundleBuilding> {
+  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; buildingType?: string; size?: string }): Promise<HouseBundleBuilding> {
     const [b] = await db.insert(houseBundleBuildings).values({
       bundleId: data.bundleId,
       name: data.name,
@@ -3080,6 +3080,7 @@ export class DatabaseStorage implements IStorage {
       ...(data.width !== undefined ? { width: data.width } : {}),
       ...(data.flippedX !== undefined ? { flippedX: data.flippedX } : {}),
       ...(data.interiorImageUrl !== undefined ? { interiorImageUrl: data.interiorImageUrl } : {}),
+      ...(data.buildingType !== undefined ? { buildingType: data.buildingType } : {}),
       ...(data.size !== undefined ? { size: data.size } : {}),
     }).returning();
     return b;

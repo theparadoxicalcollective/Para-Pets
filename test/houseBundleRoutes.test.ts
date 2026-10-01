@@ -67,6 +67,7 @@ function setup() {
     images: [],
     createdBundles: [],
     updatedBuildings: [],
+    createdBuildings: [],
   };
 
   const storage: any = {
@@ -86,7 +87,10 @@ function setup() {
     deleteHouseBundle: async () => undefined,
     getAllUsers: async () => [],
     getHouseBundleBuildings: async () => [],
-    createHouseBundleBuilding: async (data: any) => ({ id: "building-1", ...data }),
+    createHouseBundleBuilding: async (data: any) => {
+      calls.createdBuildings.push(data);
+      return { id: "building-1", ...data };
+    },
     updateHouseBundleBuilding: async (id: string, data: any) => {
       calls.updatedBuildings.push([id, data]);
       return { id, ...data };
@@ -121,7 +125,6 @@ const expected = [
   "POST /api/admin/house-bundles",
   "PATCH /api/admin/house-bundles/:id",
   "DELETE /api/admin/house-bundles/:id",
-  "POST /api/admin/house-bundles/:bundleId/grant-everyone",
   "GET /api/admin/house-bundles/:bundleId/buildings",
   "POST /api/admin/house-bundles/:bundleId/buildings",
   "PATCH /api/admin/house-bundle-buildings/:id",
@@ -186,9 +189,52 @@ test("admin bundle creation keeps the existing image processing limits", async (
       price: 1500,
       shopImageUrl: "processed-1000",
       bgImageUrl: "processed-3000",
+      maxOutdoorPets: 6,
+      maxOutdoorDecor: 8,
     },
   ]);
   assert.equal(res.statusCode, 201);
+});
+
+test("bundle limits and building/mailbox types preserve the requested admin contract", async () => {
+  const { app, calls } = setup();
+
+  const created = await call(app, "POST", "/api/admin/house-bundles/:bundleId/buildings", {
+    params: { bundleId: "bundle-1" },
+    body: { name: "Cottage", imageData: "building-image", buildingType: "building", size: "large" },
+  });
+  assert.equal(created.statusCode, 201);
+  assert.deepEqual(calls.createdBuildings[0], {
+    bundleId: "bundle-1",
+    name: "Cottage",
+    imageUrl: "processed-1000",
+    buildingType: "building",
+    size: "large",
+  });
+
+  const mailbox = await call(app, "POST", "/api/admin/house-bundles/:bundleId/buildings", {
+    params: { bundleId: "bundle-1" },
+    body: { name: "Forest Post", imageData: "mailbox-image", buildingType: "mailbox", size: "small" },
+  });
+  assert.equal(mailbox.statusCode, 201);
+  assert.deepEqual(calls.createdBuildings[1], {
+    bundleId: "bundle-1",
+    name: "Forest Post",
+    imageUrl: "processed-1000",
+    buildingType: "mailbox",
+  });
+
+  const invalid = await call(app, "POST", "/api/admin/house-bundles/:bundleId/buildings", {
+    params: { bundleId: "bundle-1" },
+    body: { name: "Bad", imageData: "bad", buildingType: "building", size: "giant" },
+  });
+  assert.deepEqual([invalid.statusCode, invalid.body], [400, { message: "size must be small, medium, or large" }]);
+
+  const invalidType = await call(app, "POST", "/api/admin/house-bundles/:bundleId/buildings", {
+    params: { bundleId: "bundle-1" },
+    body: { name: "Bad Type", imageData: "bad", buildingType: "shed" },
+  });
+  assert.deepEqual([invalidType.statusCode, invalidType.body], [400, { message: "buildingType must be building or mailbox" }]);
 });
 
 test("building editing keeps current size and placement clamps", async () => {

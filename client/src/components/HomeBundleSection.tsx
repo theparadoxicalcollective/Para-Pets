@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { QuillBadge } from "@/components/QuillBadge";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
@@ -14,20 +15,21 @@ interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
   giftNotificationX?: number; giftNotificationY?: number;
   maxOutdoorPets?: number;
+  maxOutdoorDecor?: number;
 }
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
-  interiorImageUrl: string | null; size: string;
+  interiorImageUrl: string | null; buildingType?: HouseBuildingType; size: BuildingSize;
   leaveButtonX: number; leaveButtonY: number;
   maxPets?: number | null;
   createdAt: string;
 }
 
 const BUILDING_SIZES = [
-  { value: "small",  label: "Small",  caption: "3 pets · 3 items" },
-  { value: "medium", label: "Medium", caption: "5 pets · 6 items" },
-  { value: "large",  label: "Large",  caption: "7 pets · 9 items" },
+  { value: "small", label: "Small", caption: `${BUILDING_SIZE_CAPACITY.small.pets} pets · ${BUILDING_SIZE_CAPACITY.small.decor} decor` },
+  { value: "medium", label: "Medium", caption: `${BUILDING_SIZE_CAPACITY.medium.pets} pets · ${BUILDING_SIZE_CAPACITY.medium.decor} decor` },
+  { value: "large", label: "Large", caption: `${BUILDING_SIZE_CAPACITY.large.pets} pets · ${BUILDING_SIZE_CAPACITY.large.decor} decor` },
 ] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -255,9 +257,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
 
-  // ── Max outdoor pets (bundle-level) ──
-  const [localMaxOutdoor, setLocalMaxOutdoor] = useState<string>(String(bundle.maxOutdoorPets ?? 6));
-
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
   const giftYRef = useRef(bundle.giftNotificationY ?? 0.85);
@@ -312,7 +311,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newImage, setNewImage] = useState<string | null>(null);
-  const [newSize, setNewSize] = useState<"small" | "medium" | "large">("medium");
+  const [newBuildingType, setNewBuildingType] = useState<HouseBuildingType>("building");
+  const [newSize, setNewSize] = useState<BuildingSize>("medium");
   const addImgRef = useRef<HTMLInputElement>(null);
 
   // ── Fetch buildings ──
@@ -379,7 +379,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Mutations ──
   const patchBuilding = useMutation({
-    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean }) => {
+    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; buildingType?: HouseBuildingType; size?: BuildingSize }) => {
       const { id, ...rest } = data;
       return apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, rest);
     },
@@ -397,10 +397,13 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     mutationFn: async () => {
       if (!newName.trim() || !newImage) throw new Error("Name and image required");
       return apiRequest("POST", `/api/admin/house-bundles/${bundle.id}/buildings`, {
-        name: newName.trim(), imageData: newImage, size: newSize,
+        name: newName.trim(),
+        imageData: newImage,
+        buildingType: newBuildingType,
+        ...(newBuildingType === "building" ? { size: newSize } : {}),
       });
     },
-    onSuccess: () => { setShowAddForm(false); setNewName(""); setNewImage(null); setNewSize("medium"); refetch(); },
+    onSuccess: () => { setShowAddForm(false); setNewName(""); setNewImage(null); setNewBuildingType("building"); setNewSize("medium"); refetch(); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -713,7 +716,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           style={{ zIndex: 10 }}
         >
           <p className="font-fantasy text-[9px] px-3 py-1 rounded-full" style={{ background: "rgba(0,0,0,0.5)", color: "rgba(255,215,0,0.5)" }}>
-            Tap a building · drag to move · Set BG to add interior
+            Tap a building or mailbox · drag to move · buildings can have interiors
           </p>
         </div>
       )}
@@ -728,72 +731,121 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
         {selectedId ? (() => {
           const selBuilding = buildings.find(b => b.id === selectedId);
           const hasInterior = !!selBuilding?.interiorImageUrl;
+          const objectType: HouseBuildingType =
+            selBuilding?.buildingType ??
+            ((selBuilding?.name ?? "").toLowerCase().includes("mailbox") ? "mailbox" : "building");
           return (
             <>
-              {/* Size selector for selected building */}
-              <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: "auto" }} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-                <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Size:</span>
-                {BUILDING_SIZES.map(s => {
-                  const current = selBuilding?.size ?? "medium";
-                  const isSelected = current === s.value;
-                  return (
-                    <button
-                      key={s.value}
-                      data-testid={`button-change-size-${s.value}`}
-                      type="button"
-                      onClick={() => {
-                        if (!selectedId || isSelected) return;
-                        apiRequest("PATCH", `/api/admin/house-bundle-buildings/${selectedId}`, { size: s.value }).then(() => refetch()).catch(() => {});
-                      }}
-                      className="flex-1 py-1.5 rounded-lg flex flex-col items-center transition-transform active:scale-95"
-                      style={{
-                        background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
-                        border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
-                        color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
-                        cursor: isSelected ? "default" : "pointer",
-                      }}
-                    >
-                      <span className="font-fantasy text-[10px] tracking-wider">{s.label}</span>
-                      <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Set BG — same label pattern as the working "Change BG" button */}
-              <label
-                data-testid="label-set-building-bg"
-                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl font-fantasy text-sm tracking-widest"
-                style={{
-                  background: buildingBgUploading ? "rgba(255,215,0,0.2)" : GOLD_DIM,
-                  border: `1px solid ${buildingBgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.4)"}`,
-                  color: buildingBgUploading ? GOLD : "rgba(255,215,0,0.8)",
-                  cursor: buildingBgUploading ? "wait" : "pointer",
-                }}
+              <div
+                className="absolute bottom-full left-0 right-0 px-4 pb-2 flex flex-col gap-2"
+                style={{ pointerEvents: "auto" }}
                 onPointerDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
-                <Image className="w-4 h-4" />
-                {buildingBgUploading ? "Uploading…" : hasInterior ? "Change BG" : "Set BG"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={!!buildingBgUploading}
-                  onChange={e => handleBuildingBgUpload(e, selectedId)}
-                />
-              </label>
-              {/* Preview — only when building has a background */}
-              {hasInterior && (
+                <div className="flex items-center gap-2">
+                  <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Type:</span>
+                  {(["building", "mailbox"] as HouseBuildingType[]).map(type => {
+                    const isSelected = objectType === type;
+                    return (
+                      <button
+                        key={type}
+                        data-testid={`button-change-object-type-${type}`}
+                        type="button"
+                        onClick={() => {
+                          if (!selectedId || isSelected) return;
+                          patchBuilding.mutate({ id: selectedId, buildingType: type });
+                        }}
+                        className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider transition-transform active:scale-95"
+                        style={{
+                          background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                          border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                          color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
+                          cursor: isSelected ? "default" : "pointer",
+                        }}
+                      >
+                        {type === "building" ? "Building" : "Mailbox"}
+                      </button>
+                    );
+                  })}
+                </div>
+                {objectType === "building" && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-fantasy text-[10px] shrink-0" style={{ color: GOLD }}>Size:</span>
+                    {BUILDING_SIZES.map(sizeOption => {
+                      const current = selBuilding?.size ?? "medium";
+                      const isSelected = current === sizeOption.value;
+                      return (
+                        <button
+                          key={sizeOption.value}
+                          data-testid={`button-change-size-${sizeOption.value}`}
+                          type="button"
+                          onClick={() => {
+                            if (!selectedId || isSelected) return;
+                            patchBuilding.mutate({ id: selectedId, size: sizeOption.value });
+                          }}
+                          className="flex-1 py-1.5 rounded-lg flex flex-col items-center transition-transform active:scale-95"
+                          style={{
+                            background: isSelected ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                            border: `1px solid ${isSelected ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                            color: isSelected ? GOLD : "rgba(255,215,0,0.55)",
+                            cursor: isSelected ? "default" : "pointer",
+                          }}
+                        >
+                          <span className="font-fantasy text-[10px] tracking-wider">{sizeOption.label}</span>
+                          <span className="font-fantasy text-[8px] opacity-70">{sizeOption.caption}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {objectType === "building" && (
+                <label
+                  data-testid="label-set-building-bg"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl font-fantasy text-sm tracking-widest"
+                  style={{
+                    background: buildingBgUploading ? "rgba(255,215,0,0.2)" : GOLD_DIM,
+                    border: `1px solid ${buildingBgUploading ? "rgba(255,215,0,0.7)" : "rgba(255,215,0,0.4)"}`,
+                    color: buildingBgUploading ? GOLD : "rgba(255,215,0,0.8)",
+                    cursor: buildingBgUploading ? "wait" : "pointer",
+                  }}
+                  onPointerDown={e => e.stopPropagation()}
+                >
+                  <Image className="w-4 h-4" />
+                  {buildingBgUploading ? "Uploading…" : hasInterior ? "Change BG" : "Set BG"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={!!buildingBgUploading}
+                    onChange={e => handleBuildingBgUpload(e, selectedId)}
+                  />
+                </label>
+              )}
+
+              {objectType === "building" && hasInterior && (
                 <button
                   data-testid="button-preview-building-bg"
                   onPointerDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); if (selBuilding?.interiorImageUrl) setPreviewBuilding({ url: selBuilding.interiorImageUrl, buildingId: selBuilding.id, leaveButtonX: selBuilding.leaveButtonX ?? 0.92, leaveButtonY: selBuilding.leaveButtonY ?? 0.06 }); }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (selBuilding?.interiorImageUrl) {
+                      setPreviewBuilding({
+                        url: selBuilding.interiorImageUrl,
+                        buildingId: selBuilding.id,
+                        leaveButtonX: selBuilding.leaveButtonX ?? 0.92,
+                        leaveButtonY: selBuilding.leaveButtonY ?? 0.06,
+                      });
+                    }
+                  }}
                   className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest"
                   style={{ background: "rgba(30,50,120,0.3)", border: "1px solid rgba(100,150,255,0.4)", color: "rgba(150,200,255,0.9)", cursor: "pointer" }}
                 >
                   Preview
                 </button>
               )}
-              {/* Done */}
+
               <button
                 data-testid="button-done-building"
                 onPointerDown={e => e.stopPropagation()}
@@ -807,31 +859,13 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           );
         })() : (
           <>
-            {/* Max outdoor pets row */}
-            <div className="absolute bottom-full left-0 right-0 px-4 pb-2 flex items-center gap-3" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-              <span className="font-fantasy text-[10px]" style={{ color: GOLD, whiteSpace: "nowrap" }}>Max outdoor pets</span>
-              <input
-                data-testid="input-max-outdoor-pets"
-                type="number"
-                min="0"
-                value={localMaxOutdoor}
-                onChange={e => setLocalMaxOutdoor(e.target.value)}
-                onBlur={() => {
-                  const val = Math.max(0, Number(localMaxOutdoor) || 0);
-                  setLocalMaxOutdoor(String(val));
-                  apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { maxOutdoorPets: val }).catch(() => {});
-                }}
-                className="w-16 text-center rounded-lg py-1 font-fantasy text-[11px]"
-                style={{ background: "rgba(255,215,0,0.08)", border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
-              />
-            </div>
             <button
               data-testid="button-add-building"
               onClick={() => setShowAddForm(true)}
               className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
               style={{ background: GOLD_DIM, border: "1px solid rgba(255,215,0,0.4)", color: GOLD, cursor: "pointer" }}
             >
-              + Add Building
+              + Add Building / Mailbox
             </button>
             <button
               data-testid="button-save-bundle-editor"
@@ -855,7 +889,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowAddForm(false)} />
           <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "calc(75*var(--vh))" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${GOLD_BORDER}` }}>
-              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Add Building</p>
+              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Add Building or Mailbox</p>
               <button onClick={() => setShowAddForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, cursor: "pointer" }}>
                 <X className="w-4 h-4" />
               </button>
@@ -881,7 +915,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   style={{ background: GOLD_DIM, border: `1px dashed rgba(255,215,0,0.4)`, color: `rgba(255,215,0,0.8)`, cursor: "pointer" }}
                 >
                   <Image className="w-4 h-4 inline mr-2 mb-0.5" />
-                  Upload Building Image (PNG)
+                  Upload Image (PNG/JPEG)
                   <input
                     ref={addImgRef}
                     type="file"
@@ -897,42 +931,69 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
               )}
 
               <div>
-                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Name</p>
-                <input
-                  data-testid="input-building-name"
-                  type="text"
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Blacksmith's Forge"
-                  className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
-                  style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
-                />
-              </div>
-
-              <div>
-                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Size</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {BUILDING_SIZES.map(s => (
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Image Type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["building", "mailbox"] as HouseBuildingType[]).map(type => (
                     <button
-                      key={s.value}
-                      data-testid={`button-size-${s.value}`}
+                      key={type}
+                      data-testid={`button-new-object-type-${type}`}
                       type="button"
-                      onClick={() => setNewSize(s.value)}
-                      className="py-2.5 rounded-xl flex flex-col items-center gap-0.5 transition-transform active:scale-95"
+                      onClick={() => setNewBuildingType(type)}
+                      className="py-2.5 rounded-xl font-fantasy text-[11px] tracking-wider transition-transform active:scale-95"
                       style={{
-                        background: newSize === s.value ? "rgba(255,215,0,0.18)" : GOLD_DIM,
-                        border: `1px solid ${newSize === s.value ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
-                        color: newSize === s.value ? GOLD : "rgba(255,215,0,0.55)",
+                        background: newBuildingType === type ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                        border: `1px solid ${newBuildingType === type ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                        color: newBuildingType === type ? GOLD : "rgba(255,215,0,0.55)",
                         cursor: "pointer",
                       }}
                     >
-                      <span className="font-fantasy text-[11px] tracking-wider">{s.label}</span>
-                      <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
+                      {type === "building" ? "Building" : "Mailbox"}
                     </button>
                   ))}
                 </div>
               </div>
 
+              <div>
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>
+                  {newBuildingType === "building" ? "Building Name" : "Mailbox Name"}
+                </p>
+                <input
+                  data-testid="input-building-name"
+                  type="text"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder={newBuildingType === "building" ? "e.g. Blacksmith's Forge" : "e.g. Forest Mailbox"}
+                  className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
+                  style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                />
+              </div>
+
+              {newBuildingType === "building" && (
+                <div>
+                  <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Size</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {BUILDING_SIZES.map(s => (
+                      <button
+                        key={s.value}
+                        data-testid={`button-size-${s.value}`}
+                        type="button"
+                        onClick={() => setNewSize(s.value)}
+                        className="py-2.5 rounded-xl flex flex-col items-center gap-0.5 transition-transform active:scale-95"
+                        style={{
+                          background: newSize === s.value ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                          border: `1px solid ${newSize === s.value ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                          color: newSize === s.value ? GOLD : "rgba(255,215,0,0.55)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span className="font-fantasy text-[11px] tracking-wider">{s.label}</span>
+                        <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+  
+                )}
               <button
                 data-testid="button-confirm-add-building"
                 onClick={() => addBuilding.mutate()}
@@ -945,7 +1006,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   cursor: (newName.trim() && newImage) ? "pointer" : "not-allowed",
                 }}
               >
-                {addBuilding.isPending ? "Adding..." : "Add Building"}
+                {addBuilding.isPending ? "Adding..." : newBuildingType === "building" ? "Add Building" : "Add Mailbox"}
               </button>
             </div>
           </div>
@@ -1082,6 +1143,8 @@ function BundlesSubTab() {
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [maxOutdoorPets, setMaxOutdoorPets] = useState(String(DEFAULT_OUTDOOR_PET_LIMIT));
+  const [maxOutdoorDecor, setMaxOutdoorDecor] = useState(String(DEFAULT_OUTDOOR_DECOR_LIMIT));
   const [shopImagePreview, setShopImagePreview] = useState<string | null>(null);
   const [bgImagePreview, setBgImagePreview] = useState<string | null>(null);
 
@@ -1100,6 +1163,8 @@ function BundlesSubTab() {
     setEditingBundle(bundle);
     setName(bundle.name);
     setPrice(String(bundle.price));
+    setMaxOutdoorPets(String(bundle.maxOutdoorPets ?? DEFAULT_OUTDOOR_PET_LIMIT));
+    setMaxOutdoorDecor(String(bundle.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT));
     setShopImagePreview(bundle.shopImageUrl);
     setBgImagePreview(bundle.bgImageUrl);
     setCreateShopImageData(null);
@@ -1110,6 +1175,8 @@ function BundlesSubTab() {
   const openCreate = () => {
     setEditingBundle(null);
     setName(""); setPrice("");
+    setMaxOutdoorPets(String(DEFAULT_OUTDOOR_PET_LIMIT));
+    setMaxOutdoorDecor(String(DEFAULT_OUTDOOR_DECOR_LIMIT));
     setShopImagePreview(null); setBgImagePreview(null);
     setCreateShopImageData(null); setCreateBgImageData(null);
     setShowCreateForm(true);
@@ -1163,6 +1230,8 @@ function BundlesSubTab() {
         price: price.trim() ? parseInt(price, 10) : 0,
         shopImageData: createShopImageData ?? undefined,
         bgImageData: createBgImageData ?? undefined,
+        maxOutdoorPets: Math.max(0, Number(maxOutdoorPets) || 0),
+        maxOutdoorDecor: Math.max(0, Number(maxOutdoorDecor) || 0),
       });
     },
     onSuccess: async res => {
@@ -1186,6 +1255,8 @@ function BundlesSubTab() {
       return apiRequest("PATCH", `/api/admin/house-bundles/${editingBundle.id}`, {
         name: name.trim(),
         price: price.trim() ? parseInt(price, 10) : 0,
+        maxOutdoorPets: Math.max(0, Number(maxOutdoorPets) || 0),
+        maxOutdoorDecor: Math.max(0, Number(maxOutdoorDecor) || 0),
       });
     },
     onSuccess: async res => {
@@ -1200,20 +1271,6 @@ function BundlesSubTab() {
     mutationFn: async (id: string) => apiRequest("DELETE", `/api/admin/house-bundles/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] }); toast({ title: "Deleted" }); closeForm(); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const grantEveryoneMutation = useMutation({
-    mutationFn: async (bundleId: string) => {
-      const res = await apiRequest("POST", `/api/admin/house-bundles/${bundleId}/grant-everyone`, {});
-      return res.json() as Promise<{ granted: number; activated: number; alreadyOwned: number; total: number }>;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Granted to all players!",
-        description: `${data.granted} new grants · ${data.activated} activated · ${data.alreadyOwned} already had it (${data.total} total players)`,
-      });
-    },
-    onError: (e: any) => toast({ title: "Grant failed", description: e.message, variant: "destructive" }),
   });
 
   const hasBg = !!(bgImagePreview ?? editingBundle?.bgImageUrl);
@@ -1371,6 +1428,39 @@ function BundlesSubTab() {
                 <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Price (coins)</p>
                 <input data-testid="input-bundle-price" type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }} />
               </div>
+              {/* Outdoor capacity limits */}
+              <div>
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Outside Limits</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.6)" }}>Pets</span>
+                    <input
+                      data-testid="input-bundle-max-outdoor-pets"
+                      type="number"
+                      min="0"
+                      value={maxOutdoorPets}
+                      onChange={e => setMaxOutdoorPets(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
+                      style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.6)" }}>Decor</span>
+                    <input
+                      data-testid="input-bundle-max-outdoor-decor"
+                      type="number"
+                      min="0"
+                      value={maxOutdoorDecor}
+                      onChange={e => setMaxOutdoorDecor(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
+                      style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                    />
+                  </label>
+                </div>
+                <p className="font-fantasy text-[8px] mt-1.5" style={{ color: "rgba(255,215,0,0.38)" }}>
+                  Controls how many pets and decorations can be placed outside this home.
+                </p>
+              </div>
 
               {/* Save details / Create */}
               {isEditing ? (
@@ -1381,7 +1471,7 @@ function BundlesSubTab() {
                   className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
                   style={{ background: name.trim() ? "rgba(255,215,0,0.15)" : "rgba(255,215,0,0.05)", border: `1px solid ${name.trim() ? "rgba(255,215,0,0.4)" : GOLD_BORDER}`, color: name.trim() ? GOLD : "rgba(255,215,0,0.3)", cursor: name.trim() ? "pointer" : "not-allowed" }}
                 >
-                  {saveDetailsMutation.isPending ? "Saving..." : "Save Name & Price"}
+                  {saveDetailsMutation.isPending ? "Saving..." : "Save Bundle Settings"}
                 </button>
               ) : (
                 <button
@@ -1413,28 +1503,6 @@ function BundlesSubTab() {
                 </button>
               )}
 
-              {/* Grant to All Players */}
-              {isEditing && (
-                <div style={{ borderTop: `1px solid ${GOLD_BORDER}`, paddingTop: 12, marginTop: 4 }}>
-                  <p className="font-fantasy text-[9px] mb-2 text-center" style={{ color: "rgba(255,215,0,0.4)" }}>
-                    Admin Actions
-                  </p>
-                  <button
-                    data-testid="button-grant-bundle-everyone"
-                    onClick={() => grantEveryoneMutation.mutate(editingBundle!.id)}
-                    disabled={grantEveryoneMutation.isPending}
-                    className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
-                    style={{
-                      background: "rgba(80,140,255,0.12)",
-                      border: "1px solid rgba(80,140,255,0.35)",
-                      color: grantEveryoneMutation.isPending ? "rgba(150,190,255,0.5)" : "rgba(150,190,255,0.9)",
-                      cursor: grantEveryoneMutation.isPending ? "wait" : "pointer",
-                    }}
-                  >
-                    {grantEveryoneMutation.isPending ? "Granting…" : "Grant to All Players"}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>

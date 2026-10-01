@@ -5,6 +5,7 @@ import { X, Heart, Sword, Shield, Star } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
+import type { HouseBuildingType } from "@shared/housing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -15,7 +16,7 @@ interface VisitedPet {
 }
 interface ActiveBundle {
   id: string; name: string; bgImageUrl: string | null;
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
 }
 interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean;
@@ -494,7 +495,7 @@ export default function VisitPetHousePage() {
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
-            const isMailbox = (b.name ?? "").toLowerCase().includes("mailbox");
+            const isMailbox = b.buildingType === "mailbox" || (!b.buildingType && (b.name ?? "").toLowerCase().includes("mailbox"));
             const isClickable = hasInterior || isMailbox;
             const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             return (

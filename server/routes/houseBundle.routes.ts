@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { eq } from "drizzle-orm";
-import { houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable } from "@shared/schema";
+import { houseBundles as houseBundlesTable } from "@shared/schema";
+import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
 
@@ -117,13 +118,20 @@ export function registerHouseBundleRoutes(
 
   app.post("/api/admin/house-bundles", isAdmin, async (req, res) => {
     try {
-      const { name, price, shopImageData, bgImageData } = req.body;
+      const { name, price, shopImageData, bgImageData, maxOutdoorPets, maxOutdoorDecor } = req.body;
       if (!name) return res.status(400).json({ message: "name is required" });
       let shopImageUrl: string | undefined;
       let bgImageUrl: string | undefined;
       if (shopImageData) shopImageUrl = await processWorldImage(shopImageData, 1000);
       if (bgImageData) bgImageUrl = await processWorldImage(bgImageData, 3000);
-      const bundle = await storage.createHouseBundle({ name, price: price ?? 0, shopImageUrl, bgImageUrl });
+      const bundle = await storage.createHouseBundle({
+        name,
+        price: price ?? 0,
+        shopImageUrl,
+        bgImageUrl,
+        maxOutdoorPets: Math.max(0, Number(maxOutdoorPets ?? DEFAULT_OUTDOOR_PET_LIMIT)),
+        maxOutdoorDecor: Math.max(0, Number(maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT)),
+      });
       return res.status(201).json(bundle);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -132,7 +140,7 @@ export function registerHouseBundleRoutes(
 
   app.patch("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
     try {
-      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY, maxOutdoorPets } = req.body;
+      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY, maxOutdoorPets, maxOutdoorDecor } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
       if (price !== undefined) updates.price = price;
@@ -141,6 +149,7 @@ export function registerHouseBundleRoutes(
       if (giftNotificationX !== undefined) updates.giftNotificationX = giftNotificationX;
       if (giftNotificationY !== undefined) updates.giftNotificationY = giftNotificationY;
       if (maxOutdoorPets !== undefined) updates.maxOutdoorPets = Math.max(0, Number(maxOutdoorPets));
+      if (maxOutdoorDecor !== undefined) updates.maxOutdoorDecor = Math.max(0, Number(maxOutdoorDecor));
       const bundle = await storage.updateHouseBundle(req.params.id as string, updates);
       return res.json(bundle);
     } catch (err: any) {
@@ -157,44 +166,6 @@ export function registerHouseBundleRoutes(
     }
   });
 
-  // Grant a bundle to every existing player and activate it for those with no active bundle
-  app.post("/api/admin/house-bundles/:bundleId/grant-everyone", isAdmin, async (req, res) => {
-    try {
-      const { bundleId } = req.params as { bundleId: string };
-      const [bundle] = await db.select().from(houseBundlesTable).where(eq(houseBundlesTable.id, bundleId));
-      if (!bundle) return res.status(404).json({ message: "Bundle not found" });
-
-      const [allUsers, existingOwners] = await Promise.all([
-        storage.getAllUsers(),
-        db.select({ userId: userHouseBundlesTable.userId }).from(userHouseBundlesTable).where(eq(userHouseBundlesTable.bundleId, bundleId)),
-      ]);
-
-      const ownerSet = new Set(existingOwners.map((row) => row.userId));
-      let granted = 0;
-      let activated = 0;
-      let alreadyOwned = 0;
-
-      for (const user of allUsers) {
-        if (!ownerSet.has(user.id)) {
-          await storage.grantUserHouseBundle(user.id, bundleId);
-          granted++;
-        } else {
-          alreadyOwned++;
-        }
-        if (!user.activeHouseBundleId) {
-          await storage.setActiveHouseBundle(user.id, bundleId);
-          activated++;
-        }
-      }
-
-      console.log(`Grant-everyone "${bundle.name}": granted=${granted}, activated=${activated}, alreadyOwned=${alreadyOwned}`);
-      return res.json({ granted, activated, alreadyOwned, total: allUsers.length });
-    } catch (err: any) {
-      console.error("Grant-everyone error:", err);
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
   // ── House Bundle Buildings ─────────────────────────────────────────────────
   app.get("/api/admin/house-bundles/:bundleId/buildings", isAdmin, async (req, res) => {
     try {
@@ -207,15 +178,22 @@ export function registerHouseBundleRoutes(
 
   app.post("/api/admin/house-bundles/:bundleId/buildings", isAdmin, async (req, res) => {
     try {
-      const { name, imageData, size } = req.body;
+      const { name, imageData, size, buildingType } = req.body;
       if (!name || !imageData) return res.status(400).json({ message: "name and imageData are required" });
+      if (buildingType !== undefined && !isHouseBuildingType(buildingType)) {
+        return res.status(400).json({ message: "buildingType must be building or mailbox" });
+      }
+      const type = buildingType ?? "building";
+      if (type === "building" && size !== undefined && !isBuildingSize(size)) {
+        return res.status(400).json({ message: "size must be small, medium, or large" });
+      }
       const imageUrl = await processWorldImage(imageData, 1000);
-      const validSizes = ["small", "medium", "large"];
       const building = await storage.createHouseBundleBuilding({
         bundleId: req.params.bundleId as string,
         name,
         imageUrl,
-        ...(size && validSizes.includes(size) ? { size } : {}),
+        buildingType: type,
+        ...(type === "building" && isBuildingSize(size) ? { size } : {}),
       });
       return res.status(201).json(building);
     } catch (err: any) {
@@ -235,6 +213,7 @@ export function registerHouseBundleRoutes(
         interiorImageData,
         clearInterior,
         size,
+        buildingType,
         leaveButtonX,
         leaveButtonY,
         maxPets,
@@ -248,7 +227,14 @@ export function registerHouseBundleRoutes(
       if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
       if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 2000);
       if (clearInterior) updates.interiorImageUrl = null;
-      if (size && ["small", "medium", "large"].includes(size)) updates.size = size;
+      if (size !== undefined) {
+        if (!isBuildingSize(size)) return res.status(400).json({ message: "size must be small, medium, or large" });
+        updates.size = size;
+      }
+      if (buildingType !== undefined) {
+        if (!isHouseBuildingType(buildingType)) return res.status(400).json({ message: "buildingType must be building or mailbox" });
+        updates.buildingType = buildingType;
+      }
       if (leaveButtonX !== undefined) updates.leaveButtonX = Math.max(0, Math.min(1, Number(leaveButtonX)));
       if (leaveButtonY !== undefined) updates.leaveButtonY = Math.max(0, Math.min(1, Number(leaveButtonY)));
       if (maxPets !== undefined) updates.maxPets = maxPets === null ? null : Math.max(0, Number(maxPets));
@@ -281,6 +267,7 @@ export function registerHouseBundleRoutes(
         width: source.width,
         flippedX: source.flippedX,
         interiorImageUrl: source.interiorImageUrl,
+        buildingType: source.buildingType,
         size: source.size,
       });
       return res.status(201).json(duplicate);
