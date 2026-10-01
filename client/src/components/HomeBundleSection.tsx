@@ -1428,6 +1428,39 @@ function BundlesSubTab() {
                 <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Price (coins)</p>
                 <input data-testid="input-bundle-price" type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }} />
               </div>
+              {/* Outdoor capacity limits */}
+              <div>
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Outside Limits</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.6)" }}>Pets</span>
+                    <input
+                      data-testid="input-bundle-max-outdoor-pets"
+                      type="number"
+                      min="0"
+                      value={maxOutdoorPets}
+                      onChange={e => setMaxOutdoorPets(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
+                      style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.6)" }}>Decor</span>
+                    <input
+                      data-testid="input-bundle-max-outdoor-decor"
+                      type="number"
+                      min="0"
+                      value={maxOutdoorDecor}
+                      onChange={e => setMaxOutdoorDecor(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
+                      style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                    />
+                  </label>
+                </div>
+                <p className="font-fantasy text-[8px] mt-1.5" style={{ color: "rgba(255,215,0,0.38)" }}>
+                  Controls how many pets and decorations can be placed outside this home.
+                </p>
+              </div>
 
               {/* Save details / Create */}
               {isEditing ? (
@@ -1438,7 +1471,7 @@ function BundlesSubTab() {
                   className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
                   style={{ background: name.trim() ? "rgba(255,215,0,0.15)" : "rgba(255,215,0,0.05)", border: `1px solid ${name.trim() ? "rgba(255,215,0,0.4)" : GOLD_BORDER}`, color: name.trim() ? GOLD : "rgba(255,215,0,0.3)", cursor: name.trim() ? "pointer" : "not-allowed" }}
                 >
-                  {saveDetailsMutation.isPending ? "Saving..." : "Save Name & Price"}
+                  {saveDetailsMutation.isPending ? "Saving..." : "Save Bundle Settings"}
                 </button>
               ) : (
                 <button
@@ -1470,28 +1503,6 @@ function BundlesSubTab() {
                 </button>
               )}
 
-              {/* Grant to All Players */}
-              {isEditing && (
-                <div style={{ borderTop: `1px solid ${GOLD_BORDER}`, paddingTop: 12, marginTop: 4 }}>
-                  <p className="font-fantasy text-[9px] mb-2 text-center" style={{ color: "rgba(255,215,0,0.4)" }}>
-                    Admin Actions
-                  </p>
-                  <button
-                    data-testid="button-grant-bundle-everyone"
-                    onClick={() => grantEveryoneMutation.mutate(editingBundle!.id)}
-                    disabled={grantEveryoneMutation.isPending}
-                    className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest transition-transform active:scale-95"
-                    style={{
-                      background: "rgba(80,140,255,0.12)",
-                      border: "1px solid rgba(80,140,255,0.35)",
-                      color: grantEveryoneMutation.isPending ? "rgba(150,190,255,0.5)" : "rgba(150,190,255,0.9)",
-                      cursor: grantEveryoneMutation.isPending ? "wait" : "pointer",
-                    }}
-                  >
-                    {grantEveryoneMutation.isPending ? "Granting…" : "Grant to All Players"}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
