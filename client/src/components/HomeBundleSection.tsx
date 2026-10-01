@@ -889,7 +889,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowAddForm(false)} />
           <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "calc(75*var(--vh))" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${GOLD_BORDER}` }}>
-              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Add Building</p>
+              <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Add Building or Mailbox</p>
               <button onClick={() => setShowAddForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, cursor: "pointer" }}>
                 <X className="w-4 h-4" />
               </button>
@@ -915,7 +915,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   style={{ background: GOLD_DIM, border: `1px dashed rgba(255,215,0,0.4)`, color: `rgba(255,215,0,0.8)`, cursor: "pointer" }}
                 >
                   <Image className="w-4 h-4 inline mr-2 mb-0.5" />
-                  Upload Building Image (PNG)
+                  Upload Image (PNG/JPEG)
                   <input
                     ref={addImgRef}
                     type="file"
@@ -931,42 +931,69 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
               )}
 
               <div>
-                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Name</p>
-                <input
-                  data-testid="input-building-name"
-                  type="text"
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Blacksmith's Forge"
-                  className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
-                  style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
-                />
-              </div>
-
-              <div>
-                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Size</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {BUILDING_SIZES.map(s => (
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Image Type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["building", "mailbox"] as HouseBuildingType[]).map(type => (
                     <button
-                      key={s.value}
-                      data-testid={`button-size-${s.value}`}
+                      key={type}
+                      data-testid={`button-new-object-type-${type}`}
                       type="button"
-                      onClick={() => setNewSize(s.value)}
-                      className="py-2.5 rounded-xl flex flex-col items-center gap-0.5 transition-transform active:scale-95"
+                      onClick={() => setNewBuildingType(type)}
+                      className="py-2.5 rounded-xl font-fantasy text-[11px] tracking-wider transition-transform active:scale-95"
                       style={{
-                        background: newSize === s.value ? "rgba(255,215,0,0.18)" : GOLD_DIM,
-                        border: `1px solid ${newSize === s.value ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
-                        color: newSize === s.value ? GOLD : "rgba(255,215,0,0.55)",
+                        background: newBuildingType === type ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                        border: `1px solid ${newBuildingType === type ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                        color: newBuildingType === type ? GOLD : "rgba(255,215,0,0.55)",
                         cursor: "pointer",
                       }}
                     >
-                      <span className="font-fantasy text-[11px] tracking-wider">{s.label}</span>
-                      <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
+                      {type === "building" ? "Building" : "Mailbox"}
                     </button>
                   ))}
                 </div>
               </div>
 
+              <div>
+                <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>
+                  {newBuildingType === "building" ? "Building Name" : "Mailbox Name"}
+                </p>
+                <input
+                  data-testid="input-building-name"
+                  type="text"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder={newBuildingType === "building" ? "e.g. Blacksmith's Forge" : "e.g. Forest Mailbox"}
+                  className="w-full rounded-xl px-3 py-2.5 font-fantasy text-[11px]"
+                  style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, outline: "none" }}
+                />
+              </div>
+
+              {newBuildingType === "building" && (
+                <div>
+                  <p className="font-fantasy text-[10px] mb-1.5" style={{ color: GOLD }}>Building Size</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {BUILDING_SIZES.map(s => (
+                      <button
+                        key={s.value}
+                        data-testid={`button-size-${s.value}`}
+                        type="button"
+                        onClick={() => setNewSize(s.value)}
+                        className="py-2.5 rounded-xl flex flex-col items-center gap-0.5 transition-transform active:scale-95"
+                        style={{
+                          background: newSize === s.value ? "rgba(255,215,0,0.18)" : GOLD_DIM,
+                          border: `1px solid ${newSize === s.value ? "rgba(255,215,0,0.55)" : GOLD_BORDER}`,
+                          color: newSize === s.value ? GOLD : "rgba(255,215,0,0.55)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span className="font-fantasy text-[11px] tracking-wider">{s.label}</span>
+                        <span className="font-fantasy text-[8px] opacity-70">{s.caption}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+  
+                )}
               <button
                 data-testid="button-confirm-add-building"
                 onClick={() => addBuilding.mutate()}
@@ -979,7 +1006,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                   cursor: (newName.trim() && newImage) ? "pointer" : "not-allowed",
                 }}
               >
-                {addBuilding.isPending ? "Adding..." : "Add Building"}
+                {addBuilding.isPending ? "Adding..." : newBuildingType === "building" ? "Add Building" : "Add Mailbox"}
               </button>
             </div>
           </div>
