@@ -22,6 +22,7 @@ import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
 import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRegistry";
 import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/registry";
 import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from "@/worlds/locationInteraction";
+import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
@@ -203,7 +204,28 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  const [showShop, setShowShop] = useState(false);
+  const {
+    activeLocationId,
+    setActiveLocationId,
+    showLocationView,
+    setShowLocationView,
+    showShop,
+    setShowShop,
+    fishingLocation,
+    setFishingLocation,
+    showFishing,
+    showDangerWarning,
+    setShowDangerWarning,
+    showNoPetMessage,
+    setShowNoPetMessage,
+    shopJustOpened,
+    openFishingLocation,
+    openShopLocation,
+    openDangerLocation,
+    openScenicLocation,
+    showNoPetWarning,
+    closeFishingLocation,
+  } = useWorldLocationUiState();
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocName, setNewLocName] = useState("");
   const [newLocType, setNewLocType] = useState("battle");
@@ -220,8 +242,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [editLocOwner, setEditLocOwner] = useState<string | null>(null);
   const [editLocType, setEditLocType] = useState("battle");
   const [editLocGlowColor, setEditLocGlowColor] = useState("");
-  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
-  const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showSellPanel, setShowSellPanel] = useState(false);
   const [sellSelected, setSellSelected] = useState<Record<string, number>>({}); // inventoryId → qty to sell
@@ -232,8 +252,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showExploreAdmin, setShowExploreAdmin] = useState(false);
   const [showPondAdmin, setShowPondAdmin] = useState(false);
   const [bgUploading, setBgUploading] = useState(false);
-  const [showNoPetMessage, setShowNoPetMessage] = useState(false);
-  const [showDangerWarning, setShowDangerWarning] = useState(false);
   const [showCauldronConstruction, setShowCauldronConstruction] = useState(false);
   const [hasNewUnlock, setHasNewUnlock] = useState(false);
   const [recipeDetail, setRecipeDetail] = useState<RecipeRowProp | null>(null);
@@ -255,12 +273,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // PvP arena: an empty slot opens the inventory picker on tap; a filled
   // slot clears itself on tap. The drag-and-drop rig was removed.
   const [potionPickerOpen, setPotionPickerOpen] = useState(false);
-  // Keep the opened fishing location as UI state rather than deriving the
-  // overlay from the locations query on every render. Fishing mutations
-  // invalidate/refetch several shared queries; the overlay must survive any
-  // transient location-list loading/empty result until the player leaves it.
-  const [fishingLocation, setFishingLocation] = useState<WorldLocationData | null>(null);
-  const showFishing = fishingLocation !== null;
   const [showSellFish, setShowSellFish] = useState(false);
   useEffect(() => {
     if (worldId !== ELYSIAN_BAYOU_WORLD_ID) return;
@@ -297,7 +309,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [barrelSelected, setBarrelSelected] = useState(false);
   const draggableLocIdRef = useRef<string | null>(null);
   const lastDragEndTimeRef = useRef<number>(0);
-  const shopJustOpened = useRef<number>(0);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1459,29 +1470,21 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         });
         return;
       case "fishing":
-        setShowLocationView(false);
-        setShowShop(false);
-        setFishingLocation(loc);
+        openFishingLocation(loc);
         setShowFishHint(false);
         return;
       case "shop":
-        setFishingLocation(null);
-        setShowLocationView(false);
-        setShowShop(true);
-        shopJustOpened.current = Date.now();
+        openShopLocation();
         playShopBell();
         return;
       case "danger-warning":
-        setFishingLocation(null);
-        setShowDangerWarning(true);
+        openDangerLocation();
         return;
       case "scenic":
-        setFishingLocation(null);
-        setShowShop(false);
-        setShowLocationView(true);
+        openScenicLocation();
         return;
     }
-  }, [currentUser.isAdmin, navigate, toast, worldId]);
+  }, [currentUser.isAdmin, navigate, openDangerLocation, openFishingLocation, openScenicLocation, openShopLocation, toast, worldId]);
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current || mapJustPannedRef.current) return;
@@ -1501,12 +1504,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       return;
     }
     if (worldLocationRequiresHatchedPet(loc) && (!currentUser.activePetId || !hasHatchedActivePet)) {
-      setShowNoPetMessage(true);
+      showNoPetWarning();
       return;
     }
     playMapTap();
     openLocation(loc);
-  }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation]);
+  }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation, showNoPetWarning]);
 
   // LOAD saved team when battle prep opens (or when the location changes).
   useEffect(() => {
@@ -4584,10 +4587,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               bgUrl={fishingLocation.bgUrl ?? activeLocDetail?.bgUrl ?? null}
               worldId={worldId}
               user={currentUser}
-              onClose={() => {
-                setFishingLocation(null);
-                setActiveLocationId(null);
-              }}
+              onClose={closeFishingLocation}
             />
           </MiniGameFrame>
         </div>
