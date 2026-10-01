@@ -23,6 +23,7 @@ import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRe
 import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/registry";
 import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from "@/worlds/locationInteraction";
 import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
+import { useWorldLocationAdminController } from "@/worlds/useWorldLocationAdminController";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
@@ -304,11 +305,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showDecorMsg, setShowDecorMsg] = useState<{ text: string; clientX: number; clientY: number } | null>(null);
   const locViewRef = useRef<HTMLDivElement>(null);
 
-  const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [barrelSelected, setBarrelSelected] = useState(false);
-  const draggableLocIdRef = useRef<string | null>(null);
-  const lastDragEndTimeRef = useRef<number>(0);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -364,10 +362,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     return () => { ro.disconnect(); window.removeEventListener("orientationchange", measure); };
   }, []);
 
-  const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
-  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const didDrag = useRef(false);
-  const adminLocTapRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
   const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
   const lastLoadedBgRef = useRef("");
@@ -1175,6 +1169,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     },
   });
 
+  const {
+    selectedLocationId: selectedLocId,
+    draggingLocationId,
+    dragPosition: dragPos,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    cancelLocationDrag,
+    clearStaleLocationDrag,
+    isLocationDragActive,
+    shouldIgnoreLocationClick,
+    handleAdminLocationClick,
+    clearLocationSelection,
+  } = useWorldLocationAdminController({
+    isAdmin: currentUser.isAdmin,
+    areaRef,
+    onCommitPosition: positionMutation.mutate,
+  });
+
   const flipMutation = useMutation({
     mutationFn: async (locationId: string) => {
       const res = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/flip`, {});
@@ -1306,8 +1319,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)
-    if (dragRef.current && !mapPanPointersRef.current.size) { dragRef.current = null; setDragPos(null); }
-    if (dragRef.current || objDragRef.current) return;
+    if (isLocationDragActive() && !mapPanPointersRef.current.size) clearStaleLocationDrag();
+    if (isLocationDragActive() || objDragRef.current) return;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const ptrs = Array.from(mapPanPointersRef.current.values());
@@ -1316,10 +1329,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       mapPinchRef.current = null;
       mapPanningRef.current = false;
     }
-  }, []);
+  }, [clearStaleLocationDrag, isLocationDragActive]);
 
   const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
-    if (dragRef.current || objDragRef.current) return;
+    if (isLocationDragActive() || objDragRef.current) return;
     if (!mapPanPointersRef.current.has(e.pointerId)) return;
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const ptrs = Array.from(mapPanPointersRef.current.values());
@@ -1330,7 +1343,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
       if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
     }
-  }, [applyMapTransform]);
+  }, [applyMapTransform, isLocationDragActive]);
 
   const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
     mapPanPointersRef.current.delete(e.pointerId);
@@ -1379,8 +1392,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     return () => { cancelled = true; clearTimeout(fallback); };
   }, [activeLocationId, activeLocDetail?.bgUrl]);
 
-  // Keep ref in sync so handlePointerDown never sees stale state
-  useEffect(() => { draggableLocIdRef.current = selectedLocId; }, [selectedLocId]);
   useEffect(() => {
     if (showItemPicker) {
       setPickerFilter("all");
@@ -1392,58 +1403,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       refetchLocationDecor();
     }
   }, [showItemPicker]);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent, loc: WorldLocationData) => {
-    if (!currentUser.isAdmin) return;
-    // Always stop propagation so the map pan handler doesn't engage on location touches
-    e.stopPropagation();
-    // Only allow dragging if this location is already selected — use ref to avoid stale closure
-    if (draggableLocIdRef.current !== loc.id) return;
-    // Do NOT preventDefault here — we still want click events to fire for double-tap-to-open
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    didDrag.current = false;
-    const rect = areaRef.current ? areaRef.current.getBoundingClientRect() : { left: 0 };
-    dragRef.current = {
-      locId: loc.id,
-      startCanvasX: e.clientX - rect.left,
-      startY: e.clientY,
-      origPosX: loc.posX,
-      origPosY: loc.posY,
-    };
-  }, [currentUser.isAdmin]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current || !areaRef.current) return;
-    e.preventDefault();
-    const rect = areaRef.current.getBoundingClientRect();
-    const currentCanvasX = e.clientX - rect.left;
-    const dx = currentCanvasX - dragRef.current.startCanvasX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = Math.max(-10, Math.min(110, dragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(-10, Math.min(110, dragRef.current.origPosY + dy / pxPerPercY));
-    setDragPos({ id: dragRef.current.locId, x: newX, y: newY });
-  }, []);
-
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const d = dragRef.current;
-    dragRef.current = null;
-    if (didDrag.current && dragPos) {
-      // Stamp the drag-end time so handleLocationClick can ignore any click that fires
-      // shortly after a drag — 50 ms was not always long enough on mobile/desktop.
-      lastDragEndTimeRef.current = Date.now();
-      e.preventDefault();
-      if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; }
-      positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
-      setTimeout(() => { didDrag.current = false; }, 300);
-    } else {
-      didDrag.current = false;
-    }
-    setDragPos(null);
-  }, [dragPos, positionMutation]);
 
   const activePetInv = currentUser.activePetId
     ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
@@ -1487,29 +1446,22 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [currentUser.isAdmin, navigate, openDangerLocation, openFishingLocation, openScenicLocation, openShopLocation, toast, worldId]);
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
-    if (didDrag.current || mapJustPannedRef.current) return;
-    if (Date.now() - lastDragEndTimeRef.current < 350) return;
-    if (currentUser.isAdmin) {
-      if (adminLocTapRef.current?.id === loc.id) {
-        clearTimeout(adminLocTapRef.current.timer);
-        adminLocTapRef.current = null;
-        setSelectedLocId(null);
-        openLocation(loc);
-      } else {
-        if (adminLocTapRef.current) clearTimeout(adminLocTapRef.current.timer);
-        setSelectedLocId(loc.id);
-        const timer = setTimeout(() => { adminLocTapRef.current = null; }, 400);
-        adminLocTapRef.current = { id: loc.id, timer };
-      }
-      return;
-    }
+    if (shouldIgnoreLocationClick() || mapJustPannedRef.current) return;
+    if (handleAdminLocationClick(loc.id, () => openLocation(loc))) return;
     if (worldLocationRequiresHatchedPet(loc) && (!currentUser.activePetId || !hasHatchedActivePet)) {
       showNoPetWarning();
       return;
     }
     playMapTap();
     openLocation(loc);
-  }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation, showNoPetWarning]);
+  }, [
+    currentUser.activePetId,
+    handleAdminLocationClick,
+    hasHatchedActivePet,
+    openLocation,
+    shouldIgnoreLocationClick,
+    showNoPetWarning,
+  ]);
 
   // LOAD saved team when battle prep opens (or when the location changes).
   useEffect(() => {
@@ -1799,8 +1751,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerCancel={() => { dragRef.current = null; didDrag.current = false; setDragPos(null); }}
-            onClick={() => { if (currentUser.isAdmin) { if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; } setSelectedLocId(null); setSelectedDecorId(null); setBarrelSelected(false); } }}
+            onPointerCancel={cancelLocationDrag}
+            onClick={() => {
+              if (currentUser.isAdmin) {
+                clearLocationSelection();
+                setSelectedDecorId(null);
+                setBarrelSelected(false);
+              }
+            }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{
               background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.65) 100%)`,
@@ -2086,7 +2044,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               accent={accent}
               isAdmin={currentUser.isAdmin}
               selectedLocationId={selectedLocId}
-              draggingLocationId={dragRef.current?.locId ?? null}
+              draggingLocationId={draggingLocationId}
               dragPosition={dragPos}
               onPointerDown={handlePointerDown}
               onLocationClick={handleLocationClick}
