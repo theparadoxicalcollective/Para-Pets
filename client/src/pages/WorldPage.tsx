@@ -305,6 +305,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const areaRef = useRef<HTMLDivElement>(null);
 
+  // Background readiness is render/content state, not viewport state.
+  const [worldBgLoaded, setWorldBgLoaded] = useState(false);
+  const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
+  const lastLoadedBgRef = useRef("");
+
   const [locBgLoaded, setLocBgLoaded] = useState(false);
   const [showFishHint, setShowFishHint] = useState(() =>
     worldId === ELYSIAN_BAYOU_WORLD_ID && new URLSearchParams(window.location.search).get("fishHint") === "1"
