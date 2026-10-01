@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useLayoutEffect, useSyncExternalStore } from "react";
 
 export type PrimaryQuestGuideOwner = "begin-journey" | "npc-discovery";
 
@@ -42,7 +42,7 @@ export function usePrimaryQuestGuideOwner(
   owner: PrimaryQuestGuideOwner,
   active: boolean,
 ) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     setPrimaryQuestGuideOwnerActive(owner, active);
     return () => setPrimaryQuestGuideOwnerActive(owner, false);
   }, [owner, active]);
