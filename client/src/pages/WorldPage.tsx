@@ -23,6 +23,7 @@ import { getClientWorldModule, resolveClientWorldDestination } from "@/worlds/re
 import { resolveWorldLocationInteraction, worldLocationRequiresHatchedPet } from "@/worlds/locationInteraction";
 import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
 import { useWorldLocationAdminController } from "@/worlds/useWorldLocationAdminController";
+import { useWorldObjectAdminController } from "@/worlds/useWorldObjectAdminController";
 import { useWorldViewportController } from "@/worlds/useWorldViewportController";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
@@ -268,9 +269,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
   const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const barrelDidDrag = useRef(false);
-  const [objDragPos, setObjDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const objDragRef = useRef<{ objId: string; startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
-  const objDidDrag = useRef(false);
   const [selectedDecorAdminId, setSelectedDecorAdminId] = useState<string | null>(null);
 
   const [showDecorPanel, setShowDecorPanel] = useState(false);
@@ -1118,7 +1116,20 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     onCommitPosition: positionMutation.mutate,
   });
 
-  const isObjectDragActive = useCallback(() => objDragRef.current !== null, []);
+  const {
+    dragPosition: objDragPos,
+    draggingObjectId,
+    didDragRef: objDidDrag,
+    handlePointerDown: handleObjPointerDown,
+    handlePointerMove: handleObjPointerMove,
+    handlePointerUp: handleObjPointerUp,
+    isObjectDragActive,
+  } = useWorldObjectAdminController({
+    isAdmin: currentUser.isAdmin,
+    locationViewRef: locViewRef,
+    onCommitPosition: objPositionMutation.mutate,
+  });
+
 
   const {
     vpRef,
@@ -1413,46 +1424,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       }),
     );
   }, [battlePets, battlePotionSlots, showBattlePrep, battleLocationId]);
-
-  const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
-    if (!currentUser.isAdmin) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    objDidDrag.current = false;
-    objDragRef.current = {
-      objId: obj.id,
-      startX: e.clientX,
-      startY: e.clientY,
-      origPosX: obj.posX,
-      origPosY: obj.posY,
-    };
-  }, [currentUser.isAdmin]);
-
-  const handleObjPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!objDragRef.current || !locViewRef.current) return;
-    e.preventDefault();
-    const rect = locViewRef.current.getBoundingClientRect();
-    const dx = e.clientX - objDragRef.current.startX;
-    const dy = e.clientY - objDragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) objDidDrag.current = true;
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = Math.max(-10, Math.min(110, objDragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(-10, Math.min(110, objDragRef.current.origPosY + dy / pxPerPercY));
-    setObjDragPos({ id: objDragRef.current.objId, x: newX, y: newY });
-  }, []);
-
-  const handleObjPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!objDragRef.current) return;
-    e.preventDefault();
-    const d = objDragRef.current;
-    objDragRef.current = null;
-    if (objDidDrag.current && objDragPos) {
-      objPositionMutation.mutate({ objectId: d.objId, posX: Math.round(objDragPos.x), posY: Math.round(objDragPos.y) });
-    }
-    setObjDragPos(null);
-  }, [objDragPos, objPositionMutation]);
 
 
   // Panel drag: subscribe to document events while dragging a decor item from the inventory panel
@@ -3451,7 +3422,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             >
               {locationObjects.map((obj) => {
                 const pos = objDragPos?.id === obj.id ? { x: objDragPos.x, y: objDragPos.y } : { x: obj.posX, y: obj.posY };
-                const isDragging = objDragRef.current?.objId === obj.id;
+                const isDragging = draggingObjectId === obj.id;
                 return (
                   <div
                     key={obj.id}
