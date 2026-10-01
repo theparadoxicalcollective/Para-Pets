@@ -61,9 +61,21 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
+import type { HomeSceneItemType } from "@shared/housing";
 import { completeCaveTier } from "./caveProgress";
 import { tryConsumeOneFromInventory as consumeOneFromInventory } from "./inventoryConsumption";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
+
+export interface HomeSceneCatalogItem {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  price: number;
+  type: HomeSceneItemType;
+}
+
+export type HomeSceneInventoryEntry = UserHomeDecorInventory & { item: HomeSceneCatalogItem };
+export type PlacedHomeSceneEntry = PlacedHomeDecor & { item: HomeSceneCatalogItem };
 
 export interface EquippedAccessoryDetail {
   id: string;
@@ -3193,13 +3205,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Player Home Decor Inventory ───────────────────────────────────────────────
-  async getUserHomeDecorInventory(userId: string): Promise<(UserHomeDecorInventory & { item: HomeDecorItem })[]> {
+  async getUserHomeDecorInventory(userId: string): Promise<HomeSceneInventoryEntry[]> {
     const rows = await db.select().from(userHomeDecorInventory).where(eq(userHomeDecorInventory.userId, userId));
-    const result: (UserHomeDecorInventory & { item: HomeDecorItem })[] = [];
+    const result: HomeSceneInventoryEntry[] = [];
     for (const row of rows) {
       const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
-      if (item) result.push({ ...row, item });
+      if (item) result.push({ ...row, item: { id: item.id, name: item.name, imageUrl: item.imageUrl, price: item.price, type: "decor" } });
     }
+
+    const objectRows = await db
+      .select({
+        id: userInventory.id,
+        userId: userInventory.userId,
+        decorItemId: userInventory.shopItemId,
+        quantity: userInventory.quantity,
+        itemId: shopItems.id,
+        itemName: shopItems.name,
+        itemImageUrl: shopItems.imageUrl,
+        itemPrice: shopItems.price,
+      })
+      .from(userInventory)
+      .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+      .where(and(eq(userInventory.userId, userId), eq(shopItems.type, "object")));
+
+    for (const row of objectRows) {
+      result.push({
+        id: row.id,
+        userId: row.userId,
+        decorItemId: row.decorItemId,
+        quantity: row.quantity ?? 1,
+        item: {
+          id: row.itemId,
+          name: row.itemName,
+          imageUrl: row.itemImageUrl,
+          price: row.itemPrice,
+          type: "object",
+        },
+      });
+    }
+
     return result;
   }
 
@@ -3215,16 +3259,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Placed Home Decor ─────────────────────────────────────────────────────────
-  async getPlacedHomeDecor(userId: string, location?: string): Promise<(PlacedHomeDecor & { item: HomeDecorItem })[]> {
+  async getPlacedHomeDecor(userId: string, location?: string): Promise<PlacedHomeSceneEntry[]> {
     const rows = await db.select().from(placedHomeDecor)
       .where(location
         ? and(eq(placedHomeDecor.userId, userId), eq(placedHomeDecor.location, location))
         : eq(placedHomeDecor.userId, userId))
       .orderBy(asc(placedHomeDecor.createdAt));
-    const result: (PlacedHomeDecor & { item: HomeDecorItem })[] = [];
+    const result: PlacedHomeSceneEntry[] = [];
     for (const row of rows) {
-      const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
-      if (item) result.push({ ...row, item });
+      const [decor] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
+      if (decor) {
+        result.push({
+          ...row,
+          item: { id: decor.id, name: decor.name, imageUrl: decor.imageUrl, price: decor.price, type: "decor" },
+        });
+        continue;
+      }
+
+      const [object] = await db
+        .select()
+        .from(shopItems)
+        .where(and(eq(shopItems.id, row.decorItemId), eq(shopItems.type, "object")));
+      if (object) {
+        result.push({
+          ...row,
+          item: { id: object.id, name: object.name, imageUrl: object.imageUrl, price: object.price, type: "object" },
+        });
+      }
     }
     return result;
   }

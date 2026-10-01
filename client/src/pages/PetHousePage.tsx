@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
-import friendsNavIcon from "@assets/Photoroom_20260622_114621_AM_1782146930993.png";
+import friendsNavIcon from "@assets/uploads/FriendIcon.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
@@ -45,7 +45,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -122,8 +122,8 @@ interface ActiveBundle extends HouseBundle {
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
-interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number }; }
-interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null }; }
+interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType }; }
+interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType }; }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_BG_RATIO = 1920 / 2400;
@@ -776,8 +776,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
 
   // Inventory drag: decor
-  const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number } | null>(null);
-  const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
+  const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number } | null>(null);
+  const inventoryDragRef = useRef<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number; startX: number; startY: number; isDragging: boolean; pid: number } | null>(null);
   const [isDraggingDecor, setIsDraggingDecor] = useState(false);
 
   // Inventory drag: pet
@@ -1033,7 +1033,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     if (decorDrag && decorDrag.pid === e.pointerId) {
       decorDrag.ghostX = e.clientX; decorDrag.ghostY = e.clientY;
       if (Math.hypot(e.clientX - decorDrag.startX, e.clientY - decorDrag.startY) > 8) decorDrag.isDragging = true;
-      if (decorDrag.isDragging) { setInventoryDragState({ decorItemId: decorDrag.decorItemId, imageUrl: decorDrag.imageUrl, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
+      if (decorDrag.isDragging) { setInventoryDragState({ decorItemId: decorDrag.decorItemId, imageUrl: decorDrag.imageUrl, itemType: decorDrag.itemType, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
       return;
     }
     // Pan
@@ -1109,8 +1109,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size].decor : BUILDING_SIZE_CAPACITY.medium.decor;
-            if (interiorPlacedRaw.length >= (maxItems ?? 6)) {
-              toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems ?? 6} decorations.` });
+            const placedDecorCount = interiorPlacedRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
+            if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxItems) {
+              toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems} decorations.` });
             } else {
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
@@ -1121,7 +1122,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             }
           } else if (imgWidth > 0) {
             const maxOutdoorDecor = activeBundle?.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT;
-            if (placedDecorRaw.length >= maxOutdoorDecor) {
+            const placedDecorCount = placedDecorRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
+            if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxOutdoorDecor) {
               toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${maxOutdoorDecor} decorations outdoors.` });
             } else {
               placeDecorMutation.mutate({
@@ -1228,10 +1230,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [imgWidth, containerH, updatePetPositionMutation]);
 
   // ── Inventory drag starters ────────────────────────────────────────────────
-  const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
+  const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null, itemType: HomeSceneItemType) => {
     e.stopPropagation();
     containerRef.current?.setPointerCapture(e.pointerId);
-    inventoryDragRef.current = { decorItemId, imageUrl, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
+    inventoryDragRef.current = { decorItemId, imageUrl, itemType, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
 
   const handlePetInvDragStart = useCallback((e: React.PointerEvent, pet: HousePet) => {
@@ -1607,10 +1609,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 />
                 <div>
                   <h2 className="text-white font-bold text-lg leading-tight">
-                    {openInventory === "home" ? "Home Inventory" : "Decor Inventory"}
+                    {openInventory === "home" ? "Home Inventory" : "Decor / Objects"}
                   </h2>
                   <p className="text-white/50 text-xs">
-                    {openInventory === "home" ? "House bundles you own" : "Home decorations you own"}
+                    {openInventory === "home" ? "House bundles you own" : "Decor is limited · Objects are unlimited"}
                   </p>
                 </div>
               </div>
@@ -1675,57 +1677,97 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             )}
 
             {openInventory === "decor" && (
-              <div className="flex flex-col gap-4">
-                {decorInventory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <img src={decorInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
-                    <p className="text-white/40 text-sm text-center">No decor items yet.{"\n"}Visit the shop to find some!</p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>
-                      {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {decorInventory.map((entry) => (
-                        <div
-                          key={entry.id}
-                          data-testid={`decor-item-${entry.decorItemId}`}
-                          className="flex flex-col items-center gap-1.5"
-                          onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl)}
-                          onPointerMove={(e) => {
-                            const drag = inventoryDragRef.current;
-                            if (!drag || drag.pid !== e.pointerId) return;
-                            drag.ghostX = e.clientX; drag.ghostY = e.clientY;
-                            if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
-                            if (drag.isDragging) { setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
-                          }}
-                          onPointerUp={handlePointerUp}
-                          onPointerCancel={handlePointerUp}
-                          style={{ touchAction: "none", cursor: "grab" }}
-                        >
-                          <div className="w-full rounded-2xl overflow-hidden relative" style={{ aspectRatio: "1 / 1", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,215,0,0.18)" }}>
-                            {entry.item.imageUrl ? (
-                              <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
-                              </div>
-                            )}
-                            {entry.quantity > 1 && (
-                              <div className="absolute top-1 right-1 rounded-full flex items-center justify-center" style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}>
-                                <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
-                              </div>
-                            )}
-                          </div>
-                          <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
-                            {entry.item.name}
-                          </span>
+              <div className="flex flex-col gap-5">
+                <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>
+                  {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
+                </p>
+
+                {([
+                  { type: "decor" as const, label: "Decor", note: "Counts toward this home's decor limit" },
+                  { type: "object" as const, label: "Objects", note: "Unlimited in the home scene" },
+                ]).map((section) => {
+                  const entries = decorInventory.filter(entry => entry.item.type === section.type);
+                  return (
+                    <section
+                      key={section.type}
+                      data-testid={`home-inventory-section-${section.type}`}
+                      className="flex flex-col gap-2.5"
+                    >
+                      <div className="flex items-end justify-between gap-3 px-0.5">
+                        <h3 className="text-white/85 font-semibold" style={{ fontFamily: "Lora, serif", fontSize: 14 }}>
+                          {section.label}
+                        </h3>
+                        <span className="text-white/35 text-right" style={{ fontFamily: "Lora, serif", fontSize: 9 }}>
+                          {section.note}
+                        </span>
+                      </div>
+
+                      {entries.length === 0 ? (
+                        <div className="rounded-2xl py-5 px-3 text-center" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <p className="text-white/35 text-xs" style={{ fontFamily: "Lora, serif" }}>
+                            No {section.label.toLowerCase()} items yet.
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          {entries.map((entry) => (
+                            <div
+                              key={entry.id}
+                              data-testid={`${section.type}-item-${entry.decorItemId}`}
+                              className="flex flex-col items-center gap-1.5"
+                              onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl, entry.item.type)}
+                              onPointerMove={(e) => {
+                                const drag = inventoryDragRef.current;
+                                if (!drag || drag.pid !== e.pointerId) return;
+                                drag.ghostX = e.clientX;
+                                drag.ghostY = e.clientY;
+                                if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
+                                if (drag.isDragging) {
+                                  setInventoryDragState({
+                                    decorItemId: drag.decorItemId,
+                                    imageUrl: drag.imageUrl,
+                                    itemType: drag.itemType,
+                                    ghostX: e.clientX,
+                                    ghostY: e.clientY,
+                                  });
+                                  setIsDraggingDecor(true);
+                                }
+                              }}
+                              onPointerUp={handlePointerUp}
+                              onPointerCancel={handlePointerUp}
+                              style={{ touchAction: "none", cursor: "grab" }}
+                            >
+                              <div
+                                className="w-full rounded-2xl overflow-hidden relative"
+                                style={{
+                                  aspectRatio: "1 / 1",
+                                  background: section.type === "object" ? "rgba(167,139,250,0.07)" : "rgba(255,255,255,0.05)",
+                                  border: section.type === "object" ? "1.5px solid rgba(196,181,253,0.24)" : "1.5px solid rgba(255,215,0,0.18)",
+                                }}
+                              >
+                                {entry.item.imageUrl ? (
+                                  <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
+                                  </div>
+                                )}
+                                {entry.quantity > 1 && (
+                                  <div className="absolute top-1 right-1 rounded-full flex items-center justify-center" style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}>
+                                    <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
+                                {entry.item.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
             )}
 
