@@ -121,7 +121,7 @@ export function useWorldDecorAdminController({
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
     };
-  }, [areaRef, onCreatePlacement, panelDragGhost]);
+  }, [!!panelDragGhost, areaRef, onCreatePlacement]);
 
   const startPanelDrag = useCallback((
     event: ReactPointerEvent,
@@ -217,7 +217,7 @@ export function useWorldDecorAdminController({
 
   return {
     selectedPlacementId,
-    setSelectedPlacementId: setSelectedPlacementId as Dispatch<SetStateAction<string | null>>,
+    setSelectedPlacementId,
     dragPosition,
     panelDragGhost,
     startPanelDrag,
