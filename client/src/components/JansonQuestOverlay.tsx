@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { chooseNpcMessage, npcNamesMatch, parseNpcMetadata } from "@/lib/npcMetadata";
+import { ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 
 type QuestStatus = "locked" | "available" | "accepted" | "completed" | "claimed";
 interface Quest {
@@ -21,7 +22,7 @@ interface JansonState { quests: Quest[]; dailyQuest: Quest; marketUnlocked: bool
 interface WorldNpc { id: string; name: string; type: string; iconUrl?: string | null; description?: string | null }
 interface CatalogNpc { name: string; type: string; worldId: string; specialSkill?: string | null }
 const API = "/api/quests/janson";
-const WORLD = "swamp";
+const WORLD = ELYSIAN_BAYOU_WORLD_ID;
 
 function QuestCard({ quest, busy, onGo, onClaim }: {
   quest: Quest; busy: boolean; onGo: () => void; onClaim: () => void;
