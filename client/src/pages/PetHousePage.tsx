@@ -45,7 +45,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type HouseBuildingType } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -119,7 +119,7 @@ interface HouseBundle { id: string; name: string; shopImageUrl: string | null; b
 interface ActiveBundle extends HouseBundle {
   maxOutdoorPets: number;
   maxOutdoorDecor: number;
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: string | null; buildingType?: HouseBuildingType | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number }; }
@@ -1063,7 +1063,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
-            const maxPets = building?.size ? BUILDING_SIZE_CAPACITY[building.size as keyof typeof BUILDING_SIZE_CAPACITY]?.pets ?? BUILDING_SIZE_CAPACITY.medium.pets : BUILDING_SIZE_CAPACITY.medium.pets;
+            const maxPets = building?.size ? BUILDING_SIZE_CAPACITY[building.size].pets : BUILDING_SIZE_CAPACITY.medium.pets;
             const currentCount = pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null).length;
             if (currentCount >= maxPets) {
               toast({ title: "Pet limit reached!", description: `This building can hold up to ${maxPets} pets.` });
@@ -1108,7 +1108,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
-            const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size as keyof typeof BUILDING_SIZE_CAPACITY]?.decor ?? BUILDING_SIZE_CAPACITY.medium.decor : BUILDING_SIZE_CAPACITY.medium.decor;
+            const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size].decor : BUILDING_SIZE_CAPACITY.medium.decor;
             if (interiorPlacedRaw.length >= (maxItems ?? 6)) {
               toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems ?? 6} decorations.` });
             } else {
