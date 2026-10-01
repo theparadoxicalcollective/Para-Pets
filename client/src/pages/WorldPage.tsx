@@ -25,6 +25,7 @@ import { useWorldLocationUiState } from "@/worlds/useWorldLocationUiState";
 import { useWorldLocationAdminController } from "@/worlds/useWorldLocationAdminController";
 import { useWorldObjectAdminController } from "@/worlds/useWorldObjectAdminController";
 import { useWorldDecorAdminController } from "@/worlds/useWorldDecorAdminController";
+import { useWorldFishBarrelAdminController } from "@/worlds/useWorldFishBarrelAdminController";
 import { useWorldViewportController } from "@/worlds/useWorldViewportController";
 import { ELYSIAN_BAYOU_LOCATION_IDS, ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
 import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcanic";
@@ -267,9 +268,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     window.addEventListener("para:open-fish-market", openFishMarket);
     return () => window.removeEventListener("para:open-fish-market", openFishMarket);
   }, [worldId]);
-  const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
-  const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
-  const barrelDidDrag = useRef(false);
   const [selectedDecorAdminId, setSelectedDecorAdminId] = useState<string | null>(null);
 
   const [showDecorPanel, setShowDecorPanel] = useState(false);
@@ -283,7 +281,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showDecorMsg, setShowDecorMsg] = useState<{ text: string; clientX: number; clientY: number } | null>(null);
   const locViewRef = useRef<HTMLDivElement>(null);
 
-  const [barrelSelected, setBarrelSelected] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -771,6 +768,22 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       await apiRequest("DELETE", `/api/admin/fish-barrel/${fishBarrel.id}`);
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
+  });
+
+  const {
+    selected: barrelSelected,
+    setSelected: setBarrelSelected,
+    dragPosition: barrelDragPos,
+    didDragRef: barrelDidDrag,
+    handlePointerDown: handleBarrelPointerDown,
+    handlePointerMove: handleBarrelPointerMove,
+    handlePointerUp: handleBarrelPointerUp,
+    cancelDrag: cancelBarrelDrag,
+  } = useWorldFishBarrelAdminController({
+    isAdmin: currentUser.isAdmin,
+    barrel: fishBarrel,
+    areaRef,
+    onCommitPosition: updateBarrelMutation.mutate,
   });
 
   const addDecorItemMutation = useMutation({
@@ -1438,36 +1451,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, [battlePets, battlePotionSlots, showBattlePrep, battleLocationId]);
 
 
-  const handleBarrelPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!currentUser.isAdmin || !fishBarrel) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    barrelDidDrag.current = false;
-    barrelDragRef.current = { startX: e.clientX, startY: e.clientY, origPosX: fishBarrel.posX, origPosY: fishBarrel.posY };
-  }, [currentUser.isAdmin, fishBarrel]);
-
-  const handleBarrelPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!barrelDragRef.current || !areaRef.current) return;
-    e.preventDefault();
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - barrelDragRef.current.startX;
-    const dy = e.clientY - barrelDragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) barrelDidDrag.current = true;
-    const newX = Math.max(0, Math.min(100, barrelDragRef.current.origPosX + (dx / rect.width) * 100));
-    const newY = Math.max(0, Math.min(100, barrelDragRef.current.origPosY + (dy / rect.height) * 100));
-    setBarrelDragPos({ x: newX, y: newY });
-  }, []);
-
-  const handleBarrelPointerUp = useCallback(() => {
-    if (!barrelDragRef.current) return;
-    barrelDragRef.current = null;
-    if (barrelDidDrag.current && barrelDragPos) {
-      updateBarrelMutation.mutate({ posX: barrelDragPos.x, posY: barrelDragPos.y });
-    }
-    barrelDidDrag.current = false;
-    setBarrelDragPos(null);
-  }, [barrelDragPos, updateBarrelMutation]);
-
   const isShopItemTransparentClick = useCallback((e: React.MouseEvent<HTMLImageElement>): boolean => {
     const img = e.currentTarget;
     const rect = img.getBoundingClientRect();
@@ -1769,7 +1752,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   onPointerDown={handleBarrelPointerDown}
                   onPointerMove={handleBarrelPointerMove}
                   onPointerUp={handleBarrelPointerUp}
-                  onPointerCancel={() => { barrelDragRef.current = null; barrelDidDrag.current = false; setBarrelDragPos(null); }}
+                  onPointerCancel={cancelBarrelDrag}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (barrelDidDrag.current) return;
