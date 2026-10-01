@@ -520,39 +520,6 @@ export function registerFishingAquariumRoutes(app: Express, deps: FishingRouteDe
     }
   });
 
-  // Fish barrel routes
-  app.get("/api/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
-    try {
-      const barrel = await storage.getFishBarrelByWorld((req.params.worldId as string));
-      return res.json(barrel || null);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.patch("/api/admin/fish-barrel/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
-      const { posX, posY, size } = req.body;
-      const barrel = await storage.updateFishBarrel((req.params.id as string), { posX, posY, size });
-      return res.json(barrel);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.delete("/api/admin/fish-barrel/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
-      await storage.deleteFishBarrel((req.params.id as string));
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
   // Sync aquarium fish — marks exactly `count` fish per shopItemId as inAquarium
   app.post("/api/fishing/aquarium/sync", isAuthenticated, async (req, res) => {
     try {
