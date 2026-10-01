@@ -3,10 +3,8 @@ import {
   useEffect,
   useRef,
   useState,
-  type Dispatch,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
-  type SetStateAction,
 } from "react";
 
 export const WORLD_DECOR_DRAG_THRESHOLD_PX = 3;
