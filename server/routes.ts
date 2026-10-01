@@ -55,6 +55,7 @@ import { registerPetHouseVisitorRoutes } from "./routes/petHouseVisitor.routes";
 import { registerFounderRoutes } from "./routes/founder.routes";
 import { registerVeridianWatcherQuoteRoutes } from "./routes/veridianWatcherQuote.routes";
 import { registerWatcherShoutoutPreferenceRoutes } from "./routes/watcherShoutoutPreference.routes";
+import { registerChatFilterRoutes } from "./routes/chatFilter.routes";
 import { registerPetHousePositionRoutes } from "./routes/petHousePosition.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
@@ -5462,42 +5463,7 @@ export async function registerRoutes(
   });
 
 
-  // ── Admin: Chat Filter Word Management ──────────────────────────────────────
-  app.get("/api/admin/chat-filter", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
-      const custom = await storage.getChatFilterWords();
-      return res.json({ baseWords: BASE_BAD_WORDS, customWords: custom });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/admin/chat-filter", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
-      const { word } = req.body;
-      if (!word || typeof word !== "string" || !word.trim()) return res.status(400).json({ message: "Word required" });
-      const row = await storage.addChatFilterWord(word.trim(), user.username);
-      return res.json(row);
-    } catch (err: any) {
-      if (err.message?.includes("unique")) return res.status(409).json({ message: "Word already in filter list" });
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.delete("/api/admin/chat-filter/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
-      await storage.deleteChatFilterWord(String(req.params.id));
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
+  registerChatFilterRoutes(app, { storage, isAuthenticated, baseBadWords: BASE_BAD_WORDS });
 
   registerFounderRoutes(app, { storage, isAuthenticated });
 
