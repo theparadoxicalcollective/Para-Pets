@@ -48,11 +48,18 @@ interface Props {
   baseZ?: number;
   testId?: string;
   showHint?: boolean;
+  blockingGuide?: boolean;
   onTourAdvance?: (point?: { x: number; y: number }) => void;
 }
 
 /**
- * Begin-Journey-style quest guard:
+ * Shared quest highlight.
+ *
+ * By default this is visual-only: it draws the circle/arrow/copy without
+ * darkening the game or intercepting player input. The two onboarding flows
+ * that intentionally lock the screen opt into `blockingGuide`.
+ *
+ * When blocking:
  * - target: only the highlighted target can be used.
  * - pan: world/map dragging stays live, but unrelated controls cannot activate.
  * - tour: the overlay itself advances and the highlighted NPC stays read-only.
@@ -66,6 +73,7 @@ export default function QuestGuideSpotlight({
   baseZ = 2147481500,
   testId = "quest-guide-spotlight",
   showHint = true,
+  blockingGuide = false,
   onTourAdvance,
 }: Props) {
   const [targetRect, setTargetRect] = useState<{ selector: string; rect: DOMRect } | null>(null);
@@ -92,7 +100,7 @@ export default function QuestGuideSpotlight({
   }, [selector]);
 
   useEffect(() => {
-    if (!selector || mode === "tour") return;
+    if (!selector || mode === "tour" || !blockingGuide) return;
     const allowed = allowedKey ? allowedKey.split("\n").filter(Boolean) : [];
     const insideAllowed = (event: Event) => {
       const element = event.target instanceof Element ? event.target : null;
@@ -124,7 +132,7 @@ export default function QuestGuideSpotlight({
       document.removeEventListener("pointerup", onPointerBoundary, true);
       document.removeEventListener("click", onClick, true);
     };
-  }, [selector, mode, allowedKey]);
+  }, [selector, mode, allowedKey, blockingGuide]);
 
   if (!selector || hasBlockingOverlay()) return null;
   const rect = targetRect?.selector === selector ? targetRect.rect : null;
@@ -137,9 +145,11 @@ export default function QuestGuideSpotlight({
   const radius = spotlight ? spotlight.size / 2 + 10 : 0;
   const overlayAlpha = mode === "pan" ? (targetOnScreen ? 0.54 : 0.46) : 0.74;
   const position = surface.inStage ? "absolute" : "fixed";
-  const background = spotlight
-    ? `radial-gradient(circle ${radius}px at ${spotlight.x}px ${spotlight.y}px, transparent ${radius}px, rgba(0,0,0,${overlayAlpha}) ${radius + 1}px)`
-    : `rgba(0,0,0,${overlayAlpha})`;
+  const background = !blockingGuide
+    ? "transparent"
+    : spotlight
+      ? `radial-gradient(circle ${radius}px at ${spotlight.x}px ${spotlight.y}px, transparent ${radius}px, rgba(0,0,0,${overlayAlpha}) ${radius + 1}px)`
+      : `rgba(0,0,0,${overlayAlpha})`;
   const hint = mode === "pan" && !targetOnScreen && label ? `Swipe the world to find it · ${label}` : label;
   const edgeCue = mode === "pan" && !targetOnScreen ? {
     x: Math.min(surface.width - 40, Math.max(40, (bounds.left + bounds.right) / 2)),
@@ -150,23 +160,24 @@ export default function QuestGuideSpotlight({
   const mapDestination = mode === "pan" && selector.startsWith('[data-testid="button-location-') ? selector : null;
   const panDestination = worldDestination ?? mapDestination;
   const panNodePrefix = worldDestination ? "location-" : mapDestination ? "button-location-" : null;
+  const tourInteractive = blockingGuide && mode === "tour";
 
   return createPortal(<>
-    {panDestination && panNodePrefix && <style>{`[data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}), [data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}) * { pointer-events: none !important; }`}</style>}
+    {blockingGuide && panDestination && panNodePrefix && <style>{`[data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}), [data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}) * { pointer-events: none !important; }`}</style>}
     <div
       data-testid={testId}
-      role={mode === "tour" ? "button" : undefined}
-      tabIndex={mode === "tour" ? 0 : undefined}
-      aria-label={mode === "tour" ? (label || "Continue quest guide") : undefined}
+      role={tourInteractive ? "button" : undefined}
+      tabIndex={tourInteractive ? 0 : undefined}
+      aria-label={tourInteractive ? (label || "Continue quest guide") : undefined}
       className={`${position} inset-0`}
-      style={{ zIndex: baseZ, background, pointerEvents: mode === "tour" ? "auto" : "none", touchAction: mode === "tour" ? "none" : undefined }}
-      onPointerDown={mode === "tour" ? event => event.stopPropagation() : undefined}
-      onClick={mode === "tour" ? event => {
+      style={{ zIndex: baseZ, background, pointerEvents: tourInteractive ? "auto" : "none", touchAction: tourInteractive ? "none" : undefined }}
+      onPointerDown={tourInteractive ? event => event.stopPropagation() : undefined}
+      onClick={tourInteractive ? event => {
         event.preventDefault();
         event.stopPropagation();
         onTourAdvance?.({ x: event.clientX, y: event.clientY });
       } : undefined}
-      onKeyDown={mode === "tour" ? event => {
+      onKeyDown={tourInteractive ? event => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           event.stopPropagation();

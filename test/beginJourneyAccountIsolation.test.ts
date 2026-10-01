@@ -52,7 +52,7 @@ test("Begin Journey state is isolated when accounts share one browser", () => {
 });
 
 
-test("Begin Journey hands off immediately to navigation and the NPC discovery guide", () => {
+test("Begin Journey hands off to NPC discovery only after authoritative completion", () => {
   const beginOverlay = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
   const npcGuide = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
   const successStart = beginOverlay.indexOf("onSuccess: () => {");
@@ -64,6 +64,12 @@ test("Begin Journey hands off immediately to navigation and the NPC discovery gu
   assert.match(completion, /setStep\("done"\)/);
   assert.doesNotMatch(completion, /setTimeout/);
   assert.doesNotMatch(beginOverlay, /Quest-complete flash \(shown for 3\.5 s/);
-  assert.match(npcGuide, /const shouldLoadTour = eligible \|\| tutorialStatus === "active"/);
+
+  assert.match(
+    npcGuide,
+    /const eligible = !!\(user\.tutorial_quest_completed \|\| user\.tutorial_reward_claimed\) && tutorialStatus === "done"/,
+  );
+  assert.match(npcGuide, /const shouldLoadTour = eligible/);
+  assert.doesNotMatch(npcGuide, /shouldLoadTour = eligible \|\| tutorialStatus === "active"/);
   assert.match(npcGuide, /enabled: shouldLoadTour && index < worlds\.length/);
 });

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { bjGetStep, bjSetStep, bjRestart, bjGetStarterInventoryId, bjSetStarterInventoryId, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
 import { isHatchedThreeStarPet } from "@/lib/tutorialHatch";
+import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ interface StarterPetChoice {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function BeginJourneyOverlay({ user }: Props) {
   const [step, setStep]               = useState<number | "done" | null>(() => bjGetStep());
+  usePrimaryQuestGuideOwner("begin-journey", step !== null && step !== "done");
   const [targetRect, setTargetRect]   = useState<TargetRect | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
