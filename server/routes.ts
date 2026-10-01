@@ -54,6 +54,7 @@ import { registerHouseBundleRoutes } from "./routes/houseBundle.routes";
 import { registerPetHouseVisitorRoutes } from "./routes/petHouseVisitor.routes";
 import { registerFounderRoutes } from "./routes/founder.routes";
 import { registerVeridianWatcherQuoteRoutes } from "./routes/veridianWatcherQuote.routes";
+import { registerWatcherShoutoutPreferenceRoutes } from "./routes/watcherShoutoutPreference.routes";
 import { registerPetHousePositionRoutes } from "./routes/petHousePosition.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
@@ -5449,28 +5450,7 @@ export async function registerRoutes(
     return allWords.some(w => buildWordRegex(w).test(normalised));
   }
 
-  // ── Watcher shoutout preference ───────────────────────────────────────────
-  app.get("/api/user/watcher-shoutouts", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const fresh = await storage.getUser(user.id);
-      return res.json({ enabled: fresh?.watcherShoutoutsEnabled ?? true });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to get preference" });
-    }
-  });
-
-  app.post("/api/user/watcher-shoutouts", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { enabled } = req.body;
-      if (typeof enabled !== "boolean") return res.status(400).json({ message: "enabled must be a boolean" });
-      await storage.setWatcherShoutoutsEnabled(user.id, enabled);
-      return res.json({ enabled });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to update preference" });
-    }
-  });
+  registerWatcherShoutoutPreferenceRoutes(app, { storage, isAuthenticated });
 
   app.get("/api/world-chat", isAuthenticated, async (req, res) => {
     try {
