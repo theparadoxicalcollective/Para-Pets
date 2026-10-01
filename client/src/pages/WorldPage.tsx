@@ -4462,8 +4462,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RecipeRowProp — shape returned by /api/recipes (used by CauldronPanel +
-// the recipe detail popup in WorldPage).
+// RecipeRowProp — shape returned by /api/recipes for the recipe book and
+// recipe detail popup owned by WorldPage.
 // ─────────────────────────────────────────────────────────────────────────────
 interface RecipeRowProp {
   id: string; result_type: string;
