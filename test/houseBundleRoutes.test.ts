@@ -26,6 +26,7 @@ class RouteRecorder {
   }
 }
 
+const authenticated: RequestHandler = (_req, _res, next) => next();
 const admin: RequestHandler = (_req, _res, next) => next();
 
 function response() {
@@ -68,6 +69,9 @@ function setup() {
     createdBundles: [],
     updatedBuildings: [],
     createdBuildings: [],
+    locationBundles: [],
+    assignedBundles: [],
+    unassignedBundles: [],
   };
 
   const storage: any = {
@@ -97,6 +101,19 @@ function setup() {
     },
     deleteHouseBundleBuilding: async () => undefined,
     getHouseBundleBuilding: async () => null,
+    getLocationHouseBundles: async (locationId: string) => {
+      calls.locationBundles.push(locationId);
+      return [
+        { id: "stock-1", locationId, bundleId: "bundle-1", bundle: { id: "bundle-1", name: "Forest Home" } },
+      ] as any;
+    },
+    addBundleToShop: async (locationId: string, bundleId: string) => {
+      calls.assignedBundles.push([locationId, bundleId]);
+      return { id: "stock-new", locationId, bundleId } as any;
+    },
+    removeBundleFromShop: async (locationId: string, bundleId: string) => {
+      calls.unassignedBundles.push([locationId, bundleId]);
+    },
   };
 
   const processWorldImage = async (data: string, maxSize: number) => {
@@ -107,6 +124,7 @@ function setup() {
   registerHouseBundleRoutes(app as any, {
     db: {} as any,
     storage,
+    isAuthenticated: authenticated,
     isAdmin: admin,
     processWorldImage,
   });
@@ -130,6 +148,10 @@ const expected = [
   "PATCH /api/admin/house-bundle-buildings/:id",
   "DELETE /api/admin/house-bundle-buildings/:id",
   "POST /api/admin/house-bundle-buildings/:id/duplicate",
+  "GET /api/admin/location/:locationId/shop-bundles",
+  "POST /api/admin/location/:locationId/assign-bundle/:bundleId",
+  "DELETE /api/admin/location/:locationId/unassign-bundle/:bundleId",
+  "GET /api/locations/:locationId/shop-bundles",
 ];
 
 test("house bundle routes register once in the existing order and preserve auth boundaries", () => {
@@ -144,6 +166,8 @@ test("house bundle routes register once in the existing order and preserve auth 
   for (const registered of app.routes) {
     if (registered.path.startsWith("/api/admin/")) {
       assert.equal(registered.handlers[0], admin);
+    } else if (registered.path === "/api/locations/:locationId/shop-bundles") {
+      assert.equal(registered.handlers[0], authenticated);
     } else {
       assert.equal(registered.handlers.length, 1);
     }
@@ -166,6 +190,45 @@ test("player purchase route keeps its existing request-level authentication chec
     [res.statusCode, res.body],
     [401, { message: "Unauthorized" }],
   );
+});
+
+test("house bundle shop stock keeps admin mutations and authenticated player listing", async () => {
+  const { app, calls } = setup();
+
+  const adminList = await call(
+    app,
+    "GET",
+    "/api/admin/location/:locationId/shop-bundles",
+    { params: { locationId: "bayou-shop" } },
+  );
+  assert.equal(adminList.body[0].bundleId, "bundle-1");
+
+  const assigned = await call(
+    app,
+    "POST",
+    "/api/admin/location/:locationId/assign-bundle/:bundleId",
+    { params: { locationId: "bayou-shop", bundleId: "bundle-2" } },
+  );
+  assert.equal(assigned.body.bundleId, "bundle-2");
+
+  const playerList = await call(
+    app,
+    "GET",
+    "/api/locations/:locationId/shop-bundles",
+    { params: { locationId: "bayou-shop" } },
+  );
+  assert.deepEqual(playerList.body, [{ id: "bundle-1", name: "Forest Home" }]);
+
+  await call(
+    app,
+    "DELETE",
+    "/api/admin/location/:locationId/unassign-bundle/:bundleId",
+    { params: { locationId: "bayou-shop", bundleId: "bundle-2" } },
+  );
+
+  assert.deepEqual(calls.locationBundles, ["bayou-shop", "bayou-shop"]);
+  assert.deepEqual(calls.assignedBundles, [["bayou-shop", "bundle-2"]]);
+  assert.deepEqual(calls.unassignedBundles, [["bayou-shop", "bundle-2"]]);
 });
 
 test("admin bundle creation keeps the existing image processing limits", async () => {

@@ -354,6 +354,9 @@ export interface IStorage {
   setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void>;
   getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null>;
   getHouseBundleBuilding(id: string): Promise<HouseBundleBuilding | null>;
+  getLocationHouseBundles(locationId: string): Promise<(LocationHouseBundle & { bundle: HouseBundle })[]>;
+  addBundleToShop(locationId: string, bundleId: string): Promise<LocationHouseBundle>;
+  removeBundleFromShop(locationId: string, bundleId: string): Promise<void>;
   getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]>;
   getWorldChatMessages(): Promise<WorldChatMessage[]>;
   addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string; isBot?: boolean }): Promise<WorldChatMessage>;

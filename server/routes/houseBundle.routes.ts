@@ -8,6 +8,7 @@ import type { IStorage } from "../storage";
 export interface HouseBundleRouteDependencies {
   db: typeof database;
   storage: IStorage;
+  isAuthenticated: RequestHandler;
   isAdmin: RequestHandler;
   processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
 }
@@ -21,7 +22,7 @@ export interface HouseBundleRouteDependencies {
  */
 export function registerHouseBundleRoutes(
   app: Express,
-  { db, storage, isAdmin, processWorldImage }: HouseBundleRouteDependencies,
+  { db, storage, isAuthenticated, isAdmin, processWorldImage }: HouseBundleRouteDependencies,
 ): void {
   // ── Player House Bundle Routes ──────────────────────────────────────────────
   app.get("/api/house-bundles", async (_req, res) => {
@@ -275,4 +276,48 @@ export function registerHouseBundleRoutes(
       return res.status(500).json({ message: err.message });
     }
   });
+
+  // ── House Bundle shop stock ────────────────────────────────────────────────
+  app.get("/api/admin/location/:locationId/shop-bundles", isAdmin, async (req, res) => {
+    try {
+      const rows = await storage.getLocationHouseBundles(req.params.locationId as string);
+      return res.json(rows);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/location/:locationId/assign-bundle/:bundleId", isAdmin, async (req, res) => {
+    try {
+      const row = await storage.addBundleToShop(
+        req.params.locationId as string,
+        req.params.bundleId as string,
+      );
+      return res.json(row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/location/:locationId/unassign-bundle/:bundleId", isAdmin, async (req, res) => {
+    try {
+      await storage.removeBundleFromShop(
+        req.params.locationId as string,
+        req.params.bundleId as string,
+      );
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/locations/:locationId/shop-bundles", isAuthenticated, async (req, res) => {
+    try {
+      const rows = await storage.getLocationHouseBundles(req.params.locationId as string);
+      return res.json(rows.map((row) => row.bundle));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
 }

@@ -5434,47 +5434,9 @@ export async function registerRoutes(
     }
   });
 
-  registerHouseBundleRoutes(app, { db, storage, isAdmin, processWorldImage });
+  registerHouseBundleRoutes(app, { db, storage, isAuthenticated, isAdmin, processWorldImage });
 
   registerHomeDecorRoutes(app, { storage, isAuthenticated, isAdmin, executeDecorPlacement, executeDecorRemoval, processWorldImage });
-
-  // ── Admin: location house-bundle shop stock ────────────────────────────────
-  app.get("/api/admin/location/:locationId/shop-bundles", isAdmin, async (req, res) => {
-    try {
-      const rows = await storage.getLocationHouseBundles((req.params.locationId as string));
-      return res.json(rows);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.post("/api/admin/location/:locationId/assign-bundle/:bundleId", isAdmin, async (req, res) => {
-    try {
-      const row = await storage.addBundleToShop((req.params.locationId as string), (req.params.bundleId as string));
-      return res.json(row);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  app.delete("/api/admin/location/:locationId/unassign-bundle/:bundleId", isAdmin, async (req, res) => {
-    try {
-      await storage.removeBundleFromShop((req.params.locationId as string), (req.params.bundleId as string));
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
-  // ── Player: get bundles available at a shop ────────────────────────────────
-  app.get("/api/locations/:locationId/shop-bundles", isAuthenticated, async (req, res) => {
-    try {
-      const rows = await storage.getLocationHouseBundles((req.params.locationId as string));
-      return res.json(rows.map(r => r.bundle));
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
 
   registerClientErrorRoutes(app, { isAdmin });
 
