@@ -11,6 +11,10 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
+export function homeSceneItemCountsTowardDecorLimit(type: HomeSceneItemType): boolean {
+  return type === "decor";
+}
+
 export const HOUSE_BUILDING_TYPES: HouseBuildingType[] = ["building", "mailbox"];
 
 export function isBuildingSize(value: unknown): value is BuildingSize {
