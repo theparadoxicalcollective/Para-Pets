@@ -14,7 +14,7 @@ test("Sell Fish quest guidance points to Janson instead of a world barrel", () =
   );
   assert.doesNotMatch(nav, /barrelHint/);
 
-  assert.match(janson, /searchParams\.get\("jansonHint"\) === "1"/);
+  assert.match(janson, /new URLSearchParams\(window\.location\.search\)\.get\("jansonHint"\) === "1"/);
   assert.match(janson, /data-testid="janson-sell-fish-hint"/);
   assert.match(janson, />Sell Fish Here <span aria-hidden="true">↓<\/span><\/div>/);
   assert.match(janson, /window\.dispatchEvent\(new Event\("para:open-fish-market"\)\)/);
