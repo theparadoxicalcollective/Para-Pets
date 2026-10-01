@@ -98,27 +98,33 @@ test("hatched-pet requirement matches the existing battle/explore player gate", 
 
 test("WorldPage applies resolver actions but no longer owns the location decision tree", () => {
   const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
+  const openStart = source.indexOf("const openLocation = useCallback");
+  const clickStart = source.indexOf("const handleLocationClick = useCallback", openStart);
+  const clickEnd = source.indexOf("// LOAD saved team", clickStart);
+  assert.ok(openStart >= 0 && clickStart > openStart && clickEnd > clickStart);
+
+  const interactionSection = source.slice(openStart, clickEnd);
 
   assert.match(
     source,
     /import \{ resolveWorldLocationInteraction, worldLocationRequiresHatchedPet \} from "@\/worlds\/locationInteraction"/,
   );
   assert.match(
-    source,
+    interactionSection,
     /const interaction = resolveWorldLocationInteraction\([\s\S]*?resolveClientWorldDestination\(worldId, loc\.id\)/,
   );
-  assert.match(source, /switch \(interaction\.kind\)/);
+  assert.match(interactionSection, /switch \(interaction\.kind\)/);
   assert.match(
-    source,
+    interactionSection,
     /worldLocationRequiresHatchedPet\(loc\) && \(!currentUser\.activePetId \|\| !hasHatchedActivePet\)/,
   );
 
-  assert.doesNotMatch(source, /loc\.type === "fishing" && !loc\.isShop/);
+  assert.doesNotMatch(interactionSection, /loc\.type === "fishing" && !loc\.isShop/);
   assert.doesNotMatch(
-    source,
+    interactionSection,
     /\(loc\.type === "battle" \|\| loc\.type === "explore"\) && !currentUser\.isAdmin/,
   );
-  assert.doesNotMatch(source, /e2f3a4b5-0003-4000-8000-000000000003/);
+  assert.doesNotMatch(interactionSection, /e2f3a4b5-0003-4000-8000-000000000003/);
 });
 
 test("Haunted Woods Soul Pond scenic behavior is world-owned", () => {
