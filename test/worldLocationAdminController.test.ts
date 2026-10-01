@@ -145,16 +145,17 @@ test("map panning remains mutually exclusive with location dragging", () => {
   assert.match(worldPage, /onPointerCancel=\{cancelLocationDrag\}/);
 });
 
-test("decor, barrel and background selection clear location selection through one controller action", () => {
+test("decor and background selection clear location selection through one controller action", () => {
   const source = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 
   assert.doesNotMatch(source, /setSelectedLocId/);
   assert.match(
     source,
-    /handleDecorPointerDown\(e, p\); clearLocationSelection\(\); setBarrelSelected\(false\)/,
+    /handleDecorPointerDown\(e, p\); clearLocationSelection\(\)/,
   );
   assert.match(
     source,
-    /setBarrelSelected\(prev => !prev\);[\s\S]*?setSelectedDecorId\(null\);[\s\S]*?clearLocationSelection\(\)/,
+    /if \(currentUser\.isAdmin\) \{[\s\S]*?clearLocationSelection\(\);[\s\S]*?setSelectedDecorId\(null\);/,
   );
+  assert.doesNotMatch(source, /setBarrelSelected/);
 });
