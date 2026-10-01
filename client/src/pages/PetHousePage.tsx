@@ -1609,10 +1609,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 />
                 <div>
                   <h2 className="text-white font-bold text-lg leading-tight">
-                    {openInventory === "home" ? "Home Inventory" : "Decor Inventory"}
+                    {openInventory === "home" ? "Home Inventory" : "Decor / Objects"}
                   </h2>
                   <p className="text-white/50 text-xs">
-                    {openInventory === "home" ? "House bundles you own" : "Home decorations you own"}
+                    {openInventory === "home" ? "House bundles you own" : "Decor is limited · Objects are unlimited"}
                   </p>
                 </div>
               </div>
@@ -1677,57 +1677,97 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             )}
 
             {openInventory === "decor" && (
-              <div className="flex flex-col gap-4">
-                {decorInventory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <img src={decorInventoryIcon} alt="" className="w-14 h-14 object-contain opacity-50" />
-                    <p className="text-white/40 text-sm text-center">No decor items yet.{"\n"}Visit the shop to find some!</p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>
-                      {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {decorInventory.map((entry) => (
-                        <div
-                          key={entry.id}
-                          data-testid={`decor-item-${entry.decorItemId}`}
-                          className="flex flex-col items-center gap-1.5"
-                          onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl)}
-                          onPointerMove={(e) => {
-                            const drag = inventoryDragRef.current;
-                            if (!drag || drag.pid !== e.pointerId) return;
-                            drag.ghostX = e.clientX; drag.ghostY = e.clientY;
-                            if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
-                            if (drag.isDragging) { setInventoryDragState({ decorItemId: drag.decorItemId, imageUrl: drag.imageUrl, itemType: drag.itemType, ghostX: e.clientX, ghostY: e.clientY }); setIsDraggingDecor(true); }
-                          }}
-                          onPointerUp={handlePointerUp}
-                          onPointerCancel={handlePointerUp}
-                          style={{ touchAction: "none", cursor: "grab" }}
-                        >
-                          <div className="w-full rounded-2xl overflow-hidden relative" style={{ aspectRatio: "1 / 1", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,215,0,0.18)" }}>
-                            {entry.item.imageUrl ? (
-                              <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
-                              </div>
-                            )}
-                            {entry.quantity > 1 && (
-                              <div className="absolute top-1 right-1 rounded-full flex items-center justify-center" style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}>
-                                <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
-                              </div>
-                            )}
-                          </div>
-                          <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
-                            {entry.item.name}
-                          </span>
+              <div className="flex flex-col gap-5">
+                <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>
+                  {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
+                </p>
+
+                {([
+                  { type: "decor" as const, label: "Decor", note: "Counts toward this home's decor limit" },
+                  { type: "object" as const, label: "Objects", note: "Unlimited in the home scene" },
+                ]).map((section) => {
+                  const entries = decorInventory.filter(entry => entry.item.type === section.type);
+                  return (
+                    <section
+                      key={section.type}
+                      data-testid={`home-inventory-section-${section.type}`}
+                      className="flex flex-col gap-2.5"
+                    >
+                      <div className="flex items-end justify-between gap-3 px-0.5">
+                        <h3 className="text-white/85 font-semibold" style={{ fontFamily: "Lora, serif", fontSize: 14 }}>
+                          {section.label}
+                        </h3>
+                        <span className="text-white/35 text-right" style={{ fontFamily: "Lora, serif", fontSize: 9 }}>
+                          {section.note}
+                        </span>
+                      </div>
+
+                      {entries.length === 0 ? (
+                        <div className="rounded-2xl py-5 px-3 text-center" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <p className="text-white/35 text-xs" style={{ fontFamily: "Lora, serif" }}>
+                            No {section.label.toLowerCase()} items yet.
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          {entries.map((entry) => (
+                            <div
+                              key={entry.id}
+                              data-testid={`${section.type}-item-${entry.decorItemId}`}
+                              className="flex flex-col items-center gap-1.5"
+                              onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl, entry.item.type)}
+                              onPointerMove={(e) => {
+                                const drag = inventoryDragRef.current;
+                                if (!drag || drag.pid !== e.pointerId) return;
+                                drag.ghostX = e.clientX;
+                                drag.ghostY = e.clientY;
+                                if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8) drag.isDragging = true;
+                                if (drag.isDragging) {
+                                  setInventoryDragState({
+                                    decorItemId: drag.decorItemId,
+                                    imageUrl: drag.imageUrl,
+                                    itemType: drag.itemType,
+                                    ghostX: e.clientX,
+                                    ghostY: e.clientY,
+                                  });
+                                  setIsDraggingDecor(true);
+                                }
+                              }}
+                              onPointerUp={handlePointerUp}
+                              onPointerCancel={handlePointerUp}
+                              style={{ touchAction: "none", cursor: "grab" }}
+                            >
+                              <div
+                                className="w-full rounded-2xl overflow-hidden relative"
+                                style={{
+                                  aspectRatio: "1 / 1",
+                                  background: section.type === "object" ? "rgba(167,139,250,0.07)" : "rgba(255,255,255,0.05)",
+                                  border: section.type === "object" ? "1.5px solid rgba(196,181,253,0.24)" : "1.5px solid rgba(255,215,0,0.18)",
+                                }}
+                              >
+                                {entry.item.imageUrl ? (
+                                  <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
+                                  </div>
+                                )}
+                                {entry.quantity > 1 && (
+                                  <div className="absolute top-1 right-1 rounded-full flex items-center justify-center" style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}>
+                                    <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
+                                {entry.item.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
             )}
 
