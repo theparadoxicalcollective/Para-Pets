@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { usePrimaryQuestGuideActive } from "@/lib/questGuideOwnership";
 
 const GINNY_WORLD_ID = "haunted_woods";
 const GUIDE_STORAGE_KEY = "para:ginny-mini-pet-guide";
@@ -240,6 +241,7 @@ function questActionStyle(background: string): React.CSSProperties {
 
 export default function GinnyQuestOverlay() {
   const [pathname, navigate] = useLocation();
+  const primaryGuideActive = usePrimaryQuestGuideActive();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [guideActive, setGuideActive] = useState(() => {
@@ -462,7 +464,7 @@ export default function GinnyQuestOverlay() {
       `}</style>
       {marker}
       {questCard}
-      <GuideHighlight target={guideActive && state.canEquipNow ? guideTarget : null} />
+      <GuideHighlight target={!primaryGuideActive && guideActive && state.canEquipNow ? guideTarget : null} />
 
       {guideActive && state.status === "accepted" && !state.canEquipNow && (
         <div data-testid="ginny-guide-needs-active-pet" style={{ position: "fixed", left: 12, right: 12, bottom: "max(18px,env(safe-area-inset-bottom))", margin: "0 auto", maxWidth: 420, zIndex: 2147483002, padding: "11px 14px", borderRadius: 14, background: "rgba(12,8,18,.97)", border: "1px solid rgba(255,213,92,.65)", color: "#fff0c1", font: "11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72)" }}>
