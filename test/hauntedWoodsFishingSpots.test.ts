@@ -54,7 +54,12 @@ test("legacy startup guard preserves Haunted Woods fishing locations", () => {
 });
 
 test("generic world click handling opens FishingPage for fishing locations", () => {
-  assert.match(worldPageSource, /loc\.type === "fishing" && !loc\.isShop/);
-  assert.match(worldPageSource, /setFishingLocation\(loc\)/);
+  const resolver = fs.readFileSync("client/src/worlds/locationInteraction.ts", "utf8");
+  const uiState = fs.readFileSync("client/src/worlds/useWorldLocationUiState.ts", "utf8");
+
+  assert.match(resolver, /location\.type === "fishing" && !location\.isShop/);
+  assert.match(uiState, /const openFishingLocation = useCallback/);
+  assert.match(uiState, /setFishingLocation\(location\)/);
+  assert.match(worldPageSource, /case "fishing":[\s\S]*?openFishingLocation\(loc\)/);
   assert.match(worldPageSource, /<FishingPage/);
 });
