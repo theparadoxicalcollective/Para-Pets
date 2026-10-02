@@ -5,6 +5,10 @@ import {
   HOUSE_INTERIOR_DARKNESS_MAX,
   HOUSE_INTERIOR_EFFECT_MAX_COUNT,
   HOUSE_INTERIOR_EFFECT_TYPES,
+  PET_HOUSE_PLAYER_MAX_SCALE,
+  PET_HOUSE_PLAYER_MIN_SCALE,
+  clampPetHousePlayerScale,
+  getHouseInteriorSleepSnapPosition,
   isHouseInteriorSleepPosition,
   sanitizeHouseInteriorDarkness,
   sanitizeHouseInteriorEffects,
@@ -93,7 +97,7 @@ test("campfire is flame-only and candle light remains a distinct renderer", () =
   assert.match(source, /type === "candle_light"\) return <CandleLightVisual/);
 });
 
-test("Sleep Square hit testing matches its scene-height square footprint", () => {
+test("Sleep Square hit testing and drop snapping use the same scene-space geometry", () => {
   const effects = [
     { id: "sleep-1", type: "sleep" as const, x: 0.5, y: 0.5, size: 20 },
   ];
@@ -102,6 +106,28 @@ test("Sleep Square hit testing matches its scene-height square footprint", () =>
   assert.equal(isHouseInteriorSleepPosition(effects, 0.54, 0.59, 2), true);
   assert.equal(isHouseInteriorSleepPosition(effects, 0.56, 0.5, 2), false);
   assert.equal(isHouseInteriorSleepPosition(effects, 0.5, 0.61, 2), false);
+
+  assert.deepEqual(
+    getHouseInteriorSleepSnapPosition(effects, 0.56, 0.5, 2),
+    { effectId: "sleep-1", x: 0.5, y: 0.5 },
+  );
+  assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.7, 0.5, 2), null);
+});
+
+test("Home pet size controls use a 100px-style base range of 50% through 110%", () => {
+  const sizing = read("client/src/lib/petHouseSizing.ts");
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 50);
+  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 110);
+  assert.equal(clampPetHousePlayerScale(999), 110);
+  assert.equal(clampPetHousePlayerScale(10), 50);
+  assert.match(sizing, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE = 100/);
+  assert.match(sizing, /PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100/);
+  assert.match(owner, /Returning…/);
+  assert.match(owner, />Return<\/button>/);
+  assert.match(visitor, /clampPetHousePlayerScale\(pet\.homeScalePct \?\? 100\)/);
 });
 
 test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners and visitors", () => {
@@ -113,6 +139,10 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
   assert.match(effects, /function SleepSquareVisual/);
   assert.match(effects, /function SleepSpotHintVisual/);
   assert.match(effects, /adminPreview \? <SleepSquareVisual \/> : <SleepSpotHintVisual \/>/);
+
+  assert.match(owner, /getHouseInteriorSleepSnapPosition/);
+  assert.match(owner, /sleepSnap\?\.x \?\? rawXPct/);
+  assert.match(owner, /sleepSnap\?\.y \?\? rawYPct/);
 
   for (const source of [owner, visitor]) {
     assert.match(source, /isHouseInteriorSleepPosition/);
