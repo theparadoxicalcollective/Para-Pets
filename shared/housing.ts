@@ -34,7 +34,7 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
-export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
+export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
 export interface HouseInteriorEffect {
