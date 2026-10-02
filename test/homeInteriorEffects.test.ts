@@ -67,6 +67,10 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /slider-interior-darkness/);
   assert.match(source, /HomeInteriorDarknessLayer darkness=\{darkness\}/);
   assert.match(source, /interiorDarkness: selBuilding\.interiorDarkness \?\? 0/);
+  assert.match(source, /interiorPreviewSaveQueueRef/);
+  assert.match(source, /updateBuildingCache/);
+  assert.match(source, /queueInteriorPreviewPatch/);
+  assert.match(source, /pendingSaves\.finally\(\(\) => refetch\(\)\)/);
   assert.match(source, /initialEffects=\{previewBuilding\.interiorEffects\}/);
   assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
   assert.doesNotMatch(source, /await refetch\(\);[\s\S]{0,120}Failed to save effect/);
@@ -127,12 +131,17 @@ test("players can locally toggle Campfire, Candle Light, and Lamp Glow without c
   assert.match(effects, /offEffectIds/);
   assert.match(effects, /onToggleEffect/);
   assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);
+  assert.match(effects, /data-player-toggle-effect-id=\{playerToggleable \? effect\.id : undefined\}/);
+  assert.doesNotMatch(effects, /onClick=\{playerToggleable/);
   assert.match(effects, /!isOff && <EffectVisual/);
 
   for (const source of [owner, visitor]) {
     assert.match(source, /setOffEffectIds/);
     assert.match(source, /onToggleEffect=\{toggleLightEffect\}/);
     assert.match(source, /offEffectIds=\{offEffectIds\}/);
+    assert.match(source, /toggleEffectId/);
+    assert.match(source, /Math\.hypot/);
+    assert.match(source, /drag\.moved/);
   }
 });
 
