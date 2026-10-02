@@ -122,7 +122,11 @@ function setup() {
       },
       getPlacedHomeDecor: async (id: string, location?: string) => {
         calls.placed.push([id, location]);
-        return [{ id: "placed" }] as any;
+        return [{
+          id: "placed-1",
+          size: 250,
+          item: { id: "decor-1", type: "decor", homeSceneSize: 250 },
+        }] as any;
       },
       updatePlacedHomeDecor: async (id: string, userId: string, data: any) => {
         calls.update.push([id, userId, data]);
@@ -364,6 +368,7 @@ test("placement PATCH/removal remain scoped to the authenticated player", async 
     ["placed-1", "owner", {
       xPct: 0.2,
       yPct: undefined,
+      size: 313,
       flipped: undefined,
     }],
   ]);

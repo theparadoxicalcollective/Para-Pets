@@ -37,28 +37,27 @@ test("admin size is stored on both Decor and Object catalogs", () => {
   assert.match(boot, /ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_scene_size INTEGER NOT NULL DEFAULT 250/);
 });
 
-test("player placements always use current catalog size", () => {
+test("new player placements start from the Admin catalog size", () => {
   assert.match(transactions, /adminSize = decorCatalog\.homeSceneSize/);
   assert.match(transactions, /adminSize = objectCatalog\.homeSceneSize/);
   assert.match(transactions, /size: Math\.max\(60, Math\.min\(500, adminSize\)\)/);
-  assert.match(storage, /size: decor\.homeSceneSize/);
-  assert.match(storage, /size: object\.homeSceneSize/);
 });
 
-test("players cannot submit or edit Home scene size", () => {
-  assert.doesNotMatch(owner, /function SvgMinus/);
-  assert.doesNotMatch(owner, /function SvgPlus/);
-  assert.doesNotMatch(owner, /size: 220/);
-  assert.doesNotMatch(owner, /size\?: number; flipped\?: boolean/);
+test("players can only make bounded size nudges after placement", () => {
+  assert.match(owner, /HOME_SCENE_PLAYER_SIZE_STEP/);
+  assert.match(owner, /clampHomeScenePlayerSize/);
+  assert.match(routes, /clampHomeScenePlayerSize\(placement\.item\.homeSceneSize, Number\(size\)\)/);
+  assert.match(storage, /Partial<\{ xPct: number; yPct: number; size: number; flipped: boolean \}>/);
   assert.doesNotMatch(routes, /size: size \?\? 250/);
-  assert.doesNotMatch(routes, /\{ xPct, yPct, size, flipped \}/);
 });
 
-test("vertical depth remains the only player-side visual size adjustment", () => {
-  assert.match(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
-  assert.match(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
-  assert.doesNotMatch(owner, /petHouseDepthSize\([^\n]*xPct/);
-  assert.doesNotMatch(visitor, /petHouseDepthSize\([^\n]*xPct/);
+test("Decor and Objects keep saved size while moving; pets retain depth perspective", () => {
+  assert.match(owner, /const displaySize = item\.size/);
+  assert.match(visitor, /const displaySize = item\.size/);
+  assert.doesNotMatch(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
+  assert.doesNotMatch(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
+  assert.match(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
+  assert.match(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
 });
 
 test("Object size API is strictly filtered to Object shop items", () => {

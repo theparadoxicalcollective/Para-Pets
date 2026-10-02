@@ -42,15 +42,14 @@ test("owner and visitor scenes use the same pet baselines and depth helper", () 
   assert.doesNotMatch(visitor, /const size = 100 \+ pseudo\(seed \+ 2\) \* 30/);
 });
 
-test("outdoor pets and decor scale from yPct rather than xPct", () => {
+test("pets scale from vertical depth while Decor and Objects keep their saved size", () => {
   const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
 
   assert.match(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
-  assert.match(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
   assert.match(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
-  assert.match(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
-
-  assert.doesNotMatch(owner, /petHouseDepthSize\([^\n]*xPct/);
-  assert.doesNotMatch(visitor, /petHouseDepthSize\([^\n]*xPct/);
+  assert.match(owner, /const displaySize = item\.size/);
+  assert.match(visitor, /const displaySize = item\.size/);
+  assert.doesNotMatch(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
+  assert.doesNotMatch(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
 });

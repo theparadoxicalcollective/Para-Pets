@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
-import { MailOpen } from "lucide-react";
+import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,7 +46,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_STEP, clampHomeScenePlayerSize, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ interface ActiveBundle extends HouseBundle {
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType }; }
-interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType }; }
+interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number }; }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_BG_RATIO = 1920 / 2400;
@@ -391,7 +391,7 @@ function InteriorViewer({
   panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
   leaveButtonX?: number;
   leaveButtonY?: number;
-  onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; flipped?: boolean }) => void;
+  onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number) => Promise<void>;
   onRemovePet: (inventoryId: string) => Promise<void>;
@@ -474,11 +474,14 @@ function InteriorViewer({
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
+    if (selectedItemId !== item.id) {
+      setSelectedItemId(item.id);
+      return;
+    }
     playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     itemDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-    setSelectedItemId(item.id);
-  }, []);
+  }, [selectedItemId]);
 
   const onItemMove = useCallback((e: React.PointerEvent) => {
     const drag = itemDragRef.current;
@@ -586,20 +589,17 @@ function InteriorViewer({
         const isSelected = selectedItemId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
-        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        const displaySize = item.size;
         return (
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: topItemId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
-            onPointerDown={(e) => onItemDown(e, item)}
-            onPointerMove={onItemMove}
-            onPointerUp={onItemUp}
-            onPointerCancel={onItemUp}
-            onClick={(e) => { e.stopPropagation(); setSelectedItemId(isSelected ? null : item.id); }}
+            style={{ zIndex: topItemId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap", pointerEvents: "auto" }}>
+                <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
+                <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></ControlBtn>
                 <ControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></ControlBtn>
               </div>
@@ -610,6 +610,10 @@ function InteriorViewer({
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              onPointerDown={(e) => onItemDown(e, item)}
+              onPointerMove={onItemMove}
+              onPointerUp={onItemUp}
+              onPointerCancel={onItemUp}
             />
           </div>
         );
@@ -881,7 +885,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const updateDecorMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; xPct?: number; yPct?: number; flipped?: boolean }) => {
+    mutationFn: async ({ id, ...data }: { id: string; xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => {
       const res = await apiRequest("PATCH", `/api/pet-house/decor/placed/${id}`, data);
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
@@ -1114,10 +1118,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Outdoor decor drag ─────────────────────────────────────────────────────
   const handlePlacedDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
+    if (selectedPlacedId !== item.id) {
+      setSelectedPlacedId(item.id);
+      return;
+    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     placedDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-    setSelectedPlacedId(item.id);
-  }, []);
+  }, [selectedPlacedId]);
 
   const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
     const drag = placedDragRef.current;
@@ -1466,20 +1473,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const isSelected = selectedPlacedId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
-        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        const displaySize = item.size;
         return (
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: topOutdoorDecorId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
-            onPointerDown={(e) => handlePlacedDragStart(e, item)}
-            onPointerMove={handlePlacedDragMove}
-            onPointerUp={handlePlacedDragEnd}
-            onPointerCancel={handlePlacedDragEnd}
-            onClick={(e) => { e.stopPropagation(); setSelectedPlacedId(isSelected ? null : item.id); }}
+            style={{ zIndex: topOutdoorDecorId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap", pointerEvents: "auto" }}>
+                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
+                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}><SvgFlip /></ControlBtn>
                 <ControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}><SvgDelete /></ControlBtn>
               </div>
@@ -1490,6 +1494,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              onPointerDown={(e) => handlePlacedDragStart(e, item)}
+              onPointerMove={handlePlacedDragMove}
+              onPointerUp={handlePlacedDragEnd}
+              onPointerCancel={handlePlacedDragEnd}
             />
           </div>
         );
