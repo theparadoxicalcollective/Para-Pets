@@ -111,7 +111,7 @@ interface ActiveBundle extends HouseBundle {
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType }; }
-interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType }; }
+interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number }; }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_BG_RATIO = 1920 / 2400;
