@@ -6,8 +6,8 @@ import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Uploa
 import { readFileAsDataUrl } from "@/lib/utils";
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
-import { HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
@@ -25,7 +25,7 @@ interface HouseBundle {
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
-  interiorImageUrl: string | null; interiorEffects?: HouseInteriorEffect[]; buildingType?: HouseBuildingType; size: BuildingSize;
+  interiorImageUrl: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; buildingType?: HouseBuildingType; size: BuildingSize;
   leaveButtonX: number; leaveButtonY: number;
   maxPets?: number | null;
   createdAt: string;
@@ -53,18 +53,22 @@ function AdminInteriorPreview({
   initialLeaveX = 0.92,
   initialLeaveY = 0.06,
   initialEffects = [],
+  initialDarkness = 0,
   onClose,
   onSaveLeavePos,
   onSaveEffects,
+  onSaveDarkness,
 }: {
   url: string;
   buildingId: string;
   initialLeaveX?: number;
   initialLeaveY?: number;
   initialEffects?: HouseInteriorEffect[];
+  initialDarkness?: number;
   onClose: () => void;
   onSaveLeavePos: (x: number, y: number) => void;
   onSaveEffects: (effects: HouseInteriorEffect[]) => void;
+  onSaveDarkness: (darkness: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [panX, setPanX] = useState(0);
@@ -84,6 +88,8 @@ function AdminInteriorPreview({
 
   const effectsRef = useRef<HouseInteriorEffect[]>(initialEffects);
   const [effects, setEffects] = useState<HouseInteriorEffect[]>(initialEffects);
+  const darknessRef = useRef(initialDarkness);
+  const [darkness, setDarkness] = useState(initialDarkness);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
   const [showEffectsMenu, setShowEffectsMenu] = useState(false);
   const effectDragRef = useRef<{
@@ -98,6 +104,8 @@ function AdminInteriorPreview({
   useEffect(() => {
     effectsRef.current = initialEffects;
     setEffects(initialEffects);
+    darknessRef.current = initialDarkness;
+    setDarkness(initialDarkness);
     setSelectedEffectId(null);
   }, [buildingId]);
 
@@ -294,6 +302,8 @@ function AdminInteriorPreview({
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
+      <HomeInteriorDarknessLayer darkness={darkness} zIndex={5} />
+
       <HomeInteriorEffectsLayer
         effects={effects}
         panX={panX}
@@ -337,6 +347,38 @@ function AdminInteriorPreview({
           <p className="font-fantasy text-[9px] text-center mb-2" style={{ color: "rgba(255,215,0,0.62)" }}>
             Add an effect, then drag it directly over the room feature
           </p>
+          <div
+            className="rounded-xl px-3 py-2 mb-2"
+            style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,215,0,0.18)" }}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.7)" }}>Room darkness</span>
+              <span className="font-fantasy text-[9px]" style={{ color: GOLD }}>{darkness}%</span>
+            </div>
+            <input
+              data-testid="slider-interior-darkness"
+              type="range"
+              min={0}
+              max={HOUSE_INTERIOR_DARKNESS_MAX}
+              step={5}
+              value={darkness}
+              onPointerDown={e => e.stopPropagation()}
+              onChange={e => {
+                const next = Number(e.currentTarget.value);
+                darknessRef.current = next;
+                setDarkness(next);
+              }}
+              onPointerUp={e => {
+                e.stopPropagation();
+                onSaveDarkness(darknessRef.current);
+              }}
+              onBlur={() => onSaveDarkness(darknessRef.current)}
+              className="w-full"
+            />
+            <p className="font-fantasy text-[8px] text-center mt-1" style={{ color: "rgba(255,255,255,0.34)" }}>
+              Darkens only the room background so fire and light effects stay bright.
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-1.5">
             {HOME_INTERIOR_EFFECT_OPTIONS.map(option => (
               <button
@@ -499,7 +541,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
-  const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[] } | null>(null);
+  const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const interiorEffectSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   // ── Gift notification position ──
@@ -668,7 +710,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       const res = await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorImageData: dataUrl });
       const updated = await res.json() as HouseBundleBuilding;
       await refetch();
-      if (updated.interiorImageUrl) setPreviewBuilding({ url: updated.interiorImageUrl, buildingId, leaveButtonX: updated.leaveButtonX ?? 0.92, leaveButtonY: updated.leaveButtonY ?? 0.06, interiorEffects: updated.interiorEffects ?? [] });
+      if (updated.interiorImageUrl) setPreviewBuilding({ url: updated.interiorImageUrl, buildingId, leaveButtonX: updated.leaveButtonX ?? 0.92, leaveButtonY: updated.leaveButtonY ?? 0.06, interiorEffects: updated.interiorEffects ?? [], interiorDarkness: updated.interiorDarkness ?? 0 });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
@@ -1082,6 +1124,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                         leaveButtonX: selBuilding.leaveButtonX ?? 0.92,
                         leaveButtonY: selBuilding.leaveButtonY ?? 0.06,
                         interiorEffects: selBuilding.interiorEffects ?? [],
+                        interiorDarkness: selBuilding.interiorDarkness ?? 0,
                       });
                     }
                   }}
@@ -1267,11 +1310,20 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           initialLeaveX={previewBuilding.leaveButtonX}
           initialLeaveY={previewBuilding.leaveButtonY}
           initialEffects={previewBuilding.interiorEffects}
+          initialDarkness={previewBuilding.interiorDarkness}
           onClose={() => setPreviewBuilding(null)}
           onSaveLeavePos={(x, y) => {
             apiRequest("PATCH", `/api/admin/house-bundle-buildings/${previewBuilding.buildingId}`, { leaveButtonX: x, leaveButtonY: y })
               .catch(() => {});
             setPreviewBuilding(prev => prev ? { ...prev, leaveButtonX: x, leaveButtonY: y } : null);
+          }}
+          onSaveDarkness={(interiorDarkness) => {
+            const buildingId = previewBuilding.buildingId;
+            setPreviewBuilding(prev => prev ? { ...prev, interiorDarkness } : null);
+            apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorDarkness })
+              .catch((error: any) => {
+                toast({ title: "Failed to save darkness", description: error.message, variant: "destructive" });
+              });
           }}
           onSaveEffects={(interiorEffects) => {
             const buildingId = previewBuilding.buildingId;
