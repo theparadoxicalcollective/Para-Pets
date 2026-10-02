@@ -594,15 +594,12 @@ function InteriorViewer({
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: topItemId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
-            onPointerDown={(e) => onItemDown(e, item)}
-            onPointerMove={onItemMove}
-            onPointerUp={onItemUp}
-            onPointerCancel={onItemUp}
-            onClick={(e) => { e.stopPropagation(); setSelectedItemId(isSelected ? null : item.id); }}
+            style={{ zIndex: topItemId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap", pointerEvents: "auto" }}>
+                <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
+                <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></ControlBtn>
                 <ControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></ControlBtn>
               </div>
@@ -613,6 +610,10 @@ function InteriorViewer({
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              onPointerDown={(e) => onItemDown(e, item)}
+              onPointerMove={onItemMove}
+              onPointerUp={onItemUp}
+              onPointerCancel={onItemUp}
             />
           </div>
         );
@@ -1477,15 +1478,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: topOutdoorDecorId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", touchAction: "none" }}
-            onPointerDown={(e) => handlePlacedDragStart(e, item)}
-            onPointerMove={handlePlacedDragMove}
-            onPointerUp={handlePlacedDragEnd}
-            onPointerCancel={handlePlacedDragEnd}
-            onClick={(e) => { e.stopPropagation(); setSelectedPlacedId(isSelected ? null : item.id); }}
+            style={{ zIndex: topOutdoorDecorId === item.id ? 8 : 6, left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap", pointerEvents: "auto" }}>
+                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
+                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}><SvgFlip /></ControlBtn>
                 <ControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}><SvgDelete /></ControlBtn>
               </div>
@@ -1496,6 +1494,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              onPointerDown={(e) => handlePlacedDragStart(e, item)}
+              onPointerMove={handlePlacedDragMove}
+              onPointerUp={handlePlacedDragEnd}
+              onPointerCancel={handlePlacedDragEnd}
             />
           </div>
         );
