@@ -33,6 +33,7 @@ import { tryConsumeInventoryQuantity, tryConsumeOneFromInventory } from "./inven
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerSupportRoutes } from "./routes/support.routes";
 import { registerHubNoticeRoutes } from "./routes/hubNotice.routes";
+import { registerAvatarRoutes } from "./routes/avatar.routes";
 import { registerBadgeRoutes, registerPlayerBadgeRoutes } from "./routes/badge.routes";
 import { registerFishingAquariumRoutes, registerFishingRoutes, type FishingRouteDependencies } from "./routes/fishing.routes";
 import { registerMarketplaceRoutes, type MarketplaceRouteDependencies } from "./routes/marketplace.routes";
@@ -5089,25 +5090,7 @@ export async function registerRoutes(
   registerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage }, "leaderboards");
 
 
-  // Batch avatar fetcher. Profile pictures are stored as base64 data URLs and
-  // would otherwise be embedded in every leaderboard / chat row, blowing up
-  // payloads. This endpoint returns { [userId]: dataUrl|null } for the requested
-  // ids only. Frontends should cache the result with a long staleTime since
-  // avatars change rarely.
-  app.post("/api/users/avatars", isAuthenticated, async (req, res) => {
-    try {
-      const ids = Array.isArray(req.body?.userIds) ? req.body.userIds.filter((x: any) => typeof x === "string") : [];
-      if (ids.length === 0) return res.json({});
-      // Hard cap to prevent abuse.
-      const capped = ids.slice(0, 200);
-      const map = await storage.getUsersAvatars(capped);
-      // Long-ish private cache — avatars rarely change.
-      res.set("Cache-Control", "private, max-age=60");
-      return res.json(map);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to fetch avatars" });
-    }
-  });
+  registerAvatarRoutes(app, { storage, isAuthenticated });
 
   registerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage }, "claims");
 
