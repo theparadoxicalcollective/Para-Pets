@@ -206,6 +206,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
   const [imgWidth, setImgWidth] = useState(0);
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
+  const [offEffectIds, setOffEffectIds] = useState<Set<string>>(() => new Set());
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
 
   useEffect(() => {
@@ -229,6 +230,15 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
     ro.observe(container);
     return () => ro.disconnect();
   }, [aspect]);
+
+  const toggleLightEffect = useCallback((effect: HouseInteriorEffect) => {
+    setOffEffectIds(current => {
+      const next = new Set(current);
+      if (next.has(effect.id)) next.delete(effect.id);
+      else next.add(effect.id);
+      return next;
+    });
+  }, []);
 
   const onDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
@@ -281,7 +291,15 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      <HomeInteriorEffectsLayer effects={effects} panX={panX} imgWidth={imgWidth} sceneHeight={containerH} zIndex={3} />
+      <HomeInteriorEffectsLayer
+        effects={effects}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerH}
+        offEffectIds={offEffectIds}
+        onToggleEffect={toggleLightEffect}
+        zIndex={3}
+      />
 
       {imgWidth > 0 && placedItems.map((item) => {
         const displaySize = item.size;
