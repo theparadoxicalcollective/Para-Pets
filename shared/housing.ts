@@ -50,9 +50,56 @@ export const HOUSE_INTERIOR_EFFECT_MIN_SIZE = 4;
 export const HOUSE_INTERIOR_EFFECT_MAX_SIZE = 40;
 export const HOUSE_INTERIOR_DARKNESS_MIN = 0;
 export const HOUSE_INTERIOR_DARKNESS_MAX = 90;
+export const HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST = 10;
+export const HOUSE_INTERIOR_LIGHT_ADDITIONAL_BOOST = 4;
+export const HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST = 26;
 
 export function isHouseInteriorEffectType(value: unknown): value is HouseInteriorEffectType {
   return typeof value === "string" && (HOUSE_INTERIOR_EFFECT_TYPES as readonly string[]).includes(value);
+}
+
+export function isHouseInteriorLightEffectType(type: HouseInteriorEffectType): boolean {
+  return type === "fire" || type === "candle_light" || type === "warm_glow";
+}
+
+export interface HouseInteriorSideDarkness {
+  leftDarkness: number;
+  rightDarkness: number;
+  leftBoost: number;
+  rightBoost: number;
+}
+
+export function getHouseInteriorSideDarkness(
+  darkness: unknown,
+  effects: readonly HouseInteriorEffect[],
+  offEffectIds: ReadonlySet<string> = new Set<string>(),
+): HouseInteriorSideDarkness {
+  const baseline = sanitizeHouseInteriorDarkness(darkness);
+  let leftLights = 0;
+  let rightLights = 0;
+
+  for (const effect of effects) {
+    if (!isHouseInteriorLightEffectType(effect.type) || offEffectIds.has(effect.id)) continue;
+    // Lights close to center softly influence both room halves.
+    if (effect.x <= 0.54) leftLights += 1;
+    if (effect.x >= 0.46) rightLights += 1;
+  }
+
+  const boostForCount = (count: number) => count <= 0
+    ? 0
+    : Math.min(
+        HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST,
+        HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST + (count - 1) * HOUSE_INTERIOR_LIGHT_ADDITIONAL_BOOST,
+      );
+
+  const leftBoost = boostForCount(leftLights);
+  const rightBoost = boostForCount(rightLights);
+  return {
+    leftBoost,
+    rightBoost,
+    leftDarkness: Math.max(0, baseline - leftBoost),
+    rightDarkness: Math.max(0, baseline - rightBoost),
+  };
 }
 
 export function sanitizeHouseInteriorDarkness(value: unknown): number {
