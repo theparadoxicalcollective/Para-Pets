@@ -49,7 +49,7 @@ test("owner pet UI selects before dragging and keeps the selected pet above peer
   assert.match(owner, /setTopPetId\(pet\.inventoryId\)/);
   assert.match(owner, /if \(outdoorPopupPetId !== pet\.inventoryId\) \{/);
   assert.match(owner, /setTopOutdoorPetId\(pet\.inventoryId\)/);
-  assert.match(owner, /zIndex: isSelectedPet \? 115/);
+  assert.match(owner, /zIndex: isSelectedPet \? 180/);
 });
 
 test("pet edit panel exposes size, flip, Closet, and remove actions", () => {
