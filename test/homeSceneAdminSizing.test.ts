@@ -26,8 +26,10 @@ test("size editor previews against a Fall Home interior with a safe fallback", (
   assert.match(editor, /\/fall\/i\.test\(bundle\.name\)/);
   assert.match(editor, /building => !!building\.interiorImageUrl/);
   assert.match(editor, /bg_home_v2\.png/);
-  assert.match(editor, /petHouseDepthSize\(size, previewY\)/);
-  assert.match(editor, /Previewed at normal floor depth/);
+  assert.match(editor, /const displaySize = size/);
+  assert.match(editor, /Players start at this size/);
+  assert.match(editor, /increase it up to 10px above this Admin size/);
+  assert.match(editor, /Admin starting size preview/);
 });
 
 test("admin size is stored on both Decor and Object catalogs", () => {
