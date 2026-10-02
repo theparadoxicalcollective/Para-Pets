@@ -1574,14 +1574,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         >
           <div className="absolute inset-0" style={{ pointerEvents: "auto" }} onPointerDown={(e) => { e.stopPropagation(); setOpenInventory(null); }} />
           <div
-            className={`relative rounded-t-3xl ${openInventory === "pets" ? "px-4 pt-3 pb-4" : "px-5 pt-5 pb-28"}`}
+            className={`relative rounded-t-3xl ${openInventory === "pets" ? "px-4 pt-3 pb-4" : openInventory === "decor" ? "px-4 pt-3 pb-20" : "px-5 pt-4 pb-24"}`}
             style={{
               pointerEvents: "auto",
               background: "linear-gradient(180deg, rgba(20,30,20,0.97) 0%, rgba(10,18,10,0.99) 100%)",
               border: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
-              minHeight: openInventory === "pets" ? 110 : 280,
-              maxHeight: openInventory === "pets" ? 160 : "calc(70*var(--vh))",
+              minHeight: openInventory === "pets" ? 110 : openInventory === "decor" ? 210 : 260,
+              maxHeight: openInventory === "pets" ? 160 : openInventory === "decor" ? "calc(58*var(--vh))" : "calc(64*var(--vh))",
               overflowY: openInventory === "pets" ? "hidden" : "auto",
               overflowX: "hidden",
             }}
@@ -1596,22 +1596,31 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 >✕</button>
               </div>
             )}
-            {openInventory !== "pets" && <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />}
+            {openInventory !== "pets" && <div className={`w-10 h-1 rounded-full bg-white/20 mx-auto ${openInventory === "decor" ? "mb-2" : "mb-3"}`} />}
             {openInventory !== "pets" && (
-              <div className="flex items-center gap-3 mb-5">
+              <div className={`flex items-center gap-3 ${openInventory === "decor" ? "mb-3" : "mb-4"}`}>
                 <img
                   src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon}
                   alt=""
-                  className="w-10 h-10 object-contain"
+                  className={openInventory === "decor" ? "w-8 h-8 object-contain" : "w-9 h-9 object-contain"}
                 />
-                <div>
-                  <h2 className="text-white font-bold text-lg leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h2 className={`text-white font-bold leading-tight ${openInventory === "decor" ? "text-base" : "text-lg"}`}>
                     {openInventory === "home" ? "Home Inventory" : "Decor / Objects"}
                   </h2>
-                  <p className="text-white/50 text-xs">
+                  <p className={`text-white/50 ${openInventory === "decor" ? "text-[10px]" : "text-xs"}`}>
                     {openInventory === "home" ? "House bundles you own" : "Decor is limited · Objects are unlimited"}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  aria-label="Close inventory"
+                  onClick={() => setOpenInventory(null)}
+                  className="w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.58)", border: "1px solid rgba(255,255,255,0.12)" }}
+                >
+                  ✕
+                </button>
               </div>
             )}
 
@@ -1674,8 +1683,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             )}
 
             {openInventory === "decor" && (
-              <div className="flex flex-col gap-5">
-                <p className="text-white/40 text-xs text-center" style={{ fontFamily: "Lora, serif" }}>
+              <div className="flex flex-col gap-3">
+                <p className="text-white/40 text-[10px] text-center -mt-0.5" style={{ fontFamily: "Lora, serif" }}>
                   {openInterior ? "Hold & drag an item onto the interior" : "Hold & drag an item onto your home"}
                 </p>
 
@@ -1688,30 +1697,30 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                     <section
                       key={section.type}
                       data-testid={`home-inventory-section-${section.type}`}
-                      className="flex flex-col gap-2.5"
+                      className="flex flex-col gap-2"
                     >
-                      <div className="flex items-end justify-between gap-3 px-0.5">
-                        <h3 className="text-white/85 font-semibold" style={{ fontFamily: "Lora, serif", fontSize: 14 }}>
+                      <div className="flex items-center justify-between gap-2 px-0.5">
+                        <h3 className="text-white/85 font-semibold" style={{ fontFamily: "Lora, serif", fontSize: 13 }}>
                           {section.label}
                         </h3>
-                        <span className="text-white/35 text-right" style={{ fontFamily: "Lora, serif", fontSize: 9 }}>
+                        <span className="text-white/35 text-right" style={{ fontFamily: "Lora, serif", fontSize: 8 }}>
                           {section.note}
                         </span>
                       </div>
 
                       {entries.length === 0 ? (
-                        <div className="rounded-2xl py-5 px-3 text-center" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div className="rounded-xl py-3 px-3 text-center" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
                           <p className="text-white/35 text-xs" style={{ fontFamily: "Lora, serif" }}>
                             No {section.label.toLowerCase()} items yet.
                           </p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-4 gap-2">
                           {entries.map((entry) => (
                             <div
                               key={entry.id}
                               data-testid={`${section.type}-item-${entry.decorItemId}`}
-                              className="flex flex-col items-center gap-1.5"
+                              className="flex flex-col items-center gap-1"
                               onPointerDown={(e) => handleInvDragStart(e, entry.decorItemId, entry.item.imageUrl, entry.item.type)}
                               onPointerMove={(e) => {
                                 const drag = inventoryDragRef.current;
@@ -1735,7 +1744,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                               style={{ touchAction: "none", cursor: "grab" }}
                             >
                               <div
-                                className="w-full rounded-2xl overflow-hidden relative"
+                                className="w-full rounded-xl overflow-hidden relative"
                                 style={{
                                   aspectRatio: "1 / 1",
                                   background: section.type === "object" ? "rgba(167,139,250,0.07)" : "rgba(255,255,255,0.05)",
@@ -1743,19 +1752,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                                 }}
                               >
                                 {entry.item.imageUrl ? (
-                                  <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-2" draggable={false} />
+                                  <img src={entry.item.imageUrl} alt={entry.item.name} className="w-full h-full object-contain p-1.5" draggable={false} />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
                                     <img src={decorInventoryIcon} alt="" className="w-10 h-10 object-contain opacity-50" />
                                   </div>
                                 )}
                                 {entry.quantity > 1 && (
-                                  <div className="absolute top-1 right-1 rounded-full flex items-center justify-center" style={{ minWidth: 20, height: 20, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 4px" }}>
-                                    <span style={{ color: "#ffd700", fontSize: 10, fontWeight: 700 }}>×{entry.quantity}</span>
+                                  <div className="absolute top-1 right-1 rounded-full flex items-center justify-center" style={{ minWidth: 18, height: 18, background: "rgba(0,0,0,0.75)", border: "1px solid rgba(255,215,0,0.5)", padding: "0 3px" }}>
+                                    <span style={{ color: "#ffd700", fontSize: 9, fontWeight: 700 }}>×{entry.quantity}</span>
                                   </div>
                                 )}
                               </div>
-                              <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Lora, serif", fontWeight: 600 }}>
+                              <span className="w-full text-center truncate px-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontFamily: "Lora, serif", fontWeight: 600 }}>
                                 {entry.item.name}
                               </span>
                             </div>
@@ -1870,7 +1879,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {pendingActivate && (
         <div
           className="fixed inset-0 flex items-end justify-center"
-          style={{ zIndex: 80, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+          style={{ zIndex: 400, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
           onPointerDown={() => setPendingActivate(null)}
         >
           <div
