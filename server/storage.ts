@@ -72,6 +72,7 @@ export interface HomeSceneCatalogItem {
   imageUrl: string | null;
   price: number;
   type: HomeSceneItemType;
+  homeSceneSize: number;
 }
 
 export type HomeSceneInventoryEntry = UserHomeDecorInventory & { item: HomeSceneCatalogItem };
@@ -3213,7 +3214,7 @@ export class DatabaseStorage implements IStorage {
     const result: HomeSceneInventoryEntry[] = [];
     for (const row of rows) {
       const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
-      if (item) result.push({ ...row, item: { id: item.id, name: item.name, imageUrl: item.imageUrl, price: item.price, type: "decor" } });
+      if (item) result.push({ ...row, item: { id: item.id, name: item.name, imageUrl: item.imageUrl, price: item.price, type: "decor", homeSceneSize: item.homeSceneSize } });
     }
 
     const objectRows = await db
@@ -3226,6 +3227,7 @@ export class DatabaseStorage implements IStorage {
         itemName: shopItems.name,
         itemImageUrl: shopItems.imageUrl,
         itemPrice: shopItems.price,
+        itemHomeSceneSize: shopItems.homeSceneSize,
       })
       .from(userInventory)
       .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
@@ -3243,6 +3245,7 @@ export class DatabaseStorage implements IStorage {
           imageUrl: row.itemImageUrl,
           price: row.itemPrice,
           type: "object",
+          homeSceneSize: row.itemHomeSceneSize,
         },
       });
     }
@@ -3274,7 +3277,8 @@ export class DatabaseStorage implements IStorage {
       if (decor) {
         result.push({
           ...row,
-          item: { id: decor.id, name: decor.name, imageUrl: decor.imageUrl, price: decor.price, type: "decor" },
+          size: decor.homeSceneSize,
+          item: { id: decor.id, name: decor.name, imageUrl: decor.imageUrl, price: decor.price, type: "decor", homeSceneSize: decor.homeSceneSize },
         });
         continue;
       }
@@ -3286,14 +3290,15 @@ export class DatabaseStorage implements IStorage {
       if (object) {
         result.push({
           ...row,
-          item: { id: object.id, name: object.name, imageUrl: object.imageUrl, price: object.price, type: "object" },
+          size: object.homeSceneSize,
+          item: { id: object.id, name: object.name, imageUrl: object.imageUrl, price: object.price, type: "object", homeSceneSize: object.homeSceneSize },
         });
       }
     }
     return result;
   }
 
-  async updatePlacedHomeDecor(id: string, userId: string, data: Partial<{ xPct: number; yPct: number; size: number; flipped: boolean }>): Promise<PlacedHomeDecor> {
+  async updatePlacedHomeDecor(id: string, userId: string, data: Partial<{ xPct: number; yPct: number; flipped: boolean }>): Promise<PlacedHomeDecor> {
     const [row] = await db.update(placedHomeDecor).set(data).where(and(eq(placedHomeDecor.id, id), eq(placedHomeDecor.userId, userId))).returning();
     return row;
   }
