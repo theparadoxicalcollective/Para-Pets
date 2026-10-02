@@ -106,6 +106,14 @@ interface HousePet {
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
   homeScalePct: number; homeFlipped: boolean;
 }
+interface PetHomePositionUpdate {
+  inventoryId: string;
+  xPct: number;
+  yPct: number;
+  location: string;
+  scalePct?: number;
+  flipped?: boolean;
+}
 interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; }
 interface ActiveBundle extends HouseBundle {
   maxOutdoorPets: number;
@@ -994,6 +1002,24 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     placedDecorRaw.map(item => placedDragLive?.id === item.id ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct } : item),
     [placedDecorRaw, placedDragLive]);
 
+  const petsQueryKey = ["/api/users", user.id, "pets"] as const;
+  const applyOptimisticPetHomeUpdate = useCallback((update: PetHomePositionUpdate) => {
+    const previous = qc.getQueryData<{ username: string; pets: HousePet[] }>(petsQueryKey);
+    const safeScalePct = clampPetHousePlayerScale(update.scalePct ?? 100);
+    qc.setQueryData<{ username: string; pets: HousePet[] }>(petsQueryKey, current => current ? {
+      ...current,
+      pets: current.pets.map(pet => pet.inventoryId === update.inventoryId ? {
+        ...pet,
+        posLeft: String(update.xPct * 100),
+        posTop: String(update.yPct * 100),
+        location: update.location,
+        homeScalePct: safeScalePct,
+        homeFlipped: update.flipped ?? false,
+      } : pet),
+    } : current);
+    return previous;
+  }, [qc, petsQueryKey]);
+
   // ── Mutations ──────────────────────────────────────────────────────────────
   const activateMutation = useMutation({
     mutationFn: async (bundleId: string) => {
@@ -1054,18 +1080,22 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const placePetMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, location, scalePct = 100, flipped = false }: { inventoryId: string; xPct: number; yPct: number; location: string; scalePct?: number; flipped?: boolean }) => {
+    mutationFn: async ({ inventoryId, xPct, yPct, location, scalePct = 100, flipped = false }: PetHomePositionUpdate) => {
       const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
         posLeft: String(xPct * 100), posTop: String(yPct * 100), location,
         scalePct: clampPetHousePlayerScale(scalePct), flipped,
       });
       if (!res.ok) throw new Error("Failed");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+    onMutate: (update) => ({ previousPets: applyOptimisticPetHomeUpdate(update) }),
+    onError: (_error, _update, context) => {
+      if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
 
   const updatePetPositionMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, scalePct = 100, flipped = false }: { inventoryId: string; xPct: number; yPct: number; scalePct?: number; flipped?: boolean }) => {
+    mutationFn: async ({ inventoryId, xPct, yPct, scalePct = 100, flipped = false }: Omit<PetHomePositionUpdate, "location">) => {
       const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
         posLeft: String(xPct * 100), posTop: String(yPct * 100), location: "outside",
         scalePct: clampPetHousePlayerScale(scalePct), flipped,
@@ -1073,7 +1103,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+    onMutate: (update) => ({
+      previousPets: applyOptimisticPetHomeUpdate({ ...update, location: "outside" }),
+    }),
+    onError: (_error, _update, context) => {
+      if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
 
   const removePetFromSceneMutation = useMutation({
