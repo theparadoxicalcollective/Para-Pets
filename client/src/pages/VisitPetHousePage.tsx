@@ -533,17 +533,18 @@ export default function VisitPetHousePage() {
         const cfg = randomGroundConfig(i);
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
+        const petSize = petHouseDepthSize(cfg.size, yPct);
         return (
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-outdoor-${pet.inventoryId}`}
             className="absolute"
-            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
           >
             {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
+              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={petSize} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
@@ -558,16 +559,19 @@ export default function VisitPetHousePage() {
       })}
 
       {/* Outdoor decor */}
-      {imgWidth > 0 && outdoorDecor.map((item) => (
-        <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
-          <img
-            src={item.item.imageUrl ?? ""}
-            alt={item.item.name}
-            draggable={false}
-            style={{ width: item.size, height: item.size, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
-          />
-        </div>
-      ))}
+      {imgWidth > 0 && outdoorDecor.map((item) => {
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        return (
+          <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
+            />
+          </div>
+        );
+      })}
 
       {/* HUD */}
       <div
