@@ -4,6 +4,7 @@ import { houseBundles as houseBundlesTable } from "@shared/schema";
 import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
+import { executeStoreAllHomeScene } from "../housing/decorTransactions";
 
 export interface HouseBundleRouteDependencies {
   db: typeof database;
@@ -88,9 +89,16 @@ export function registerHouseBundleRoutes(
       const { bundleId } = req.params as { bundleId: string };
       const owns = await storage.hasUserHouseBundle(user.id, bundleId);
       if (!owns) return res.status(403).json({ message: "Bundle not owned" });
+
+      const currentBundle = await storage.getActiveBundleWithBuildings(user.id);
+      let returned = { returnedDecor: 0, returnedObjects: 0, returnedPets: 0 };
+      if (currentBundle?.id !== bundleId) {
+        returned = await executeStoreAllHomeScene(user.id);
+      }
+
       await storage.setActiveHouseBundle(user.id, bundleId);
       const bundle = await storage.getActiveBundleWithBuildings(user.id);
-      return res.json(bundle);
+      return res.json({ bundle, returned });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -100,8 +108,9 @@ export function registerHouseBundleRoutes(
     try {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
       const user = req.user as any;
+      const returned = await executeStoreAllHomeScene(user.id);
       await storage.setActiveHouseBundle(user.id, null);
-      return res.json({ ok: true });
+      return res.json({ ok: true, returned });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
