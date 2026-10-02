@@ -6,6 +6,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import type { HouseBuildingType } from "@shared/housing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -29,7 +30,6 @@ interface EquippedAccessory {
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H = 900;
-const INTERIOR_PET_SIZE = 110;
 
 const RARITY_LABEL: Record<number, string> = { 1: "Common", 2: "Uncommon", 3: "Rare", 4: "Epic", 5: "Legendary" };
 const RARITY_COLOR: Record<number, string> = { 1: "#a89878", 2: "#6dbf6d", 3: "#5ba3e0", 4: "#c373f5", 5: "#ffd700" };
@@ -44,12 +44,8 @@ function parsePetPct(s: string | null): number | null {
 }
 
 function randomGroundConfig(index: number) {
-  const seed = index * 137.508;
-  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 100 + pseudo(seed + 2) * 30;
-  const centerX = 20 + pseudo(seed) * 60;
-  const centerY = 64 + pseudo(seed + 1) * 11;
-  return { size, centerX, centerY };
+  const { centerX, centerY } = defaultPetHouseGroundPosition(index);
+  return { size: PET_HOUSE_OUTDOOR_PET_BASE_SIZE, centerX, centerY };
 }
 
 // ── Pet Stat Popup ────────────────────────────────────────────────────────────
