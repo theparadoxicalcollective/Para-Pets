@@ -12,6 +12,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 test("home interior effect catalog includes the requested scene-enhancing effects", () => {
   assert.deepEqual(HOUSE_INTERIOR_EFFECT_TYPES, [
     "fire",
+    "candle_light",
     "warm_glow",
     "sparkles",
     "dust_motes",
@@ -51,6 +52,19 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /HOME_INTERIOR_EFFECT_OPTIONS/);
   assert.match(source, /initialEffects=\{previewBuilding\.interiorEffects\}/);
   assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
+  assert.doesNotMatch(source, /await refetch\(\);[\s\S]{0,120}Failed to save effect/);
+  assert.match(source, /\}, \[buildingId\]\);/);
+});
+
+test("campfire and candle light are distinct renderers", () => {
+  const source = read("client/src/components/HomeInteriorEffect.tsx");
+
+  assert.match(source, /label: "Campfire"/);
+  assert.match(source, /function CampfireVisual/);
+  assert.match(source, /label: "Candle Light"/);
+  assert.match(source, /function CandleLightVisual/);
+  assert.match(source, /type === "fire"\) return <CampfireVisual/);
+  assert.match(source, /type === "candle_light"\) return <CandleLightVisual/);
 });
 
 test("owner and visitor building interiors render saved effects in image-space coordinates", () => {
