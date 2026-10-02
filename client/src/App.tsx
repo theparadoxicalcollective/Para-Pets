@@ -595,9 +595,12 @@ function AppRouter() {
             <CardsCollectionPage />
           </div>
         )}
-        {location === "/equip-accessories" && (
+        {(location === "/equip-accessories" || location.startsWith("/equip-accessories/")) && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-            <EquipAccessoriesPage />
+            <EquipAccessoriesPage
+              petInventoryId={location.startsWith("/equip-accessories/") ? location.split("/")[2] : undefined}
+              returnPath={location.startsWith("/equip-accessories/") ? "/pet-house" : "/"}
+            />
           </div>
         )}
         {location.startsWith("/pet-care/") && (
