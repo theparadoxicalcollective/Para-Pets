@@ -2,14 +2,18 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload } from "lucide-react";
+import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload, Pencil } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { QuillBadge } from "@/components/QuillBadge";
+import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
 import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
-  id: string; name: string; imageUrl: string | null; price: number; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; createdAt: string;
+}
+interface HomeObjectItem {
+  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; createdAt: string;
 }
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
@@ -1040,6 +1044,7 @@ function DecorSubTab() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [imageData, setImageData] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<HomeDecorItem | null>(null);
   const imgRef = useRef<HTMLInputElement>(null);
 
   const { data: items = [], isLoading } = useQuery<HomeDecorItem[]>({ queryKey: ["/api/admin/home-decor"], staleTime: 0 });
@@ -1063,6 +1068,17 @@ function DecorSubTab() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const sizeMutation = useMutation({
+    mutationFn: async ({ id, homeSceneSize }: { id: string; homeSceneSize: number }) =>
+      apiRequest("PATCH", `/api/admin/home-decor/${id}`, { homeSceneSize }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/home-decor"] });
+      setEditingItem(null);
+      toast({ title: "Decor size saved!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -1083,14 +1099,27 @@ function DecorSubTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
-                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px</p>
               </div>
+              <button data-testid={`button-edit-decor-${item.id}`} onClick={() => setEditingItem(item)} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,215,0,0.10)", border: "1px solid rgba(255,215,0,0.28)", cursor: "pointer" }}>
+                <Pencil className="w-3.5 h-3.5" style={{ color: GOLD }} />
+              </button>
               <button data-testid={`button-delete-decor-${item.id}`} onClick={() => deleteMutation.mutate(item.id)} disabled={deleteMutation.isPending} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(200,50,50,0.15)", border: "1px solid rgba(200,50,50,0.3)", cursor: "pointer" }}>
                 <Trash2 className="w-3.5 h-3.5" style={{ color: "#f87171" }} />
               </button>
             </div>
           ))}
         </div>
+      )}
+
+      {editingItem && (
+        <HomeSceneSizeEditor
+          item={editingItem as HomeSceneSizeEditorItem}
+          itemLabel="Decor"
+          onClose={() => setEditingItem(null)}
+          onSave={(homeSceneSize) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize })}
+          saving={sizeMutation.isPending}
+        />
       )}
 
       {showForm && (
