@@ -599,6 +599,7 @@ function InteriorViewer({
         const isSelected = selectedItemId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
         return (
           <div
             key={item.id}
@@ -623,7 +624,7 @@ function InteriorViewer({
               alt={item.item.name}
               draggable={false}
               style={{
-                width: item.size, height: item.size, objectFit: "contain",
+                width: displaySize, height: displaySize, objectFit: "contain",
                 transform: item.flipped ? "scaleX(-1)" : undefined,
                 outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
                 outlineOffset: "3px",
@@ -642,9 +643,7 @@ function InteriorViewer({
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        // Indoor pets use a per-pet randomized size (same range outdoor pets
-        // used previously) so each pet feels distinct rather than uniform.
-        const petSize = indoorPetSize(i);
+        const petSize = indoorPetSize(yPct);
         return (
           <div
             key={pet.inventoryId}
@@ -667,6 +666,7 @@ function InteriorViewer({
                 mode={livePos ? "static" : "house"}
                 size={petSize}
                 fillContainer
+                fitVisible
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
@@ -686,7 +686,10 @@ function InteriorViewer({
       {popupPet && (
         <HousePetRemovalControl
           left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5) * containerH - INDOOR_PET_SIZE / 2)}
+          top={Math.max(58, (() => {
+            const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
+            return yPct * containerH - petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct) / 2;
+          })())}
           petName={popupPet.nickname ?? popupPet.name}
           pending={removingPetId === popupPet.inventoryId}
           onRemove={async () => {
