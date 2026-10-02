@@ -38,8 +38,8 @@ export default function EquipAccessoriesPage({ petInventoryId, returnPath = "/" 
   // a state update inside the router's render pass — which would flap the
   // page open/closed on every click.
   useEffect(() => {
-    if (ready && !activePet) navigate("/");
-  }, [ready, activePet, navigate]);
+    if (ready && !activePet) navigate(returnPath);
+  }, [ready, activePet, navigate, returnPath]);
 
   if (!ready || !activePet) {
     return (
