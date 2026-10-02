@@ -178,7 +178,7 @@ test("position reads and writes always use the authenticated player id", async (
 
   assert.deepEqual(calls.get, ["owner", "owner"]);
   assert.deepEqual(calls.save, [
-    ["owner", "pet-2", "12.5", "77", "inside-building", 130, false],
+    ["owner", "pet-2", "12.5", "77", "inside-building", 110, false],
   ]);
   assert.deepEqual(saved.body, { ok: true });
 });
@@ -207,7 +207,7 @@ test("position PATCH preserves required string validation and outside default", 
     params: { inventoryId: "pet-1" },
     body: { posLeft: "10", posTop: "20" },
   });
-  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 115, true]]);
+  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 110, true]]);
 });
 
 test("position PATCH clamps Home pet scale and accepts flip", async () => {
@@ -217,7 +217,7 @@ test("position PATCH clamps Home pet scale and accepts flip", async () => {
     params: { inventoryId: "pet-1" },
     body: { posLeft: "10", posTop: "20", scalePct: 999, flipped: false },
   });
-  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 140, false]]);
+  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 110, false]]);
 });
 
 test("store-all and single-pet removal preserve ownership and response shapes", async () => {
