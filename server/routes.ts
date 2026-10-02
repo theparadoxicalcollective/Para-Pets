@@ -35,6 +35,7 @@ import { registerSupportRoutes } from "./routes/support.routes";
 import { registerHubNoticeRoutes } from "./routes/hubNotice.routes";
 import { registerAvatarRoutes } from "./routes/avatar.routes";
 import { registerPrivacyPolicyRoutes } from "./routes/privacyPolicy.routes";
+import { registerPublicPetShowcaseRoute } from "./routes/publicPetShowcase.routes";
 import { registerBadgeRoutes, registerPlayerBadgeRoutes } from "./routes/badge.routes";
 import { registerFishingAquariumRoutes, registerFishingRoutes, type FishingRouteDependencies } from "./routes/fishing.routes";
 import { registerMarketplaceRoutes, type MarketplaceRouteDependencies } from "./routes/marketplace.routes";
@@ -4989,21 +4990,7 @@ export async function registerRoutes(
     }
   });
 
-  // Public pet showcase — hatched pet images for the hub page.
-  // Uses hatchedImageUrl from shop items (same source as the egg showcase),
-  // falling back to frontAssembled on the linked pet template if missing.
-  app.get("/api/public/pets", async (_req, res) => {
-    try {
-      const allItems = await storage.getAllShopItems();
-      const pets = allItems
-        .filter((i: any) => i.type === "pet" && i.hatchedImageUrl)
-        .map((i: any) => ({ id: i.id, name: i.name, imageUrl: i.hatchedImageUrl }))
-        .sort(() => Math.random() - 0.5);
-      return res.json(pets);
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to load pets" });
-    }
-  });
+  registerPublicPetShowcaseRoute(app, { storage });
 
   registerPrivacyPolicyRoutes(app, { storage, isAuthenticated });
 
