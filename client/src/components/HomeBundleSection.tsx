@@ -311,8 +311,8 @@ function AdminInteriorPreview({
         data-testid="button-close-interior-preview"
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center font-bold text-base"
-        style={{ zIndex: 30, background: "rgba(0,0,0,0.74)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+        className="absolute left-4 w-10 h-10 rounded-full flex items-center justify-center font-bold text-base"
+        style={{ zIndex: 30, top: "max(64px, calc(env(safe-area-inset-top, 0px) + 34px))", background: "rgba(0,0,0,0.74)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
       >
         ✕
       </button>
@@ -321,8 +321,8 @@ function AdminInteriorPreview({
         data-testid="button-add-interior-effect"
         onPointerDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); setShowEffectsMenu(current => !current); }}
-        className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 font-fantasy text-[10px] tracking-wider"
-        style={{ zIndex: 30, background: "rgba(25,17,5,0.88)", color: GOLD, border: "1px solid rgba(255,215,0,0.55)", boxShadow: "0 0 14px rgba(255,215,0,0.12)" }}
+        className="absolute left-1/2 -translate-x-1/2 rounded-full px-4 py-2 font-fantasy text-[10px] tracking-wider"
+        style={{ zIndex: 30, top: "max(64px, calc(env(safe-area-inset-top, 0px) + 34px))", background: "rgba(25,17,5,0.88)", color: GOLD, border: "1px solid rgba(255,215,0,0.55)", boxShadow: "0 0 14px rgba(255,215,0,0.12)" }}
       >
         + Effects
       </button>
@@ -331,8 +331,8 @@ function AdminInteriorPreview({
         <div
           data-testid="interior-effect-menu"
           onPointerDown={e => e.stopPropagation()}
-          className="absolute top-16 left-1/2 -translate-x-1/2 w-[92vw] max-w-[360px] rounded-2xl p-2"
-          style={{ zIndex: 32, background: "rgba(12,10,8,0.94)", border: "1px solid rgba(255,215,0,0.35)", boxShadow: "0 12px 34px rgba(0,0,0,0.5)" }}
+          className="absolute left-1/2 -translate-x-1/2 w-[92vw] max-w-[360px] rounded-2xl p-2"
+          style={{ zIndex: 32, top: "max(116px, calc(env(safe-area-inset-top, 0px) + 88px))", background: "rgba(12,10,8,0.94)", border: "1px solid rgba(255,215,0,0.35)", boxShadow: "0 12px 34px rgba(0,0,0,0.5)" }}
         >
           <p className="font-fantasy text-[9px] text-center mb-2" style={{ color: "rgba(255,215,0,0.62)" }}>
             Add an effect, then drag it directly over the room feature
@@ -358,8 +358,8 @@ function AdminInteriorPreview({
       )}
 
       <div
-        className="absolute top-4 right-4 rounded-xl px-3 py-1.5 text-right"
-        style={{ zIndex: 28, background: "rgba(0,0,0,0.62)", border: "1px solid rgba(255,215,0,0.3)", pointerEvents: "none" }}
+        className="absolute right-4 rounded-xl px-3 py-1.5 text-right"
+        style={{ zIndex: 28, top: "max(64px, calc(env(safe-area-inset-top, 0px) + 34px))", background: "rgba(0,0,0,0.62)", border: "1px solid rgba(255,215,0,0.3)", pointerEvents: "none" }}
       >
         <p className="font-fantasy text-[9px] leading-4 tracking-wider" style={{ color: "rgba(255,215,0,0.82)" }}>
           Drag room left/right<br />or use side arrows
