@@ -25,7 +25,7 @@ test("Pet House depth scale is clamped and resilient to invalid positions", () =
   assert.equal(petHouseDepthScale(Number.NaN), 1);
 });
 
-test("owner and visitor scenes use the same pet baselines and depth helper", () => {
+test("owner and visitor scenes keep the same pet baseline constants", () => {
   assert.equal(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, 90);
   assert.equal(PET_HOUSE_INTERIOR_PET_BASE_SIZE, 125);
 
@@ -35,21 +35,21 @@ test("owner and visitor scenes use the same pet baselines and depth helper", () 
   for (const source of [owner, visitor]) {
     assert.match(source, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE/);
     assert.match(source, /PET_HOUSE_INTERIOR_PET_BASE_SIZE/);
-    assert.match(source, /petHouseDepthSize/);
     assert.match(source, /fitVisible/);
   }
 
   assert.doesNotMatch(visitor, /const size = 100 \+ pseudo\(seed \+ 2\) \* 30/);
 });
 
-test("pets scale from vertical depth while Decor and Objects keep their saved size", () => {
+test("Home scene pets and items no longer change size automatically while moving vertically", () => {
   const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
 
-  assert.match(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
-  assert.match(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
+  assert.match(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
   assert.match(owner, /const displaySize = item\.size/);
   assert.match(visitor, /const displaySize = item\.size/);
+  assert.doesNotMatch(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
+  assert.doesNotMatch(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
   assert.doesNotMatch(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
   assert.doesNotMatch(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
 });
