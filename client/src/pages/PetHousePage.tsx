@@ -1003,6 +1003,24 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     [placedDecorRaw, placedDragLive]);
 
   const petsQueryKey = ["/api/users", user.id, "pets"] as const;
+  const petHomeSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const queuePetHomePositionPatch = useCallback((update: PetHomePositionUpdate): Promise<void> => {
+    const task = petHomeSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const res = await apiRequest("PATCH", `/api/pet-house-positions/${update.inventoryId}`, {
+          posLeft: String(update.xPct * 100),
+          posTop: String(update.yPct * 100),
+          location: update.location,
+          scalePct: clampPetHousePlayerScale(update.scalePct ?? 100),
+          flipped: update.flipped ?? false,
+        });
+        if (!res.ok) throw new Error("Failed");
+      });
+    petHomeSaveQueueRef.current = task.catch(() => undefined);
+    return task;
+  }, []);
+
   const applyOptimisticPetHomeUpdate = useCallback((update: PetHomePositionUpdate) => {
     const previous = qc.getQueryData<{ username: string; pets: HousePet[] }>(petsQueryKey);
     const safeScalePct = clampPetHousePlayerScale(update.scalePct ?? 100);
@@ -1080,12 +1098,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const placePetMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, location, scalePct = 100, flipped = false }: PetHomePositionUpdate) => {
-      const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
-        posLeft: String(xPct * 100), posTop: String(yPct * 100), location,
-        scalePct: clampPetHousePlayerScale(scalePct), flipped,
-      });
-      if (!res.ok) throw new Error("Failed");
+    mutationFn: async (update: PetHomePositionUpdate) => {
+      await queuePetHomePositionPatch(update);
     },
     onMutate: (update) => ({ previousPets: applyOptimisticPetHomeUpdate(update) }),
     onError: (_error, _update, context) => {
@@ -1095,13 +1109,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const updatePetPositionMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, scalePct = 100, flipped = false }: Omit<PetHomePositionUpdate, "location">) => {
-      const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
-        posLeft: String(xPct * 100), posTop: String(yPct * 100), location: "outside",
-        scalePct: clampPetHousePlayerScale(scalePct), flipped,
-      });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
+    mutationFn: async (update: Omit<PetHomePositionUpdate, "location">) => {
+      await queuePetHomePositionPatch({ ...update, location: "outside" });
     },
     onMutate: (update) => ({
       previousPets: applyOptimisticPetHomeUpdate({ ...update, location: "outside" }),
