@@ -6,7 +6,8 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
-import type { HouseBuildingType, HouseInteriorEffect } from "@shared/housing";
+import PetSleepZzz from "@/components/PetSleepZzz";
+import { isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -304,10 +305,17 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * Math.max(55, Math.min(140, pet.homeScalePct ?? 100)) / 100);
+        const isSleeping = isHouseInteriorSleepPosition(
+          effects,
+          xPct,
+          yPct,
+          imgWidth / Math.max(containerH, 1),
+        );
         return (
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-interior-${pet.inventoryId}`}
+            data-sleeping={isSleeping ? "true" : undefined}
             className="absolute"
             style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
@@ -318,7 +326,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
                 petTemplateId={pet.petTemplateId}
                 petInventoryId={pet.inventoryId}
                 costumeAccess="public"
-                mode="house"
+                mode={isSleeping ? "sleep" : "house"}
                 size={petSize}
                 fillContainer
                 fitVisible
@@ -333,6 +341,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
                 style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
+            {isSleeping && <PetSleepZzz />}
           </div>
         );
       })}
