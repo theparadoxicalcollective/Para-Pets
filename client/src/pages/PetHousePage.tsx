@@ -629,11 +629,15 @@ function InteriorViewer({
     const maxY = maxYForHeight(containerHRef.current);
     const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * clampPetHousePlayerScale(drag.scalePct) / 100;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       effects,
       rawXPct,
       rawYPct,
       imgWidthRef.current / Math.max(containerHRef.current, 1),
+      0.5,
+      visiblePetSize / 2 / imgWidthRef.current,
+      visiblePetSize / 2 / Math.max(containerHRef.current, 1),
     );
     const newXPct = sleepSnap?.x ?? rawXPct;
     const newYPct = sleepSnap?.y ?? rawYPct;
@@ -746,7 +750,8 @@ function InteriorViewer({
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        const petSize = petHouseDisplaySize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, pet);
+        const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * petScale);
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
         const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
@@ -760,32 +765,37 @@ function InteriorViewer({
             key={pet.inventoryId}
             className="absolute"
             data-sleeping={isSleeping ? "true" : undefined}
-            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
+            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: PET_HOUSE_INTERIOR_PET_BASE_SIZE, height: PET_HOUSE_INTERIOR_PET_BASE_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
             onPointerCancel={onPetUp}
           >
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                petInventoryId={pet.inventoryId}
-                mode={isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
-                size={petSize}
-                fillContainer
-                fitVisible
-                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
-                className={isActivelyDragging ? undefined : "pet-idle-squish"}
-                style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
-              />
-            ) : null}
-            {isSleeping && <PetSleepZzz />}
+            <div
+              data-testid={`home-pet-visible-scale-${pet.inventoryId}`}
+              style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
+            >
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  petInventoryId={pet.inventoryId}
+                  mode={isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
+                  size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
+                  fillContainer
+                  fitVisible
+                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
+              ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  className={isActivelyDragging ? undefined : "pet-idle-squish"}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
+              ) : null}
+              {isSleeping && <PetSleepZzz />}
+            </div>
           </div>
         );
       })}
