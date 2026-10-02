@@ -54,6 +54,19 @@ export interface ShopItemFull {
   createdAt: string;
 }
 
+export interface RewardHouseBundleOption {
+  id: string;
+  name: string;
+  shopImageUrl: string | null;
+  bgImageUrl?: string | null;
+}
+
+export interface RewardHomeDecorOption {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+}
+
 export const WORLD_OPTIONS = [
   { id: "enchanted_grove", name: "Enchanted Grove" },
   { id: "snowy_mountain", name: "Frostpeak" },
@@ -1690,25 +1703,41 @@ function ImageUpload({
 export function ItemPickerModal({
   items,
   cards = [],
+  homeBundles = [],
+  homeDecor = [],
   onSelect,
   onSelectCard,
+  onSelectHomeBundle,
+  onSelectHomeDecor,
   onClose,
   title = "Select Item",
 }: {
   items: ShopItemFull[];
   cards?: CardDefinition[];
+  homeBundles?: RewardHouseBundleOption[];
+  homeDecor?: RewardHomeDecorOption[];
   onSelect: (item: ShopItemFull) => void;
   onSelectCard?: (card: CardDefinition) => void;
+  onSelectHomeBundle?: (bundle: RewardHouseBundleOption) => void;
+  onSelectHomeDecor?: (decor: RewardHomeDecorOption) => void;
   onClose: () => void;
   title?: string;
 }) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<"all" | ItemCategoryKey | "cards">("all");
+  const [activeCategory, setActiveCategory] = useState<
+    "all" | ItemCategoryKey | "cards" | "home_bundles" | "home_decor"
+  >("all");
   const cardsEnabled = !!onSelectCard;
+  const homeBundlesEnabled = !!onSelectHomeBundle;
+  const homeDecorEnabled = !!onSelectHomeDecor;
   const CARD_TAB = { key: "cards" as const, label: "Cards", color: "#f6d365" };
+  const HOME_BUNDLE_TAB = { key: "home_bundles" as const, label: "Home Bundles", color: "#86efac" };
+  const HOME_DECOR_TAB = { key: "home_decor" as const, label: "Home Decor", color: "#bef264" };
   const ALL_TABS = [
     { key: "all" as const, label: "All", color: "#a89878" },
     ...(cardsEnabled ? [CARD_TAB] : []),
+    ...(homeBundlesEnabled ? [HOME_BUNDLE_TAB] : []),
+    ...(homeDecorEnabled ? [HOME_DECOR_TAB] : []),
     ...ITEM_CATEGORIES,
   ];
 
@@ -1717,13 +1746,26 @@ export function ItemPickerModal({
     !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
 
   const matchesCategory = (item: ShopItemFull) =>
-    activeCategory !== "cards" && (activeCategory === "all" || getItemCategory(item) === activeCategory);
+    activeCategory !== "cards"
+      && activeCategory !== "home_bundles"
+      && activeCategory !== "home_decor"
+      && (activeCategory === "all" || getItemCategory(item) === activeCategory);
 
   const filtered = items.filter(item => matchesSearch(item) && matchesCategory(item));
   const filteredCards = cardsEnabled && (activeCategory === "all" || activeCategory === "cards")
     ? cards
         .filter(card => !normalizedSearch || card.name.toLowerCase().includes(normalizedSearch))
         .sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name))
+    : [];
+  const filteredHomeBundles = homeBundlesEnabled && (activeCategory === "all" || activeCategory === "home_bundles")
+    ? homeBundles
+        .filter(bundle => !normalizedSearch || bundle.name.toLowerCase().includes(normalizedSearch))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+  const filteredHomeDecor = homeDecorEnabled && (activeCategory === "all" || activeCategory === "home_decor")
+    ? homeDecor
+        .filter(decor => !normalizedSearch || decor.name.toLowerCase().includes(normalizedSearch))
+        .sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
   const catOrder = ITEM_CATEGORIES.map(c => c.key);
@@ -1796,7 +1838,10 @@ export function ItemPickerModal({
         />
 
         <div className="overflow-y-auto flex-1 space-y-1">
-          {sorted.length === 0 && filteredCards.length === 0 ? (
+          {sorted.length === 0
+            && filteredCards.length === 0
+            && filteredHomeBundles.length === 0
+            && filteredHomeDecor.length === 0 ? (
             <p className="font-fantasy text-[#a89878] text-xs text-center py-4">No rewards found</p>
           ) : (
             <>
@@ -1884,6 +1929,73 @@ export function ItemPickerModal({
                         <p className="font-fantasy text-[8px]" style={{ color: "#d6b95f" }}>
                           Card · {"★".repeat(card.rarity)}
                         </p>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+              {filteredHomeBundles.length > 0 && (
+                <>
+                  {showHeaders && (
+                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: HOME_BUNDLE_TAB.color }}>
+                      Home Bundles
+                    </p>
+                  )}
+                  {filteredHomeBundles.map(bundle => {
+                    const imageUrl = bundle.shopImageUrl ?? bundle.bgImageUrl ?? null;
+                    return (
+                      <button
+                        key={bundle.id}
+                        data-testid={`button-pick-home-bundle-${bundle.id}`}
+                        onClick={() => onSelectHomeBundle?.(bundle)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
+                        style={{
+                          background: "rgba(0,0,0,0.3)",
+                          border: `1px solid ${HOME_BUNDLE_TAB.color}33`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          {imageUrl
+                            ? <img src={imageUrl} alt="" className="w-full h-full object-contain" />
+                            : <span className="text-lg">🏡</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-fantasy text-[10px] truncate" style={{ color: HOME_BUNDLE_TAB.color }}>{bundle.name}</p>
+                          <p className="font-fantasy text-[8px]" style={{ color: HOME_BUNDLE_TAB.color }}>Home Bundle</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+              {filteredHomeDecor.length > 0 && (
+                <>
+                  {showHeaders && (
+                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: HOME_DECOR_TAB.color }}>
+                      Home Decor
+                    </p>
+                  )}
+                  {filteredHomeDecor.map(decor => (
+                    <button
+                      key={decor.id}
+                      data-testid={`button-pick-home-decor-${decor.id}`}
+                      onClick={() => onSelectHomeDecor?.(decor)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
+                      style={{
+                        background: "rgba(0,0,0,0.3)",
+                        border: `1px solid ${HOME_DECOR_TAB.color}33`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {decor.imageUrl
+                          ? <img src={decor.imageUrl} alt="" className="w-full h-full object-contain" />
+                          : <span className="text-lg">🪴</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-fantasy text-[10px] truncate" style={{ color: HOME_DECOR_TAB.color }}>{decor.name}</p>
+                        <p className="font-fantasy text-[8px]" style={{ color: HOME_DECOR_TAB.color }}>Home Decor</p>
                       </div>
                     </button>
                   ))}
