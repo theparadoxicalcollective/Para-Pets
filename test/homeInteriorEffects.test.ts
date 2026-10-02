@@ -152,6 +152,12 @@ test("Sleep Square hit testing and drop snapping use the same scene-space geomet
     getHouseInteriorSleepSnapPosition(effects, 0.56, 0.5, 2),
     { effectId: "sleep-1", x: 0.5, y: 0.5 },
   );
+  // A pet can visibly overlap a sleep spot even when its center lands outside
+  // the square. Footprint-aware catching should still snap it into the spot.
+  assert.deepEqual(
+    getHouseInteriorSleepSnapPosition(effects, 0.09, 0.5, 2, 0.5, 0.37, 0.05),
+    { effectId: "sleep-1", x: 0.5, y: 0.5 },
+  );
   assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.7, 0.5, 2), null);
 });
 
@@ -166,6 +172,11 @@ test("Home pet size controls use a 100px-style base range of 50% through 110%", 
   assert.equal(clampPetHousePlayerScale(10), 50);
   assert.match(sizing, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE = 100/);
   assert.match(sizing, /PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100/);
+  assert.match(owner, /data-testid=\{`home-pet-visible-scale-\$\{pet\.inventoryId\}`\}/);
+  assert.match(owner, /transform: \`scale\(\$\{petScale\}\)\`/);
+  assert.match(owner, /width: PET_HOUSE_INTERIOR_PET_BASE_SIZE/);
+  assert.match(visitor, /data-testid=\{`visit-pet-visible-scale-\$\{pet\.inventoryId\}`\}/);
+  assert.match(visitor, /transform: \`scale\(\$\{petScale\}\)\`/);
   assert.match(owner, /Returning…/);
   assert.match(owner, /pending \? "Returning…" : "Return"/);
   assert.match(visitor, /clampPetHousePlayerScale\(pet\.homeScalePct \?\? 100\)/);
@@ -182,6 +193,8 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
   assert.match(effects, /adminPreview \? <SleepSquareVisual \/> : <SleepSpotHintVisual \/>/);
 
   assert.match(owner, /getHouseInteriorSleepSnapPosition/);
+  assert.match(owner, /visiblePetSize \/ 2 \/ imgWidthRef\.current/);
+  assert.match(owner, /visiblePetSize \/ 2 \/ Math\.max\(containerHRef\.current, 1\)/);
   assert.match(owner, /sleepSnap\?\.x \?\? rawXPct/);
   assert.match(owner, /sleepSnap\?\.y \?\? rawYPct/);
 
