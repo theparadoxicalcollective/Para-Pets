@@ -91,14 +91,13 @@ export function registerHouseBundleRoutes(
       if (!owns) return res.status(403).json({ message: "Bundle not owned" });
 
       const currentBundle = await storage.getActiveBundleWithBuildings(user.id);
-      let returned = { returnedDecor: 0, returnedObjects: 0, returnedPets: 0 };
       if (currentBundle?.id !== bundleId) {
-        returned = await executeStoreAllHomeScene(user.id);
+        await executeStoreAllHomeScene(user.id);
       }
 
       await storage.setActiveHouseBundle(user.id, bundleId);
       const bundle = await storage.getActiveBundleWithBuildings(user.id);
-      return res.json({ bundle, returned });
+      return res.json(bundle);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -108,9 +107,9 @@ export function registerHouseBundleRoutes(
     try {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
       const user = req.user as any;
-      const returned = await executeStoreAllHomeScene(user.id);
+      await executeStoreAllHomeScene(user.id);
       await storage.setActiveHouseBundle(user.id, null);
-      return res.json({ ok: true, returned });
+      return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
