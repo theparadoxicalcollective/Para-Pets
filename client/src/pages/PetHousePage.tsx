@@ -1658,35 +1658,41 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const yPct = isDraggingThis ? petDragLive.yPct : (savedY ?? cfg.centerY / 100);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        const petSize = petHouseDisplaySize(cfg.size, pet);
+        const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petSize = Math.round(cfg.size * petScale);
         const isSelectedPet = outdoorPopupPetId === pet.inventoryId;
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
+            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
           >
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                petInventoryId={pet.inventoryId}
-                mode="static"
-                size={petSize}
-                fillContainer
-                fitVisible
-                className={isDraggingThis ? undefined : "pet-idle-squish"}
-                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
-                className={isDraggingThis ? undefined : "pet-idle-squish"}
-                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
-              />
-            ) : null}
-            {/* Full-area hit zone for dragging — covers entire pet so top-of-screen pets are still grabbable */}
+            <div
+              data-testid={`home-pet-visible-scale-${pet.inventoryId}`}
+              style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
+            >
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  petInventoryId={pet.inventoryId}
+                  mode="static"
+                  size={cfg.size}
+                  fillContainer
+                  fitVisible
+                  className={isDraggingThis ? undefined : "pet-idle-squish"}
+                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
+              ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  className={isDraggingThis ? undefined : "pet-idle-squish"}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
+              ) : null}
+            </div>
+            {/* Full-area hit zone for dragging — covers the stable base canvas. */}
             <div
               style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto", touchAction: "none", cursor: isDraggingThis ? "grabbing" : "grab" }}
               onPointerDown={(e) => handlePetDragStart(e, pet, xPct, yPct)}
