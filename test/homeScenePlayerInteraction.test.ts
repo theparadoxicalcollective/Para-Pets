@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  HOME_SCENE_PLAYER_MAX_SCALE,
+  HOME_SCENE_PLAYER_MAX_ABOVE_ADMIN,
   HOME_SCENE_PLAYER_MIN_SCALE,
-  HOME_SCENE_PLAYER_SIZE_STEP,
+  HOME_SCENE_PLAYER_SIZE_DECREASE_STEP,
+  HOME_SCENE_PLAYER_SIZE_INCREASE_STEP,
   clampHomeScenePlayerSize,
 } from "../shared/housing";
 
@@ -15,15 +16,16 @@ const storage = readFileSync("server/storage.ts", "utf8");
 const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
 
 test("player Home item size nudges are small and bounded around the Admin baseline", () => {
-  assert.equal(HOME_SCENE_PLAYER_SIZE_STEP, 10);
-  assert.equal(HOME_SCENE_PLAYER_MIN_SCALE, 0.75);
-  assert.equal(HOME_SCENE_PLAYER_MAX_SCALE, 1.25);
+  assert.equal(HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, 25);
+  assert.equal(HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, 10);
+  assert.equal(HOME_SCENE_PLAYER_MIN_SCALE, 0.5);
+  assert.equal(HOME_SCENE_PLAYER_MAX_ABOVE_ADMIN, 10);
 
-  assert.equal(clampHomeScenePlayerSize(250, 100), 188);
+  assert.equal(clampHomeScenePlayerSize(250, 100), 125);
   assert.equal(clampHomeScenePlayerSize(250, 250), 250);
-  assert.equal(clampHomeScenePlayerSize(250, 999), 313);
-  assert.equal(clampHomeScenePlayerSize(60, 1), 60);
-  assert.equal(clampHomeScenePlayerSize(500, 999), 500);
+  assert.equal(clampHomeScenePlayerSize(250, 999), 260);
+  assert.equal(clampHomeScenePlayerSize(60, 1), 40);
+  assert.equal(clampHomeScenePlayerSize(500, 999), 510);
 });
 
 test("Admin catalog size remains the starting size while player placement size persists afterward", () => {
@@ -42,7 +44,8 @@ test("Decor and Objects no longer resize automatically from vertical position", 
 });
 
 test("players get minus and plus controls for both interior and outdoor Home items", () => {
-  assert.equal((owner.match(/HOME_SCENE_PLAYER_SIZE_STEP/g) ?? []).length >= 5, true);
+  assert.equal((owner.match(/HOME_SCENE_PLAYER_SIZE_DECREASE_STEP/g) ?? []).length >= 3, true);
+  assert.equal((owner.match(/HOME_SCENE_PLAYER_SIZE_INCREASE_STEP/g) ?? []).length >= 3, true);
   assert.equal((owner.match(/<Minus size=\{18\}/g) ?? []).length, 2);
   assert.equal((owner.match(/<Plus size=\{18\}/g) ?? []).length, 2);
   assert.equal((owner.match(/clampHomeScenePlayerSize\(item\.item\.homeSceneSize/g) ?? []).length, 4);
