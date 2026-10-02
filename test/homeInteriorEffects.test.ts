@@ -126,7 +126,7 @@ test("Home pet size controls use a 100px-style base range of 50% through 110%", 
   assert.match(sizing, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE = 100/);
   assert.match(sizing, /PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100/);
   assert.match(owner, /Returning…/);
-  assert.match(owner, />Return<\/button>/);
+  assert.match(owner, /pending \? "Returning…" : "Return"/);
   assert.match(visitor, /clampPetHousePlayerScale\(pet\.homeScalePct \?\? 100\)/);
 });
 
