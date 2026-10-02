@@ -44,20 +44,22 @@ test("new player placements start from the Admin catalog size", () => {
 });
 
 test("players can only make bounded size nudges after placement", () => {
-  assert.match(owner, /HOME_SCENE_PLAYER_SIZE_STEP/);
+  assert.match(owner, /HOME_SCENE_PLAYER_SIZE_DECREASE_STEP/);
+  assert.match(owner, /HOME_SCENE_PLAYER_SIZE_INCREASE_STEP/);
   assert.match(owner, /clampHomeScenePlayerSize/);
   assert.match(routes, /clampHomeScenePlayerSize\(placement\.item\.homeSceneSize, Number\(size\)\)/);
   assert.match(storage, /Partial<\{ xPct: number; yPct: number; size: number; flipped: boolean \}>/);
   assert.doesNotMatch(routes, /size: size \?\? 250/);
 });
 
-test("Decor and Objects keep saved size while moving; pets retain depth perspective", () => {
+test("Decor, Objects, and Home pets keep saved player-controlled size while moving", () => {
   assert.match(owner, /const displaySize = item\.size/);
   assert.match(visitor, /const displaySize = item\.size/);
   assert.doesNotMatch(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
   assert.doesNotMatch(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
-  assert.match(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
-  assert.match(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
+  assert.match(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
+  assert.doesNotMatch(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
+  assert.doesNotMatch(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
 });
 
 test("Object size API is strictly filtered to Object shop items", () => {
