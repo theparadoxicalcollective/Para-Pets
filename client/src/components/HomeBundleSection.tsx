@@ -331,7 +331,7 @@ function AdminInteriorPreview({
         <div
           data-testid="interior-effect-menu"
           onPointerDown={e => e.stopPropagation()}
-          className="absolute top-16 left-1/2 -translate-x-1/2 w-[min(92vw,360px)] rounded-2xl p-2"
+          className="absolute top-16 left-1/2 -translate-x-1/2 w-[92vw] max-w-[360px] rounded-2xl p-2"
           style={{ zIndex: 32, background: "rgba(12,10,8,0.94)", border: "1px solid rgba(255,215,0,0.35)", boxShadow: "0 12px 34px rgba(0,0,0,0.5)" }}
         >
           <p className="font-fantasy text-[9px] text-center mb-2" style={{ color: "rgba(255,215,0,0.62)" }}>
