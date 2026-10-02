@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { eq } from "drizzle-orm";
 import { houseBundles as houseBundlesTable } from "@shared/schema";
-import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType } from "@shared/housing";
+import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType, sanitizeHouseInteriorEffects } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
 import { executeStoreAllHomeScene } from "../housing/decorTransactions";
@@ -227,6 +227,7 @@ export function registerHouseBundleRoutes(
         leaveButtonX,
         leaveButtonY,
         maxPets,
+        interiorEffects,
       } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
@@ -248,6 +249,10 @@ export function registerHouseBundleRoutes(
       if (leaveButtonX !== undefined) updates.leaveButtonX = Math.max(0, Math.min(1, Number(leaveButtonX)));
       if (leaveButtonY !== undefined) updates.leaveButtonY = Math.max(0, Math.min(1, Number(leaveButtonY)));
       if (maxPets !== undefined) updates.maxPets = maxPets === null ? null : Math.max(0, Number(maxPets));
+      if (interiorEffects !== undefined) {
+        if (!Array.isArray(interiorEffects)) return res.status(400).json({ message: "interiorEffects must be an array" });
+        updates.interiorEffects = sanitizeHouseInteriorEffects(interiorEffects);
+      }
       const building = await storage.updateHouseBundleBuilding(req.params.id as string, updates);
       return res.json(building);
     } catch (err: any) {
@@ -277,6 +282,7 @@ export function registerHouseBundleRoutes(
         width: source.width,
         flippedX: source.flippedX,
         interiorImageUrl: source.interiorImageUrl,
+        interiorEffects: source.interiorEffects,
         buildingType: source.buildingType,
         size: source.size,
       });
