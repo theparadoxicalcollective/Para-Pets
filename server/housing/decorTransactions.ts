@@ -1,6 +1,6 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../db";
-import { homeDecorItems, placedHomeDecor, shopItems, userHomeDecorInventory, userInventory, users, type PlacedHomeDecor } from "@shared/schema";
+import { homeDecorItems, petHousePositions, placedHomeDecor, shopItems, userHomeDecorInventory, userInventory, users, type PlacedHomeDecor } from "@shared/schema";
 
 export type DecorPlacementInput = { xPct: number; yPct: number; flipped: boolean; location?: string };
 export interface DecorTransactionOperations {
@@ -9,6 +9,87 @@ export interface DecorTransactionOperations {
 }
 export const executeDecorPlacement = (userId: string, decorItemId: string, data: DecorPlacementInput, operations: DecorTransactionOperations = postgresDecorOperations) => operations.place(userId, decorItemId, data);
 export const executeDecorRemoval = (userId: string, placementId: string, operations: DecorTransactionOperations = postgresDecorOperations) => operations.remove(userId, placementId);
+
+export async function executeStoreAllHomeScene(userId: string): Promise<{ returnedDecor: number; returnedObjects: number; returnedPets: number }> {
+  return db.transaction(async tx => {
+    const user = await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
+    if (!user.rows[0]) throw new Error("User not found");
+
+    const placements = await tx.select().from(placedHomeDecor)
+      .where(eq(placedHomeDecor.userId, userId))
+      .orderBy(placedHomeDecor.id)
+      .for("update");
+
+    let returnedDecor = 0;
+    let returnedObjects = 0;
+
+    for (const placement of placements) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}), hashtext(${placement.decorItemId}))`);
+
+      const [decorCatalog] = await tx
+        .select({ id: homeDecorItems.id })
+        .from(homeDecorItems)
+        .where(eq(homeDecorItems.id, placement.decorItemId))
+        .for("share");
+
+      if (decorCatalog) {
+        const inventoryRows = await tx.select().from(userHomeDecorInventory)
+          .where(and(eq(userHomeDecorInventory.userId, userId), eq(userHomeDecorInventory.decorItemId, placement.decorItemId)))
+          .orderBy(userHomeDecorInventory.id)
+          .for("update");
+
+        if (inventoryRows[0]) {
+          await tx.update(userHomeDecorInventory)
+            .set({ quantity: sql`${userHomeDecorInventory.quantity} + 1` })
+            .where(eq(userHomeDecorInventory.id, inventoryRows[0].id));
+        } else {
+          await tx.insert(userHomeDecorInventory).values({ userId, decorItemId: placement.decorItemId, quantity: 1 });
+        }
+        returnedDecor++;
+        continue;
+      }
+
+      const [objectCatalog] = await tx
+        .select({ id: shopItems.id })
+        .from(shopItems)
+        .where(and(eq(shopItems.id, placement.decorItemId), eq(shopItems.type, "object")))
+        .for("share");
+      if (!objectCatalog) throw new Error("Placed decor item not found");
+
+      const inventoryRows = await tx.select().from(userInventory)
+        .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, placement.decorItemId)))
+        .orderBy(userInventory.id)
+        .for("update");
+
+      if (inventoryRows[0]) {
+        await tx.update(userInventory)
+          .set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` })
+          .where(eq(userInventory.id, inventoryRows[0].id));
+      } else {
+        await tx.insert(userInventory).values({ userId, shopItemId: placement.decorItemId, quantity: 1 });
+      }
+      returnedObjects++;
+    }
+
+    if (placements.length > 0) {
+      await tx.delete(placedHomeDecor).where(eq(placedHomeDecor.userId, userId));
+    }
+
+    const petPlacements = await tx.select({ inventoryId: petHousePositions.inventoryId })
+      .from(petHousePositions)
+      .where(eq(petHousePositions.userId, userId))
+      .for("update");
+    if (petPlacements.length > 0) {
+      await tx.delete(petHousePositions).where(eq(petHousePositions.userId, userId));
+    }
+
+    return {
+      returnedDecor,
+      returnedObjects,
+      returnedPets: petPlacements.length,
+    };
+  });
+}
 
 const postgresDecorOperations: DecorTransactionOperations = {
   async place(userId, decorItemId, data) {
