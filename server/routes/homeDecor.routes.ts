@@ -1,4 +1,5 @@
 import type { Express, RequestHandler } from "express";
+import { clampHomeScenePlayerSize } from "@shared/housing";
 
 type HomeDecorStorage = Pick<typeof import("../storage").storage,
   | "getHomeDecorItems"
@@ -220,11 +221,20 @@ export function registerHomeDecorRoutes(
   app.patch("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { xPct, yPct, flipped } = req.body;
+      const { xPct, yPct, size, flipped } = req.body;
+      let safeSize: number | undefined;
+
+      if (size !== undefined) {
+        const placements = await storage.getPlacedHomeDecor(userId);
+        const placement = placements.find((item) => item.id === (req.params.id as string));
+        if (!placement) return res.status(404).json({ message: "Placed decor not found" });
+        safeSize = clampHomeScenePlayerSize(placement.item.homeSceneSize, Number(size));
+      }
+
       const row = await storage.updatePlacedHomeDecor(
         req.params.id as string,
         userId,
-        { xPct, yPct, flipped },
+        { xPct, yPct, size: safeSize, flipped },
       );
       return res.json(row);
     } catch (err: any) {
