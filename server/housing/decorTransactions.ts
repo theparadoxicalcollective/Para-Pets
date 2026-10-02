@@ -2,7 +2,7 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { homeDecorItems, placedHomeDecor, shopItems, userHomeDecorInventory, userInventory, users, type PlacedHomeDecor } from "@shared/schema";
 
-export type DecorPlacementInput = { xPct: number; yPct: number; size: number; flipped: boolean; location?: string };
+export type DecorPlacementInput = { xPct: number; yPct: number; flipped: boolean; location?: string };
 export interface DecorTransactionOperations {
   place(userId: string, decorItemId: string, data: DecorPlacementInput): Promise<PlacedHomeDecor>;
   remove(userId: string, placementId: string): Promise<{ decorItemId: string }>;
@@ -18,12 +18,15 @@ const postgresDecorOperations: DecorTransactionOperations = {
       if (!user.rows[0]) throw new Error("User not found");
 
       const [decorCatalog] = await tx
-        .select({ id: homeDecorItems.id })
+        .select({ id: homeDecorItems.id, homeSceneSize: homeDecorItems.homeSceneSize })
         .from(homeDecorItems)
         .where(eq(homeDecorItems.id, decorItemId))
         .for("share");
 
+      let adminSize: number;
+
       if (decorCatalog) {
+        adminSize = decorCatalog.homeSceneSize;
         const rows = await tx.select().from(userHomeDecorInventory)
           .where(and(eq(userHomeDecorInventory.userId, userId), eq(userHomeDecorInventory.decorItemId, decorItemId)))
           .orderBy(userHomeDecorInventory.id).for("update");
@@ -39,11 +42,12 @@ const postgresDecorOperations: DecorTransactionOperations = {
         }
       } else {
         const [objectCatalog] = await tx
-          .select({ id: shopItems.id })
+          .select({ id: shopItems.id, homeSceneSize: shopItems.homeSceneSize })
           .from(shopItems)
           .where(and(eq(shopItems.id, decorItemId), eq(shopItems.type, "object")))
           .for("share");
         if (!objectCatalog) throw new Error("Decor item not found");
+        adminSize = objectCatalog.homeSceneSize;
 
         const rows = await tx.select().from(userInventory)
           .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, decorItemId)))
@@ -65,7 +69,7 @@ const postgresDecorOperations: DecorTransactionOperations = {
         decorItemId,
         xPct: data.xPct,
         yPct: data.yPct,
-        size: data.size,
+        size: Math.max(60, Math.min(500, adminSize)),
         flipped: data.flipped,
         location: data.location ?? "outside",
       }).returning();
