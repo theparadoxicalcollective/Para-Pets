@@ -10,7 +10,7 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.webp";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
-import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, getItemCategory, ITEM_CATEGORIES } from "@/components/ItemDatabaseSection";
+import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, getItemCategory, ITEM_CATEGORIES, type RewardHouseBundleOption, type RewardHomeDecorOption } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
@@ -74,6 +74,14 @@ interface BuildInfo {
 interface SelectedRewardCard {
   cardId: string;
   quantity: number;
+}
+
+interface SelectedHomeReward {
+  type: "house_bundle" | "home_decor";
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  qty: number;
 }
 
 export default function AdminPage({ user }: AdminPageProps) {
@@ -1339,6 +1347,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
   // contract is unchanged — it iterates the array and adds one bundle
   // entry per id).
   const [selectedItems, setSelectedItems] = useState<Array<{ item: ShopItemFull; qty: number }>>([]);
+  const [selectedHomeRewards, setSelectedHomeRewards] = useState<SelectedHomeReward[]>([]);
   const [targetMode, setTargetMode] = useState<"all" | "select">("select");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -1351,6 +1360,14 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
   const { data: rewardCards = [] } = useQuery<CardDefinition[]>({
     queryKey: ["/api/admin/cards"],
+  });
+
+  const { data: rewardHouseBundles = [] } = useQuery<RewardHouseBundleOption[]>({
+    queryKey: ["/api/admin/house-bundles"],
+  });
+
+  const { data: rewardHomeDecor = [] } = useQuery<RewardHomeDecorOption[]>({
+    queryKey: ["/api/admin/home-decor"],
   });
 
   const sendMutation = useMutation({
@@ -1369,6 +1386,11 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
         coinAmount: parseInt(coinAmount) || 0,
         shopItemIds,
         cards: selectedCards,
+        homeRewards: selectedHomeRewards.map(reward => ({
+          type: reward.type,
+          id: reward.id,
+          quantity: reward.type === "house_bundle" ? 1 : reward.qty,
+        })),
       };
       if (targetMode === "select") {
         payload.targetUserIds = selectedUserIds;
@@ -1383,6 +1405,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
       setCoinAmount("");
       setSelectedItems([]);
       setSelectedCards([]);
+      setSelectedHomeRewards([]);
       setSelectedUserIds([]);
       setTargetMode("select");
     },
@@ -1397,8 +1420,8 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
       return;
     }
     const coins = parseInt(coinAmount) || 0;
-    if (coins === 0 && selectedItems.length === 0 && selectedCards.length === 0) {
-      toast({ title: "Empty bundle", description: "Add coins, items, or cards to the bundle", variant: "destructive" });
+    if (coins === 0 && selectedItems.length === 0 && selectedCards.length === 0 && selectedHomeRewards.length === 0) {
+      toast({ title: "Empty bundle", description: "Add coins, items, cards, Home Bundles, or Home Decor to the bundle", variant: "destructive" });
       return;
     }
     if (targetMode === "select" && selectedUserIds.length === 0) {
@@ -1434,9 +1457,22 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
     ));
   };
 
+  const removeHomeReward = (type: SelectedHomeReward["type"], id: string) => {
+    setSelectedHomeRewards(prev => prev.filter(reward => !(reward.type === type && reward.id === id)));
+  };
+
+  const setHomeRewardQty = (type: SelectedHomeReward["type"], id: string, qty: number) => {
+    setSelectedHomeRewards(prev => prev.map(reward =>
+      reward.type === type && reward.id === id
+        ? { ...reward, qty: reward.type === "house_bundle" ? 1 : Math.max(1, Math.min(999, Math.floor(qty || 1))) }
+        : reward
+    ));
+  };
+
   const totalItemCount = selectedItems.reduce((sum, e) => sum + (e.qty || 1), 0);
   const totalCardCount = selectedCards.reduce((sum, e) => sum + (e.quantity || 1), 0);
-  const totalRewardCount = totalItemCount + totalCardCount;
+  const totalHomeRewardCount = selectedHomeRewards.reduce((sum, reward) => sum + (reward.type === "house_bundle" ? 1 : reward.qty), 0);
+  const totalRewardCount = totalItemCount + totalCardCount + totalHomeRewardCount;
 
   const filteredMembers = userSearch
     ? members.filter(m => m.username.toLowerCase().includes(userSearch.trim().toLowerCase()))
@@ -1501,7 +1537,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
-                Rewards ({selectedItems.length + selectedCards.length} types · {totalRewardCount} total)
+                Rewards ({selectedItems.length + selectedCards.length + selectedHomeRewards.length} types · {totalRewardCount} total)
               </label>
               <button
                 data-testid="button-add-bundle-item"
@@ -1569,6 +1605,66 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
               </div>
             )}
           </div>
+
+          {selectedHomeRewards.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedHomeRewards.map((reward) => (
+                <div
+                  key={reward.type + ":" + reward.id}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
+                  style={{
+                    background: reward.type === "house_bundle" ? "rgba(134,239,172,0.10)" : "rgba(190,242,100,0.10)",
+                    border: reward.type === "house_bundle" ? "1px solid rgba(134,239,172,0.32)" : "1px solid rgba(190,242,100,0.32)",
+                  }}
+                >
+                  {reward.imageUrl
+                    ? <img src={reward.imageUrl} alt="" className="w-6 h-6 object-contain rounded-sm" />
+                    : <span className="text-xs">{reward.type === "house_bundle" ? "🏡" : "🪴"}</span>}
+                  <div className="min-w-0">
+                    <span className="font-fantasy text-[#e0f0d0] text-[9px] max-w-[90px] truncate block">{reward.name}</span>
+                    <span className="font-fantasy text-[#9fcf89] text-[7px]">
+                      {reward.type === "house_bundle" ? "Home Bundle" : "Home Decor"}
+                    </span>
+                  </div>
+                  {reward.type === "home_decor" && (
+                    <div className="flex items-center gap-0.5 ml-0.5" style={{ background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 2px" }}>
+                      <button
+                        type="button"
+                        aria-label={"Decrease " + reward.name + " quantity"}
+                        onClick={() => setHomeRewardQty(reward.type, reward.id, reward.qty - 1)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-[#bef264] active:scale-90"
+                        style={{ background: "rgba(190,242,100,0.14)", border: "1px solid rgba(190,242,100,0.28)", cursor: "pointer" }}
+                      >−</button>
+                      <input
+                        aria-label={"Quantity for " + reward.name}
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={reward.qty}
+                        onChange={(event) => setHomeRewardQty(reward.type, reward.id, parseInt(event.target.value, 10) || 1)}
+                        className="w-10 text-center font-fantasy text-[11px] outline-none rounded"
+                        style={{ background: "rgba(242,232,208,0.95)", color: "#2a1a0a", border: "1px solid #8b5e3c", padding: "1px 2px" }}
+                      />
+                      <button
+                        type="button"
+                        aria-label={"Increase " + reward.name + " quantity"}
+                        onClick={() => setHomeRewardQty(reward.type, reward.id, reward.qty + 1)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-[#bef264] active:scale-90"
+                        style={{ background: "rgba(190,242,100,0.14)", border: "1px solid rgba(190,242,100,0.28)", cursor: "pointer" }}
+                      >+</button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={"Remove " + reward.name}
+                    onClick={() => removeHomeReward(reward.type, reward.id)}
+                    className="text-[#ff9999] text-[12px] ml-0.5"
+                    style={{ background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {selectedCards.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -1730,6 +1826,8 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           title="Select Reward"
           items={allShopItems}
           cards={rewardCards.filter(card => !selectedCards.some(entry => entry.cardId === card.id))}
+          homeBundles={rewardHouseBundles.filter(bundle => !selectedHomeRewards.some(reward => reward.type === "house_bundle" && reward.id === bundle.id))}
+          homeDecor={rewardHomeDecor}
           onSelect={(item) => {
             // If the item is already in the bundle, just bump its quantity
             // by 1 instead of adding a duplicate row — the admin can then
@@ -1745,6 +1843,31 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           }}
           onSelectCard={(card) => {
             setSelectedCards(prev => [...prev, { cardId: card.id, quantity: 1 }]);
+            setShowItemPicker(false);
+          }}
+          onSelectHomeBundle={(bundle) => {
+            setSelectedHomeRewards(prev => [
+              ...prev,
+              {
+                type: "house_bundle",
+                id: bundle.id,
+                name: bundle.name,
+                imageUrl: bundle.shopImageUrl ?? bundle.bgImageUrl ?? null,
+                qty: 1,
+              },
+            ]);
+            setShowItemPicker(false);
+          }}
+          onSelectHomeDecor={(decor) => {
+            setSelectedHomeRewards(prev => {
+              const existing = prev.findIndex(reward => reward.type === "home_decor" && reward.id === decor.id);
+              if (existing >= 0) {
+                return prev.map((reward, index) =>
+                  index === existing ? { ...reward, qty: Math.min(999, reward.qty + 1) } : reward
+                );
+              }
+              return [...prev, { type: "home_decor", id: decor.id, name: decor.name, imageUrl: decor.imageUrl, qty: 1 }];
+            });
             setShowItemPicker(false);
           }}
           onClose={() => setShowItemPicker(false)}
