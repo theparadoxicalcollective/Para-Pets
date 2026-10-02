@@ -26,8 +26,8 @@ test("Pet House depth scale is clamped and resilient to invalid positions", () =
 });
 
 test("owner and visitor scenes keep the same pet baseline constants", () => {
-  assert.equal(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, 90);
-  assert.equal(PET_HOUSE_INTERIOR_PET_BASE_SIZE, 125);
+  assert.equal(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, 100);
+  assert.equal(PET_HOUSE_INTERIOR_PET_BASE_SIZE, 100);
 
   const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");

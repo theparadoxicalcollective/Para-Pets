@@ -48,7 +48,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -105,6 +105,14 @@ interface HousePet {
   rarity: number | null; petLevel: number; petHealth: number; petAtk: number; petDef: number;
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
   homeScalePct: number; homeFlipped: boolean;
+}
+interface PetHomePositionUpdate {
+  inventoryId: string;
+  xPct: number;
+  yPct: number;
+  location: string;
+  scalePct?: number;
+  flipped?: boolean;
 }
 interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; }
 interface ActiveBundle extends HouseBundle {
@@ -395,7 +403,7 @@ function HousePetControlPanel({
         <button
           type="button"
           data-testid="button-remove-pet-from-home"
-          aria-label={`Remove ${petName} from Home`}
+          aria-label={`Return ${petName}`}
           disabled={pending}
           onClick={onRemove}
           style={{
@@ -408,7 +416,7 @@ function HousePetControlPanel({
             cursor: pending ? "wait" : "pointer",
           }}
         >
-          {pending ? "Removing…" : "Remove from Home"}
+          {pending ? "Returning…" : "Return"}
         </button>
       </div>
     </div>
@@ -619,9 +627,17 @@ function InteriorViewer({
       return;
     }
     const maxY = maxYForHeight(containerHRef.current);
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
+    const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
+    const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const sleepSnap = getHouseInteriorSleepSnapPosition(
+      effects,
+      rawXPct,
+      rawYPct,
+      imgWidthRef.current / Math.max(containerHRef.current, 1),
+    );
+    const newXPct = sleepSnap?.x ?? rawXPct;
+    const newYPct = sleepSnap?.y ?? rawYPct;
+    if (sleepSnap || Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
       const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
       setTopPetId(drag.inventoryId);
       setPetDragLive(finalPosition);
@@ -635,7 +651,7 @@ function InteriorViewer({
       return;
     }
     setPetDragLive(null);
-  }, [onMovePet]);
+  }, [effects, onMovePet]);
 
   const displayedItems = useMemo(() =>
     placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
@@ -668,7 +684,15 @@ function InteriorViewer({
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      <HomeInteriorDarknessLayer darkness={darkness} zIndex={2} />
+      <HomeInteriorDarknessLayer
+        darkness={darkness}
+        effects={effects}
+        offEffectIds={offEffectIds}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerH}
+        zIndex={2}
+      />
 
       <HomeInteriorEffectsLayer
         effects={effects}
@@ -724,7 +748,8 @@ function InteriorViewer({
         const top = yPct * containerH;
         const petSize = petHouseDisplaySize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, pet);
         const isSelectedPet = popupPetId === pet.inventoryId;
-        const isSleeping = !livePos && isHouseInteriorSleepPosition(
+        const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
+        const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
           effects,
           xPct,
           yPct,
@@ -745,7 +770,7 @@ function InteriorViewer({
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 petInventoryId={pet.inventoryId}
-                mode={livePos ? "static" : isSleeping ? "sleep" : "house"}
+                mode={isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
                 size={petSize}
                 fillContainer
                 fitVisible
@@ -756,7 +781,7 @@ function InteriorViewer({
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
-                className={livePos ? undefined : "pet-idle-squish"}
+                className={isActivelyDragging ? undefined : "pet-idle-squish"}
                 style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
@@ -782,7 +807,7 @@ function InteriorViewer({
               popupPet.inventoryId,
               xPct,
               yPct,
-              clampPetHousePlayerScale((popupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
+              clampPetHousePlayerScale(clampPetHousePlayerScale(popupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
               !!popupPet.homeFlipped,
             );
           }}
@@ -793,14 +818,14 @@ function InteriorViewer({
               popupPet.inventoryId,
               xPct,
               yPct,
-              clampPetHousePlayerScale((popupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
+              clampPetHousePlayerScale(clampPetHousePlayerScale(popupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
               !!popupPet.homeFlipped,
             );
           }}
           onFlip={() => {
             const xPct = popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5;
             const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
-            void onMovePet(popupPet.inventoryId, xPct, yPct, popupPet.homeScalePct ?? 100, !popupPet.homeFlipped);
+            void onMovePet(popupPet.inventoryId, xPct, yPct, clampPetHousePlayerScale(popupPet.homeScalePct ?? 100), !popupPet.homeFlipped);
           }}
           onCloset={() => onOpenCloset(popupPet.inventoryId)}
           onRemove={async () => {
@@ -985,6 +1010,42 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     placedDecorRaw.map(item => placedDragLive?.id === item.id ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct } : item),
     [placedDecorRaw, placedDragLive]);
 
+  const petsQueryKey = ["/api/users", user.id, "pets"] as const;
+  const petHomeSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const queuePetHomePositionPatch = useCallback((update: PetHomePositionUpdate): Promise<void> => {
+    const task = petHomeSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const res = await apiRequest("PATCH", `/api/pet-house-positions/${update.inventoryId}`, {
+          posLeft: String(update.xPct * 100),
+          posTop: String(update.yPct * 100),
+          location: update.location,
+          scalePct: clampPetHousePlayerScale(update.scalePct ?? 100),
+          flipped: update.flipped ?? false,
+        });
+        if (!res.ok) throw new Error("Failed");
+      });
+    petHomeSaveQueueRef.current = task.catch(() => undefined);
+    return task;
+  }, []);
+
+  const applyOptimisticPetHomeUpdate = useCallback((update: PetHomePositionUpdate) => {
+    const previous = qc.getQueryData<{ username: string; pets: HousePet[] }>(petsQueryKey);
+    const safeScalePct = clampPetHousePlayerScale(update.scalePct ?? 100);
+    qc.setQueryData<{ username: string; pets: HousePet[] }>(petsQueryKey, current => current ? {
+      ...current,
+      pets: current.pets.map(pet => pet.inventoryId === update.inventoryId ? {
+        ...pet,
+        posLeft: String(update.xPct * 100),
+        posTop: String(update.yPct * 100),
+        location: update.location,
+        homeScalePct: safeScalePct,
+        homeFlipped: update.flipped ?? false,
+      } : pet),
+    } : current);
+    return previous;
+  }, [qc, petsQueryKey]);
+
   // ── Mutations ──────────────────────────────────────────────────────────────
   const activateMutation = useMutation({
     mutationFn: async (bundleId: string) => {
@@ -1045,26 +1106,27 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const placePetMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, location, scalePct = 100, flipped = false }: { inventoryId: string; xPct: number; yPct: number; location: string; scalePct?: number; flipped?: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
-        posLeft: String(xPct * 100), posTop: String(yPct * 100), location,
-        scalePct: clampPetHousePlayerScale(scalePct), flipped,
-      });
-      if (!res.ok) throw new Error("Failed");
+    mutationFn: async (update: PetHomePositionUpdate) => {
+      await queuePetHomePositionPatch(update);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+    onMutate: (update) => ({ previousPets: applyOptimisticPetHomeUpdate(update) }),
+    onError: (_error, _update, context) => {
+      if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
 
   const updatePetPositionMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, scalePct = 100, flipped = false }: { inventoryId: string; xPct: number; yPct: number; scalePct?: number; flipped?: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
-        posLeft: String(xPct * 100), posTop: String(yPct * 100), location: "outside",
-        scalePct: clampPetHousePlayerScale(scalePct), flipped,
-      });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
+    mutationFn: async (update: Omit<PetHomePositionUpdate, "location">) => {
+      await queuePetHomePositionPatch({ ...update, location: "outside" });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+    onMutate: (update) => ({
+      previousPets: applyOptimisticPetHomeUpdate({ ...update, location: "outside" }),
+    }),
+    onError: (_error, _update, context) => {
+      if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
 
   const removePetFromSceneMutation = useMutation({
@@ -1181,10 +1243,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (currentCount >= maxPets) {
               toast({ title: "Pet limit reached!", description: `This building can hold up to ${maxPets} pets.` });
             } else {
+              const rawXPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
+              const rawYPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+              const sleepSnap = getHouseInteriorSleepSnapPosition(
+                openInterior.interiorEffects,
+                rawXPct,
+                rawYPct,
+                interior.imgWidth / Math.max(interior.containerH, 1),
+              );
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
-                xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
-                yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
+                xPct: sleepSnap?.x ?? rawXPct,
+                yPct: sleepSnap?.y ?? rawYPct,
                 location: openInterior.buildingId,
               });
             }
@@ -1628,7 +1698,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               inventoryId: outdoorPopupPet.inventoryId,
               xPct,
               yPct,
-              scalePct: clampPetHousePlayerScale((outdoorPopupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
+              scalePct: clampPetHousePlayerScale(clampPetHousePlayerScale(outdoorPopupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
               flipped: !!outdoorPopupPet.homeFlipped,
             });
           }}
@@ -1639,7 +1709,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               inventoryId: outdoorPopupPet.inventoryId,
               xPct,
               yPct,
-              scalePct: clampPetHousePlayerScale((outdoorPopupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
+              scalePct: clampPetHousePlayerScale(clampPetHousePlayerScale(outdoorPopupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
               flipped: !!outdoorPopupPet.homeFlipped,
             });
           }}
@@ -1650,7 +1720,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               inventoryId: outdoorPopupPet.inventoryId,
               xPct,
               yPct,
-              scalePct: outdoorPopupPet.homeScalePct ?? 100,
+              scalePct: clampPetHousePlayerScale(outdoorPopupPet.homeScalePct ?? 100),
               flipped: !outdoorPopupPet.homeFlipped,
             });
           }}

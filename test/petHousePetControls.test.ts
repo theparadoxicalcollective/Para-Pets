@@ -20,13 +20,13 @@ const equip = readFileSync("client/src/pages/EquipAccessoriesPage.tsx", "utf8");
 const app = readFileSync("client/src/App.tsx", "utf8");
 
 test("Home pet size controls are bounded and use stronger decrease than increase", () => {
-  assert.equal(PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, 15);
+  assert.equal(PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, 25);
   assert.equal(PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, 10);
-  assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 55);
-  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 140);
-  assert.equal(clampPetHousePlayerScale(1), 55);
+  assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 50);
+  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 110);
+  assert.equal(clampPetHousePlayerScale(1), 50);
   assert.equal(clampPetHousePlayerScale(100), 100);
-  assert.equal(clampPetHousePlayerScale(999), 140);
+  assert.equal(clampPetHousePlayerScale(999), 110);
 });
 
 test("Pet House pet presentation is stored separately from pet inventory", () => {
@@ -41,7 +41,7 @@ test("Pet House pet presentation is stored separately from pet inventory", () =>
 test("Pet House pet route clamps edits and preserves omitted legacy values", () => {
   assert.match(route, /existing\?\.scalePct \?\? 100/);
   assert.match(route, /existing\?\.flipped \?\? false/);
-  assert.match(route, /Math\.max\(55, Math\.min\(140, Math\.round\(scalePct\)\)\)/);
+  assert.match(route, /clampPetHousePlayerScale\(requestedScalePct\)/);
 });
 
 test("owner pet UI selects before dragging and keeps the selected pet above peers", () => {
