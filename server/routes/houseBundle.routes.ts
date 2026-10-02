@@ -100,6 +100,11 @@ export function registerHouseBundleRoutes(
       const bundle = await storage.getActiveBundleWithBuildings(user.id);
       return res.json(bundle);
     } catch (err: any) {
+      console.error("[HomeBundle] activation failed", {
+        userId: (req.user as any)?.id ?? null,
+        bundleId: (req.params as any)?.bundleId ?? null,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return res.status(500).json({ message: err.message });
     }
   });
