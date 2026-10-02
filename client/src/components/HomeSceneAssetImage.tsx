@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEventHandler } from "react";
+import { useEffect, useMemo, useState, type PointerEventHandler, type ReactNode } from "react";
 import { getVisibleImageAnalysis, type AnalyzedVisibleImage } from "@/lib/visibleImageBounds";
 
 type HomeSceneAssetImageProps = {
@@ -11,6 +11,7 @@ type HomeSceneAssetImageProps = {
   onPointerMove?: PointerEventHandler<HTMLDivElement>;
   onPointerUp?: PointerEventHandler<HTMLDivElement>;
   onPointerCancel?: PointerEventHandler<HTMLDivElement>;
+  controls?: ReactNode;
 };
 
 type VisibleRect = { left: number; top: number; width: number; height: number };
@@ -49,6 +50,7 @@ export function HomeSceneAssetImage({
   onPointerMove,
   onPointerUp,
   onPointerCancel,
+  controls,
 }: HomeSceneAssetImageProps) {
   const [analysis, setAnalysis] = useState<AnalyzedVisibleImage | null>(null);
   const [analysisFailed, setAnalysisFailed] = useState(false);
@@ -82,11 +84,29 @@ export function HomeSceneAssetImage({
         className="absolute inset-0 w-full h-full object-contain"
         style={{
           transform: flipped ? "scaleX(-1)" : undefined,
-          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+          filter: selected
+            ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 5px rgba(255,215,0,0.92)) drop-shadow(0 0 10px rgba(255,180,20,0.62)) drop-shadow(0 2px 6px rgba(0,0,0,0.45))"
+            : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
           userSelect: "none",
           pointerEvents: "none",
         }}
       />
+      {selected && controls && (
+        <div
+          data-testid="home-scene-visible-controls"
+          className="absolute"
+          style={{
+            left: rect ? rect.left + rect.width / 2 : size / 2,
+            top: rect ? Math.max(0, rect.top - 6) : 0,
+            transform: "translate(-50%, -100%)",
+            zIndex: 20,
+            pointerEvents: "auto",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {controls}
+        </div>
+      )}
       {(rect || analysisFailed) && (
         <div
           aria-hidden="true"
@@ -108,9 +128,8 @@ export function HomeSceneAssetImage({
             pointerEvents: "auto",
             touchAction: "none",
             cursor: selected ? "grab" : "pointer",
-            outline: selected ? "2px solid rgba(255,215,0,0.92)" : "none",
-            outlineOffset: 3,
-            boxShadow: selected ? "0 0 10px rgba(255,215,0,0.72), 0 0 20px rgba(255,190,35,0.38)" : "none",
+            outline: "none",
+            boxShadow: "none",
             borderRadius: 4,
           }}
         />

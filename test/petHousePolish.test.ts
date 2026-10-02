@@ -51,7 +51,7 @@ test("Pet House uses shared pet baselines and mobile-friendly edit controls", ()
   assert.match(ownerPage, /petHouseDisplaySize/);
   assert.doesNotMatch(ownerPage, /petHouseDepthSize/);
   assert.doesNotMatch(visitorPage, /petHouseDepthSize/);
-  assert.match(ownerPage, /minHeight: 42/);
+  assert.match(ownerPage, /minHeight: 34/);
   assert.match(ownerPage, /Math\.max\(120, Math\.min/);
 });
 

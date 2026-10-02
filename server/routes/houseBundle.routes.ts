@@ -4,6 +4,7 @@ import { houseBundles as houseBundlesTable } from "@shared/schema";
 import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
+import { executeStoreAllHomeScene } from "../housing/decorTransactions";
 
 export interface HouseBundleRouteDependencies {
   db: typeof database;
@@ -11,6 +12,7 @@ export interface HouseBundleRouteDependencies {
   isAuthenticated: RequestHandler;
   isAdmin: RequestHandler;
   processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
+  storeAllHomeScene?: (userId: string) => Promise<{ returnedDecor: number; returnedObjects: number; returnedPets: number }>;
 }
 
 /**
@@ -22,7 +24,7 @@ export interface HouseBundleRouteDependencies {
  */
 export function registerHouseBundleRoutes(
   app: Express,
-  { db, storage, isAuthenticated, isAdmin, processWorldImage }: HouseBundleRouteDependencies,
+  { db, storage, isAuthenticated, isAdmin, processWorldImage, storeAllHomeScene = executeStoreAllHomeScene }: HouseBundleRouteDependencies,
 ): void {
   // ── Player House Bundle Routes ──────────────────────────────────────────────
   app.get("/api/house-bundles", async (_req, res) => {
@@ -88,6 +90,12 @@ export function registerHouseBundleRoutes(
       const { bundleId } = req.params as { bundleId: string };
       const owns = await storage.hasUserHouseBundle(user.id, bundleId);
       if (!owns) return res.status(403).json({ message: "Bundle not owned" });
+
+      const currentBundle = await storage.getActiveBundleWithBuildings(user.id);
+      if (currentBundle?.id !== bundleId) {
+        await storeAllHomeScene(user.id);
+      }
+
       await storage.setActiveHouseBundle(user.id, bundleId);
       const bundle = await storage.getActiveBundleWithBuildings(user.id);
       return res.json(bundle);
@@ -100,6 +108,7 @@ export function registerHouseBundleRoutes(
     try {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
       const user = req.user as any;
+      await storeAllHomeScene(user.id);
       await storage.setActiveHouseBundle(user.id, null);
       return res.json({ ok: true });
     } catch (err: any) {

@@ -33,10 +33,21 @@ test("both owner placement views use visible-only hit targets", () => {
   assert.doesNotMatch(owner, /outline: isSelected \? "2px solid rgba\(255,215,0,0\.8\)"/);
 });
 
-test("selected Home items use a glowing gold outline and render above peers", () => {
-  assert.match(component, /0 0 10px rgba\(255,215,0,0\.72\)/);
-  assert.match(component, /0 0 20px rgba\(255,190,35,0\.38\)/);
+test("selected Home items glow around the PNG silhouette without a rectangular box", () => {
+  assert.match(component, /drop-shadow\(0 0 2px rgba\(255,235,130,0\.95\)\)/);
+  assert.match(component, /drop-shadow\(0 0 5px rgba\(255,215,0,0\.92\)\)/);
+  assert.match(component, /drop-shadow\(0 0 10px rgba\(255,180,20,0\.62\)\)/);
+  assert.match(component, /outline: "none"/);
+  assert.match(component, /boxShadow: "none"/);
   assert.match(owner, /zIndex: isSelected \? 180/);
   assert.match(owner, /setTopItemId\(item\.id\)/);
   assert.match(owner, /setTopOutdoorDecorId\(item\.id\)/);
+});
+
+test("Home item controls are positioned from visible alpha bounds instead of the full PNG canvas", () => {
+  assert.match(component, /data-testid="home-scene-visible-controls"/);
+  assert.match(component, /left: rect \? rect\.left \+ rect\.width \/ 2 : size \/ 2/);
+  assert.match(component, /top: rect \? Math\.max\(0, rect\.top - 6\) : 0/);
+  assert.equal((owner.match(/controls=\{/g) ?? []).length, 2);
+  assert.doesNotMatch(owner, /bottom: "calc\(100% \+ 6px\)"/);
 });
