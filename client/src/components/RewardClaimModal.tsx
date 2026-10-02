@@ -115,7 +115,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
             description: `${skipped.length} pet${skipped.length > 1 ? "s" : ""} skipped — you already own ${skipped.length > 1 ? "them" : "it"}.`,
           });
         } else {
-          toast({ title: "Reward Claimed!", description: "Items and coins have been added to your account" });
+          toast({ title: "Reward Claimed!", description: "Rewards have been added to your account" });
         }
         setClaimingBundleId(null);
       }, 800);
