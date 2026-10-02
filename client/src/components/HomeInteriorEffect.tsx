@@ -21,6 +21,12 @@ type EffectPointerHandler = (
   effect: HouseInteriorEffect,
 ) => void;
 
+type EffectToggleHandler = (effect: HouseInteriorEffect) => void;
+
+export function isPlayerToggleableInteriorEffect(type: HouseInteriorEffectType): boolean {
+  return type === "fire" || type === "candle_light" || type === "warm_glow";
+}
+
 interface HomeInteriorEffectsLayerProps {
   effects: HouseInteriorEffect[];
   panX: number;
@@ -31,6 +37,8 @@ interface HomeInteriorEffectsLayerProps {
   onEffectPointerDown?: EffectPointerHandler;
   onEffectPointerMove?: EffectPointerHandler;
   onEffectPointerUp?: EffectPointerHandler;
+  offEffectIds?: ReadonlySet<string>;
+  onToggleEffect?: EffectToggleHandler;
   zIndex?: number;
 }
 
@@ -301,6 +309,8 @@ export function HomeInteriorEffectsLayer({
   onEffectPointerDown,
   onEffectPointerMove,
   onEffectPointerUp,
+  offEffectIds,
+  onToggleEffect,
   zIndex = 3,
 }: HomeInteriorEffectsLayerProps) {
   if (imgWidth <= 0 || sceneHeight <= 0 || effects.length === 0) return null;
@@ -312,6 +322,8 @@ export function HomeInteriorEffectsLayer({
         const sizePx = Math.max(24, sceneHeight * effect.size / 100);
         const selected = selectedId === effect.id;
         const isSleep = effect.type === "sleep";
+        const playerToggleable = !interactive && !!onToggleEffect && isPlayerToggleableInteriorEffect(effect.type);
+        const isOff = playerToggleable && offEffectIds?.has(effect.id) === true;
         return (
           <div
             key={effect.id}
@@ -324,9 +336,9 @@ export function HomeInteriorEffectsLayer({
               height: sizePx,
               transform: "translate(-50%, -50%)",
               zIndex,
-              pointerEvents: interactive ? "auto" : "none",
+              pointerEvents: interactive || playerToggleable ? "auto" : "none",
               touchAction: "none",
-              cursor: interactive ? "grab" : "default",
+              cursor: interactive ? "grab" : playerToggleable ? "pointer" : "default",
               borderRadius: isSleep ? "16%" : "50%",
               outline: selected ? "1.5px dashed rgba(255,215,0,0.9)" : "none",
               outlineOffset: selected ? 5 : 0,
@@ -337,8 +349,15 @@ export function HomeInteriorEffectsLayer({
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
             onPointerCancel={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
+            onClick={playerToggleable ? event => {
+              event.stopPropagation();
+              onToggleEffect?.(effect);
+            } : undefined}
+            role={playerToggleable ? "button" : undefined}
+            aria-label={playerToggleable ? `${isOff ? "Turn on" : "Turn off"} ${effect.type.replaceAll("_", " ")} effect` : undefined}
+            data-effect-off={isOff ? "true" : undefined}
           >
-            <EffectVisual type={effect.type} />
+            {!isOff && <EffectVisual type={effect.type} />}
           </div>
         );
       })}
