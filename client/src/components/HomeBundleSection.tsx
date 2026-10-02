@@ -542,7 +542,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
-  const interiorEffectSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const interiorPreviewSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
@@ -624,8 +624,9 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     }
   }, [bundle.id, onBgUpdated, qc, toast]);
 
+  const buildingQueryKey = ["/api/admin/house-bundles", bundle.id, "buildings"] as const;
   const { data: buildings = [], refetch } = useQuery<HouseBundleBuilding[]>({
-    queryKey: ["/api/admin/house-bundles", bundle.id, "buildings"],
+    queryKey: buildingQueryKey,
     queryFn: async () => {
       const res = await fetch(`/api/admin/house-bundles/${bundle.id}/buildings`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
@@ -633,6 +634,27 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     },
     staleTime: 0,
   });
+
+  const updateBuildingCache = useCallback((buildingId: string, patch: Partial<HouseBundleBuilding>) => {
+    qc.setQueryData<HouseBundleBuilding[]>(buildingQueryKey, current =>
+      current?.map(building => building.id === buildingId ? { ...building, ...patch } : building),
+    );
+  }, [buildingQueryKey, qc]);
+
+  const queueInteriorPreviewPatch = useCallback((
+    buildingId: string,
+    patch: Partial<HouseBundleBuilding>,
+    failureTitle: string,
+  ) => {
+    interiorPreviewSaveQueueRef.current = interiorPreviewSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, patch);
+      })
+      .catch((error: any) => {
+        toast({ title: failureTitle, description: error.message, variant: "destructive" });
+      });
+  }, [toast]);
 
   // ── Background image aspect ratio ──
   useEffect(() => {
@@ -1311,31 +1333,31 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           initialLeaveY={previewBuilding.leaveButtonY}
           initialEffects={previewBuilding.interiorEffects}
           initialDarkness={previewBuilding.interiorDarkness}
-          onClose={() => setPreviewBuilding(null)}
+          onClose={() => {
+            const pendingSaves = interiorPreviewSaveQueueRef.current;
+            setPreviewBuilding(null);
+            void pendingSaves.finally(() => refetch());
+          }}
           onSaveLeavePos={(x, y) => {
-            apiRequest("PATCH", `/api/admin/house-bundle-buildings/${previewBuilding.buildingId}`, { leaveButtonX: x, leaveButtonY: y })
-              .catch(() => {});
-            setPreviewBuilding(prev => prev ? { ...prev, leaveButtonX: x, leaveButtonY: y } : null);
+            const buildingId = previewBuilding.buildingId;
+            const patch = { leaveButtonX: x, leaveButtonY: y };
+            setPreviewBuilding(prev => prev ? { ...prev, ...patch } : null);
+            updateBuildingCache(buildingId, patch);
+            queueInteriorPreviewPatch(buildingId, patch, "Failed to save exit position");
           }}
           onSaveDarkness={(interiorDarkness) => {
             const buildingId = previewBuilding.buildingId;
-            setPreviewBuilding(prev => prev ? { ...prev, interiorDarkness } : null);
-            apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorDarkness })
-              .catch((error: any) => {
-                toast({ title: "Failed to save darkness", description: error.message, variant: "destructive" });
-              });
+            const patch = { interiorDarkness };
+            setPreviewBuilding(prev => prev ? { ...prev, ...patch } : null);
+            updateBuildingCache(buildingId, patch);
+            queueInteriorPreviewPatch(buildingId, patch, "Failed to save darkness");
           }}
           onSaveEffects={(interiorEffects) => {
             const buildingId = previewBuilding.buildingId;
-            setPreviewBuilding(prev => prev ? { ...prev, interiorEffects } : null);
-            interiorEffectSaveQueueRef.current = interiorEffectSaveQueueRef.current
-              .catch(() => undefined)
-              .then(async () => {
-                await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorEffects });
-              })
-              .catch((error: any) => {
-                toast({ title: "Failed to save effect", description: error.message, variant: "destructive" });
-              });
+            const patch = { interiorEffects };
+            setPreviewBuilding(prev => prev ? { ...prev, ...patch } : null);
+            updateBuildingCache(buildingId, patch);
+            queueInteriorPreviewPatch(buildingId, patch, "Failed to save effect");
           }}
         />
       )}
