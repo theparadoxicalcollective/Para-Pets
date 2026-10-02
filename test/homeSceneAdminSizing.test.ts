@@ -59,7 +59,9 @@ test("Decor, Objects, and Home pets keep saved player-controlled size while movi
   assert.match(visitor, /const displaySize = item\.size/);
   assert.doesNotMatch(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
   assert.doesNotMatch(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
-  assert.match(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
+  assert.match(owner, /data-testid=\{\`home-pet-visible-scale-\$\{pet\.inventoryId\}\`\}/);
+  assert.match(owner, /transform: \`scale\(\$\{petScale\}\)\`/);
+  assert.doesNotMatch(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
   assert.doesNotMatch(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);
   assert.doesNotMatch(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
 });
