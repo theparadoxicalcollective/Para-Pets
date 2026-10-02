@@ -198,7 +198,7 @@ test("players can locally toggle Campfire, Candle Light, and Lamp Glow without c
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
-  assert.match(effects, /type === "fire" \|\| type === "candle_light" \|\| type === "warm_glow"/);
+  assert.match(effects, /return isHouseInteriorLightEffectType\(type\)/);
   assert.match(effects, /offEffectIds/);
   assert.match(effects, /onToggleEffect/);
   assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);
