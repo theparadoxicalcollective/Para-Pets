@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type PointerEventHandler } from "react";
 import { getVisibleImageAnalysis, type AnalyzedVisibleImage } from "@/lib/visibleImageBounds";
 
 type HomeSceneAssetImageProps = {
@@ -7,6 +7,10 @@ type HomeSceneAssetImageProps = {
   size: number;
   selected?: boolean;
   flipped?: boolean;
+  onPointerDown?: PointerEventHandler<HTMLDivElement>;
+  onPointerMove?: PointerEventHandler<HTMLDivElement>;
+  onPointerUp?: PointerEventHandler<HTMLDivElement>;
+  onPointerCancel?: PointerEventHandler<HTMLDivElement>;
 };
 
 type VisibleRect = { left: number; top: number; width: number; height: number };
@@ -41,6 +45,10 @@ export function HomeSceneAssetImage({
   size,
   selected = false,
   flipped = false,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
 }: HomeSceneAssetImageProps) {
   const [analysis, setAnalysis] = useState<AnalyzedVisibleImage | null>(null);
   const [analysisFailed, setAnalysisFailed] = useState(false);
@@ -64,7 +72,7 @@ export function HomeSceneAssetImage({
   return (
     <div
       className="relative"
-      style={{ width: size, height: size, userSelect: "none" }}
+      style={{ width: size, height: size, userSelect: "none", pointerEvents: "none" }}
       data-testid="home-scene-asset-image"
     >
       <img
@@ -76,25 +84,31 @@ export function HomeSceneAssetImage({
           transform: flipped ? "scaleX(-1)" : undefined,
           filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
           userSelect: "none",
-          cursor: "grab",
+          pointerEvents: "none",
         }}
       />
-      {selected && (
+      {(rect || analysisFailed) && (
         <div
           aria-hidden="true"
-          data-testid="home-scene-visible-selection"
-          className="absolute pointer-events-none"
-          style={rect ? {
-            left: rect.left,
-            top: rect.top,
-            width: rect.width,
-            height: rect.height,
-            outline: "2px solid rgba(255,215,0,0.8)",
-            outlineOffset: 3,
-            borderRadius: 4,
-          } : {
-            inset: 0,
-            outline: analysisFailed ? "2px solid rgba(255,215,0,0.8)" : "1px solid rgba(255,215,0,0.35)",
+          data-testid="home-scene-visible-hit-target"
+          className="absolute"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          style={{
+            ...(rect ? {
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+            } : {
+              inset: 0,
+            }),
+            pointerEvents: "auto",
+            touchAction: "none",
+            cursor: selected ? "grab" : "pointer",
+            outline: selected ? "2px solid rgba(255,215,0,0.8)" : "none",
             outlineOffset: 3,
             borderRadius: 4,
           }}
