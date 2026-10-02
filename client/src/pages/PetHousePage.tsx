@@ -1429,19 +1429,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const yPct = isDraggingThis ? petDragLive.yPct : (savedY ?? cfg.centerY / 100);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
+        const petSize = petHouseDepthSize(cfg.size, yPct);
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isDraggingThis ? 30 : (topOutdoorPetId === pet.inventoryId ? 14 : 12), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isDraggingThis ? 30 : (topOutdoorPetId === pet.inventoryId ? 14 : 12), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 petInventoryId={pet.inventoryId}
                 mode="static"
-                size={cfg.size}
+                size={petSize}
                 fillContainer
+                fitVisible
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
@@ -1470,7 +1472,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {outdoorPopupPet && (
         <HousePetRemovalControl
           left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5) * containerH - OUTDOOR_PET_SIZE / 2)}
+          top={Math.max(58, (() => {
+            const yPct = outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5;
+            return yPct * containerH - petHouseDepthSize(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, yPct) / 2;
+          })())}
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
           pending={removePetFromSceneMutation.isPending && removePetFromSceneMutation.variables === outdoorPopupPet.inventoryId}
           onRemove={() => { void removePetFromHome(outdoorPopupPet.inventoryId).catch(() => undefined); }}
@@ -1482,6 +1487,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const isSelected = selectedPlacedId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
         return (
           <div
             key={item.id}
@@ -1506,7 +1512,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               alt={item.item.name}
               draggable={false}
               style={{
-                width: item.size, height: item.size, objectFit: "contain",
+                width: displaySize, height: displaySize, objectFit: "contain",
                 transform: item.flipped ? "scaleX(-1)" : undefined,
                 outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
                 outlineOffset: "3px",
