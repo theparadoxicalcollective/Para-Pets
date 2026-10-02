@@ -14,7 +14,7 @@ test("owner house pet taps expose the Home edit panel without opening care/feed"
   assert.match(ownerPage, /data-testid="button-pet-home-size-plus"/);
   assert.match(ownerPage, /data-testid="button-pet-home-flip"/);
   assert.match(ownerPage, /data-testid="button-pet-home-closet"/);
-  assert.match(ownerPage, /\{pending \? "Removing…" : "Remove from Home"\}/);
+  assert.match(ownerPage, /\{pending \? "Returning…" : "Return"\}/);
   assert.match(ownerPage, /if \(outdoorPopupPetId !== pet\.inventoryId\)/);
   assert.match(ownerPage, /if \(popupPetId !== pet\.inventoryId\)/);
   assert.doesNotMatch(ownerPage, /onCare=\{\(\) => \{ const id = outdoorPopupPet/);
