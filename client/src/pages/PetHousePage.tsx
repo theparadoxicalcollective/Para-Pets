@@ -366,7 +366,7 @@ function HousePetControlPanel({
     <div
       data-testid="house-pet-control-panel"
       className="absolute"
-      style={{ left, top, zIndex: 140, transform: "translate(-50%, -100%)", paddingBottom: 8, pointerEvents: "auto" }}
+      style={{ left, top, zIndex: 250, transform: "translate(-50%, -100%)", paddingBottom: 8, pointerEvents: "auto" }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
@@ -514,6 +514,7 @@ function InteriorViewer({
     e.stopPropagation();
     if (selectedItemId !== item.id) {
       setSelectedItemId(item.id);
+      setPopupPetId(null);
       setTopItemId(item.id);
       return;
     }
@@ -550,6 +551,7 @@ function InteriorViewer({
     e.stopPropagation();
     if (popupPetId !== pet.inventoryId) {
       setPopupPetId(pet.inventoryId);
+      setSelectedItemId(null);
       setTopPetId(pet.inventoryId);
       return;
     }
@@ -647,7 +649,7 @@ function InteriorViewer({
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: isSelected ? 110 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelected ? 180 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
               <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
@@ -685,7 +687,7 @@ function InteriorViewer({
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 115 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer" }}
+            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer" }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
@@ -1196,6 +1198,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     e.stopPropagation();
     if (selectedPlacedId !== item.id) {
       setSelectedPlacedId(item.id);
+      setOutdoorPopupPetId(null);
       setTopOutdoorDecorId(item.id);
       return;
     }
@@ -1231,6 +1234,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     e.stopPropagation();
     if (outdoorPopupPetId !== pet.inventoryId) {
       setOutdoorPopupPetId(pet.inventoryId);
+      setSelectedPlacedId(null);
       setTopOutdoorPetId(pet.inventoryId);
       return;
     }
@@ -1512,7 +1516,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 115 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
@@ -1604,7 +1608,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: isSelected ? 110 : (topOutdoorDecorId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelected ? 180 : (topOutdoorDecorId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
               <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
