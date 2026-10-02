@@ -52,6 +52,8 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /button-pan-interior-right/);
   assert.match(source, /button-add-interior-effect/);
   assert.match(source, /HOME_INTERIOR_EFFECT_OPTIONS/);
+  assert.match(source, /env\(safe-area-inset-top, 0px\)/);
+  assert.match(source, /max\(64px, calc\(env\(safe-area-inset-top, 0px\) \+ 34px\)\)/);
   assert.match(source, /initialEffects=\{previewBuilding\.interiorEffects\}/);
   assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
   assert.doesNotMatch(source, /await refetch\(\);[\s\S]{0,120}Failed to save effect/);
@@ -98,6 +100,24 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
     assert.match(source, /PetSleepZzz/);
     assert.match(source, /data-sleeping=\{isSleeping \? "true" : undefined\}/);
     assert.match(source, /"sleep"/);
+  }
+});
+
+test("players can locally toggle Campfire, Candle Light, and Lamp Glow without changing saved placement", () => {
+  const effects = read("client/src/components/HomeInteriorEffect.tsx");
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.match(effects, /type === "fire" \|\| type === "candle_light" \|\| type === "warm_glow"/);
+  assert.match(effects, /offEffectIds/);
+  assert.match(effects, /onToggleEffect/);
+  assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);
+  assert.match(effects, /!isOff && <EffectVisual/);
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /setOffEffectIds/);
+    assert.match(source, /onToggleEffect=\{toggleLightEffect\}/);
+    assert.match(source, /offEffectIds=\{offEffectIds\}/);
   }
 });
 
