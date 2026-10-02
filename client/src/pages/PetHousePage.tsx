@@ -24,6 +24,7 @@ import moodFaceHungry from "@assets/mood_face_hungry.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
+import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
@@ -603,18 +604,12 @@ function InteriorViewer({
                 <ControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></ControlBtn>
               </div>
             )}
-            <img
+            <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
-              draggable={false}
-              style={{
-                width: displaySize, height: displaySize, objectFit: "contain",
-                transform: item.flipped ? "scaleX(-1)" : undefined,
-                outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
-                outlineOffset: "3px",
-                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
-                userSelect: "none", cursor: "grab",
-              }}
+              size={displaySize}
+              selected={isSelected}
+              flipped={item.flipped}
             />
           </div>
         );
@@ -1489,18 +1484,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 <ControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}><SvgDelete /></ControlBtn>
               </div>
             )}
-            <img
+            <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
-              draggable={false}
-              style={{
-                width: displaySize, height: displaySize, objectFit: "contain",
-                transform: item.flipped ? "scaleX(-1)" : undefined,
-                outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
-                outlineOffset: "3px",
-                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
-                userSelect: "none", cursor: "grab",
-              }}
+              size={displaySize}
+              selected={isSelected}
+              flipped={item.flipped}
             />
           </div>
         );
