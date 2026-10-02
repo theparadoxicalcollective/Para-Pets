@@ -208,7 +208,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
   const [offEffectIds, setOffEffectIds] = useState<Set<string>>(() => new Set());
-  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
+  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -243,8 +243,18 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 
   const onDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
+    const effectTarget = e.target instanceof Element
+      ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
+      : null;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId, moved: false };
+    panStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPanX: panX,
+      pid: e.pointerId,
+      moved: false,
+      toggleEffectId: effectTarget?.dataset.playerToggleEffectId ?? null,
+    };
   }, [panX]);
 
   const onMove = useCallback((e: React.PointerEvent) => {
@@ -258,14 +268,18 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
     const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
-    if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     setPanX(newPanX);
   }, []);
 
   const onUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
+    const drag = panStartRef.current;
     panStartRef.current = null;
-  }, []);
+    if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
+    const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
+    if (effect) toggleLightEffect(effect);
+  }, [effects, toggleLightEffect]);
 
   return (
     <div
