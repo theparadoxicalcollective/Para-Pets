@@ -3277,7 +3277,6 @@ export class DatabaseStorage implements IStorage {
       if (decor) {
         result.push({
           ...row,
-          size: decor.homeSceneSize,
           item: { id: decor.id, name: decor.name, imageUrl: decor.imageUrl, price: decor.price, type: "decor", homeSceneSize: decor.homeSceneSize },
         });
         continue;
@@ -3290,7 +3289,6 @@ export class DatabaseStorage implements IStorage {
       if (object) {
         result.push({
           ...row,
-          size: object.homeSceneSize,
           item: { id: object.id, name: object.name, imageUrl: object.imageUrl, price: object.price, type: "object", homeSceneSize: object.homeSceneSize },
         });
       }
@@ -3298,7 +3296,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updatePlacedHomeDecor(id: string, userId: string, data: Partial<{ xPct: number; yPct: number; flipped: boolean }>): Promise<PlacedHomeDecor> {
+  async updatePlacedHomeDecor(id: string, userId: string, data: Partial<{ xPct: number; yPct: number; size: number; flipped: boolean }>): Promise<PlacedHomeDecor> {
     const [row] = await db.update(placedHomeDecor).set(data).where(and(eq(placedHomeDecor.id, id), eq(placedHomeDecor.userId, userId))).returning();
     return row;
   }
