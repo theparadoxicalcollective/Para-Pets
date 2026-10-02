@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { getHouseInteriorSideDarkness, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   type: HouseInteriorEffectType;
@@ -24,7 +24,7 @@ type EffectPointerHandler = (
 type EffectToggleHandler = (effect: HouseInteriorEffect) => void;
 
 export function isPlayerToggleableInteriorEffect(type: HouseInteriorEffectType): boolean {
-  return type === "fire" || type === "candle_light" || type === "warm_glow";
+  return isHouseInteriorLightEffectType(type);
 }
 
 interface HomeInteriorEffectsLayerProps {
@@ -335,23 +335,43 @@ function EffectVisual({ type, adminPreview }: { type: HouseInteriorEffectType; a
 
 export function HomeInteriorDarknessLayer({
   darkness,
+  effects,
+  offEffectIds,
   zIndex = 2,
 }: {
   darkness: number;
+  effects?: readonly HouseInteriorEffect[];
+  offEffectIds?: ReadonlySet<string>;
   zIndex?: number;
 }) {
   const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
   if (safeDarkness <= 0) return null;
+
+  const sideLighting = effects
+    ? getHouseInteriorSideDarkness(safeDarkness, effects, offEffectIds)
+    : { leftDarkness: safeDarkness, rightDarkness: safeDarkness, leftBoost: 0, rightBoost: 0 };
+  const leftOpacity = sideLighting.leftDarkness / 100;
+  const rightOpacity = sideLighting.rightDarkness / 100;
+  const centerOpacity = (leftOpacity + rightOpacity) / 2;
+
   return (
     <div
       aria-hidden
       data-testid="home-interior-darkness-layer"
+      data-left-light-boost={sideLighting.leftBoost}
+      data-right-light-boost={sideLighting.rightBoost}
       style={{
         position: "absolute",
         inset: 0,
         zIndex,
         pointerEvents: "none",
-        background: `rgba(0,0,0,${safeDarkness / 100})`,
+        transition: "background 260ms ease-out",
+        background: `linear-gradient(90deg,
+          rgba(0,0,0,${leftOpacity}) 0%,
+          rgba(0,0,0,${leftOpacity}) 42%,
+          rgba(0,0,0,${centerOpacity}) 50%,
+          rgba(0,0,0,${rightOpacity}) 58%,
+          rgba(0,0,0,${rightOpacity}) 100%)`,
       }}
     />
   );
