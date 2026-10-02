@@ -751,7 +751,6 @@ function InteriorViewer({
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * petScale);
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
         const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
@@ -1659,7 +1658,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const petSize = Math.round(cfg.size * petScale);
         const isSelectedPet = outdoorPopupPetId === pet.inventoryId;
         return (
           <div
