@@ -210,6 +210,7 @@ function shouldHideNav(path: string) {
   if (path.startsWith("/reset-password/")) return true;
   if (path.startsWith("/visit/")) return true;
   if (path.startsWith("/pet-care/")) return true;
+  if (path.startsWith("/equip-accessories/")) return true;
   if (path.startsWith("/pet-level-up/")) return true;
   return false;
 }
