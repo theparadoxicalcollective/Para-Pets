@@ -346,7 +346,7 @@ export interface IStorage {
   updateHouseBundle(id: string, data: Partial<HouseBundle>): Promise<HouseBundle>;
   deleteHouseBundle(id: string): Promise<void>;
   getHouseBundleBuildings(bundleId: string): Promise<HouseBundleBuilding[]>;
-  createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseBundleBuilding["interiorEffects"]; buildingType?: string; size?: string }): Promise<HouseBundleBuilding>;
+  createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseBundleBuilding["interiorEffects"]; interiorDarkness?: number; buildingType?: string; size?: string }): Promise<HouseBundleBuilding>;
   updateHouseBundleBuilding(id: string, data: Partial<HouseBundleBuilding>): Promise<HouseBundleBuilding>;
   deleteHouseBundleBuilding(id: string): Promise<void>;
   getUserHouseBundles(userId: string): Promise<(UserHouseBundle & { bundle: HouseBundle })[]>;
@@ -3086,7 +3086,7 @@ export class DatabaseStorage implements IStorage {
     return b ?? null;
   }
 
-  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseBundleBuilding["interiorEffects"]; buildingType?: string; size?: string }): Promise<HouseBundleBuilding> {
+  async createHouseBundleBuilding(data: { bundleId: string; name: string; imageUrl: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseBundleBuilding["interiorEffects"]; interiorDarkness?: number; buildingType?: string; size?: string }): Promise<HouseBundleBuilding> {
     const [b] = await db.insert(houseBundleBuildings).values({
       bundleId: data.bundleId,
       name: data.name,
@@ -3097,6 +3097,7 @@ export class DatabaseStorage implements IStorage {
       ...(data.flippedX !== undefined ? { flippedX: data.flippedX } : {}),
       ...(data.interiorImageUrl !== undefined ? { interiorImageUrl: data.interiorImageUrl } : {}),
       ...(data.interiorEffects !== undefined ? { interiorEffects: data.interiorEffects } : {}),
+      ...(data.interiorDarkness !== undefined ? { interiorDarkness: data.interiorDarkness } : {}),
       ...(data.buildingType !== undefined ? { buildingType: data.buildingType } : {}),
       ...(data.size !== undefined ? { size: data.size } : {}),
     }).returning();

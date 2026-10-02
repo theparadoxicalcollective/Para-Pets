@@ -5,7 +5,7 @@ import { X, Heart, Sword, Shield, Star } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
-import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import { isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
@@ -20,7 +20,7 @@ interface VisitedPet {
 }
 interface ActiveBundle {
   id: string; name: string; bgImageUrl: string | null;
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
 }
 interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean;
@@ -188,11 +188,12 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
   effects?: HouseInteriorEffect[];
+  darkness?: number;
   leaveButtonX?: number;
   leaveButtonY?: number;
   onClose: () => void;
@@ -207,7 +208,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
   const [offEffectIds, setOffEffectIds] = useState<Set<string>>(() => new Set());
-  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
+  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -242,8 +243,18 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
 
   const onDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
+    const effectTarget = e.target instanceof Element
+      ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
+      : null;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId, moved: false };
+    panStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPanX: panX,
+      pid: e.pointerId,
+      moved: false,
+      toggleEffectId: effectTarget?.dataset.playerToggleEffectId ?? null,
+    };
   }, [panX]);
 
   const onMove = useCallback((e: React.PointerEvent) => {
@@ -257,14 +268,18 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
     const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
-    if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     setPanX(newPanX);
   }, []);
 
   const onUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
+    const drag = panStartRef.current;
     panStartRef.current = null;
-  }, []);
+    if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
+    const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
+    if (effect) toggleLightEffect(effect);
+  }, [effects, toggleLightEffect]);
 
   return (
     <div
@@ -290,6 +305,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
         }}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
+
+      <HomeInteriorDarknessLayer darkness={darkness} zIndex={2} />
 
       <HomeInteriorEffectsLayer
         effects={effects}
@@ -388,7 +405,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], leave
 export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
-  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[] } | null>(null);
+  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const [selectedPet, setSelectedPet] = useState<VisitedPet | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -541,7 +558,7 @@ export default function VisitPetHousePage() {
                 onClick={() => {
                   if (isMailbox) { setShowGiftModal(true); return; }
                   if (hasInterior) {
-                    setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06, interiorEffects: b.interiorEffects ?? [] });
+                    setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06, interiorEffects: b.interiorEffects ?? [], interiorDarkness: b.interiorDarkness ?? 0 });
                   }
                 }}
               >
@@ -665,6 +682,7 @@ export default function VisitPetHousePage() {
             placedItems={interiorDecor}
             placedPets={interiorPets}
             effects={openInterior.interiorEffects}
+            darkness={openInterior.interiorDarkness}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onClose={() => setOpenInterior(null)}

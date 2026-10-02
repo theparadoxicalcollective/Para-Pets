@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  HOUSE_INTERIOR_DARKNESS_MAX,
   HOUSE_INTERIOR_EFFECT_MAX_COUNT,
   HOUSE_INTERIOR_EFFECT_TYPES,
   isHouseInteriorSleepPosition,
+  sanitizeHouseInteriorDarkness,
   sanitizeHouseInteriorEffects,
 } from "../shared/housing";
 
@@ -20,6 +22,14 @@ test("home interior effect catalog includes the requested scene-enhancing effect
     "soft_mist",
     "sleep",
   ]);
+});
+
+test("interior darkness is bounded and defaults safely", () => {
+  assert.equal(HOUSE_INTERIOR_DARKNESS_MAX, 90);
+  assert.equal(sanitizeHouseInteriorDarkness(undefined), 0);
+  assert.equal(sanitizeHouseInteriorDarkness(-15), 0);
+  assert.equal(sanitizeHouseInteriorDarkness(37.4), 37);
+  assert.equal(sanitizeHouseInteriorDarkness(120), 90);
 });
 
 test("interior effect sanitizer keeps only supported effects and clamps scene-space values", () => {
@@ -54,6 +64,13 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /HOME_INTERIOR_EFFECT_OPTIONS/);
   assert.match(source, /env\(safe-area-inset-top, 0px\)/);
   assert.match(source, /max\(64px, calc\(env\(safe-area-inset-top, 0px\) \+ 34px\)\)/);
+  assert.match(source, /slider-interior-darkness/);
+  assert.match(source, /HomeInteriorDarknessLayer darkness=\{darkness\}/);
+  assert.match(source, /interiorDarkness: selBuilding\.interiorDarkness \?\? 0/);
+  assert.match(source, /interiorPreviewSaveQueueRef/);
+  assert.match(source, /updateBuildingCache/);
+  assert.match(source, /queueInteriorPreviewPatch/);
+  assert.match(source, /pendingSaves\.finally\(\(\) => refetch\(\)\)/);
   assert.match(source, /initialEffects=\{previewBuilding\.interiorEffects\}/);
   assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
   assert.doesNotMatch(source, /await refetch\(\);[\s\S]{0,120}Failed to save effect/);
@@ -94,6 +111,8 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
 
   assert.match(effects, /label: "Sleep Square"/);
   assert.match(effects, /function SleepSquareVisual/);
+  assert.match(effects, /function SleepSpotHintVisual/);
+  assert.match(effects, /adminPreview \? <SleepSquareVisual \/> : <SleepSpotHintVisual \/>/);
 
   for (const source of [owner, visitor]) {
     assert.match(source, /isHouseInteriorSleepPosition/);
@@ -112,12 +131,28 @@ test("players can locally toggle Campfire, Candle Light, and Lamp Glow without c
   assert.match(effects, /offEffectIds/);
   assert.match(effects, /onToggleEffect/);
   assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);
+  assert.match(effects, /data-player-toggle-effect-id=\{playerToggleable \? effect\.id : undefined\}/);
+  assert.doesNotMatch(effects, /onClick=\{playerToggleable/);
   assert.match(effects, /!isOff && <EffectVisual/);
 
   for (const source of [owner, visitor]) {
     assert.match(source, /setOffEffectIds/);
     assert.match(source, /onToggleEffect=\{toggleLightEffect\}/);
     assert.match(source, /offEffectIds=\{offEffectIds\}/);
+    assert.match(source, /toggleEffectId/);
+    assert.match(source, /Math\.hypot/);
+    assert.match(source, /drag\.moved/);
+  }
+});
+
+test("saved room darkness renders below effects for owners and visitors", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{2\}/);
+    assert.match(source, /darkness=\{openInterior\.interiorDarkness\}/);
+    assert.match(source, /interiorDarkness: b\.interiorDarkness \?\? 0/);
   }
 });
 
@@ -137,5 +172,7 @@ test("database schema and startup migration persist building interior effects", 
   const boot = read("server/startup/migrations/runEssentialBoot.ts");
 
   assert.match(schema, /interiorEffects: jsonb\("interior_effects"\)/);
+  assert.match(schema, /interiorDarkness: integer\("interior_darkness"\)\.notNull\(\)\.default\(0\)/);
   assert.match(boot, /house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
+  assert.match(boot, /house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_darkness INTEGER NOT NULL DEFAULT 0/);
 });

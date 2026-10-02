@@ -48,9 +48,17 @@ export interface HouseInteriorEffect {
 export const HOUSE_INTERIOR_EFFECT_MAX_COUNT = 20;
 export const HOUSE_INTERIOR_EFFECT_MIN_SIZE = 4;
 export const HOUSE_INTERIOR_EFFECT_MAX_SIZE = 40;
+export const HOUSE_INTERIOR_DARKNESS_MIN = 0;
+export const HOUSE_INTERIOR_DARKNESS_MAX = 90;
 
 export function isHouseInteriorEffectType(value: unknown): value is HouseInteriorEffectType {
   return typeof value === "string" && (HOUSE_INTERIOR_EFFECT_TYPES as readonly string[]).includes(value);
+}
+
+export function sanitizeHouseInteriorDarkness(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.round(Math.max(HOUSE_INTERIOR_DARKNESS_MIN, Math.min(HOUSE_INTERIOR_DARKNESS_MAX, numeric)));
 }
 
 export function sanitizeHouseInteriorEffects(value: unknown): HouseInteriorEffect[] {

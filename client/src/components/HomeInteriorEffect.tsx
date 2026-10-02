@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { HouseInteriorEffect, HouseInteriorEffectType } from "@shared/housing";
+import { sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   type: HouseInteriorEffectType;
@@ -81,6 +81,11 @@ const EFFECT_STYLES = `
 @keyframes para-home-mist-drift {
   0%, 100% { transform: translateX(-6%) scaleX(0.92); opacity: 0.18; }
   50% { transform: translateX(7%) scaleX(1.04); opacity: 0.34; }
+}
+@keyframes para-home-sleep-glint {
+  0%, 100% { opacity: 0.18; transform: scale(0.62) rotate(0deg); }
+  42% { opacity: 0.9; transform: scale(1.05) rotate(12deg); }
+  70% { opacity: 0.34; transform: scale(0.78) rotate(-8deg); }
 }
 `;
 
@@ -289,14 +294,67 @@ function SleepSquareVisual() {
   );
 }
 
-function EffectVisual({ type }: { type: HouseInteriorEffectType }) {
+function SleepSpotHintVisual() {
+  const glints = [
+    { left: "46%", top: "46%", delay: "0s", size: "0.10em" },
+    { left: "54%", top: "51%", delay: "0.8s", size: "0.07em" },
+    { left: "50%", top: "55%", delay: "1.45s", size: "0.055em" },
+  ];
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {glints.map((glint, index) => (
+        <span
+          key={index}
+          style={{
+            position: "absolute",
+            left: glint.left,
+            top: glint.top,
+            color: "rgba(238,240,255,0.78)",
+            fontSize: glint.size,
+            lineHeight: 1,
+            textShadow: "0 0 5px rgba(160,175,255,0.62)",
+            animation: `para-home-sleep-glint 2.4s ease-in-out ${glint.delay} infinite`,
+          }}
+        >
+          ✦
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function EffectVisual({ type, adminPreview }: { type: HouseInteriorEffectType; adminPreview: boolean }) {
   if (type === "fire") return <CampfireVisual />;
   if (type === "candle_light") return <CandleLightVisual />;
   if (type === "warm_glow") return <WarmGlowVisual />;
   if (type === "sparkles") return <SparklesVisual />;
   if (type === "dust_motes") return <DustMotesVisual />;
   if (type === "soft_mist") return <SoftMistVisual />;
-  return <SleepSquareVisual />;
+  return adminPreview ? <SleepSquareVisual /> : <SleepSpotHintVisual />;
+}
+
+export function HomeInteriorDarknessLayer({
+  darkness,
+  zIndex = 2,
+}: {
+  darkness: number;
+  zIndex?: number;
+}) {
+  const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
+  if (safeDarkness <= 0) return null;
+  return (
+    <div
+      aria-hidden
+      data-testid="home-interior-darkness-layer"
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex,
+        pointerEvents: "none",
+        background: `rgba(0,0,0,${safeDarkness / 100})`,
+      }}
+    />
+  );
 }
 
 export function HomeInteriorEffectsLayer({
@@ -349,15 +407,19 @@ export function HomeInteriorEffectsLayer({
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
             onPointerCancel={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
-            onClick={playerToggleable ? event => {
+            data-player-toggle-effect-id={playerToggleable ? effect.id : undefined}
+            role={playerToggleable ? "button" : undefined}
+            tabIndex={playerToggleable ? 0 : undefined}
+            onKeyDown={playerToggleable ? event => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
               event.stopPropagation();
               onToggleEffect?.(effect);
             } : undefined}
-            role={playerToggleable ? "button" : undefined}
             aria-label={playerToggleable ? `${isOff ? "Turn on" : "Turn off"} ${effect.type.replaceAll("_", " ")} effect` : undefined}
             data-effect-off={isOff ? "true" : undefined}
           >
-            {!isOff && <EffectVisual type={effect.type} />}
+            {!isOff && <EffectVisual type={effect.type} adminPreview={interactive} />}
           </div>
         );
       })}

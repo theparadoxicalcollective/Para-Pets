@@ -1001,6 +1001,7 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   flippedX: boolean("flipped_x").notNull().default(false),
   interiorImageUrl: text("interior_image_url"),
   interiorEffects: jsonb("interior_effects").$type<HouseInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
+  interiorDarkness: integer("interior_darkness").notNull().default(0),
   buildingType: text("building_type").notNull().default("building"),
   size: text("size").notNull().default("medium"),
   leaveButtonX: real("leave_button_x").notNull().default(0.92),

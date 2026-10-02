@@ -17,6 +17,7 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE pet_house_positions ADD COLUMN IF NOT EXISTS flipped BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS is_evolved BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_darkness INTEGER NOT NULL DEFAULT 0;
   `);
 
   try {
