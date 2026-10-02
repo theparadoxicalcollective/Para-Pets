@@ -99,7 +99,7 @@ function AdminInteriorPreview({
     effectsRef.current = initialEffects;
     setEffects(initialEffects);
     setSelectedEffectId(null);
-  }, [buildingId, initialEffects]);
+  }, [buildingId]);
 
   useEffect(() => {
     const img = new window.Image();
@@ -1280,7 +1280,6 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
               .catch(() => undefined)
               .then(async () => {
                 await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorEffects });
-                await refetch();
               })
               .catch((error: any) => {
                 toast({ title: "Failed to save effect", description: error.message, variant: "destructive" });
