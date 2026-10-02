@@ -347,7 +347,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
       {imgWidth > 0 && placedPets.map((pet) => {
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
-        const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100);
+        const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * petScale);
         const isSleeping = isHouseInteriorSleepPosition(
           effects,
           xPct,
@@ -360,31 +361,36 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
             data-testid={`visit-pet-interior-${pet.inventoryId}`}
             data-sleeping={isSleeping ? "true" : undefined}
             className="absolute"
-            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: PET_HOUSE_INTERIOR_PET_BASE_SIZE, height: PET_HOUSE_INTERIOR_PET_BASE_SIZE, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onPetClick(pet); }}
           >
-            {pet.petTemplateId ? (
-              <PetAnimator
-                petTemplateId={pet.petTemplateId}
-                petInventoryId={pet.inventoryId}
-                costumeAccess="public"
-                mode={isSleeping ? "sleep" : "house"}
-                size={petSize}
-                fillContainer
-                fitVisible
-                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
-              />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
+            <div
+              data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
+              style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
+            >
+              {pet.petTemplateId ? (
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  petInventoryId={pet.inventoryId}
+                  costumeAccess="public"
+                  mode={isSleeping ? "sleep" : "house"}
+                  size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
+                  fillContainer
+                  fitVisible
+                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
+              ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
                 className="pet-idle-squish"
                 style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
-            ) : null}
-            {isSleeping && <PetSleepZzz />}
+              ) : null}
+              {isSleeping && <PetSleepZzz />}
+            </div>
           </div>
         );
       })}
@@ -590,19 +596,24 @@ export default function VisitPetHousePage() {
         const cfg = randomGroundConfig(i);
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
-        const petSize = Math.round(cfg.size * clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100);
+        const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petSize = Math.round(cfg.size * petScale);
         return (
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-outdoor-${pet.inventoryId}`}
             className="absolute"
-            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
           >
-            {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={petSize} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }} />
-            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+            <div
+              data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
+              style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
+            >
+              {pet.petTemplateId ? (
+                <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={cfg.size} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }} />
+              ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
@@ -610,7 +621,8 @@ export default function VisitPetHousePage() {
                 className="pet-idle-squish"
                 style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
-            ) : null}
+              ) : null}
+            </div>
           </div>
         );
       })}
