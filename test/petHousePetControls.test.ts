@@ -62,9 +62,13 @@ test("pet edit panel exposes size, flip, Closet, and remove actions", () => {
 });
 
 test("Home pets keep saved scale and flip in owner and visitor views", () => {
-  assert.match(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
+  assert.match(owner, /const petScale = clampPetHousePlayerScale\(pet\.homeScalePct \?\? 100\) \/ 100/);
+  assert.match(owner, /data-testid=\{\`home-pet-visible-scale-\$\{pet\.inventoryId\}\`\}/);
+  assert.match(owner, /transform: \`scale\(\$\{petScale\}\)\`/);
   assert.match(owner, /transform: pet\.homeFlipped \? "scaleX\(-1\)" : undefined/);
-  assert.match(visitor, /pet\.homeScalePct \?\? 100/);
+  assert.match(visitor, /const petScale = clampPetHousePlayerScale\(pet\.homeScalePct \?\? 100\) \/ 100/);
+  assert.match(visitor, /data-testid=\{\`visit-pet-visible-scale-\$\{pet\.inventoryId\}\`\}/);
+  assert.match(visitor, /transform: \`scale\(\$\{petScale\}\)\`/);
   assert.match(visitor, /pet\.homeFlipped \? "scaleX\(-1\)" : undefined/);
   assert.match(visitorRoute, /homeScalePct: pos\?\.scalePct \?\? 100/);
   assert.match(visitorRoute, /homeFlipped: pos\?\.flipped \?\? false/);
