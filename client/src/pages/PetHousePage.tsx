@@ -449,7 +449,7 @@ function InteriorViewer({
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
   const [offEffectIds, setOffEffectIds] = useState<Set<string>>(() => new Set());
-  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [popupPetId, setPopupPetId] = useState<string | null>(null);
   const [topPetId, setTopPetId] = useState<string | null>(null);
@@ -499,8 +499,18 @@ function InteriorViewer({
     e.stopPropagation();
     if (selectedItemId) setSelectedItemId(null);
     if (popupPetId) setPopupPetId(null);
+    const effectTarget = e.target instanceof Element
+      ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
+      : null;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+    panStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPanX: panX,
+      pid: e.pointerId,
+      moved: false,
+      toggleEffectId: effectTarget?.dataset.playerToggleEffectId ?? null,
+    };
   }, [panX, selectedItemId, popupPetId]);
 
   const onContainerMove = useCallback((e: React.PointerEvent) => {
@@ -513,6 +523,7 @@ function InteriorViewer({
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
     setPanX(newPanX);
     panStateRef.current = { panX: newPanX, imgWidth: imgWidthRef.current, containerH: containerHRef.current };
@@ -520,8 +531,12 @@ function InteriorViewer({
 
   const onContainerUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
+    const drag = panStartRef.current;
     panStartRef.current = null;
-  }, []);
+    if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
+    const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
+    if (effect) toggleLightEffect(effect);
+  }, [effects, toggleLightEffect]);
 
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
