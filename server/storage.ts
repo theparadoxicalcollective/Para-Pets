@@ -2870,18 +2870,18 @@ export class DatabaseStorage implements IStorage {
 
   // ── Pet house positions ────────────────────────────────────────────────────
 
-  async getPetHousePositions(userId: string): Promise<{ inventoryId: string; posLeft: string; posTop: string; location: string }[]> {
-    return db.select({ inventoryId: petHousePositions.inventoryId, posLeft: petHousePositions.posLeft, posTop: petHousePositions.posTop, location: petHousePositions.location })
+  async getPetHousePositions(userId: string): Promise<{ inventoryId: string; posLeft: string; posTop: string; location: string; scalePct: number; flipped: boolean }[]> {
+    return db.select({ inventoryId: petHousePositions.inventoryId, posLeft: petHousePositions.posLeft, posTop: petHousePositions.posTop, location: petHousePositions.location, scalePct: petHousePositions.scalePct, flipped: petHousePositions.flipped })
       .from(petHousePositions)
       .where(eq(petHousePositions.userId, userId));
   }
 
-  async upsertPetHousePosition(userId: string, inventoryId: string, posLeft: string, posTop: string, location: string = "outside"): Promise<void> {
+  async upsertPetHousePosition(userId: string, inventoryId: string, posLeft: string, posTop: string, location: string = "outside", scalePct: number = 100, flipped: boolean = false): Promise<void> {
     await db.insert(petHousePositions)
-      .values({ userId, inventoryId, posLeft, posTop, location })
+      .values({ userId, inventoryId, posLeft, posTop, location, scalePct, flipped })
       .onConflictDoUpdate({
         target: [petHousePositions.userId, petHousePositions.inventoryId],
-        set: { posLeft, posTop, location, updatedAt: new Date() },
+        set: { posLeft, posTop, location, scalePct, flipped, updatedAt: new Date() },
       });
   }
 
