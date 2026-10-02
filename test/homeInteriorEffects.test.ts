@@ -1,0 +1,73 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import {
+  HOUSE_INTERIOR_EFFECT_MAX_COUNT,
+  HOUSE_INTERIOR_EFFECT_TYPES,
+  sanitizeHouseInteriorEffects,
+} from "../shared/housing";
+
+const read = (path: string) => readFileSync(path, "utf8");
+
+test("home interior effect catalog includes the requested scene-enhancing effects", () => {
+  assert.deepEqual(HOUSE_INTERIOR_EFFECT_TYPES, [
+    "fire",
+    "warm_glow",
+    "sparkles",
+    "dust_motes",
+    "soft_mist",
+  ]);
+});
+
+test("interior effect sanitizer keeps only supported effects and clamps scene-space values", () => {
+  assert.deepEqual(
+    sanitizeHouseInteriorEffects([
+      { id: "fire-1", type: "fire", x: -1, y: 2, size: 99 },
+      { id: "bad", type: "lightning", x: 0.5, y: 0.5, size: 12 },
+      { id: "glow-1", type: "warm_glow", x: 0.35, y: 0.6, size: 2 },
+    ]),
+    [
+      { id: "fire-1", type: "fire", x: 0, y: 1, size: 40 },
+      { id: "glow-1", type: "warm_glow", x: 0.35, y: 0.6, size: 4 },
+    ],
+  );
+
+  const many = Array.from({ length: 30 }, (_, index) => ({
+    id: `effect-${index}`,
+    type: "sparkles",
+    x: 0.5,
+    y: 0.5,
+    size: 12,
+  }));
+  assert.equal(sanitizeHouseInteriorEffects(many).length, HOUSE_INTERIOR_EFFECT_MAX_COUNT);
+});
+
+test("admin interior preview exposes touch-friendly panning and effect editing", () => {
+  const source = read("client/src/components/HomeBundleSection.tsx");
+
+  assert.match(source, /button-pan-interior-left/);
+  assert.match(source, /button-pan-interior-right/);
+  assert.match(source, /button-add-interior-effect/);
+  assert.match(source, /HOME_INTERIOR_EFFECT_OPTIONS/);
+  assert.match(source, /initialEffects=\{previewBuilding\.interiorEffects\}/);
+  assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
+});
+
+test("owner and visitor building interiors render saved effects in image-space coordinates", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /HomeInteriorEffectsLayer/);
+    assert.match(source, /interiorEffects: b\.interiorEffects \?\? \[\]/);
+    assert.match(source, /effects=\{openInterior\.interiorEffects\}/);
+  }
+});
+
+test("database schema and startup migration persist building interior effects", () => {
+  const schema = read("shared/schema.ts");
+  const boot = read("server/startup/migrations/runEssentialBoot.ts");
+
+  assert.match(schema, /interiorEffects: jsonb\("interior_effects"\)/);
+  assert.match(boot, /house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
+});
