@@ -348,7 +348,6 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * petScale);
         const isSleeping = isHouseInteriorSleepPosition(
           effects,
           xPct,
@@ -597,7 +596,6 @@ export default function VisitPetHousePage() {
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const petSize = Math.round(cfg.size * petScale);
         return (
           <div
             key={pet.inventoryId}
