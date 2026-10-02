@@ -13,6 +13,7 @@ import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, petAnimationProfileSchema, petEquippedAccessories } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
+import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { registerQuestRoutes } from "./routes/quest.routes";
 import { LONELLE_KEY, parseLonelleProgress } from "./lonelleQuest";
@@ -4102,8 +4103,11 @@ export async function registerRoutes(
       let cards;
       try { cards = parseBundleCards(req.body.cards); }
       catch (error: any) { return res.status(400).json({ message: error.message }); }
-      if (!name || (!coinAmount && (!shopItemIds || shopItemIds.length === 0) && cards.length === 0)) {
-        return res.status(400).json({ message: "Bundle must have a name and at least coins, items, or cards" });
+      let homeRewards;
+      try { homeRewards = parseHomeRewards(req.body.homeRewards); }
+      catch (error: any) { return res.status(400).json({ message: error.message }); }
+      if (!name || (!coinAmount && (!shopItemIds || shopItemIds.length === 0) && cards.length === 0 && homeRewards.length === 0)) {
+        return res.status(400).json({ message: "Bundle must have a name and at least coins, items, cards, or home rewards" });
       }
       if (targetUserIds !== undefined && (!Array.isArray(targetUserIds) || targetUserIds.length === 0)) {
         return res.status(400).json({ message: "Select at least one recipient" });
@@ -4119,6 +4123,14 @@ export async function registerRoutes(
           const found = await tx.execute(sql`SELECT id FROM card_definitions WHERE id = ${card.cardId} FOR SHARE`);
           if (!found.rows.length) throw Object.assign(new Error("Card no longer exists; refresh the catalog"), { status: 400 });
         }
+        for (const homeReward of homeRewards) {
+          const found = homeReward.type === "house_bundle"
+            ? await tx.execute(sql`SELECT id FROM house_bundles WHERE id = ${homeReward.id} FOR SHARE`)
+            : await tx.execute(sql`SELECT id FROM home_decor_items WHERE id = ${homeReward.id} FOR SHARE`);
+          if (!found.rows.length) {
+            throw Object.assign(new Error("Home reward no longer exists; refresh the catalog"), { status: 400 });
+          }
+        }
         const created = await tx.insert(rewardBundles).values({ name, coinAmount: coinAmount || 0, message: message || null }).returning();
         const bundle = created[0];
         for (const itemId of shopItemIds ?? []) {
@@ -4126,6 +4138,12 @@ export async function registerRoutes(
         }
         for (const card of cards) {
           await tx.execute(sql`INSERT INTO reward_bundle_cards (bundle_id, card_id, quantity) VALUES (${bundle.id}, ${card.cardId}, ${card.quantity})`);
+        }
+        for (const homeReward of homeRewards) {
+          await tx.execute(sql`
+            INSERT INTO reward_bundle_home_items (bundle_id, reward_type, target_id, quantity)
+            VALUES (${bundle.id}, ${homeReward.type}, ${homeReward.id}, ${homeReward.quantity})
+          `);
         }
         for (const userId of recipients) await tx.insert(userRewards).values({ userId, bundleId: bundle.id });
         return bundle;
@@ -4195,6 +4213,18 @@ export async function registerRoutes(
         }));
         const cards = bundle ? (await db.execute(sql`SELECT c.id, c.name, c.artwork_url, b.quantity
           FROM reward_bundle_cards b JOIN card_definitions c ON c.id = b.card_id WHERE b.bundle_id = ${bundle.id}`)).rows : [];
+        const homeRewards = bundle ? (await db.execute(sql`
+          SELECT r.reward_type, r.target_id, r.quantity, hb.name,
+                 COALESCE(hb.shop_image_url, hb.bg_image_url) AS image_url
+          FROM reward_bundle_home_items r
+          JOIN house_bundles hb ON r.reward_type = 'house_bundle' AND hb.id = r.target_id
+          WHERE r.bundle_id = ${bundle.id}
+          UNION ALL
+          SELECT r.reward_type, r.target_id, r.quantity, hd.name, hd.image_url
+          FROM reward_bundle_home_items r
+          JOIN home_decor_items hd ON r.reward_type = 'home_decor' AND hd.id = r.target_id
+          WHERE r.bundle_id = ${bundle.id}
+        `)).rows : [];
         return {
           bundleId: reward.bundleId,
           rewardId: reward.id,
@@ -4204,6 +4234,15 @@ export async function registerRoutes(
           items: [
             ...itemDetails.filter(Boolean),
             ...cards.map((card: any) => ({ id: card.id, name: card.name, type: "card", imageUrl: card.artwork_url, eggImageUrl: null, quantity: Number(card.quantity) })),
+            ...homeRewards.map((homeReward: any) => ({
+              id: homeReward.target_id,
+              name: homeReward.name,
+              description: homeReward.reward_type === "house_bundle" ? "Home Bundle" : "Home Decor",
+              type: homeReward.reward_type,
+              imageUrl: homeReward.image_url,
+              eggImageUrl: null,
+              quantity: Number(homeReward.quantity),
+            })),
           ],
           createdAt: reward.createdAt,
         };
@@ -4230,6 +4269,7 @@ export async function registerRoutes(
         let reward: any;
         let bundle: any;
         let items: any[] = [];
+        let homeItems: any[] = [];
         return executeRewardClaim({
           eligible: async () => {
             const found = await tx.execute(sql`SELECT * FROM user_rewards WHERE id = ${rewardId} FOR UPDATE`);
@@ -4241,6 +4281,11 @@ export async function registerRoutes(
             bundle = bundles.rows[0] as any;
             if (!bundle) throw Object.assign(new Error("BUNDLE_NOT_FOUND"), { code: "BUNDLE_NOT_FOUND" });
             items = (await tx.execute(sql`SELECT rbi.shop_item_id, si.type, si.fishing_type, si.hatch_time FROM reward_bundle_items rbi JOIN shop_items si ON si.id = rbi.shop_item_id WHERE rbi.bundle_id = ${reward.bundle_id}`)).rows as any[];
+            homeItems = (await tx.execute(sql`
+              SELECT reward_type, target_id, quantity
+              FROM reward_bundle_home_items
+              WHERE bundle_id = ${reward.bundle_id}
+            `)).rows as any[];
             return true;
           },
           reserve: async () => true, // row lock plus the final conditional update is the reservation.
@@ -4255,6 +4300,41 @@ export async function registerRoutes(
                 await tx.execute(sql`INSERT INTO user_inventory (user_id, shop_item_id, hatch_started_at) VALUES (${user.id}, ${item.shop_item_id}, NOW())`);
               } else {
                 await tx.execute(sql`INSERT INTO user_inventory (user_id, shop_item_id) VALUES (${user.id}, ${item.shop_item_id})`);
+              }
+            }
+            for (const homeItem of homeItems) {
+              if (homeItem.reward_type === "house_bundle") {
+                await tx.execute(sql`
+                  INSERT INTO user_house_bundles (user_id, bundle_id)
+                  SELECT ${user.id}, ${homeItem.target_id}
+                  WHERE EXISTS (SELECT 1 FROM house_bundles WHERE id = ${homeItem.target_id})
+                    AND NOT EXISTS (
+                      SELECT 1 FROM user_house_bundles
+                      WHERE user_id = ${user.id} AND bundle_id = ${homeItem.target_id}
+                    )
+                `);
+                continue;
+              }
+
+              if (homeItem.reward_type === "home_decor") {
+                const quantity = Math.max(1, Math.min(999, Number(homeItem.quantity) || 1));
+                const updated = await tx.execute(sql`
+                  UPDATE user_home_decor_inventory
+                  SET quantity = quantity + ${quantity}
+                  WHERE id = (
+                    SELECT id FROM user_home_decor_inventory
+                    WHERE user_id = ${user.id} AND decor_item_id = ${homeItem.target_id}
+                    ORDER BY id LIMIT 1
+                  )
+                  RETURNING id
+                `);
+                if (!updated.rows.length) {
+                  await tx.execute(sql`
+                    INSERT INTO user_home_decor_inventory (user_id, decor_item_id, quantity)
+                    SELECT ${user.id}, ${homeItem.target_id}, ${quantity}
+                    WHERE EXISTS (SELECT 1 FROM home_decor_items WHERE id = ${homeItem.target_id})
+                  `);
+                }
               }
             }
           },

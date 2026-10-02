@@ -113,6 +113,18 @@ export async function runEssentialBoot(): Promise<void> {
         END IF;
       END $$;
     `],
+    ["Reward bundle home items migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS reward_bundle_home_items (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        bundle_id VARCHAR NOT NULL REFERENCES reward_bundles(id) ON DELETE CASCADE,
+        reward_type TEXT NOT NULL CHECK (reward_type IN ('house_bundle', 'home_decor')),
+        target_id VARCHAR NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity BETWEEN 1 AND 999),
+        UNIQUE(bundle_id, reward_type, target_id)
+      );
+      CREATE INDEX IF NOT EXISTS reward_bundle_home_items_bundle_idx
+        ON reward_bundle_home_items(bundle_id);
+    `],
     ["Card catalog and border layout migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS card_definitions (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -112,7 +112,7 @@ test("admin reward pickers integrate cards with the normal reward categories", (
   assert.match(admin, /title="Select Reward"/);
   assert.match(admin, /cards=\{rewardCards\.filter/);
   assert.match(admin, /onSelectCard=\{\(card\) =>/);
-  assert.match(admin, /Rewards \(\{selectedItems\.length \+ selectedCards\.length\} types/);
+  assert.match(admin, /Rewards \(\{selectedItems\.length \+ selectedCards\.length \+ selectedHomeRewards\.length\} types/);
 
   assert.match(picker, /key: "cards" as const, label: "Cards"/);
   assert.match(picker, /activeCategory.*"cards"/);
