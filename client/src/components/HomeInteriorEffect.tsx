@@ -7,18 +7,25 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   description: string;
   defaultSize: number;
 }> = [
-  { type: "fire", label: "Campfire", description: "Flickering flames over crossed glowing logs", defaultSize: 14 },
+  { type: "fire", label: "Campfire", description: "Natural open flame only — no logs or base", defaultSize: 14 },
   { type: "candle_light", label: "Candle Light", description: "Small focused flame for candles and lanterns", defaultSize: 10 },
   { type: "warm_glow", label: "Lamp Glow", description: "Soft lamp or window light without a visible flame", defaultSize: 18 },
   { type: "sparkles", label: "Sparkles", description: "Soft magical twinkle", defaultSize: 14 },
   { type: "dust_motes", label: "Dust Motes", description: "Subtle floating room particles", defaultSize: 18 },
   { type: "soft_mist", label: "Soft Mist", description: "Low translucent atmospheric haze", defaultSize: 22 },
+  { type: "sleep", label: "Sleep Square", description: "Drop a pet here to make it sleep", defaultSize: 18 },
 ];
 
 type EffectPointerHandler = (
   event: ReactPointerEvent<HTMLDivElement>,
   effect: HouseInteriorEffect,
 ) => void;
+
+type EffectToggleHandler = (effect: HouseInteriorEffect) => void;
+
+export function isPlayerToggleableInteriorEffect(type: HouseInteriorEffectType): boolean {
+  return type === "fire" || type === "candle_light" || type === "warm_glow";
+}
 
 interface HomeInteriorEffectsLayerProps {
   effects: HouseInteriorEffect[];
@@ -30,6 +37,8 @@ interface HomeInteriorEffectsLayerProps {
   onEffectPointerDown?: EffectPointerHandler;
   onEffectPointerMove?: EffectPointerHandler;
   onEffectPointerUp?: EffectPointerHandler;
+  offEffectIds?: ReadonlySet<string>;
+  onToggleEffect?: EffectToggleHandler;
   zIndex?: number;
 }
 
@@ -39,15 +48,21 @@ const EFFECT_STYLES = `
   35% { transform: scale(1.05, 0.94) translateY(-3%); filter: blur(0.9px); opacity: 1; }
   70% { transform: scale(0.98, 1.06) translateY(-1%); filter: blur(0.2px); opacity: 0.88; }
 }
-@keyframes para-home-campfire-flame {
-  0%, 100% { transform: translateX(-50%) scale(0.92, 1.02) rotate(-2deg); }
-  35% { transform: translateX(-50%) scale(1.06, 0.94) rotate(3deg); }
-  70% { transform: translateX(-50%) scale(0.97, 1.08) rotate(-1deg); }
+@keyframes para-home-flame-a {
+  0%, 100% { transform: translate(-50%, 0) scale(0.96, 1.02) rotate(-2deg); }
+  28% { transform: translate(-48%, -3%) scale(1.04, 0.96) rotate(3deg); }
+  58% { transform: translate(-52%, -7%) scale(0.92, 1.08) rotate(-4deg); }
+  82% { transform: translate(-49%, -2%) scale(1.02, 0.98) rotate(2deg); }
 }
-@keyframes para-home-campfire-ember {
-  0%, 35% { transform: translateY(0) scale(0.7); opacity: 0; }
-  50% { opacity: 0.9; }
-  100% { transform: translateY(-220%) scale(0.25); opacity: 0; }
+@keyframes para-home-flame-b {
+  0%, 100% { transform: translate(-50%, 0) scale(1, 1) rotate(2deg); }
+  35% { transform: translate(-54%, -5%) scale(0.9, 1.1) rotate(-5deg); }
+  68% { transform: translate(-47%, -2%) scale(1.07, 0.94) rotate(4deg); }
+}
+@keyframes para-home-flame-c {
+  0%, 100% { transform: translate(-50%, 0) scale(0.94, 1.04) rotate(-1deg); opacity: 0.9; }
+  40% { transform: translate(-49%, -8%) scale(1.05, 0.92) rotate(4deg); opacity: 1; }
+  72% { transform: translate(-53%, -3%) scale(0.9, 1.12) rotate(-3deg); opacity: 0.88; }
 }
 @keyframes para-home-glow-pulse {
   0%, 100% { transform: scale(0.96); opacity: 0.72; }
@@ -70,10 +85,11 @@ const EFFECT_STYLES = `
 `;
 
 function CampfireVisual() {
-  const embers = [
-    { left: "39%", delay: "0s" },
-    { left: "51%", delay: "0.55s" },
-    { left: "61%", delay: "1.05s" },
+  const tongues = [
+    { left: "50%", bottom: "8%", width: "52%", height: "80%", animation: "para-home-flame-a 0.86s ease-in-out infinite", bg: "linear-gradient(180deg, rgba(255,244,183,0.06) 0%, #ffd458 36%, #ff8a1f 67%, rgba(207,45,8,0.9) 100%)", clip: "polygon(52% 0%, 68% 20%, 63% 37%, 83% 51%, 77% 75%, 55% 100%, 28% 83%, 17% 58%, 36% 36%)" },
+    { left: "36%", bottom: "9%", width: "33%", height: "59%", animation: "para-home-flame-b 0.72s ease-in-out -0.18s infinite", bg: "linear-gradient(180deg, #ffd96b 0%, #ff9e27 54%, rgba(218,58,10,0.86) 100%)", clip: "polygon(55% 0%, 80% 31%, 69% 48%, 86% 70%, 62% 100%, 27% 90%, 14% 59%, 35% 34%)" },
+    { left: "65%", bottom: "10%", width: "31%", height: "55%", animation: "para-home-flame-c 0.78s ease-in-out -0.33s infinite", bg: "linear-gradient(180deg, #ffe47c 0%, #ff9d23 52%, rgba(221,62,9,0.82) 100%)", clip: "polygon(45% 0%, 72% 24%, 66% 43%, 87% 62%, 71% 91%, 42% 100%, 16% 70%, 28% 38%)" },
+    { left: "50%", bottom: "10%", width: "26%", height: "54%", animation: "para-home-flame-b 0.64s ease-in-out -0.41s infinite", bg: "linear-gradient(180deg, rgba(255,255,232,0.98) 0%, #fff08c 38%, #ffc134 73%, rgba(255,130,24,0.88) 100%)", clip: "polygon(50% 0%, 73% 35%, 65% 54%, 79% 73%, 58% 100%, 31% 92%, 20% 65%, 37% 38%)" },
   ];
 
   return (
@@ -81,88 +97,33 @@ function CampfireVisual() {
       <div
         style={{
           position: "absolute",
-          left: "14%",
-          right: "14%",
-          bottom: "7%",
-          height: "54%",
+          left: "11%",
+          right: "11%",
+          bottom: "1%",
+          height: "44%",
           borderRadius: "50%",
-          background: "radial-gradient(ellipse at 50% 70%, rgba(255,174,45,0.38), rgba(255,77,16,0.12) 48%, transparent 72%)",
-          filter: "blur(4px)",
+          background: "radial-gradient(ellipse at 50% 76%, rgba(255,124,23,0.32), rgba(255,69,12,0.12) 45%, transparent 72%)",
+          filter: "blur(5px)",
           mixBlendMode: "screen",
         }}
       />
-
-      <div
-        style={{
-          position: "absolute",
-          left: "22%",
-          bottom: "13%",
-          width: "57%",
-          height: "13%",
-          borderRadius: 999,
-          transform: "rotate(17deg)",
-          background: "linear-gradient(180deg, #7a4827, #3b1e12 58%, #190d09)",
-          boxShadow: "inset 0 2px 2px rgba(255,190,100,0.22), 0 0 7px rgba(255,84,19,0.34)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "22%",
-          bottom: "13%",
-          width: "57%",
-          height: "13%",
-          borderRadius: 999,
-          transform: "rotate(-17deg)",
-          background: "linear-gradient(180deg, #81502b, #402014 58%, #190d09)",
-          boxShadow: "inset 0 2px 2px rgba(255,190,100,0.2), 0 0 7px rgba(255,84,19,0.32)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          bottom: "20%",
-          width: "54%",
-          height: "65%",
-          transformOrigin: "50% 100%",
-          animation: "para-home-campfire-flame 0.92s ease-in-out infinite",
-          borderRadius: "54% 46% 58% 42% / 68% 64% 36% 32%",
-          background: "linear-gradient(180deg, rgba(255,224,92,0.1) 0%, #ffb327 38%, #ff641c 70%, rgba(189,45,9,0.88) 100%)",
-          clipPath: "polygon(50% 0%, 72% 27%, 88% 52%, 78% 82%, 50% 100%, 22% 82%, 12% 52%, 31% 31%)",
-          filter: "drop-shadow(0 0 7px rgba(255,91,18,0.72))",
-        }}
-      >
+      {tongues.map((tongue, index) => (
         <div
-          style={{
-            position: "absolute",
-            left: "27%",
-            right: "27%",
-            bottom: "9%",
-            height: "56%",
-            borderRadius: "55% 45% 52% 48%",
-            background: "linear-gradient(180deg, rgba(255,255,220,0.95), #ffe36b 48%, #ff9f22)",
-            clipPath: "polygon(50% 0%, 83% 48%, 72% 100%, 28% 100%, 17% 48%)",
-          }}
-        />
-      </div>
-
-      {embers.map((ember, index) => (
-        <span
           key={index}
           style={{
             position: "absolute",
-            left: ember.left,
-            bottom: "54%",
-            width: "4%",
-            height: "4%",
-            minWidth: 2,
-            minHeight: 2,
-            borderRadius: "50%",
-            background: "#ffd66b",
-            boxShadow: "0 0 6px rgba(255,122,30,0.9)",
-            animation: `para-home-campfire-ember 2.15s ease-out ${ember.delay} infinite`,
+            left: tongue.left,
+            bottom: tongue.bottom,
+            width: tongue.width,
+            height: tongue.height,
+            transformOrigin: "50% 100%",
+            animation: tongue.animation,
+            background: tongue.bg,
+            clipPath: tongue.clip,
+            filter: index === 3
+              ? "drop-shadow(0 0 3px rgba(255,222,102,0.85))"
+              : "drop-shadow(0 0 7px rgba(255,76,11,0.55))",
+            mixBlendMode: "screen",
           }}
         />
       ))}
@@ -296,13 +257,46 @@ function SoftMistVisual() {
   );
 }
 
+function SleepSquareVisual() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        borderRadius: "16%",
+        background: "linear-gradient(145deg, rgba(85,104,180,0.16), rgba(42,53,105,0.23))",
+        border: "1.5px dashed rgba(181,196,255,0.72)",
+        boxShadow: "inset 0 0 18px rgba(130,153,255,0.12), 0 0 12px rgba(115,137,230,0.18)",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          right: "12%",
+          top: "9%",
+          color: "rgba(218,226,255,0.78)",
+          fontFamily: "Georgia, serif",
+          fontWeight: 700,
+          fontSize: "0.19em",
+          letterSpacing: "0.02em",
+          textShadow: "0 0 7px rgba(126,149,255,0.55)",
+        }}
+      >
+        Zz
+      </span>
+    </div>
+  );
+}
+
 function EffectVisual({ type }: { type: HouseInteriorEffectType }) {
   if (type === "fire") return <CampfireVisual />;
   if (type === "candle_light") return <CandleLightVisual />;
   if (type === "warm_glow") return <WarmGlowVisual />;
   if (type === "sparkles") return <SparklesVisual />;
   if (type === "dust_motes") return <DustMotesVisual />;
-  return <SoftMistVisual />;
+  if (type === "soft_mist") return <SoftMistVisual />;
+  return <SleepSquareVisual />;
 }
 
 export function HomeInteriorEffectsLayer({
@@ -315,6 +309,8 @@ export function HomeInteriorEffectsLayer({
   onEffectPointerDown,
   onEffectPointerMove,
   onEffectPointerUp,
+  offEffectIds,
+  onToggleEffect,
   zIndex = 3,
 }: HomeInteriorEffectsLayerProps) {
   if (imgWidth <= 0 || sceneHeight <= 0 || effects.length === 0) return null;
@@ -325,6 +321,9 @@ export function HomeInteriorEffectsLayer({
       {effects.map(effect => {
         const sizePx = Math.max(24, sceneHeight * effect.size / 100);
         const selected = selectedId === effect.id;
+        const isSleep = effect.type === "sleep";
+        const playerToggleable = !interactive && !!onToggleEffect && isPlayerToggleableInteriorEffect(effect.type);
+        const isOff = playerToggleable && offEffectIds?.has(effect.id) === true;
         return (
           <div
             key={effect.id}
@@ -337,10 +336,10 @@ export function HomeInteriorEffectsLayer({
               height: sizePx,
               transform: "translate(-50%, -50%)",
               zIndex,
-              pointerEvents: interactive ? "auto" : "none",
+              pointerEvents: interactive || playerToggleable ? "auto" : "none",
               touchAction: "none",
-              cursor: interactive ? "grab" : "default",
-              borderRadius: "50%",
+              cursor: interactive ? "grab" : playerToggleable ? "pointer" : "default",
+              borderRadius: isSleep ? "16%" : "50%",
               outline: selected ? "1.5px dashed rgba(255,215,0,0.9)" : "none",
               outlineOffset: selected ? 5 : 0,
               filter: selected ? "drop-shadow(0 0 7px rgba(255,215,0,0.8))" : "none",
@@ -350,8 +349,15 @@ export function HomeInteriorEffectsLayer({
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
             onPointerCancel={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
+            onClick={playerToggleable ? event => {
+              event.stopPropagation();
+              onToggleEffect?.(effect);
+            } : undefined}
+            role={playerToggleable ? "button" : undefined}
+            aria-label={playerToggleable ? `${isOff ? "Turn on" : "Turn off"} ${effect.type.replaceAll("_", " ")} effect` : undefined}
+            data-effect-off={isOff ? "true" : undefined}
           >
-            <EffectVisual type={effect.type} />
+            {!isOff && <EffectVisual type={effect.type} />}
           </div>
         );
       })}
