@@ -899,6 +899,8 @@ export const petHousePositions = pgTable("pet_house_positions", {
   posLeft: text("pos_left").notNull(),
   posTop: text("pos_top").notNull(),
   location: text("location").notNull().default("outside"),
+  scalePct: integer("scale_pct").notNull().default(100),
+  flipped: boolean("flipped").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, (t) => [uniqueIndex("pet_house_positions_user_inv_uidx").on(t.userId, t.inventoryId)]);
 
