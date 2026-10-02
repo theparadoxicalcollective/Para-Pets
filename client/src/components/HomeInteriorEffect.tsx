@@ -231,6 +231,7 @@ export function HomeInteriorEffectsLayer({
               outline: selected ? "1.5px dashed rgba(255,215,0,0.9)" : "none",
               outlineOffset: selected ? 5 : 0,
               filter: selected ? "drop-shadow(0 0 7px rgba(255,215,0,0.8))" : "none",
+              fontSize: sizePx,
             }}
             onPointerDown={interactive && onEffectPointerDown ? event => onEffectPointerDown(event, effect) : undefined}
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
