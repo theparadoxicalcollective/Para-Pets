@@ -684,7 +684,12 @@ function InteriorViewer({
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      <HomeInteriorDarknessLayer darkness={darkness} zIndex={2} />
+      <HomeInteriorDarknessLayer
+        darkness={darkness}
+        effects={effects}
+        offEffectIds={offEffectIds}
+        zIndex={2}
+      />
 
       <HomeInteriorEffectsLayer
         effects={effects}
