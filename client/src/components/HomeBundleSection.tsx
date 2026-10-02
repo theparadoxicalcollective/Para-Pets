@@ -500,6 +500,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
   const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[] } | null>(null);
+  const interiorEffectSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
@@ -623,7 +624,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Mutations ──
   const patchBuilding = useMutation({
-    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; buildingType?: HouseBuildingType; size?: BuildingSize; interiorEffects?: HouseInteriorEffect[] }) => {
+    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; buildingType?: HouseBuildingType; size?: BuildingSize }) => {
       const { id, ...rest } = data;
       return apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, rest);
     },
@@ -1273,8 +1274,17 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
             setPreviewBuilding(prev => prev ? { ...prev, leaveButtonX: x, leaveButtonY: y } : null);
           }}
           onSaveEffects={(interiorEffects) => {
-            patchBuilding.mutate({ id: previewBuilding.buildingId, interiorEffects });
+            const buildingId = previewBuilding.buildingId;
             setPreviewBuilding(prev => prev ? { ...prev, interiorEffects } : null);
+            interiorEffectSaveQueueRef.current = interiorEffectSaveQueueRef.current
+              .catch(() => undefined)
+              .then(async () => {
+                await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorEffects });
+                await refetch();
+              })
+              .catch((error: any) => {
+                toast({ title: "Failed to save effect", description: error.message, variant: "destructive" });
+              });
           }}
         />
       )}
