@@ -107,7 +107,7 @@ function AdminInteriorPreview({
     darknessRef.current = initialDarkness;
     setDarkness(initialDarkness);
     setSelectedEffectId(null);
-  }, [buildingId, initialDarkness]);
+  }, [buildingId]);
 
   useEffect(() => {
     const img = new window.Image();
