@@ -278,7 +278,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
       />
 
       {imgWidth > 0 && placedItems.map((item) => {
-        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        const displaySize = item.size;
         return (
           <div
             key={item.id}
@@ -560,7 +560,7 @@ export default function VisitPetHousePage() {
 
       {/* Outdoor decor */}
       {imgWidth > 0 && outdoorDecor.map((item) => {
-        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        const displaySize = item.size;
         return (
           <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
             <img
