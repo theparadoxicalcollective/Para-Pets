@@ -25,7 +25,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
-import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
@@ -110,7 +110,7 @@ interface HouseBundle { id: string; name: string; shopImageUrl: string | null; b
 interface ActiveBundle extends HouseBundle {
   maxOutdoorPets: number;
   maxOutdoorDecor: number;
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType }; }
@@ -421,7 +421,7 @@ function HousePetControlPanel({
 // so only this one large image occupies GPU memory at a time.
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
-  effects = [], leaveButtonX = 0.92, leaveButtonY = 0.06,
+  effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06,
   onUpdateItem, onRemoveItem, onMovePet, onOpenCloset, onRemovePet, removingPetId, onClose,
 }: {
   url: string;
@@ -429,6 +429,7 @@ function InteriorViewer({
   placedPets: HousePet[];
   panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
   effects?: HouseInteriorEffect[];
+  darkness?: number;
   leaveButtonX?: number;
   leaveButtonY?: number;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
@@ -652,6 +653,8 @@ function InteriorViewer({
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
+      <HomeInteriorDarknessLayer darkness={darkness} zIndex={2} />
+
       <HomeInteriorEffectsLayer
         effects={effects}
         panX={panX}
@@ -831,7 +834,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
-  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[] } | null>(null);
+  const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   // Hide the global FloatingNav while an inventory drawer is open so its
@@ -1485,7 +1488,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 data-testid={isClickable ? `tile-building-${b.id}` : undefined}
                 onClick={() => {
                   if (hasInterior) {
-                    setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06, interiorEffects: b.interiorEffects ?? [] });
+                    setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06, interiorEffects: b.interiorEffects ?? [], interiorDarkness: b.interiorDarkness ?? 0 });
                   } else if (isMailbox) {
                     if (pendingGifts.length > 0) {
                       setOpenGiftModal(true);
@@ -2087,6 +2090,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             placedPets={pets.filter(p => p.posLeft !== null && p.location === openInterior.buildingId)}
             panStateRef={interiorPanRef}
             effects={openInterior.interiorEffects}
+            darkness={openInterior.interiorDarkness}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
