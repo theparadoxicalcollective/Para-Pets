@@ -310,6 +310,9 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         darkness={darkness}
         effects={effects}
         offEffectIds={offEffectIds}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerH}
         zIndex={2}
       />
 
