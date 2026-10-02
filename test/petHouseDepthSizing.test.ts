@@ -45,7 +45,9 @@ test("Home scene pets and items no longer change size automatically while moving
   const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
 
-  assert.match(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
+  assert.match(owner, /data-testid=\{\`home-pet-visible-scale-\$\{pet\.inventoryId\}\`\}/);
+  assert.match(owner, /transform: \`scale\(\$\{petScale\}\)\`/);
+  assert.doesNotMatch(owner, /petHouseDisplaySize\(cfg\.size, pet\)/);
   assert.match(owner, /const displaySize = item\.size/);
   assert.match(visitor, /const displaySize = item\.size/);
   assert.doesNotMatch(owner, /petHouseDepthSize\(cfg\.size, yPct\)/);

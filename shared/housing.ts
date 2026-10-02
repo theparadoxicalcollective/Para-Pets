@@ -151,6 +151,8 @@ export function getHouseInteriorSleepSnapPosition(
   yPct: number,
   imageAspect: number,
   paddingRatio = 0.35,
+  petHalfWidthPct = 0,
+  petHalfHeightPct = 0,
 ): HouseInteriorSleepSnapPosition | null {
   if (!Number.isFinite(imageAspect) || imageAspect <= 0) return null;
   const safeX = Number.isFinite(xPct) ? xPct : 0.5;
@@ -165,8 +167,8 @@ export function getHouseInteriorSleepSnapPosition(
     // so convert the scene-height footprint through the image aspect ratio.
     const halfHeightPct = effect.size / 200;
     const halfWidthPct = halfHeightPct / imageAspect;
-    const catchHalfHeight = halfHeightPct * (1 + safePadding);
-    const catchHalfWidth = halfWidthPct * (1 + safePadding);
+    const catchHalfHeight = halfHeightPct * (1 + safePadding) + Math.max(0, petHalfHeightPct);
+    const catchHalfWidth = halfWidthPct * (1 + safePadding) + Math.max(0, petHalfWidthPct);
     const dx = Math.abs(safeX - effect.x);
     const dy = Math.abs(safeY - effect.y);
     if (dx > catchHalfWidth || dy > catchHalfHeight) continue;
