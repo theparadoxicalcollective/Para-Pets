@@ -46,8 +46,8 @@ test("Decor and Objects no longer resize automatically from vertical position", 
 test("players get minus and plus controls for both interior and outdoor Home items", () => {
   assert.equal((owner.match(/HOME_SCENE_PLAYER_SIZE_DECREASE_STEP/g) ?? []).length >= 3, true);
   assert.equal((owner.match(/HOME_SCENE_PLAYER_SIZE_INCREASE_STEP/g) ?? []).length >= 3, true);
-  assert.equal((owner.match(/<Minus size=\{18\}/g) ?? []).length, 2);
-  assert.equal((owner.match(/<Plus size=\{18\}/g) ?? []).length, 2);
+  assert.equal((owner.match(/<Minus size=\{15\}/g) ?? []).length, 2);
+  assert.equal((owner.match(/<Plus size=\{15\}/g) ?? []).length, 2);
   assert.equal((owner.match(/clampHomeScenePlayerSize\(item\.item\.homeSceneSize/g) ?? []).length, 4);
 });
 
