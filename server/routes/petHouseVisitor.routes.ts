@@ -36,7 +36,7 @@ export function registerPetHouseVisitorRoutes(
       const posMap = new Map(
         savedPositions.map((p) => [
           p.inventoryId,
-          { posLeft: p.posLeft, posTop: p.posTop, location: p.location },
+          { posLeft: p.posLeft, posTop: p.posTop, location: p.location, scalePct: p.scalePct, flipped: p.flipped },
         ]),
       );
 
@@ -61,6 +61,8 @@ export function registerPetHouseVisitorRoutes(
             posLeft: pos?.posLeft ?? null,
             posTop: pos?.posTop ?? null,
             location: pos?.location ?? null,
+            homeScalePct: pos?.scalePct ?? 100,
+            homeFlipped: pos?.flipped ?? false,
           };
         });
 
