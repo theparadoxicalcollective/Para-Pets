@@ -1255,17 +1255,24 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             } else {
               const rawXPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
               const rawYPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+              const droppedScale = clampPetHousePlayerScale(petDrag.pet.homeScalePct ?? 100);
+              const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * droppedScale / 100;
               const sleepSnap = getHouseInteriorSleepSnapPosition(
                 openInterior.interiorEffects,
                 rawXPct,
                 rawYPct,
                 interior.imgWidth / Math.max(interior.containerH, 1),
+                0.5,
+                visiblePetSize / 2 / interior.imgWidth,
+                visiblePetSize / 2 / Math.max(interior.containerH, 1),
               );
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
                 xPct: sleepSnap?.x ?? rawXPct,
                 yPct: sleepSnap?.y ?? rawYPct,
                 location: openInterior.buildingId,
+                scalePct: droppedScale,
+                flipped: !!petDrag.pet.homeFlipped,
               });
             }
           } else if (imgWidth > 0) {
