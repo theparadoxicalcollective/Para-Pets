@@ -43,3 +43,11 @@ test("selected Home items glow around the PNG silhouette without a rectangular b
   assert.match(owner, /setTopItemId\(item\.id\)/);
   assert.match(owner, /setTopOutdoorDecorId\(item\.id\)/);
 });
+
+test("Home item controls are positioned from visible alpha bounds instead of the full PNG canvas", () => {
+  assert.match(component, /data-testid="home-scene-visible-controls"/);
+  assert.match(component, /left: rect \? rect\.left \+ rect\.width \/ 2 : size \/ 2/);
+  assert.match(component, /top: rect \? Math\.max\(0, rect\.top - 6\) : 0/);
+  assert.equal((owner.match(/controls=\{/g) ?? []).length, 2);
+  assert.doesNotMatch(owner, /bottom: "calc\(100% \+ 6px\)"/);
+});
