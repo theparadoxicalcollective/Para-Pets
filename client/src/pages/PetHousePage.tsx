@@ -48,7 +48,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -395,7 +395,7 @@ function HousePetControlPanel({
         <button
           type="button"
           data-testid="button-remove-pet-from-home"
-          aria-label={`Remove ${petName} from Home`}
+          aria-label={`Return ${petName}`}
           disabled={pending}
           onClick={onRemove}
           style={{
@@ -408,7 +408,7 @@ function HousePetControlPanel({
             cursor: pending ? "wait" : "pointer",
           }}
         >
-          {pending ? "Removing…" : "Remove from Home"}
+          {pending ? "Returning…" : "Return"}
         </button>
       </div>
     </div>
@@ -619,9 +619,17 @@ function InteriorViewer({
       return;
     }
     const maxY = maxYForHeight(containerHRef.current);
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
+    const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
+    const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const sleepSnap = getHouseInteriorSleepSnapPosition(
+      effects,
+      rawXPct,
+      rawYPct,
+      imgWidthRef.current / Math.max(containerHRef.current, 1),
+    );
+    const newXPct = sleepSnap?.x ?? rawXPct;
+    const newYPct = sleepSnap?.y ?? rawYPct;
+    if (sleepSnap || Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
       const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
       setTopPetId(drag.inventoryId);
       setPetDragLive(finalPosition);
@@ -635,7 +643,7 @@ function InteriorViewer({
       return;
     }
     setPetDragLive(null);
-  }, [onMovePet]);
+  }, [effects, onMovePet]);
 
   const displayedItems = useMemo(() =>
     placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
@@ -724,7 +732,8 @@ function InteriorViewer({
         const top = yPct * containerH;
         const petSize = petHouseDisplaySize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, pet);
         const isSelectedPet = popupPetId === pet.inventoryId;
-        const isSleeping = !livePos && isHouseInteriorSleepPosition(
+        const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
+        const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
           effects,
           xPct,
           yPct,
@@ -745,7 +754,7 @@ function InteriorViewer({
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 petInventoryId={pet.inventoryId}
-                mode={livePos ? "static" : isSleeping ? "sleep" : "house"}
+                mode={isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
                 size={petSize}
                 fillContainer
                 fitVisible
@@ -756,7 +765,7 @@ function InteriorViewer({
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
-                className={livePos ? undefined : "pet-idle-squish"}
+                className={isActivelyDragging ? undefined : "pet-idle-squish"}
                 style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
@@ -782,7 +791,7 @@ function InteriorViewer({
               popupPet.inventoryId,
               xPct,
               yPct,
-              clampPetHousePlayerScale((popupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
+              clampPetHousePlayerScale(clampPetHousePlayerScale(popupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
               !!popupPet.homeFlipped,
             );
           }}
@@ -793,14 +802,14 @@ function InteriorViewer({
               popupPet.inventoryId,
               xPct,
               yPct,
-              clampPetHousePlayerScale((popupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
+              clampPetHousePlayerScale(clampPetHousePlayerScale(popupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
               !!popupPet.homeFlipped,
             );
           }}
           onFlip={() => {
             const xPct = popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5;
             const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
-            void onMovePet(popupPet.inventoryId, xPct, yPct, popupPet.homeScalePct ?? 100, !popupPet.homeFlipped);
+            void onMovePet(popupPet.inventoryId, xPct, yPct, clampPetHousePlayerScale(popupPet.homeScalePct ?? 100), !popupPet.homeFlipped);
           }}
           onCloset={() => onOpenCloset(popupPet.inventoryId)}
           onRemove={async () => {
@@ -1181,10 +1190,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (currentCount >= maxPets) {
               toast({ title: "Pet limit reached!", description: `This building can hold up to ${maxPets} pets.` });
             } else {
+              const rawXPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
+              const rawYPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+              const sleepSnap = getHouseInteriorSleepSnapPosition(
+                openInterior.interiorEffects,
+                rawXPct,
+                rawYPct,
+                interior.imgWidth / Math.max(interior.containerH, 1),
+              );
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
-                xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
-                yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
+                xPct: sleepSnap?.x ?? rawXPct,
+                yPct: sleepSnap?.y ?? rawYPct,
                 location: openInterior.buildingId,
               });
             }
@@ -1628,7 +1645,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               inventoryId: outdoorPopupPet.inventoryId,
               xPct,
               yPct,
-              scalePct: clampPetHousePlayerScale((outdoorPopupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
+              scalePct: clampPetHousePlayerScale(clampPetHousePlayerScale(outdoorPopupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
               flipped: !!outdoorPopupPet.homeFlipped,
             });
           }}
@@ -1639,7 +1656,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               inventoryId: outdoorPopupPet.inventoryId,
               xPct,
               yPct,
-              scalePct: clampPetHousePlayerScale((outdoorPopupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
+              scalePct: clampPetHousePlayerScale(clampPetHousePlayerScale(outdoorPopupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
               flipped: !!outdoorPopupPet.homeFlipped,
             });
           }}
@@ -1650,7 +1667,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               inventoryId: outdoorPopupPet.inventoryId,
               xPct,
               yPct,
-              scalePct: outdoorPopupPet.homeScalePct ?? 100,
+              scalePct: clampPetHousePlayerScale(outdoorPopupPet.homeScalePct ?? 100),
               flipped: !outdoorPopupPet.homeFlipped,
             });
           }}
