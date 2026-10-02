@@ -97,6 +97,8 @@ function setup(options: {
             posLeft: "24",
             posTop: "61",
             location: "inside",
+            scalePct: 125,
+            flipped: true,
           },
         ]) as any;
       },
@@ -169,6 +171,8 @@ test("visitor response preserves hatched-pet filtering, fields, and saved positi
         posLeft: "24",
         posTop: "61",
         location: "inside",
+        homeScalePct: 125,
+        homeFlipped: true,
       },
     ],
   });
@@ -182,8 +186,10 @@ test("pets without saved house positions keep null position fields", async () =>
       posLeft: res.body.pets[0].posLeft,
       posTop: res.body.pets[0].posTop,
       location: res.body.pets[0].location,
+      homeScalePct: res.body.pets[0].homeScalePct,
+      homeFlipped: res.body.pets[0].homeFlipped,
     },
-    { posLeft: null, posTop: null, location: null },
+    { posLeft: null, posTop: null, location: null, homeScalePct: 100, homeFlipped: false },
   );
 });
 

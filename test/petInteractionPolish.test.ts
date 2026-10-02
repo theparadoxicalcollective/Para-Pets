@@ -5,7 +5,7 @@ import test from "node:test";
 const petHouse = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
 const feedingOverlay = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
 
-test("outdoor removal control follows live drag coordinates and current pet data", () => {
+test("outdoor pet edit panel follows live drag coordinates and current pet data", () => {
   assert.match(petHouse, /const \[outdoorPopupPetId, setOutdoorPopupPetId\] = useState<string \| null>\(null\)/);
   assert.match(petHouse, /outdoorPets\.find\(pet => pet\.inventoryId === outdoorPopupPetId\)/);
   assert.match(petHouse, /outdoorPopupLivePosition\?\.xPct \?\? parsePetPct\(outdoorPopupPet\.posLeft\)/);
@@ -14,13 +14,13 @@ test("outdoor removal control follows live drag coordinates and current pet data
   assert.match(petHouse, /updatePetPositionMutation\.mutateAsync\(finalPosition\)/);
 });
 
-test("indoor removal control follows live drag coordinates until its save settles", () => {
+test("indoor pet edit panel follows live drag coordinates until its save settles", () => {
   assert.match(petHouse, /const \[popupPetId, setPopupPetId\] = useState<string \| null>\(null\)/);
   assert.match(petHouse, /placedPets\.find\(pet => pet\.inventoryId === popupPetId\)/);
   assert.match(petHouse, /popupPetLivePosition\?\.xPct \?\? parsePetPct\(popupPet\.posLeft\)/);
   assert.match(petHouse, /popupPetLivePosition\?\.yPct \?\? parsePetPct\(popupPet\.posTop\)/);
-  assert.match(petHouse, /void onMovePet\(drag\.inventoryId, newXPct, newYPct\)/);
-  assert.match(petHouse, /onMovePet: \(inventoryId: string, xPct: number, yPct: number\) => Promise<void>/);
+  assert.match(petHouse, /void onMovePet\(drag\.inventoryId, newXPct, newYPct, drag\.scalePct, drag\.flipped\)/);
+  assert.match(petHouse, /onMovePet: \(inventoryId: string, xPct: number, yPct: number, scalePct: number, flipped: boolean\) => Promise<void>/);
 });
 
 test("settled drag cleanup cannot clear a newer live drag", () => {

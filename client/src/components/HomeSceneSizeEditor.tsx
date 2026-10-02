@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus, X } from "lucide-react";
 import fallbackHomePreview from "@assets/bg_home_v2.png";
-import { petHouseDepthSize } from "@/lib/petHouseSizing";
 
 interface PreviewBundle {
   id: string;
@@ -65,7 +64,7 @@ export function HomeSceneSizeEditor({
     ?? fallbackHomePreview;
 
   const previewY = 0.72;
-  const displaySize = petHouseDepthSize(size, previewY);
+  const displaySize = size;
 
   const changeSize = (next: number) => {
     setSize(Math.max(60, Math.min(500, Math.round(next))));
@@ -143,7 +142,7 @@ export function HomeSceneSizeEditor({
           className="absolute left-3 bottom-3 rounded-lg px-2 py-1 font-fantasy text-[8px]"
           style={{ background: "rgba(0,0,0,0.62)", color: "rgba(255,255,255,0.72)" }}
         >
-          Previewed at normal floor depth
+          Admin starting size preview
         </div>
       </div>
 
@@ -157,7 +156,7 @@ export function HomeSceneSizeEditor({
             <p className="font-fantasy text-lg" style={{ color: "#ffd700" }}>{size}px</p>
           </div>
           <p className="font-fantasy text-[9px] text-right max-w-[190px]" style={{ color: "rgba(255,255,255,0.38)" }}>
-            Players cannot resize this. Moving it upward in a home will make it smaller automatically.
+            Players start at this size. They can make it smaller, or increase it up to 10px above this Admin size.
           </p>
         </div>
 

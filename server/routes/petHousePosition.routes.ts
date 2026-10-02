@@ -37,16 +37,24 @@ export function registerPetHousePositionRoutes(
     try {
       const user = req.user as any;
       const { inventoryId } = req.params as Record<string, string>;
-      const { posLeft, posTop, location } = req.body;
+      const { posLeft, posTop, location, scalePct, flipped } = req.body;
       if (typeof posLeft !== "string" || typeof posTop !== "string") {
         return res.status(400).json({ message: "posLeft and posTop are required strings" });
       }
+      const existing = (await storage.getPetHousePositions(user.id))
+        .find((position) => position.inventoryId === inventoryId);
+      const safeScalePct = typeof scalePct === "number" && Number.isFinite(scalePct)
+        ? Math.max(55, Math.min(140, Math.round(scalePct)))
+        : (existing?.scalePct ?? 100);
+      const safeFlipped = typeof flipped === "boolean" ? flipped : (existing?.flipped ?? false);
       await storage.upsertPetHousePosition(
         user.id,
         inventoryId,
         posLeft,
         posTop,
         location ?? "outside",
+        safeScalePct,
+        safeFlipped,
       );
       return res.json({ ok: true });
     } catch (_err) {

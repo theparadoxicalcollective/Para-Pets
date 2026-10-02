@@ -67,6 +67,8 @@ function setup(options: {
             posLeft: "25",
             posTop: "40",
             location: "outside",
+            scalePct: 115,
+            flipped: true,
           },
         ];
       },
@@ -76,9 +78,11 @@ function setup(options: {
         posLeft: string,
         posTop: string,
         location: string,
+        scalePct: number,
+        flipped: boolean,
       ) => {
         if (options.failSave) throw new Error("boom");
-        calls.save.push([userId, inventoryId, posLeft, posTop, location]);
+        calls.save.push([userId, inventoryId, posLeft, posTop, location, scalePct, flipped]);
       },
       deleteAllPetHousePositions: async (userId: string) => {
         if (options.failDeleteAll) throw new Error("boom");
@@ -166,12 +170,15 @@ test("position reads and writes always use the authenticated player id", async (
         posLeft: "12.5",
         posTop: "77",
         location: "inside-building",
+        scalePct: 130,
+        flipped: false,
       },
     },
   );
 
+  assert.deepEqual(calls.get, ["owner", "owner"]);
   assert.deepEqual(calls.save, [
-    ["owner", "pet-2", "12.5", "77", "inside-building"],
+    ["owner", "pet-2", "12.5", "77", "inside-building", 130, false],
   ]);
   assert.deepEqual(saved.body, { ok: true });
 });
@@ -200,7 +207,17 @@ test("position PATCH preserves required string validation and outside default", 
     params: { inventoryId: "pet-1" },
     body: { posLeft: "10", posTop: "20" },
   });
-  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside"]]);
+  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 115, true]]);
+});
+
+test("position PATCH clamps Home pet scale and accepts flip", async () => {
+  const { app, calls } = setup();
+  await call(app, "PATCH", "/api/pet-house-positions/:inventoryId", {
+    user: { id: "owner" },
+    params: { inventoryId: "pet-1" },
+    body: { posLeft: "10", posTop: "20", scalePct: 999, flipped: false },
+  });
+  assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 140, false]]);
 });
 
 test("store-all and single-pet removal preserve ownership and response shapes", async () => {

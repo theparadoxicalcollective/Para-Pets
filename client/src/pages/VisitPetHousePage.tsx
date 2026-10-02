@@ -6,7 +6,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import type { HouseBuildingType } from "@shared/housing";
-import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -14,6 +14,7 @@ interface VisitedPet {
   imageUrl: string | null; hatchedImageUrl: string | null; eggImageUrl: string | null;
   rarity: number | null; petLevel: number; petHealth: number; petAtk: number; petDef: number;
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
+  homeScalePct: number; homeFlipped: boolean;
 }
 interface ActiveBundle {
   id: string; name: string; bgImageUrl: string | null;
@@ -298,7 +299,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
       {imgWidth > 0 && placedPets.map((pet) => {
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
-        const petSize = petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct);
+        const petSize = Math.round(PET_HOUSE_INTERIOR_PET_BASE_SIZE * Math.max(55, Math.min(140, pet.homeScalePct ?? 100)) / 100);
         return (
           <div
             key={pet.inventoryId}
@@ -317,7 +318,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
                 size={petSize}
                 fillContainer
                 fitVisible
-                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
@@ -325,7 +326,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 className="pet-idle-squish"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
           </div>
@@ -533,7 +534,7 @@ export default function VisitPetHousePage() {
         const cfg = randomGroundConfig(i);
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
-        const petSize = petHouseDepthSize(cfg.size, yPct);
+        const petSize = Math.round(cfg.size * Math.max(55, Math.min(140, pet.homeScalePct ?? 100)) / 100);
         return (
           <div
             key={pet.inventoryId}
@@ -544,14 +545,14 @@ export default function VisitPetHousePage() {
             onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
           >
             {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={petSize} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
+              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={petSize} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }} />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 className="pet-idle-squish"
-                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
           </div>

@@ -210,6 +210,7 @@ function shouldHideNav(path: string) {
   if (path.startsWith("/reset-password/")) return true;
   if (path.startsWith("/visit/")) return true;
   if (path.startsWith("/pet-care/")) return true;
+  if (path.startsWith("/equip-accessories/")) return true;
   if (path.startsWith("/pet-level-up/")) return true;
   return false;
 }
@@ -595,9 +596,12 @@ function AppRouter() {
             <CardsCollectionPage />
           </div>
         )}
-        {location === "/equip-accessories" && (
+        {(location === "/equip-accessories" || location.startsWith("/equip-accessories/")) && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-            <EquipAccessoriesPage />
+            <EquipAccessoriesPage
+              petInventoryId={location.startsWith("/equip-accessories/") ? location.split("/")[2] : undefined}
+              returnPath={location.startsWith("/equip-accessories/") ? "/pet-house" : "/"}
+            />
           </div>
         )}
         {location.startsWith("/pet-care/") && (

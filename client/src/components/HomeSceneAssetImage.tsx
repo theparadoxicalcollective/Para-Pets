@@ -108,8 +108,9 @@ export function HomeSceneAssetImage({
             pointerEvents: "auto",
             touchAction: "none",
             cursor: selected ? "grab" : "pointer",
-            outline: selected ? "2px solid rgba(255,215,0,0.8)" : "none",
+            outline: selected ? "2px solid rgba(255,215,0,0.92)" : "none",
             outlineOffset: 3,
+            boxShadow: selected ? "0 0 10px rgba(255,215,0,0.72), 0 0 20px rgba(255,190,35,0.38)" : "none",
             borderRadius: 4,
           }}
         />

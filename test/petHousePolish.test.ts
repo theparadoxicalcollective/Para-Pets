@@ -8,11 +8,15 @@ const worldPage = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
 const positionRoutes = readFileSync("server/routes/petHousePosition.routes.ts", "utf8");
 const storage = readFileSync("server/storage.ts", "utf8");
 
-test("owner house pet taps expose only the placement-removal control", () => {
-  assert.match(ownerPage, /data-testid="house-pet-removal-control"/);
+test("owner house pet taps expose the Home edit panel without opening care/feed", () => {
+  assert.match(ownerPage, /data-testid="house-pet-control-panel"/);
+  assert.match(ownerPage, /data-testid="button-pet-home-size-minus"/);
+  assert.match(ownerPage, /data-testid="button-pet-home-size-plus"/);
+  assert.match(ownerPage, /data-testid="button-pet-home-flip"/);
+  assert.match(ownerPage, /data-testid="button-pet-home-closet"/);
   assert.match(ownerPage, /\{pending \? "Removing…" : "Remove from Home"\}/);
-  assert.match(ownerPage, /setOutdoorPopupPetId\(current => current === drag\.inventoryId \? null : drag\.inventoryId\)/);
-  assert.match(ownerPage, /setPopupPetId\(current => current === pet\.inventoryId \? null : pet\.inventoryId\)/);
+  assert.match(ownerPage, /if \(outdoorPopupPetId !== pet\.inventoryId\)/);
+  assert.match(ownerPage, /if \(popupPetId !== pet\.inventoryId\)/);
   assert.doesNotMatch(ownerPage, /onCare=\{\(\) => \{ const id = outdoorPopupPet/);
   assert.doesNotMatch(ownerPage, /onFeedPet=\{/);
 });
@@ -41,13 +45,14 @@ test("visitors cannot see an owner removal action and regular world pets retain 
   assert.match(worldPage, /onSelectPlayer=\{setSelectedPlayerId\}/);
 });
 
-test("Pet House uses shared depth sizing and mobile-friendly targets", () => {
+test("Pet House uses shared pet baselines and mobile-friendly edit controls", () => {
   assert.match(ownerPage, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE/);
   assert.match(ownerPage, /PET_HOUSE_INTERIOR_PET_BASE_SIZE/);
-  assert.match(ownerPage, /petHouseDepthSize/);
-  assert.match(visitorPage, /petHouseDepthSize/);
-  assert.match(ownerPage, /minHeight: 44/);
-  assert.match(ownerPage, /Math\.max\(82, Math\.min/);
+  assert.match(ownerPage, /petHouseDisplaySize/);
+  assert.doesNotMatch(ownerPage, /petHouseDepthSize/);
+  assert.doesNotMatch(visitorPage, /petHouseDepthSize/);
+  assert.match(ownerPage, /minHeight: 42/);
+  assert.match(ownerPage, /Math\.max\(120, Math\.min/);
 });
 
 test("general profile and currency HUD is absent while house navigation remains", () => {

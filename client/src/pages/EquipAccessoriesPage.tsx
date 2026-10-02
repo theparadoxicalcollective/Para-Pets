@@ -19,7 +19,7 @@ interface AuthUser {
   activePetId: string | null;
 }
 
-export default function EquipAccessoriesPage() {
+export default function EquipAccessoriesPage({ petInventoryId, returnPath = "/" }: { petInventoryId?: string; returnPath?: string } = {}) {
   const [, navigate] = useLocation();
 
   const { data: user, isLoading: userLoading } = useQuery<AuthUser>({ queryKey: ["/api/auth/me"] });
@@ -28,8 +28,9 @@ export default function EquipAccessoriesPage() {
   });
 
   const ready = !userLoading && !invLoading && !!user;
-  const activePet = user?.activePetId
-    ? inventory.find(i => i.inventoryId === user.activePetId && i.type === "pet")
+  const targetPetId = petInventoryId ?? user?.activePetId ?? null;
+  const activePet = targetPetId
+    ? inventory.find(i => i.inventoryId === targetPetId && i.type === "pet")
     : null;
 
   // If everything has loaded and there's still no active pet to equip on,
@@ -37,8 +38,8 @@ export default function EquipAccessoriesPage() {
   // a state update inside the router's render pass — which would flap the
   // page open/closed on every click.
   useEffect(() => {
-    if (ready && !activePet) navigate("/");
-  }, [ready, activePet, navigate]);
+    if (ready && !activePet) navigate(returnPath);
+  }, [ready, activePet, navigate, returnPath]);
 
   if (!ready || !activePet) {
     return (
@@ -55,7 +56,7 @@ export default function EquipAccessoriesPage() {
       petImage={activePet.hatchedImageUrl || activePet.imageUrl}
       petTemplateId={activePet.petTemplateId}
       rarity={activePet.rarity || 1}
-      onClose={() => navigate("/")}
+      onClose={() => navigate(returnPath)}
     />
   );
 }
