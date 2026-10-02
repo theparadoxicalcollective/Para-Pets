@@ -14,10 +14,10 @@ export function clampHomeScenePlayerSize(baseSize: number, requestedSize: number
   return Math.max(min, Math.min(max, requested));
 }
 
-export const PET_HOUSE_PLAYER_SCALE_DECREASE_STEP = 15;
+export const PET_HOUSE_PLAYER_SCALE_DECREASE_STEP = 25;
 export const PET_HOUSE_PLAYER_SCALE_INCREASE_STEP = 10;
-export const PET_HOUSE_PLAYER_MIN_SCALE = 55;
-export const PET_HOUSE_PLAYER_MAX_SCALE = 140;
+export const PET_HOUSE_PLAYER_MIN_SCALE = 50;
+export const PET_HOUSE_PLAYER_MAX_SCALE = 110;
 
 export function clampPetHousePlayerScale(requestedScale: number): number {
   const requested = Math.round(Number.isFinite(requestedScale) ? requestedScale : 100);
@@ -92,26 +92,59 @@ export function sanitizeHouseInteriorEffects(value: unknown): HouseInteriorEffec
   return effects;
 }
 
+export interface HouseInteriorSleepSnapPosition {
+  effectId: string;
+  x: number;
+  y: number;
+}
+
+export function getHouseInteriorSleepSnapPosition(
+  effects: readonly HouseInteriorEffect[],
+  xPct: number,
+  yPct: number,
+  imageAspect: number,
+  paddingRatio = 0.35,
+): HouseInteriorSleepSnapPosition | null {
+  if (!Number.isFinite(imageAspect) || imageAspect <= 0) return null;
+  const safeX = Number.isFinite(xPct) ? xPct : 0.5;
+  const safeY = Number.isFinite(yPct) ? yPct : 0.5;
+  const safePadding = Math.max(0, Math.min(1, Number.isFinite(paddingRatio) ? paddingRatio : 0));
+
+  let best: { snap: HouseInteriorSleepSnapPosition; distance: number } | null = null;
+  for (const effect of effects) {
+    if (effect.type !== "sleep") continue;
+
+    // Sleep effects are square in scene pixels. X uses image-space percentage,
+    // so convert the scene-height footprint through the image aspect ratio.
+    const halfHeightPct = effect.size / 200;
+    const halfWidthPct = halfHeightPct / imageAspect;
+    const catchHalfHeight = halfHeightPct * (1 + safePadding);
+    const catchHalfWidth = halfWidthPct * (1 + safePadding);
+    const dx = Math.abs(safeX - effect.x);
+    const dy = Math.abs(safeY - effect.y);
+    if (dx > catchHalfWidth || dy > catchHalfHeight) continue;
+
+    const normalizedX = catchHalfWidth > 0 ? dx / catchHalfWidth : 0;
+    const normalizedY = catchHalfHeight > 0 ? dy / catchHalfHeight : 0;
+    const distance = normalizedX * normalizedX + normalizedY * normalizedY;
+    if (!best || distance < best.distance) {
+      best = {
+        snap: { effectId: effect.id, x: effect.x, y: effect.y },
+        distance,
+      };
+    }
+  }
+
+  return best?.snap ?? null;
+}
+
 export function isHouseInteriorSleepPosition(
   effects: readonly HouseInteriorEffect[],
   xPct: number,
   yPct: number,
   imageAspect: number,
 ): boolean {
-  if (!Number.isFinite(imageAspect) || imageAspect <= 0) return false;
-  const safeX = Number.isFinite(xPct) ? xPct : 0.5;
-  const safeY = Number.isFinite(yPct) ? yPct : 0.5;
-
-  return effects.some(effect => {
-    if (effect.type !== "sleep") return false;
-    // Effect size is stored as a percentage of scene height. Convert that
-    // square footprint into image-X percentage so hit testing matches the
-    // exact admin/player rendering on every viewport size.
-    const halfHeightPct = effect.size / 200;
-    const halfWidthPct = halfHeightPct / imageAspect;
-    return Math.abs(safeX - effect.x) <= halfWidthPct
-      && Math.abs(safeY - effect.y) <= halfHeightPct;
-  });
+  return getHouseInteriorSleepSnapPosition(effects, xPct, yPct, imageAspect, 0) !== null;
 }
 
 export function homeSceneItemCountsTowardDecorLimit(type: HomeSceneItemType): boolean {
