@@ -28,6 +28,7 @@ test("reward picker exposes correct Home and Object filters without changing nor
   assert.match(picker, /activeCategory === "home_decor"/);
   assert.match(picker, /bundle\.name\.toLowerCase\(\)\.includes\(normalizedSearch\)/);
   assert.match(picker, /decor\.name\.toLowerCase\(\)\.includes\(normalizedSearch\)/);
+  assert.match(routes, /const catalogItems = items\.filter\(i => !\(i\.fishingType === "bait" && i\.locationId !== null\)\)/);
 });
 
 test("server validates and persists Home rewards atomically with ordinary reward bundles", () => {
@@ -58,4 +59,5 @@ test("reward home storage is startup-safe and represented in shared schema", () 
 test("claim modal refreshes Home Bundle ownership and Home Decor inventory", () => {
   assert.match(claimModal, /queryKey: \["\/api\/pet-house\/decor\/inventory"\]/);
   assert.match(claimModal, /queryKey: \["\/api\/users", data\.user\.id, "house-bundles"\]/);
+  assert.match(claimModal, /description: "Rewards have been added to your account"/);
 });
