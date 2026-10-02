@@ -34,7 +34,7 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
-export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
+export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
 export interface HouseInteriorEffect {
@@ -82,6 +82,28 @@ export function sanitizeHouseInteriorEffects(value: unknown): HouseInteriorEffec
   }
 
   return effects;
+}
+
+export function isHouseInteriorSleepPosition(
+  effects: readonly HouseInteriorEffect[],
+  xPct: number,
+  yPct: number,
+  imageAspect: number,
+): boolean {
+  if (!Number.isFinite(imageAspect) || imageAspect <= 0) return false;
+  const safeX = Number.isFinite(xPct) ? xPct : 0.5;
+  const safeY = Number.isFinite(yPct) ? yPct : 0.5;
+
+  return effects.some(effect => {
+    if (effect.type !== "sleep") return false;
+    // Effect size is stored as a percentage of scene height. Convert that
+    // square footprint into image-X percentage so hit testing matches the
+    // exact admin/player rendering on every viewport size.
+    const halfHeightPct = effect.size / 200;
+    const halfWidthPct = halfHeightPct / imageAspect;
+    return Math.abs(safeX - effect.x) <= halfWidthPct
+      && Math.abs(safeY - effect.y) <= halfHeightPct;
+  });
 }
 
 export function homeSceneItemCountsTowardDecorLimit(type: HomeSceneItemType): boolean {
