@@ -651,20 +651,20 @@ function InteriorViewer({
             className="absolute"
             style={{ zIndex: isSelected ? 180 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
-            {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
-                <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
-                <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_INCREASE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
-                <ControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></ControlBtn>
-                <ControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></ControlBtn>
-              </div>
-            )}
             <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              controls={
+                <div className="flex gap-1">
+                  <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={15} color="#ffd700" /></ControlBtn>
+                  <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_INCREASE_STEP) })}><Plus size={15} color="#ffd700" /></ControlBtn>
+                  <ControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></ControlBtn>
+                  <ControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></ControlBtn>
+                </div>
+              }
               onPointerDown={(e) => onItemDown(e, item)}
               onPointerMove={onItemMove}
               onPointerUp={onItemUp}
@@ -1622,20 +1622,20 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             className="absolute"
             style={{ zIndex: isSelected ? 180 : (topOutdoorDecorId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
-            {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
-                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
-                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_INCREASE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
-                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}><SvgFlip /></ControlBtn>
-                <ControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}><SvgDelete /></ControlBtn>
-              </div>
-            )}
             <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              controls={
+                <div className="flex gap-1">
+                  <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={15} color="#ffd700" /></ControlBtn>
+                  <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_INCREASE_STEP) })}><Plus size={15} color="#ffd700" /></ControlBtn>
+                  <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}><SvgFlip /></ControlBtn>
+                  <ControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}><SvgDelete /></ControlBtn>
+                </div>
+              }
               onPointerDown={(e) => handlePlacedDragStart(e, item)}
               onPointerMove={handlePlacedDragMove}
               onPointerUp={handlePlacedDragEnd}
