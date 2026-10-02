@@ -381,6 +381,44 @@ test("building editing keeps current size and placement clamps", async () => {
   ]);
 });
 
+test("building interior effects are clamped and invalid effect entries are dropped", async () => {
+  const { app, calls } = setup();
+  const res = await call(app, "PATCH", "/api/admin/house-bundle-buildings/:id", {
+    params: { id: "building-1" },
+    body: {
+      interiorEffects: [
+        { id: "fire-1", type: "fire", x: -2, y: 3, size: 90 },
+        { id: "bad", type: "lightning", x: 0.5, y: 0.5, size: 10 },
+        { id: "glow-1", type: "warm_glow", x: 0.4, y: 0.6, size: 2 },
+      ],
+    },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(calls.updatedBuildings, [
+    [
+      "building-1",
+      {
+        interiorEffects: [
+          { id: "fire-1", type: "fire", x: 0, y: 1, size: 40 },
+          { id: "glow-1", type: "warm_glow", x: 0.4, y: 0.6, size: 4 },
+        ],
+      },
+    ],
+  ]);
+});
+
+test("building interior effects reject non-array payloads", async () => {
+  const { app, calls } = setup();
+  const res = await call(app, "PATCH", "/api/admin/house-bundle-buildings/:id", {
+    params: { id: "building-1" },
+    body: { interiorEffects: "fire" },
+  });
+
+  assert.deepEqual([res.statusCode, res.body], [400, { message: "interiorEffects must be an array" }]);
+  assert.deepEqual(calls.updatedBuildings, []);
+});
+
 test("legacy route registry only registers the extracted house bundle module", () => {
   const root = readFileSync("server/routes.ts", "utf8");
 
