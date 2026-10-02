@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEventHandler } from "react";
+import { useEffect, useMemo, useState, type PointerEventHandler, type ReactNode } from "react";
 import { getVisibleImageAnalysis, type AnalyzedVisibleImage } from "@/lib/visibleImageBounds";
 
 type HomeSceneAssetImageProps = {
@@ -11,6 +11,7 @@ type HomeSceneAssetImageProps = {
   onPointerMove?: PointerEventHandler<HTMLDivElement>;
   onPointerUp?: PointerEventHandler<HTMLDivElement>;
   onPointerCancel?: PointerEventHandler<HTMLDivElement>;
+  controls?: ReactNode;
 };
 
 type VisibleRect = { left: number; top: number; width: number; height: number };
@@ -49,6 +50,7 @@ export function HomeSceneAssetImage({
   onPointerMove,
   onPointerUp,
   onPointerCancel,
+  controls,
 }: HomeSceneAssetImageProps) {
   const [analysis, setAnalysis] = useState<AnalyzedVisibleImage | null>(null);
   const [analysisFailed, setAnalysisFailed] = useState(false);
@@ -89,6 +91,22 @@ export function HomeSceneAssetImage({
           pointerEvents: "none",
         }}
       />
+      {selected && controls && (
+        <div
+          data-testid="home-scene-visible-controls"
+          className="absolute"
+          style={{
+            left: rect ? rect.left + rect.width / 2 : size / 2,
+            top: rect ? Math.max(0, rect.top - 6) : 0,
+            transform: "translate(-50%, -100%)",
+            zIndex: 20,
+            pointerEvents: "auto",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {controls}
+        </div>
+      )}
       {(rect || analysisFailed) && (
         <div
           aria-hidden="true"
