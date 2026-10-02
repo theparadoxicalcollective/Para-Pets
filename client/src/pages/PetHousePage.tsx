@@ -102,6 +102,7 @@ interface HousePet {
   imageUrl: string | null; hatchedImageUrl: string | null; eggImageUrl: string | null;
   rarity: number | null; petLevel: number; petHealth: number; petAtk: number; petDef: number;
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
+  homeScalePct: number; homeFlipped: boolean;
 }
 interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; }
 interface ActiveBundle extends HouseBundle {
@@ -327,51 +328,87 @@ function parsePetPct(s: string | null): number | null {
   return null;
 }
 
-// Owner and visitor views share the same pet footprint. Perspective depends
-// only on vertical depth; moving left/right across a wide Home Bundle never
-// changes pet/decor size.
 function randomGroundConfig(index: number) {
   const { centerX, centerY } = defaultPetHouseGroundPosition(index);
   return { size: PET_HOUSE_OUTDOOR_PET_BASE_SIZE, centerX, centerY };
 }
 
-function indoorPetSize(yPct: number): number {
-  return petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct);
+function petHouseDisplaySize(baseSize: number, pet: HousePet): number {
+  return Math.round(baseSize * clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100);
 }
 
-function HousePetRemovalControl({ left, top, petName, pending, onRemove }: {
+function HousePetControlPanel({
+  left, top, petName, pending,
+  onDecrease, onIncrease, onFlip, onCloset, onRemove,
+}: {
   left: number;
   top: number;
   petName: string;
   pending: boolean;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  onFlip: () => void;
+  onCloset: () => void;
   onRemove: () => void;
 }) {
+  const smallButtonStyle: React.CSSProperties = {
+    width: 42, height: 40, borderRadius: 11,
+    background: "rgba(7,28,18,0.96)",
+    border: "1px solid rgba(222,184,76,0.72)",
+    color: "#f7e09d",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontFamily: "Lora, serif", fontSize: 18, fontWeight: 800,
+    cursor: "pointer",
+  };
+
   return (
     <div
-      data-testid="house-pet-removal-control"
+      data-testid="house-pet-control-panel"
       className="absolute"
-      style={{ left, top, zIndex: 50, transform: "translate(-50%, -100%)", paddingBottom: 8 }}
+      style={{ left, top, zIndex: 140, transform: "translate(-50%, -100%)", paddingBottom: 8, pointerEvents: "auto" }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        type="button"
-        data-testid="button-remove-pet-from-home"
-        aria-label={`Remove ${petName} from Home`}
-        disabled={pending}
-        onClick={onRemove}
-        style={{
-          minWidth: 148, minHeight: 44, padding: "9px 14px", borderRadius: 12,
-          background: "rgba(7, 28, 18, 0.94)",
-          border: "1px solid rgba(222, 184, 76, 0.72)",
-          boxShadow: "0 5px 18px rgba(0,0,0,0.55)", backdropFilter: "blur(7px)",
-          color: pending ? "rgba(247,224,157,0.55)" : "#f7e09d",
-          fontFamily: "Lora, serif", fontSize: 12, fontWeight: 700,
-          letterSpacing: "0.025em", cursor: pending ? "wait" : "pointer",
-        }}
-      >
-        {pending ? "Removing…" : "Remove from Home"}
-      </button>
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <button type="button" data-testid="button-pet-home-size-minus" onClick={onDecrease} style={smallButtonStyle}>−</button>
+        <button type="button" data-testid="button-pet-home-size-plus" onClick={onIncrease} style={smallButtonStyle}>+</button>
+        <button type="button" data-testid="button-pet-home-flip" onClick={onFlip} style={smallButtonStyle}>↔</button>
+      </div>
+      <div className="flex items-center justify-center gap-2">
+        <button
+          type="button"
+          data-testid="button-pet-home-closet"
+          onClick={onCloset}
+          style={{
+            minWidth: 104, minHeight: 42, padding: "8px 12px", borderRadius: 11,
+            background: "rgba(35,20,55,0.96)",
+            border: "1px solid rgba(192,132,252,0.72)",
+            color: "#ead7ff", boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            fontFamily: "Lora, serif", fontSize: 11, fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          Closet
+        </button>
+        <button
+          type="button"
+          data-testid="button-remove-pet-from-home"
+          aria-label={`Remove ${petName} from Home`}
+          disabled={pending}
+          onClick={onRemove}
+          style={{
+            minWidth: 132, minHeight: 42, padding: "8px 12px", borderRadius: 11,
+            background: "rgba(7,28,18,0.96)",
+            border: "1px solid rgba(222,184,76,0.72)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            color: pending ? "rgba(247,224,157,0.55)" : "#f7e09d",
+            fontFamily: "Lora, serif", fontSize: 11, fontWeight: 700,
+            cursor: pending ? "wait" : "pointer",
+          }}
+        >
+          {pending ? "Removing…" : "Remove from Home"}
+        </button>
+      </div>
     </div>
   );
 }
