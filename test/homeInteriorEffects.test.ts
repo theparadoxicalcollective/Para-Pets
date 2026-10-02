@@ -223,7 +223,7 @@ test("saved room darkness is the lights-off baseline and player light toggles br
   const admin = read("client/src/components/HomeBundleSection.tsx");
 
   for (const source of [owner, visitor]) {
-    assert.match(source, /<HomeInteriorDarknessLayer[\s\S]*effects=\{effects\}[\s\S]*offEffectIds=\{offEffectIds\}[\s\S]*zIndex=\{2\}/);
+    assert.match(source, /<HomeInteriorDarknessLayer[\s\S]*effects=\{effects\}[\s\S]*offEffectIds=\{offEffectIds\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerH\}[\s\S]*zIndex=\{2\}/);
     assert.match(source, /darkness=\{openInterior\.interiorDarkness\}/);
     assert.match(source, /interiorDarkness: b\.interiorDarkness \?\? 0/);
   }
@@ -232,6 +232,9 @@ test("saved room darkness is the lights-off baseline and player light toggles br
   assert.match(effects, /data-left-light-boost=\{sideLighting\.leftBoost\}/);
   assert.match(effects, /data-right-light-boost=\{sideLighting\.rightBoost\}/);
   assert.match(effects, /linear-gradient\(90deg/);
+  assert.match(effects, /const useImageSpace/);
+  assert.match(effects, /left: panX/);
+  assert.match(effects, /width: imgWidth/);
 
   // Admin preview intentionally remains the exact saved all-lights-off baseline.
   assert.match(admin, /<HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{5\} \/>/);
