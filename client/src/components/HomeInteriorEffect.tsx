@@ -337,11 +337,17 @@ export function HomeInteriorDarknessLayer({
   darkness,
   effects,
   offEffectIds,
+  panX,
+  imgWidth,
+  sceneHeight,
   zIndex = 2,
 }: {
   darkness: number;
   effects?: readonly HouseInteriorEffect[];
   offEffectIds?: ReadonlySet<string>;
+  panX?: number;
+  imgWidth?: number;
+  sceneHeight?: number;
   zIndex?: number;
 }) {
   const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
@@ -353,6 +359,8 @@ export function HomeInteriorDarknessLayer({
   const leftOpacity = sideLighting.leftDarkness / 100;
   const rightOpacity = sideLighting.rightDarkness / 100;
   const centerOpacity = (leftOpacity + rightOpacity) / 2;
+  const useImageSpace = Number.isFinite(panX) && Number.isFinite(imgWidth) && Number.isFinite(sceneHeight)
+    && (imgWidth ?? 0) > 0 && (sceneHeight ?? 0) > 0;
 
   return (
     <div
@@ -362,7 +370,12 @@ export function HomeInteriorDarknessLayer({
       data-right-light-boost={sideLighting.rightBoost}
       style={{
         position: "absolute",
-        inset: 0,
+        ...(useImageSpace ? {
+          left: panX,
+          top: 0,
+          width: imgWidth,
+          height: sceneHeight,
+        } : { inset: 0 }),
         zIndex,
         pointerEvents: "none",
         transition: "background 260ms ease-out",
