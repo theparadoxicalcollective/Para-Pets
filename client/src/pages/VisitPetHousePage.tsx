@@ -6,6 +6,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import type { HouseBuildingType } from "@shared/housing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -29,7 +30,6 @@ interface EquippedAccessory {
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H = 900;
-const INTERIOR_PET_SIZE = 110;
 
 const RARITY_LABEL: Record<number, string> = { 1: "Common", 2: "Uncommon", 3: "Rare", 4: "Epic", 5: "Legendary" };
 const RARITY_COLOR: Record<number, string> = { 1: "#a89878", 2: "#6dbf6d", 3: "#5ba3e0", 4: "#c373f5", 5: "#ffd700" };
@@ -44,12 +44,8 @@ function parsePetPct(s: string | null): number | null {
 }
 
 function randomGroundConfig(index: number) {
-  const seed = index * 137.508;
-  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const size = 100 + pseudo(seed + 2) * 30;
-  const centerX = 20 + pseudo(seed) * 60;
-  const centerY = 64 + pseudo(seed + 1) * 11;
-  return { size, centerX, centerY };
+  const { centerX, centerY } = defaultPetHouseGroundPosition(index);
+  return { size: PET_HOUSE_OUTDOOR_PET_BASE_SIZE, centerX, centerY };
 }
 
 // ── Pet Stat Popup ────────────────────────────────────────────────────────────
@@ -281,30 +277,34 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      {imgWidth > 0 && placedItems.map((item) => (
-        <div
-          key={item.id}
-          className="absolute pointer-events-none"
-          style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}
-        >
-          <img
-            src={item.item.imageUrl ?? ""}
-            alt={item.item.name}
-            draggable={false}
-            style={{ width: item.size, height: item.size, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
-          />
-        </div>
-      ))}
+      {imgWidth > 0 && placedItems.map((item) => {
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        return (
+          <div
+            key={item.id}
+            className="absolute pointer-events-none"
+            style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}
+          >
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
+            />
+          </div>
+        );
+      })}
 
       {imgWidth > 0 && placedPets.map((pet) => {
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
+        const petSize = petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct);
         return (
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-interior-${pet.inventoryId}`}
             className="absolute"
-            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onPetClick(pet); }}
           >
@@ -314,8 +314,9 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
                 petInventoryId={pet.inventoryId}
                 costumeAccess="public"
                 mode="house"
-                size={INTERIOR_PET_SIZE}
+                size={petSize}
                 fillContainer
+                fitVisible
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
@@ -532,17 +533,18 @@ export default function VisitPetHousePage() {
         const cfg = randomGroundConfig(i);
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
+        const petSize = petHouseDepthSize(cfg.size, yPct);
         return (
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-outdoor-${pet.inventoryId}`}
             className="absolute"
-            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
           >
             {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
+              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={petSize} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
@@ -557,16 +559,19 @@ export default function VisitPetHousePage() {
       })}
 
       {/* Outdoor decor */}
-      {imgWidth > 0 && outdoorDecor.map((item) => (
-        <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
-          <img
-            src={item.item.imageUrl ?? ""}
-            alt={item.item.name}
-            draggable={false}
-            style={{ width: item.size, height: item.size, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
-          />
-        </div>
-      ))}
+      {imgWidth > 0 && outdoorDecor.map((item) => {
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        return (
+          <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
+            />
+          </div>
+        );
+      })}
 
       {/* HUD */}
       <div

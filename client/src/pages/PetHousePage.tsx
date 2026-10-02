@@ -46,6 +46,7 @@ import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -339,29 +340,16 @@ function parsePetPct(s: string | null): number | null {
   return null;
 }
 
-// Per-user request: indoor and outdoor pet sizes were swapped. Outdoor pets
-// now use a single fixed size (formerly the indoor value), and indoor pets
-// pick up the per-pet randomized 100–130 range previously used outdoors.
-// Pet House presentation multipliers are deliberately local to this page so
-// PetAnimator and pets everywhere else retain their existing dimensions.
-export const PET_HOUSE_OUTDOOR_SCALE = 0.82;
-export const PET_HOUSE_INTERIOR_SCALE = 1;
-const RESPONSIVE_OUTDOOR_PET_SIZE = 110;
-const OUTDOOR_PET_SIZE = Math.round(RESPONSIVE_OUTDOOR_PET_SIZE * PET_HOUSE_OUTDOOR_SCALE);
-
+// Owner and visitor views share the same pet footprint. Perspective depends
+// only on vertical depth; moving left/right across a wide Home Bundle never
+// changes pet/decor size.
 function randomGroundConfig(index: number) {
-  const seed = index * 137.508;
-  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const centerX = 20 + pseudo(seed) * 60;
-  const centerY = 64 + pseudo(seed + 1) * 11;
-  return { size: OUTDOOR_PET_SIZE, centerX, centerY };
+  const { centerX, centerY } = defaultPetHouseGroundPosition(index);
+  return { size: PET_HOUSE_OUTDOOR_PET_BASE_SIZE, centerX, centerY };
 }
 
-// Indoor pets use a single fixed size for visual consistency.
-const RESPONSIVE_INDOOR_PET_SIZE = 125;
-const INDOOR_PET_SIZE = Math.round(RESPONSIVE_INDOOR_PET_SIZE * PET_HOUSE_INTERIOR_SCALE);
-function indoorPetSize(_index: number): number {
-  return INDOOR_PET_SIZE;
+function indoorPetSize(yPct: number): number {
+  return petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct);
 }
 
 function HousePetRemovalControl({ left, top, petName, pending, onRemove }: {
@@ -611,6 +599,7 @@ function InteriorViewer({
         const isSelected = selectedItemId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
         return (
           <div
             key={item.id}
@@ -635,7 +624,7 @@ function InteriorViewer({
               alt={item.item.name}
               draggable={false}
               style={{
-                width: item.size, height: item.size, objectFit: "contain",
+                width: displaySize, height: displaySize, objectFit: "contain",
                 transform: item.flipped ? "scaleX(-1)" : undefined,
                 outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
                 outlineOffset: "3px",
@@ -654,9 +643,7 @@ function InteriorViewer({
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        // Indoor pets use a per-pet randomized size (same range outdoor pets
-        // used previously) so each pet feels distinct rather than uniform.
-        const petSize = indoorPetSize(i);
+        const petSize = indoorPetSize(yPct);
         return (
           <div
             key={pet.inventoryId}
@@ -679,6 +666,7 @@ function InteriorViewer({
                 mode={livePos ? "static" : "house"}
                 size={petSize}
                 fillContainer
+                fitVisible
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
@@ -698,7 +686,10 @@ function InteriorViewer({
       {popupPet && (
         <HousePetRemovalControl
           left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5) * containerH - INDOOR_PET_SIZE / 2)}
+          top={Math.max(58, (() => {
+            const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
+            return yPct * containerH - petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct) / 2;
+          })())}
           petName={popupPet.nickname ?? popupPet.name}
           pending={removingPetId === popupPet.inventoryId}
           onRemove={async () => {
@@ -1438,19 +1429,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const yPct = isDraggingThis ? petDragLive.yPct : (savedY ?? cfg.centerY / 100);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
+        const petSize = petHouseDepthSize(cfg.size, yPct);
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isDraggingThis ? 30 : (topOutdoorPetId === pet.inventoryId ? 14 : 12), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isDraggingThis ? 30 : (topOutdoorPetId === pet.inventoryId ? 14 : 12), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 petInventoryId={pet.inventoryId}
                 mode="static"
-                size={cfg.size}
+                size={petSize}
                 fillContainer
+                fitVisible
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
@@ -1479,7 +1472,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {outdoorPopupPet && (
         <HousePetRemovalControl
           left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5) * containerH - OUTDOOR_PET_SIZE / 2)}
+          top={Math.max(58, (() => {
+            const yPct = outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5;
+            return yPct * containerH - petHouseDepthSize(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, yPct) / 2;
+          })())}
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
           pending={removePetFromSceneMutation.isPending && removePetFromSceneMutation.variables === outdoorPopupPet.inventoryId}
           onRemove={() => { void removePetFromHome(outdoorPopupPet.inventoryId).catch(() => undefined); }}
@@ -1491,6 +1487,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const isSelected = selectedPlacedId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
         return (
           <div
             key={item.id}
@@ -1515,7 +1512,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               alt={item.item.name}
               draggable={false}
               style={{
-                width: item.size, height: item.size, objectFit: "contain",
+                width: displaySize, height: displaySize, objectFit: "contain",
                 transform: item.flipped ? "scaleX(-1)" : undefined,
                 outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
                 outlineOffset: "3px",

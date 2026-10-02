@@ -41,11 +41,11 @@ test("visitors cannot see an owner removal action and regular world pets retain 
   assert.match(worldPage, /onSelectPlayer=\{setSelectedPlayerId\}/);
 });
 
-test("Pet House uses context-specific scales and mobile-friendly targets", () => {
-  assert.match(ownerPage, /PET_HOUSE_OUTDOOR_SCALE = 0\.82/);
-  assert.match(ownerPage, /PET_HOUSE_INTERIOR_SCALE = 1/);
-  assert.match(ownerPage, /RESPONSIVE_OUTDOOR_PET_SIZE \* PET_HOUSE_OUTDOOR_SCALE/);
-  assert.match(ownerPage, /RESPONSIVE_INDOOR_PET_SIZE \* PET_HOUSE_INTERIOR_SCALE/);
+test("Pet House uses shared depth sizing and mobile-friendly targets", () => {
+  assert.match(ownerPage, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE/);
+  assert.match(ownerPage, /PET_HOUSE_INTERIOR_PET_BASE_SIZE/);
+  assert.match(ownerPage, /petHouseDepthSize/);
+  assert.match(visitorPage, /petHouseDepthSize/);
   assert.match(ownerPage, /minHeight: 44/);
   assert.match(ownerPage, /Math\.max\(82, Math\.min/);
 });
