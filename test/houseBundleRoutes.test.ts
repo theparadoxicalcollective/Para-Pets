@@ -62,8 +62,9 @@ async function call(
   return res;
 }
 
-function setup() {
+function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean } = {}) {
   const app = new RouteRecorder();
+  let activeBundleId = options.activeBundleId ?? null;
   const calls: any = {
     images: [],
     createdBundles: [],
@@ -72,17 +73,22 @@ function setup() {
     locationBundles: [],
     assignedBundles: [],
     unassignedBundles: [],
+    storedScenes: [],
+    activeChanges: [],
   };
 
   const storage: any = {
     getHouseBundles: async () => [],
     getUserHouseBundles: async () => [],
-    getActiveBundleWithBuildings: async () => null,
-    hasUserHouseBundle: async () => false,
+    getActiveBundleWithBuildings: async () => activeBundleId ? ({ id: activeBundleId, name: activeBundleId } as any) : null,
+    hasUserHouseBundle: async () => options.ownsBundle ?? false,
     atomicDeductCoins: async () => true,
     grantUserHouseBundle: async () => ({ id: "owned" }),
     addCoins: async () => undefined,
-    setActiveHouseBundle: async () => undefined,
+    setActiveHouseBundle: async (userId: string, bundleId: string | null) => {
+      calls.activeChanges.push([userId, bundleId]);
+      activeBundleId = bundleId;
+    },
     createHouseBundle: async (data: any) => {
       calls.createdBundles.push(data);
       return { id: "bundle-1", ...data };
@@ -127,6 +133,10 @@ function setup() {
     isAuthenticated: authenticated,
     isAdmin: admin,
     processWorldImage,
+    storeAllHomeScene: async (userId: string) => {
+      calls.storedScenes.push(userId);
+      return { returnedDecor: 1, returnedObjects: 1, returnedPets: 1 };
+    },
   });
 
   return { app, calls };
@@ -190,6 +200,44 @@ test("player purchase route keeps its existing request-level authentication chec
     [res.statusCode, res.body],
     [401, { message: "Unauthorized" }],
   );
+});
+
+test("switching Home Bundles stores the old scene before activating the new bundle", async () => {
+  const { app, calls } = setup({ activeBundleId: "old-home", ownsBundle: true });
+  const res = await call(app, "POST", "/api/house-bundles/:bundleId/activate", {
+    isAuthenticated: () => true,
+    user: { id: "owner" },
+    params: { bundleId: "new-home" },
+  });
+
+  assert.deepEqual(calls.storedScenes, ["owner"]);
+  assert.deepEqual(calls.activeChanges, [["owner", "new-home"]]);
+  assert.equal(res.body.id, "new-home");
+});
+
+test("re-activating the same Home Bundle preserves its current placements", async () => {
+  const { app, calls } = setup({ activeBundleId: "same-home", ownsBundle: true });
+  const res = await call(app, "POST", "/api/house-bundles/:bundleId/activate", {
+    isAuthenticated: () => true,
+    user: { id: "owner" },
+    params: { bundleId: "same-home" },
+  });
+
+  assert.deepEqual(calls.storedScenes, []);
+  assert.deepEqual(calls.activeChanges, [["owner", "same-home"]]);
+  assert.equal(res.body.id, "same-home");
+});
+
+test("deactivating a Home Bundle stores all placements before clearing the active bundle", async () => {
+  const { app, calls } = setup({ activeBundleId: "old-home" });
+  const res = await call(app, "POST", "/api/house-bundles/deactivate", {
+    isAuthenticated: () => true,
+    user: { id: "owner" },
+  });
+
+  assert.deepEqual(calls.storedScenes, ["owner"]);
+  assert.deepEqual(calls.activeChanges, [["owner", null]]);
+  assert.deepEqual(res.body, { ok: true });
 });
 
 test("house bundle shop stock keeps admin mutations and authenticated player listing", async () => {
