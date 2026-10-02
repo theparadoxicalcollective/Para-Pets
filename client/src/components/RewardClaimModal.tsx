@@ -100,6 +100,10 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
         if (data.user) onUserUpdate(data.user);
         queryClient.invalidateQueries({ queryKey: ["/api/rewards/pending"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+        if (data.user?.id) {
+          queryClient.invalidateQueries({ queryKey: ["/api/users", data.user.id, "house-bundles"] });
+        }
         queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
 
