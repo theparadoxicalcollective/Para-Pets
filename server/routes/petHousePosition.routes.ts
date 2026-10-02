@@ -1,4 +1,5 @@
 import type { Express, RequestHandler } from "express";
+import { clampPetHousePlayerScale } from "@shared/housing";
 
 type PetHousePositionStorage = Pick<typeof import("../storage").storage,
   | "getPetHousePositions"
@@ -43,9 +44,10 @@ export function registerPetHousePositionRoutes(
       }
       const existing = (await storage.getPetHousePositions(user.id))
         .find((position) => position.inventoryId === inventoryId);
-      const safeScalePct = typeof scalePct === "number" && Number.isFinite(scalePct)
-        ? Math.max(55, Math.min(140, Math.round(scalePct)))
+      const requestedScalePct = typeof scalePct === "number" && Number.isFinite(scalePct)
+        ? scalePct
         : (existing?.scalePct ?? 100);
+      const safeScalePct = clampPetHousePlayerScale(requestedScalePct);
       const safeFlipped = typeof flipped === "boolean" ? flipped : (existing?.flipped ?? false);
       await storage.upsertPetHousePosition(
         user.id,
