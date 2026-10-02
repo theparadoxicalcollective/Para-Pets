@@ -34,6 +34,56 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
+export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
+export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
+
+export interface HouseInteriorEffect {
+  id: string;
+  type: HouseInteriorEffectType;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export const HOUSE_INTERIOR_EFFECT_MAX_COUNT = 20;
+export const HOUSE_INTERIOR_EFFECT_MIN_SIZE = 4;
+export const HOUSE_INTERIOR_EFFECT_MAX_SIZE = 40;
+
+export function isHouseInteriorEffectType(value: unknown): value is HouseInteriorEffectType {
+  return typeof value === "string" && (HOUSE_INTERIOR_EFFECT_TYPES as readonly string[]).includes(value);
+}
+
+export function sanitizeHouseInteriorEffects(value: unknown): HouseInteriorEffect[] {
+  if (!Array.isArray(value)) return [];
+
+  const effects: HouseInteriorEffect[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") continue;
+    const candidate = raw as Record<string, unknown>;
+    if (!isHouseInteriorEffectType(candidate.type)) continue;
+
+    const xValue = Number(candidate.x);
+    const yValue = Number(candidate.y);
+    const sizeValue = Number(candidate.size);
+    const idValue = typeof candidate.id === "string" ? candidate.id.trim().slice(0, 64) : "";
+
+    effects.push({
+      id: idValue || `effect-${effects.length + 1}`,
+      type: candidate.type,
+      x: Math.max(0, Math.min(1, Number.isFinite(xValue) ? xValue : 0.5)),
+      y: Math.max(0, Math.min(1, Number.isFinite(yValue) ? yValue : 0.5)),
+      size: Math.max(
+        HOUSE_INTERIOR_EFFECT_MIN_SIZE,
+        Math.min(HOUSE_INTERIOR_EFFECT_MAX_SIZE, Number.isFinite(sizeValue) ? sizeValue : 12),
+      ),
+    });
+
+    if (effects.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT) break;
+  }
+
+  return effects;
+}
+
 export function homeSceneItemCountsTowardDecorLimit(type: HomeSceneItemType): boolean {
   return type === "decor";
 }

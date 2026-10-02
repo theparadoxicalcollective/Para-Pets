@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { isAdornmentSlotKey } from "./costumeFeature";
 import { isAdornmentItemEffect } from "./adornmentAnimation";
+import type { HouseInteriorEffect } from "./housing";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -999,6 +1000,7 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   width: integer("width").notNull().default(120),
   flippedX: boolean("flipped_x").notNull().default(false),
   interiorImageUrl: text("interior_image_url"),
+  interiorEffects: jsonb("interior_effects").$type<HouseInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   buildingType: text("building_type").notNull().default("building"),
   size: text("size").notNull().default("medium"),
   leaveButtonX: real("leave_button_x").notNull().default(0.92),
