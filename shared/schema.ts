@@ -272,6 +272,22 @@ export const rewardBundleItems = pgTable("reward_bundle_items", {
   shopItemId: varchar("shop_item_id").notNull(),
 });
 
+export const rewardBundleHomeItems = pgTable("reward_bundle_home_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bundleId: varchar("bundle_id").notNull().references(() => rewardBundles.id, { onDelete: "cascade" }),
+  rewardType: text("reward_type").notNull(),
+  targetId: varchar("target_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+}, (table) => [
+  unique("reward_bundle_home_items_bundle_type_target_uidx").on(
+    table.bundleId,
+    table.rewardType,
+    table.targetId,
+  ),
+]);
+
+export type RewardBundleHomeItem = typeof rewardBundleHomeItems.$inferSelect;
+
 export const userRewards = pgTable("user_rewards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
