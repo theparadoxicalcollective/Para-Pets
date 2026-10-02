@@ -182,7 +182,7 @@ test("decoration placement deducts inventory and creates placement atomically", 
 
 test("failed decoration placement preserves inventory", async () => {
   const fake = new DecorFake(); fake.inventory.set("owner:chair", 1); fake.failPlacement = true;
-  await assert.rejects(executeDecorPlacement("owner", "chair", { xPct: .5, yPct: .5, size: 250, flipped: false }, fake));
+  await assert.rejects(executeDecorPlacement("owner", "chair", { xPct: .5, yPct: .5, flipped: false }, fake));
   assert.equal(fake.inventory.get("owner:chair"), 1); assert.equal(fake.placements.size, 0);
 });
 
