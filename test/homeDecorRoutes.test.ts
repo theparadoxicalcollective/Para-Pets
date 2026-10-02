@@ -368,7 +368,7 @@ test("placement PATCH/removal remain scoped to the authenticated player", async 
     ["placed-1", "owner", {
       xPct: 0.2,
       yPct: undefined,
-      size: 313,
+      size: 260,
       flipped: undefined,
     }],
   ]);
