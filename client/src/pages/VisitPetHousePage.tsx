@@ -277,30 +277,34 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      {imgWidth > 0 && placedItems.map((item) => (
-        <div
-          key={item.id}
-          className="absolute pointer-events-none"
-          style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}
-        >
-          <img
-            src={item.item.imageUrl ?? ""}
-            alt={item.item.name}
-            draggable={false}
-            style={{ width: item.size, height: item.size, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
-          />
-        </div>
-      ))}
+      {imgWidth > 0 && placedItems.map((item) => {
+        const displaySize = petHouseDepthSize(item.size, item.yPct);
+        return (
+          <div
+            key={item.id}
+            className="absolute pointer-events-none"
+            style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}
+          >
+            <img
+              src={item.item.imageUrl ?? ""}
+              alt={item.item.name}
+              draggable={false}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
+            />
+          </div>
+        );
+      })}
 
       {imgWidth > 0 && placedPets.map((pet) => {
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
+        const petSize = petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct);
         return (
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-interior-${pet.inventoryId}`}
             className="absolute"
-            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: petSize, height: petSize, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onPetClick(pet); }}
           >
@@ -310,8 +314,9 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
                 petInventoryId={pet.inventoryId}
                 costumeAccess="public"
                 mode="house"
-                size={INTERIOR_PET_SIZE}
+                size={petSize}
                 fillContainer
+                fitVisible
                 style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
