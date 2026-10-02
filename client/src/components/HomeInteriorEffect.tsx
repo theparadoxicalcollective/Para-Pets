@@ -407,11 +407,15 @@ export function HomeInteriorEffectsLayer({
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
             onPointerCancel={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
-            onClick={playerToggleable ? event => {
+            data-player-toggle-effect-id={playerToggleable ? effect.id : undefined}
+            role={playerToggleable ? "button" : undefined}
+            tabIndex={playerToggleable ? 0 : undefined}
+            onKeyDown={playerToggleable ? event => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
               event.stopPropagation();
               onToggleEffect?.(effect);
             } : undefined}
-            role={playerToggleable ? "button" : undefined}
             aria-label={playerToggleable ? `${isOff ? "Turn on" : "Turn off"} ${effect.type.replaceAll("_", " ")} effect` : undefined}
             data-effect-off={isOff ? "true" : undefined}
           >
