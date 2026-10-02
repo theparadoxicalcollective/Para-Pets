@@ -46,6 +46,7 @@ import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType } from "@shared/housing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -339,29 +340,16 @@ function parsePetPct(s: string | null): number | null {
   return null;
 }
 
-// Per-user request: indoor and outdoor pet sizes were swapped. Outdoor pets
-// now use a single fixed size (formerly the indoor value), and indoor pets
-// pick up the per-pet randomized 100–130 range previously used outdoors.
-// Pet House presentation multipliers are deliberately local to this page so
-// PetAnimator and pets everywhere else retain their existing dimensions.
-export const PET_HOUSE_OUTDOOR_SCALE = 0.82;
-export const PET_HOUSE_INTERIOR_SCALE = 1;
-const RESPONSIVE_OUTDOOR_PET_SIZE = 110;
-const OUTDOOR_PET_SIZE = Math.round(RESPONSIVE_OUTDOOR_PET_SIZE * PET_HOUSE_OUTDOOR_SCALE);
-
+// Owner and visitor views share the same pet footprint. Perspective depends
+// only on vertical depth; moving left/right across a wide Home Bundle never
+// changes pet/decor size.
 function randomGroundConfig(index: number) {
-  const seed = index * 137.508;
-  const pseudo = (n: number) => ((Math.sin(n) * 10000) % 1 + 1) % 1;
-  const centerX = 20 + pseudo(seed) * 60;
-  const centerY = 64 + pseudo(seed + 1) * 11;
-  return { size: OUTDOOR_PET_SIZE, centerX, centerY };
+  const { centerX, centerY } = defaultPetHouseGroundPosition(index);
+  return { size: PET_HOUSE_OUTDOOR_PET_BASE_SIZE, centerX, centerY };
 }
 
-// Indoor pets use a single fixed size for visual consistency.
-const RESPONSIVE_INDOOR_PET_SIZE = 125;
-const INDOOR_PET_SIZE = Math.round(RESPONSIVE_INDOOR_PET_SIZE * PET_HOUSE_INTERIOR_SCALE);
-function indoorPetSize(_index: number): number {
-  return INDOOR_PET_SIZE;
+function indoorPetSize(yPct: number): number {
+  return petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct);
 }
 
 function HousePetRemovalControl({ left, top, petName, pending, onRemove }: {
