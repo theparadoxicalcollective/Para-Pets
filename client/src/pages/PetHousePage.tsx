@@ -834,7 +834,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [isDraggingPet, setIsDraggingPet] = useState(false);
 
   // Outdoor pet repositioning drag
-  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
+  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   // Popup selection stores only the inventory id; current pet data stays query-backed.
   const [outdoorPopupPetId, setOutdoorPopupPetId] = useState<string | null>(null);
@@ -982,9 +982,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const placePetMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct, location }: { inventoryId: string; xPct: number; yPct: number; location: string }) => {
+    mutationFn: async ({ inventoryId, xPct, yPct, location, scalePct = 100, flipped = false }: { inventoryId: string; xPct: number; yPct: number; location: string; scalePct?: number; flipped?: boolean }) => {
       const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
         posLeft: String(xPct * 100), posTop: String(yPct * 100), location,
+        scalePct: clampPetHousePlayerScale(scalePct), flipped,
       });
       if (!res.ok) throw new Error("Failed");
     },
@@ -992,9 +993,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const updatePetPositionMutation = useMutation({
-    mutationFn: async ({ inventoryId, xPct, yPct }: { inventoryId: string; xPct: number; yPct: number }) => {
+    mutationFn: async ({ inventoryId, xPct, yPct, scalePct = 100, flipped = false }: { inventoryId: string; xPct: number; yPct: number; scalePct?: number; flipped?: boolean }) => {
       const res = await apiRequest("PATCH", `/api/pet-house-positions/${inventoryId}`, {
         posLeft: String(xPct * 100), posTop: String(yPct * 100), location: "outside",
+        scalePct: clampPetHousePlayerScale(scalePct), flipped,
       });
       if (!res.ok) throw new Error("Failed");
       return res.json();
@@ -1225,11 +1227,26 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [imgWidth, containerH]);
 
   // ── Outdoor pet repositioning drag ─────────────────────────────────────────
-  const handlePetDragStart = useCallback((e: React.PointerEvent, inventoryId: string, startXPct: number, startYPct: number) => {
+  const handlePetDragStart = useCallback((e: React.PointerEvent, pet: HousePet, startXPct: number, startYPct: number) => {
     e.stopPropagation();
+    if (outdoorPopupPetId !== pet.inventoryId) {
+      setOutdoorPopupPetId(pet.inventoryId);
+      setTopOutdoorPetId(pet.inventoryId);
+      return;
+    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    petDragRef.current = { inventoryId, startXPct, startYPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId, moved: false };
-  }, []);
+    petDragRef.current = {
+      inventoryId: pet.inventoryId,
+      startXPct,
+      startYPct,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      scalePct: clampPetHousePlayerScale(pet.homeScalePct ?? 100),
+      flipped: !!pet.homeFlipped,
+      pid: e.pointerId,
+      moved: false,
+    };
+  }, [outdoorPopupPetId]);
 
   const handlePetDragMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
@@ -1255,9 +1272,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     }
     if (!drag.moved) {
       setPetDragLive(null);
-      // In the owner's Pet House a tap selects only the placement-removal
-      // action; it never enters the normal pet menu or care route.
-      setOutdoorPopupPetId(current => current === drag.inventoryId ? null : drag.inventoryId);
       return;
     }
     if (imgWidth <= 0) {
@@ -1269,6 +1283,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       inventoryId: drag.inventoryId,
       xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
       yPct: Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH)),
+      scalePct: drag.scalePct,
+      flipped: drag.flipped,
     };
     setTopOutdoorPetId(drag.inventoryId);
     setPetDragLive(finalPosition);
@@ -1490,12 +1506,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const yPct = isDraggingThis ? petDragLive.yPct : (savedY ?? cfg.centerY / 100);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        const petSize = petHouseDepthSize(cfg.size, yPct);
+        const petSize = petHouseDisplaySize(cfg.size, pet);
+        const isSelectedPet = outdoorPopupPetId === pet.inventoryId;
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isDraggingThis ? 30 : (topOutdoorPetId === pet.inventoryId ? 14 : 12), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelectedPet ? 115 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
@@ -1506,7 +1523,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 fillContainer
                 fitVisible
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
-                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
@@ -1514,13 +1531,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 className={isDraggingThis ? undefined : "pet-idle-squish"}
-                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
             {/* Full-area hit zone for dragging — covers entire pet so top-of-screen pets are still grabbable */}
             <div
               style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "auto", touchAction: "none", cursor: isDraggingThis ? "grabbing" : "grab" }}
-              onPointerDown={(e) => handlePetDragStart(e, pet.inventoryId, xPct, yPct)}
+              onPointerDown={(e) => handlePetDragStart(e, pet, xPct, yPct)}
               onPointerMove={handlePetDragMove}
               onPointerUp={handlePetDragEnd}
               onPointerCancel={handlePetDragEnd}
