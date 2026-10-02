@@ -74,13 +74,13 @@ function ControlBtn({ onClick, danger = false, children }: { onClick: () => void
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       onPointerDown={(e) => e.stopPropagation()}
-      className="flex items-center justify-center rounded-xl active:opacity-60"
+      className="flex items-center justify-center rounded-lg active:opacity-60"
       style={{
-        width: 44, height: 44,
-        background: danger ? "rgba(90,10,10,0.92)" : "rgba(8,18,8,0.94)",
-        border: danger ? "1.5px solid rgba(255,80,80,0.55)" : "1.5px solid rgba(255,215,0,0.55)",
-        boxShadow: "0 2px 14px rgba(0,0,0,0.55)",
-        backdropFilter: "blur(6px)",
+        width: 34, height: 34,
+        background: danger ? "rgba(90,10,10,0.94)" : "rgba(8,18,8,0.96)",
+        border: danger ? "1px solid rgba(255,80,80,0.58)" : "1px solid rgba(255,215,0,0.62)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.46)",
+        backdropFilter: "blur(5px)",
         flexShrink: 0,
       }}
     >
@@ -352,13 +352,13 @@ function HousePetControlPanel({
   onRemove: () => void;
 }) {
   const smallButtonStyle: React.CSSProperties = {
-    width: 42, height: 40, borderRadius: 11,
-    background: "rgba(7,28,18,0.96)",
+    width: 34, height: 32, borderRadius: 9,
+    background: "rgba(7,28,18,0.97)",
     border: "1px solid rgba(222,184,76,0.72)",
     color: "#f7e09d",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+    boxShadow: "0 2px 9px rgba(0,0,0,0.46)",
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "Lora, serif", fontSize: 18, fontWeight: 800,
+    fontFamily: "Lora, serif", fontSize: 15, fontWeight: 800,
     cursor: "pointer",
   };
 
@@ -370,22 +370,22 @@ function HousePetControlPanel({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center justify-center gap-2 mb-2">
+      <div className="flex items-center justify-center gap-1 mb-1">
         <button type="button" data-testid="button-pet-home-size-minus" onClick={onDecrease} style={smallButtonStyle}>−</button>
         <button type="button" data-testid="button-pet-home-size-plus" onClick={onIncrease} style={smallButtonStyle}>+</button>
         <button type="button" data-testid="button-pet-home-flip" onClick={onFlip} style={smallButtonStyle}>↔</button>
       </div>
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-1.5">
         <button
           type="button"
           data-testid="button-pet-home-closet"
           onClick={onCloset}
           style={{
-            minWidth: 104, minHeight: 42, padding: "8px 12px", borderRadius: 11,
+            minWidth: 82, minHeight: 34, padding: "6px 9px", borderRadius: 9,
             background: "rgba(35,20,55,0.96)",
             border: "1px solid rgba(192,132,252,0.72)",
-            color: "#ead7ff", boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-            fontFamily: "Lora, serif", fontSize: 11, fontWeight: 700, cursor: "pointer",
+            color: "#ead7ff", boxShadow: "0 2px 9px rgba(0,0,0,0.46)",
+            fontFamily: "Lora, serif", fontSize: 9, fontWeight: 700, cursor: "pointer",
           }}
         >
           Closet
@@ -397,12 +397,12 @@ function HousePetControlPanel({
           disabled={pending}
           onClick={onRemove}
           style={{
-            minWidth: 132, minHeight: 42, padding: "8px 12px", borderRadius: 11,
+            minWidth: 106, minHeight: 34, padding: "6px 9px", borderRadius: 9,
             background: "rgba(7,28,18,0.96)",
             border: "1px solid rgba(222,184,76,0.72)",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            boxShadow: "0 2px 9px rgba(0,0,0,0.46)",
             color: pending ? "rgba(247,224,157,0.55)" : "#f7e09d",
-            fontFamily: "Lora, serif", fontSize: 11, fontWeight: 700,
+            fontFamily: "Lora, serif", fontSize: 9, fontWeight: 700,
             cursor: pending ? "wait" : "pointer",
           }}
         >
@@ -652,7 +652,7 @@ function InteriorViewer({
             style={{ zIndex: isSelected ? 180 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
                 <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_INCREASE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></ControlBtn>
@@ -687,7 +687,7 @@ function InteriorViewer({
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer" }}
+            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
@@ -943,7 +943,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
     },
-    onSuccess: () => { refetchActiveBundle(); refetchOwned(); toast({ title: "Bundle activated!" }); },
+    onSuccess: () => {
+      setSelectedPlacedId(null);
+      setOutdoorPopupPetId(null);
+      setOpenInterior(null);
+      interiorPanRef.current = null;
+      refetchActiveBundle();
+      refetchOwned();
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house-positions"] });
+      qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] });
+      toast({ title: "Bundle activated!", description: "Placed pets, Decor, and Objects were returned to inventory." });
+    },
     onError: (e: any) => toast({ title: "Activation failed", description: e.message, variant: "destructive" }),
   });
 
@@ -1516,7 +1528,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", pointerEvents: "none", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
@@ -1611,7 +1623,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             style={{ zIndex: isSelected ? 180 : (topOutdoorDecorId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             {isSelected && (
-              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
+              <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 130, whiteSpace: "nowrap", pointerEvents: "auto" }}>
                 <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size + HOME_SCENE_PLAYER_SIZE_INCREASE_STEP) })}><Plus size={18} color="#ffd700" /></ControlBtn>
                 <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}><SvgFlip /></ControlBtn>
@@ -2006,6 +2018,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               <div>
                 <p className="text-white/50 text-xs mb-0.5" style={{ fontFamily: "Lora, serif" }}>Switch Home Bundle?</p>
                 <p className="text-white font-bold text-base leading-tight" style={{ fontFamily: "Lora, serif" }}>{pendingActivate.bundle.name}</p>
+                <p className="text-white/40 text-[10px] mt-1 leading-snug" style={{ fontFamily: "Lora, serif" }}>
+                  Current pets, Decor, and Objects will return to inventory before switching.
+                </p>
               </div>
             </div>
             <div className="flex gap-3">
