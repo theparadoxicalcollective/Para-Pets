@@ -943,7 +943,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
     },
-    onSuccess: () => { refetchActiveBundle(); refetchOwned(); toast({ title: "Bundle activated!" }); },
+    onSuccess: () => {
+      setSelectedPlacedId(null);
+      setOutdoorPopupPetId(null);
+      setOpenInterior(null);
+      interiorPanRef.current = null;
+      refetchActiveBundle();
+      refetchOwned();
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] });
+      qc.invalidateQueries({ queryKey: ["/api/pet-house-positions"] });
+      qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] });
+      toast({ title: "Bundle activated!", description: "Placed pets, Decor, and Objects were returned to inventory." });
+    },
     onError: (e: any) => toast({ title: "Activation failed", description: e.message, variant: "destructive" }),
   });
 
@@ -2006,6 +2018,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               <div>
                 <p className="text-white/50 text-xs mb-0.5" style={{ fontFamily: "Lora, serif" }}>Switch Home Bundle?</p>
                 <p className="text-white font-bold text-base leading-tight" style={{ fontFamily: "Lora, serif" }}>{pendingActivate.bundle.name}</p>
+                <p className="text-white/40 text-[10px] mt-1 leading-snug" style={{ fontFamily: "Lora, serif" }}>
+                  Current pets, Decor, and Objects will return to inventory before switching.
+                </p>
               </div>
             </div>
             <div className="flex gap-3">
