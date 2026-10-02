@@ -26,6 +26,7 @@ import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import PetSleepZzz from "@/components/PetSleepZzz";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
@@ -47,7 +48,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, homeSceneItemCountsTowardDecorLimit, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -687,10 +688,17 @@ function InteriorViewer({
         const top = yPct * containerH;
         const petSize = petHouseDisplaySize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, pet);
         const isSelectedPet = popupPetId === pet.inventoryId;
+        const isSleeping = !livePos && isHouseInteriorSleepPosition(
+          effects,
+          xPct,
+          yPct,
+          imgWidth / Math.max(containerH, 1),
+        );
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
+            data-sleeping={isSleeping ? "true" : undefined}
             style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
@@ -701,7 +709,7 @@ function InteriorViewer({
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
                 petInventoryId={pet.inventoryId}
-                mode={livePos ? "static" : "house"}
+                mode={livePos ? "static" : isSleeping ? "sleep" : "house"}
                 size={petSize}
                 fillContainer
                 fitVisible
@@ -716,6 +724,7 @@ function InteriorViewer({
                 style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
+            {isSleeping && <PetSleepZzz />}
           </div>
         );
       })}
