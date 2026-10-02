@@ -3,7 +3,11 @@ import type { Express, RequestHandler } from "express";
 type HomeDecorStorage = Pick<typeof import("../storage").storage,
   | "getHomeDecorItems"
   | "createHomeDecorItem"
+  | "updateHomeDecorItem"
   | "deleteHomeDecorItem"
+  | "getAllShopItems"
+  | "getShopItem"
+  | "updateShopItem"
   | "getLocationHomeDecor"
   | "addDecorToShop"
   | "removeDecorFromShop"
@@ -66,6 +70,45 @@ export function registerHomeDecorRoutes(
         imageUrl,
       });
       return res.status(201).json(item);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/home-decor/:id", isAdmin, async (req, res) => {
+    try {
+      const homeSceneSize = Math.max(60, Math.min(500, Math.round(Number(req.body?.homeSceneSize))));
+      if (!Number.isFinite(homeSceneSize)) {
+        return res.status(400).json({ message: "homeSceneSize is required" });
+      }
+      const item = await storage.updateHomeDecorItem(req.params.id as string, { homeSceneSize });
+      return res.json(item);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/home-objects", isAdmin, async (_req, res) => {
+    try {
+      const items = await storage.getAllShopItems();
+      return res.json(items.filter((item) => item.type === "object"));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/home-objects/:id", isAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getShopItem(req.params.id as string);
+      if (!existing || existing.type !== "object") {
+        return res.status(404).json({ message: "Object not found" });
+      }
+      const homeSceneSize = Math.max(60, Math.min(500, Math.round(Number(req.body?.homeSceneSize))));
+      if (!Number.isFinite(homeSceneSize)) {
+        return res.status(400).json({ message: "homeSceneSize is required" });
+      }
+      const item = await storage.updateShopItem(existing.id, { homeSceneSize });
+      return res.json(item);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -160,12 +203,11 @@ export function registerHomeDecorRoutes(
   app.post("/api/pet-house/decor/place", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { decorItemId, xPct, yPct, size, flipped, location } = req.body;
+      const { decorItemId, xPct, yPct, flipped, location } = req.body;
       if (!decorItemId) return res.status(400).json({ message: "decorItemId required" });
       const row = await executeDecorPlacement(userId, decorItemId, {
         xPct: xPct ?? 0.5,
         yPct: yPct ?? 0.5,
-        size: size ?? 250,
         flipped: flipped ?? false,
         location: location ?? "outside",
       });
@@ -178,11 +220,11 @@ export function registerHomeDecorRoutes(
   app.patch("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { xPct, yPct, size, flipped } = req.body;
+      const { xPct, yPct, flipped } = req.body;
       const row = await storage.updatePlacedHomeDecor(
         req.params.id as string,
         userId,
-        { xPct, yPct, size, flipped },
+        { xPct, yPct, flipped },
       );
       return res.json(row);
     } catch (err: any) {

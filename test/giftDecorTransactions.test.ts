@@ -176,13 +176,13 @@ class DecorFake implements DecorTransactionOperations {
 
 test("decoration placement deducts inventory and creates placement atomically", async () => {
   const fake = new DecorFake(); fake.inventory.set("owner:chair", 1);
-  const row = await executeDecorPlacement("owner", "chair", { xPct: .5, yPct: .5, size: 250, flipped: false }, fake);
+  const row = await executeDecorPlacement("owner", "chair", { xPct: .5, yPct: .5, flipped: false }, fake);
   assert.equal(fake.inventory.get("owner:chair"), 0); assert.equal(fake.placements.get(row.id).decorItemId, "chair");
 });
 
 test("failed decoration placement preserves inventory", async () => {
   const fake = new DecorFake(); fake.inventory.set("owner:chair", 1); fake.failPlacement = true;
-  await assert.rejects(executeDecorPlacement("owner", "chair", { xPct: .5, yPct: .5, size: 250, flipped: false }, fake));
+  await assert.rejects(executeDecorPlacement("owner", "chair", { xPct: .5, yPct: .5, flipped: false }, fake));
   assert.equal(fake.inventory.get("owner:chair"), 1); assert.equal(fake.placements.size, 0);
 });
 

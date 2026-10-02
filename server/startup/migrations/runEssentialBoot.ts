@@ -11,6 +11,8 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS adornment_effect TEXT;
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS hide_above_head_part BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS pet_exp INTEGER CHECK (pet_exp >= 0);
+    ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_scene_size INTEGER NOT NULL DEFAULT 250;
+    ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_scene_size INTEGER NOT NULL DEFAULT 250;
     ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS is_evolved BOOLEAN NOT NULL DEFAULT false;
   `);
 

@@ -47,6 +47,9 @@ function setup() {
   const calls: any = {
     catalog: 0,
     created: [],
+    decorSizes: [],
+    objectCatalog: 0,
+    objectSizes: [],
     deleted: [],
     locationRows: [],
     assigned: [],
@@ -70,6 +73,28 @@ function setup() {
       createHomeDecorItem: async (data: any) => {
         calls.created.push(data);
         return { id: "decor-new", ...data } as any;
+      },
+      updateHomeDecorItem: async (id: string, data: any) => {
+        calls.decorSizes.push([id, data]);
+        return { id, ...data } as any;
+      },
+      getAllShopItems: async () => {
+        calls.objectCatalog++;
+        return [
+          { id: "object-1", name: "Bottle", type: "object", homeSceneSize: 250 },
+          { id: "potion-1", name: "Potion", type: "potion", homeSceneSize: 250 },
+        ] as any;
+      },
+      getShopItem: async (id: string) => (
+        id === "object-1"
+          ? ({ id, name: "Bottle", type: "object", homeSceneSize: 250 } as any)
+          : id === "not-object"
+            ? ({ id, name: "Potion", type: "potion", homeSceneSize: 250 } as any)
+            : undefined
+      ),
+      updateShopItem: async (id: string, data: any) => {
+        calls.objectSizes.push([id, data]);
+        return { id, type: "object", ...data } as any;
       },
       deleteHomeDecorItem: async (id: string) => {
         calls.deleted.push(id);
@@ -145,6 +170,9 @@ async function handler(
 const expected = [
   "GET /api/admin/home-decor",
   "POST /api/admin/home-decor",
+  "PATCH /api/admin/home-decor/:id",
+  "GET /api/admin/home-objects",
+  "PATCH /api/admin/home-objects/:id",
   "DELETE /api/admin/home-decor/:id",
   "GET /api/admin/location/:locationId/shop-decor",
   "POST /api/admin/location/:locationId/assign-decor/:decorId",
@@ -212,6 +240,40 @@ test("admin Home Decor catalog preserves image processing and CRUD contracts", a
   assert.deepEqual(calls.deleted, ["decor-1"]);
 });
 
+test("admin controls Decor and Object Home scene sizes", async () => {
+  const { app, calls } = setup();
+
+  const decor = await handler(app, "PATCH", "/api/admin/home-decor/:id", {
+    params: { id: "decor-1" },
+    body: { homeSceneSize: 315 },
+  });
+  assert.deepEqual(calls.decorSizes, [["decor-1", { homeSceneSize: 315 }]]);
+  assert.equal(decor.body.homeSceneSize, 315);
+
+  const objects = await handler(app, "GET", "/api/admin/home-objects", {});
+  assert.deepEqual(objects.body.map((item: any) => item.id), ["object-1"]);
+  assert.equal(calls.objectCatalog, 1);
+
+  const object = await handler(app, "PATCH", "/api/admin/home-objects/:id", {
+    params: { id: "object-1" },
+    body: { homeSceneSize: 340 },
+  });
+  assert.deepEqual(calls.objectSizes, [["object-1", { homeSceneSize: 340 }]]);
+  assert.equal(object.body.homeSceneSize, 340);
+
+  const wrongType = await handler(app, "PATCH", "/api/admin/home-objects/:id", {
+    params: { id: "not-object" },
+    body: { homeSceneSize: 300 },
+  });
+  assert.deepEqual([wrongType.statusCode, wrongType.body], [404, { message: "Object not found" }]);
+
+  const clampedDecor = await handler(app, "PATCH", "/api/admin/home-decor/:id", {
+    params: { id: "decor-2" },
+    body: { homeSceneSize: 9999 },
+  });
+  assert.equal(clampedDecor.body.homeSceneSize, 500);
+});
+
 test("world-shop Decor assignment and player listing keep existing response shapes", async () => {
   const { app, calls } = setup();
 
@@ -267,7 +329,7 @@ test("Decor/Object inventory and placement behavior stays delegated to existing 
 
   const placed = await handler(app, "POST", "/api/pet-house/decor/place", {
     user: { id: "owner" },
-    body: { userId: "victim", decorItemId: "scene-item-1" },
+    body: { userId: "victim", decorItemId: "scene-item-1", size: 499 },
   });
 
   assert.deepEqual(calls.inventory, ["owner"]);
@@ -279,7 +341,6 @@ test("Decor/Object inventory and placement behavior stays delegated to existing 
     ["owner", "scene-item-1", {
       xPct: 0.5,
       yPct: 0.5,
-      size: 250,
       flipped: false,
       location: "outside",
     }],
@@ -296,14 +357,13 @@ test("placement PATCH/removal remain scoped to the authenticated player", async 
   const patch = await handler(app, "PATCH", "/api/pet-house/decor/placed/:id", {
     user: { id: "owner" },
     params: { id: "placed-1", userId: "victim" },
-    body: { userId: "victim", xPct: 0.2, location: "other" },
+    body: { userId: "victim", xPct: 0.2, size: 499, location: "other" },
   });
 
   assert.deepEqual(calls.update, [
     ["placed-1", "owner", {
       xPct: 0.2,
       yPct: undefined,
-      size: undefined,
       flipped: undefined,
     }],
   ]);
@@ -348,6 +408,10 @@ test("Home Decor error status codes remain unchanged", async () => {
     storage: {
       getHomeDecorItems: async () => { throw new Error("catalog failed"); },
       createHomeDecorItem: async () => { throw new Error("create failed"); },
+      updateHomeDecorItem: async () => { throw new Error("decor size failed"); },
+      getAllShopItems: async () => { throw new Error("objects failed"); },
+      getShopItem: async () => { throw new Error("object read failed"); },
+      updateShopItem: async () => { throw new Error("object size failed"); },
       deleteHomeDecorItem: async () => { throw new Error("delete failed"); },
       getLocationHomeDecor: async () => { throw new Error("shop failed"); },
       addDecorToShop: async () => { throw new Error("assign failed"); },

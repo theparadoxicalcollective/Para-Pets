@@ -24,6 +24,7 @@ import moodFaceHungry from "@assets/mood_face_hungry.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
+import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
@@ -49,20 +50,6 @@ import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PE
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseDepthSize } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
-function SvgMinus() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M5 11h12" stroke="#ffd700" strokeWidth="2.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function SvgPlus() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M5 11h12M11 5v12" stroke="#ffd700" strokeWidth="2.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
 function SvgFlip() {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -404,7 +391,7 @@ function InteriorViewer({
   panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
   leaveButtonX?: number;
   leaveButtonY?: number;
-  onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
+  onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number) => Promise<void>;
   onRemovePet: (inventoryId: string) => Promise<void>;
@@ -613,24 +600,16 @@ function InteriorViewer({
           >
             {isSelected && (
               <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
-                <ControlBtn onClick={() => onUpdateItem(item.id, { size: Math.max(100, item.size - 25) })}><SvgMinus /></ControlBtn>
-                <ControlBtn onClick={() => onUpdateItem(item.id, { size: Math.min(400, item.size + 25) })}><SvgPlus /></ControlBtn>
                 <ControlBtn onClick={() => onUpdateItem(item.id, { flipped: !item.flipped })}><SvgFlip /></ControlBtn>
                 <ControlBtn danger onClick={() => { onRemoveItem(item.id); setSelectedItemId(null); }}><SvgDelete /></ControlBtn>
               </div>
             )}
-            <img
+            <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
-              draggable={false}
-              style={{
-                width: displaySize, height: displaySize, objectFit: "contain",
-                transform: item.flipped ? "scaleX(-1)" : undefined,
-                outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
-                outlineOffset: "3px",
-                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
-                userSelect: "none", cursor: "grab",
-              }}
+              size={displaySize}
+              selected={isSelected}
+              flipped={item.flipped}
             />
           </div>
         );
@@ -889,7 +868,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const placeDecorMutation = useMutation({
-    mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; location?: string }) => {
+    mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; flipped: boolean; location?: string }) => {
       const res = await apiRequest("POST", "/api/pet-house/decor/place", data);
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
@@ -902,7 +881,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const updateDecorMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => {
+    mutationFn: async ({ id, ...data }: { id: string; xPct?: number; yPct?: number; flipped?: boolean }) => {
       const res = await apiRequest("PATCH", `/api/pet-house/decor/placed/${id}`, data);
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
@@ -1105,7 +1084,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems} decorations.` });
             } else {
               placeDecorMutation.mutate({
-                decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
+                decorItemId: decorDrag.decorItemId, flipped: false,
                 xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
                 yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
                 location: openInterior.buildingId,
@@ -1118,7 +1097,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${maxOutdoorDecor} decorations outdoors.` });
             } else {
               placeDecorMutation.mutate({
-                decorItemId: decorDrag.decorItemId, size: 220, flipped: false,
+                decorItemId: decorDrag.decorItemId, flipped: false,
                 xPct: Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth)),
                 yPct: Math.max(0.03, Math.min(0.97, localY / containerH)),
                 location: "outside",
@@ -1501,24 +1480,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           >
             {isSelected && (
               <div className="absolute flex gap-2" style={{ bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)", zIndex: 10, whiteSpace: "nowrap" }}>
-                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: Math.max(100, item.size - 25) })}><SvgMinus /></ControlBtn>
-                <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, size: Math.min(400, item.size + 25) })}><SvgPlus /></ControlBtn>
                 <ControlBtn onClick={() => updateDecorMutation.mutate({ id: item.id, flipped: !item.flipped })}><SvgFlip /></ControlBtn>
                 <ControlBtn danger onClick={() => removeDecorMutation.mutate(item.id)}><SvgDelete /></ControlBtn>
               </div>
             )}
-            <img
+            <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
-              draggable={false}
-              style={{
-                width: displaySize, height: displaySize, objectFit: "contain",
-                transform: item.flipped ? "scaleX(-1)" : undefined,
-                outline: isSelected ? "2px solid rgba(255,215,0,0.8)" : "none",
-                outlineOffset: "3px",
-                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
-                userSelect: "none", cursor: "grab",
-              }}
+              size={displaySize}
+              selected={isSelected}
+              flipped={item.flipped}
             />
           </div>
         );

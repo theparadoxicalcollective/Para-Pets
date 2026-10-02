@@ -2,14 +2,18 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload } from "lucide-react";
+import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload, Pencil } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { QuillBadge } from "@/components/QuillBadge";
+import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
 import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
-  id: string; name: string; imageUrl: string | null; price: number; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; createdAt: string;
+}
+interface HomeObjectItem {
+  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; createdAt: string;
 }
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
@@ -1040,6 +1044,7 @@ function DecorSubTab() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [imageData, setImageData] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<HomeDecorItem | null>(null);
   const imgRef = useRef<HTMLInputElement>(null);
 
   const { data: items = [], isLoading } = useQuery<HomeDecorItem[]>({ queryKey: ["/api/admin/home-decor"], staleTime: 0 });
@@ -1063,6 +1068,17 @@ function DecorSubTab() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const sizeMutation = useMutation({
+    mutationFn: async ({ id, homeSceneSize }: { id: string; homeSceneSize: number }) =>
+      apiRequest("PATCH", `/api/admin/home-decor/${id}`, { homeSceneSize }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/home-decor"] });
+      setEditingItem(null);
+      toast({ title: "Decor size saved!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -1083,14 +1099,27 @@ function DecorSubTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
-                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px</p>
               </div>
+              <button data-testid={`button-edit-decor-${item.id}`} onClick={() => setEditingItem(item)} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,215,0,0.10)", border: "1px solid rgba(255,215,0,0.28)", cursor: "pointer" }}>
+                <Pencil className="w-3.5 h-3.5" style={{ color: GOLD }} />
+              </button>
               <button data-testid={`button-delete-decor-${item.id}`} onClick={() => deleteMutation.mutate(item.id)} disabled={deleteMutation.isPending} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(200,50,50,0.15)", border: "1px solid rgba(200,50,50,0.3)", cursor: "pointer" }}>
                 <Trash2 className="w-3.5 h-3.5" style={{ color: "#f87171" }} />
               </button>
             </div>
           ))}
         </div>
+      )}
+
+      {editingItem && (
+        <HomeSceneSizeEditor
+          item={editingItem as HomeSceneSizeEditorItem}
+          itemLabel="Decor"
+          onClose={() => setEditingItem(null)}
+          onSave={(homeSceneSize) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize })}
+          saving={sizeMutation.isPending}
+        />
       )}
 
       {showForm && (
@@ -1127,6 +1156,88 @@ function DecorSubTab() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Objects sub-tab ──────────────────────────────────────────────────────────
+function ObjectsSubTab() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [editingItem, setEditingItem] = useState<HomeObjectItem | null>(null);
+
+  const { data: items = [], isLoading } = useQuery<HomeObjectItem[]>({
+    queryKey: ["/api/admin/home-objects"],
+    staleTime: 0,
+  });
+
+  const sizeMutation = useMutation({
+    mutationFn: async ({ id, homeSceneSize }: { id: string; homeSceneSize: number }) =>
+      apiRequest("PATCH", `/api/admin/home-objects/${id}`, { homeSceneSize }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/home-objects"] });
+      setEditingItem(null);
+      toast({ title: "Object size saved!" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-fantasy text-[10px]" style={{ color: "rgba(255,215,0,0.5)" }}>
+            {isLoading ? "Loading..." : `${items.length} object${items.length !== 1 ? "s" : ""}`}
+          </p>
+          <p className="font-fantasy text-[8px]" style={{ color: "rgba(255,215,0,0.3)" }}>
+            Objects are created in Item Database · size is controlled here
+          </p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center h-24">
+          <p className="font-fantasy text-xs animate-pulse" style={{ color: "rgba(255,215,0,0.4)" }}>Loading...</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-32">
+          <p className="font-fantasy text-xs" style={{ color: "rgba(255,215,0,0.3)" }}>No Object items yet</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {items.map(item => (
+            <div key={item.id} data-testid={`row-object-${item.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: BG_CARD, border: `1px solid ${GOLD_BORDER}` }}>
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 overflow-hidden" style={{ background: "rgba(167,139,250,0.08)", border: "1.5px solid rgba(196,181,253,0.24)" }}>
+                {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <span className="font-fantasy text-lg" style={{ color: GOLD }}>◈</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>
+                  {item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px
+                </p>
+              </div>
+              <button
+                data-testid={`button-edit-object-${item.id}`}
+                onClick={() => setEditingItem(item)}
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "rgba(255,215,0,0.10)", border: "1px solid rgba(255,215,0,0.28)", cursor: "pointer" }}
+              >
+                <Pencil className="w-3.5 h-3.5" style={{ color: GOLD }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editingItem && (
+        <HomeSceneSizeEditor
+          item={editingItem as HomeSceneSizeEditorItem}
+          itemLabel="Object"
+          onClose={() => setEditingItem(null)}
+          onSave={(homeSceneSize) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize })}
+          saving={sizeMutation.isPending}
+        />
       )}
     </div>
   );
@@ -1513,21 +1624,25 @@ function BundlesSubTab() {
 
 // ─── Root component ────────────────────────────────────────────────────────────
 export default function HomeBundleSection() {
-  const [tab, setTab] = useState<"decor" | "bundles">("decor");
-  const TABS = [{ key: "decor" as const, label: "Decor" }, { key: "bundles" as const, label: "Home Bundles" }];
+  const [tab, setTab] = useState<"decor" | "objects" | "bundles">("decor");
+  const TABS = [
+    { key: "decor" as const, label: "Decor" },
+    { key: "objects" as const, label: "Objects" },
+    { key: "bundles" as const, label: "Home Bundles" },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${GOLD_BORDER}` }}>
-        {TABS.map(t => (
+        {TABS.map((t, index) => (
           <button
             key={t.key}
             data-testid={`tab-home-bundle-${t.key}`}
             onClick={() => setTab(t.key)}
-            className="flex-1 py-2.5 font-fantasy text-[11px] tracking-wide transition-all"
+            className="flex-1 py-2.5 font-fantasy text-[10px] tracking-wide transition-all"
             style={{
               background: tab === t.key ? "rgba(255,215,0,0.15)" : "transparent",
-              borderRight: t.key === "decor" ? `1px solid ${GOLD_BORDER}` : undefined,
+              borderRight: index < TABS.length - 1 ? `1px solid ${GOLD_BORDER}` : undefined,
               color: tab === t.key ? GOLD : "rgba(255,215,0,0.4)",
               cursor: "pointer",
             }}
@@ -1535,6 +1650,7 @@ export default function HomeBundleSection() {
         ))}
       </div>
       {tab === "decor" && <DecorSubTab />}
+      {tab === "objects" && <ObjectsSubTab />}
       {tab === "bundles" && <BundlesSubTab />}
     </div>
   );
