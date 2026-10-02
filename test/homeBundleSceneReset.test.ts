@@ -27,6 +27,12 @@ test("scene reset returns Decor, Objects, and clears Pet House positions", () =>
   assert.match(transactions, /returnedPets: petPlacements\.length/);
 });
 
+test("scene reset tolerates admin catalog changes instead of blocking bundle activation", () => {
+  assert.match(transactions, /where\(eq\(shopItems\.id, placement\.decorItemId\)\)/);
+  assert.match(transactions, /if \(!shopCatalog\) continue/);
+  assert.doesNotMatch(transactions, /if \(!objectCatalog\) throw new Error\("Placed decor item not found"\)/);
+});
+
 test("bundle activation refreshes returned inventories immediately", () => {
   assert.match(page, /queryKey: \["\/api\/pet-house\/decor\/inventory"\]/);
   assert.match(page, /queryKey: \["\/api\/pet-house\/decor\/placed"\]/);

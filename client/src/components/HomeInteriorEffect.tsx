@@ -7,8 +7,9 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   description: string;
   defaultSize: number;
 }> = [
-  { type: "fire", label: "Fire", description: "Animated fireplace or hearth flame", defaultSize: 12 },
-  { type: "warm_glow", label: "Warm Glow", description: "Lamp, candle, or window light", defaultSize: 18 },
+  { type: "fire", label: "Campfire", description: "Flickering flames over crossed glowing logs", defaultSize: 14 },
+  { type: "candle_light", label: "Candle Light", description: "Small focused flame for candles and lanterns", defaultSize: 10 },
+  { type: "warm_glow", label: "Lamp Glow", description: "Soft lamp or window light without a visible flame", defaultSize: 18 },
   { type: "sparkles", label: "Sparkles", description: "Soft magical twinkle", defaultSize: 14 },
   { type: "dust_motes", label: "Dust Motes", description: "Subtle floating room particles", defaultSize: 18 },
   { type: "soft_mist", label: "Soft Mist", description: "Low translucent atmospheric haze", defaultSize: 22 },
@@ -38,6 +39,16 @@ const EFFECT_STYLES = `
   35% { transform: scale(1.05, 0.94) translateY(-3%); filter: blur(0.9px); opacity: 1; }
   70% { transform: scale(0.98, 1.06) translateY(-1%); filter: blur(0.2px); opacity: 0.88; }
 }
+@keyframes para-home-campfire-flame {
+  0%, 100% { transform: translateX(-50%) scale(0.92, 1.02) rotate(-2deg); }
+  35% { transform: translateX(-50%) scale(1.06, 0.94) rotate(3deg); }
+  70% { transform: translateX(-50%) scale(0.97, 1.08) rotate(-1deg); }
+}
+@keyframes para-home-campfire-ember {
+  0%, 35% { transform: translateY(0) scale(0.7); opacity: 0; }
+  50% { opacity: 0.9; }
+  100% { transform: translateY(-220%) scale(0.25); opacity: 0; }
+}
 @keyframes para-home-glow-pulse {
   0%, 100% { transform: scale(0.96); opacity: 0.72; }
   50% { transform: scale(1.05); opacity: 0.96; }
@@ -58,7 +69,108 @@ const EFFECT_STYLES = `
 }
 `;
 
-function FireVisual() {
+function CampfireVisual() {
+  const embers = [
+    { left: "39%", delay: "0s" },
+    { left: "51%", delay: "0.55s" },
+    { left: "61%", delay: "1.05s" },
+  ];
+
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: 0 }}>
+      <div
+        style={{
+          position: "absolute",
+          left: "14%",
+          right: "14%",
+          bottom: "7%",
+          height: "54%",
+          borderRadius: "50%",
+          background: "radial-gradient(ellipse at 50% 70%, rgba(255,174,45,0.38), rgba(255,77,16,0.12) 48%, transparent 72%)",
+          filter: "blur(4px)",
+          mixBlendMode: "screen",
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          left: "22%",
+          bottom: "13%",
+          width: "57%",
+          height: "13%",
+          borderRadius: 999,
+          transform: "rotate(17deg)",
+          background: "linear-gradient(180deg, #7a4827, #3b1e12 58%, #190d09)",
+          boxShadow: "inset 0 2px 2px rgba(255,190,100,0.22), 0 0 7px rgba(255,84,19,0.34)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: "22%",
+          bottom: "13%",
+          width: "57%",
+          height: "13%",
+          borderRadius: 999,
+          transform: "rotate(-17deg)",
+          background: "linear-gradient(180deg, #81502b, #402014 58%, #190d09)",
+          boxShadow: "inset 0 2px 2px rgba(255,190,100,0.2), 0 0 7px rgba(255,84,19,0.32)",
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "20%",
+          width: "54%",
+          height: "65%",
+          transformOrigin: "50% 100%",
+          animation: "para-home-campfire-flame 0.92s ease-in-out infinite",
+          borderRadius: "54% 46% 58% 42% / 68% 64% 36% 32%",
+          background: "linear-gradient(180deg, rgba(255,224,92,0.1) 0%, #ffb327 38%, #ff641c 70%, rgba(189,45,9,0.88) 100%)",
+          clipPath: "polygon(50% 0%, 72% 27%, 88% 52%, 78% 82%, 50% 100%, 22% 82%, 12% 52%, 31% 31%)",
+          filter: "drop-shadow(0 0 7px rgba(255,91,18,0.72))",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: "27%",
+            right: "27%",
+            bottom: "9%",
+            height: "56%",
+            borderRadius: "55% 45% 52% 48%",
+            background: "linear-gradient(180deg, rgba(255,255,220,0.95), #ffe36b 48%, #ff9f22)",
+            clipPath: "polygon(50% 0%, 83% 48%, 72% 100%, 28% 100%, 17% 48%)",
+          }}
+        />
+      </div>
+
+      {embers.map((ember, index) => (
+        <span
+          key={index}
+          style={{
+            position: "absolute",
+            left: ember.left,
+            bottom: "54%",
+            width: "4%",
+            height: "4%",
+            minWidth: 2,
+            minHeight: 2,
+            borderRadius: "50%",
+            background: "#ffd66b",
+            boxShadow: "0 0 6px rgba(255,122,30,0.9)",
+            animation: `para-home-campfire-ember 2.15s ease-out ${ember.delay} infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CandleLightVisual() {
   return (
     <div
       aria-hidden
@@ -185,7 +297,8 @@ function SoftMistVisual() {
 }
 
 function EffectVisual({ type }: { type: HouseInteriorEffectType }) {
-  if (type === "fire") return <FireVisual />;
+  if (type === "fire") return <CampfireVisual />;
+  if (type === "candle_light") return <CandleLightVisual />;
   if (type === "warm_glow") return <WarmGlowVisual />;
   if (type === "sparkles") return <SparklesVisual />;
   if (type === "dust_motes") return <DustMotesVisual />;

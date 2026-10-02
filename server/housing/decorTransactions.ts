@@ -49,12 +49,17 @@ export async function executeStoreAllHomeScene(userId: string): Promise<{ return
         continue;
       }
 
-      const [objectCatalog] = await tx
+      const [shopCatalog] = await tx
         .select({ id: shopItems.id })
         .from(shopItems)
-        .where(and(eq(shopItems.id, placement.decorItemId), eq(shopItems.type, "object")))
+        .where(eq(shopItems.id, placement.decorItemId))
         .for("share");
-      if (!objectCatalog) throw new Error("Placed decor item not found");
+
+      // Admin catalog edits/deletions must never trap a player in their current
+      // Home Bundle. If the original Object still exists (even if its type was
+      // edited), return the owned copy to normal inventory. If the catalog row
+      // was deleted entirely, the stale placement is simply cleared below.
+      if (!shopCatalog) continue;
 
       const inventoryRows = await tx.select().from(userInventory)
         .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, placement.decorItemId)))
@@ -183,12 +188,16 @@ const postgresDecorOperations: DecorTransactionOperations = {
           await tx.insert(userHomeDecorInventory).values({ userId, decorItemId: placement.decorItemId, quantity: 1 });
         }
       } else {
-        const [objectCatalog] = await tx
+        const [shopCatalog] = await tx
           .select({ id: shopItems.id })
           .from(shopItems)
-          .where(and(eq(shopItems.id, placement.decorItemId), eq(shopItems.type, "object")))
+          .where(eq(shopItems.id, placement.decorItemId))
           .for("share");
-        if (!objectCatalog) throw new Error("Placed decor item not found");
+        if (!shopCatalog) {
+          await tx.delete(placedHomeDecor)
+            .where(and(eq(placedHomeDecor.id, placementId), eq(placedHomeDecor.userId, userId)));
+          return { decorItemId: placement.decorItemId };
+        }
 
         const inventoryRows = await tx.select().from(userInventory)
           .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, placement.decorItemId)))
