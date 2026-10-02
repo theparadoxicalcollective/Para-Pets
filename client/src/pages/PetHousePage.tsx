@@ -1546,16 +1546,50 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         );
       })}
 
-      {/* Owner-only placement action, clamped inside the scene on small screens. */}
+      {/* Owner-only pet edit controls, always above scene items. */}
       {outdoorPopupPet && (
-        <HousePetRemovalControl
-          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (() => {
+        <HousePetControlPanel
+          left={Math.max(120, Math.min((containerRef.current?.clientWidth ?? 390) - 120, panX + (outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
+          top={Math.max(118, (() => {
             const yPct = outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5;
-            return yPct * containerH - petHouseDepthSize(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, yPct) / 2;
+            return yPct * containerH - petHouseDisplaySize(PET_HOUSE_OUTDOOR_PET_BASE_SIZE, outdoorPopupPet) / 2;
           })())}
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
           pending={removePetFromSceneMutation.isPending && removePetFromSceneMutation.variables === outdoorPopupPet.inventoryId}
+          onDecrease={() => {
+            const xPct = outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5;
+            const yPct = outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5;
+            updatePetPositionMutation.mutate({
+              inventoryId: outdoorPopupPet.inventoryId,
+              xPct,
+              yPct,
+              scalePct: clampPetHousePlayerScale((outdoorPopupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
+              flipped: !!outdoorPopupPet.homeFlipped,
+            });
+          }}
+          onIncrease={() => {
+            const xPct = outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5;
+            const yPct = outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5;
+            updatePetPositionMutation.mutate({
+              inventoryId: outdoorPopupPet.inventoryId,
+              xPct,
+              yPct,
+              scalePct: clampPetHousePlayerScale((outdoorPopupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
+              flipped: !!outdoorPopupPet.homeFlipped,
+            });
+          }}
+          onFlip={() => {
+            const xPct = outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5;
+            const yPct = outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5;
+            updatePetPositionMutation.mutate({
+              inventoryId: outdoorPopupPet.inventoryId,
+              xPct,
+              yPct,
+              scalePct: outdoorPopupPet.homeScalePct ?? 100,
+              flipped: !outdoorPopupPet.homeFlipped,
+            });
+          }}
+          onCloset={() => navigate(`/equip-accessories/${encodeURIComponent(outdoorPopupPet.inventoryId)}`)}
           onRemove={() => { void removePetFromHome(outdoorPopupPet.inventoryId).catch(() => undefined); }}
         />
       )}
@@ -2006,9 +2040,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             leaveButtonY={openInterior.leaveButtonY}
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
-            onMovePet={async (inventoryId, xPct, yPct) => {
-              await placePetMutation.mutateAsync({ inventoryId, xPct, yPct, location: openInterior.buildingId });
+            onMovePet={async (inventoryId, xPct, yPct, scalePct, flipped) => {
+              await placePetMutation.mutateAsync({ inventoryId, xPct, yPct, location: openInterior.buildingId, scalePct, flipped });
             }}
+            onOpenCloset={(inventoryId) => navigate(`/equip-accessories/${encodeURIComponent(inventoryId)}`)}
             onRemovePet={removePetFromHome}
             removingPetId={removePetFromSceneMutation.isPending ? (removePetFromSceneMutation.variables ?? null) : null}
             onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
