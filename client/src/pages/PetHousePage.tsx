@@ -420,7 +420,7 @@ function HousePetControlPanel({
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
   leaveButtonX = 0.92, leaveButtonY = 0.06,
-  onUpdateItem, onRemoveItem, onMovePet, onRemovePet, removingPetId, onClose,
+  onUpdateItem, onRemoveItem, onMovePet, onOpenCloset, onRemovePet, removingPetId, onClose,
 }: {
   url: string;
   placedItems: PlacedDecorItem[];
@@ -430,7 +430,8 @@ function InteriorViewer({
   leaveButtonY?: number;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
-  onMovePet: (inventoryId: string, xPct: number, yPct: number) => Promise<void>;
+  onMovePet: (inventoryId: string, xPct: number, yPct: number, scalePct: number, flipped: boolean) => Promise<void>;
+  onOpenCloset: (inventoryId: string) => void;
   onRemovePet: (inventoryId: string) => Promise<void>;
   removingPetId: string | null;
   onClose: () => void;
@@ -450,7 +451,7 @@ function InteriorViewer({
   const [topItemId, setTopItemId] = useState<string | null>(null);
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   const popupPet = placedPets.find(pet => pet.inventoryId === popupPetId) ?? null;
   const popupPetLivePosition = popupPet && petDragLive?.inventoryId === popupPet.inventoryId ? petDragLive : null;
@@ -547,12 +548,26 @@ function InteriorViewer({
   // Pet drag handlers
   const onPetDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
+    if (popupPetId !== pet.inventoryId) {
+      setPopupPetId(pet.inventoryId);
+      setTopPetId(pet.inventoryId);
+      return;
+    }
     playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
-    petDragRef.current = { inventoryId: pet.inventoryId, startXPct: savedX, startYPct: savedY, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-  }, []);
+    petDragRef.current = {
+      inventoryId: pet.inventoryId,
+      startXPct: savedX,
+      startYPct: savedY,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      scalePct: clampPetHousePlayerScale(pet.homeScalePct ?? 100),
+      flipped: !!pet.homeFlipped,
+      pid: e.pointerId,
+    };
+  }, [popupPetId]);
 
   const onPetMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
@@ -579,7 +594,7 @@ function InteriorViewer({
       const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
       setTopPetId(drag.inventoryId);
       setPetDragLive(finalPosition);
-      void onMovePet(drag.inventoryId, newXPct, newYPct)
+      void onMovePet(drag.inventoryId, newXPct, newYPct, drag.scalePct, drag.flipped)
         .catch(() => undefined)
         .finally(() => setPetDragLive(current =>
           current?.inventoryId === finalPosition.inventoryId &&
@@ -664,21 +679,17 @@ function InteriorViewer({
         const yPct = livePos?.yPct ?? (parsePetPct(pet.posTop) ?? 0.5);
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
-        const petSize = indoorPetSize(yPct);
+        const petSize = petHouseDisplaySize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, pet);
+        const isSelectedPet = popupPetId === pet.inventoryId;
         return (
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: topPetId === pet.inventoryId ? 9 : 7, left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
+            style={{ zIndex: isSelectedPet ? 115 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petSize, height: petSize, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer" }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
             onPointerCancel={onPetUp}
-            onClick={(e) => {
-              e.stopPropagation();
-              const drag = petDragRef.current;
-              if (!drag) setPopupPetId(current => current === pet.inventoryId ? null : pet.inventoryId);
-            }}
           >
             {pet.petTemplateId ? (
               <PetAnimator
@@ -688,7 +699,7 @@ function InteriorViewer({
                 size={petSize}
                 fillContainer
                 fitVisible
-                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
@@ -696,32 +707,57 @@ function InteriorViewer({
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
                 className={livePos ? undefined : "pet-idle-squish"}
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
             ) : null}
           </div>
         );
       })}
 
-      {/* Owner-only Pet House action; this intentionally bypasses normal pet UI. */}
+      {/* Owner-only Pet House edit controls. */}
       {popupPet && (
-        <HousePetRemovalControl
-          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (() => {
+        <HousePetControlPanel
+          left={Math.max(120, Math.min((containerRef.current?.clientWidth ?? 390) - 120, panX + (popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
+          top={Math.max(118, (() => {
             const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
-            return yPct * containerH - petHouseDepthSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, yPct) / 2;
+            return yPct * containerH - petHouseDisplaySize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, popupPet) / 2;
           })())}
           petName={popupPet.nickname ?? popupPet.name}
           pending={removingPetId === popupPet.inventoryId}
+          onDecrease={() => {
+            const xPct = popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5;
+            const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
+            void onMovePet(
+              popupPet.inventoryId,
+              xPct,
+              yPct,
+              clampPetHousePlayerScale((popupPet.homeScalePct ?? 100) - PET_HOUSE_PLAYER_SCALE_DECREASE_STEP),
+              !!popupPet.homeFlipped,
+            );
+          }}
+          onIncrease={() => {
+            const xPct = popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5;
+            const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
+            void onMovePet(
+              popupPet.inventoryId,
+              xPct,
+              yPct,
+              clampPetHousePlayerScale((popupPet.homeScalePct ?? 100) + PET_HOUSE_PLAYER_SCALE_INCREASE_STEP),
+              !!popupPet.homeFlipped,
+            );
+          }}
+          onFlip={() => {
+            const xPct = popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5;
+            const yPct = popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5;
+            void onMovePet(popupPet.inventoryId, xPct, yPct, popupPet.homeScalePct ?? 100, !popupPet.homeFlipped);
+          }}
+          onCloset={() => onOpenCloset(popupPet.inventoryId)}
           onRemove={async () => {
             if (removingPetId) return;
             try {
               await onRemovePet(popupPet.inventoryId);
               setPopupPetId(null);
-            } catch {
-              // The page mutation shows the standard destructive toast. Keep
-              // this selection open so the owner can retry.
-            }
+            } catch {}
           }}
         />
       )}
