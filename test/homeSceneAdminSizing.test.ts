@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const admin = readFileSync("client/src/components/HomeBundleSection.tsx", "utf8");
+const editor = readFileSync("client/src/components/HomeSceneSizeEditor.tsx", "utf8");
+const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
+const routes = readFileSync("server/routes/homeDecor.routes.ts", "utf8");
+const storage = readFileSync("server/storage.ts", "utf8");
+const transactions = readFileSync("server/housing/decorTransactions.ts", "utf8");
+const schema = readFileSync("shared/schema.ts", "utf8");
+const boot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
+
+test("Home Bundle admin exposes Decor and Object size editors", () => {
+  assert.match(admin, /label: "Decor"/);
+  assert.match(admin, /label: "Objects"/);
+  assert.match(admin, /label: "Home Bundles"/);
+  assert.match(admin, /button-edit-decor-/);
+  assert.match(admin, /button-edit-object-/);
+  assert.match(admin, /<HomeSceneSizeEditor/);
+  assert.match(admin, /queryKey: \["\/api\/admin\/home-objects"\]/);
+});
+
+test("size editor previews against a Fall Home interior with a safe fallback", () => {
+  assert.match(editor, /\/fall\/i\.test\(bundle\.name\)/);
+  assert.match(editor, /building => !!building\.interiorImageUrl/);
+  assert.match(editor, /bg_home_v2\.png/);
+  assert.match(editor, /petHouseDepthSize\(size, previewY\)/);
+  assert.match(editor, /Previewed at normal floor depth/);
+});
+
+test("admin size is stored on both Decor and Object catalogs", () => {
+  const matches = schema.match(/homeSceneSize: integer\("home_scene_size"\)\.notNull\(\)\.default\(250\)/g) ?? [];
+  assert.equal(matches.length, 2);
+  assert.match(boot, /ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_scene_size INTEGER NOT NULL DEFAULT 250/);
+  assert.match(boot, /ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_scene_size INTEGER NOT NULL DEFAULT 250/);
+});
+
+test("player placements always use current catalog size", () => {
+  assert.match(transactions, /adminSize = decorCatalog\.homeSceneSize/);
+  assert.match(transactions, /adminSize = objectCatalog\.homeSceneSize/);
+  assert.match(transactions, /size: Math\.max\(60, Math\.min\(500, adminSize\)\)/);
+  assert.match(storage, /size: decor\.homeSceneSize/);
+  assert.match(storage, /size: object\.homeSceneSize/);
+});
+
+test("players cannot submit or edit Home scene size", () => {
+  assert.doesNotMatch(owner, /function SvgMinus/);
+  assert.doesNotMatch(owner, /function SvgPlus/);
+  assert.doesNotMatch(owner, /size: 220/);
+  assert.doesNotMatch(owner, /size\?: number; flipped\?: boolean/);
+  assert.doesNotMatch(routes, /size: size \?\? 250/);
+  assert.doesNotMatch(routes, /\{ xPct, yPct, size, flipped \}/);
+});
+
+test("vertical depth remains the only player-side visual size adjustment", () => {
+  assert.match(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
+  assert.match(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
+  assert.doesNotMatch(owner, /petHouseDepthSize\([^\n]*xPct/);
+  assert.doesNotMatch(visitor, /petHouseDepthSize\([^\n]*xPct/);
+});
+
+test("Object size API is strictly filtered to Object shop items", () => {
+  assert.match(routes, /items\.filter\(\(item\) => item\.type === "object"\)/);
+  assert.match(routes, /existing\.type !== "object"/);
+  assert.match(routes, /return res\.status\(404\)\.json\(\{ message: "Object not found" \}\)/);
+});
