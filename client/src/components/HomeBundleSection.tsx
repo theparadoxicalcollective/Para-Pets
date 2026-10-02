@@ -6,7 +6,8 @@ import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Uploa
 import { readFileAsDataUrl } from "@/lib/utils";
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, type BuildingSize, type HouseBuildingType } from "@shared/housing";
+import { HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
@@ -24,7 +25,7 @@ interface HouseBundle {
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
   posX: number; posY: number; width: number; flippedX: boolean;
-  interiorImageUrl: string | null; buildingType?: HouseBuildingType; size: BuildingSize;
+  interiorImageUrl: string | null; interiorEffects?: HouseInteriorEffect[]; buildingType?: HouseBuildingType; size: BuildingSize;
   leaveButtonX: number; leaveButtonY: number;
   maxPets?: number | null;
   createdAt: string;
@@ -44,32 +45,61 @@ const BG_CARD = "rgba(255,215,0,0.04)";
 const BUILDING_REF_H = 900;
 
 // ─── AdminInteriorPreview — full-screen pannable preview used by admin ────────
-// Shows a draggable "Leave" button so the admin can position it over the background.
+// Uses image-space percentages for controls/effects so iPhone 12 placement stays
+// stable while larger/smaller screens simply reveal a different viewport.
 function AdminInteriorPreview({
-  url, buildingId, initialLeaveX = 0.92, initialLeaveY = 0.06, onClose, onSaveLeavePos,
+  url,
+  buildingId,
+  initialLeaveX = 0.92,
+  initialLeaveY = 0.06,
+  initialEffects = [],
+  onClose,
+  onSaveLeavePos,
+  onSaveEffects,
 }: {
   url: string;
   buildingId: string;
   initialLeaveX?: number;
   initialLeaveY?: number;
+  initialEffects?: HouseInteriorEffect[];
   onClose: () => void;
   onSaveLeavePos: (x: number, y: number) => void;
+  onSaveEffects: (effects: HouseInteriorEffect[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
   const imgWidthRef = useRef(0);
+  const containerHRef = useRef(0);
   const [aspect, setAspect] = useState(16 / 9);
   const aspectRef = useRef(16 / 9);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
 
-  // Leave button drag state
   const leaveXRef = useRef(initialLeaveX);
   const leaveYRef = useRef(initialLeaveY);
   const [leaveX, setLeaveX] = useState(initialLeaveX);
   const [leaveY, setLeaveY] = useState(initialLeaveY);
   const leaveDragRef = useRef<{ startX: number; startY: number; startLX: number; startLY: number; pid: number } | null>(null);
   const [isDraggingLeave, setIsDraggingLeave] = useState(false);
+
+  const effectsRef = useRef<HouseInteriorEffect[]>(initialEffects);
+  const [effects, setEffects] = useState<HouseInteriorEffect[]>(initialEffects);
+  const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
+  const [showEffectsMenu, setShowEffectsMenu] = useState(false);
+  const effectDragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    startEffectX: number;
+    startEffectY: number;
+    pid: number;
+  } | null>(null);
+
+  useEffect(() => {
+    effectsRef.current = initialEffects;
+    setEffects(initialEffects);
+    setSelectedEffectId(null);
+  }, [buildingId, initialEffects]);
 
   useEffect(() => {
     const img = new window.Image();
@@ -83,6 +113,13 @@ function AdminInteriorPreview({
     img.src = url;
   }, [url]);
 
+  const clampPan = useCallback((nextPan: number) => {
+    const container = containerRef.current;
+    if (!container) return nextPan;
+    const min = Math.min(0, container.offsetWidth - imgWidthRef.current);
+    return Math.min(0, Math.max(min, nextPan));
+  }, []);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -91,6 +128,7 @@ function AdminInteriorPreview({
       const h = container.offsetHeight;
       const imgW = h * aspectRef.current;
       imgWidthRef.current = imgW;
+      containerHRef.current = h;
       setImgWidth(imgW);
       setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
@@ -101,7 +139,7 @@ function AdminInteriorPreview({
   }, [aspect]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (leaveDragRef.current) return;
+    if (leaveDragRef.current || effectDragRef.current) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
@@ -109,20 +147,25 @@ function AdminInteriorPreview({
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const w = container.offsetWidth;
-    const h = container.offsetHeight;
-    const imgW = h * aspectRef.current;
-    const min = Math.min(0, w - imgW);
-    setPanX(Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX))));
+    e.preventDefault();
+    setPanX(clampPan(drag.startPanX + (e.clientX - drag.startX)));
+  }, [clampPan]);
+
+  const onPointerUp = useCallback(() => {
+    panStartRef.current = null;
   }, []);
 
-  const onPointerUp = useCallback(() => { panStartRef.current = null; }, []);
+  const nudgePan = useCallback((direction: "left" | "right") => {
+    const container = containerRef.current;
+    if (!container) return;
+    const step = Math.max(90, container.offsetWidth * 0.68);
+    setPanX(current => clampPan(current + (direction === "left" ? step : -step)));
+  }, [clampPan]);
 
   const onLeaveBtnDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     panStartRef.current = null;
+    effectDragRef.current = null;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     leaveDragRef.current = { startX: e.clientX, startY: e.clientY, startLX: leaveXRef.current, startLY: leaveYRef.current, pid: e.pointerId };
     setIsDraggingLeave(true);
@@ -131,6 +174,7 @@ function AdminInteriorPreview({
   const onLeaveBtnMove = useCallback((e: React.PointerEvent) => {
     const drag = leaveDragRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
+    e.stopPropagation();
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -144,6 +188,7 @@ function AdminInteriorPreview({
   }, []);
 
   const onLeaveBtnUp = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
     if (leaveDragRef.current && leaveDragRef.current.pid === e.pointerId) {
       leaveDragRef.current = null;
       setIsDraggingLeave(false);
@@ -151,9 +196,90 @@ function AdminInteriorPreview({
     }
   }, [onSaveLeavePos]);
 
+  const saveEffects = useCallback((next: HouseInteriorEffect[]) => {
+    effectsRef.current = next;
+    setEffects(next);
+    onSaveEffects(next);
+  }, [onSaveEffects]);
+
+  const addEffect = useCallback((type: HouseInteriorEffectType, defaultSize: number) => {
+    if (effectsRef.current.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const iw = imgWidthRef.current || container.offsetWidth;
+    const x = Math.max(0.03, Math.min(0.97, (container.offsetWidth / 2 - panX) / iw));
+    const id = `interior-effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const effect: HouseInteriorEffect = { id, type, x, y: 0.52, size: defaultSize };
+    const next = [...effectsRef.current, effect];
+    saveEffects(next);
+    setSelectedEffectId(id);
+    setShowEffectsMenu(false);
+  }, [panX, saveEffects]);
+
+  const onEffectPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, effect: HouseInteriorEffect) => {
+    e.stopPropagation();
+    panStartRef.current = null;
+    leaveDragRef.current = null;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    effectDragRef.current = {
+      id: effect.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      startEffectX: effect.x,
+      startEffectY: effect.y,
+      pid: e.pointerId,
+    };
+    setSelectedEffectId(effect.id);
+    setShowEffectsMenu(false);
+  }, []);
+
+  const onEffectPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = effectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const iw = imgWidthRef.current;
+    const h = containerHRef.current;
+    if (iw <= 0 || h <= 0) return;
+    const next = effectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: Math.max(0, Math.min(1, drag.startEffectX + (e.clientX - drag.startX) / iw)),
+      y: Math.max(0, Math.min(1, drag.startEffectY + (e.clientY - drag.startY) / h)),
+    } : effect);
+    effectsRef.current = next;
+    setEffects(next);
+  }, []);
+
+  const onEffectPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const drag = effectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    effectDragRef.current = null;
+    onSaveEffects(effectsRef.current);
+  }, [onSaveEffects]);
+
+  const resizeSelectedEffect = useCallback((delta: number) => {
+    if (!selectedEffectId) return;
+    const next = effectsRef.current.map(effect => effect.id === selectedEffectId ? {
+      ...effect,
+      size: Math.max(HOUSE_INTERIOR_EFFECT_MIN_SIZE, Math.min(HOUSE_INTERIOR_EFFECT_MAX_SIZE, effect.size + delta)),
+    } : effect);
+    saveEffects(next);
+  }, [saveEffects, selectedEffectId]);
+
+  const deleteSelectedEffect = useCallback(() => {
+    if (!selectedEffectId) return;
+    saveEffects(effectsRef.current.filter(effect => effect.id !== selectedEffectId));
+    setSelectedEffectId(null);
+  }, [saveEffects, selectedEffectId]);
+
+  const selectedEffect = effects.find(effect => effect.id === selectedEffectId) ?? null;
+  const selectedEffectLabel = HOME_INTERIOR_EFFECT_OPTIONS.find(option => option.type === selectedEffect?.type)?.label ?? "Effect";
+
   return (
     <div
       ref={containerRef}
+      data-building-id={buildingId}
       className="fixed inset-0"
       style={{ zIndex: 100, background: "#000", overflow: "hidden", touchAction: "none", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       onPointerDown={onPointerDown}
@@ -165,31 +291,102 @@ function AdminInteriorPreview({
         src={url}
         alt="Building background preview"
         draggable={false}
-        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none" }}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      {/* Admin close button — top-left X */}
+      <HomeInteriorEffectsLayer
+        effects={effects}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerHRef.current}
+        selectedId={selectedEffectId}
+        interactive
+        onEffectPointerDown={onEffectPointerDown}
+        onEffectPointerMove={onEffectPointerMove}
+        onEffectPointerUp={onEffectPointerUp}
+        zIndex={12}
+      />
+
       <button
         data-testid="button-close-interior-preview"
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
         className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center font-bold text-base"
-        style={{ zIndex: 20, background: "rgba(0,0,0,0.7)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+        style={{ zIndex: 30, background: "rgba(0,0,0,0.74)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
       >
         ✕
       </button>
 
-      {/* Hint label — top-right */}
-      <div
-        className="absolute top-4 right-4 rounded-xl px-3 py-1.5"
-        style={{ zIndex: 20, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,215,0,0.3)", pointerEvents: "none" }}
+      <button
+        data-testid="button-add-interior-effect"
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); setShowEffectsMenu(current => !current); }}
+        className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 font-fantasy text-[10px] tracking-wider"
+        style={{ zIndex: 30, background: "rgba(25,17,5,0.88)", color: GOLD, border: "1px solid rgba(255,215,0,0.55)", boxShadow: "0 0 14px rgba(255,215,0,0.12)" }}
       >
-        <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(255,215,0,0.85)" }}>
-          Drag Outside to reposition
+        + Effects
+      </button>
+
+      {showEffectsMenu && (
+        <div
+          data-testid="interior-effect-menu"
+          onPointerDown={e => e.stopPropagation()}
+          className="absolute top-16 left-1/2 -translate-x-1/2 w-[min(92vw,360px)] rounded-2xl p-2"
+          style={{ zIndex: 32, background: "rgba(12,10,8,0.94)", border: "1px solid rgba(255,215,0,0.35)", boxShadow: "0 12px 34px rgba(0,0,0,0.5)" }}
+        >
+          <p className="font-fantasy text-[9px] text-center mb-2" style={{ color: "rgba(255,215,0,0.62)" }}>
+            Add an effect, then drag it directly over the room feature
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {HOME_INTERIOR_EFFECT_OPTIONS.map(option => (
+              <button
+                key={option.type}
+                data-testid={`button-add-interior-effect-${option.type}`}
+                onClick={e => { e.stopPropagation(); addEffect(option.type, option.defaultSize); }}
+                className="rounded-xl px-2.5 py-2 text-left"
+                style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}
+              >
+                <span className="block font-fantasy text-[10px] tracking-wide">{option.label}</span>
+                <span className="block font-fantasy text-[8px] mt-0.5" style={{ color: "rgba(255,215,0,0.48)" }}>{option.description}</span>
+              </button>
+            ))}
+          </div>
+          <p className="font-fantasy text-[8px] text-center mt-2" style={{ color: "rgba(255,255,255,0.35)" }}>
+            {effects.length}/{HOUSE_INTERIOR_EFFECT_MAX_COUNT} effects
+          </p>
+        </div>
+      )}
+
+      <div
+        className="absolute top-4 right-4 rounded-xl px-3 py-1.5 text-right"
+        style={{ zIndex: 28, background: "rgba(0,0,0,0.62)", border: "1px solid rgba(255,215,0,0.3)", pointerEvents: "none" }}
+      >
+        <p className="font-fantasy text-[9px] leading-4 tracking-wider" style={{ color: "rgba(255,215,0,0.82)" }}>
+          Drag room left/right<br />or use side arrows
         </p>
       </div>
 
-      {/* Draggable Leave button — player-facing */}
+      <button
+        data-testid="button-pan-interior-left"
+        aria-label="Preview more of the left side"
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); nudgePan("left"); }}
+        className="absolute left-2 top-1/2 -translate-y-1/2 w-11 h-14 rounded-full flex items-center justify-center text-2xl"
+        style={{ zIndex: 29, background: "rgba(0,0,0,0.48)", color: "rgba(255,215,0,0.9)", border: "1px solid rgba(255,215,0,0.34)" }}
+      >
+        ‹
+      </button>
+      <button
+        data-testid="button-pan-interior-right"
+        aria-label="Preview more of the right side"
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); nudgePan("right"); }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-14 rounded-full flex items-center justify-center text-2xl"
+        style={{ zIndex: 29, background: "rgba(0,0,0,0.48)", color: "rgba(255,215,0,0.9)", border: "1px solid rgba(255,215,0,0.34)" }}
+      >
+        ›
+      </button>
+
       <button
         data-testid="button-leave-draggable"
         style={{
@@ -197,14 +394,14 @@ function AdminInteriorPreview({
           left: imgWidth > 0 ? panX + leaveX * imgWidth : `${leaveX * 100}%`,
           top: `${leaveY * 100}%`,
           transform: "translate(-50%, -50%)",
-          zIndex: 20,
+          zIndex: 24,
           touchAction: "none",
           cursor: isDraggingLeave ? "grabbing" : "grab",
-          background: "rgba(0,0,0,0.28)",
-          color: isDraggingLeave ? "rgba(255,215,0,0.7)" : "rgba(255,255,255,0.38)",
-          border: isDraggingLeave ? "1.5px dashed rgba(255,215,0,0.6)" : "1px solid rgba(255,255,255,0.14)",
+          background: "rgba(0,0,0,0.3)",
+          color: isDraggingLeave ? "rgba(255,215,0,0.8)" : "rgba(255,255,255,0.46)",
+          border: isDraggingLeave ? "1.5px dashed rgba(255,215,0,0.7)" : "1px solid rgba(255,255,255,0.17)",
           borderRadius: 9999,
-          padding: "4px 10px",
+          padding: "5px 11px",
           fontFamily: "Lora, serif",
           fontWeight: "bold",
           fontSize: 9,
@@ -219,6 +416,49 @@ function AdminInteriorPreview({
       >
         Outside
       </button>
+
+      {selectedEffect && (
+        <div
+          data-testid="interior-effect-controls"
+          onPointerDown={e => e.stopPropagation()}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-2xl px-2.5 py-2"
+          style={{ zIndex: 32, background: "rgba(10,8,5,0.92)", border: "1px solid rgba(255,215,0,0.4)", boxShadow: "0 10px 28px rgba(0,0,0,0.45)" }}
+        >
+          <span className="font-fantasy text-[9px] px-1.5 max-w-20 truncate" style={{ color: GOLD }}>{selectedEffectLabel}</span>
+          <button
+            data-testid="button-shrink-interior-effect"
+            onClick={e => { e.stopPropagation(); resizeSelectedEffect(-2); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}` }}
+          >
+            <Minus className="w-4 h-4" style={{ color: GOLD }} />
+          </button>
+          <button
+            data-testid="button-grow-interior-effect"
+            onClick={e => { e.stopPropagation(); resizeSelectedEffect(2); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}` }}
+          >
+            <Plus className="w-4 h-4" style={{ color: GOLD }} />
+          </button>
+          <button
+            data-testid="button-delete-interior-effect"
+            onClick={e => { e.stopPropagation(); deleteSelectedEffect(); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(190,45,45,0.2)", border: "1px solid rgba(220,80,80,0.38)" }}
+          >
+            <Trash2 className="w-4 h-4" style={{ color: "rgba(255,120,120,0.95)" }} />
+          </button>
+          <button
+            data-testid="button-done-interior-effect"
+            onClick={e => { e.stopPropagation(); setSelectedEffectId(null); }}
+            className="rounded-full px-3 h-9 font-fantasy text-[9px]"
+            style={{ background: "rgba(255,215,0,0.16)", color: GOLD, border: "1px solid rgba(255,215,0,0.4)" }}
+          >
+            Done
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -259,7 +499,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Building bg upload state ──
   const [buildingBgUploading, setBuildingBgUploading] = useState<string | null>(null);
-  const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
+  const [previewBuilding, setPreviewBuilding] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[] } | null>(null);
 
   // ── Gift notification position ──
   const giftXRef = useRef(bundle.giftNotificationX ?? 0.05);
@@ -383,7 +623,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Mutations ──
   const patchBuilding = useMutation({
-    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; buildingType?: HouseBuildingType; size?: BuildingSize }) => {
+    mutationFn: async (data: { id: string; posX?: number; posY?: number; width?: number; flippedX?: boolean; buildingType?: HouseBuildingType; size?: BuildingSize; interiorEffects?: HouseInteriorEffect[] }) => {
       const { id, ...rest } = data;
       return apiRequest("PATCH", `/api/admin/house-bundle-buildings/${id}`, rest);
     },
@@ -427,7 +667,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       const res = await apiRequest("PATCH", `/api/admin/house-bundle-buildings/${buildingId}`, { interiorImageData: dataUrl });
       const updated = await res.json() as HouseBundleBuilding;
       await refetch();
-      if (updated.interiorImageUrl) setPreviewBuilding({ url: updated.interiorImageUrl, buildingId, leaveButtonX: updated.leaveButtonX ?? 0.92, leaveButtonY: updated.leaveButtonY ?? 0.06 });
+      if (updated.interiorImageUrl) setPreviewBuilding({ url: updated.interiorImageUrl, buildingId, leaveButtonX: updated.leaveButtonX ?? 0.92, leaveButtonY: updated.leaveButtonY ?? 0.06, interiorEffects: updated.interiorEffects ?? [] });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
@@ -840,6 +1080,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                         buildingId: selBuilding.id,
                         leaveButtonX: selBuilding.leaveButtonX ?? 0.92,
                         leaveButtonY: selBuilding.leaveButtonY ?? 0.06,
+                        interiorEffects: selBuilding.interiorEffects ?? [],
                       });
                     }
                   }}
@@ -1024,11 +1265,16 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           buildingId={previewBuilding.buildingId}
           initialLeaveX={previewBuilding.leaveButtonX}
           initialLeaveY={previewBuilding.leaveButtonY}
+          initialEffects={previewBuilding.interiorEffects}
           onClose={() => setPreviewBuilding(null)}
           onSaveLeavePos={(x, y) => {
             apiRequest("PATCH", `/api/admin/house-bundle-buildings/${previewBuilding.buildingId}`, { leaveButtonX: x, leaveButtonY: y })
               .catch(() => {});
             setPreviewBuilding(prev => prev ? { ...prev, leaveButtonX: x, leaveButtonY: y } : null);
+          }}
+          onSaveEffects={(interiorEffects) => {
+            patchBuilding.mutate({ id: previewBuilding.buildingId, interiorEffects });
+            setPreviewBuilding(prev => prev ? { ...prev, interiorEffects } : null);
           }}
         />
       )}
