@@ -706,10 +706,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       //   Narrow(imgW < w): min = 0 (capped),  center = (w-imgW)/2 (pos)       → center ✓
       setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    ro.observe(container);
-    return () => ro.disconnect();
+    return observeHomeViewport(container, recalc);
   }, [bgAspect]);
 
   // ── Mutations ──
