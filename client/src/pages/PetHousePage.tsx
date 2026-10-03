@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
-import { HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
@@ -718,11 +718,12 @@ function InteriorViewer({
     <div
       ref={containerRef}
       className="fixed inset-0"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
       onPointerDown={onContainerDown}
       onPointerMove={onContainerMove}
       onPointerUp={onContainerUp}
       onPointerCancel={onContainerUp}
+      onContextMenu={e => e.preventDefault()}
     >
       {/* Interior background image — single decode only */}
       <img
@@ -1298,6 +1299,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (e.type === "pointercancel") {
+      if (petHoldRef.current) clearTimeout(petHoldRef.current.timer);
+      petHoldRef.current = null;
+      petScrollTrackerRef.current = null;
       petInvDragRef.current = null;
       inventoryDragRef.current = null;
       panStartRef.current = null;
@@ -1654,6 +1658,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onContextMenu={e => e.preventDefault()}
     >
       {/* ── CRITICAL MEMORY FIX ──────────────────────────────────────────────
           Background image is REMOVED from the DOM when the interior is open.
