@@ -15,7 +15,7 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PetPresentation | null>(null);
   const [, refreshBounds] = useState(0);
-  const drag = useRef<{ id: number; x: number; y: number; value: PetPresentation } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; value: PetPresentation; latest: PetPresentation } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const visibleParts: GroundPart[] = parts ?? (template?.parts ?? []).filter((p: { view: string }) => p.view === resolvedView);
   const imageKey = JSON.stringify(visibleParts.map(p => p.imageUrl));
@@ -29,6 +29,20 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
   const value = draft ?? query.placement;
   const ground = getPetGroundPoint(visibleParts, url => getAlphaBoundsSync(url) ?? FULL_BOUNDS);
   const applied = !editor || editing;
+  const saveHomePosition = (position: PetPresentation) => {
+    query.save.mutate({ ...query.placement, x: position.x, y: position.y }, {
+      onSuccess: () => setDraft(null),
+    });
+  };
+  const finishDrag = (pointerId: number, cancel = false) => {
+    const start = drag.current;
+    if (!start || start.id !== pointerId) return;
+    drag.current = null;
+    if (cancel) { if (!editor) setDraft(null); return; }
+    if (!editor && (start.latest.x !== start.value.x || start.latest.y !== start.value.y)) {
+      saveHomePosition(start.latest);
+    }
+  };
   const toggle = () => { setEditing(!editing); onEditingChange?.(!editing); setDraft(null); };
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   const buttonStyle: CSSProperties = { padding: "6px 9px", border: "1px solid #806328", borderRadius: 6, background: "#30230d", color: "#ffe29a", minHeight: 32 };
@@ -40,15 +54,20 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
         onClick={stop} onKeyDown={event => {
           const delta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
           if (!delta) return;
-          event.preventDefault(); event.stopPropagation(); setEditing(true); onEditingChange?.(true);
-          setDraft(dragPetPlacement(value, delta[0], delta[1], 100));
+          event.preventDefault(); event.stopPropagation();
+          if (query.isPending || query.isError || query.save.isPending) return;
+          const next = dragPetPlacement(value, delta[0], delta[1], 100);
+          if (editor) { setEditing(true); onEditingChange?.(true); }
+          setDraft(next);
+          if (!editor) saveHomePosition(next);
         }}
-        onPointerDown={event => { event.stopPropagation(); if (query.isPending || query.isError || query.save.isPending) return; event.currentTarget.setPointerCapture(event.pointerId); setEditing(true); onEditingChange?.(true); drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, value: editor && !editing ? query.placement : value }; }}
-        onPointerMove={event => { event.stopPropagation(); const start = drag.current; if (!start || start.id !== event.pointerId || !stage.current) return; setDraft(dragPetPlacement(start.value, event.clientX - start.x, event.clientY - start.y, stage.current.getBoundingClientRect().width)); }}
-        onPointerUp={event => { event.stopPropagation(); drag.current = null; }} onPointerCancel={event => { event.stopPropagation(); drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} />}
+        onPointerDown={event => { event.stopPropagation(); if (query.isPending || query.isError || query.save.isPending) return; event.currentTarget.setPointerCapture(event.pointerId); if (editor) { setEditing(true); onEditingChange?.(true); } const initial = editor && !editing ? query.placement : value; drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, value: initial, latest: initial }; }}
+        onPointerMove={event => { event.stopPropagation(); const start = drag.current; if (!start || start.id !== event.pointerId || !stage.current) return; start.latest = dragPetPlacement(start.value, event.clientX - start.x, event.clientY - start.y, stage.current.getBoundingClientRect().width); setDraft(start.latest); }}
+        onPointerUp={event => { event.stopPropagation(); finishDrag(event.pointerId); }} onPointerCancel={event => { event.stopPropagation(); finishDrag(event.pointerId, true); }} onLostPointerCapture={event => finishDrag(event.pointerId, true)} />}
     </div>
-    {admin && <div onClick={stop} onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} style={{ position: "absolute", ...(editor ? { top: "calc(100% + 8px)" } : { bottom: "calc(100% + 8px)" }), left: 0, right: 0, zIndex: 33001, pointerEvents: "auto", background: "#201506", color: "#ffe29a", padding: 8, border: "1px solid #806328", borderRadius: 8, fontSize: 12 }}>
-      <button type="button" style={buttonStyle} onClick={toggle}>{editing ? "Back to parts / close placement" : "Whole pet placement"}</button>
+    {admin && !editor && (query.isError || query.save.isError) && <p role="alert" onClick={stop} style={{ position: "absolute", top: `calc(100% + ${value.y}% + 20px)`, left: "10%", right: "10%", zIndex: 33001, color: "#ffe29a", background: "#201506", padding: 4, fontSize: 12, textAlign: "center" }}>{query.isError ? "Placement could not be loaded. Try reloading." : "Placement could not be saved. Drag the oval to retry."}</p>}
+    {admin && editor && <div onClick={stop} onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 33001, pointerEvents: "auto", background: "#201506", color: "#ffe29a", padding: 8, border: "1px solid #806328", borderRadius: 8, fontSize: 12 }}>
+      <button type="button" style={buttonStyle} onClick={toggle}>{editing ? "Back to parts" : "Whole pet placement"}</button>
       {editing && <>
         <p style={{ margin: "6px 0" }}>Drag the flat oval to place the pet’s feet on the slab. Arrow keys also move it.</p>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
