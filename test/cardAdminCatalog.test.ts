@@ -268,10 +268,10 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /inset: artworkInsetForRarity\(rarity, depth3d\)/);
   assert.match(preview, /artworkBackingInsetForRarity\(rarity\)/);
   assert.match(preview, /inset 0 0 24px 8px/);
-  assert.match(preview, /transform: depth3d \\? "translateZ\\(var\\(--card-title-depth, 0px\\)\\)" : undefined/);
-  assert.doesNotMatch(preview, /translateZ\\(30px\\)/);
+  assert.match(preview, /transform: depth3d \? "translateZ\(var\(--card-title-depth, 0px\)\)" : undefined/);
+  assert.doesNotMatch(preview, /translateZ\(30px\)/);
   assert.match(detail, /--card-title-depth/);
-  assert.match(detail, /intensity \\* 6/);
+  assert.match(detail, /intensity \* 6/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
   assert.match(preview, /TITLE_Y_NUDGE[\s\S]*?2:\s*\.75[\s\S]*?3:\s*\.9/);
   assert.match(preview, /isName && !editable && textSize !== "scaled"/);
