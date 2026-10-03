@@ -553,7 +553,7 @@ function InteriorViewer({
     e.stopPropagation();
     const drag = panStartRef.current;
     panStartRef.current = null;
-    if (e.type === "pointercancel") return;
+    if (e.type !== "pointerup") return;
     if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
     const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
     if (effect) toggleLightEffect(effect);
@@ -597,7 +597,7 @@ function InteriorViewer({
     const drag = itemDragRef.current;
     itemDragRef.current = null;
     setItemDragLive(null);
-    if (!drag || imgWidthRef.current <= 0 || e.type === "pointercancel") return;
+    if (!drag || imgWidthRef.current <= 0 || e.type !== "pointerup") return;
 
     if (!drag.moved) {
       const now = Date.now();
@@ -660,7 +660,7 @@ function InteriorViewer({
   const onPetUp = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    if (!drag || imgWidthRef.current <= 0 || e.type === "pointercancel") {
+    if (!drag || imgWidthRef.current <= 0 || e.type !== "pointerup") {
       setPetDragLive(null);
       return;
     }
@@ -723,6 +723,7 @@ function InteriorViewer({
       onPointerMove={onContainerMove}
       onPointerUp={onContainerUp}
       onPointerCancel={onContainerUp}
+      onLostPointerCapture={onContainerUp}
       onContextMenu={e => e.preventDefault()}
     >
       {/* Interior background image — single decode only */}
@@ -791,6 +792,7 @@ function InteriorViewer({
               onPointerMove={onItemMove}
               onPointerUp={onItemUp}
               onPointerCancel={onItemUp}
+              onLostPointerCapture={onItemUp}
             />
           </div>
         );
@@ -832,6 +834,7 @@ function InteriorViewer({
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
             onPointerCancel={onPetUp}
+            onLostPointerCapture={onPetUp}
           >
             <div
               data-testid={`home-pet-visible-scale-${pet.inventoryId}`}
@@ -1295,7 +1298,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [bgAspect]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (e.type === "pointercancel") {
+    if (e.type !== "pointerup") {
       if (petHoldRef.current) clearTimeout(petHoldRef.current.timer);
       petHoldRef.current = null;
       petScrollTrackerRef.current = null;
@@ -1458,7 +1461,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const drag = placedDragRef.current;
     placedDragRef.current = null;
     setPlacedDragLive(null);
-    if (!drag || imgWidth <= 0 || e.type === "pointercancel") return;
+    if (!drag || imgWidth <= 0 || e.type !== "pointerup") return;
 
     if (!drag.moved) {
       const now = Date.now();
@@ -1519,7 +1522,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePetDragEnd = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    if (!drag || e.type === "pointercancel") {
+    if (!drag || e.type !== "pointerup") {
       setPetDragLive(null);
       return;
     }
@@ -1655,6 +1658,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onLostPointerCapture={handlePointerUp}
       onContextMenu={e => e.preventDefault()}
     >
       {/* ── CRITICAL MEMORY FIX ──────────────────────────────────────────────
@@ -1810,6 +1814,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               onPointerMove={handlePetDragMove}
               onPointerUp={handlePetDragEnd}
               onPointerCancel={handlePetDragEnd}
+              onLostPointerCapture={handlePetDragEnd}
             />
           </div>
         );
