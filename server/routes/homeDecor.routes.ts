@@ -127,10 +127,27 @@ export function registerHomeDecorRoutes(
         const raw = req.body?.homeEffect;
         const homeEffect = sanitizeHomeCatalogEffect("object", raw);
         if (raw !== null && raw !== "" && homeEffect === null) {
-          return res.status(400).json({ message: "Object effect must be lamp_light or null" });
+          return res.status(400).json({ message: "Object effect must be lamp_light, tap, or null" });
         }
         patch.homeEffect = homeEffect;
       }
+      if (typeof req.body?.homeTapImageData === "string" && req.body.homeTapImageData) {
+        patch.homeTapImageUrl = await processWorldImage(req.body.homeTapImageData, 2000);
+      }
+      if (req.body?.clearHomeTapImage === true) {
+        patch.homeTapImageUrl = null;
+      }
+
+      const nextEffect = Object.prototype.hasOwnProperty.call(patch, "homeEffect")
+        ? patch.homeEffect
+        : existing.homeEffect;
+      const nextTapImageUrl = Object.prototype.hasOwnProperty.call(patch, "homeTapImageUrl")
+        ? patch.homeTapImageUrl
+        : existing.homeTapImageUrl;
+      if (nextEffect === "tap" && !nextTapImageUrl) {
+        return res.status(400).json({ message: "Tap effect requires an alternate Tap image" });
+      }
+
       if (Object.keys(patch).length === 0) return res.status(400).json({ message: "No Home Object changes supplied" });
       const item = await storage.updateShopItem(existing.id, patch as any);
       return res.json(item);
@@ -262,7 +279,7 @@ export function registerHomeDecorRoutes(
       }
 
       if (effectEnabled !== undefined && placement) {
-        if (placement.item.type !== "object" || placement.item.homeEffect !== "lamp_light") {
+        if (placement.item.type !== "object" || (placement.item.homeEffect !== "lamp_light" && placement.item.homeEffect !== "tap")) {
           return res.status(400).json({ message: "This Home item has no tap effect" });
         }
         safeEffectEnabled = effectEnabled === true;
