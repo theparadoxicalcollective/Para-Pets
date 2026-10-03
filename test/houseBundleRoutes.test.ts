@@ -151,6 +151,8 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean; 
       calls.storedScenes.push(userId);
       return { returnedDecor: 1, returnedObjects: 1, returnedPets: 1 };
     },
+    ensureIncludedItemsGranted: async () => undefined,
+    applyIncludedItemTemplates: async () => undefined,
   });
 
   return { app, calls };
