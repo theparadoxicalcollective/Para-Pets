@@ -62,14 +62,18 @@ export async function executeStoreAllHomeScene(userId: string): Promise<{ return
       if (!shopCatalog) continue;
 
       const inventoryRows = await tx.select().from(userInventory)
-        .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, placement.decorItemId)))
+        .where(and(
+          eq(userInventory.userId, userId),
+          eq(userInventory.shopItemId, placement.decorItemId),
+          eq(userInventory.isListed, false),
+        ))
         .orderBy(userInventory.id)
         .for("update");
 
       if (inventoryRows[0]) {
         await tx.update(userInventory)
           .set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` })
-          .where(eq(userInventory.id, inventoryRows[0].id));
+          .where(and(eq(userInventory.id, inventoryRows[0].id), eq(userInventory.isListed, false)));
       } else {
         await tx.insert(userInventory).values({ userId, shopItemId: placement.decorItemId, quantity: 1 });
       }
@@ -136,17 +140,30 @@ const postgresDecorOperations: DecorTransactionOperations = {
         adminSize = objectCatalog.homeSceneSize;
 
         const rows = await tx.select().from(userInventory)
-          .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, decorItemId)))
+          .where(and(
+            eq(userInventory.userId, userId),
+            eq(userInventory.shopItemId, decorItemId),
+            eq(userInventory.isListed, false),
+          ))
           .orderBy(userInventory.id).for("update");
         const inventory = rows[0];
         if (!inventory) throw new Error("Not enough in inventory");
         const consumed = await tx.update(userInventory).set({ quantity: sql`COALESCE(${userInventory.quantity}, 1) - 1` })
-          .where(and(eq(userInventory.id, inventory.id), eq(userInventory.userId, userId), gte(userInventory.quantity, 1)))
+          .where(and(
+            eq(userInventory.id, inventory.id),
+            eq(userInventory.userId, userId),
+            eq(userInventory.isListed, false),
+            gte(userInventory.quantity, 1),
+          ))
           .returning({ quantity: userInventory.quantity });
         if (!consumed[0]) throw new Error("Not enough in inventory");
         if ((consumed[0].quantity ?? 0) === 0) {
           await tx.delete(userInventory)
-            .where(and(eq(userInventory.id, inventory.id), eq(userInventory.userId, userId)));
+            .where(and(
+              eq(userInventory.id, inventory.id),
+              eq(userInventory.userId, userId),
+              eq(userInventory.isListed, false),
+            ));
         }
       }
 
@@ -205,7 +222,7 @@ const postgresDecorOperations: DecorTransactionOperations = {
         if (inventoryRows[0]) {
           await tx.update(userInventory)
             .set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` })
-            .where(eq(userInventory.id, inventoryRows[0].id));
+            .where(and(eq(userInventory.id, inventoryRows[0].id), eq(userInventory.isListed, false)));
         } else {
           await tx.insert(userInventory).values({ userId, shopItemId: placement.decorItemId, quantity: 1 });
         }
