@@ -28,6 +28,7 @@ import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -118,10 +119,15 @@ interface PetHomePositionUpdate {
   flipped?: boolean;
 }
 interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; exteriorEffects?: HouseInteriorEffect[]; }
+interface PlayerHomeLightingState {
+  outdoorMode: HomeOutdoorLightingMode;
+  offInteriorEffectIds: Record<string, string[]>;
+}
 interface ActiveBundle extends HouseBundle {
   maxOutdoorPets: number;
   maxOutdoorDecor: number;
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
+  playerLighting?: PlayerHomeLightingState;
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
 interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType }; }
@@ -444,6 +450,7 @@ function HousePetControlPanel({
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
   effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06,
+  offEffectIds, onToggleLightEffect,
   onUpdateItem, onRemoveItem, onMovePet, onOpenCloset, onRemovePet, removingPetId, onClose,
 }: {
   url: string;
@@ -454,6 +461,8 @@ function InteriorViewer({
   darkness?: number;
   leaveButtonX?: number;
   leaveButtonY?: number;
+  offEffectIds: ReadonlySet<string>;
+  onToggleLightEffect: (effect: HouseInteriorEffect) => void;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number, scalePct: number, flipped: boolean) => Promise<void>;
@@ -470,7 +479,6 @@ function InteriorViewer({
   const [imgWidth, setImgWidth] = useState(0);
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
-  const [offEffectIds, setOffEffectIds] = useState<Set<string>>(() => new Set());
   const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [popupPetId, setPopupPetId] = useState<string | null>(null);
@@ -505,15 +513,6 @@ function InteriorViewer({
     };
     return observeHomeViewport(container, recalc);
   }, [aspect, panStateRef]);
-
-  const toggleLightEffect = useCallback((effect: HouseInteriorEffect) => {
-    setOffEffectIds(current => {
-      const next = new Set(current);
-      if (next.has(effect.id)) next.delete(effect.id);
-      else next.add(effect.id);
-      return next;
-    });
-  }, []);
 
   // Pan handlers
   const onContainerDown = useCallback((e: React.PointerEvent) => {
@@ -557,8 +556,8 @@ function InteriorViewer({
     if (e.type !== "pointerup") return;
     if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
     const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
-    if (effect) toggleLightEffect(effect);
-  }, [effects, toggleLightEffect]);
+    if (effect) onToggleLightEffect(effect);
+  }, [effects, onToggleLightEffect]);
 
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
@@ -759,7 +758,7 @@ function InteriorViewer({
         imgWidth={imgWidth}
         sceneHeight={containerH}
         offEffectIds={offEffectIds}
-        onToggleEffect={toggleLightEffect}
+        onToggleEffect={onToggleLightEffect}
         zIndex={3}
       />
 
