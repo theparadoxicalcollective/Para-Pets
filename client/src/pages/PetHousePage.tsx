@@ -959,7 +959,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const qc = useQueryClient();
-  const outdoorLighting = useHomeOutdoorLighting();
+  const lightingSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const { data: friendRequests } = useQuery<{ count: number }>({
     queryKey: ["/api/friends/requests/count"],
     staleTime: 30000,
@@ -1029,6 +1029,75 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
     staleTime: 30000,
   });
+
+  const outdoorLighting = useHomeOutdoorLighting(activeBundle?.playerLighting?.outdoorMode ?? "auto");
+
+  const persistPlayerLightingPatch = useCallback((
+    bundleId: string,
+    patch: { outdoorMode?: HomeOutdoorLightingMode; buildingId?: string; effectId?: string; off?: boolean },
+  ) => {
+    lightingSaveQueueRef.current = lightingSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const res = await apiRequest("PATCH", `/api/house-bundles/${bundleId}/player-lighting`, patch);
+        if (!res.ok) throw new Error("Failed to save Home lighting");
+      })
+      .catch((error: any) => {
+        toast({
+          title: "Couldn’t save Home lighting",
+          description: error?.message || "The previous lighting state will be restored.",
+          variant: "destructive",
+        });
+        void qc.invalidateQueries({ queryKey: ["/api/users", user.id, "active-house-bundle"] });
+      });
+  }, [qc, toast, user.id]);
+
+  const cycleOutdoorLighting = useCallback(() => {
+    if (!activeBundle) return;
+    const queryKey = ["/api/users", user.id, "active-house-bundle"] as const;
+    let nextMode: HomeOutdoorLightingMode = "auto";
+    qc.setQueryData<ActiveBundle | null>(queryKey, current => {
+      if (!current) return current;
+      const currentMode = current.playerLighting?.outdoorMode ?? "auto";
+      nextMode = cycleHomeOutdoorLightingMode(currentMode);
+      return {
+        ...current,
+        playerLighting: {
+          outdoorMode: nextMode,
+          offInteriorEffectIds: current.playerLighting?.offInteriorEffectIds ?? {},
+        },
+      };
+    });
+    persistPlayerLightingPatch(activeBundle.id, { outdoorMode: nextMode });
+  }, [activeBundle?.id, persistPlayerLightingPatch, qc, user.id]);
+
+  const toggleSavedInteriorLight = useCallback((buildingId: string, effect: HouseInteriorEffect) => {
+    if (!activeBundle) return;
+    const queryKey = ["/api/users", user.id, "active-house-bundle"] as const;
+    let nextOff = true;
+    qc.setQueryData<ActiveBundle | null>(queryKey, current => {
+      if (!current) return current;
+      const offMap = { ...(current.playerLighting?.offInteriorEffectIds ?? {}) };
+      const ids = new Set(offMap[buildingId] ?? []);
+      nextOff = !ids.has(effect.id);
+      if (nextOff) ids.add(effect.id);
+      else ids.delete(effect.id);
+      if (ids.size > 0) offMap[buildingId] = Array.from(ids);
+      else delete offMap[buildingId];
+      return {
+        ...current,
+        playerLighting: {
+          outdoorMode: current.playerLighting?.outdoorMode ?? "auto",
+          offInteriorEffectIds: offMap,
+        },
+      };
+    });
+    persistPlayerLightingPatch(activeBundle.id, {
+      buildingId,
+      effectId: effect.id,
+      off: nextOff,
+    });
+  }, [activeBundle?.id, persistPlayerLightingPatch, qc, user.id]);
 
   const { data: ownedBundles = [], refetch: refetchOwned } = useQuery<OwnedBundle[]>({
     queryKey: ["/api/users", user.id, "house-bundles"],
@@ -1938,7 +2007,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           />
           <HomeDayNightToggle
             mode={outdoorLighting.mode}
-            onCycle={outdoorLighting.cycleMode}
+            onCycle={cycleOutdoorLighting}
             style={{
               position: "absolute",
               zIndex: 41,
@@ -2361,6 +2430,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             panStateRef={interiorPanRef}
             effects={openInterior.interiorEffects}
             darkness={openInterior.interiorDarkness}
+            offEffectIds={new Set(activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId] ?? [])}
+            onToggleLightEffect={(effect) => toggleSavedInteriorLight(openInterior.buildingId, effect)}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
