@@ -449,7 +449,7 @@ function HousePetControlPanel({
 // so only this one large image occupies GPU memory at a time.
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
-  effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06,
+  effects = [], darkness = 0, sunlightStrength = 1, leaveButtonX = 0.92, leaveButtonY = 0.06,
   offEffectIds, onToggleLightEffect,
   onUpdateItem, onRemoveItem, onMovePet, onOpenCloset, onRemovePet, removingPetId, onClose,
 }: {
@@ -459,6 +459,7 @@ function InteriorViewer({
   panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
   effects?: HouseInteriorEffect[];
   darkness?: number;
+  sunlightStrength?: number;
   leaveButtonX?: number;
   leaveButtonY?: number;
   offEffectIds: ReadonlySet<string>;
@@ -749,6 +750,7 @@ function InteriorViewer({
         panX={panX}
         imgWidth={imgWidth}
         sceneHeight={containerH}
+        sunlightStrength={sunlightStrength}
         zIndex={2}
       />
 
@@ -759,6 +761,7 @@ function InteriorViewer({
         sceneHeight={containerH}
         offEffectIds={offEffectIds}
         onToggleEffect={onToggleLightEffect}
+        sunlightStrength={sunlightStrength}
         zIndex={3}
       />
 
@@ -776,6 +779,7 @@ function InteriorViewer({
           item.xPct,
           item.yPct,
           imageAspect,
+          sunlightStrength,
         );
         const itemBrightness = (100 - itemDarkness) / 100;
         return (
@@ -818,7 +822,7 @@ function InteriorViewer({
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const imageAspect = imgWidth / Math.max(containerH, 1);
-        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect);
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect, sunlightStrength);
         const petBrightness = (100 - petDarkness) / 100;
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
@@ -2007,6 +2011,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           />
           <HomeDayNightToggle
             mode={outdoorLighting.mode}
+            nightStrength={outdoorLighting.nightStrength}
             onCycle={cycleOutdoorLighting}
             style={{
               position: "absolute",
@@ -2430,6 +2435,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             panStateRef={interiorPanRef}
             effects={openInterior.interiorEffects}
             darkness={openInterior.interiorDarkness}
+            sunlightStrength={outdoorLighting.daylightStrength}
             offEffectIds={new Set(activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId] ?? [])}
             onToggleLightEffect={(effect) => toggleSavedInteriorLight(openInterior.buildingId, effect)}
             leaveButtonX={openInterior.leaveButtonX}
