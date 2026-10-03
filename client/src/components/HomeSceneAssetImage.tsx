@@ -11,6 +11,7 @@ type HomeSceneAssetImageProps = {
   onPointerMove?: PointerEventHandler<HTMLDivElement>;
   onPointerUp?: PointerEventHandler<HTMLDivElement>;
   onPointerCancel?: PointerEventHandler<HTMLDivElement>;
+  onLostPointerCapture?: PointerEventHandler<HTMLDivElement>;
   controls?: ReactNode;
 };
 
@@ -50,6 +51,7 @@ export function HomeSceneAssetImage({
   onPointerMove,
   onPointerUp,
   onPointerCancel,
+  onLostPointerCapture,
   controls,
 }: HomeSceneAssetImageProps) {
   const [analysis, setAnalysis] = useState<AnalyzedVisibleImage | null>(null);
@@ -116,6 +118,7 @@ export function HomeSceneAssetImage({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerCancel}
+          onLostPointerCapture={onLostPointerCapture}
           style={{
             ...(rect ? {
               left: rect.left,

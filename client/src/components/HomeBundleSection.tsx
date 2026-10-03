@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload, Pencil } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
+import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
@@ -140,15 +141,12 @@ function AdminInteriorPreview({
       setImgWidth(imgW);
       setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    ro.observe(container);
-    return () => ro.disconnect();
+    return observeHomeViewport(container, recalc);
   }, [aspect]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (leaveDragRef.current || effectDragRef.current) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
 
@@ -174,7 +172,7 @@ function AdminInteriorPreview({
     e.stopPropagation();
     panStartRef.current = null;
     effectDragRef.current = null;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     leaveDragRef.current = { startX: e.clientX, startY: e.clientY, startLX: leaveXRef.current, startLY: leaveYRef.current, pid: e.pointerId };
     setIsDraggingLeave(true);
   }, []);
@@ -204,6 +202,18 @@ function AdminInteriorPreview({
     }
   }, [onSaveLeavePos]);
 
+  const onLeaveBtnCancel = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    const drag = leaveDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    leaveDragRef.current = null;
+    leaveXRef.current = drag.startLX;
+    leaveYRef.current = drag.startLY;
+    setLeaveX(drag.startLX);
+    setLeaveY(drag.startLY);
+    setIsDraggingLeave(false);
+  }, []);
+
   const saveEffects = useCallback((next: HouseInteriorEffect[]) => {
     effectsRef.current = next;
     setEffects(next);
@@ -228,7 +238,7 @@ function AdminInteriorPreview({
     e.stopPropagation();
     panStartRef.current = null;
     leaveDragRef.current = null;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     effectDragRef.current = {
       id: effect.id,
       startX: e.clientX,
@@ -266,6 +276,20 @@ function AdminInteriorPreview({
     onSaveEffects(effectsRef.current);
   }, [onSaveEffects]);
 
+  const onEffectPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const drag = effectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    effectDragRef.current = null;
+    const reverted = effectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: drag.startEffectX,
+      y: drag.startEffectY,
+    } : effect);
+    effectsRef.current = reverted;
+    setEffects(reverted);
+  }, []);
+
   const resizeSelectedEffect = useCallback((delta: number) => {
     if (!selectedEffectId) return;
     const next = effectsRef.current.map(effect => effect.id === selectedEffectId ? {
@@ -289,11 +313,12 @@ function AdminInteriorPreview({
       ref={containerRef}
       data-building-id={buildingId}
       className="fixed inset-0"
-      style={{ zIndex: 100, background: "#000", overflow: "hidden", touchAction: "none", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, zIndex: 100, background: "#000", overflow: "hidden", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onContextMenu={e => e.preventDefault()}
     >
       <img
         src={url}
@@ -314,6 +339,7 @@ function AdminInteriorPreview({
         onEffectPointerDown={onEffectPointerDown}
         onEffectPointerMove={onEffectPointerMove}
         onEffectPointerUp={onEffectPointerUp}
+        onEffectPointerCancel={onEffectPointerCancel}
         zIndex={12}
       />
 
@@ -454,7 +480,8 @@ function AdminInteriorPreview({
         onPointerDown={onLeaveBtnDown}
         onPointerMove={onLeaveBtnMove}
         onPointerUp={onLeaveBtnUp}
-        onPointerCancel={onLeaveBtnUp}
+        onPointerCancel={onLeaveBtnCancel}
+        onLostPointerCapture={onLeaveBtnCancel}
       >
         Outside
       </button>
@@ -463,8 +490,8 @@ function AdminInteriorPreview({
         <div
           data-testid="interior-effect-controls"
           onPointerDown={e => e.stopPropagation()}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-2xl px-2.5 py-2"
-          style={{ zIndex: 32, background: "rgba(10,8,5,0.92)", border: "1px solid rgba(255,215,0,0.4)", boxShadow: "0 10px 28px rgba(0,0,0,0.45)" }}
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-2xl px-2.5 py-2"
+          style={{ zIndex: 32, bottom: "max(16px, env(safe-area-inset-bottom, 0px))", background: "rgba(10,8,5,0.92)", border: "1px solid rgba(255,215,0,0.4)", boxShadow: "0 10px 28px rgba(0,0,0,0.45)" }}
         >
           <span className="font-fantasy text-[9px] px-1.5 max-w-20 truncate" style={{ color: GOLD }}>{selectedEffectLabel}</span>
           <button
@@ -556,7 +583,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     e.stopPropagation();
     buildingDragRef.current = null;
     isPanningRef.current = false;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     giftDragRef.current = { startX: e.clientX, startY: e.clientY, startGX: giftXRef.current, startGY: giftYRef.current, pid: e.pointerId };
     setIsDraggingGift(true);
   }, []);
@@ -593,6 +620,17 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       }
     }
   }, [bundle.id, qc, toast]);
+
+  const onGiftBtnCancel = useCallback((e: React.PointerEvent) => {
+    const drag = giftDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    giftDragRef.current = null;
+    giftXRef.current = drag.startGX;
+    giftYRef.current = drag.startGY;
+    setGiftX(drag.startGX);
+    setGiftY(drag.startGY);
+    setIsDraggingGift(false);
+  }, []);
 
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
@@ -680,10 +718,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       //   Narrow(imgW < w): min = 0 (capped),  center = (w-imgW)/2 (pos)       → center ✓
       setPanX(Math.max(Math.min(0, w - imgW), (w - imgW) / 2));
     };
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    ro.observe(container);
-    return () => ro.disconnect();
+    return observeHomeViewport(container, recalc);
   }, [bgAspect]);
 
   // ── Mutations ──
@@ -745,7 +780,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
     if (buildingDragRef.current) return;
     isPanningRef.current = false;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
 
@@ -777,7 +812,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     buildingDidDrag.current = false;
     setTopmostId(b.id);
     if (selectedId !== b.id) return; // first tap = select only
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     const cur = localPos[b.id] ?? { x: b.posX, y: b.posY };
     buildingDragRef.current = { id: b.id, startX: e.clientX, startY: e.clientY, origX: cur.x, origY: cur.y, pid: e.pointerId };
   }, [selectedId, localPos]);
@@ -810,15 +845,27 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     }
   }, [localPos, patchBuilding]);
 
+  const handleBuildingPointerCancel = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    const drag = buildingDragRef.current;
+    if (drag?.pid === e.pointerId) {
+      setLocalPos(prev => ({ ...prev, [drag.id]: { x: drag.origX, y: drag.origY } }));
+    }
+    buildingDragRef.current = null;
+    buildingDidDrag.current = false;
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-[60]"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, touchAction: "none", userSelect: "none" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       ref={containerRef}
       onPointerDown={handleContainerPointerDown}
       onPointerMove={handleContainerPointerMove}
       onPointerUp={handleContainerPointerUp}
       onPointerCancel={handleContainerPointerUp}
+      onLostPointerCapture={handleContainerPointerUp}
+      onContextMenu={e => e.preventDefault()}
       onClick={() => setSelectedId(null)}
     >
       {/* Background — clipped separately so buildings can overflow the screen edge */}
@@ -859,7 +906,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 onPointerDown={e => handleBuildingPointerDown(e, b)}
                 onPointerMove={e => { e.stopPropagation(); handleBuildingPointerMove(e); }}
                 onPointerUp={e => handleBuildingPointerUp(e, b)}
-                onPointerCancel={() => { buildingDragRef.current = null; buildingDidDrag.current = false; }}
+                onPointerCancel={handleBuildingPointerCancel}
+                onLostPointerCapture={handleBuildingPointerCancel}
                 onClick={e => e.stopPropagation()}
               >
                 {/* Selection highlight */}
@@ -982,7 +1030,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           onPointerDown={onGiftBtnDown}
           onPointerMove={onGiftBtnMove}
           onPointerUp={onGiftBtnUp}
-          onPointerCancel={onGiftBtnUp}
+          onPointerCancel={onGiftBtnCancel}
+          onLostPointerCapture={onGiftBtnCancel}
         >
           <QuillBadge size={18} glow="#4ade80" />
         </button>
