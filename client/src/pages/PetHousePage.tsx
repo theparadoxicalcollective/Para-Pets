@@ -1033,6 +1033,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
   const outdoorDecorTapRef = useRef<{ id: string; at: number } | null>(null);
+  const outdoorItemEffectTapTimerRef = useRef<number | null>(null);
 
   // Inventory drag: decor
   const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number } | null>(null);
@@ -1214,6 +1215,23 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const placedDecor = useMemo(() =>
     placedDecorRaw.map(item => placedDragLive?.id === item.id ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct } : item),
     [placedDecorRaw, placedDragLive]);
+
+  const outdoorLampEffects = useMemo(
+    () => buildHomeLampItemEffects(placedDecor, containerH),
+    [placedDecor, containerH],
+  );
+  const outdoorSleepDecorEffects = useMemo(
+    () => buildHomeSleepDecorEffects(placedDecor, containerH),
+    [placedDecor, containerH],
+  );
+  const outdoorLightEffects = useMemo(
+    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
+    [activeBundle?.exteriorEffects, outdoorLampEffects],
+  );
+
+  useEffect(() => () => {
+    if (outdoorItemEffectTapTimerRef.current != null) window.clearTimeout(outdoorItemEffectTapTimerRef.current);
+  }, []);
 
   const petsQueryKey = ["/api/users", user.id, "pets"] as const;
   const petHomeSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -1592,13 +1610,26 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
     if (!drag.moved) {
       const now = Date.now();
+      const item = placedDecorRaw.find(candidate => candidate.id === drag.id);
       if (isSecondHomeEditTap(outdoorDecorTapRef.current, drag.id, now)) {
         outdoorDecorTapRef.current = null;
+        if (outdoorItemEffectTapTimerRef.current != null) {
+          window.clearTimeout(outdoorItemEffectTapTimerRef.current);
+          outdoorItemEffectTapTimerRef.current = null;
+        }
         setSelectedPlacedId(drag.id);
         setOutdoorPopupPetId(null);
         setTopOutdoorDecorId(drag.id);
       } else {
         outdoorDecorTapRef.current = { id: drag.id, at: now };
+        if (item && isTapEffectHomeItem(item)) {
+          if (outdoorItemEffectTapTimerRef.current != null) window.clearTimeout(outdoorItemEffectTapTimerRef.current);
+          outdoorItemEffectTapTimerRef.current = window.setTimeout(() => {
+            outdoorItemEffectTapTimerRef.current = null;
+            outdoorDecorTapRef.current = null;
+            updateDecorMutation.mutate({ id: item.id, effectEnabled: !item.effectEnabled });
+          }, HOME_EDIT_DOUBLE_TAP_MS);
+        }
       }
       return;
     }
@@ -1607,7 +1638,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
     setTopOutdoorDecorId(drag.id);
     updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
-  }, [imgWidth, containerH]);
+  }, [imgWidth, containerH, placedDecorRaw, updateDecorMutation]);
 
   // ── Outdoor pet repositioning drag ─────────────────────────────────────────
   const handlePetDragStart = useCallback((e: React.PointerEvent, pet: HousePet, startXPct: number, startYPct: number) => {
@@ -1671,10 +1702,23 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return;
     }
     const maxYPct = maxYForHeight(containerH);
+    const rawXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
+    const rawYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    const sleepSnap = getHouseInteriorSleepSnapPosition(
+      outdoorSleepDecorEffects,
+      rawXPct,
+      rawYPct,
+      imgWidth / Math.max(containerH, 1),
+    );
+    const sleepEffect = sleepSnap ? outdoorSleepDecorEffects.find(effect => effect.id === sleepSnap.effectId) : null;
+    const visiblePetSize = PET_HOUSE_OUTDOOR_PET_BASE_SIZE * clampPetHousePlayerScale(drag.scalePct) / 100;
+    const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerH, 1);
+    const maxSleepYOffsetPct = sleepEffect ? sleepEffect.size / 400 : requestedSleepYOffsetPct;
+    const sleepYOffsetPct = Math.min(requestedSleepYOffsetPct, maxSleepYOffsetPct);
     const finalPosition = {
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
-      yPct: Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH)),
+      xPct: sleepSnap?.x ?? rawXPct,
+      yPct: sleepSnap ? Math.max(0.05, Math.min(maxYPct, sleepSnap.y - sleepYOffsetPct)) : rawYPct,
       scalePct: drag.scalePct,
       flipped: drag.flipped,
     };
@@ -1687,7 +1731,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         current.xPct === finalPosition.xPct &&
         current.yPct === finalPosition.yPct ? null : current
       ));
-  }, [imgWidth, containerH, updatePetPositionMutation]);
+  }, [imgWidth, containerH, outdoorSleepDecorEffects, updatePetPositionMutation]);
 
   // ── Inventory drag starters ────────────────────────────────────────────────
   const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null, itemType: HomeSceneItemType) => {
@@ -1902,6 +1946,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const isSelectedPet = outdoorPopupPetId === pet.inventoryId;
+        const isSleeping = !isDraggingThis && isHouseInteriorSleepPosition(
+          outdoorSleepDecorEffects,
+          xPct,
+          yPct,
+          imgWidth / Math.max(containerH, 1),
+        );
         return (
           <div
             key={pet.inventoryId}
@@ -1916,7 +1966,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
-                  mode="static"
+                  mode={isSleeping ? "sleep" : "static"}
                   size={cfg.size}
                   fillContainer
                   fitVisible
@@ -1932,6 +1982,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
+              {isSleeping && <PetSleepZzz />}
             </div>
             {/* Full-area hit zone for dragging — covers the stable base canvas. */}
             <div
@@ -2004,7 +2055,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: isSelected ? 180 : (topOutdoorDecorId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelected ? 180 : (item.item.homeEffect === "lamp_light" && item.effectEnabled ? 22 : (topOutdoorDecorId === item.id ? 20 : 6)), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <HomeSceneAssetImage
               src={item.item.imageUrl ?? ""}
@@ -2034,7 +2085,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <HomeOutdoorAtmosphereLayer
             darkness={outdoorLighting.darkness}
             nightStrength={outdoorLighting.nightStrength}
-            effects={activeBundle?.exteriorEffects ?? []}
+            effects={outdoorLightEffects}
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
@@ -2042,6 +2093,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           />
           <HomeInteriorEffectsLayer
             effects={activeBundle?.exteriorEffects ?? []}
+            panX={panX}
+            imgWidth={imgWidth}
+            sceneHeight={containerH}
+            zIndex={21}
+          />
+          <HomeInteriorEffectsLayer
+            effects={outdoorLampEffects}
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
