@@ -1722,60 +1722,65 @@ export function ItemPickerModal({
   title?: string;
 }) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<
-    "all" | ItemCategoryKey | "cards" | "home_bundles" | "home_decor"
-  >("all");
+  const [activeGroup, setActiveGroup] = useState<"all" | GameItemGroupKey | "cards">("all");
+  const [activeCategory, setActiveCategory] = useState<"all" | ItemCategoryKey>("all");
   const cardsEnabled = !!onSelectCard;
   const homeBundlesEnabled = !!onSelectHomeBundle;
   const homeDecorEnabled = !!onSelectHomeDecor;
   const CARD_TAB = { key: "cards" as const, label: "Cards", color: "#f6d365" };
-  const HOME_BUNDLE_TAB = { key: "home_bundles" as const, label: "Home Bundles", color: "#86efac" };
-  const HOME_DECOR_TAB = { key: "home_decor" as const, label: "Home Decor", color: "#bef264" };
-  const ALL_TABS = [
-    { key: "all" as const, label: "All", color: "#a89878" },
-    ...(cardsEnabled ? [CARD_TAB] : []),
-    ...(homeBundlesEnabled ? [HOME_BUNDLE_TAB] : []),
-    ...(homeDecorEnabled ? [HOME_DECOR_TAB] : []),
-    ...ITEM_CATEGORIES,
-  ];
+  const HOME_BUNDLE_COLOR = "#86efac";
+  const HOME_DECOR_COLOR = "#bef264";
+  const groupColors: Record<GameItemGroupKey, string> = {
+    pets: "#f9a8d4",
+    fish: "#67e8f9",
+    home: "#bef264",
+    items: "#fde68a",
+  };
 
   const normalizedSearch = search.trim().toLowerCase();
   const matchesSearch = (item: ShopItemFull) =>
     !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
 
-  const matchesCategory = (item: ShopItemFull) =>
-    activeCategory !== "cards"
-      && activeCategory !== "home_bundles"
-      && activeCategory !== "home_decor"
-      && (activeCategory === "all" || getItemCategory(item) === activeCategory);
+  const matchesCategory = (item: ShopItemFull) => {
+    const category = getItemCategory(item);
+    if (activeGroup === "cards") return false;
+    if (activeGroup !== "all" && getGameItemGroup(category) !== activeGroup) return false;
+    return activeCategory === "all" || category === activeCategory;
+  };
 
   const filtered = items.filter(item => matchesSearch(item) && matchesCategory(item));
-  const filteredCards = cardsEnabled && (activeCategory === "all" || activeCategory === "cards")
+  const filteredCards = cardsEnabled && (activeGroup === "all" || activeGroup === "cards")
     ? cards
         .filter(card => !normalizedSearch || card.name.toLowerCase().includes(normalizedSearch))
         .sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name))
     : [];
-  const filteredHomeBundles = homeBundlesEnabled && (activeCategory === "all" || activeCategory === "home_bundles")
+  const filteredHomeBundles = homeBundlesEnabled
+    && (activeGroup === "all" || activeGroup === "home")
+    && (activeCategory === "all" || activeCategory === "homes")
     ? homeBundles
         .filter(bundle => !normalizedSearch || bundle.name.toLowerCase().includes(normalizedSearch))
         .sort((a, b) => a.name.localeCompare(b.name))
     : [];
-  const filteredHomeDecor = homeDecorEnabled && (activeCategory === "all" || activeCategory === "home_decor")
+  const filteredHomeDecor = homeDecorEnabled
+    && (activeGroup === "all" || activeGroup === "home")
+    && (activeCategory === "all" || activeCategory === "decor")
     ? homeDecor
         .filter(decor => !normalizedSearch || decor.name.toLowerCase().includes(normalizedSearch))
         .sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
-  const catOrder = ITEM_CATEGORIES.map(c => c.key);
   const sorted = [...filtered].sort((a, b) => {
     const aCat = getItemCategory(a);
     const bCat = getItemCategory(b);
-    const ai = catOrder.indexOf(aCat);
-    const bi = catOrder.indexOf(bCat);
+    const ai = GAME_ITEM_CATEGORY_ORDER.indexOf(aCat);
+    const bi = GAME_ITEM_CATEGORY_ORDER.indexOf(bCat);
     if (ai !== bi) return ai - bi;
     return a.name.localeCompare(b.name);
   });
 
+  const subcategories = activeGroup !== "all" && activeGroup !== "cards"
+    ? gameItemCategoriesForGroup(activeGroup)
+    : [];
   const showHeaders = activeCategory === "all";
 
   return (
@@ -1802,28 +1807,94 @@ export function ItemPickerModal({
 
         <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider text-center mb-3">{title}</h4>
 
-        {/* Category chips — 2 rows of scrollable chips */}
-        <div className="flex flex-wrap gap-1 mb-2">
-          {ALL_TABS.map(tab => {
-            const isActive = activeCategory === tab.key;
+        {/* Shared game taxonomy: Pets / Fish / Home / Items, then their subcategories. */}
+        <div className="flex flex-wrap gap-1 mb-1" data-testid="item-picker-group-tabs">
+          <button
+            type="button"
+            onClick={() => { setActiveGroup("all"); setActiveCategory("all"); }}
+            className="px-2 py-1 rounded-full font-fantasy text-[8px] tracking-wider"
+            style={{
+              background: activeGroup === "all" ? "rgba(168,152,120,.18)" : "rgba(0,0,0,.25)",
+              border: activeGroup === "all" ? "1px solid rgba(168,152,120,.55)" : "1px solid rgba(212,160,23,.12)",
+              color: activeGroup === "all" ? "#d6c9ad" : "#6a5840",
+            }}
+          >
+            All
+          </button>
+          {GAME_ITEM_GROUPS.map(group => {
+            const color = groupColors[group.key];
+            const active = activeGroup === group.key;
             return (
               <button
-                key={tab.key}
-                onClick={() => setActiveCategory(tab.key as typeof activeCategory)}
-                className="px-2 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider transition-all"
+                type="button"
+                key={group.key}
+                data-testid={`button-item-group-${group.key}`}
+                onClick={() => { setActiveGroup(group.key); setActiveCategory("all"); }}
+                className="px-2 py-1 rounded-full font-fantasy text-[8px] tracking-wider"
                 style={{
-                  background: isActive ? `${tab.color}22` : "rgba(0,0,0,0.25)",
-                  border: isActive ? `1px solid ${tab.color}88` : "1px solid rgba(212,160,23,0.12)",
-                  color: isActive ? tab.color : "#6a5840",
-                  cursor: "pointer",
-                  fontWeight: isActive ? "bold" : "normal",
+                  background: active ? `${color}22` : "rgba(0,0,0,.25)",
+                  border: active ? `1px solid ${color}88` : "1px solid rgba(212,160,23,.12)",
+                  color: active ? color : "#6a5840",
                 }}
               >
-                {tab.label}
+                {group.label}
               </button>
             );
           })}
+          {cardsEnabled && (
+            <button
+              type="button"
+              data-testid="button-item-group-cards"
+              onClick={() => { setActiveGroup("cards"); setActiveCategory("all"); }}
+              className="px-2 py-1 rounded-full font-fantasy text-[8px] tracking-wider"
+              style={{
+                background: activeGroup === "cards" ? `${CARD_TAB.color}22` : "rgba(0,0,0,.25)",
+                border: activeGroup === "cards" ? `1px solid ${CARD_TAB.color}88` : "1px solid rgba(212,160,23,.12)",
+                color: activeGroup === "cards" ? CARD_TAB.color : "#6a5840",
+              }}
+            >
+              Cards
+            </button>
+          )}
         </div>
+        {subcategories.length > 0 && (
+          <div className="flex gap-1 overflow-x-auto pb-1 mb-1" data-testid="item-picker-subcategory-tabs">
+            <button
+              type="button"
+              onClick={() => setActiveCategory("all")}
+              className="px-2 py-0.5 rounded-full font-fantasy text-[8px] whitespace-nowrap"
+              style={{
+                border: activeCategory === "all" ? "1px solid rgba(240,192,64,.55)" : "1px solid rgba(212,160,23,.12)",
+                color: activeCategory === "all" ? "#f0c040" : "#806e50",
+                background: "rgba(0,0,0,.22)",
+              }}
+            >
+              All {GAME_ITEM_GROUPS.find(group => group.key === activeGroup)?.label}
+            </button>
+            {subcategories.map(category => {
+              const meta = ITEM_CATEGORIES.find(entry => entry.key === category);
+              const enabled = category !== "homes" || homeBundlesEnabled;
+              const decorEnabled = category !== "decor" || homeDecorEnabled || items.some(item => getItemCategory(item) === "decor");
+              if (!enabled || !decorEnabled) return null;
+              return (
+                <button
+                  type="button"
+                  key={category}
+                  data-testid={`button-item-category-${category}`}
+                  onClick={() => setActiveCategory(category)}
+                  className="px-2 py-0.5 rounded-full font-fantasy text-[8px] whitespace-nowrap"
+                  style={{
+                    border: activeCategory === category ? `1px solid ${meta?.color ?? "#f0c040"}88` : "1px solid rgba(212,160,23,.12)",
+                    color: activeCategory === category ? meta?.color ?? "#f0c040" : "#806e50",
+                    background: "rgba(0,0,0,.22)",
+                  }}
+                >
+                  {GAME_ITEM_CATEGORY_LABELS[category]}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <input
           data-testid="input-item-search"
@@ -1935,7 +2006,7 @@ export function ItemPickerModal({
               {filteredHomeBundles.length > 0 && (
                 <>
                   {showHeaders && (
-                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: HOME_BUNDLE_TAB.color }}>
+                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: HOME_BUNDLE_COLOR }}>
                       Home Bundles
                     </p>
                   )}
@@ -1949,7 +2020,7 @@ export function ItemPickerModal({
                         className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
                         style={{
                           background: "rgba(0,0,0,0.3)",
-                          border: `1px solid ${HOME_BUNDLE_TAB.color}33`,
+                          border: `1px solid ${HOME_BUNDLE_COLOR}33`,
                           cursor: "pointer",
                         }}
                       >
@@ -1959,8 +2030,8 @@ export function ItemPickerModal({
                             : <span className="text-lg">🏡</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-fantasy text-[10px] truncate" style={{ color: HOME_BUNDLE_TAB.color }}>{bundle.name}</p>
-                          <p className="font-fantasy text-[8px]" style={{ color: HOME_BUNDLE_TAB.color }}>Home Bundle</p>
+                          <p className="font-fantasy text-[10px] truncate" style={{ color: HOME_BUNDLE_COLOR }}>{bundle.name}</p>
+                          <p className="font-fantasy text-[8px]" style={{ color: HOME_BUNDLE_COLOR }}>Home Bundle</p>
                         </div>
                       </button>
                     );
@@ -1970,7 +2041,7 @@ export function ItemPickerModal({
               {filteredHomeDecor.length > 0 && (
                 <>
                   {showHeaders && (
-                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: HOME_DECOR_TAB.color }}>
+                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: HOME_DECOR_COLOR }}>
                       Home Decor
                     </p>
                   )}
@@ -1982,7 +2053,7 @@ export function ItemPickerModal({
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
                       style={{
                         background: "rgba(0,0,0,0.3)",
-                        border: `1px solid ${HOME_DECOR_TAB.color}33`,
+                        border: `1px solid ${HOME_DECOR_COLOR}33`,
                         cursor: "pointer",
                       }}
                     >
@@ -1992,8 +2063,8 @@ export function ItemPickerModal({
                           : <span className="text-lg">🪴</span>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-fantasy text-[10px] truncate" style={{ color: HOME_DECOR_TAB.color }}>{decor.name}</p>
-                        <p className="font-fantasy text-[8px]" style={{ color: HOME_DECOR_TAB.color }}>Home Decor</p>
+                        <p className="font-fantasy text-[10px] truncate" style={{ color: HOME_DECOR_COLOR }}>{decor.name}</p>
+                        <p className="font-fantasy text-[8px]" style={{ color: HOME_DECOR_COLOR }}>Decor</p>
                       </div>
                     </button>
                   ))}
