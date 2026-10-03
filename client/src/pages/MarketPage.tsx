@@ -14,20 +14,17 @@ import marketSearchBar from "@assets/uploads/MarketSearchBar.png";
 import marketItemCard from "@assets/uploads/MarketItemCard.png";
 import marketTabs from "@assets/uploads/MarketTabs.png";
 import marketPetCard from "@assets/uploads/MarketPetCard.png";
+import {
+  GAME_ITEM_CATEGORY_LABELS,
+  GAME_ITEM_GROUPS,
+  gameItemCategoriesForGroup,
+  getGameItemCategory,
+  getGameItemGroup,
+  type GameItemCategoryKey,
+  type GameItemGroupKey,
+} from "@shared/itemTaxonomy";
 
-type MainTab = "all" | "pets" | "items" | "fish";
-
-const ITEMS_SUB_FILTERS = [
-  { label: "All Items", value: "items" },
-  { label: "Power-Ups", value: "power_up" },
-  { label: "Edibles", value: "edibles" },
-  { label: "Potions", value: "potion" },
-  { label: "Special", value: "special" },
-  { label: "Accessories", value: "accessory" },
-  { label: "Ingredients", value: "ingredient" },
-  { label: "Bait", value: "bait" },
-  { label: "Poles", value: "pole" },
-];
+type MainTab = "all" | GameItemGroupKey;
 
 interface Listing {
   id: string;
@@ -62,6 +59,7 @@ interface InventoryItem {
   petHealth?: number;
   petAtk?: number;
   petDef?: number;
+  fishingType?: string | null;
 }
 
 interface FishItem {
@@ -69,6 +67,43 @@ interface FishItem {
   shopItemId: string;
   inAquarium: boolean;
   item: { name: string; imageUrl: string | null } | null;
+}
+
+interface MarketHomeDecorItem {
+  id: string;
+  userId: string;
+  decorItemId: string;
+  quantity: number;
+  item: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    type: "decor" | "object";
+  };
+}
+
+interface MarketHomeBundleItem {
+  id: string;
+  userId: string;
+  bundleId: string;
+  bundle: {
+    id: string;
+    name: string;
+    shopImageUrl: string | null;
+    bgImageUrl: string | null;
+  };
+}
+
+type SellAssetSource = "inventory" | "fish" | "home_decor" | "home_bundle";
+
+interface SellAsset {
+  key: string;
+  id: string;
+  source: SellAssetSource;
+  category: GameItemCategoryKey;
+  name: string;
+  imageUrl: string | null;
+  inventory?: InventoryItem;
 }
 
 interface PetEggDetails {
