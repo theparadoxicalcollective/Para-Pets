@@ -8,15 +8,17 @@ const worldPage = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
 const positionRoutes = readFileSync("server/routes/petHousePosition.routes.ts", "utf8");
 const storage = readFileSync("server/storage.ts", "utf8");
 
-test("owner house pet taps expose the Home edit panel without opening care/feed", () => {
+test("owner house pet double taps expose the Home edit panel without opening care/feed", () => {
   assert.match(ownerPage, /data-testid="house-pet-control-panel"/);
   assert.match(ownerPage, /data-testid="button-pet-home-size-minus"/);
   assert.match(ownerPage, /data-testid="button-pet-home-size-plus"/);
   assert.match(ownerPage, /data-testid="button-pet-home-flip"/);
   assert.match(ownerPage, /data-testid="button-pet-home-closet"/);
   assert.match(ownerPage, /\{pending \? "Returning…" : "Return"\}/);
-  assert.match(ownerPage, /if \(outdoorPopupPetId !== pet\.inventoryId\)/);
-  assert.match(ownerPage, /if \(popupPetId !== pet\.inventoryId\)/);
+  assert.match(ownerPage, /isSecondHomeEditTap\(outdoorPetTapRef\.current, drag\.inventoryId, now\)/);
+  assert.match(ownerPage, /isSecondHomeEditTap\(petTapRef\.current, drag\.inventoryId, now\)/);
+  assert.doesNotMatch(ownerPage, /if \(outdoorPopupPetId !== pet\.inventoryId\)/);
+  assert.doesNotMatch(ownerPage, /if \(popupPetId !== pet\.inventoryId\)/);
   assert.doesNotMatch(ownerPage, /onCare=\{\(\) => \{ const id = outdoorPopupPet/);
   assert.doesNotMatch(ownerPage, /onFeedPet=\{/);
 });
