@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 const PET_FIRE_REACTION_STYLES = `
 @keyframes para-pet-fire-smoke {
   0% { transform: translate3d(0, 4px, 0) scale(0.55); opacity: 0; }
@@ -66,9 +68,9 @@ export default function PetFireReaction() {
             background: "radial-gradient(circle, rgba(215,215,215,0.58), rgba(135,135,135,0.3) 56%, transparent 74%)",
             filter: "blur(1px)",
             opacity: 0,
-            ["--smoke-x" as string]: puff.x,
+            "--smoke-x": puff.x,
             animation: `para-pet-fire-smoke 2.1s ease-out ${puff.delay} infinite`,
-          }}
+          } as CSSProperties & { "--smoke-x": string }}
         />
       ))}
     </div>
