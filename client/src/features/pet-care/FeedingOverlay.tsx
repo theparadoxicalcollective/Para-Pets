@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
+import PetHeartParticle from "@/components/PetHeartParticle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
@@ -1760,37 +1761,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
       {/* Floating heart layer — appears when the pet is clicked or fed */}
       {hearts.map((h) => (
-        <div
+        <PetHeartParticle
           key={h.id}
-          className="fixed pointer-events-none feed-heart-rise"
-          style={{
-            left: h.cx,
-            top: h.cy,
-            width: h.size,
-            height: h.size,
-            ["--dx" as any]: `${h.dx}px`,
-            animationDelay: `${h.delay}s`,
-            zIndex: 514,
-            color: "#ff5d6c",
-          }}
-        >
-          <svg viewBox="0 0 24 24" width={h.size} height={h.size}>
-            <defs>
-              <radialGradient id={`hg${h.id}`} cx="35%" cy="35%" r="70%">
-                <stop offset="0%" stopColor="#ffb3bb" />
-                <stop offset="55%" stopColor="#ff5d6c" />
-                <stop offset="100%" stopColor="#a8112a" />
-              </radialGradient>
-            </defs>
-            <path
-              d="M12 21s-7.5-4.6-9.6-9.4C1.1 8.4 3 5 6.3 5c1.9 0 3.6 1 4.7 2.6C12.1 6 13.8 5 15.7 5 19 5 20.9 8.4 19.6 11.6 17.5 16.4 12 21 12 21z"
-              fill={`url(#hg${h.id})`}
-              stroke="#7a0a1c"
-              strokeWidth="0.6"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+          id={h.id}
+          left={h.cx}
+          top={h.cy}
+          size={h.size}
+          dx={h.dx}
+          delay={h.delay}
+          position="fixed"
+          zIndex={514}
+        />
       ))}
 
       {/* Sparkle burst layer */}
