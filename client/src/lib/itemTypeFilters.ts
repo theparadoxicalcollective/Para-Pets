@@ -1,20 +1,13 @@
-export const itemTypeLabel = (type: unknown): string => {
+import { GAME_ITEM_CATEGORY_LABELS, getGameItemCategory } from "@shared/itemTaxonomy";
+
+export const itemTypeLabel = (type: unknown, fishingType?: unknown): string => {
   const value = typeof type === "string" && type.trim() ? type.trim() : "item";
-  const known: Record<string, string> = {
-    accessory: "Gear",
-    clearing: "Clearing Gear",
-    costume: "Adornments",
-    edibles: "Edibles",
-    fishing: "Fishing",
-    gift: "Gifts",
-    ingredient: "Ingredients",
-    item: "Items",
-    pet: "Pets",
-    potion: "Potions",
-    recipe: "Recipes",
-    special: "Special",
-  };
-  return known[value] ?? value.replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+  const category = getGameItemCategory({
+    type: value,
+    fishingType: typeof fishingType === "string" ? fishingType : null,
+  });
+  return GAME_ITEM_CATEGORY_LABELS[category]
+    ?? value.replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
 };
 
 export const itemTypeOptions = (items: Array<{ type?: unknown }>) =>
