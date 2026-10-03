@@ -1,5 +1,5 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { useId, type PointerEvent as ReactPointerEvent } from "react";
+import { getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   type: HouseInteriorEffectType;
@@ -178,9 +178,10 @@ function WarmGlowVisual() {
         borderRadius: "50%",
         animation: "para-home-glow-pulse 2.6s ease-in-out infinite",
         background:
-          "radial-gradient(circle, rgba(255,243,181,0.82) 0%, rgba(255,215,111,0.5) 25%, rgba(255,167,56,0.2) 52%, transparent 76%)",
+          "radial-gradient(circle, rgba(255,243,181,0.4) 0%, rgba(255,215,111,0.22) 25%, rgba(255,167,56,0.08) 52%, transparent 76%)",
         filter: "blur(2px)",
         mixBlendMode: "screen",
+        opacity: 0.68,
       }}
     />
   );
@@ -351,6 +352,8 @@ export function HomeInteriorDarknessLayer({
   zIndex?: number;
 }) {
   const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
+  const rawId = useId();
+  const maskId = `home-darkness-mask-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   if (safeDarkness <= 0) return null;
 
   const useImageSpace = Number.isFinite(panX) && Number.isFinite(imgWidth) && Number.isFinite(sceneHeight)
@@ -359,8 +362,8 @@ export function HomeInteriorDarknessLayer({
     isHouseInteriorLightEffectType(effect.type) && !offEffectIds?.has(effect.id)
   ) ?? [];
 
-  return (
-    <>
+  if (!useImageSpace || activeLights.length === 0) {
+    return (
       <div
         aria-hidden
         data-testid="home-interior-darkness-layer"
@@ -378,39 +381,85 @@ export function HomeInteriorDarknessLayer({
           transition: "background 260ms ease-out",
         }}
       />
-      {useImageSpace && activeLights.map(effect => {
-        const radiusPx = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * (sceneHeight ?? 0));
-        const diameter = radiusPx * 2;
-        const glow = effect.type === "fire"
-          ? "rgba(255,151,45,0.58)"
-          : effect.type === "candle_light"
-            ? "rgba(255,225,154,0.46)"
-            : "rgba(255,238,181,0.52)";
-        return (
-          <div
-            key={`light-wash-${effect.id}`}
-            aria-hidden
-            data-testid={`home-interior-light-wash-${effect.id}`}
-            style={{
-              position: "absolute",
-              left: (panX ?? 0) + effect.x * (imgWidth ?? 0),
-              top: effect.y * (sceneHeight ?? 0),
-              width: diameter,
-              height: diameter,
-              transform: "translate(-50%, -50%)",
-              borderRadius: "50%",
-              zIndex: zIndex + 1,
-              pointerEvents: "none",
-              background: `radial-gradient(circle, ${glow} 0%, rgba(255,210,120,0.24) 38%, rgba(255,177,68,0.08) 68%, transparent 100%)`,
-              mixBlendMode: "screen",
-              filter: "blur(4px)",
-              opacity: 0.95,
-              transition: "opacity 260ms ease-out",
-            }}
-          />
-        );
-      })}
-    </>
+    );
+  }
+
+  const width = imgWidth ?? 1;
+  const height = sceneHeight ?? 1;
+
+  return (
+    <svg
+      aria-hidden
+      data-testid="home-interior-darkness-layer"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      style={{
+        position: "absolute",
+        left: panX,
+        top: 0,
+        width,
+        height,
+        zIndex,
+        pointerEvents: "none",
+        overflow: "visible",
+      }}
+    >
+      <defs>
+        {activeLights.map((effect, index) => {
+          const gradientId = `${maskId}-light-${index}`;
+          const radius = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * height);
+          const strength = getHouseInteriorLightCutoutStrength(effect.type);
+          return (
+            <radialGradient
+              key={gradientId}
+              id={gradientId}
+              gradientUnits="userSpaceOnUse"
+              cx={effect.x * width}
+              cy={effect.y * height}
+              r={radius}
+            >
+              <stop offset="0%" stopColor="black" stopOpacity={strength} />
+              <stop offset="38%" stopColor="black" stopOpacity={strength * 0.7} />
+              <stop offset="72%" stopColor="black" stopOpacity={strength * 0.25} />
+              <stop offset="100%" stopColor="black" stopOpacity={0} />
+            </radialGradient>
+          );
+        })}
+        <mask
+          id={maskId}
+          maskUnits="userSpaceOnUse"
+          maskContentUnits="userSpaceOnUse"
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          style={{ maskType: "luminance" }}
+        >
+          <rect x={0} y={0} width={width} height={height} fill="white" />
+          {activeLights.map((effect, index) => {
+            const radius = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * height);
+            return (
+              <circle
+                key={effect.id}
+                cx={effect.x * width}
+                cy={effect.y * height}
+                r={radius}
+                fill={`url(#${maskId}-light-${index})`}
+              />
+            );
+          })}
+        </mask>
+      </defs>
+      <rect
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        fill="black"
+        fillOpacity={safeDarkness / 100}
+        mask={`url(#${maskId})`}
+      />
+    </svg>
   );
 }
 
