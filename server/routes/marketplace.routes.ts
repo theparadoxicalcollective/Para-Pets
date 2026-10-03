@@ -19,6 +19,8 @@ export interface MarketplaceRouteDependencies {
   cancelListing: MarketplaceTransactions["cancelListing"];
   collectProceeds: MarketplaceTransactions["collectProceeds"];
   createFishListing: MarketplaceTransactions["createFishListing"];
+  createHomeDecorListing: MarketplaceTransactions["createHomeDecorListing"];
+  createHomeBundleListing: MarketplaceTransactions["createHomeBundleListing"];
   createInventoryListing: MarketplaceTransactions["createInventoryListing"];
 }
 
@@ -41,6 +43,9 @@ function normalizeRarity(shopItem: any): number {
 
 async function liveEscrowListings(storage: MarketplaceStorage, listings: any[]): Promise<any[]> {
   const checked = await Promise.all(listings.map(async (listing) => {
+    if (listing.itemType === "home_decor" || listing.itemType === "home_bundle") {
+      return listing;
+    }
     const inventory = await storage.getInventoryItemById(listing.inventoryId);
     return inventory && inventory.userId === listing.sellerId && inventory.isListed ? listing : null;
   }));
@@ -60,6 +65,8 @@ export function registerMarketplaceRoutes(
     cancelListing,
     collectProceeds,
     createFishListing,
+    createHomeDecorListing,
+    createHomeBundleListing,
     createInventoryListing,
   } = dependencies;
 
@@ -68,6 +75,17 @@ export function registerMarketplaceRoutes(
       try {
         const listing = await storage.getMarketListing(req.params.listingId as string);
         if (!listing) return res.status(404).json({ message: "Listing not found" });
+        if (listing.itemType === "home_decor" || listing.itemType === "home_bundle") {
+          return res.json({
+            name: listing.itemName,
+            imageUrl: listing.itemImageUrl,
+            type: listing.itemType,
+            effects: [],
+            description: listing.itemType === "home_bundle"
+              ? "A player-owned Pet Home bundle."
+              : "A decoration for Pet Home.",
+          });
+        }
         const invItem = await storage.getInventoryItemById(listing.inventoryId);
         if (!invItem || invItem.userId !== listing.sellerId || !invItem.isListed) {
           return res.status(404).json({ message: "Inventory item not found" });
@@ -205,11 +223,16 @@ export function registerMarketplaceRoutes(
         const base: any = {
           ...listing,
           effectSummary,
-          description: shopItem?.description ?? null,
+          description: listing.itemType === "home_bundle"
+            ? "A player-owned Pet Home bundle."
+            : listing.itemType === "home_decor"
+              ? "A decoration for Pet Home."
+              : shopItem?.description ?? null,
           speciesName: listing.itemType === "pet_egg" ? (shopItem?.name ?? listing.itemName) : null,
           rarity: listing.itemType === "pet_egg" ? normalizeRarity(shopItem) : null,
         };
         delete base.sellerName;
+        delete base.assetData;
         return base;
       });
       return res.json(enriched);
@@ -268,6 +291,36 @@ export function registerMarketplaceRoutes(
       if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
       console.error("Fish marketplace listing failed:", err);
       return res.status(500).json({ message: "Failed to list fish", code: "transaction_failure" });
+    }
+  });
+
+  app.post("/api/market/list-home-decor", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { decorInventoryId, price } = req.body ?? {};
+      if (typeof decorInventoryId !== "string" || price == null) {
+        return res.status(400).json({ message: "decorInventoryId and price required" });
+      }
+      return res.json(await createHomeDecorListing({ actorId: user.id, decorInventoryId, price }));
+    } catch (err: any) {
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Home Decor marketplace listing failed:", err);
+      return res.status(500).json({ message: "Failed to list Home Decor", code: "transaction_failure" });
+    }
+  });
+
+  app.post("/api/market/list-home-bundle", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { ownershipId, price } = req.body ?? {};
+      if (typeof ownershipId !== "string" || price == null) {
+        return res.status(400).json({ message: "ownershipId and price required" });
+      }
+      return res.json(await createHomeBundleListing({ actorId: user.id, ownershipId, price }));
+    } catch (err: any) {
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Home Bundle marketplace listing failed:", err);
+      return res.status(500).json({ message: "Failed to list Home Bundle", code: "transaction_failure" });
     }
   });
 
