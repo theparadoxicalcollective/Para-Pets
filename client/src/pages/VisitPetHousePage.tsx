@@ -197,7 +197,7 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, onToggleLightEffect, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
@@ -205,6 +205,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   darkness?: number;
   sunlightStrength?: number;
   offEffectIds: ReadonlySet<string>;
+  onToggleLightEffect: (effect: HouseInteriorEffect) => void;
   leaveButtonX?: number;
   leaveButtonY?: number;
   onClose: () => void;
@@ -220,7 +221,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   const [imgWidth, setImgWidth] = useState(0);
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
-  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number } | null>(null);
+  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -243,12 +244,17 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 
   const onDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
+    const effectTarget = e.target instanceof Element
+      ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
+      : null;
     safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       startPanX: panX,
       pid: e.pointerId,
+      moved: false,
+      toggleEffectId: effectTarget?.dataset.playerToggleEffectId ?? null,
     };
   }, [panX]);
 
@@ -262,14 +268,20 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
     setPanX(newPanX);
   }, []);
 
   const onUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    if (panStartRef.current?.pid === e.pointerId) panStartRef.current = null;
-  }, []);
+    const drag = panStartRef.current;
+    panStartRef.current = null;
+    if (e.type !== "pointerup") return;
+    if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
+    const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
+    if (effect) onToggleLightEffect(effect);
+  }, [effects, onToggleLightEffect]);
 
   return (
     <div
@@ -315,6 +327,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         imgWidth={imgWidth}
         sceneHeight={containerH}
         offEffectIds={offEffectIds}
+        onToggleEffect={onToggleLightEffect}
         sunlightStrength={sunlightStrength}
         zIndex={3}
       />
@@ -459,6 +472,9 @@ export default function VisitPetHousePage() {
   const [selectedPet, setSelectedPet] = useState<VisitedPet | null>(null);
   const [reactingPetId, setReactingPetId] = useState<string | null>(null);
   const rewardReactionTimerRef = useRef<number | null>(null);
+  // Visitor-only light state. This never calls the owner's lighting API and is
+  // discarded on interior exit, refresh, or leaving the visited Home.
+  const [visitorInteriorLightOff, setVisitorInteriorLightOff] = useState<Record<string, string[]>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
@@ -493,6 +509,30 @@ export default function VisitPetHousePage() {
   });
 
   const outdoorLighting = useHomeOutdoorLighting(activeBundle?.playerLighting?.outdoorMode ?? "auto");
+
+  const toggleVisitorInteriorLight = useCallback((buildingId: string, effect: HouseInteriorEffect) => {
+    setVisitorInteriorLightOff(current => {
+      const base = current[buildingId]
+        ?? activeBundle?.playerLighting?.offInteriorEffectIds?.[buildingId]
+        ?? [];
+      const next = new Set(base);
+      if (next.has(effect.id)) next.delete(effect.id);
+      else next.add(effect.id);
+      return { ...current, [buildingId]: Array.from(next) };
+    });
+  }, [activeBundle?.playerLighting?.offInteriorEffectIds]);
+
+  const closeVisitedInterior = useCallback(() => {
+    const buildingId = openInterior?.buildingId;
+    setOpenInterior(null);
+    if (!buildingId) return;
+    setVisitorInteriorLightOff(current => {
+      if (!(buildingId in current)) return current;
+      const next = { ...current };
+      delete next[buildingId];
+      return next;
+    });
+  }, [openInterior?.buildingId]);
 
   const { data: outdoorDecor = [] } = useQuery<PlacedDecorItem[]>({
     queryKey: ["/api/users", userId, "pet-house/decor/placed", "outside"],
@@ -665,6 +705,12 @@ export default function VisitPetHousePage() {
                 onClick={() => {
                   if (isMailbox) { setShowGiftModal(true); return; }
                   if (hasInterior) {
+                    setVisitorInteriorLightOff(current => {
+                      if (!(b.id in current)) return current;
+                      const next = { ...current };
+                      delete next[b.id];
+                      return next;
+                    });
                     setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06, interiorEffects: b.interiorEffects ?? [], interiorDarkness: b.interiorDarkness ?? 0 });
                   }
                 }}
@@ -829,7 +875,7 @@ export default function VisitPetHousePage() {
         <ErrorBoundary fallback={
           <div className="fixed inset-0 flex flex-col items-center justify-center gap-4" style={{ zIndex: 60, background: "#07090f", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#ffd700", letterSpacing: "0.1em" }}>Something went wrong</div>
-            <button onClick={() => setOpenInterior(null)} style={{ fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>Outside</button>
+            <button onClick={closeVisitedInterior} style={{ fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.15em", color: "#ffd700", background: "rgba(30,18,4,0.9)", border: "1px solid rgba(255,215,0,0.45)", borderRadius: 9999, padding: "8px 20px", cursor: "pointer" }}>Outside</button>
           </div>
         }>
           <InteriorViewerVisit
@@ -839,10 +885,15 @@ export default function VisitPetHousePage() {
             effects={openInterior.interiorEffects}
             darkness={openInterior.interiorDarkness}
             sunlightStrength={outdoorLighting.daylightStrength}
-            offEffectIds={new Set(activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId] ?? [])}
+            offEffectIds={new Set(
+              visitorInteriorLightOff[openInterior.buildingId]
+                ?? activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId]
+                ?? [],
+            )}
+            onToggleLightEffect={(effect) => toggleVisitorInteriorLight(openInterior.buildingId, effect)}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
-            onClose={() => setOpenInterior(null)}
+            onClose={closeVisitedInterior}
             onPetClick={handleVisitedPetClick}
             reactingPetId={reactingPetId}
             pendingRewardPetId={pendingRewardPetId}
