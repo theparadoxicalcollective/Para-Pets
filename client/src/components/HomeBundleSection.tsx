@@ -2011,7 +2011,12 @@ function BundlesSubTab() {
 
   // ── Background editor ──
   if (showBgEditor && editingBundle) {
-    return <BundleBgEditor bundle={{ ...editingBundle, bgImageUrl: bgImagePreview ?? editingBundle.bgImageUrl }} onClose={() => setShowBgEditor(false)} onBgUpdated={url => setBgImagePreview(url)} />;
+    return <BundleBgEditor
+      bundle={{ ...editingBundle, bgImageUrl: bgImagePreview ?? editingBundle.bgImageUrl }}
+      onClose={() => setShowBgEditor(false)}
+      onBgUpdated={url => setBgImagePreview(url)}
+      onBundleUpdated={patch => setEditingBundle(current => current ? { ...current, ...patch } : current)}
+    />;
   }
 
   return (
