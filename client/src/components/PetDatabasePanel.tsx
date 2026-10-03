@@ -1,3 +1,4 @@
+import "./PetPartsEditor.css";
 import ActivePetPlacement from "./ActivePetPlacement";
 import PetXEyesEditor from "./PetXEyesEditor";
 import AdornmentArtwork from "./AdornmentArtwork";
@@ -311,7 +312,11 @@ export default function PetDatabasePanel({
    *  any isTest=true pets on top of this filter. */
   templateNameFilter?: string[];
 } = {}) {
-  const [wholePetEditing, setWholePetEditing] = useState(false);
+  const [editorTool, setEditorTool] = useState<"parts" | "placement" | "eyes">("parts");
+  const wholePetEditing = editorTool === "placement";
+  const setWholePetEditing = useCallback((editing: boolean) => setEditorTool(editing ? "placement" : "parts"), []);
+  const [placementControls, setPlacementControls] = useState<HTMLDivElement | null>(null);
+  const [eyeControls, setEyeControls] = useState<HTMLDivElement | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId ?? null);
 
   // Notify parent whenever the user picks (or clears) a template, so the
@@ -1605,7 +1610,7 @@ export default function PetDatabasePanel({
     );
 
     return (
-      <div data-testid={editorTab === "evolution" ? "pet-evolution-editor" : "pet-parts-editor"} className="flex flex-col gap-3">
+      <div data-testid={editorTab === "evolution" ? "pet-evolution-editor" : "pet-parts-editor"} className="pet-part-editor-shell flex flex-col gap-3">
         <EditorTabs active={editorTab} onChange={changeEditorTab} />
         {editorTab === "evolution" && (
           <div data-testid="evolution-parts-notice" className="rounded-lg px-3 py-2" style={{ background: "rgba(192,132,252,.08)", border: "1px solid rgba(192,132,252,.3)" }}>
@@ -1683,6 +1688,10 @@ export default function PetDatabasePanel({
         </div>
 
 
+        {!testMode && <div className="pet-editor-tool-tabs" role="group" aria-label="Pet editor tools">
+          {([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes']] as const).map(([tool, label]) => <button key={tool} type="button" aria-pressed={editorTool === tool} onClick={() => setEditorTool(tool)}>{label}</button>)}
+        </div>}
+
         {/* Direct manipulation canvas — click a visible part, then drag it into place. */}
         <div
           ref={canvasRef}
@@ -1697,7 +1706,7 @@ export default function PetDatabasePanel({
             touchAction: "none",
             isolation: "isolate",
           }}
-          onClick={wholePetEditing ? undefined : handleCanvasClick}
+          onClick={editorTool === "parts" ? handleCanvasClick : undefined}
           onPointerMove={movePartDrag}
           onPointerUp={(event) => endPartDrag(event.pointerId)}
           onPointerCancel={(event) => endPartDrag(event.pointerId)}
@@ -1722,10 +1731,10 @@ export default function PetDatabasePanel({
               filter: "drop-shadow(0 0 2px rgba(43,220,157,0.7))",
             }}
           />
-          <ActivePetPlacement templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView as "front" | "back"} parts={viewParts} editor admin={!testMode} onEditingChange={setWholePetEditing}>
+          <ActivePetPlacement templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView as "front" | "back"} parts={viewParts} editor admin={!testMode} onEditingChange={setWholePetEditing} placementEditing={wholePetEditing} controlsContainer={placementControls}>
           <div style={{ pointerEvents: wholePetEditing ? "none" : undefined }}>
             {viewParts.map(part => {
-              const isSelected = !wholePetEditing && selectedPartId === part.id;
+              const isSelected = editorTool === "parts" && selectedPartId === part.id;
               return (
                 <div
                   key={part.id}
@@ -1769,9 +1778,11 @@ export default function PetDatabasePanel({
 
           </div>
           </ActivePetPlacement>
-          {!wholePetEditing && <PetXEyesEditor templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView} parts={viewParts} toolbarOffset={55} />}
+          <PetXEyesEditor templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView} parts={viewParts} controlsContainer={eyeControls} active={editorTool === "eyes"} />
         </div>
-        <div style={{ height: wholePetEditing ? 230 : 310 }} />
+        <div ref={setPlacementControls} className="pet-editor-tool-controls" />
+        <div ref={setEyeControls} className="pet-editor-tool-controls" />
+        <div hidden={editorTool !== "parts"} className="pet-part-library-section">
 
         {selectedPart && (
           <section
@@ -1866,7 +1877,7 @@ export default function PetDatabasePanel({
 
         {viewParts.length > 0 && (
           <details className="rounded-lg px-3 py-2" style={{ background: "rgba(240,192,64,.06)", border: "1px solid rgba(240,192,64,.18)" }}>
-            <summary className="cursor-pointer font-fantasy text-[9px] tracking-wider" style={{ color: "#a89878" }}>MOVE WHOLE PET</summary>
+            <summary className="cursor-pointer font-fantasy text-[9px] tracking-wider" style={{ color: "#a89878" }}>Move artwork layers (advanced)</summary>
             <div className="mt-3 flex items-center justify-between">
               <span className="font-fantasy text-[8px]" style={{ color: "#6a5840" }}>Step</span>
               <div className="flex gap-1.5">
@@ -1941,7 +1952,7 @@ export default function PetDatabasePanel({
             default so admins editing single-headed pets see a tidy panel. */}
         <div className="flex flex-col gap-2">
           {(facingMode === "front" ? FRONT_PART_GROUPS : SIDE_PART_GROUPS).map(group => {
-            const isOpen = openGroups[group.group] ?? !group.collapsed;
+            const isOpen = openGroups[group.group] ?? group.group === "Head One";
             // Show a count badge when collapsed so admins know if anything is
             // already uploaded inside the hidden section.
             const filledCount = group.parts.reduce(
@@ -1967,7 +1978,7 @@ export default function PetDatabasePanel({
                 </button>
               </div>
               {isOpen && (
-              <div className="flex flex-col gap-1.5">
+              <div className="pet-part-library-grid">
                 {group.parts.map(pt => {
                   const matchingParts = viewParts.filter(p => p.partType === pt.key);
                   const exists = matchingParts.length > 0;
@@ -2125,6 +2136,8 @@ export default function PetDatabasePanel({
             </div>
           </div>
         )}
+
+        </div>
 
         {uploadPartType && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>

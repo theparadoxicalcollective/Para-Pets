@@ -28,3 +28,16 @@ export function dragPetPlacement(value: PetPresentation, dx: number, dy: number,
   const clamp = (n: number) => Math.max(-100, Math.min(100, n));
   return { ...value, x: clamp(value.x + dx / renderedWidth * 100), y: clamp(value.y + dy / renderedWidth * 100) };
 }
+
+// A screen-space spot, independent of artwork bounds and pet size.
+export const PET_SPOT = { x: 500, y: 900, widthPercent: 45 } as const;
+
+export function getPetPlacementTransform(ground: { x: number; y: number }, value: PetPresentation) {
+  return {
+    transform: `translate(${value.x + (PET_SPOT.x - ground.x) / 10}%, ${value.y + (PET_SPOT.y - ground.y) / 10}%) scale(${value.scale})`,
+    transformOrigin: `${ground.x / 10}% ${ground.y / 10}%`,
+  };
+}
+export function centerPetPlacement(value: PetPresentation): PetPresentation {
+  return { ...value, x: 0, y: 0 };
+}
