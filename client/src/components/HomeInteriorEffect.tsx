@@ -90,6 +90,89 @@ const EFFECT_STYLES = `
 }
 `;
 
+const HOME_INTERIOR_EXIT_SPARKLE_STYLES = `
+@keyframes para-home-exit-sparkle-pulse {
+  0%, 100% { opacity: .72; transform: translate(-50%, -50%) scale(.88); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes para-home-exit-sparkle-twinkle {
+  0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(.5) rotate(0deg); }
+  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(45deg); }
+}
+@keyframes para-home-exit-sparkle-core {
+  0%, 100% { opacity: .78; transform: translate(-50%, -50%) scale(.82); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .para-home-exit-sparkle-pulse,
+  .para-home-exit-sparkle-twinkle,
+  .para-home-exit-sparkle-core { animation: none !important; }
+}
+`;
+
+const HOME_INTERIOR_EXIT_SPARKS = [
+  { left: "50%", top: "5%", size: 5.5, delay: 0 },
+  { left: "84%", top: "22%", size: 3.5, delay: 0.45 },
+  { left: "94%", top: "56%", size: 4.5, delay: 0.9 },
+  { left: "72%", top: "87%", size: 3.25, delay: 0.2 },
+  { left: "35%", top: "94%", size: 4, delay: 0.7 },
+  { left: "7%", top: "69%", size: 3.5, delay: 1.05 },
+  { left: "12%", top: "31%", size: 4.75, delay: 0.35 },
+  { left: "35%", top: "18%", size: 2.75, delay: 0.8 },
+] as const;
+
+export function HomeInteriorExitSparkle() {
+  const sparkleSize = 38;
+  return (
+    <>
+      <style>{HOME_INTERIOR_EXIT_SPARKLE_STYLES}</style>
+      <span
+        data-testid="home-interior-exit-sparkle"
+        aria-hidden="true"
+        className="para-home-exit-sparkle-pulse absolute left-1/2 top-1/2 block"
+        style={{
+          width: sparkleSize,
+          height: sparkleSize,
+          transform: "translate(-50%, -50%)",
+          animation: "para-home-exit-sparkle-pulse 2.65s ease-in-out infinite",
+          filter: "drop-shadow(0 0 5px rgba(255,235,156,.95)) drop-shadow(0 0 12px rgba(255,190,44,.72))",
+          pointerEvents: "none",
+        }}
+      >
+        <span
+          className="para-home-exit-sparkle-core absolute left-1/2 top-1/2 block"
+          style={{
+            width: Math.max(12, sparkleSize * 0.42),
+            height: Math.max(12, sparkleSize * 0.42),
+            transform: "translate(-50%, -50%)",
+            clipPath: "polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%)",
+            background: "linear-gradient(135deg, #fffce8 8%, #ffe68a 45%, #ffb51f 100%)",
+            boxShadow: "0 0 8px rgba(255,239,166,.95)",
+            animation: "para-home-exit-sparkle-core 1.82s ease-in-out infinite",
+          }}
+        />
+        {HOME_INTERIOR_EXIT_SPARKS.map((spark, index) => (
+          <span
+            key={index}
+            className="para-home-exit-sparkle-twinkle absolute block"
+            style={{
+              left: spark.left,
+              top: spark.top,
+              width: spark.size,
+              height: spark.size,
+              transform: "translate(-50%, -50%)",
+              clipPath: "polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%)",
+              background: "#fff1a8",
+              boxShadow: "0 0 5px rgba(255,211,80,.9)",
+              animation: `para-home-exit-sparkle-twinkle 1.9s ease-in-out ${spark.delay}s infinite`,
+            }}
+          />
+        ))}
+      </span>
+    </>
+  );
+}
+
 function CampfireVisual() {
   const tongues = [
     { left: "50%", bottom: "8%", width: "52%", height: "80%", animation: "para-home-flame-a 0.86s ease-in-out infinite", bg: "linear-gradient(180deg, rgba(255,244,183,0.06) 0%, #ffd458 36%, #ff8a1f 67%, rgba(207,45,8,0.9) 100%)", clip: "polygon(52% 0%, 68% 20%, 63% 37%, 83% 51%, 77% 75%, 55% 100%, 28% 83%, 17% 58%, 36% 36%)" },
