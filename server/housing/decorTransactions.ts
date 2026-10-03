@@ -217,7 +217,11 @@ const postgresDecorOperations: DecorTransactionOperations = {
         }
 
         const inventoryRows = await tx.select().from(userInventory)
-          .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, placement.decorItemId)))
+          .where(and(
+            eq(userInventory.userId, userId),
+            eq(userInventory.shopItemId, placement.decorItemId),
+            eq(userInventory.isListed, false),
+          ))
           .orderBy(userInventory.id).for("update");
         if (inventoryRows[0]) {
           await tx.update(userInventory)
