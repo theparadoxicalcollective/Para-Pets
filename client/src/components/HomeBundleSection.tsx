@@ -204,8 +204,13 @@ function AdminInteriorPreview({
 
   const onLeaveBtnCancel = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    if (leaveDragRef.current?.pid !== e.pointerId) return;
+    const drag = leaveDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
     leaveDragRef.current = null;
+    leaveXRef.current = drag.startLX;
+    leaveYRef.current = drag.startLY;
+    setLeaveX(drag.startLX);
+    setLeaveY(drag.startLY);
     setIsDraggingLeave(false);
   }, []);
 
@@ -273,8 +278,16 @@ function AdminInteriorPreview({
 
   const onEffectPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (effectDragRef.current?.pid !== e.pointerId) return;
+    const drag = effectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
     effectDragRef.current = null;
+    const reverted = effectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: drag.startEffectX,
+      y: drag.startEffectY,
+    } : effect);
+    effectsRef.current = reverted;
+    setEffects(reverted);
   }, []);
 
   const resizeSelectedEffect = useCallback((delta: number) => {
@@ -873,7 +886,15 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 onPointerDown={e => handleBuildingPointerDown(e, b)}
                 onPointerMove={e => { e.stopPropagation(); handleBuildingPointerMove(e); }}
                 onPointerUp={e => handleBuildingPointerUp(e, b)}
-                onPointerCancel={() => { buildingDragRef.current = null; buildingDidDrag.current = false; }}
+                onPointerCancel={e => {
+                  e.stopPropagation();
+                  const drag = buildingDragRef.current;
+                  if (drag?.pid === e.pointerId) {
+                    setLocalPos(prev => ({ ...prev, [drag.id]: { x: drag.origX, y: drag.origY } }));
+                  }
+                  buildingDragRef.current = null;
+                  buildingDidDrag.current = false;
+                }}
                 onClick={e => e.stopPropagation()}
               >
                 {/* Selection highlight */}
