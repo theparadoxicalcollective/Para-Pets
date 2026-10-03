@@ -70,7 +70,8 @@ export function normalizePetParts(value: unknown): RenderablePetPart[] {
 }
 
 export function shouldUseLowMemoryPetRenderer(runtime: RuntimeMode): boolean {
-  return runtime.displayMode === "ios-browser"
+  return runtime.mobileDevice === true
+    || runtime.displayMode === "ios-browser"
     || runtime.displayMode === "ios-embedded"
     || runtime.displayMode === "ios-standalone"
     || runtime.displayMode === "android-browser"

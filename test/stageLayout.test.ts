@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   calculateStageLayout,
   calculateMiniGameScale,
@@ -188,4 +189,12 @@ test("visual viewport offsets are included in rendered coordinates", () => {
   const logical = renderedToLogical(layout, pointer.x, pointer.y);
   assert.ok(Math.abs(logical.x - 123) < 1e-9);
   assert.ok(Math.abs(logical.y - 456) < 1e-9);
+});
+
+
+test("tablet and installed desktop frame decoration preserves all phone canvas pixels", () => {
+  const css = readFileSync("client/src/tabletStageShell.css", "utf8");
+  assert.doesNotMatch(css, /border:\s*[1-9]\d*px/);
+  assert.equal((css.match(/outline: 3px solid/g) ?? []).length, 2);
+  assert.equal((css.match(/outline-offset: -3px/g) ?? []).length, 2);
 });

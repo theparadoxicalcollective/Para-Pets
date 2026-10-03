@@ -1,4 +1,5 @@
 import type { RuntimeMode } from "./runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "./petRenderSafety";
 
 export const PET_CARE_PHASE_KEY = "para_pet_care_phase_v1";
 export const PET_CARE_RECOVERY_WINDOW_MS = 5 * 60 * 1000;
@@ -29,11 +30,7 @@ export function shouldUsePetCareSafeMode(runtime: RuntimeMode, search: string, r
   const override = new URLSearchParams(search).get("petCareSafe");
   if (override === "1") return true;
   if (override === "0") return false;
-  return runtime.displayMode === "ios-browser"
-    || runtime.displayMode === "ios-embedded"
-    || runtime.displayMode === "ios-standalone"
-    || runtime.displayMode === "android-browser"
-    || runtime.displayMode === "android-standalone";
+  return shouldUseLowMemoryPetRenderer(runtime);
 }
 
 /** Keep visual degradation independent from Pet Care input capabilities. */
