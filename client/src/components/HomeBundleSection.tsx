@@ -187,14 +187,17 @@ function BundleIncludedItemsControl({
       return;
     }
     event.stopPropagation();
-    const finalPosition = livePosition?.id === drag.id
-      ? { xPct: livePosition.xPct, yPct: livePosition.yPct }
+    const finalPosition = imgWidth > 0 && sceneHeight > 0
+      ? {
+          xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (event.clientX - drag.startPointerX) / imgWidth)),
+          yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (event.clientY - drag.startPointerY) / sceneHeight)),
+        }
       : { xPct: drag.startXPct, yPct: drag.startYPct };
     setLivePosition(null);
     if (finalPosition.xPct !== drag.startXPct || finalPosition.yPct !== drag.startYPct) {
       updateItem.mutate({ id: drag.id, patch: finalPosition });
     }
-  }, [livePosition, updateItem]);
+  }, [imgWidth, sceneHeight, updateItem]);
 
   return (
     <>
