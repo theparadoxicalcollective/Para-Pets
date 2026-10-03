@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, X, Sparkles, MoonStar } from "lucide-react";
+import { Minus, Plus, X, Sparkles, MoonStar, MousePointerClick, Upload } from "lucide-react";
 import fallbackHomePreview from "@assets/bg_home_v2.png";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { readFileAsDataUrl } from "@/lib/utils";
 import type { HomeCatalogEffect } from "@shared/housing";
 
 interface PreviewBundle {
@@ -22,6 +23,7 @@ export interface HomeSceneSizeEditorItem {
   imageUrl: string | null;
   homeSceneSize: number;
   homeEffect?: HomeCatalogEffect | null;
+  homeTapImageUrl?: string | null;
 }
 
 export function HomeSceneSizeEditor({
@@ -34,24 +36,28 @@ export function HomeSceneSizeEditor({
   item: HomeSceneSizeEditorItem;
   itemLabel: "Decor" | "Object";
   onClose: () => void;
-  onSave: (size: number, homeEffect: HomeCatalogEffect | null) => void;
+  onSave: (size: number, homeEffect: HomeCatalogEffect | null, homeTapImageData?: string | null) => void;
   saving: boolean;
 }) {
   const [size, setSize] = useState(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
   const [homeEffect, setHomeEffect] = useState<HomeCatalogEffect | null>(item.homeEffect ?? null);
-  const [effectGhost, setEffectGhost] = useState<{ x: number; y: number } | null>(null);
+  const [tapImageData, setTapImageData] = useState<string | null>(null);
+  const [previewTapActive, setPreviewTapActive] = useState(false);
+  const [effectGhost, setEffectGhost] = useState<{ x: number; y: number; effect: HomeCatalogEffect } | null>(null);
   const [dropReady, setDropReady] = useState(false);
   const effectTargetRef = useRef<HTMLDivElement>(null);
-  const effectDragRef = useRef<{ pid: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const effectDragRef = useRef<{ pid: number; startX: number; startY: number; moved: boolean; effect: HomeCatalogEffect } | null>(null);
   const effectSuppressClickRef = useRef(false);
 
   useEffect(() => {
     setSize(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
     setHomeEffect(item.homeEffect ?? null);
+    setTapImageData(null);
+    setPreviewTapActive(false);
     setEffectGhost(null);
     setDropReady(false);
     effectDragRef.current = null;
-  }, [item.id, item.homeSceneSize, item.homeEffect]);
+  }, [item.id, item.homeSceneSize, item.homeEffect, item.homeTapImageUrl]);
 
   const { data: bundles = [] } = useQuery<PreviewBundle[]>({
     queryKey: ["/api/admin/house-bundles"],
@@ -78,8 +84,20 @@ export function HomeSceneSizeEditor({
 
   const previewY = 0.72;
   const displaySize = size;
-  const availableEffect: HomeCatalogEffect = itemLabel === "Object" ? "lamp_light" : "sleep";
-  const availableEffectLabel = itemLabel === "Object" ? "Lamp Light" : "Sleep Spot";
+  const effectiveTapImage = tapImageData ?? item.homeTapImageUrl ?? null;
+  const displayedItemImage = homeEffect === "tap" && previewTapActive && effectiveTapImage
+    ? effectiveTapImage
+    : item.imageUrl;
+  const effectOptions: { effect: HomeCatalogEffect; label: string; description: string }[] = itemLabel === "Object"
+    ? [
+        { effect: "lamp_light", label: "Lamp Light", description: "Tap the placed Object to turn its attached lamp glow on or off." },
+        { effect: "tap", label: "Tap Image", description: "Tap the placed Object to swap between its normal image and an alternate image." },
+      ]
+    : [
+        { effect: "sleep", label: "Sleep Spot", description: "Drag a pet onto the Decor to activate its sleep spot." },
+        { effect: "lamp_light", label: "Lamp Light", description: "Tap the placed Decor to turn its attached lamp glow on or off." },
+      ];
+  const selectedEffectLabel = effectOptions.find(option => option.effect === homeEffect)?.label ?? null;
 
   const changeSize = (next: number) => {
     setSize(Math.max(60, Math.min(500, Math.round(next))));
@@ -90,12 +108,12 @@ export function HomeSceneSizeEditor({
     return !!rect && clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
   };
 
-  const beginEffectDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const beginEffectDrag = (event: ReactPointerEvent<HTMLButtonElement>, effect: HomeCatalogEffect) => {
     event.preventDefault();
     event.stopPropagation();
     safeSetPointerCapture(event.currentTarget, event.pointerId);
-    effectDragRef.current = { pid: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
-    setEffectGhost({ x: event.clientX, y: event.clientY });
+    effectDragRef.current = { pid: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false, effect };
+    setEffectGhost({ x: event.clientX, y: event.clientY, effect });
     setDropReady(pointInsideTarget(event.clientX, event.clientY));
   };
 
@@ -105,7 +123,7 @@ export function HomeSceneSizeEditor({
     event.preventDefault();
     event.stopPropagation();
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5) drag.moved = true;
-    setEffectGhost({ x: event.clientX, y: event.clientY });
+    setEffectGhost({ x: event.clientX, y: event.clientY, effect: drag.effect });
     setDropReady(pointInsideTarget(event.clientX, event.clientY));
   };
 
@@ -113,7 +131,8 @@ export function HomeSceneSizeEditor({
     const drag = effectDragRef.current;
     effectDragRef.current = null;
     if (drag?.pid === event.pointerId && event.type === "pointerup" && pointInsideTarget(event.clientX, event.clientY)) {
-      setHomeEffect(availableEffect);
+      setHomeEffect(drag.effect);
+      setPreviewTapActive(false);
     }
     if (drag?.moved) {
       effectSuppressClickRef.current = true;
@@ -130,14 +149,19 @@ export function HomeSceneSizeEditor({
       data-testid="home-scene-size-editor"
     >
       <div
-        className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(10,12,8,0.96)", borderBottom: "1px solid rgba(255,215,0,0.24)" }}
+        className="flex items-center justify-between px-4 pb-3"
+        style={{
+          paddingTop: "max(16px, calc(env(safe-area-inset-top, 0px) + 12px))",
+          background: "rgba(7,10,6,0.985)",
+          borderBottom: "1px solid rgba(255,215,0,0.34)",
+          boxShadow: "0 8px 22px rgba(0,0,0,0.34)",
+        }}
       >
         <div>
-          <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(255,215,0,0.55)" }}>
+          <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(255,225,95,0.82)", textShadow: "0 1px 5px rgba(0,0,0,0.95)" }}>
             Fall Home size preview
           </p>
-          <p className="font-fantasy text-sm tracking-wide" style={{ color: "#ffd700" }}>
+          <p className="font-fantasy text-base tracking-wide" style={{ color: "#ffe34f", textShadow: "0 1px 7px rgba(0,0,0,0.95)" }}>
             {item.name}
           </p>
         </div>
@@ -197,9 +221,9 @@ export function HomeSceneSizeEditor({
               }}
             />
           )}
-          {item.imageUrl ? (
+          {displayedItemImage ? (
             <img
-              src={item.imageUrl}
+              src={displayedItemImage}
               alt={item.name}
               className="relative w-full h-full object-contain pointer-events-none"
               draggable={false}
@@ -227,7 +251,7 @@ export function HomeSceneSizeEditor({
               className="absolute left-1/2 -translate-x-1/2 rounded-full px-2 py-1 font-fantasy text-[8px] whitespace-nowrap"
               style={{ bottom: -30, background: "rgba(5,10,6,.9)", border: "1px solid rgba(255,215,0,.42)", color: "#ffe98f" }}
             >
-              {availableEffectLabel} attached
+              {selectedEffectLabel} attached
             </div>
           )}
         </div>
@@ -240,8 +264,8 @@ export function HomeSceneSizeEditor({
       </div>
 
       <div
-        className="px-4 pt-4 pb-5 flex flex-col gap-3"
-        style={{ background: "rgba(10,12,8,0.98)", borderTop: "1px solid rgba(255,215,0,0.22)" }}
+        className="px-4 pt-4 pb-5 flex flex-col gap-3 overflow-y-auto"
+        style={{ background: "rgba(10,12,8,0.98)", borderTop: "1px solid rgba(255,215,0,0.22)", maxHeight: "52dvh" }}
       >
         <div className="flex items-center justify-between">
           <div>
@@ -294,8 +318,8 @@ export function HomeSceneSizeEditor({
               <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#ffd700" }}>{itemLabel} Effect</p>
               <p className="font-fantasy text-[8px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,.42)" }}>
                 {itemLabel === "Object"
-                  ? "Drag Lamp Light onto the object. A player tap turns that placed lamp on or off; dragging still moves it."
-                  : "Drag Sleep Spot onto the decor. Players activate it by dragging a pet onto that decor."}
+                  ? "Choose Lamp Light or Tap Image. A normal player tap activates the saved Object effect while dragging still moves the item."
+                  : "Choose Sleep Spot or Lamp Light. Sleep Spot activates when a pet is dragged onto the Decor; Lamp Light toggles with a normal tap."}
               </p>
             </div>
             {homeEffect && (
@@ -311,38 +335,116 @@ export function HomeSceneSizeEditor({
             )}
           </div>
 
-          <button
-            type="button"
-            data-testid={itemLabel === "Object" ? "effect-chip-lamp-light" : "effect-chip-sleep-spot"}
-            onPointerDown={beginEffectDrag}
-            onPointerMove={moveEffectDrag}
-            onPointerUp={endEffectDrag}
-            onPointerCancel={endEffectDrag}
-            onLostPointerCapture={endEffectDrag}
-            onClick={() => {
-              if (effectSuppressClickRef.current) return;
-              setHomeEffect(availableEffect);
-            }}
-            className="w-full rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 font-fantasy text-[10px]"
-            style={{
-              background: homeEffect === availableEffect ? "rgba(255,215,0,.16)" : "rgba(255,255,255,.035)",
-              border: `1px solid ${homeEffect === availableEffect ? "rgba(255,215,0,.5)" : "rgba(255,215,0,.2)"}`,
-              color: "#ffe98f",
-              touchAction: "none",
-              cursor: "grab",
-            }}
-          >
-            {itemLabel === "Object" ? <Sparkles className="w-4 h-4" /> : <MoonStar className="w-4 h-4" />}
-            {availableEffectLabel}
-            <span style={{ color: "rgba(255,255,255,.32)", fontSize: 8 }}>drag onto preview</span>
-          </button>
+          <div className="flex flex-col gap-2">
+            {effectOptions.map(option => (
+              <button
+                key={option.effect}
+                type="button"
+                data-testid={option.effect === "lamp_light" ? "effect-chip-lamp-light" : option.effect === "tap" ? "effect-chip-tap-image" : "effect-chip-sleep-spot"}
+                onPointerDown={event => beginEffectDrag(event, option.effect)}
+                onPointerMove={moveEffectDrag}
+                onPointerUp={endEffectDrag}
+                onPointerCancel={endEffectDrag}
+                onLostPointerCapture={endEffectDrag}
+                onClick={() => {
+                  if (effectSuppressClickRef.current) return;
+                  setHomeEffect(option.effect);
+                  setPreviewTapActive(false);
+                }}
+                className="w-full rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 font-fantasy text-[10px]"
+                style={{
+                  background: homeEffect === option.effect ? "rgba(255,215,0,.16)" : "rgba(255,255,255,.035)",
+                  border: `1px solid ${homeEffect === option.effect ? "rgba(255,215,0,.5)" : "rgba(255,215,0,.2)"}`,
+                  color: "#ffe98f",
+                  touchAction: "none",
+                  cursor: "grab",
+                }}
+                title={option.description}
+              >
+                {option.effect === "lamp_light" ? <Sparkles className="w-4 h-4" /> : option.effect === "tap" ? <MousePointerClick className="w-4 h-4" /> : <MoonStar className="w-4 h-4" />}
+                {option.label}
+                <span style={{ color: "rgba(255,255,255,.32)", fontSize: 8 }}>drag onto preview</span>
+              </button>
+            ))}
+          </div>
+
+          {itemLabel === "Object" && homeEffect === "tap" && (
+            <div
+              className="mt-3 rounded-xl p-3"
+              data-testid="tap-image-upload-panel"
+              style={{ background: "rgba(0,0,0,.2)", border: "1px solid rgba(255,215,0,.16)" }}
+            >
+              <p className="font-fantasy text-[9px]" style={{ color: "#ffe98f" }}>Alternate Tap Image</p>
+              <p className="font-fantasy text-[8px] mt-1 mb-2 leading-relaxed" style={{ color: "rgba(255,255,255,.4)" }}>
+                This replaces the normal Object artwork while that placed copy is tapped on. Tap it again to return to the normal image.
+              </p>
+              {effectiveTapImage ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,215,0,.25)" }}>
+                    <img src={effectiveTapImage} alt="Tap state preview" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label
+                      data-testid="button-replace-tap-image"
+                      className="rounded-xl px-3 py-2 text-center font-fantasy text-[8px]"
+                      style={{ border: "1px solid rgba(255,215,0,.3)", background: "rgba(255,215,0,.08)", color: "#ffe98f", cursor: "pointer" }}
+                    >
+                      <Upload className="w-3.5 h-3.5 inline mr-1.5" />Replace Image
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif"
+                        className="hidden"
+                        onChange={async event => {
+                          const file = event.target.files?.[0];
+                          if (file) setTapImageData(await readFileAsDataUrl(file));
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      data-testid="button-preview-tap-state"
+                      onClick={() => setPreviewTapActive(current => !current)}
+                      className="rounded-xl px-3 py-2 font-fantasy text-[8px]"
+                      style={{ border: "1px solid rgba(255,215,0,.3)", background: previewTapActive ? "rgba(255,215,0,.15)" : "rgba(255,255,255,.035)", color: "#ffe98f" }}
+                    >
+                      {previewTapActive ? "Show Normal Image" : "Preview Tapped Image"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  data-testid="button-upload-tap-image"
+                  className="block w-full rounded-xl px-3 py-3 text-center font-fantasy text-[9px]"
+                  style={{ border: "1px dashed rgba(255,215,0,.38)", background: "rgba(255,215,0,.06)", color: "#ffe98f", cursor: "pointer" }}
+                >
+                  <Upload className="w-4 h-4 inline mr-2" />Upload Tap Image
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif"
+                    className="hidden"
+                    onChange={async event => {
+                      const file = event.target.files?.[0];
+                      if (file) setTapImageData(await readFileAsDataUrl(file));
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+              {!effectiveTapImage && (
+                <p className="font-fantasy text-[8px] mt-2" style={{ color: "#ffb2a7" }}>
+                  A Tap Image is required before this effect can be saved.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <button
           type="button"
           data-testid="button-save-home-scene-size"
-          onClick={() => onSave(size, homeEffect)}
-          disabled={saving}
+          onClick={() => onSave(size, homeEffect, homeEffect === "tap" ? tapImageData : null)}
+          disabled={saving || (homeEffect === "tap" && !effectiveTapImage)}
           className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest disabled:opacity-50"
           style={{ background: "rgba(255,215,0,0.16)", border: "1px solid rgba(255,215,0,0.42)", color: "#ffd700" }}
         >
@@ -365,7 +467,7 @@ export function HomeSceneSizeEditor({
             boxShadow: "0 0 18px rgba(255,215,0,.32)",
           }}
         >
-          {availableEffectLabel}
+          {effectOptions.find(option => option.effect === effectGhost.effect)?.label ?? "Effect"}
         </div>
       )}
     </div>

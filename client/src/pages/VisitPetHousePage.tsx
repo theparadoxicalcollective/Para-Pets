@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -34,7 +34,7 @@ interface ActiveBundle {
 }
 interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean;
-  item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null };
+  item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null };
 }
 interface EquippedAccessory {
   id: string; name: string; imageUrl: string | null;
@@ -362,6 +362,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 
       {imgWidth > 0 && placedItems.map((item) => {
         const displaySize = item.size;
+        const itemEffectEnabled = itemEffectOverrides[item.id] ?? item.effectEnabled;
+        const displayImage = getHomeItemDisplayImage(item, itemEffectEnabled);
         const imageAspect = imgWidth / Math.max(containerH, 1);
         const itemDarkness = getHouseInteriorPointDarkness(
           darkness,
@@ -383,7 +385,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
             onClick={isTapEffectHomeItem(item) ? event => { event.stopPropagation(); onToggleItemEffect(item); } : undefined}
           >
             <img
-              src={item.item.imageUrl ?? ""}
+              src={displayImage ?? ""}
               alt={item.item.name}
               draggable={false}
               style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: `brightness(${itemBrightness}) drop-shadow(0 2px 6px rgba(0,0,0,0.45))`, transition: "filter 260ms ease-out", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
@@ -855,6 +857,8 @@ export default function VisitPetHousePage() {
       {/* Outdoor decor */}
       {imgWidth > 0 && outdoorDecor.map((item) => {
         const displaySize = item.size;
+        const itemEffectEnabled = visitorItemEffectOverrides[item.id] ?? item.effectEnabled;
+        const displayImage = getHomeItemDisplayImage(item, itemEffectEnabled);
         return (
           <div
             key={item.id}
@@ -865,7 +869,7 @@ export default function VisitPetHousePage() {
             onClick={isTapEffectHomeItem(item) ? event => { event.stopPropagation(); toggleVisitorItemEffect(item); } : undefined}
           >
             <img
-              src={item.item.imageUrl ?? ""}
+              src={displayImage ?? ""}
               alt={item.item.name}
               draggable={false}
               style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}

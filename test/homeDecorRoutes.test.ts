@@ -87,7 +87,7 @@ function setup() {
       },
       getShopItem: async (id: string) => (
         id === "object-1"
-          ? ({ id, name: "Bottle", type: "object", homeSceneSize: 250 } as any)
+          ? ({ id, name: "Bottle", type: "object", homeSceneSize: 250, homeEffect: null, homeTapImageUrl: null } as any)
           : id === "not-object"
             ? ({ id, name: "Potion", type: "potion", homeSceneSize: 250 } as any)
             : undefined
@@ -122,11 +122,18 @@ function setup() {
       },
       getPlacedHomeDecor: async (id: string, location?: string) => {
         calls.placed.push([id, location]);
-        return [{
-          id: "placed-1",
-          size: 250,
-          item: { id: "decor-1", type: "decor", homeSceneSize: 250 },
-        }] as any;
+        return [
+          {
+            id: "placed-1",
+            size: 250,
+            item: { id: "decor-1", type: "decor", homeSceneSize: 250 },
+          },
+          {
+            id: "placed-tap",
+            size: 250,
+            item: { id: "object-1", type: "object", homeSceneSize: 250, homeEffect: "tap", homeTapImageUrl: "/tap.png" },
+          },
+        ] as any;
       },
       updatePlacedHomeDecor: async (id: string, userId: string, data: any) => {
         calls.update.push([id, userId, data]);
@@ -276,6 +283,66 @@ test("admin controls Decor and Object Home scene sizes", async () => {
     body: { homeSceneSize: 9999 },
   });
   assert.equal(clampedDecor.body.homeSceneSize, 500);
+});
+
+test("Admin Tap Image effect processes alternate artwork and rejects incomplete Tap effects", async () => {
+  const { app, calls } = setup();
+
+  const saved = await handler(app, "PATCH", "/api/admin/home-objects/:id", {
+    params: { id: "object-1" },
+    body: { homeEffect: "tap", homeTapImageData: "raw-tap-image" },
+  });
+
+  assert.equal(saved.statusCode, 200);
+  assert.deepEqual(calls.image, [["raw-tap-image", 2000]]);
+  assert.deepEqual(calls.objectSizes, [[
+    "object-1",
+    { homeEffect: "tap", homeTapImageUrl: "processed-2000" },
+  ]]);
+
+  const missingSetup = setup();
+  const missing = await handler(missingSetup.app, "PATCH", "/api/admin/home-objects/:id", {
+    params: { id: "object-1" },
+    body: { homeEffect: "tap" },
+  });
+  assert.deepEqual(
+    [missing.statusCode, missing.body],
+    [400, { message: "Tap effect requires an alternate Tap image" }],
+  );
+  assert.deepEqual(missingSetup.calls.objectSizes, []);
+
+  const invalidSetup = setup();
+  const invalid = await handler(invalidSetup.app, "PATCH", "/api/admin/home-objects/:id", {
+    params: { id: "object-1" },
+    body: { homeEffect: "sleep" },
+  });
+  assert.deepEqual(
+    [invalid.statusCode, invalid.body],
+    [400, { message: "Object effect must be lamp_light, tap, or null" }],
+  );
+});
+
+test("placed Tap Image Objects may persist their own toggled state", async () => {
+  const { app, calls } = setup();
+
+  const toggled = await handler(app, "PATCH", "/api/pet-house/decor/placed/:id", {
+    user: { id: "owner" },
+    params: { id: "placed-tap" },
+    body: { effectEnabled: true },
+  });
+
+  assert.equal(toggled.statusCode, 200);
+  assert.deepEqual(calls.update, [[
+    "placed-tap",
+    "owner",
+    {
+      xPct: undefined,
+      yPct: undefined,
+      size: undefined,
+      flipped: undefined,
+      effectEnabled: true,
+    },
+  ]]);
 });
 
 test("world-shop Decor assignment and player listing keep existing response shapes", async () => {

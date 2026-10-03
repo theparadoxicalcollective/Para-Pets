@@ -93,6 +93,7 @@ export const shopItems = pgTable("shop_items", {
   shopWidth: integer("shop_width").notNull().default(72),
   homeSceneSize: integer("home_scene_size").notNull().default(250),
   homeEffect: text("home_effect"),
+  homeTapImageUrl: text("home_tap_image_url"),
   fishingType: text("fishing_type"),
   // For type === "fishing" + fishingType === "fish": when true, this fish
   // uses the extended "Sea Animal" parts layer set (head_accessory,

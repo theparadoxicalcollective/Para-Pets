@@ -14,11 +14,30 @@ export interface HomeEffectPlacement {
   item: {
     type: HomeSceneItemType;
     homeEffect?: HomeCatalogEffect | null;
+    imageUrl?: string | null;
+    homeTapImageUrl?: string | null;
   };
 }
 
 export function isTapEffectHomeItem(item: HomeEffectPlacement): boolean {
-  return item.item.type === "object" && item.item.homeEffect === "lamp_light";
+  return item.item.homeEffect === "lamp_light"
+    || (item.item.type === "object" && item.item.homeEffect === "tap");
+}
+
+export function isLampLightHomeItem(item: HomeEffectPlacement): boolean {
+  return item.item.homeEffect === "lamp_light";
+}
+
+export function getHomeItemDisplayImage(item: HomeEffectPlacement, enabled = item.effectEnabled === true): string | null {
+  if (
+    item.item.type === "object"
+    && item.item.homeEffect === "tap"
+    && enabled
+    && item.item.homeTapImageUrl
+  ) {
+    return item.item.homeTapImageUrl;
+  }
+  return item.item.imageUrl ?? null;
 }
 
 export function isSleepEffectHomeItem(item: HomeEffectPlacement): boolean {
@@ -31,7 +50,7 @@ export function buildHomeLampItemEffects(
   enabledForItem: (item: HomeEffectPlacement) => boolean = item => item.effectEnabled === true,
 ): HouseInteriorEffect[] {
   return items
-    .filter(item => isTapEffectHomeItem(item) && enabledForItem(item))
+    .filter(item => isLampLightHomeItem(item) && enabledForItem(item))
     .map(item => ({
       id: `home-item-lamp:${item.id}`,
       type: "lamp_light" as const,

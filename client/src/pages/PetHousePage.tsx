@@ -28,7 +28,7 @@ import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
-import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
@@ -131,8 +131,8 @@ interface ActiveBundle extends HouseBundle {
   playerLighting?: PlayerHomeLightingState;
 }
 interface OwnedBundle { id: string; bundleId: string; bundle: HouseBundle & { shopImageUrl: string | null }; }
-interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType; homeEffect: HomeCatalogEffect | null }; }
-interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null }; }
+interface DecorInventoryItem { id: string; decorItemId: string; quantity: number; item: { id: string; name: string; imageUrl: string | null; price: number; type: HomeSceneItemType; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null }; }
+interface PlacedDecorItem { id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean; item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null }; }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_BG_RATIO = 1920 / 2400;
@@ -827,7 +827,7 @@ function InteriorViewer({
             style={{ zIndex: isSelected ? 180 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <HomeSceneAssetImage
-              src={item.item.imageUrl ?? ""}
+              src={getHomeItemDisplayImage(item) ?? ""}
               alt={item.item.name}
               size={displaySize}
               selected={isSelected}
@@ -2058,7 +2058,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             style={{ zIndex: isSelected ? 180 : (item.item.homeEffect === "lamp_light" && item.effectEnabled ? 22 : (topOutdoorDecorId === item.id ? 20 : 6)), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <HomeSceneAssetImage
-              src={item.item.imageUrl ?? ""}
+              src={getHomeItemDisplayImage(item) ?? ""}
               alt={item.item.name}
               size={displaySize}
               selected={isSelected}
