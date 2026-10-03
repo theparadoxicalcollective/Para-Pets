@@ -47,7 +47,7 @@ test("outdoor and indoor reward clicks use the petted closed-eye expression and 
 
   const pettedExpressions = visit.match(/expression=\{isRewardReacting \? "petted" : undefined\}/g) ?? [];
   assert.equal(pettedExpressions.length, 2);
-  assert.match(visit, /className=\{isRewardReacting \? "feed-pet-happy" : undefined\}/);
+  assert.match(visit, /className=\{isRewardReacting \? "pet-care-squish-bounce" : undefined\}/);
   assert.match(visit, /reactingPetId === pet\.inventoryId/);
   assert.match(visit, /setReactingPetId\(pet\.inventoryId\)/);
   assert.match(visit, /2100/);
