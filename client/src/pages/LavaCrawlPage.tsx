@@ -42,7 +42,7 @@ import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 const LAVA_CAVE_BG = lavaCaveBg;
 
 // Pre-load canvas images at module level
-const _coinImg = new Image(); _coinImg.src = coinIconImg;
+const _coinImg = new Image(); _coinImg.src = PARA_PETS_COIN_IMAGE;
 const _slabImgs = [new Image(), new Image(), new Image()];
 _slabImgs[0].src = slabImg1; _slabImgs[1].src = slabImg2; _slabImgs[2].src = slabImg3;
 const _lavaTexImg = new Image(); _lavaTexImg.src = lavaTexImg;
