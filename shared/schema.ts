@@ -905,6 +905,19 @@ export const petHousePositions = pgTable("pet_house_positions", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, (t) => [uniqueIndex("pet_house_positions_user_inv_uidx").on(t.userId, t.inventoryId)]);
 
+export const petHouseVisitRewards = pgTable("pet_house_visit_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  visitorId: varchar("visitor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  petInventoryId: varchar("pet_inventory_id").notNull().references(() => userInventory.id, { onDelete: "cascade" }),
+  claimDay: text("claim_day").notNull(),
+  claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
+}, (t) => [
+  uniqueIndex("pet_house_visit_rewards_daily_uidx").on(t.visitorId, t.petInventoryId, t.claimDay),
+]);
+
+export type PetHouseVisitReward = typeof petHouseVisitRewards.$inferSelect;
+
 // ── Enemy Database ────────────────────────────────────────────────────────────
 export const enemies = pgTable("enemies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
