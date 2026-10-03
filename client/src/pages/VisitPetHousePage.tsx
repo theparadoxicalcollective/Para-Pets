@@ -10,6 +10,7 @@ import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
+import { HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -227,10 +228,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         containerHRef.current = h;
       } catch {}
     };
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    ro.observe(container);
-    return () => ro.disconnect();
+    return observeHomeViewport(container, recalc);
   }, [aspect]);
 
   const toggleLightEffect = useCallback((effect: HouseInteriorEffect) => {
@@ -247,7 +245,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const effectTarget = e.target instanceof Element
       ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
       : null;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -277,6 +275,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     e.stopPropagation();
     const drag = panStartRef.current;
     panStartRef.current = null;
+    if (e.type === "pointercancel") return;
     if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
     const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
     if (effect) toggleLightEffect(effect);
@@ -286,7 +285,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     <div
       ref={containerRef}
       className="fixed inset-0"
-      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
@@ -304,7 +303,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
             setAspect(a);
           }
         }}
-        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
       />
 
       <HomeInteriorDarknessLayer
@@ -339,7 +338,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
               draggable={false}
-              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
             />
           </div>
         );
@@ -520,7 +519,7 @@ export default function VisitPetHousePage() {
   }, [bgAspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId, moved: false };
   }, [panX]);
 
@@ -541,7 +540,7 @@ export default function VisitPetHousePage() {
     <div
       ref={containerRef}
       className="relative w-full h-screen-frame"
-      style={{ maxWidth: "768px", margin: "0 auto", touchAction: "none", cursor: "grab", overflow: "hidden" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab", overflow: "hidden" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -557,7 +556,7 @@ export default function VisitPetHousePage() {
               const img = e.currentTarget;
               if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
             }}
-            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
+            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
           />
         ) : !bgUrl ? (
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
@@ -646,7 +645,7 @@ export default function VisitPetHousePage() {
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
               draggable={false}
-              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none" }}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
             />
           </div>
         );
