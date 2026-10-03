@@ -1218,31 +1218,58 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 
 const POTION_STACK_MAX = 50;
 
-type BagTabKey = string;
+const BAG_CATEGORY_ICONS: Record<GameItemCategoryKey, string> = {
+  pets: petPawIcon,
+  mini_pets: petPawIcon,
+  costumes: tabIconAccessory,
+  accessories: tabIconAccessory,
+  fish: tabIconItem,
+  poles: tabIconItem,
+  bait: tabIconItem,
+  objects: tabIconItem,
+  decor: tabIconItem,
+  homes: bagIconImg,
+  potions: tabIconPotion,
+  power_ups: powerupBagIcon,
+  specials: tabIconSpecial,
+  edibles: tabIconPotion,
+  gifts: tabIconSpecial,
+  ingredients: tabIconItem,
+  recipes: recipeScrollIcon,
+  clearing: tabIconAccessory,
+};
 
-const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
-  { key: "costume",    label: "Adornments",    icon: tabIconAccessory },
-  { key: "clearing",   label: "Clearing Gear", icon: tabIconAccessory },
-  { key: "edibles",    label: "Edibles",       icon: tabIconPotion    },
-  { key: "fish",       label: "Fish",          icon: tabIconItem      },
-  { key: "fishing",    label: "Fishing",       icon: tabIconItem      },
-  { key: "accessory",  label: "Gear",          icon: tabIconAccessory },
-  { key: "gift",       label: "Gifts",         icon: tabIconSpecial   },
-  { key: "ingredient", label: "Ingredients",   icon: tabIconItem      },
-  { key: "item",       label: "Items",         icon: tabIconItem      },
-  { key: "mini_pet",   label: "Mini Pets",     icon: petPawIcon      },
-  { key: "potion",     label: "Potions",       icon: tabIconPotion    },
-  { key: "recipe",     label: "Recipes",       icon: recipeScrollIcon },
-  { key: "special",    label: "Special",       icon: tabIconSpecial   },
-];
-
-function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
+function BagView({
+  items,
+  userId,
+  onItemPointerDown,
+}: {
+  items: InventoryItem[];
+  userId: string;
+  onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void;
+}) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
+  const [selectedHomeAsset, setSelectedHomeAsset] = useState<BagHomeAsset | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [bagTab, setBagTab] = useState<BagTabKey | null>(null);
+  const [bagGroup, setBagGroup] = useState<GameItemGroupKey>("items");
+  const [bagCategory, setBagCategory] = useState<GameItemCategoryKey | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: homeDecorInventory = [] } = useQuery<HomeDecorBagInventoryEntry[]>({
+    queryKey: ["/api/pet-house/decor/inventory"],
+    staleTime: 15000,
+  });
+  const { data: ownedHomeBundles = [] } = useQuery<OwnedHomeBundleBagEntry[]>({
+    queryKey: ["/api/users", userId, "house-bundles"],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${userId}/house-bundles`, { credentials: "include" });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 30000,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
