@@ -41,6 +41,7 @@ import {
   type Notification, notifications,
   worldPetPositions,
   petHousePositions,
+  petHouseVisitRewards,
   type Enemy, type EnemyPart, enemies, enemyParts,
   type InsertEnemy,
   type WorldBuilding, worldBuildings,
@@ -2893,6 +2894,74 @@ export class DatabaseStorage implements IStorage {
   async deleteAllPetHousePositions(userId: string): Promise<void> {
     await db.delete(petHousePositions)
       .where(eq(petHousePositions.userId, userId));
+  }
+
+  async getClaimedPetHouseVisitRewardPetIds(visitorId: string, petInventoryIds: string[], claimDay: string): Promise<string[]> {
+    if (petInventoryIds.length === 0) return [];
+    const rows = await db
+      .select({ petInventoryId: petHouseVisitRewards.petInventoryId })
+      .from(petHouseVisitRewards)
+      .where(and(
+        eq(petHouseVisitRewards.visitorId, visitorId),
+        eq(petHouseVisitRewards.claimDay, claimDay),
+        inArray(petHouseVisitRewards.petInventoryId, petInventoryIds),
+      ));
+    return rows.map(row => row.petInventoryId);
+  }
+
+  async claimPetHouseVisitReward(
+    visitorId: string,
+    ownerId: string,
+    petInventoryId: string,
+    claimDay: string,
+    amount: number,
+  ): Promise<{ rewarded: boolean; coins: number } | null> {
+    return db.transaction(async tx => {
+      const [placedPet] = await tx
+        .select({ id: userInventory.id })
+        .from(userInventory)
+        .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .innerJoin(
+          petHousePositions,
+          and(
+            eq(petHousePositions.inventoryId, userInventory.id),
+            eq(petHousePositions.userId, ownerId),
+          ),
+        )
+        .where(and(
+          eq(userInventory.id, petInventoryId),
+          eq(userInventory.userId, ownerId),
+          eq(userInventory.isHatched, true),
+          eq(shopItems.type, "pet"),
+        ))
+        .limit(1);
+
+      if (!placedPet) return null;
+
+      const inserted = await tx
+        .insert(petHouseVisitRewards)
+        .values({ visitorId, ownerId, petInventoryId, claimDay })
+        .onConflictDoNothing()
+        .returning({ id: petHouseVisitRewards.id });
+
+      if (inserted.length === 0) {
+        const [current] = await tx.select({ coins: users.coins }).from(users).where(eq(users.id, visitorId)).limit(1);
+        if (!current) throw new Error("Visitor not found");
+        return { rewarded: false, coins: current.coins };
+      }
+
+      const [updated] = await tx
+        .update(users)
+        .set({
+          coins: sql`${users.coins} + ${amount}`,
+          totalCoinsEarned: sql`${users.totalCoinsEarned} + ${amount}`,
+        })
+        .where(eq(users.id, visitorId))
+        .returning({ coins: users.coins });
+
+      if (!updated) throw new Error("Visitor not found");
+      return { rewarded: true, coins: updated.coins };
+    });
   }
 
   // ── Friendships ────────────────────────────────────────────────────────────

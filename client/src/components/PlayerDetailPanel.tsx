@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { UserCheck, UserPlus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -139,8 +140,8 @@ function ActionButton({
 
 export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend, zIndex = 50 }: PlayerDetailPanelProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const isSelf = !!currentUserId && currentUserId === userId;
-  const [comingSoon, setComingSoon] = useState(false);
   const [showAquarium, setShowAquarium] = useState(false);
   const [accessoryDetail, setAccessoryDetail] = useState<EquippedAcc | null>(null);
 
@@ -369,7 +370,10 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                   />
                   <ActionButton
                     testId="button-visit-pethouse"
-                    onClick={() => setComingSoon(true)}
+                    onClick={() => {
+                      onClose();
+                      navigate(`/visit/${userId}`);
+                    }}
                     accent="#6fa977"
                     icon={<img src={petHouseIcon} alt="" className="h-6 w-6 object-contain" />}
                     label="Pet Home"
@@ -550,31 +554,6 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                 )}
               </div>
             )}
-          </div>
-        )}
-
-        {/* "Coming Soon" popup for Visit Pet Home */}
-        {comingSoon && (
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 9990, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={() => setComingSoon(false)}
-          >
-            <div
-              style={{ padding: "28px 28px", background: "linear-gradient(160deg, #1c1100 0%, #0e0900 100%)", border: "1.5px solid rgba(212,160,23,0.45)", borderRadius: 16, textAlign: "center", maxWidth: 260 }}
-              onClick={e => e.stopPropagation()}
-            >
-              <img src={petHouseIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain", margin: "0 auto 10px", display: "block" }} />
-              <p style={{ color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Coming Soon!</p>
-              <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Lora, serif", fontSize: 11, marginBottom: 18, lineHeight: 1.5 }}>
-                Pet Home visits are under construction. Check back soon!
-              </p>
-              <button
-                onClick={() => setComingSoon(false)}
-                style={{ padding: "9px 28px", borderRadius: 8, background: "rgba(212,160,23,0.15)", border: "1px solid rgba(212,160,23,0.4)", color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 11, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
-              >
-                Got it
-              </button>
-            </div>
           </div>
         )}
 

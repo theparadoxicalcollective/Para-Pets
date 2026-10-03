@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Heart, Sword, Shield, Star } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -9,6 +9,9 @@ import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSp
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
+import PetHomeVisitRewardCue from "@/components/PetHomeVisitRewardCue";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
@@ -20,6 +23,7 @@ interface VisitedPet {
   rarity: number | null; petLevel: number; petHealth: number; petAtk: number; petDef: number;
   petTemplateId: string | null; posLeft: string | null; posTop: string | null; location: string | null;
   homeScalePct: number; homeFlipped: boolean;
+  visitRewardAvailable?: boolean; visitRewardAmount?: number;
 }
 interface ActiveBundle {
   id: string; name: string; bgImageUrl: string | null; exteriorEffects?: HouseInteriorEffect[];
@@ -191,7 +195,7 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
@@ -201,6 +205,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   leaveButtonY?: number;
   onClose: () => void;
   onPetClick: (pet: VisitedPet) => void;
+  reactingPetId: string | null;
+  pendingRewardPetId: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const aspectRef = useRef(16 / 9);
@@ -377,6 +383,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           yPct,
           imageAspect,
         );
+        const isRewardReacting = reactingPetId === pet.inventoryId;
         return (
           <div
             key={pet.inventoryId}
@@ -391,6 +398,10 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
               style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
             >
+              <div
+                className={isRewardReacting ? "pet-care-squish-bounce" : undefined}
+                style={{ position: "absolute", inset: 0 }}
+              >
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
@@ -398,6 +409,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   costumeAccess="public"
                   fireReaction={isOnFire}
                   mode={isOnFire ? "sleep" : isSleeping ? "sleep" : "house"}
+                  expression={isRewardReacting ? "petted" : undefined}
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
@@ -414,7 +426,13 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               ) : null}
               {isSleeping && <PetSleepZzz />}
               {isOnFire && <PetFireReaction hideEyes={!!pet.petTemplateId} />}
+              </div>
             </div>
+            <PetHomeVisitRewardCue
+              available={!!pet.visitRewardAvailable && pendingRewardPetId !== pet.inventoryId}
+              reacting={isRewardReacting}
+              amount={pet.visitRewardAmount ?? 10}
+            />
           </div>
         );
       })}
@@ -451,8 +469,12 @@ export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
   const outdoorLighting = useHomeOutdoorLighting();
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const [selectedPet, setSelectedPet] = useState<VisitedPet | null>(null);
+  const [reactingPetId, setReactingPetId] = useState<string | null>(null);
+  const rewardReactionTimerRef = useRef<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
@@ -514,6 +536,60 @@ export default function VisitPetHousePage() {
   const { data: me } = useQuery<{ id: string; coins: number } | null>({
     queryKey: ["/api/auth/me"],
   });
+
+  useEffect(() => () => {
+    if (rewardReactionTimerRef.current != null) window.clearTimeout(rewardReactionTimerRef.current);
+  }, []);
+
+  const visitRewardMutation = useMutation({
+    mutationFn: async (pet: VisitedPet) => {
+      const res = await apiRequest("POST", `/api/users/${userId}/pets/${pet.inventoryId}/visit-reward`, {});
+      return await res.json() as { inventoryId: string; rewarded: boolean; amount: number; coins: number };
+    },
+    onSuccess: (data, pet) => {
+      qc.setQueryData<{ username: string; pets: VisitedPet[] }>(
+        ["/api/users", userId, "pets"],
+        current => current ? {
+          ...current,
+          pets: current.pets.map(entry => entry.inventoryId === pet.inventoryId
+            ? { ...entry, visitRewardAvailable: false }
+            : entry),
+        } : current,
+      );
+      qc.setQueryData(["/api/auth/me"], (current: any) =>
+        current ? { ...current, coins: data.coins } : current,
+      );
+      void qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+
+      if (data.rewarded) {
+        if (rewardReactionTimerRef.current != null) window.clearTimeout(rewardReactionTimerRef.current);
+        setReactingPetId(pet.inventoryId);
+        rewardReactionTimerRef.current = window.setTimeout(() => {
+          setReactingPetId(current => current === pet.inventoryId ? null : current);
+          rewardReactionTimerRef.current = null;
+        }, 2100);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn’t collect pet coins",
+        description: error?.message || "Try again in a moment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const pendingRewardPetId = visitRewardMutation.isPending
+    ? visitRewardMutation.variables?.inventoryId ?? null
+    : null;
+
+  const handleVisitedPetClick = useCallback((pet: VisitedPet) => {
+    if (pet.visitRewardAvailable) {
+      if (!visitRewardMutation.isPending) visitRewardMutation.mutate(pet);
+      return;
+    }
+    setSelectedPet(pet);
+  }, [visitRewardMutation.isPending, visitRewardMutation.mutate]);
 
   const [showGiftModal, setShowGiftModal] = useState(false);
   const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
@@ -628,6 +704,7 @@ export default function VisitPetHousePage() {
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const isRewardReacting = reactingPetId === pet.inventoryId;
         return (
           <div
             key={pet.inventoryId}
@@ -635,24 +712,45 @@ export default function VisitPetHousePage() {
             className="absolute"
             style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
+            onClick={(e) => { e.stopPropagation(); handleVisitedPetClick(pet); }}
           >
             <div
               data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
               style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
             >
+              <div
+                className={isRewardReacting ? "pet-care-squish-bounce" : undefined}
+                style={{ position: "absolute", inset: 0 }}
+              >
               {pet.petTemplateId ? (
-                <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={cfg.size} fillContainer fitVisible className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }} />
+                <PetAnimator
+                  petTemplateId={pet.petTemplateId}
+                  petInventoryId={pet.inventoryId}
+                  costumeAccess="public"
+                  mode="static"
+                  expression={isRewardReacting ? "petted" : undefined}
+                  size={cfg.size}
+                  fillContainer
+                  fitVisible
+                  className="pet-idle-squish"
+                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
               ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
-              <img
-                src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-                alt={pet.nickname ?? pet.name}
-                draggable={false}
-                className="pet-idle-squish"
-                style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
-              />
+                <img
+                  src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+                  alt={pet.nickname ?? pet.name}
+                  draggable={false}
+                  className="pet-idle-squish"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                />
               ) : null}
+              </div>
             </div>
+            <PetHomeVisitRewardCue
+              available={!!pet.visitRewardAvailable && pendingRewardPetId !== pet.inventoryId}
+              reacting={isRewardReacting}
+              amount={pet.visitRewardAmount ?? 10}
+            />
           </div>
         );
       })}
@@ -761,7 +859,9 @@ export default function VisitPetHousePage() {
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onClose={() => setOpenInterior(null)}
-            onPetClick={(pet) => setSelectedPet(pet)}
+            onPetClick={handleVisitedPetClick}
+            reactingPetId={reactingPetId}
+            pendingRewardPetId={pendingRewardPetId}
           />
         </ErrorBoundary>
       )}

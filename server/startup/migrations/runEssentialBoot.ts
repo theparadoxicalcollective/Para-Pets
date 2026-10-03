@@ -19,6 +19,17 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE house_bundles ADD COLUMN IF NOT EXISTS exterior_effects JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_darkness INTEGER NOT NULL DEFAULT 0;
+
+    CREATE TABLE IF NOT EXISTS pet_house_visit_rewards (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      visitor_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      owner_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      pet_inventory_id varchar NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
+      claim_day text NOT NULL,
+      claimed_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS pet_house_visit_rewards_daily_uidx
+      ON pet_house_visit_rewards(visitor_id, pet_inventory_id, claim_day);
   `);
 
   try {

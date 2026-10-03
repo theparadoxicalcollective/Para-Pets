@@ -13,6 +13,11 @@ class RouteRecorder {
     this.routes.push({ method: "GET", path, handlers });
     return this;
   }
+
+  post(path: string, ...handlers: RequestHandler[]) {
+    this.routes.push({ method: "POST", path, handlers });
+    return this;
+  }
 }
 
 const authenticated: RequestHandler = (_req, _res, next) => next();
@@ -36,9 +41,17 @@ function setup(options: {
   bannedUser?: boolean;
   fail?: boolean;
   positions?: any[];
+  claimedPetIds?: string[];
+  claimResult?: { rewarded: boolean; coins: number } | null;
 } = {}) {
   const app = new RouteRecorder();
-  const calls: any = { users: [], inventory: [], positions: [] };
+  const calls: any = {
+    users: [],
+    inventory: [],
+    positions: [],
+    claimed: [],
+    claims: [],
+  };
 
   const inventoryRows = [
     {
@@ -60,6 +73,27 @@ function setup(options: {
         eggImageUrl: "egg.png",
         rarity: 3,
         petTemplateId: "template-1",
+      },
+    },
+    {
+      inventory: {
+        id: "pet-unplaced",
+        isHatched: true,
+        petNickname: null,
+        petLevel: 2,
+        petHealth: 500,
+        petAtk: 30,
+        petDef: 20,
+      },
+      shopItem: {
+        id: "shop-unplaced",
+        type: "pet",
+        name: "Forest Dragon",
+        imageUrl: "dragon.png",
+        hatchedImageUrl: "dragon-hatched.png",
+        eggImageUrl: "dragon-egg.png",
+        rarity: 4,
+        petTemplateId: "template-2",
       },
     },
     {
@@ -102,55 +136,96 @@ function setup(options: {
           },
         ]) as any;
       },
+      getClaimedPetHouseVisitRewardPetIds: async (visitorId: string, petIds: string[], claimDay: string) => {
+        calls.claimed.push([visitorId, petIds, claimDay]);
+        return options.claimedPetIds ?? [];
+      },
+      claimPetHouseVisitReward: async (
+        visitorId: string,
+        ownerId: string,
+        inventoryId: string,
+        claimDay: string,
+        amount: number,
+      ) => {
+        calls.claims.push([visitorId, ownerId, inventoryId, claimDay, amount]);
+        return options.claimResult === undefined
+          ? { rewarded: true, coins: 110 }
+          : options.claimResult;
+      },
     } as any,
   });
 
   return { app, calls };
 }
 
-async function call(app: RouteRecorder, userId = "owner") {
-  const route = app.routes.find(
-    (candidate) =>
-      candidate.method === "GET" && candidate.path === "/api/users/:userId/pets",
-  );
+function findRoute(app: RouteRecorder, method: string, path: string) {
+  const route = app.routes.find(candidate => candidate.method === method && candidate.path === path);
   assert.ok(route);
+  return route;
+}
+
+async function callGet(app: RouteRecorder, userId = "owner", visitorId = "visitor") {
+  const route = findRoute(app, "GET", "/api/users/:userId/pets");
   const res = response();
   await route.handlers.at(-1)!(
-    { params: { userId } } as any,
+    { params: { userId }, user: { id: visitorId } } as any,
     res,
     (() => {}) as any,
   );
   return res;
 }
 
-test("visitor Pet House route registers once behind authentication", () => {
+async function callClaim(app: RouteRecorder, userId = "owner", inventoryId = "pet-hatched", visitorId = "visitor") {
+  const route = findRoute(app, "POST", "/api/users/:userId/pets/:inventoryId/visit-reward");
+  const res = response();
+  await route.handlers.at(-1)!(
+    { params: { userId, inventoryId }, user: { id: visitorId } } as any,
+    res,
+    (() => {}) as any,
+  );
+  return res;
+}
+
+test("visitor Pet House routes register behind authentication", () => {
   const { app } = setup();
-  assert.equal(app.routes.length, 1);
-  assert.equal(app.routes[0].method, "GET");
-  assert.equal(app.routes[0].path, "/api/users/:userId/pets");
+  assert.equal(app.routes.length, 2);
+  assert.deepEqual(
+    app.routes.map(route => [route.method, route.path]),
+    [
+      ["GET", "/api/users/:userId/pets"],
+      ["POST", "/api/users/:userId/pets/:inventoryId/visit-reward"],
+    ],
+  );
   assert.equal(app.routes[0].handlers[0], authenticated);
+  assert.equal(app.routes[1].handlers[0], authenticated);
 });
 
 test("missing or banned owners remain hidden as User not found", async () => {
   for (const options of [{ missingUser: true }, { bannedUser: true }]) {
     const { app, calls } = setup(options);
-    const res = await call(app, "target");
+    const res = await callGet(app, "target");
     assert.deepEqual(
       [res.statusCode, res.body],
       [404, { message: "User not found" }],
     );
     assert.deepEqual(calls.inventory, []);
     assert.deepEqual(calls.positions, []);
+    assert.deepEqual(calls.claimed, []);
   }
 });
 
-test("visitor response preserves hatched-pet filtering, fields, and saved positions", async () => {
+test("visitor response preserves pet fields and exposes one daily reward only for placed pets", async () => {
   const { app, calls } = setup();
-  const res = await call(app, "target");
+  const res = await callGet(app, "target", "visitor");
 
   assert.deepEqual(calls.users, ["target"]);
   assert.deepEqual(calls.inventory, ["owner"]);
   assert.deepEqual(calls.positions, ["owner"]);
+  assert.equal(calls.claimed.length, 1);
+  assert.deepEqual(calls.claimed[0][0], "visitor");
+  assert.deepEqual(calls.claimed[0][1], ["pet-hatched"]);
+  assert.match(calls.claimed[0][2], /^\d{4}-\d{2}-\d{2}$/);
+
   assert.deepEqual(res.body, {
     username: "OwnerName",
     pets: [
@@ -173,29 +248,97 @@ test("visitor response preserves hatched-pet filtering, fields, and saved positi
         location: "inside",
         homeScalePct: 125,
         homeFlipped: true,
+        visitRewardAvailable: true,
+        visitRewardAmount: 10,
+      },
+      {
+        inventoryId: "pet-unplaced",
+        shopItemId: "shop-unplaced",
+        name: "Forest Dragon",
+        nickname: null,
+        imageUrl: "dragon.png",
+        hatchedImageUrl: "dragon-hatched.png",
+        eggImageUrl: "dragon-egg.png",
+        rarity: 4,
+        petLevel: 2,
+        petHealth: 500,
+        petAtk: 30,
+        petDef: 20,
+        petTemplateId: "template-2",
+        posLeft: null,
+        posTop: null,
+        location: null,
+        homeScalePct: 100,
+        homeFlipped: false,
+        visitRewardAvailable: false,
+        visitRewardAmount: 0,
       },
     ],
   });
 });
 
-test("pets without saved house positions keep null position fields", async () => {
-  const { app } = setup({ positions: [] });
-  const res = await call(app);
+test("already-claimed placed pets do not show another coin cue that UTC day", async () => {
+  const { app } = setup({ claimedPetIds: ["pet-hatched"] });
+  const res = await callGet(app);
+  const pet = res.body.pets.find((entry: any) => entry.inventoryId === "pet-hatched");
+  assert.equal(pet.visitRewardAvailable, false);
+  assert.equal(pet.visitRewardAmount, 10);
+});
+
+test("self visits never expose or claim visitor rewards", async () => {
+  const { app, calls } = setup();
+  const list = await callGet(app, "owner", "owner");
+  assert.equal(list.body.pets[0].visitRewardAvailable, false);
+  assert.deepEqual(calls.claimed, []);
+
+  const claim = await callClaim(app, "owner", "pet-hatched", "owner");
   assert.deepEqual(
-    {
-      posLeft: res.body.pets[0].posLeft,
-      posTop: res.body.pets[0].posTop,
-      location: res.body.pets[0].location,
-      homeScalePct: res.body.pets[0].homeScalePct,
-      homeFlipped: res.body.pets[0].homeFlipped,
-    },
-    { posLeft: null, posTop: null, location: null, homeScalePct: 100, homeFlipped: false },
+    [claim.statusCode, claim.body],
+    [400, { message: "You cannot collect rewards from your own Pet Home" }],
+  );
+  assert.deepEqual(calls.claims, []);
+});
+
+test("claiming a placed pet grants exactly 10 visitor coins", async () => {
+  const { app, calls } = setup({ claimResult: { rewarded: true, coins: 210 } });
+  const res = await callClaim(app, "owner", "pet-hatched", "visitor");
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    inventoryId: "pet-hatched",
+    rewarded: true,
+    amount: 10,
+    coins: 210,
+  });
+  assert.equal(calls.claims.length, 1);
+  assert.deepEqual(calls.claims[0].slice(0, 3), ["visitor", "owner", "pet-hatched"]);
+  assert.match(calls.claims[0][3], /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(calls.claims[0][4], 10);
+});
+
+test("duplicate daily claim returns no coins instead of minting twice", async () => {
+  const { app } = setup({ claimResult: { rewarded: false, coins: 210 } });
+  const res = await callClaim(app);
+  assert.deepEqual(res.body, {
+    inventoryId: "pet-hatched",
+    rewarded: false,
+    amount: 0,
+    coins: 210,
+  });
+});
+
+test("invalid or no-longer-placed pet cannot award visitor coins", async () => {
+  const { app } = setup({ claimResult: null });
+  const res = await callClaim(app);
+  assert.deepEqual(
+    [res.statusCode, res.body],
+    [404, { message: "Placed pet not found" }],
   );
 });
 
 test("visitor endpoint preserves server error status and message", async () => {
   const { app } = setup({ fail: true });
-  const res = await call(app);
+  const res = await callGet(app);
   assert.deepEqual(
     [res.statusCode, res.body],
     [500, { message: "Failed to get pets" }],
@@ -209,4 +352,5 @@ test("legacy route registry owns only the visitor registration boundary", () => 
     1,
   );
   assert.equal(root.includes('app.get("/api/users/:userId/pets"'), false);
+  assert.equal(root.includes('app.post("/api/users/:userId/pets/:inventoryId/visit-reward"'), false);
 });
