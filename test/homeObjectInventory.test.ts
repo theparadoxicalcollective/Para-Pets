@@ -21,7 +21,7 @@ test("admin item editor exposes Object through the shared Home taxonomy", () => 
 
   assert.match(source, /GAME_ITEM_GROUPS/);
   assert.match(source, /getGameItemCategory/);
-  assert.match(source, /tab-filter-group-home/);
+  assert.match(source, /data-testid=\{`tab-filter-group-\$\{group\.key\}`\}/);
   assert.match(taxonomy, /categories: \["objects", "decor", "homes"\]/);
   assert.match(taxonomy, /objects: "Objects"/);
   assert.match(taxonomy, /rawType === "object"/);
