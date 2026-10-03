@@ -52,7 +52,7 @@ test("every Home Bundle acquisition/return path uses the same included-item deli
   const routes = read("server/routes.ts");
   const bundleRoutes = read("server/routes/houseBundle.routes.ts");
 
-  assert.match(storage, /grantUserHouseBundle[\s\S]{0,500}grantHouseBundleIncludedItemsInTransaction/);
+  assert.match(storage, /async grantUserHouseBundle[\s\S]{0,500}grantHouseBundleIncludedItemsInTransaction/);
   assert.match(market, /grantHouseBundleIncludedItemsInTransaction\(tx, input\.actorId, listing\.shopItemId\)/);
   assert.match(routes, /grantHouseBundleIncludedItemsInTransaction\(tx, user\.id, homeItem\.target_id\)/);
   assert.match(bundleRoutes, /ensureAllOwnedHouseBundleIncludedItemsGranted/);
