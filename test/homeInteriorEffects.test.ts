@@ -308,12 +308,13 @@ test("saved room darkness is cut away locally around active lights without addin
   assert.doesNotMatch(effects, /home-interior-light-wash-/);
   assert.doesNotMatch(effects, /const glow = effect\.type/);
 
-  // Lamp Glow itself stays intentionally subtle because the darkness cutout does the room brightening.
-  assert.match(effects, /rgba\(255,243,181,0\.4\)/);
-  assert.match(effects, /opacity: 0\.68/);
+  // Lamp Glow stays warm but is more transparent through the center.
+  assert.match(effects, /rgba\(255,231,130,0\.28\)/);
+  assert.match(effects, /rgba\(255,204,82,0\.17\)/);
+  assert.match(effects, /opacity: 0\.6/);
 
-  // Admin preview intentionally shows the exact all-lights-off darkness baseline.
-  assert.match(admin, /<HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{5\} \/>/);
+  // Admin preview uses the same local light cutouts as the player-facing room.
+  assert.match(admin, /<HomeInteriorDarknessLayer[\s\S]*darkness=\{darkness\}[\s\S]*effects=\{effects\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerHRef\.current\}[\s\S]*zIndex=\{5\}/);
 });
 
 test("owner and visitor building interiors render saved effects in image-space coordinates", () => {
