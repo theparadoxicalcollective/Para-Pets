@@ -1307,73 +1307,116 @@ function BagView({
     staleTime: 60 * 1000,
   });
 
-  // Build stacked display items. Pets are never part of the Bag, even if a
-  // future caller accidentally passes them through.
+  // Build stacked player inventory entries. Full pets remain in the dedicated
+  // Pet Companions view; the shared Pets group here contains Mini Pets,
+  // Adornments, and Accessories.
   const stackMap = new Map<string, { item: InventoryItem; count: number }>();
   for (const item of items) {
     if (item.type === "pet") continue;
     const itemQty = item.quantity ?? 1;
     const existing = stackMap.get(item.shopItemId);
-    if (existing) {
-      existing.count += itemQty;
-    } else {
-      stackMap.set(item.shopItemId, { item, count: itemQty });
-    }
+    if (existing) existing.count += itemQty;
+    else stackMap.set(item.shopItemId, { item, count: itemQty });
   }
-  const allDisplayItems: { item: InventoryItem; count: number }[] = Array.from(stackMap.values());
 
-  // Fish share the general "fishing" shop-item type with rods/bait, so give
-  // caught fish their own virtual Bag category without changing stored data.
-  const bagCategoryKey = (item: InventoryItem): BagTabKey =>
-    item.fishingType === "fish" ? "fish" : item.type;
+  const inventoryEntries = Array.from(stackMap.values()).map(({ item, count }) => ({
+    kind: "inventory" as const,
+    key: `inventory:${item.shopItemId}`,
+    category: getGameItemCategory({ type: item.type, fishingType: item.fishingType }),
+    item,
+    count,
+  }));
 
-  // Show every known Bag category (even when currently empty), then append any
-  // future item type discovered in a player's inventory. Pets are never added.
-  const configuredTabs = new Set(BAG_TABS.map(tab => tab.key));
-  const storedTypes = itemTypeOptions(allDisplayItems.map(({ item }) => item))
-    .filter(type => type !== "pet");
-  const discoveredTabs = [
-    ...storedTypes,
-    ...(allDisplayItems.some(({ item }) => item.fishingType === "fish") ? ["fish"] : []),
-  ];
-  const visibleTabs = [
-    ...BAG_TABS,
-    ...discoveredTabs
-      .filter(type => !configuredTabs.has(type))
-      .map(type => ({ key: type, label: itemTypeLabel(type), icon: tabIconItem })),
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  // Decor has its own ownership table, while Objects already live in
+  // /api/inventory. Only merge Decor here to avoid showing Objects twice.
+  const homeDecorAssets: BagHomeAsset[] = homeDecorInventory
+    .filter(entry => entry.item?.type === "decor")
+    .map(entry => ({
+      key: `home-decor:${entry.id}`,
+      kind: "home_decor",
+      name: entry.item.name,
+      imageUrl: entry.item.imageUrl,
+      count: Math.max(1, entry.quantity ?? 1),
+      category: "decor",
+    }));
 
-  // Open to the first alphabetically sorted category that actually contains an
-  // item, rather than dumping the entire Bag on screen.
-  const firstPopulatedTabKey = visibleTabs.find(tab =>
-    allDisplayItems.some(({ item }) => bagCategoryKey(item) === tab.key),
-  )?.key ?? visibleTabs[0]?.key ?? "item";
-  const activeBagTab = bagTab && visibleTabs.some(tab => tab.key === bagTab)
-    ? bagTab
-    : firstPopulatedTabKey;
-  const activeBagTabLabel = visibleTabs.find(tab => tab.key === activeBagTab)?.label
-    ?? itemTypeLabel(activeBagTab);
+  const homeBundleAssets: BagHomeAsset[] = ownedHomeBundles.map(entry => ({
+    key: `home-bundle:${entry.id}`,
+    kind: "home_bundle",
+    name: entry.bundle.name,
+    imageUrl: entry.bundle.shopImageUrl ?? entry.bundle.bgImageUrl,
+    count: 1,
+    category: "homes",
+  }));
 
-  const displayItems = allDisplayItems
-    .filter(({ item }) => bagCategoryKey(item) === activeBagTab)
+  const homeAssets = [...homeDecorAssets, ...homeBundleAssets];
+  const categoriesForActiveGroup = gameItemCategoriesForGroup(bagGroup);
+  const categoryHasItems = (category: GameItemCategoryKey) =>
+    inventoryEntries.some(entry => entry.category === category)
+    || homeAssets.some(entry => entry.category === category);
+
+  const firstPopulatedCategory = categoriesForActiveGroup.find(categoryHasItems)
+    ?? categoriesForActiveGroup.find(category => category !== "pets")
+    ?? categoriesForActiveGroup[0]
+    ?? "power_ups";
+  const activeBagCategory = bagCategory && categoriesForActiveGroup.includes(bagCategory)
+    ? bagCategory
+    : firstPopulatedCategory;
+  const activeBagTabLabel = GAME_ITEM_CATEGORY_LABELS[activeBagCategory];
+
+  const displayInventoryEntries = inventoryEntries
+    .filter(entry => entry.category === activeBagCategory)
     .sort((a, b) => a.item.name.localeCompare(b.item.name));
-
-  const isEmpty = allDisplayItems.length === 0;
+  const displayHomeAssets = homeAssets
+    .filter(entry => entry.category === activeBagCategory)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const displayCount = displayInventoryEntries.length + displayHomeAssets.length;
+  const isEmpty = inventoryEntries.length === 0 && homeAssets.length === 0;
 
   return (
     <>
-      {/* The category rail scrolls independently of the item shelf on phones. */}
-      <div className="flex items-start gap-2 sm:gap-4 min-w-0">
-      <nav aria-label="Bag item categories" className="w-[104px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
-        <p className="font-fantasy text-[#d8b864] text-[10px] sm:text-xs tracking-widest px-1 pb-1">BAG ITEMS</p>
-        {visibleTabs.map(tab => {
-          const active = activeBagTab === tab.key;
+      <div
+        data-testid="bag-group-tabs"
+        className="grid grid-cols-4 gap-1.5 mb-3"
+        aria-label="Bag groups"
+      >
+        {GAME_ITEM_GROUPS.map(group => {
+          const active = bagGroup === group.key;
           return (
             <button
-              key={tab.key}
-              data-testid={`button-bag-tab-${tab.key}`}
-              onClick={() => setBagTab(tab.key)}
-              className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[10px] sm:text-xs leading-tight tracking-wide transition-all active:scale-95"
+              type="button"
+              key={group.key}
+              data-testid={`button-bag-group-${group.key}`}
+              onClick={() => { setBagGroup(group.key); setBagCategory(null); }}
+              className="min-h-10 rounded-lg px-1 py-1.5 font-fantasy text-[10px] sm:text-xs tracking-wide transition-all active:scale-95"
+              style={{
+                background: active ? "linear-gradient(180deg, rgba(147,105,25,.66), rgba(45,35,15,.92))" : "rgba(15,21,13,.72)",
+                border: active ? "1px solid rgba(240,192,64,.58)" : "1px solid rgba(212,160,23,.2)",
+                color: active ? "#f3d177" : "#9d8a6b",
+                boxShadow: active ? "0 0 10px rgba(240,192,64,.12)" : "none",
+              }}
+            >
+              {group.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* The category rail scrolls independently of the item shelf on phones. */}
+      <div className="flex items-start gap-2 sm:gap-4 min-w-0">
+      <nav aria-label={`${GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label ?? "Bag"} categories`} className="w-[112px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
+        <p className="font-fantasy text-[#d8b864] text-[9px] sm:text-[10px] tracking-widest px-1 pb-1">
+          {GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label.toUpperCase()}
+        </p>
+        {categoriesForActiveGroup.map(category => {
+          const active = activeBagCategory === category;
+          const count = inventoryEntries.filter(entry => entry.category === category).length
+            + homeAssets.filter(entry => entry.category === category).length;
+          return (
+            <button
+              key={category}
+              data-testid={`button-bag-tab-${category}`}
+              onClick={() => setBagCategory(category)}
+              className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[9px] sm:text-[10px] leading-tight tracking-wide transition-all active:scale-95"
               style={{
                 background: active ? "linear-gradient(90deg, rgba(147,105,25,.6), rgba(55,44,19,.88))" : "rgba(255,255,255,0.04)",
                 border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.15)",
@@ -1381,11 +1424,12 @@ function BagView({
               }}
             >
               <img
-                src={tab.icon}
+                src={BAG_CATEGORY_ICONS[category]}
                 alt=""
                 style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.65, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
               />
-              <span className="min-w-0 break-words">{tab.label}</span>
+              <span className="min-w-0 break-words flex-1">{GAME_ITEM_CATEGORY_LABELS[category]}</span>
+              {count > 0 && <span className="text-[8px] opacity-70">{count}</span>}
             </button>
           );
         })}
@@ -1393,7 +1437,7 @@ function BagView({
       <section aria-label={activeBagTabLabel} className="flex-1 min-w-0 rounded-xl p-2 sm:p-3" style={{ background: "rgba(15,19,10,.43)", border: "1px solid rgba(212,160,23,.22)" }}>
         <div className="flex flex-wrap items-baseline justify-between gap-1 mb-3 px-1">
           <h3 className="font-fantasy text-[#f4d482] text-sm sm:text-base tracking-wider">{activeBagTabLabel}</h3>
-          <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayItems.length} {displayItems.length === 1 ? "item" : "items"}</span>
+          <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayCount} {displayCount === 1 ? "item" : "items"}</span>
         </div>
 
       {isEmpty ? (
@@ -1410,7 +1454,7 @@ function BagView({
           <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
         </div>
-      ) : displayItems.length === 0 ? (
+      ) : displayCount === 0 ? (
         <div className="text-center py-12">
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {activeBagTabLabel} in your bag</p>
         </div>
