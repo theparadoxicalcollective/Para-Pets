@@ -1098,7 +1098,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         data-testid="button-open-pet-actions"
                       >
                         {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
-                          <div className="w-full flex items-center justify-center" style={{ position: "relative" }}><ActivePetPlacement templateId={activePet.petTemplateId} form={activePet.isEvolved ? "evolution" : "base"} admin={user.isAdmin}>
+                          <div className="w-full flex items-center justify-center" style={{ position: "relative" }}><ActivePetPlacement templateId={activePet.petTemplateId} form={activePet.isEvolved ? "evolution" : "base"} admin={user.isAdmin} lowMemory={lowMemoryPetRenderer}>
                             <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} artworkForm={activePet.isEvolved ? "evolution" : "base"} mode="idle" view="front" size={390} fillContainer lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </ActivePetPlacement></div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (

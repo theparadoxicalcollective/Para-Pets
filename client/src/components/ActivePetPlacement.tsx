@@ -5,13 +5,15 @@ import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
 import { usePetPresentation } from "@/lib/petPresentation";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { getPetGroundPoint, dragPetPlacement, PET_SPOT, getPetPlacementTransform, centerPetPlacement, type GroundPart } from "@/lib/petGroundPlacement";
+import { normalizePetParts } from "@/lib/petRenderSafety";
 import type { PetPresentation } from "@shared/petPresentation";
 
-type Props = { templateId: string; form?: PetArtworkForm; view?: "front" | "back"; admin?: boolean; editor?: boolean; placementEditing?: boolean; controlsContainer?: HTMLElement | null; parts?: GroundPart[]; onEditingChange?: (editing: boolean) => void; children: ReactElement<{ style?: CSSProperties }> };
+type Props = { templateId: string; form?: PetArtworkForm; view?: "front" | "back"; admin?: boolean; editor?: boolean; lowMemory?: boolean; placementEditing?: boolean; controlsContainer?: HTMLElement | null; parts?: GroundPart[]; onEditingChange?: (editing: boolean) => void; children: ReactElement<{ style?: CSSProperties }> };
 
-export default function ActivePetPlacement({ templateId, form = "base", view, admin = false, editor = false, placementEditing, controlsContainer, parts, onEditingChange, children }: Props) {
+export default function ActivePetPlacement({ templateId, form = "base", view, admin = false, editor = false, lowMemory = !editor, placementEditing, controlsContainer, parts, onEditingChange, children }: Props) {
   const { data: template } = useQuery({ ...petTemplateQuery(templateId, form), enabled: !editor && !!templateId });
-  const resolvedView = view ?? (template?.facing === "back" || (template?.parts?.length && !template.parts.some((p: { view: string }) => p.view === "front")) ? "back" : "front");
+  const allParts = normalizePetParts(parts ?? template?.parts);
+  const resolvedView = view ?? (template?.facing === "back" || (allParts.length && !allParts.some(p => p.view === "front")) ? "back" : "front");
   const query = usePetPresentation(templateId, form, resolvedView, editor || !!template || !!view);
   const [localEditing, setEditing] = useState(false);
   const editing = placementEditing ?? localEditing;
@@ -19,17 +21,19 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
   const [, refreshBounds] = useState(0);
   const drag = useRef<{ id: number; x: number; y: number; value: PetPresentation; latest: PetPresentation } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const visibleParts: GroundPart[] = parts ?? (template?.parts ?? []).filter((p: { view: string }) => p.view === resolvedView);
+  const visibleParts: GroundPart[] = allParts.filter(p => p.view === resolvedView);
   const imageKey = JSON.stringify(visibleParts.map(p => p.imageUrl));
   useEffect(() => {
+    // Match the animator: mobile must not decode extra full-size part images.
+    if (lowMemory) return;
     let live = true;
     const urls: string[] = JSON.parse(imageKey);
     void Promise.all(urls.map(url => getAlphaBounds(url))).then(() => { if (live) refreshBounds(n => n + 1); });
     return () => { live = false; };
-  }, [imageKey]);
+  }, [imageKey, lowMemory]);
   useEffect(() => { setDraft(null); setEditing(false); onEditingChange?.(false); drag.current = null; }, [templateId, form, resolvedView, onEditingChange]);
   const value = draft ?? query.placement;
-  const ground = getPetGroundPoint(visibleParts, url => getAlphaBoundsSync(url) ?? FULL_BOUNDS);
+  const ground = getPetGroundPoint(visibleParts, url => lowMemory ? FULL_BOUNDS : (getAlphaBoundsSync(url) ?? FULL_BOUNDS));
   const applied = !editor || editing;
   const saveHomePosition = (position: PetPresentation) => {
     query.save.mutate({ ...query.placement, x: position.x, y: position.y }, {

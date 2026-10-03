@@ -89,3 +89,11 @@ test("active-pet API rejects malformed and marketplace-owned transitions", () =>
   assert.match(routes, /activePetId must be a pet inventory id or null/);
   assert.match(routes, /Remove this pet from the Player Market before making it active/);
 });
+
+test("Home placement shares the animator's low-memory and malformed-data safeguards", () => {
+  const placement = readFileSync("client/src/components/ActivePetPlacement.tsx", "utf8");
+  assert.match(home, /admin=\{user.isAdmin\} lowMemory=\{lowMemoryPetRenderer\}/);
+  assert.match(placement, /normalizePetParts\(parts \?\? template\?\.parts\)/);
+  assert.match(placement, /if \(lowMemory\) return;[\s\S]*?getAlphaBounds\(url\)/);
+  assert.match(placement, /lowMemory \? FULL_BOUNDS/);
+});
