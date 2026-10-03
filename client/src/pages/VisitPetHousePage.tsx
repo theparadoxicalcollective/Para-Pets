@@ -513,10 +513,7 @@ export default function VisitPetHousePage() {
         setPanX(Math.max(Math.min(0, w - imgW), -(imgW - w) / 2));
       } catch {}
     };
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    ro.observe(container);
-    return () => ro.disconnect();
+    return observeHomeViewport(container, recalc);
   }, [bgAspect]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
