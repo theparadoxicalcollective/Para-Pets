@@ -6,6 +6,16 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import type { CardDefinition } from "@/lib/cardCatalog";
 import { ADORNMENT_SLOT_DEFINITIONS, isAdornmentSlotKey, type AdornmentSlotKey } from "@shared/costumeFeature";
 import { ADORNMENT_ITEM_EFFECTS, ADORNMENT_ITEM_EFFECT_LABELS, normalizeAdornmentItemEffect, type AdornmentItemEffect } from "@shared/adornmentAnimation";
+import {
+  GAME_ITEM_CATEGORY_LABELS,
+  GAME_ITEM_CATEGORY_ORDER,
+  GAME_ITEM_GROUPS,
+  gameItemCategoriesForGroup,
+  getGameItemCategory,
+  getGameItemGroup,
+  type GameItemCategoryKey,
+  type GameItemGroupKey,
+} from "@shared/itemTaxonomy";
 
 export interface ShopItemFull {
   id: string;
@@ -86,27 +96,34 @@ function formatTypeName(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-export const ITEM_CATEGORIES = [
-  { key: "pets",        label: "Pets",        color: "#ffb347" },
-  { key: "mini_pets",   label: "Mini Pets",   color: "#6ee7b7" },
-  { key: "potions",     label: "Potions",     color: "#a78bfa" },
-  { key: "specials",    label: "Specials",    color: "#34d399" },
-  { key: "edibles",     label: "Edibles",     color: "#f87171" },
-  { key: "gifts",       label: "Gifts",       color: "#ec4899" },
-  { key: "poles",       label: "Poles",       color: "#60a5fa" },
-  { key: "fish",        label: "Fish",        color: "#22d3ee" },
-  { key: "bait",        label: "Bait",        color: "#86efac" },
-  { key: "accessories", label: "Accessories", color: "#f9a8d4" },
-  { key: "costumes",    label: "Adornments",    color: "#c084fc" },
-  { key: "clearing",    label: "Clearing Equipment", color: "#5eead4" },
-  { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
-  { key: "decor",       label: "Decor",       color: "#d9f99d" },
-  { key: "objects",     label: "Objects",     color: "#c4b5fd" },
-  { key: "ingredients", label: "Ingredients", color: "#fbbf24" },
-  { key: "recipes",     label: "Recipes",     color: "#fde68a" },
-] as const;
+const ITEM_CATEGORY_COLORS: Record<GameItemCategoryKey, string> = {
+  pets: "#ffb347",
+  mini_pets: "#6ee7b7",
+  costumes: "#c084fc",
+  accessories: "#f9a8d4",
+  fish: "#22d3ee",
+  poles: "#60a5fa",
+  bait: "#86efac",
+  objects: "#c4b5fd",
+  decor: "#d9f99d",
+  homes: "#86efac",
+  potions: "#a78bfa",
+  power_ups: "#fde68a",
+  specials: "#34d399",
+  edibles: "#f87171",
+  gifts: "#ec4899",
+  ingredients: "#fbbf24",
+  recipes: "#fde68a",
+  clearing: "#5eead4",
+};
 
-export type ItemCategoryKey = typeof ITEM_CATEGORIES[number]["key"];
+export const ITEM_CATEGORIES = GAME_ITEM_CATEGORY_ORDER.map(key => ({
+  key,
+  label: GAME_ITEM_CATEGORY_LABELS[key],
+  color: ITEM_CATEGORY_COLORS[key],
+}));
+
+export type ItemCategoryKey = GameItemCategoryKey;
 
 export function getItemEffectText(item: ShopItemFull): string | null {
   if (item.type === "mini_pet") {
@@ -165,26 +182,7 @@ export function getItemEffectText(item: ShopItemFull): string | null {
 }
 
 export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
-  if (item.type === "pet") return "pets";
-  if (item.type === "mini_pet") return "mini_pets";
-  if (item.type === "potion") return "potions";
-  if (item.type === "special") return "specials";
-  if (item.type === "edibles") return "edibles";
-  if (item.type === "gift") return "gifts";
-  if (item.type === "fishing") {
-    if (item.fishingType === "pole") return "poles";
-    if (item.fishingType === "bait") return "bait";
-    return "fish";
-  }
-  if (item.type === "accessory") return "accessories";
-  if (item.type === "costume") return "costumes";
-  if (item.type === "clearing") return "clearing";
-  if (item.type === "power_up" || item.type === "item") return "power_ups";
-  if (item.type === "decor") return "decor";
-  if (item.type === "object") return "objects";
-  if (item.type === "ingredient") return "ingredients";
-  if (item.type === "recipe") return "recipes";
-  return "power_ups";
+  return getGameItemCategory({ type: item.type, fishingType: item.fishingType });
 }
 
 function PetExpInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
