@@ -10,7 +10,7 @@ import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
-import { HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -285,11 +285,12 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     <div
       ref={containerRef}
       className="fixed inset-0"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onContextMenu={e => e.preventDefault()}
     >
       <img
         src={url}
@@ -545,6 +546,7 @@ export default function VisitPetHousePage() {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onContextMenu={e => e.preventDefault()}
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {bgUrl && !openInterior ? (
