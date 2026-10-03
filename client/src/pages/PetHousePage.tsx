@@ -807,7 +807,7 @@ function InteriorViewer({
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
-        const petBrightness = Math.max(0.18, (100 - petDarkness) / 100);
+        const petBrightness = (100 - petDarkness) / 100;
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
         const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
