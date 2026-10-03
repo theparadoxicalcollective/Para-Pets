@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload, Pencil } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
@@ -300,11 +300,12 @@ function AdminInteriorPreview({
       ref={containerRef}
       data-building-id={buildingId}
       className="fixed inset-0"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 100, background: "#000", overflow: "hidden", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, zIndex: 100, background: "#000", overflow: "hidden", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onContextMenu={e => e.preventDefault()}
     >
       <img
         src={url}
@@ -825,12 +826,13 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   return (
     <div
       className="fixed inset-0 z-[60]"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       ref={containerRef}
       onPointerDown={handleContainerPointerDown}
       onPointerMove={handleContainerPointerMove}
       onPointerUp={handleContainerPointerUp}
       onPointerCancel={handleContainerPointerUp}
+      onContextMenu={e => e.preventDefault()}
       onClick={() => setSelectedId(null)}
     >
       {/* Background — clipped separately so buildings can overflow the screen edge */}
