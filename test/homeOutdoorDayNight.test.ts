@@ -16,6 +16,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 const at = (hour: number, minute = 0) => new Date(2026, 9, 3, hour, minute, 0);
 
 test("automatic Home lighting eases through dawn and dusk using the player's local clock", () => {
+  assert.equal(HOME_OUTDOOR_NIGHT_DARKNESS, 78);
   assert.equal(getAutomaticHomeNightStrength(at(4)), 1);
   assert.equal(getAutomaticHomeNightStrength(at(5, 30)), 1);
   assert.equal(getAutomaticHomeNightStrength(at(6, 30)), 0.5);
@@ -56,20 +57,26 @@ test("outdoor Home effects reuse safe visual effects but exclude the interior Sl
   );
 });
 
-test("owner and visitor Home yards render the same day-night atmosphere and saved outdoor effects", () => {
+test("owner and visitor Home yards use the owner's persisted day-night setting", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
   for (const source of [owner, visitor]) {
-    assert.match(source, /useHomeOutdoorLighting\(\)/);
+    assert.match(source, /useHomeOutdoorLighting\(activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"\)/);
     assert.match(source, /HomeOutdoorAtmosphereLayer/);
     assert.match(source, /effects=\{activeBundle\?\.exteriorEffects \?\? \[\]\}/);
     assert.match(source, /<HomeInteriorEffectsLayer[\s\S]*activeBundle\?\.exteriorEffects/);
-    assert.match(source, /HomeDayNightToggle/);
   }
 
-  assert.match(atmosphere, /HOME_OUTDOOR_LIGHTING_STORAGE_KEY/);
+  assert.match(owner, /<HomeDayNightToggle/);
+  assert.match(owner, /onCycle=\{cycleOutdoorLighting\}/);
+  assert.match(owner, /\/api\/house-bundles\/\$\{bundleId\}\/player-lighting/);
+  assert.doesNotMatch(visitor, /<HomeDayNightToggle/);
+  assert.doesNotMatch(visitor, /onCycle=/);
+
+  assert.doesNotMatch(atmosphere, /localStorage/);
+  assert.doesNotMatch(atmosphere, /HOME_OUTDOOR_LIGHTING_STORAGE_KEY/);
   assert.match(atmosphere, /window\.setInterval\(\(\) => setNow\(new Date\(\)\), 30_000\)/);
   assert.match(atmosphere, /data-lighting-mode=\{mode\}/);
   assert.match(atmosphere, /<Sun /);
@@ -117,4 +124,32 @@ test("outdoor effects persist on Home bundles and the server sanitizes Admin upd
   assert.match(routes, /sanitizeHouseOutdoorEffects/);
   assert.match(routes, /exteriorEffects must be an array/);
   assert.match(routes, /updates\.exteriorEffects = sanitizeHouseOutdoorEffects\(exteriorEffects\)/);
+});
+
+
+test("player Home lighting is stored per owned bundle instead of globally in the browser", () => {
+  const schema = read("shared/schema.ts");
+  const boot = read("server/startup/migrations/runEssentialBoot.ts");
+  const storage = read("server/storage.ts");
+  const routes = read("server/routes/houseBundle.routes.ts");
+  const owner = read("client/src/pages/PetHousePage.tsx");
+
+  assert.match(schema, /outdoorLightingMode: text\("outdoor_lighting_mode"\)\.notNull\(\)\.default\("auto"\)/);
+  assert.match(schema, /offInteriorEffectIds: jsonb\("off_interior_effect_ids"\)/);
+  assert.match(boot, /user_house_bundles ADD COLUMN IF NOT EXISTS outdoor_lighting_mode TEXT NOT NULL DEFAULT 'auto'/);
+  assert.match(boot, /user_house_bundles ADD COLUMN IF NOT EXISTS off_interior_effect_ids JSONB NOT NULL DEFAULT '\{\}'::jsonb/);
+  assert.match(storage, /playerLighting:/);
+  assert.match(storage, /updateUserHouseLighting/);
+  assert.match(routes, /PATCH|patch/i);
+  assert.match(routes, /\/api\/house-bundles\/:bundleId\/player-lighting/);
+  assert.match(owner, /lightingSaveQueueRef/);
+  assert.match(owner, /toggleSavedInteriorLight/);
+  assert.match(owner, /cycleOutdoorLighting/);
+});
+
+test("full nighttime uses a darker maximum and stronger tint than the original implementation", () => {
+  const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
+  assert.equal(HOME_OUTDOOR_NIGHT_DARKNESS, 78);
+  assert.match(atmosphere, /opacity: safeNight \* \.30/);
+  assert.match(atmosphere, /rgba\(1,5,15,\.78\)/);
 });
