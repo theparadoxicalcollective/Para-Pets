@@ -275,7 +275,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     e.stopPropagation();
     const drag = panStartRef.current;
     panStartRef.current = null;
-    if (e.type === "pointercancel") return;
+    if (e.type !== "pointerup") return;
     if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
     const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
     if (effect) toggleLightEffect(effect);
@@ -290,6 +290,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onLostPointerCapture={onUp}
       onContextMenu={e => e.preventDefault()}
     >
       <img
@@ -543,6 +544,7 @@ export default function VisitPetHousePage() {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onLostPointerCapture={handlePointerUp}
       onContextMenu={e => e.preventDefault()}
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
