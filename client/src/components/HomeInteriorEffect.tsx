@@ -45,6 +45,7 @@ interface HomeInteriorEffectsLayerProps {
   onEffectPointerCancel?: EffectPointerHandler;
   offEffectIds?: ReadonlySet<string>;
   onToggleEffect?: EffectToggleHandler;
+  sunlightStrength?: number;
   zIndex?: number;
 }
 
@@ -466,6 +467,7 @@ export function HomeInteriorDarknessLayer({
   panX,
   imgWidth,
   sceneHeight,
+  sunlightStrength = 1,
   zIndex = 2,
 }: {
   darkness: number;
@@ -474,9 +476,11 @@ export function HomeInteriorDarknessLayer({
   panX?: number;
   imgWidth?: number;
   sceneHeight?: number;
+  sunlightStrength?: number;
   zIndex?: number;
 }) {
   const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
+  const safeSunlight = Math.max(0, Math.min(1, Number.isFinite(sunlightStrength) ? sunlightStrength : 1));
   const rawId = useId();
   const maskId = `home-darkness-mask-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   if (safeDarkness <= 0) return null;
@@ -534,7 +538,8 @@ export function HomeInteriorDarknessLayer({
         {activeLights.map((effect, index) => {
           const gradientId = `${maskId}-light-${index}`;
           const radius = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * height);
-          const strength = getHouseInteriorLightCutoutStrength(effect.type);
+          const strength = getHouseInteriorLightCutoutStrength(effect.type)
+            * (effect.type === "warm_glow" ? safeSunlight : 1);
           return (
             <radialGradient
               key={gradientId}
@@ -602,9 +607,11 @@ export function HomeInteriorEffectsLayer({
   onEffectPointerCancel,
   offEffectIds,
   onToggleEffect,
+  sunlightStrength = 1,
   zIndex = 3,
 }: HomeInteriorEffectsLayerProps) {
   if (imgWidth <= 0 || sceneHeight <= 0 || effects.length === 0) return null;
+  const safeSunlight = Math.max(0, Math.min(1, Number.isFinite(sunlightStrength) ? sunlightStrength : 1));
 
   return (
     <>
@@ -613,6 +620,7 @@ export function HomeInteriorEffectsLayer({
         const sizePx = Math.max(24, sceneHeight * effect.size / 100);
         const selected = selectedId === effect.id;
         const isSleep = effect.type === "sleep";
+        const daylightOpacity = effect.type === "warm_glow" && !interactive ? safeSunlight : 1;
         const playerToggleable = !interactive && !!onToggleEffect && isPlayerToggleableInteriorEffect(effect.type);
         const isOff = playerToggleable && offEffectIds?.has(effect.id) === true;
         return (
@@ -635,6 +643,8 @@ export function HomeInteriorEffectsLayer({
               outlineOffset: selected ? 5 : 0,
               filter: selected ? "drop-shadow(0 0 7px rgba(255,215,0,0.8))" : "none",
               fontSize: sizePx,
+              opacity: daylightOpacity,
+              transition: effect.type === "warm_glow" && !interactive ? "opacity 30s linear" : undefined,
             }}
             onPointerDown={interactive && onEffectPointerDown ? event => onEffectPointerDown(event, effect) : undefined}
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
