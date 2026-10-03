@@ -26,7 +26,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
-import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -915,26 +915,29 @@ function InteriorViewer({
         />
       )}
 
-      {/* Leave button — positioned by admin via leaveButtonX/Y percentages */}
+      {/* Player exit hotspot — saved/moved by Admin, shown to players as a world-style sparkle. */}
       <button
+        type="button"
+        aria-label="Outside"
+        data-testid="button-interior-exit-sparkle"
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute flex items-center justify-center font-bold tracking-widest rounded-full"
+        className="absolute flex items-center justify-center"
         style={{
           zIndex: 10,
           left: imgWidth > 0 ? panX + leaveButtonX * imgWidth : `${leaveButtonX * 100}%`,
           top: leaveButtonY * containerH,
           transform: "translate(-50%, -50%)",
-          background: "rgba(0,0,0,0.28)",
-          border: "1px solid rgba(255,255,255,0.14)",
-          fontFamily: "Lora, serif",
-          fontSize: 9,
-          color: "rgba(255,255,255,0.38)",
-          padding: "4px 10px",
-          letterSpacing: "0.18em",
+          width: 48,
+          height: 48,
+          padding: 0,
+          border: 0,
+          background: "transparent",
+          cursor: "pointer",
+          touchAction: "manipulation",
         }}
       >
-        Outside
+        <HomeInteriorExitSparkle />
       </button>
     </div>
   );
