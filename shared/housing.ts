@@ -34,6 +34,25 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
+export const HOUSE_BUNDLE_INCLUDED_ITEM_MAX_QUANTITY = 99;
+
+export function sanitizeHouseBundleIncludedItemQuantity(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(1, Math.min(HOUSE_BUNDLE_INCLUDED_ITEM_MAX_QUANTITY, Math.round(numeric)));
+}
+
+/**
+ * Bundle item delivery is monotonic: lowering an Admin-authored quantity never
+ * removes a player's copies, and raising it only grants the difference above
+ * the largest quantity that player has already received from this entitlement.
+ */
+export function getHouseBundleIncludedItemGrantDelta(grantedQuantity: unknown, targetQuantity: unknown): number {
+  const granted = Math.max(0, Math.round(Number.isFinite(Number(grantedQuantity)) ? Number(grantedQuantity) : 0));
+  const target = sanitizeHouseBundleIncludedItemQuantity(targetQuantity);
+  return Math.max(0, target - granted);
+}
+
 export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "lamp_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
