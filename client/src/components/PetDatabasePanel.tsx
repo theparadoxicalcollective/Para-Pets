@@ -1,5 +1,6 @@
 import AdornmentArtwork from "./AdornmentArtwork";
 import PetAnimator, { type PetAnimatorPreviewCostume } from "./PetAnimator";
+import PetXEyesOverlay from "./PetXEyesOverlay";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,6 +30,17 @@ import {
   getUnrotatedPetPartPoint,
   resizePetPartTransform,
 } from "@/lib/petPartPlacement";
+import {
+  ACTIVE_PET_DISPLAY_SCALE_MAX,
+  ACTIVE_PET_DISPLAY_SCALE_MIN,
+  DEFAULT_ACTIVE_PET_FRAME,
+  PET_X_EYES_SCALE_MAX,
+  PET_X_EYES_SCALE_MIN,
+  petXEyesPlacementForForm,
+  sanitizeActivePetTemplateLayout,
+  type ActivePetFrameSetting,
+  type ActivePetTemplateLayout,
+} from "@shared/activePetPlacement";
 
 interface PetTemplate {
   id: string;
@@ -41,6 +53,15 @@ interface PetTemplate {
   sleepingImageUrl: string | null;
   canFly: boolean;
   idleStyle?: PetAnimationProfile | null;
+  activeDisplayX?: number;
+  activeDisplayY?: number;
+  activeDisplayScale?: number;
+  xEyesBaseX?: number;
+  xEyesBaseY?: number;
+  xEyesBaseScale?: number;
+  xEyesEvolutionX?: number;
+  xEyesEvolutionY?: number;
+  xEyesEvolutionScale?: number;
   createdAt: string;
 }
 
@@ -345,6 +366,11 @@ export default function PetDatabasePanel({
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
   const costumeDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const [activePetLayoutDraft, setActivePetLayoutDraft] = useState<ActivePetTemplateLayout | null>(null);
+  const activePetLayoutDraftRef = useRef<ActivePetTemplateLayout | null>(null);
+  const activePetPreviewRef = useRef<HTMLDivElement>(null);
+  const activePetDisplayDragRef = useRef<{ pointerId: number; startX: number; startY: number; startLayoutX: number; startLayoutY: number } | null>(null);
+  const xEyesDragRef = useRef<{ pointerId: number; form: "base" | "evolution"; startX: number; startY: number; startPlacementX: number; startPlacementY: number } | null>(null);
 
   useEffect(() => {
     onCostumeDirtyChange?.(costumeDraftDirty);
@@ -407,6 +433,39 @@ export default function PetDatabasePanel({
     },
     enabled: !!selectedTemplateId,
   });
+
+  const { data: activePetFrame = DEFAULT_ACTIVE_PET_FRAME } = useQuery<ActivePetFrameSetting>({
+    queryKey: ["/api/settings/active-pet-frame"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/active-pet-frame", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load Active Pet frame");
+      return res.json();
+    },
+    enabled: !!selectedTemplateId,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (!templateDetail) {
+      activePetLayoutDraftRef.current = null;
+      setActivePetLayoutDraft(null);
+      return;
+    }
+    const next = sanitizeActivePetTemplateLayout(templateDetail);
+    activePetLayoutDraftRef.current = next;
+    setActivePetLayoutDraft(next);
+  }, [
+    templateDetail?.id,
+    templateDetail?.activeDisplayX,
+    templateDetail?.activeDisplayY,
+    templateDetail?.activeDisplayScale,
+    templateDetail?.xEyesBaseX,
+    templateDetail?.xEyesBaseY,
+    templateDetail?.xEyesBaseScale,
+    templateDetail?.xEyesEvolutionX,
+    templateDetail?.xEyesEvolutionY,
+    templateDetail?.xEyesEvolutionScale,
+  ]);
 
   const { data: costumeItems = [], isPending: costumeItemsLoading, isError: costumeItemsError, refetch: refetchCostumeItems } = useQuery<CostumeItem[]>({
     queryKey: ["/api/admin/costumes"],
@@ -649,6 +708,36 @@ export default function PetDatabasePanel({
     },
     onError: () => toast({ title: "Error", description: "Failed to update animation profile", variant: "destructive" }),
   });
+
+  const activePetLayoutMutation = useMutation({
+    mutationFn: async (patch: Partial<ActivePetTemplateLayout>) => {
+      if (!selectedTemplateId) throw new Error("No pet template selected");
+      const res = await apiRequest("PATCH", `/api/admin/pet-templates/${selectedTemplateId}`, patch);
+      if (!res.ok) throw new Error("Failed to update Active Pet placement");
+      return res.json();
+    },
+    onSuccess: (updated: PetTemplate) => {
+      const next = sanitizeActivePetTemplateLayout(updated);
+      activePetLayoutDraftRef.current = next;
+      setActivePetLayoutDraft(next);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-layout", selectedTemplateId] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to save Active Pet placement", variant: "destructive" }),
+  });
+
+  const setActivePetLayoutPreview = (next: ActivePetTemplateLayout) => {
+    activePetLayoutDraftRef.current = next;
+    setActivePetLayoutDraft(next);
+  };
+
+  const saveActivePetLayoutPatch = (patch: Partial<ActivePetTemplateLayout>) => {
+    const current = activePetLayoutDraftRef.current ?? sanitizeActivePetTemplateLayout(templateDetail);
+    const next = sanitizeActivePetTemplateLayout({ ...current, ...patch });
+    setActivePetLayoutPreview(next);
+    activePetLayoutMutation.mutate(patch);
+  };
 
   const addPartMutation = useMutation({
     mutationFn: async (data: { templateId: string; form: "base" | "evolution"; partType: string; view: string; imageData: string; zIndex: number; pivotX?: number; pivotY?: number; posX?: number; posY?: number; width?: number; height?: number }) => {
