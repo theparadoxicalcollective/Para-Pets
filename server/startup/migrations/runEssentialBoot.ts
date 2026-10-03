@@ -18,6 +18,15 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS is_evolved BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_darkness INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS active_display_x INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS active_display_y INTEGER NOT NULL DEFAULT 8;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS active_display_scale INTEGER NOT NULL DEFAULT 112;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS x_eyes_base_x INTEGER NOT NULL DEFAULT 500;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS x_eyes_base_y INTEGER NOT NULL DEFAULT 390;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS x_eyes_base_scale INTEGER NOT NULL DEFAULT 100;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS x_eyes_evolution_x INTEGER NOT NULL DEFAULT 500;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS x_eyes_evolution_y INTEGER NOT NULL DEFAULT 390;
+    ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS x_eyes_evolution_scale INTEGER NOT NULL DEFAULT 100;
   `);
 
   try {
