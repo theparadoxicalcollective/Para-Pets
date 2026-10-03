@@ -620,6 +620,17 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     }
   }, [bundle.id, qc, toast]);
 
+  const onGiftBtnCancel = useCallback((e: React.PointerEvent) => {
+    const drag = giftDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    giftDragRef.current = null;
+    giftXRef.current = drag.startGX;
+    giftYRef.current = drag.startGY;
+    setGiftX(drag.startGX);
+    setGiftY(drag.startGY);
+    setIsDraggingGift(false);
+  }, []);
+
   // ── Add building form ──
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
@@ -1014,7 +1025,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           onPointerDown={onGiftBtnDown}
           onPointerMove={onGiftBtnMove}
           onPointerUp={onGiftBtnUp}
-          onPointerCancel={onGiftBtnUp}
+          onPointerCancel={onGiftBtnCancel}
         >
           <QuillBadge size={18} glow="#4ade80" />
         </button>
