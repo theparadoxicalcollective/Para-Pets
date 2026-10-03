@@ -190,14 +190,14 @@ test("Sleep Decor augments pet drop and sleep rendering without replacing buildi
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
-  assert.match(owner, /buildHomeSleepDecorEffects\(displayedItems, containerH\)/);
+  assert.match(owner, /buildHomeSleepDecorEffects\(displayedItems, containerH, imgWidth\)/);
   assert.match(owner, /roomSleepEffects/);
   assert.match(owner, /getHouseInteriorSleepSnapPosition\([\s\S]{0,120}roomSleepEffects/);
-  assert.match(owner, /buildHomeSleepDecorEffects\(placedDecor, containerH\)/);
+  assert.match(owner, /buildHomeSleepDecorEffects\(placedDecor, containerH, imgWidth\)/);
   assert.match(owner, /getHouseInteriorSleepSnapPosition\([\s\S]{0,120}outdoorSleepDecorEffects/);
 
-  assert.match(visitor, /buildHomeSleepDecorEffects\(placedItems, containerH\)/);
-  assert.match(visitor, /buildHomeSleepDecorEffects\(outdoorDecor, containerH\)/);
+  assert.match(visitor, /buildHomeSleepDecorEffects\(placedItems, containerH, imgWidth\)/);
+  assert.match(visitor, /buildHomeSleepDecorEffects\(outdoorDecor, containerH, imgWidth\)/);
   assert.match(visitor, /isHouseInteriorSleepPosition\([\s\S]{0,120}outdoorSleepDecorEffects/);
 });
 
