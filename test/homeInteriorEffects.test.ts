@@ -313,7 +313,7 @@ test("active fire gives pets the closed-eye X-eyes Easter egg and delayed smoke"
   assert.match(reaction, /para-pet-fire-smoke/);
 });
 
-test("players can locally toggle Campfire, Candle Light, and Lamp Glow without changing saved placement", () => {
+test("owner light toggles persist per Home while visitors see the owner's saved state read-only", () => {
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
@@ -326,14 +326,20 @@ test("players can locally toggle Campfire, Candle Light, and Lamp Glow without c
   assert.doesNotMatch(effects, /onClick=\{playerToggleable/);
   assert.match(effects, /!isOff && <EffectVisual/);
 
-  for (const source of [owner, visitor]) {
-    assert.match(source, /setOffEffectIds/);
-    assert.match(source, /onToggleEffect=\{toggleLightEffect\}/);
-    assert.match(source, /offEffectIds=\{offEffectIds\}/);
-    assert.match(source, /toggleEffectId/);
-    assert.match(source, /Math\.hypot/);
-    assert.match(source, /drag\.moved/);
-  }
+  assert.match(owner, /toggleSavedInteriorLight/);
+  assert.match(owner, /offInteriorEffectIds/);
+  assert.match(owner, /onToggleLightEffect=\{\(effect\) => toggleSavedInteriorLight\(openInterior\.buildingId, effect\)\}/);
+  assert.match(owner, /onToggleEffect=\{onToggleLightEffect\}/);
+  assert.match(owner, /toggleEffectId/);
+  assert.match(owner, /Math\.hypot/);
+  assert.match(owner, /drag\.moved/);
+  assert.doesNotMatch(owner, /setOffEffectIds/);
+
+  assert.match(visitor, /offInteriorEffectIds/);
+  assert.match(visitor, /offEffectIds=\{new Set\(activeBundle\?\.playerLighting/);
+  assert.doesNotMatch(visitor, /setOffEffectIds/);
+  assert.doesNotMatch(visitor, /onToggleEffect=/);
+  assert.doesNotMatch(visitor, /toggleLightEffect/);
 });
 
 test("saved room darkness is cut away locally around active lights without adding a colored light wash", () => {

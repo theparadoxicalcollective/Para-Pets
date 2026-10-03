@@ -1,64 +1,27 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import type { HouseInteriorEffect } from "@shared/housing";
 import {
-  HOME_OUTDOOR_LIGHTING_STORAGE_KEY,
-  cycleHomeOutdoorLightingMode,
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
-  isHomeOutdoorLightingMode,
   type HomeOutdoorLightingMode,
 } from "@/lib/homeOutdoorLighting";
 
-function readStoredMode(): HomeOutdoorLightingMode {
-  if (typeof window === "undefined") return "auto";
-  try {
-    const value = window.localStorage.getItem(HOME_OUTDOOR_LIGHTING_STORAGE_KEY);
-    return isHomeOutdoorLightingMode(value) ? value : "auto";
-  } catch {
-    return "auto";
-  }
-}
-
-export function useHomeOutdoorLighting() {
-  const [mode, setModeState] = useState<HomeOutdoorLightingMode>(readStoredMode);
+export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
+    setNow(new Date());
     if (mode !== "auto") return;
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, [mode]);
 
-  useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== HOME_OUTDOOR_LIGHTING_STORAGE_KEY || !isHomeOutdoorLightingMode(event.newValue)) return;
-      setModeState(event.newValue);
-      setNow(new Date());
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  const setMode = useCallback((next: HomeOutdoorLightingMode) => {
-    setModeState(next);
-    setNow(new Date());
-    try {
-      window.localStorage.setItem(HOME_OUTDOOR_LIGHTING_STORAGE_KEY, next);
-    } catch {
-      // Local preference persistence is best-effort.
-    }
-  }, []);
-
-  const cycleMode = useCallback(() => {
-    setMode(cycleHomeOutdoorLightingMode(mode));
-  }, [mode, setMode]);
-
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
 
-  return { mode, setMode, cycleMode, nightStrength, darkness };
+  return { mode, nightStrength, darkness };
 }
 
 function AutoLightingIcon() {
@@ -150,8 +113,8 @@ export function HomeOutdoorAtmosphereLayer({
         className="absolute inset-0 pointer-events-none"
         style={{
           zIndex: zIndex - 1,
-          opacity: safeNight * .24,
-          background: "radial-gradient(circle at 52% 12%, rgba(43,69,120,.38), transparent 42%), linear-gradient(180deg, rgba(9,22,52,.42), rgba(2,7,20,.68))",
+          opacity: safeNight * .30,
+          background: "radial-gradient(circle at 52% 12%, rgba(43,69,120,.38), transparent 42%), linear-gradient(180deg, rgba(7,18,45,.5), rgba(1,5,15,.78))",
           transition: "opacity 30s linear",
         }}
       />

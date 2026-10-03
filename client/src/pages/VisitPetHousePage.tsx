@@ -6,7 +6,8 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
-import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import type { HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import PetHomeVisitRewardCue from "@/components/PetHomeVisitRewardCue";
@@ -27,6 +28,7 @@ interface VisitedPet {
 }
 interface ActiveBundle {
   id: string; name: string; bgImageUrl: string | null; exteriorEffects?: HouseInteriorEffect[];
+  playerLighting?: { outdoorMode: HomeOutdoorLightingMode; offInteriorEffectIds: Record<string, string[]> };
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
 }
 interface PlacedDecorItem {
@@ -195,12 +197,13 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, offEffectIds, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
   effects?: HouseInteriorEffect[];
   darkness?: number;
+  offEffectIds: ReadonlySet<string>;
   leaveButtonX?: number;
   leaveButtonY?: number;
   onClose: () => void;
@@ -216,8 +219,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   const [imgWidth, setImgWidth] = useState(0);
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
-  const [offEffectIds, setOffEffectIds] = useState<Set<string>>(() => new Set());
-  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
+  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -238,28 +240,14 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     return observeHomeViewport(container, recalc);
   }, [aspect]);
 
-  const toggleLightEffect = useCallback((effect: HouseInteriorEffect) => {
-    setOffEffectIds(current => {
-      const next = new Set(current);
-      if (next.has(effect.id)) next.delete(effect.id);
-      else next.add(effect.id);
-      return next;
-    });
-  }, []);
-
   const onDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    const effectTarget = e.target instanceof Element
-      ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
-      : null;
     safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       startPanX: panX,
       pid: e.pointerId,
-      moved: false,
-      toggleEffectId: effectTarget?.dataset.playerToggleEffectId ?? null,
     };
   }, [panX]);
 
@@ -274,19 +262,13 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
     const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
-    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     setPanX(newPanX);
   }, []);
 
   const onUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    const drag = panStartRef.current;
-    panStartRef.current = null;
-    if (e.type !== "pointerup") return;
-    if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
-    const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
-    if (effect) toggleLightEffect(effect);
-  }, [effects, toggleLightEffect]);
+    if (panStartRef.current?.pid === e.pointerId) panStartRef.current = null;
+  }, []);
 
   return (
     <div
@@ -331,7 +313,6 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         imgWidth={imgWidth}
         sceneHeight={containerH}
         offEffectIds={offEffectIds}
-        onToggleEffect={toggleLightEffect}
         zIndex={3}
       />
 
@@ -468,7 +449,6 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
-  const outdoorLighting = useHomeOutdoorLighting();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
@@ -507,6 +487,8 @@ export default function VisitPetHousePage() {
     staleTime: 30000,
     refetchOnWindowFocus: true,
   });
+
+  const outdoorLighting = useHomeOutdoorLighting(activeBundle?.playerLighting?.outdoorMode ?? "auto");
 
   const { data: outdoorDecor = [] } = useQuery<PlacedDecorItem[]>({
     queryKey: ["/api/users", userId, "pet-house/decor/placed", "outside"],
@@ -809,11 +791,7 @@ export default function VisitPetHousePage() {
             {petsData.username}'s Pet House
           </p>
         )}
-        <HomeDayNightToggle
-          mode={outdoorLighting.mode}
-          onCycle={outdoorLighting.cycleMode}
-          style={{ width: 36, height: 36 }}
-        />
+        <div className="w-9 h-9 flex-shrink-0" aria-hidden="true" />
       </div>
 
       {isLoading && (
@@ -856,6 +834,7 @@ export default function VisitPetHousePage() {
             placedPets={interiorPets}
             effects={openInterior.interiorEffects}
             darkness={openInterior.interiorDarkness}
+            offEffectIds={new Set(activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId] ?? [])}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onClose={() => setOpenInterior(null)}

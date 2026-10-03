@@ -77,8 +77,9 @@ test("cancelled mobile gestures do not toggle lights, place inventory items, or 
   const admin = read("client/src/components/HomeBundleSection.tsx");
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
 
-  assert.match(owner, /if \(e\.type !== "pointerup"\) return;[\s\S]*toggleLightEffect/);
-  assert.match(visitor, /if \(e\.type !== "pointerup"\) return;[\s\S]*toggleLightEffect/);
+  assert.match(owner, /if \(e\.type !== "pointerup"\) return;[\s\S]*onToggleLightEffect/);
+  assert.doesNotMatch(visitor, /toggleLightEffect|onToggleEffect=/);
+  assert.match(visitor, /if \(panStartRef\.current\?\.pid === e\.pointerId\) panStartRef\.current = null;/);
   assert.match(owner, /if \(e\.type !== "pointerup"\) \{[\s\S]*petInvDragRef\.current = null;[\s\S]*inventoryDragRef\.current = null;/);
   assert.match(owner, /if \(!drag \|\| e\.type !== "pointerup"\) \{[\s\S]*setPetDragLive\(null\)/);
 
