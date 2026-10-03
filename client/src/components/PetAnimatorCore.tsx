@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } fro
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { EAR_PART_TYPES, PET_LAYER_ORDER, basePetPartType, getEffectivePetLayer } from "@/lib/petPartConfig";
 import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
-import { normalizePetParts } from "@/lib/petRenderSafety";
+import { normalizePetParts, petCanvasScale } from "@/lib/petRenderSafety";
 
 interface PetPart {
   id: string;
@@ -1565,7 +1565,9 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // Large-style parts (1000x1000) fill the full canvas — scale them down visually
   // so they match the old 300x300 in-game footprint (30% of the container).
   const isLargeStyle = viewParts.some(p => p.width >= 500 || p.height >= 500);
-  const partScale = isLargeStyle ? 0.3 : 1;
+  // Mobile fill canvases render directly at their displayed size. The CSS
+  // pixel-motion factor below preserves the old scaled animation distances.
+  const partScale = petCanvasScale(isLargeStyle, fillContainer || fitVisible, lowMemory);
 
   // When fillContainer=true, expand the inner parts canvas so that after
   // scale(partScale) it fills `size` exactly.
@@ -2068,7 +2070,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
       }}
       data-testid="pet-animator"
     >
-      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: fitTransform, transformOrigin: "center center" }}>
+      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: fitTransform, transformOrigin: "center center", "--pet-motion-pixel-scale": (isLargeStyle ? .3 : 1) / partScale } as React.CSSProperties}>
 
         {/* Body parts (back_full, limbs, wings, tail, body) */}
         {bodyParts.map((part) => {

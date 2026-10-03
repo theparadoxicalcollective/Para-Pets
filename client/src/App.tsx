@@ -352,11 +352,10 @@ function AppRouter() {
             });
           }
 
-          // Keep the old complete-image fallback warm as well. It is not used
-          // by layered pets in normal operation, but it avoids a flash if a
-          // template is missing or authored without parts.
+          // Desktop can warm the unused complete-image fallback. On mobile,
+          // decoding it beside every layered part needlessly raises peak memory.
           const petImageUrl = activePetItem.hatchedImageUrl || activePetItem.imageUrl;
-          if (petImageUrl) void preloadImage(petImageUrl);
+          if (petImageUrl && !lowMemoryPreload) void preloadImage(petImageUrl);
         }
       })
       .catch(() => {});

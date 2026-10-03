@@ -76,3 +76,10 @@ export function shouldUseLowMemoryPetRenderer(runtime: RuntimeMode): boolean {
     || runtime.displayMode === "android-browser"
     || runtime.displayMode === "android-standalone";
 }
+
+/** Keep mobile artwork at its displayed size instead of allocating a 3.33x
+ * canvas and shrinking it. Percentage-authored positions keep the same pixels.
+ */
+export function petCanvasScale(largeStyle: boolean, fillFull: boolean, lowMemory: boolean): number {
+  return largeStyle && !(fillFull && lowMemory) ? 0.3 : 1;
+}
