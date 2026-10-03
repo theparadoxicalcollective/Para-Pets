@@ -15,7 +15,7 @@ interface HomeDecorItem {
   id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; createdAt: string;
 }
 interface HomeObjectItem {
-  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null; createdAt: string;
 }
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
@@ -2062,7 +2062,7 @@ function DecorSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Decor"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize, homeEffect) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect })}
+          onSave={(homeSceneSize, homeEffect, homeTapImageData) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect, homeTapImageData })}
           saving={sizeMutation.isPending}
         />
       )}
@@ -2118,8 +2118,8 @@ function ObjectsSubTab() {
   });
 
   const sizeMutation = useMutation({
-    mutationFn: async ({ id, homeSceneSize, homeEffect }: { id: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null }) =>
-      apiRequest("PATCH", `/api/admin/home-objects/${id}`, { homeSceneSize, homeEffect }),
+    mutationFn: async ({ id, homeSceneSize, homeEffect, homeTapImageData }: { id: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageData?: string | null }) =>
+      apiRequest("PATCH", `/api/admin/home-objects/${id}`, { homeSceneSize, homeEffect, ...(homeTapImageData ? { homeTapImageData } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/admin/home-objects"] });
       setEditingItem(null);
@@ -2159,7 +2159,7 @@ function ObjectsSubTab() {
               <div className="flex-1 min-w-0">
                 <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
                 <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>
-                  {item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px{item.homeEffect === "lamp_light" ? " · Lamp Light" : ""}
+                  {item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px{item.homeEffect === "lamp_light" ? " · Lamp Light" : item.homeEffect === "tap" ? " · Tap Image" : ""}
                 </p>
               </div>
               <button
