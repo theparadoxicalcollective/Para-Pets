@@ -31,9 +31,10 @@ export default function PetHeartParticle({
   const gradientId = `pet-heart-${String(id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
   return (
     <div
-      className={`${position} pointer-events-none feed-heart-rise`}
+      className="pointer-events-none feed-heart-rise"
       data-testid="pet-heart-particle"
       style={{
+        position,
         left,
         top,
         width: size,
