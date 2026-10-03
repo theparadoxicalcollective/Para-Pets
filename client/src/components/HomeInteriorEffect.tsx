@@ -179,10 +179,10 @@ function WarmGlowVisual() {
         borderRadius: "50%",
         animation: "para-home-glow-pulse 2.6s ease-in-out infinite",
         background:
-          "radial-gradient(circle, rgba(255,243,181,0.4) 0%, rgba(255,215,111,0.22) 25%, rgba(255,167,56,0.08) 52%, transparent 76%)",
+          "radial-gradient(circle, rgba(255,231,130,0.28) 0%, rgba(255,204,82,0.17) 25%, rgba(255,160,48,0.055) 52%, transparent 76%)",
         filter: "blur(2px)",
         mixBlendMode: "screen",
-        opacity: 0.68,
+        opacity: 0.6,
       }}
     />
   );
