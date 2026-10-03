@@ -34,7 +34,7 @@ interface ActiveBundle {
 }
 interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean;
-  item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null };
+  item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null; homeEffectX: number; homeEffectY: number; homeEffectSize: number };
 }
 interface EquippedAccessory {
   id: string; name: string; imageUrl: string | null;
