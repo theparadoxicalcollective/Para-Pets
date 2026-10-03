@@ -1035,6 +1035,8 @@ export const userHouseBundles = pgTable("user_house_bundles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   bundleId: varchar("bundle_id").notNull(),
+  outdoorLightingMode: text("outdoor_lighting_mode").notNull().default("auto"),
+  offInteriorEffectIds: jsonb("off_interior_effect_ids").$type<Record<string, string[]>>().notNull().default(sql`'{}'::jsonb`),
   purchasedAt: timestamp("purchased_at").notNull().default(sql`now()`),
 });
 
