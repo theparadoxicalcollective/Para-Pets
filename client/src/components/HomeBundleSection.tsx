@@ -1151,6 +1151,106 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
         </div>
       )}
 
+      {imgWidth > 0 && (
+        <HomeInteriorEffectsLayer
+          effects={exteriorEffects}
+          panX={panX}
+          imgWidth={imgWidth}
+          sceneHeight={containerH}
+          selectedId={selectedExteriorEffectId}
+          interactive
+          onEffectPointerDown={onExteriorEffectPointerDown}
+          onEffectPointerMove={onExteriorEffectPointerMove}
+          onEffectPointerUp={onExteriorEffectPointerUp}
+          onEffectPointerCancel={onExteriorEffectPointerCancel}
+          zIndex={18}
+        />
+      )}
+
+      <button
+        type="button"
+        data-testid="button-add-outdoor-effect"
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => {
+          e.stopPropagation();
+          setSelectedId(null);
+          setSelectedExteriorEffectId(null);
+          setShowExteriorEffectsMenu(current => !current);
+        }}
+        className="absolute left-1/2 -translate-x-1/2 rounded-full px-4 py-2 font-fantasy text-[10px] tracking-wider"
+        style={{
+          zIndex: 31,
+          top: "max(104px, calc(env(safe-area-inset-top, 0px) + 76px))",
+          background: "rgba(0,0,0,0.72)",
+          border: "1px solid rgba(255,215,0,0.44)",
+          color: GOLD,
+          boxShadow: "0 3px 12px rgba(0,0,0,.4)",
+        }}
+      >
+        + Effects
+      </button>
+
+      {showExteriorEffectsMenu && (
+        <div
+          data-testid="menu-outdoor-effects"
+          className="absolute left-1/2 -translate-x-1/2 rounded-2xl p-3"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          style={{
+            zIndex: 32,
+            top: "max(148px, calc(env(safe-area-inset-top, 0px) + 120px))",
+            width: "min(92%, 390px)",
+            background: "rgba(7,10,7,.94)",
+            border: "1px solid rgba(255,215,0,.34)",
+            boxShadow: "0 12px 32px rgba(0,0,0,.6)",
+            backdropFilter: "blur(9px)",
+          }}
+        >
+          <p className="font-fantasy text-[10px] tracking-widest text-center mb-2" style={{ color: GOLD }}>OUTDOOR EFFECTS</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => (
+              <button
+                key={option.type}
+                type="button"
+                data-testid={`button-add-outdoor-effect-${option.type}`}
+                onClick={() => addExteriorEffect(option.type, option.defaultSize)}
+                className="rounded-xl px-2.5 py-2 text-left"
+                style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}
+              >
+                <span className="block font-fantasy text-[10px] tracking-wide">{option.label}</span>
+                <span className="block font-fantasy text-[8px] mt-0.5" style={{ color: "rgba(255,215,0,0.48)" }}>{option.description}</span>
+              </button>
+            ))}
+          </div>
+          <p className="font-fantasy text-[8px] text-center mt-2" style={{ color: "rgba(255,255,255,0.38)" }}>
+            Drag an effect after adding it · {exteriorEffects.length}/{HOUSE_INTERIOR_EFFECT_MAX_COUNT}
+          </p>
+        </div>
+      )}
+
+      {selectedExteriorEffect && (
+        <div
+          data-testid="controls-outdoor-effect"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-2xl px-3 py-2"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          style={{
+            zIndex: 32,
+            bottom: "max(88px, calc(env(safe-area-inset-bottom, 0px) + 72px))",
+            background: "rgba(5,9,6,.92)",
+            border: "1px solid rgba(255,215,0,.4)",
+            boxShadow: "0 8px 24px rgba(0,0,0,.56)",
+          }}
+        >
+          <span className="font-fantasy text-[9px] max-w-[72px] truncate" style={{ color: "rgba(255,226,154,.9)" }}>{selectedExteriorEffectLabel}</span>
+          <button type="button" aria-label="Make outdoor effect smaller" onClick={() => resizeSelectedExteriorEffect(-2)} className="w-8 h-8 rounded-full" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}>−</button>
+          <span className="font-fantasy text-[9px] min-w-[34px] text-center" style={{ color: GOLD }}>{Math.round(selectedExteriorEffect.size)}%</span>
+          <button type="button" aria-label="Make outdoor effect larger" onClick={() => resizeSelectedExteriorEffect(2)} className="w-8 h-8 rounded-full" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}>+</button>
+          <button type="button" aria-label="Delete outdoor effect" onClick={deleteSelectedExteriorEffect} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(120,20,20,.7)", border: "1px solid rgba(255,100,100,.45)", color: "#ff9a9a" }}><Trash2 className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setSelectedExteriorEffectId(null)} className="rounded-full px-3 h-8 font-fantasy text-[9px]" style={{ background: "rgba(80,150,80,.18)", border: "1px solid rgba(120,220,120,.35)", color: "#a7f3b0" }}>Done</button>
+        </div>
+      )}
+
       {/* ── Draggable gift notification ! button ── */}
       {localBgUrl && imgWidth > 0 && (
         <button
