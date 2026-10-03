@@ -343,39 +343,231 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
   );
 }
 
-function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFish, onSubmitPet, isPending, isPetPending }: { inventory: InventoryItem[]; fishInventory: FishItem[]; onClose: () => void; onSubmit: (inventoryId: string, price: number) => void; onSubmitFish: (fishInventoryId: string, price: number) => void; onSubmitPet: (inventoryId: string, price: number) => void; isPending: boolean; isPetPending: boolean }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [kind, setKind] = useState<"items" | "fish" | "pets">("items");
+function SellItemModal({
+  inventory,
+  fishInventory,
+  homeDecorInventory,
+  homeBundles,
+  activeHouseBundleId,
+  onClose,
+  onSubmit,
+  onSubmitFish,
+  onSubmitPet,
+  onSubmitHomeDecor,
+  onSubmitHomeBundle,
+  isPending,
+  isPetPending,
+}: {
+  inventory: InventoryItem[];
+  fishInventory: FishItem[];
+  homeDecorInventory: MarketHomeDecorItem[];
+  homeBundles: MarketHomeBundleItem[];
+  activeHouseBundleId?: string | null;
+  onClose: () => void;
+  onSubmit: (inventoryId: string, price: number) => void;
+  onSubmitFish: (fishInventoryId: string, price: number) => void;
+  onSubmitPet: (inventoryId: string, price: number) => void;
+  onSubmitHomeDecor: (decorInventoryId: string, price: number) => void;
+  onSubmitHomeBundle: (ownershipId: string, price: number) => void;
+  isPending: boolean;
+  isPetPending: boolean;
+}) {
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [kind, setKind] = useState<GameItemGroupKey>("items");
+  const [category, setCategory] = useState<"all" | GameItemCategoryKey>("all");
   const [price, setPrice] = useState("");
   const [showPetConfirm, setShowPetConfirm] = useState(false);
-  const regular = inventory.filter(i => i.type !== "pet" && !i.isListed);
-  const pets = inventory.filter(i => i.type === "pet" && !i.isListed);
-  const fish = fishInventory.filter(i => !i.inAquarium);
-  const selectedItem = kind === "fish" ? fish.find(i => i.id === selectedId) : kind === "pets" ? pets.find(i => i.id === selectedId) : regular.find(i => i.id === selectedId);
+
+  const normalAssets: SellAsset[] = inventory
+    .filter(item => !item.isListed)
+    .map(item => ({
+      key: `inventory:${item.id}`,
+      id: item.id,
+      source: "inventory" as const,
+      category: getGameItemCategory({ type: item.type, fishingType: item.fishingType }),
+      name: item.petNickname || item.name,
+      imageUrl: item.type === "pet"
+        ? (item.isHatched ? item.hatchedImageUrl || item.imageUrl : item.eggImageUrl || item.imageUrl)
+        : item.imageUrl,
+      inventory: item,
+    }));
+
+  const caughtFishAssets: SellAsset[] = fishInventory
+    .filter(item => !item.inAquarium)
+    .map(item => ({
+      key: `fish:${item.id}`,
+      id: item.id,
+      source: "fish" as const,
+      category: "fish" as const,
+      name: item.item?.name || "Fish",
+      imageUrl: item.item?.imageUrl ?? null,
+    }));
+
+  // Objects already live in /api/inventory. Only merge the separate legacy
+  // Home Decor ownership table here so Home items do not appear twice.
+  const homeDecorAssets: SellAsset[] = homeDecorInventory
+    .filter(entry => entry.item?.type === "decor" && entry.quantity > 0)
+    .map(entry => ({
+      key: `home-decor:${entry.id}`,
+      id: entry.id,
+      source: "home_decor" as const,
+      category: "decor" as const,
+      name: entry.item.name,
+      imageUrl: entry.item.imageUrl,
+    }));
+
+  const homeBundleAssets: SellAsset[] = homeBundles.map(entry => ({
+    key: `home-bundle:${entry.id}`,
+    id: entry.id,
+    source: "home_bundle" as const,
+    category: "homes" as const,
+    name: entry.bundle.name,
+    imageUrl: entry.bundle.shopImageUrl ?? entry.bundle.bgImageUrl,
+  }));
+
+  const allAssets = [...normalAssets, ...caughtFishAssets, ...homeDecorAssets, ...homeBundleAssets];
+  const categoryOptions = gameItemCategoriesForGroup(kind);
+  const groupAssets = allAssets.filter(asset => getGameItemGroup(asset.category) === kind);
+  const list = groupAssets
+    .filter(asset => category === "all" || asset.category === category)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const selectedAsset = allAssets.find(asset => asset.key === selectedKey) ?? null;
+  const selectedPet = selectedAsset?.source === "inventory" && selectedAsset.inventory?.type === "pet"
+    ? selectedAsset.inventory
+    : undefined;
   const priceNum = parseInt(price, 10);
   const valid = Number.isFinite(priceNum) && priceNum >= 1 && priceNum <= 1000000;
-  const selectedPet = kind === "pets" ? selectedItem as InventoryItem | undefined : undefined;
-  const list = kind === "fish" ? fish : kind === "pets" ? pets : regular;
 
-  const nameFor = (item: any) => kind === "fish" ? item.item?.name || "Fish" : item.petNickname || item.name;
-  const imageFor = (item: any) => kind === "fish" ? item.item?.imageUrl : kind === "pets" ? (item.isHatched ? item.hatchedImageUrl || item.imageUrl : item.eggImageUrl || item.imageUrl) : item.imageUrl;
+  const counts = useMemo(() => Object.fromEntries(
+    GAME_ITEM_GROUPS.map(group => [
+      group.key,
+      allAssets.filter(asset => getGameItemGroup(asset.category) === group.key).length,
+    ]),
+  ) as Record<GameItemGroupKey, number>, [allAssets]);
 
   function submit() {
-    if (!selectedId || !valid) return;
-    if (kind === "pets") return setShowPetConfirm(true);
-    if (kind === "fish") onSubmitFish(selectedId, priceNum); else onSubmit(selectedId, priceNum);
+    if (!selectedAsset || !valid) return;
+    if (selectedPet) return setShowPetConfirm(true);
+    if (selectedAsset.source === "fish") return onSubmitFish(selectedAsset.id, priceNum);
+    if (selectedAsset.source === "home_decor") return onSubmitHomeDecor(selectedAsset.id, priceNum);
+    if (selectedAsset.source === "home_bundle") return onSubmitHomeBundle(selectedAsset.id, priceNum);
+    return onSubmit(selectedAsset.id, priceNum);
   }
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "calc(100% - 8px)", maxWidth: 390, maxHeight: "82vh", overflowY: "auto", borderRadius: 20, padding: 16, boxSizing: "border-box", background: "linear-gradient(160deg,rgba(14,6,27,.98),rgba(20,52,25,.98))", border: "2px solid rgba(214,166,58,.42)", boxShadow: "0 0 40px rgba(0,0,0,.7)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}><h2 style={{ margin: 0, color: cream, fontFamily: "Georgia, serif", fontSize: 18 }}>List Item for Sale</h2><button onClick={onClose} style={{ border: 0, background: "transparent", color: cream, fontSize: 20, cursor: "pointer" }}>×</button></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 5, marginBottom: 12 }}>{([['items', powerupBagIcon, regular.length], ['fish', fishInvIcon, fish.length], ['pets', eggMagicIcon, pets.length]] as const).map(([key, icon, count]) => <button key={key} data-testid={`button-sell-tab-${key}`} onClick={() => { setKind(key); setSelectedId(null); playTick(); }} style={{ ...artButtonStyle(kind === key), minWidth: 0, minHeight: 48, padding: "4px 2px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, fontSize: 9, lineHeight: 1.05, whiteSpace: "normal" }}><img src={icon} alt="" style={{ width: 14, height: 14, objectFit: "contain", flexShrink: 0 }} />{key === 'items' ? 'Items' : key === 'fish' ? 'Fish' : 'Pets'} ({count})</button>)}</div>
-        {list.length ? <div style={{ display: "grid", gridTemplateColumns: kind === "pets" ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: 8, maxHeight: 300, overflowY: "auto", padding: 2 }}>{list.map((item: any) => <button key={item.id} onClick={() => { setSelectedId(item.id); playClick(); }} style={{ borderRadius: 10, border: selectedId === item.id ? "2px solid #e9c164" : "1px solid rgba(255,255,255,.14)", background: selectedId === item.id ? "rgba(174,95,218,.18)" : "rgba(0,0,0,.22)", color: cream, minHeight: 92, padding: 7, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}><div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}>{imageFor(item) ? <img src={imageFor(item)} alt="" style={{ maxWidth: 56, maxHeight: 54, objectFit: "contain" }} /> : <img src={powerupBagIcon} alt="" style={{ width: 38, opacity: .6 }} />}</div><span style={{ fontFamily: "Georgia, serif", fontSize: 9, textAlign: "center" }}>{nameFor(item)}</span></button>)}</div> : <div style={{ color: "rgba(255,255,255,.5)", fontFamily: "Georgia, serif", textAlign: "center", padding: 25 }}>No {kind} to sell.</div>}
-        {selectedItem && <div style={{ marginTop: 14 }}><label style={{ display: "block", color: "rgba(255,255,255,.75)", fontSize: 11, marginBottom: 5 }}>Price (1–1,000,000 coins)</label><div style={{ display: "flex", alignItems: "center", gap: 6 }}><CoinIcon size={18} /><input data-testid="input-listing-price" type="number" min={1} max={1000000} value={price} onChange={e => setPrice(e.target.value)} placeholder="Enter price" style={{ flex: 1, borderRadius: 9, border: `1px solid ${valid || !price ? "rgba(225,190,90,.4)" : "#ff7d89"}`, background: "rgba(0,0,0,.3)", padding: "9px 11px", color: cream, outline: "none" }} /></div></div>}
-        <button data-testid="button-confirm-listing" disabled={!selectedItem || !valid || isPending || isPetPending} onClick={submit} style={{ ...artButtonStyle(!!selectedItem && valid), width: "100%", minHeight: 42, marginTop: 14, opacity: selectedItem && valid ? 1 : .5 }}>{isPending || isPetPending ? "Listing…" : "List for Sale"}</button>
+      <div onClick={e => e.stopPropagation()} style={{ width: "calc(100% - 8px)", maxWidth: 410, maxHeight: "84vh", overflowY: "auto", borderRadius: 20, padding: 16, boxSizing: "border-box", background: "linear-gradient(160deg,rgba(14,6,27,.98),rgba(20,52,25,.98))", border: "2px solid rgba(214,166,58,.42)", boxShadow: "0 0 40px rgba(0,0,0,.7)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0, color: cream, fontFamily: "Georgia, serif", fontSize: 18 }}>List Item for Sale</h2>
+          <button onClick={onClose} style={{ border: 0, background: "transparent", color: cream, fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div data-testid="market-sell-group-tabs" style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 5, marginBottom: 8 }}>
+          {GAME_ITEM_GROUPS.map(group => (
+            <button
+              key={group.key}
+              data-testid={`button-sell-tab-${group.key}`}
+              onClick={() => { setKind(group.key); setCategory("all"); setSelectedKey(null); playTick(); }}
+              style={{ ...artButtonStyle(kind === group.key), minWidth: 0, minHeight: 48, padding: "4px 2px", fontSize: 9, lineHeight: 1.05 }}
+            >
+              {group.label} ({counts[group.key] ?? 0})
+            </button>
+          ))}
+        </div>
+
+        <div data-testid="market-sell-category-tabs" style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6, marginBottom: 5 }}>
+          <button
+            type="button"
+            onClick={() => { setCategory("all"); setSelectedKey(null); }}
+            style={{ ...subFilterButtonStyle(category === "all"), minWidth: 70, minHeight: 28, padding: "0 7px", fontSize: 8.5, flexShrink: 0 }}
+          >
+            All {GAME_ITEM_GROUPS.find(group => group.key === kind)?.label}
+          </button>
+          {categoryOptions.map(option => (
+            <button
+              type="button"
+              key={option}
+              data-testid={`button-sell-category-${option}`}
+              onClick={() => { setCategory(option); setSelectedKey(null); }}
+              style={{ ...subFilterButtonStyle(category === option), minWidth: 76, minHeight: 28, padding: "0 7px", fontSize: 8.5, flexShrink: 0 }}
+            >
+              {GAME_ITEM_CATEGORY_LABELS[option]}
+            </button>
+          ))}
+        </div>
+
+        {list.length ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxHeight: 300, overflowY: "auto", padding: 2 }}>
+            {list.map(asset => {
+              const isActiveHome = asset.source === "home_bundle"
+                && homeBundles.find(entry => entry.id === asset.id)?.bundleId === activeHouseBundleId;
+              return (
+                <button
+                  key={asset.key}
+                  data-testid={`button-sell-asset-${asset.key.replace(/:/g, "-")}`}
+                  onClick={() => { setSelectedKey(asset.key); playClick(); }}
+                  style={{
+                    borderRadius: 10,
+                    border: selectedKey === asset.key ? "2px solid #e9c164" : "1px solid rgba(255,255,255,.14)",
+                    background: selectedKey === asset.key ? "rgba(174,95,218,.18)" : "rgba(0,0,0,.22)",
+                    color: cream,
+                    minHeight: 92,
+                    padding: 7,
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {asset.imageUrl
+                      ? <img src={asset.imageUrl} alt="" style={{ maxWidth: 56, maxHeight: 54, objectFit: "contain" }} />
+                      : <img src={powerupBagIcon} alt="" style={{ width: 38, opacity: .6 }} />}
+                  </div>
+                  <span style={{ fontFamily: "Georgia, serif", fontSize: 9, textAlign: "center" }}>{asset.name}</span>
+                  <span style={{ fontFamily: "Georgia, serif", fontSize: 7.5, color: isActiveHome ? "#ffad95" : "rgba(255,255,255,.48)", textAlign: "center" }}>
+                    {isActiveHome ? "Active Home — switch first" : GAME_ITEM_CATEGORY_LABELS[asset.category]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ color: "rgba(255,255,255,.5)", fontFamily: "Georgia, serif", textAlign: "center", padding: 25 }}>
+            No {category === "all" ? kind : GAME_ITEM_CATEGORY_LABELS[category]} to sell.
+          </div>
+        )}
+
+        {selectedAsset && (
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", color: "rgba(255,255,255,.75)", fontSize: 11, marginBottom: 5 }}>Price (1–1,000,000 coins)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <CoinIcon size={18} />
+              <input data-testid="input-listing-price" type="number" min={1} max={1000000} value={price} onChange={e => setPrice(e.target.value)} placeholder="Enter price" style={{ flex: 1, borderRadius: 9, border: `1px solid ${valid || !price ? "rgba(225,190,90,.4)" : "#ff7d89"}`, background: "rgba(0,0,0,.3)", padding: "9px 11px", color: cream, outline: "none" }} />
+            </div>
+          </div>
+        )}
+
+        <button
+          data-testid="button-confirm-listing"
+          disabled={!selectedAsset || !valid || isPending || isPetPending}
+          onClick={submit}
+          style={{ ...artButtonStyle(!!selectedAsset && valid), width: "100%", minHeight: 42, marginTop: 14, opacity: selectedAsset && valid ? 1 : .5 }}
+        >
+          {isPending || isPetPending ? "Listing…" : "List for Sale"}
+        </button>
       </div>
-      {showPetConfirm && selectedPet && <PetListingConfirmModal pet={selectedPet} isPending={isPetPending} onCancel={() => setShowPetConfirm(false)} onConfirm={() => { if (valid) onSubmitPet(selectedPet.id, priceNum); }} />}
+
+      {showPetConfirm && selectedPet && (
+        <PetListingConfirmModal
+          pet={selectedPet}
+          isPending={isPetPending}
+          onCancel={() => setShowPetConfirm(false)}
+          onConfirm={() => { if (valid) onSubmitPet(selectedPet.id, priceNum); }}
+        />
+      )}
     </div>
   );
 }
