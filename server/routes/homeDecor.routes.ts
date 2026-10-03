@@ -268,10 +268,18 @@ export function registerHomeDecorRoutes(
         safeEffectEnabled = effectEnabled === true;
       }
 
+      const placementPatch: Partial<{ xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean }> = {
+        xPct,
+        yPct,
+        size: safeSize,
+        flipped,
+      };
+      if (safeEffectEnabled !== undefined) placementPatch.effectEnabled = safeEffectEnabled;
+
       const row = await storage.updatePlacedHomeDecor(
         req.params.id as string,
         userId,
-        { xPct, yPct, size: safeSize, flipped, effectEnabled: safeEffectEnabled },
+        placementPatch,
       );
       return res.json(row);
     } catch (err: any) {
