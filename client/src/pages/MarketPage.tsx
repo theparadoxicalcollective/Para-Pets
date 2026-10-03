@@ -727,12 +727,53 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
               <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder="Search the market…" style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 4, marginBottom: 6 }}>{mainTabs.map(tab => <button key={tab.value} data-testid={`button-main-tab-${tab.value}`} onClick={() => { setMainTab(tab.value); playTick(); if (tab.value !== "items") setItemsSubFilter("items"); }} style={{ ...artButtonStyle(mainTab === tab.value), minWidth: 0, minHeight: 40, padding: "4px 3px", fontSize: "clamp(9px,2.7vw,11px)", lineHeight: 1.05, whiteSpace: "nowrap" }}>{tab.label}</button>)}</div>
+            <div
+              data-testid="market-browse-group-tabs"
+              style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 4, marginBottom: 6 }}
+            >
+              {mainTabs.map(tab => (
+                <button
+                  key={tab.value}
+                  data-testid={`button-main-tab-${tab.value}`}
+                  onClick={() => { setMainTab(tab.value); setMarketCategory("all"); playTick(); }}
+                  style={{ ...artButtonStyle(mainTab === tab.value), minWidth: 0, minHeight: 40, padding: "4px 2px", fontSize: "clamp(8px,2.3vw,10px)", lineHeight: 1.05, whiteSpace: "nowrap" }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-            {mainTab === "items" && <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>{ITEMS_SUB_FILTERS.map(sf => <button key={sf.value} data-testid={`button-sub-filter-${sf.value}`} onClick={() => { setItemsSubFilter(sf.value); playTick(); }} style={{ ...subFilterButtonStyle(itemsSubFilter === sf.value), minWidth: 82, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}>{sf.label}</button>)}</div>}
+            {mainTab !== "all" && (
+              <div data-testid="market-browse-category-tabs" style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>
+                <button
+                  type="button"
+                  onClick={() => { setMarketCategory("all"); playTick(); }}
+                  style={{ ...subFilterButtonStyle(marketCategory === "all"), minWidth: 78, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}
+                >
+                  All {GAME_ITEM_GROUPS.find(group => group.key === mainTab)?.label}
+                </button>
+                {marketCategoryOptions.map(category => (
+                  <button
+                    type="button"
+                    key={category}
+                    data-testid={`button-market-category-${category}`}
+                    onClick={() => { setMarketCategory(category); playTick(); }}
+                    style={{ ...subFilterButtonStyle(marketCategory === category), minWidth: 78, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}
+                  >
+                    {GAME_ITEM_CATEGORY_LABELS[category]}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div style={{ flex: 1, overflowY: "auto", padding: "3px 2px 20px", scrollbarWidth: "none" }}>
-              {marketQuery.isLoading ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div> : !marketQuery.data?.length ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>{marketQuery.data.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}</div>}
+              {marketQuery.isLoading
+                ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div>
+                : !visibleMarketListings.length
+                  ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div>
+                  : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>
+                      {visibleMarketListings.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}
+                    </div>}
             </div>
           </div>
         ) : (
@@ -746,7 +787,23 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
         )}
       </div>
 
-      {showSellModal && <SellItemModal inventory={inventoryQuery.data ?? []} fishInventory={fishInventoryQuery.data ?? []} onClose={() => setShowSellModal(false)} onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })} onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })} onSubmitPet={(inventoryId, price) => listPetMutation.mutate({ inventoryId, price })} isPending={listMutation.isPending || listFishMutation.isPending} isPetPending={listPetMutation.isPending} />}
+      {showSellModal && (
+        <SellItemModal
+          inventory={inventoryQuery.data ?? []}
+          fishInventory={fishInventoryQuery.data ?? []}
+          homeDecorInventory={homeDecorInventoryQuery.data ?? []}
+          homeBundles={homeBundlesQuery.data ?? []}
+          activeHouseBundleId={user?.activeHouseBundleId ?? null}
+          onClose={() => setShowSellModal(false)}
+          onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })}
+          onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })}
+          onSubmitPet={(inventoryId, price) => listPetMutation.mutate({ inventoryId, price })}
+          onSubmitHomeDecor={(decorInventoryId, price) => listHomeDecorMutation.mutate({ decorInventoryId, price })}
+          onSubmitHomeBundle={(ownershipId, price) => listHomeBundleMutation.mutate({ ownershipId, price })}
+          isPending={listMutation.isPending || listFishMutation.isPending || listHomeDecorMutation.isPending || listHomeBundleMutation.isPending}
+          isPetPending={listPetMutation.isPending}
+        />
+      )}
       {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
       {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
     </div>
