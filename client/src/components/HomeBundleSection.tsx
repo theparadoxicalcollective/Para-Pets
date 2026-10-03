@@ -563,6 +563,29 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
   useEffect(() => { containerHRef.current = containerH; }, [containerH]);
   useEffect(() => { panXRef.current = panX; }, [panX]);
 
+  // ── Outdoor visual effects ──
+  const exteriorEffectsRef = useRef<HouseInteriorEffect[]>(bundle.exteriorEffects ?? []);
+  const [exteriorEffects, setExteriorEffects] = useState<HouseInteriorEffect[]>(bundle.exteriorEffects ?? []);
+  const [selectedExteriorEffectId, setSelectedExteriorEffectId] = useState<string | null>(null);
+  const [showExteriorEffectsMenu, setShowExteriorEffectsMenu] = useState(false);
+  const exteriorEffectsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const exteriorEffectDragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    startEffectX: number;
+    startEffectY: number;
+    pid: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const next = bundle.exteriorEffects ?? [];
+    exteriorEffectsRef.current = next;
+    setExteriorEffects(next);
+    setSelectedExteriorEffectId(null);
+    setShowExteriorEffectsMenu(false);
+  }, [bundle.id]);
+
   // ── Building editor state ──
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [topmostId, setTopmostId] = useState<string | null>(null);
