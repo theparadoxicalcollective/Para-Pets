@@ -24,6 +24,8 @@ function setup(overrides: Record<string, unknown> = {}) {
     cancelListing: async () => undefined,
     collectProceeds: async () => ({}),
     createFishListing: async () => ({}),
+    createHomeDecorListing: async () => ({}),
+    createHomeBundleListing: async () => ({}),
     createInventoryListing: async () => ({}),
     ...overrides,
   };
@@ -50,12 +52,14 @@ test("marketplace extraction registers every legacy route once in original order
     ["POST", "/api/market/list"],
     ["POST", "/api/market/list-pet"],
     ["POST", "/api/market/list-fish"],
+    ["POST", "/api/market/list-home-decor"],
+    ["POST", "/api/market/list-home-bundle"],
     ["POST", "/api/market/:listingId/buy"],
     ["POST", "/api/market/:listingId/collect"],
     ["DELETE", "/api/market/:listingId"],
     ["POST", "/api/market/buy-slot"],
   ]);
-  assert.equal(new Set(routes.map(({ method, path }) => `${method} ${path}` )).size, 11);
+  assert.equal(new Set(routes.map(({ method, path }) => `${method} ${path}` )).size, 13);
   assert.ok(routes.every(route => route.handlers[0] === authenticated));
   assert.ok(routes.every(route => route.handlers.length === 2));
 });
@@ -100,4 +104,32 @@ test("pet listing route prepares the egg inside the transaction service", async 
     price: 250,
     preparePetEgg: true,
   }]);
+});
+
+
+test("Home market listing routes use session ownership and opaque inventory identifiers", async () => {
+  const calls: unknown[] = [];
+  const routes = setup({
+    createHomeDecorListing: async (input: unknown) => { calls.push(input); return { id: "listing-decor" }; },
+    createHomeBundleListing: async (input: unknown) => { calls.push(input); return { id: "listing-home" }; },
+  });
+
+  const decorRoute = routes.find(candidate => candidate.path === "/api/market/list-home-decor")!;
+  const decorRes = response();
+  await decorRoute.handlers[1]({
+    user: { id: "seller" },
+    body: { decorInventoryId: "decor-inv", price: 120 },
+  } as any, decorRes, () => undefined);
+
+  const homeRoute = routes.find(candidate => candidate.path === "/api/market/list-home-bundle")!;
+  const homeRes = response();
+  await homeRoute.handlers[1]({
+    user: { id: "seller" },
+    body: { ownershipId: "home-own", price: 900 },
+  } as any, homeRes, () => undefined);
+
+  assert.deepEqual(calls, [
+    { actorId: "seller", decorInventoryId: "decor-inv", price: 120 },
+    { actorId: "seller", ownershipId: "home-own", price: 900 },
+  ]);
 });
