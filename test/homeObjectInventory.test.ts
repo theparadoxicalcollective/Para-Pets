@@ -39,6 +39,7 @@ test("home inventory combines legacy Decor with owned Object shop items", () => 
 
   assert.match(transactions, /eq\(shopItems\.type, "object"\)/);
   assert.match(transactions, /from\(userInventory\)/);
+  assert.match(transactions, /eq\(userInventory\.isListed, false\)/);
   assert.match(transactions, /insert\(userInventory\)\.values\(\{ userId, shopItemId: placement\.decorItemId, quantity: 1 \}\)/);
 });
 
