@@ -37,24 +37,26 @@ const placement = (
   },
 });
 
-test("Home catalog effects allow Lamp Light and Tap Image only for Objects, and Sleep Spot only for Decor", () => {
+test("Home catalog effects allow Lamp Light on Objects or Decor, Tap Image on Objects, and Sleep Spot on Decor", () => {
   assert.equal(sanitizeHomeCatalogEffect("object", "lamp_light"), "lamp_light");
   assert.equal(sanitizeHomeCatalogEffect("object", "tap"), "tap");
   assert.equal(sanitizeHomeCatalogEffect("object", "sleep"), null);
   assert.equal(sanitizeHomeCatalogEffect("decor", "sleep"), "sleep");
-  assert.equal(sanitizeHomeCatalogEffect("decor", "lamp_light"), null);
+  assert.equal(sanitizeHomeCatalogEffect("decor", "lamp_light"), "lamp_light");
   assert.equal(sanitizeHomeCatalogEffect("decor", "tap"), null);
   assert.equal(sanitizeHomeCatalogEffect("decor", null), null);
 
   assert.equal(isTapEffectHomeItem(placement("lamp", "object", "lamp_light", true)), true);
   assert.equal(isTapEffectHomeItem(placement("switch", "object", "tap", true, "/tap.png")), true);
   assert.equal(isTapEffectHomeItem(placement("bed", "decor", "sleep")), false);
+  assert.equal(isTapEffectHomeItem(placement("decor-lamp", "decor", "lamp_light", true)), true);
   assert.equal(isLampLightHomeItem(placement("lamp", "object", "lamp_light")), true);
+  assert.equal(isLampLightHomeItem(placement("decor-lamp", "decor", "lamp_light")), true);
   assert.equal(isLampLightHomeItem(placement("switch", "object", "tap", true, "/tap.png")), false);
   assert.equal(isSleepEffectHomeItem(placement("bed", "decor", "sleep")), true);
 });
 
-test("placed Lamp Light follows its Object and Tap Image Objects never create a lamp glow", () => {
+test("placed Lamp Light follows either an Object or Decor and Tap Image Objects never create a lamp glow", () => {
   const lamp = placement("lamp-copy", "object", "lamp_light", false);
   assert.deepEqual(buildHomeLampItemEffects([lamp], 800), []);
 
@@ -67,6 +69,10 @@ test("placed Lamp Light follows its Object and Tap Image Objects never create a 
 
   const tapObject = placement("tap-copy", "object", "tap", true, "/tap.png");
   assert.deepEqual(buildHomeLampItemEffects([tapObject], 800), []);
+
+  const decorLamp = placement("decor-lamp-copy", "decor", "lamp_light", true);
+  const [decorEffect] = buildHomeLampItemEffects([decorLamp], 800);
+  assert.equal(decorEffect.id, "home-item-lamp:decor-lamp-copy");
 
   const visitorOverride = buildHomeLampItemEffects([lamp], 800, () => true);
   assert.equal(visitorOverride.length, 1);
@@ -93,7 +99,7 @@ test("Sleep Spot is anchored to Decor and can participate in the existing pet dr
   assert.equal(effect.y, 0.58);
 });
 
-test("Admin uses the shared sizing editor and exposes Lamp, Tap Image, and Sleep effect controls", () => {
+test("Admin uses the shared sizing editor and exposes Decor Sleep/Lamp plus Object Lamp/Tap controls", () => {
   const admin = read("client/src/components/HomeBundleSection.tsx");
   const editor = read("client/src/components/HomeSceneSizeEditor.tsx");
 
@@ -101,6 +107,8 @@ test("Admin uses the shared sizing editor and exposes Lamp, Tap Image, and Sleep
   assert.match(editor, /effect: "lamp_light"/);
   assert.match(editor, /effect: "tap"/);
   assert.match(editor, /effect: "sleep"/);
+  assert.match(editor, /Choose Sleep Spot or Lamp Light/);
+  assert.match(editor, /safe-area-inset-top/);
   assert.match(editor, /effect-chip-lamp-light/);
   assert.match(editor, /effect-chip-tap-image/);
   assert.match(editor, /effect-chip-sleep-spot/);
@@ -131,7 +139,8 @@ test("Tap artwork and per-placement Object state persist independently", () => {
   assert.match(routes, /homeTapImageData/);
   assert.match(routes, /processWorldImage\(req\.body\.homeTapImageData, 2000\)/);
   assert.match(routes, /Tap effect requires an alternate Tap image/);
-  assert.match(routes, /placement\.item\.homeEffect !== "lamp_light" && placement\.item\.homeEffect !== "tap"/);
+  assert.match(routes, /const isLampToggle = placement\.item\.homeEffect === "lamp_light"/);
+  assert.match(routes, /const isTapImageToggle = placement\.item\.type === "object" && placement\.item\.homeEffect === "tap"/);
   assert.match(storage, /effectEnabled: boolean/);
   assert.match(storage, /homeTapImageUrl: string \| null/);
   assert.match(storage, /itemHomeTapImageUrl: shopItems\.homeTapImageUrl/);
