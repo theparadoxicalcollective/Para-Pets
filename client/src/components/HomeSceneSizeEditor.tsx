@@ -95,6 +95,7 @@ export function HomeSceneSizeEditor({
       ]
     : [
         { effect: "sleep", label: "Sleep Spot", description: "Drag a pet onto the Decor to activate its sleep spot." },
+        { effect: "lamp_light", label: "Lamp Light", description: "Tap the placed Decor to turn its attached lamp glow on or off." },
       ];
   const selectedEffectLabel = effectOptions.find(option => option.effect === homeEffect)?.label ?? null;
 
@@ -148,14 +149,19 @@ export function HomeSceneSizeEditor({
       data-testid="home-scene-size-editor"
     >
       <div
-        className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(10,12,8,0.96)", borderBottom: "1px solid rgba(255,215,0,0.24)" }}
+        className="flex items-center justify-between px-4 pb-3"
+        style={{
+          paddingTop: "max(16px, calc(env(safe-area-inset-top, 0px) + 12px))",
+          background: "rgba(7,10,6,0.985)",
+          borderBottom: "1px solid rgba(255,215,0,0.34)",
+          boxShadow: "0 8px 22px rgba(0,0,0,0.34)",
+        }}
       >
         <div>
-          <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "rgba(255,215,0,0.55)" }}>
+          <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(255,225,95,0.82)", textShadow: "0 1px 5px rgba(0,0,0,0.95)" }}>
             Fall Home size preview
           </p>
-          <p className="font-fantasy text-sm tracking-wide" style={{ color: "#ffd700" }}>
+          <p className="font-fantasy text-base tracking-wide" style={{ color: "#ffe34f", textShadow: "0 1px 7px rgba(0,0,0,0.95)" }}>
             {item.name}
           </p>
         </div>
@@ -313,7 +319,7 @@ export function HomeSceneSizeEditor({
               <p className="font-fantasy text-[8px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,.42)" }}>
                 {itemLabel === "Object"
                   ? "Choose Lamp Light or Tap Image. A normal player tap activates the saved Object effect while dragging still moves the item."
-                  : "Drag Sleep Spot onto the decor. Players activate it by dragging a pet onto that decor."}
+                  : "Choose Sleep Spot or Lamp Light. Sleep Spot activates when a pet is dragged onto the Decor; Lamp Light toggles with a normal tap."}
               </p>
             </div>
             {homeEffect && (
