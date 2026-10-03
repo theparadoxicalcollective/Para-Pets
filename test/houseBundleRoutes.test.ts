@@ -62,7 +62,7 @@ async function call(
   return res;
 }
 
-function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean } = {}) {
+function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean; lightingBuilding?: any } = {}) {
   const app = new RouteRecorder();
   let activeBundleId = options.activeBundleId ?? null;
   const calls: any = {
@@ -76,6 +76,7 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean }
     unassignedBundles: [],
     storedScenes: [],
     activeChanges: [],
+    lightingUpdates: [],
   };
 
   const storage: any = {
@@ -89,6 +90,15 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean }
     setActiveHouseBundle: async (userId: string, bundleId: string | null) => {
       calls.activeChanges.push([userId, bundleId]);
       activeBundleId = bundleId;
+    },
+    updateUserHouseLighting: async (userId: string, bundleId: string, patch: any) => {
+      calls.lightingUpdates.push([userId, bundleId, patch]);
+      return {
+        outdoorMode: patch.outdoorMode ?? "auto",
+        offInteriorEffectIds: patch.buildingId && patch.effectId && patch.off
+          ? { [patch.buildingId]: [patch.effectId] }
+          : {},
+      };
     },
     createHouseBundle: async (data: any) => {
       calls.createdBundles.push(data);
@@ -110,7 +120,7 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean }
       return { id, ...data };
     },
     deleteHouseBundleBuilding: async () => undefined,
-    getHouseBundleBuilding: async () => null,
+    getHouseBundleBuilding: async () => options.lightingBuilding ?? null,
     getLocationHouseBundles: async (locationId: string) => {
       calls.locationBundles.push(locationId);
       return [
@@ -150,6 +160,7 @@ const expected = [
   "GET /api/house-bundles",
   "GET /api/users/:userId/house-bundles",
   "GET /api/users/:userId/active-house-bundle",
+  "PATCH /api/house-bundles/:bundleId/player-lighting",
   "POST /api/house-bundles/:bundleId/purchase",
   "POST /api/house-bundles/:bundleId/activate",
   "POST /api/house-bundles/deactivate",
@@ -204,6 +215,94 @@ test("player purchase route keeps its existing request-level authentication chec
     [res.statusCode, res.body],
     [401, { message: "Unauthorized" }],
   );
+});
+
+test("player lighting route keeps Home settings owner-scoped and validates overrides", async () => {
+  const unauth = setup({ ownsBundle: true });
+  const unauthRes = await call(unauth.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => false,
+    params: { bundleId: "bundle-1" },
+    body: { outdoorMode: "night" },
+  });
+  assert.deepEqual([unauthRes.statusCode, unauthRes.body], [401, { message: "Unauthorized" }]);
+
+  const notOwned = setup({ ownsBundle: false });
+  const notOwnedRes = await call(notOwned.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => true,
+    user: { id: "player-1" },
+    params: { bundleId: "bundle-1" },
+    body: { outdoorMode: "night" },
+  });
+  assert.deepEqual([notOwnedRes.statusCode, notOwnedRes.body], [403, { message: "Bundle not owned" }]);
+
+  const invalid = setup({ ownsBundle: true });
+  const invalidRes = await call(invalid.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => true,
+    user: { id: "player-1" },
+    params: { bundleId: "bundle-1" },
+    body: { outdoorMode: "midnight" },
+  });
+  assert.deepEqual([invalidRes.statusCode, invalidRes.body], [400, { message: "outdoorMode must be auto, day, or night" }]);
+
+  const valid = setup({ ownsBundle: true });
+  const validRes = await call(valid.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => true,
+    user: { id: "player-1" },
+    params: { bundleId: "bundle-1" },
+    body: { outdoorMode: "night" },
+  });
+  assert.equal(validRes.statusCode, 200);
+  assert.deepEqual(valid.calls.lightingUpdates, [["player-1", "bundle-1", { outdoorMode: "night" }]]);
+  assert.equal(validRes.body.playerLighting.outdoorMode, "night");
+});
+
+test("player interior light updates validate the exact saved building effect", async () => {
+  const light = { id: "lamp-1", type: "warm_glow", x: 0.5, y: 0.5, size: 18 };
+  const valid = setup({
+    ownsBundle: true,
+    lightingBuilding: { id: "building-1", bundleId: "bundle-1", interiorEffects: [light] },
+  });
+  const res = await call(valid.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => true,
+    user: { id: "player-1" },
+    params: { bundleId: "bundle-1" },
+    body: { buildingId: "building-1", effectId: "lamp-1", off: true },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(valid.calls.lightingUpdates, [[
+    "player-1",
+    "bundle-1",
+    { buildingId: "building-1", effectId: "lamp-1", off: true },
+  ]]);
+  assert.deepEqual(res.body.playerLighting.offInteriorEffectIds, { "building-1": ["lamp-1"] });
+
+  const wrongBuilding = setup({
+    ownsBundle: true,
+    lightingBuilding: { id: "building-1", bundleId: "other-bundle", interiorEffects: [light] },
+  });
+  const wrongRes = await call(wrongBuilding.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => true,
+    user: { id: "player-1" },
+    params: { bundleId: "bundle-1" },
+    body: { buildingId: "building-1", effectId: "lamp-1", off: true },
+  });
+  assert.deepEqual([wrongRes.statusCode, wrongRes.body], [404, { message: "Building not found" }]);
+
+  const nonLight = setup({
+    ownsBundle: true,
+    lightingBuilding: {
+      id: "building-1",
+      bundleId: "bundle-1",
+      interiorEffects: [{ id: "mist-1", type: "soft_mist", x: 0.5, y: 0.5, size: 18 }],
+    },
+  });
+  const nonLightRes = await call(nonLight.app, "PATCH", "/api/house-bundles/:bundleId/player-lighting", {
+    isAuthenticated: () => true,
+    user: { id: "player-1" },
+    params: { bundleId: "bundle-1" },
+    body: { buildingId: "building-1", effectId: "mist-1", off: true },
+  });
+  assert.deepEqual([nonLightRes.statusCode, nonLightRes.body], [404, { message: "Light effect not found" }]);
 });
 
 test("switching Home Bundles stores the old scene before activating the new bundle", async () => {
