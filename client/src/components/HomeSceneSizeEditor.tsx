@@ -42,7 +42,8 @@ export function HomeSceneSizeEditor({
   const [effectGhost, setEffectGhost] = useState<{ x: number; y: number } | null>(null);
   const [dropReady, setDropReady] = useState(false);
   const effectTargetRef = useRef<HTMLDivElement>(null);
-  const effectDragRef = useRef<{ pid: number } | null>(null);
+  const effectDragRef = useRef<{ pid: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const effectSuppressClickRef = useRef(false);
 
   useEffect(() => {
     setSize(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
@@ -93,7 +94,7 @@ export function HomeSceneSizeEditor({
     event.preventDefault();
     event.stopPropagation();
     safeSetPointerCapture(event.currentTarget, event.pointerId);
-    effectDragRef.current = { pid: event.pointerId };
+    effectDragRef.current = { pid: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
     setEffectGhost({ x: event.clientX, y: event.clientY });
     setDropReady(pointInsideTarget(event.clientX, event.clientY));
   };
@@ -103,6 +104,7 @@ export function HomeSceneSizeEditor({
     if (!drag || drag.pid !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5) drag.moved = true;
     setEffectGhost({ x: event.clientX, y: event.clientY });
     setDropReady(pointInsideTarget(event.clientX, event.clientY));
   };
@@ -112,6 +114,10 @@ export function HomeSceneSizeEditor({
     effectDragRef.current = null;
     if (drag?.pid === event.pointerId && event.type === "pointerup" && pointInsideTarget(event.clientX, event.clientY)) {
       setHomeEffect(availableEffect);
+    }
+    if (drag?.moved) {
+      effectSuppressClickRef.current = true;
+      window.setTimeout(() => { effectSuppressClickRef.current = false; }, 0);
     }
     setEffectGhost(null);
     setDropReady(false);
@@ -313,7 +319,10 @@ export function HomeSceneSizeEditor({
             onPointerUp={endEffectDrag}
             onPointerCancel={endEffectDrag}
             onLostPointerCapture={endEffectDrag}
-            onClick={() => setHomeEffect(availableEffect)}
+            onClick={() => {
+              if (effectSuppressClickRef.current) return;
+              setHomeEffect(availableEffect);
+            }}
             className="w-full rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 font-fantasy text-[10px]"
             style={{
               background: homeEffect === availableEffect ? "rgba(255,215,0,.16)" : "rgba(255,255,255,.035)",
