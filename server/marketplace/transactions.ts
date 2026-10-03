@@ -139,7 +139,7 @@ export async function createFishListing(input: { actorId: string; fishInventoryI
 
 export async function createHomeDecorListing(input: { actorId: string; decorInventoryId: string; price: number }): Promise<PlayerMarketListing> {
   assertPrice(input.price);
-  return db.transaction(async tx => {
+  return db.transaction(async (tx) => {
     const actor = await lockUser(tx, input.actorId);
     const [inventory] = await tx.select().from(userHomeDecorInventory)
       .where(eq(userHomeDecorInventory.id, input.decorInventoryId)).for("update");
@@ -182,7 +182,7 @@ export async function createHomeDecorListing(input: { actorId: string; decorInve
 
 export async function createHomeBundleListing(input: { actorId: string; ownershipId: string; price: number }): Promise<PlayerMarketListing> {
   assertPrice(input.price);
-  return db.transaction(async tx => {
+  return db.transaction(async (tx) => {
     const actor = await lockUser(tx, input.actorId);
     const [ownership] = await tx.select().from(userHouseBundles)
       .where(eq(userHouseBundles.id, input.ownershipId)).for("update");
