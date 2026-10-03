@@ -473,10 +473,12 @@ function InteriorViewer({
   const [popupPetId, setPopupPetId] = useState<string | null>(null);
   const [topPetId, setTopPetId] = useState<string | null>(null);
   const [topItemId, setTopItemId] = useState<string | null>(null);
-  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number } | null>(null);
+  const itemTapRef = useRef<{ id: string; at: number } | null>(null);
+  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const petTapRef = useRef<{ id: string; at: number } | null>(null);
   const popupPet = placedPets.find(pet => pet.inventoryId === popupPetId) ?? null;
   const popupPetLivePosition = popupPet && petDragLive?.inventoryId === popupPet.inventoryId ? petDragLive : null;
 
@@ -560,24 +562,34 @@ function InteriorViewer({
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    if (selectedItemId !== item.id) {
-      setSelectedItemId(item.id);
-      setPopupPetId(null);
-      setTopItemId(item.id);
-      return;
-    }
-    playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    itemDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-  }, [selectedItemId]);
+    itemDragRef.current = {
+      id: item.id,
+      startXPct: item.xPct,
+      startYPct: item.yPct,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      pid: e.pointerId,
+      moved: false,
+    };
+  }, []);
 
   const onItemMove = useCallback((e: React.PointerEvent) => {
     const drag = itemDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setSelectedItemId(null);
+      setPopupPetId(null);
+    }
+    if (!drag.moved) return;
     setItemDragLive({
       id: drag.id,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current)),
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
+      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + dy / containerHRef.current)),
     });
   }, []);
 
@@ -585,25 +597,30 @@ function InteriorViewer({
     const drag = itemDragRef.current;
     itemDragRef.current = null;
     setItemDragLive(null);
-    if (!drag || imgWidthRef.current <= 0) return;
+    if (!drag || imgWidthRef.current <= 0 || e.type === "pointercancel") return;
+
+    if (!drag.moved) {
+      const now = Date.now();
+      if (isSecondHomeEditTap(itemTapRef.current, drag.id, now)) {
+        itemTapRef.current = null;
+        setSelectedItemId(drag.id);
+        setPopupPetId(null);
+        setTopItemId(drag.id);
+      } else {
+        itemTapRef.current = { id: drag.id, at: now };
+      }
+      return;
+    }
+
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
-      setTopItemId(drag.id);
-      onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
-    }
+    setTopItemId(drag.id);
+    onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
   }, [onUpdateItem]);
 
   // Pet drag handlers
   const onPetDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
-    if (popupPetId !== pet.inventoryId) {
-      setPopupPetId(pet.inventoryId);
-      setSelectedItemId(null);
-      setTopPetId(pet.inventoryId);
-      return;
-    }
-    playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
@@ -616,17 +633,27 @@ function InteriorViewer({
       scalePct: clampPetHousePlayerScale(pet.homeScalePct ?? 100),
       flipped: !!pet.homeFlipped,
       pid: e.pointerId,
+      moved: false,
     };
-  }, [popupPetId]);
+  }, []);
 
   const onPetMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setPopupPetId(null);
+      setSelectedItemId(null);
+    }
+    if (!drag.moved) return;
     const maxY = maxYForHeight(containerHRef.current);
     setPetDragLive({
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current)),
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
+      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + dy / containerHRef.current)),
     });
   }, []);
 
