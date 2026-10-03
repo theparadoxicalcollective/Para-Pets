@@ -27,6 +27,7 @@ import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
+import PetFireReaction from "@/components/PetFireReaction";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
@@ -48,7 +49,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -688,9 +689,6 @@ function InteriorViewer({
       rawXPct,
       rawYPct,
       imgWidthRef.current / Math.max(containerHRef.current, 1),
-      0.5,
-      visiblePetSize / 2 / imgWidthRef.current,
-      visiblePetSize / 2 / Math.max(containerHRef.current, 1),
     );
     const sleepEffect = sleepSnap ? effects.find(effect => effect.id === sleepSnap.effectId) : null;
     const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerHRef.current, 1);
@@ -806,15 +804,23 @@ function InteriorViewer({
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
+        const imageAspect = imgWidth / Math.max(containerH, 1);
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect);
         const petBrightness = (100 - petDarkness) / 100;
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
-        const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
+        const isOnFire = isHouseInteriorPointOverActiveFire(
+          effects,
+          offEffectIds,
+          xPct,
+          yPct,
+          imageAspect,
+        );
+        const isSleeping = !isOnFire && !isActivelyDragging && isHouseInteriorSleepPosition(
           effects,
           xPct,
           yPct,
-          imgWidth / Math.max(containerH, 1),
+          imageAspect,
         );
         return (
           <div
@@ -835,7 +841,7 @@ function InteriorViewer({
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
-                  mode={isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
+                  mode={isOnFire ? "sleep" : isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
@@ -851,6 +857,7 @@ function InteriorViewer({
                 />
               ) : null}
               {isSleeping && <PetSleepZzz />}
+              {isOnFire && <PetFireReaction />}
             </div>
           </div>
         );
@@ -1320,9 +1327,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 rawXPct,
                 rawYPct,
                 interior.imgWidth / Math.max(interior.containerH, 1),
-                0.5,
-                visiblePetSize / 2 / interior.imgWidth,
-                visiblePetSize / 2 / Math.max(interior.containerH, 1),
               );
               const sleepEffect = sleepSnap
                 ? openInterior.interiorEffects.find(effect => effect.id === sleepSnap.effectId)
