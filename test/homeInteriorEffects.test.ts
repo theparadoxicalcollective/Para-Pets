@@ -147,7 +147,7 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /env\(safe-area-inset-top, 0px\)/);
   assert.match(source, /max\(64px, calc\(env\(safe-area-inset-top, 0px\) \+ 34px\)\)/);
   assert.match(source, /slider-interior-darkness/);
-  assert.match(source, /HomeInteriorDarknessLayer darkness=\{darkness\}/);
+  assert.match(source, /<HomeInteriorDarknessLayer[\s\S]{0,240}darkness=\{darkness\}/);
   assert.match(source, /interiorDarkness: selBuilding\.interiorDarkness \?\? 0/);
   assert.match(source, /interiorPreviewSaveQueueRef/);
   assert.match(source, /updateBuildingCache/);
@@ -157,6 +157,28 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
   assert.doesNotMatch(source, /await refetch\(\);[\s\S]{0,120}Failed to save effect/);
   assert.match(source, /\}, \[buildingId\]\);/);
+});
+
+test("player building exits use a world-style sparkle while Admin keeps the movable Outside marker", () => {
+  const effects = read("client/src/components/HomeInteriorEffect.tsx");
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  const admin = read("client/src/components/HomeBundleSection.tsx");
+
+  assert.match(effects, /function HomeInteriorExitSparkle/);
+  assert.match(effects, /para-home-exit-sparkle-pulse/);
+  assert.match(effects, /para-home-exit-sparkle-twinkle/);
+  assert.match(effects, /linear-gradient\(135deg, #fffce8 8%, #ffe68a 45%, #ffb51f 100%\)/);
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /HomeInteriorExitSparkle/);
+    assert.match(source, /data-testid="button-interior-exit-sparkle"/);
+    assert.match(source, /aria-label="Outside"/);
+    assert.match(source, /background: "transparent"/);
+    assert.match(source, /<HomeInteriorExitSparkle \/>/);
+  }
+
+  assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,900}>\s*Outside\s*<\/button>/);
 });
 
 test("campfire is flame-only and candle light remains a distinct renderer", () => {
