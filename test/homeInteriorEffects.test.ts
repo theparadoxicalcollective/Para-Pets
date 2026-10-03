@@ -395,7 +395,7 @@ test("saved room darkness is cut away locally around active lights without addin
   const admin = read("client/src/components/HomeBundleSection.tsx");
 
   for (const source of [owner, visitor]) {
-    assert.match(source, /<HomeInteriorDarknessLayer[\s\S]*effects=\{effects\}[\s\S]*offEffectIds=\{offEffectIds\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerH\}[\s\S]*zIndex=\{2\}/);
+    assert.match(source, /<HomeInteriorDarknessLayer[\s\S]*effects=\{roomLightEffects\}[\s\S]*offEffectIds=\{offEffectIds\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerH\}[\s\S]*zIndex=\{2\}/);
     assert.match(source, /darkness=\{openInterior\.interiorDarkness\}/);
   }
 
