@@ -578,22 +578,30 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const [activeTab, setActiveTab] = useState<"browse" | "myshop">("browse");
   const [search, setSearch] = useState("");
   const [mainTab, setMainTab] = useState<MainTab>("all");
-  const [itemsSubFilter, setItemsSubFilter] = useState("items");
+  const [marketCategory, setMarketCategory] = useState<"all" | GameItemCategoryKey>("all");
   const [showSellModal, setShowSellModal] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Listing | null>(null);
 
-  const effectiveItemType = mainTab === "all" ? "all" : mainTab === "pets" ? "pet_egg" : mainTab === "fish" ? "fish" : itemsSubFilter;
-
   const marketQuery = useQuery<Listing[]>({
-    queryKey: ["/api/market", search, effectiveItemType],
+    queryKey: ["/api/market", search],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (effectiveItemType !== "all") params.set("itemType", effectiveItemType);
       return fetch(`/api/market?${params}`).then(r => r.json());
     },
     refetchInterval: 15000,
   });
+
+  const visibleMarketListings = useMemo(() => {
+    const rows = marketQuery.data ?? [];
+    return rows.filter(listing => {
+      const category = getGameItemCategory({ itemType: listing.itemType });
+      if (mainTab !== "all" && getGameItemGroup(category) !== mainTab) return false;
+      return marketCategory === "all" || category === marketCategory;
+    });
+  }, [marketQuery.data, mainTab, marketCategory]);
+
+  const marketCategoryOptions = mainTab === "all" ? [] : gameItemCategoriesForGroup(mainTab);
 
   const myListingsQuery = useQuery<Listing[]>({
     queryKey: ["/api/market/my-listings"],
@@ -605,11 +613,45 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   });
   const inventoryQuery = useQuery<InventoryItem[]>({ queryKey: ["/api/inventory"], enabled: showSellModal });
   const fishInventoryQuery = useQuery<FishItem[]>({ queryKey: ["/api/fishing/inventory"], enabled: showSellModal });
+  const homeDecorInventoryQuery = useQuery<MarketHomeDecorItem[]>({ queryKey: ["/api/pet-house/decor/inventory"], enabled: showSellModal });
+  const homeBundlesQuery = useQuery<MarketHomeBundleItem[]>({
+    queryKey: ["/api/users", user?.id, "house-bundles"],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${user?.id}/house-bundles`, { credentials: "include" });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: showSellModal && !!user?.id,
+  });
 
   const listMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Listed!", description: "Your item is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }) });
   const listFishMutation = useMutation({ mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Fish listed!", description: "Your fish is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }) });
   const listPetMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-pet", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] }); toast({ title: "Pet listed!", description: "Your pet is safely held by the market until it is bought or returned." }); }, onError: (e: any) => toast({ title: "Failed to list pet", description: e.message, variant: "destructive" }) });
-  const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
+  const listHomeDecorMutation = useMutation({
+    mutationFn: ({ decorInventoryId, price }: { decorInventoryId: string; price: number }) =>
+      apiRequest("POST", "/api/market/list-home-decor", { decorInventoryId, price }),
+    onSuccess: () => {
+      setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+      toast({ title: "Home Decor listed!", description: "Your decoration is now on the market." });
+    },
+    onError: (e: any) => toast({ title: "Failed to list Home Decor", description: e.message, variant: "destructive" }),
+  });
+  const listHomeBundleMutation = useMutation({
+    mutationFn: ({ ownershipId, price }: { ownershipId: string; price: number }) =>
+      apiRequest("POST", "/api/market/list-home-bundle", { ownershipId, price }),
+    onSuccess: () => {
+      setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "house-bundles"] });
+      toast({ title: "Home listed!", description: "Your Home bundle is now on the market." });
+    },
+    onError: (e: any) => toast({ title: "Failed to list Home", description: e.message, variant: "destructive" }),
+  });
+  const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "house-bundles"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
   const collectMutation = useMutation({
     mutationFn: async (listingId: string) => {
       const response = await apiRequest("POST", `/api/market/${listingId}/collect`, {});
@@ -639,7 +681,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       toast({ title: "Failed to collect", description: e.message, variant: "destructive" });
     },
   });
-  const cancelMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Listing cancelled", description: "Your item is back in inventory." }); }, onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }) });
+  const cancelMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "house-bundles"] }); toast({ title: "Listing cancelled", description: "Your item is back in inventory." }); }, onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }) });
   const buySlotMutation = useMutation({ mutationFn: () => apiRequest("POST", "/api/market/buy-slot", {}), onSuccess: async () => { const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); toast({ title: "New slot unlocked!" }); }, onError: (e: any) => toast({ title: "Failed to buy slot", description: e.message, variant: "destructive" }) });
 
   const totalSlots = 25 + (user?.marketExtraSlots ?? 0);
@@ -648,7 +690,10 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const emptySlots = Math.max(0, totalSlots - activeOrPending.length);
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value), []);
 
-  const mainTabs = useMemo(() => ([{ value: "all", label: "All" }, { value: "pets", label: "Pets" }, { value: "items", label: "Items" }, { value: "fish", label: "Fish" }] as { value: MainTab; label: string }[]), []);
+  const mainTabs = useMemo(() => ([
+    { value: "all" as const, label: "All" },
+    ...GAME_ITEM_GROUPS.map(group => ({ value: group.key as MainTab, label: group.label })),
+  ]), []);
 
   return (
     <div style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
