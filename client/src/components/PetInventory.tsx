@@ -22,7 +22,16 @@ import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
 import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
-import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
+import { itemTypeLabel } from "@/lib/itemTypeFilters";
+import {
+  GAME_ITEM_CATEGORY_LABELS,
+  GAME_ITEM_GROUPS,
+  gameItemCategoriesForGroup,
+  getGameItemCategory,
+  getGameItemGroup,
+  type GameItemCategoryKey,
+  type GameItemGroupKey,
+} from "@shared/itemTaxonomy";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -106,6 +115,42 @@ interface InventoryItem {
   itemsUsedThisLevel: number;
   fishingType: string | null;
   quantity: number;
+}
+
+interface HomeDecorBagInventoryEntry {
+  id: string;
+  userId: string;
+  decorItemId: string;
+  quantity: number;
+  item: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    price: number;
+    type: "decor" | "object";
+  };
+}
+
+interface OwnedHomeBundleBagEntry {
+  id: string;
+  userId: string;
+  bundleId: string;
+  bundle: {
+    id: string;
+    name: string;
+    shopImageUrl: string | null;
+    bgImageUrl: string | null;
+    price: number;
+  };
+}
+
+interface BagHomeAsset {
+  key: string;
+  kind: "home_decor" | "home_bundle";
+  name: string;
+  imageUrl: string | null;
+  count: number;
+  category: GameItemCategoryKey;
 }
 
 interface PetInventoryProps {
@@ -483,7 +528,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
+              <BagView items={bagItems} userId={user.id} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
