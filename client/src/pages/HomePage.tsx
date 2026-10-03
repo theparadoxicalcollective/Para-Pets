@@ -25,6 +25,7 @@ import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import ActivePetPlacement from "@/components/ActivePetPlacement";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
@@ -69,6 +70,7 @@ interface InventoryItem {
   petNickname: string | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
+  isEvolved?: boolean;
   statBoostType: string | null;
   statBoostAmount: number | null;
   specialType: string | null;
@@ -1094,9 +1096,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         data-testid="button-open-pet-actions"
                       >
                         {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
-                          <div className="w-full flex items-center justify-center">
+                          <div className="w-full flex items-center justify-center" style={{ position: "relative" }}><ActivePetPlacement templateId={activePet.petTemplateId} form={activePet.isEvolved ? "evolution" : "base"} admin={user.isAdmin}>
                             <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
-                          </div>
+                          </ActivePetPlacement></div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
                             <img

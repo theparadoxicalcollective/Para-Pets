@@ -844,6 +844,7 @@ function InteriorViewer({
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
+                  fireReaction={isOnFire}
                   mode={isOnFire ? "sleep" : isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
@@ -860,7 +861,7 @@ function InteriorViewer({
                 />
               ) : null}
               {isSleeping && <PetSleepZzz />}
-              {isOnFire && <PetFireReaction />}
+              {isOnFire && <PetFireReaction hideEyes={!!pet.petTemplateId} />}
             </div>
           </div>
         );

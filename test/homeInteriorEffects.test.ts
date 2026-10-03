@@ -240,7 +240,8 @@ test("active fire gives pets the closed-eye X-eyes Easter egg and delayed smoke"
   for (const source of [owner, visitor]) {
     assert.match(source, /isHouseInteriorPointOverActiveFire/);
     assert.match(source, /isOnFire \? "sleep"/);
-    assert.match(source, /isOnFire && <PetFireReaction \/>/);
+    assert.match(source, /isOnFire && <PetFireReaction hideEyes=\{!!pet\.petTemplateId\} \/>/);
+    assert.match(source, /fireReaction=\{isOnFire\}/);
   }
 
   assert.match(reaction, /<span>×<\/span>/);

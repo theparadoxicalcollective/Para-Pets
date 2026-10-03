@@ -60,6 +60,7 @@ interface CostumeResponse {
 export interface PetAnimatorProps {
   petTemplateId: string;
   artworkForm?: PetArtworkForm;
+  fireReaction?: boolean;
   mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting";
   view?: "front" | "back";
   size?: number;
@@ -666,6 +667,7 @@ function AboveHeadTopLayer({
 export default function PetAnimator({
   petTemplateId,
   artworkForm,
+  fireReaction = false,
   mode,
   view = "front",
   size = 200,
@@ -875,6 +877,7 @@ export default function PetAnimator({
             fillContainer={fillContainer}
             fitVisible={fitVisible}
             expression={expression}
+            fireReaction={fireReaction}
             performanceStatic={performanceStatic}
             lowMemory={evolvedLowMemory}
             hiddenPartTypes={hiddenCorePartTypes}

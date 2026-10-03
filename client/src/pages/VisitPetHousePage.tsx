@@ -385,6 +385,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
                   costumeAccess="public"
+                  fireReaction={isOnFire}
                   mode={isOnFire ? "sleep" : isSleeping ? "sleep" : "house"}
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
@@ -401,7 +402,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               />
               ) : null}
               {isSleeping && <PetSleepZzz />}
-              {isOnFire && <PetFireReaction />}
+              {isOnFire && <PetFireReaction hideEyes={!!pet.petTemplateId} />}
             </div>
           </div>
         );

@@ -1,3 +1,5 @@
+import PetPlacementPreview from "./PetPlacementPreview";
+import PetXEyesEditor from "./PetXEyesEditor";
 import AdornmentArtwork from "./AdornmentArtwork";
 import PetAnimator, { type PetAnimatorPreviewCostume } from "./PetAnimator";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
@@ -1679,6 +1681,8 @@ export default function PetDatabasePanel({
           </span>
         </div>
 
+        {!testMode && <PetPlacementPreview templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView as "front" | "back"} />}
+
         {/* Direct manipulation canvas — click a visible part, then drag it into place. */}
         <div
           ref={canvasRef}
@@ -1763,7 +1767,9 @@ export default function PetDatabasePanel({
             })}
 
           </div>
+          <PetXEyesEditor templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView} parts={viewParts} />
         </div>
+        <div style={{ height: 80 }} />
 
         {selectedPart && (
           <section
