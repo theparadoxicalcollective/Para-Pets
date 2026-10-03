@@ -275,8 +275,7 @@ export async function applyActiveHouseBundleIncludedItemTemplates(
             eq(userHomeDecorInventory.decorItemId, entitlement.itemId),
           ))
           .orderBy(asc(userHomeDecorInventory.id))
-          .for("update")
-          .limit(1);
+          .for("update");
 
         if (inventory) {
           const [updated] = await tx
@@ -306,8 +305,7 @@ export async function applyActiveHouseBundleIncludedItemTemplates(
             eq(userInventory.isListed, false),
           ))
           .orderBy(asc(userInventory.id))
-          .for("update")
-          .limit(1);
+          .for("update");
 
         if (inventory) {
           const [updated] = await tx
