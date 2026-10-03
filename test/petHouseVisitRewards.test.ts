@@ -8,7 +8,7 @@ test("profile Pet Home action opens the existing visitor route instead of Coming
   const panel = read("client/src/components/PlayerDetailPanel.tsx");
 
   assert.match(panel, /navigate\(\`\/visit\/\$\{userId\}\`\)/);
-  assert.match(panel, /data-testid="button-visit-pethouse"/);
+  assert.match(panel, /testId="button-visit-pethouse"/);
   assert.doesNotMatch(panel, /Pet Home visits are under construction/);
   assert.doesNotMatch(panel, /setComingSoon/);
 });
