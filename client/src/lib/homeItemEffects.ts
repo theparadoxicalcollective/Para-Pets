@@ -1,5 +1,4 @@
 import {
-  getHomeAttachedEffectSize,
   type HomeCatalogEffect,
   type HomeSceneItemType,
   type HouseInteriorEffect,
@@ -16,6 +15,9 @@ export interface HomeEffectPlacement {
     homeEffect?: HomeCatalogEffect | null;
     imageUrl?: string | null;
     homeTapImageUrl?: string | null;
+    homeEffectX?: number;
+    homeEffectY?: number;
+    homeEffectSize?: number;
   };
 }
 
@@ -44,33 +46,49 @@ export function isSleepEffectHomeItem(item: HomeEffectPlacement): boolean {
   return item.item.type === "decor" && item.item.homeEffect === "sleep";
 }
 
+function buildAttachedEffect(
+  item: HomeEffectPlacement,
+  type: "lamp_light" | "sleep",
+  sceneHeight: number,
+  imageWidth: number,
+  idPrefix: string,
+): HouseInteriorEffect {
+  const safeHeight = Math.max(1, sceneHeight);
+  const safeWidth = Math.max(1, imageWidth);
+  const localX = Number.isFinite(item.item.homeEffectX) ? Number(item.item.homeEffectX) : 0.5;
+  const localY = Number.isFinite(item.item.homeEffectY) ? Number(item.item.homeEffectY) : 0.5;
+  const localSize = Number.isFinite(item.item.homeEffectSize) ? Number(item.item.homeEffectSize) : 40;
+  const horizontalDirection = (item as HomeEffectPlacement & { flipped?: boolean }).flipped ? -1 : 1;
+  const xOffsetPx = (localX - 0.5) * item.size * horizontalDirection;
+  const yOffsetPx = (localY - 0.5) * item.size;
+  const effectSizePx = item.size * Math.max(0.1, Math.min(2.2, localSize / 100));
+
+  return {
+    id: `${idPrefix}:${item.id}`,
+    type,
+    x: Math.max(0, Math.min(1, item.xPct + xOffsetPx / safeWidth)),
+    y: Math.max(0, Math.min(1, item.yPct + yOffsetPx / safeHeight)),
+    size: Math.max(4, Math.min(40, (effectSizePx / safeHeight) * 100)),
+  };
+}
+
 export function buildHomeLampItemEffects(
   items: readonly HomeEffectPlacement[],
   sceneHeight: number,
   enabledForItem: (item: HomeEffectPlacement) => boolean = item => item.effectEnabled === true,
+  imageWidth = sceneHeight,
 ): HouseInteriorEffect[] {
   return items
     .filter(item => isLampLightHomeItem(item) && enabledForItem(item))
-    .map(item => ({
-      id: `home-item-lamp:${item.id}`,
-      type: "lamp_light" as const,
-      x: item.xPct,
-      y: item.yPct,
-      size: getHomeAttachedEffectSize(item.size, sceneHeight),
-    }));
+    .map(item => buildAttachedEffect(item, "lamp_light", sceneHeight, imageWidth, "home-item-lamp"));
 }
 
 export function buildHomeSleepDecorEffects(
   items: readonly HomeEffectPlacement[],
   sceneHeight: number,
+  imageWidth = sceneHeight,
 ): HouseInteriorEffect[] {
   return items
     .filter(isSleepEffectHomeItem)
-    .map(item => ({
-      id: `home-decor-sleep:${item.id}`,
-      type: "sleep" as const,
-      x: item.xPct,
-      y: item.yPct,
-      size: getHomeAttachedEffectSize(item.size, sceneHeight),
-    }));
+    .map(item => buildAttachedEffect(item, "sleep", sceneHeight, imageWidth, "home-decor-sleep"));
 }
