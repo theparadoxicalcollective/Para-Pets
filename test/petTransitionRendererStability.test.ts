@@ -55,7 +55,7 @@ test("all mobile hosting modes use the animated low-memory renderer", () => {
 test("mobile Home keeps the active pet animated in low-memory mode without raid boss", () => {
   assert.doesNotMatch(home, /lowMemoryPetRenderer && \(activePet\.hatchedImageUrl \|\| activePet\.imageUrl\)/);
   assert.match(home, /activePet\.petTemplateId \? \(/);
-  assert.match(home, /<PetAnimator petTemplateId=\{activePet\.petTemplateId\} petInventoryId=\{activePet\.inventoryId\} mode="idle" view="front" size=\{1000\} lowMemory=\{lowMemoryPetRenderer\}/);
+  assert.match(home, /<PetAnimator petTemplateId=\{activePet\.petTemplateId\} petInventoryId=\{activePet\.inventoryId\} artworkForm=\{activePet\.isEvolved \? "evolution" : "base"\} mode="idle" view="front" size=\{390\} fillContainer lowMemory=\{lowMemoryPetRenderer\}/);
   assert.doesNotMatch(home, /raidBossData/);
   assert.doesNotMatch(home, /data-testid="display-raid-boss"/);
 });

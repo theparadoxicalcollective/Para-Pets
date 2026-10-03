@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePetPresentation } from "@/lib/petPresentation";
 import { defaultXEyes, type PetPresentation, type PresentationPart } from "@shared/petPresentation";
 import PetXEyes from "./PetXEyes";
-export default function PetXEyesEditor({ templateId, form, view, parts }: { templateId: string; form: string; view: string; parts: PresentationPart[] }) {
+export default function PetXEyesEditor({ templateId, form, view, parts, toolbarOffset = 0 }: { templateId: string; form: string; view: string; parts: PresentationPart[]; toolbarOffset?: number }) {
   const query = usePetPresentation(templateId, form, view);
   const [draft, setDraft] = useState<PetPresentation | null>(null);
   const [visible, setVisible] = useState(true);
@@ -11,7 +11,8 @@ export default function PetXEyesEditor({ templateId, form, view, parts }: { temp
   useEffect(() => { setDraft(null); setSelected(null); drag.current = null; }, [templateId, form, view]);
   const value = draft ?? query.placement;
   const heads = parts.filter(p => /^(h[23]_)?head$/.test(p.partType));
-  const current = heads.find(p => p.partType === selected);
+  const selectedHead = heads.some(p => p.partType === selected) ? selected! : heads[0]?.partType;
+  const current = heads.find(p => p.partType === selectedHead);
   const point = current ? value.eyes[current.partType] ?? defaultXEyes(current, parts) : null;
   const change = (key: string, eye: { x: number; y: number; size: number }) => setDraft({ ...value, eyes: { ...value.eyes, [key]: eye } });
   return <>
@@ -26,9 +27,19 @@ export default function PetXEyesEditor({ templateId, form, view, parts }: { temp
           onPointerUp={event => { event.stopPropagation(); drag.current = null; }} onPointerCancel={() => { drag.current = null; }} />
       </div>;
     })}
-    <div onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{ position: "absolute", bottom: -70, left: 0, right: 0, minHeight: 60, zIndex: 32000, background: "#201506", color: "#f0c040", padding: 8, fontSize: 12 }}>
+    <div onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} style={{ position: "absolute", top: `calc(100% + ${8 + toolbarOffset}px)`, left: 0, right: 0, minHeight: 60, zIndex: 32000, background: "#201506", color: "#f0c040", padding: 8, fontSize: 12 }}>
       <button type="button" onClick={() => setVisible(!visible)}>{visible ? "Hide" : "Show"} red X eyes</button> · Drag each head's X eyes into position.
-      {point && selected && <><button type="button" aria-label="Smaller X eyes" onClick={() => change(selected, { ...point, size: Math.max(10, point.size - 10) })}> − </button><button type="button" aria-label="Larger X eyes" onClick={() => change(selected, { ...point, size: Math.min(400, point.size + 10) })}> + </button></>}
+      {point && selectedHead && <div style={{ margin: "8px 0", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+        <label>Head <select aria-label="Head for red X eyes" value={selectedHead} onChange={event => setSelected(event.target.value)} style={{ background: "#30230d", color: "#ffe29a", padding: 6 }}>
+          {heads.map(head => <option key={head.partType} value={head.partType}>{head.partType.replaceAll("_", " ")}</option>)}
+        </select></label>
+        <label style={{ width: "100%" }}>Red X X size: {Math.round(point.size)}
+          <input aria-label="Red X X eye size" type="range" min={10} max={400} step={1} value={point.size} onChange={event => change(selectedHead, { ...point, size: Number(event.target.value) })} style={{ display: "block", width: "100%", accentColor: "#ff4038" }} />
+        </label>
+        <button type="button" aria-label="Smaller X eyes" onClick={() => change(selectedHead, { ...point, size: Math.max(10, point.size - 10) })} style={{ padding: 6, border: "1px solid #806328", borderRadius: 6 }}>− Smaller X X</button>
+        <button type="button" aria-label="Larger X eyes" onClick={() => change(selectedHead, { ...point, size: Math.min(400, point.size + 10) })} style={{ padding: 6, border: "1px solid #806328", borderRadius: 6 }}>+ Larger X X</button>
+      </div>}
+
       <button type="button" disabled={query.isPending || query.isError || query.save.isPending} onClick={() => query.save.mutate({ ...query.placement, eyes: value.eyes }, { onSuccess: () => setDraft(null) })}> {query.save.isPending ? "Saving…" : "Save X eyes"}</button>
       <button type="button" onClick={() => setDraft(null)}> Discard</button>
       {(query.isError || query.save.isError) && <p role="alert">Could not load or save X eyes. Try again.</p>}

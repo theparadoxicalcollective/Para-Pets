@@ -874,7 +874,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <div
             ref={petContainerRef}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
-            style={{ marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
+            style={activePet?.isHatched && activePet.petTemplateId ? {
+              position: "absolute", top: "calc(72*var(--vh))", left: "50%", transform: "translate(-50%, -100%)",
+            } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
           >
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
@@ -1077,10 +1079,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Scale the pet up 12% from its center-bottom so it
-                          // fills the stage nicely. transformOrigin center-bottom
-                          // keeps the pet grounded — it grows upward only.
-                          transform: petCircling
+                          // Template pets share the editor’s ground coordinates;
+                          // keep legacy image pet transforms separate.
+                          translate: activePet.petTemplateId ? "none" : undefined,
+                          transform: activePet.petTemplateId ? (petPressed ? "scale(1.01)" : "none") : petCircling
                             ? "scale(1.155, 1.092) translateY(8%)"
                             : petPressed
                               ? "scale(1.108, 1.132) translateY(8%)"
@@ -1097,7 +1099,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       >
                         {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center" style={{ position: "relative" }}><ActivePetPlacement templateId={activePet.petTemplateId} form={activePet.isEvolved ? "evolution" : "base"} admin={user.isAdmin}>
-                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} artworkForm={activePet.isEvolved ? "evolution" : "base"} mode="idle" view="front" size={390} fillContainer lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </ActivePetPlacement></div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
