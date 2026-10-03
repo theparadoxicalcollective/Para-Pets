@@ -73,6 +73,7 @@ test("owner and visitor Home yards use the owner's persisted day-night setting",
   }
 
   assert.match(owner, /<HomeDayNightToggle/);
+  assert.match(owner, /nightStrength=\{outdoorLighting\.nightStrength\}/);
   assert.match(owner, /onCycle=\{cycleOutdoorLighting\}/);
   assert.match(owner, /\/api\/house-bundles\/\$\{bundleId\}\/player-lighting/);
   assert.doesNotMatch(visitor, /<HomeDayNightToggle/);
@@ -82,9 +83,12 @@ test("owner and visitor Home yards use the owner's persisted day-night setting",
   assert.doesNotMatch(atmosphere, /HOME_OUTDOOR_LIGHTING_STORAGE_KEY/);
   assert.match(atmosphere, /window\.setInterval\(\(\) => setNow\(new Date\(\)\), 30_000\)/);
   assert.match(atmosphere, /data-lighting-mode=\{mode\}/);
+  assert.match(atmosphere, /data-testid="home-day-night-planet"/);
+  assert.match(atmosphere, /safeNight \* 100/);
+  assert.match(atmosphere, /mode === "auto" \? "left 30s linear"/);
   assert.match(atmosphere, /<Sun /);
   assert.match(atmosphere, /<Moon /);
-  assert.match(atmosphere, /function AutoLightingIcon/);
+  assert.doesNotMatch(atmosphere, /function AutoLightingIcon/);
   assert.doesNotMatch(atmosphere, /☀️|🌙/);
 });
 
