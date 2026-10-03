@@ -37,6 +37,7 @@ interface HomeInteriorEffectsLayerProps {
   onEffectPointerDown?: EffectPointerHandler;
   onEffectPointerMove?: EffectPointerHandler;
   onEffectPointerUp?: EffectPointerHandler;
+  onEffectPointerCancel?: EffectPointerHandler;
   offEffectIds?: ReadonlySet<string>;
   onToggleEffect?: EffectToggleHandler;
   zIndex?: number;
@@ -390,6 +391,7 @@ export function HomeInteriorDarknessLayer({
   return (
     <svg
       aria-hidden
+      colorInterpolation="sRGB"
       data-testid="home-interior-darkness-layer"
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
@@ -473,6 +475,7 @@ export function HomeInteriorEffectsLayer({
   onEffectPointerDown,
   onEffectPointerMove,
   onEffectPointerUp,
+  onEffectPointerCancel,
   offEffectIds,
   onToggleEffect,
   zIndex = 3,
@@ -512,7 +515,7 @@ export function HomeInteriorEffectsLayer({
             onPointerDown={interactive && onEffectPointerDown ? event => onEffectPointerDown(event, effect) : undefined}
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
-            onPointerCancel={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
+            onPointerCancel={interactive && onEffectPointerCancel ? event => onEffectPointerCancel(event, effect) : undefined}
             data-player-toggle-effect-id={playerToggleable ? effect.id : undefined}
             role={playerToggleable ? "button" : undefined}
             tabIndex={playerToggleable ? 0 : undefined}
