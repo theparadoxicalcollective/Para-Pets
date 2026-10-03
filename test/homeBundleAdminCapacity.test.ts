@@ -28,6 +28,7 @@ test("home bundle admin exposes outdoor limits and explicit building/mailbox typ
   assert.match(source, /button-change-object-type-/);
   assert.match(source, /buildingType: newBuildingType/);
   assert.match(source, /newBuildingType === "building"/);
+  assert.match(source, /Math\.min\(600, b\.width \+ 20\)/);
 
   assert.doesNotMatch(source, /button-grant-bundle-everyone/);
   assert.doesNotMatch(source, /grantEveryoneMutation/);
