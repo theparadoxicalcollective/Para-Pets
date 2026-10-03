@@ -78,6 +78,20 @@ test("room darkness stays the lights-off baseline while active lights brighten l
   assert.equal(getHouseInteriorLocalLightBoost(stackedLights, new Set(), 0.5, 0.5, 2), HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST);
 });
 
+test("fire brightens a broader, stronger area without changing candle or lamp light reach", () => {
+  const fire = { id: "fire", type: "fire" as const, x: 0.5, y: 0.5, size: 14 };
+  const candle = { id: "candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 };
+  const lamp = { id: "lamp", type: "warm_glow" as const, x: 0.5, y: 0.5, size: 18 };
+
+  assert.equal(getHouseInteriorLightRadiusRatio(fire), 0.14 * 2.9);
+  assert.equal(getHouseInteriorLightPeakBoost("fire"), 38);
+
+  assert.equal(getHouseInteriorLightRadiusRatio(candle), 0.1 * 1.9);
+  assert.equal(getHouseInteriorLightPeakBoost("candle_light"), 24);
+  assert.equal(getHouseInteriorLightRadiusRatio(lamp), 0.18 * 2.15);
+  assert.equal(getHouseInteriorLightPeakBoost("warm_glow"), 30);
+});
+
 test("interior pets use the same local light falloff as the room", () => {
   const lights = [
     { id: "fire", type: "fire" as const, x: 0.25, y: 0.55, size: 14 },
