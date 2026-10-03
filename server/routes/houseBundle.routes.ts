@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { eq } from "drizzle-orm";
 import { houseBundles as houseBundlesTable } from "@shared/schema";
-import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects, sanitizeHouseOutdoorEffects } from "@shared/housing";
+import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHomeOutdoorLightingMode, isHouseBuildingType, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects, sanitizeHouseOutdoorEffects } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
 import { executeStoreAllHomeScene } from "../housing/decorTransactions";
@@ -51,6 +51,50 @@ export function registerHouseBundleRoutes(
       const { userId } = req.params as { userId: string };
       const bundle = await storage.getActiveBundleWithBuildings(userId);
       return res.json(bundle ?? null);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/house-bundles/:bundleId/player-lighting", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+      const user = req.user as any;
+      const { bundleId } = req.params as { bundleId: string };
+      const owns = await storage.hasUserHouseBundle(user.id, bundleId);
+      if (!owns) return res.status(403).json({ message: "Bundle not owned" });
+
+      const { outdoorMode, buildingId, effectId, off } = req.body ?? {};
+      const hasOutdoorMode = outdoorMode !== undefined;
+      const hasInteriorToggle = buildingId !== undefined || effectId !== undefined || off !== undefined;
+      if (!hasOutdoorMode && !hasInteriorToggle) {
+        return res.status(400).json({ message: "Lighting update is required" });
+      }
+
+      if (hasOutdoorMode && !isHomeOutdoorLightingMode(outdoorMode)) {
+        return res.status(400).json({ message: "outdoorMode must be auto, day, or night" });
+      }
+
+      if (hasInteriorToggle) {
+        if (typeof buildingId !== "string" || typeof effectId !== "string" || typeof off !== "boolean") {
+          return res.status(400).json({ message: "buildingId, effectId, and off are required for an interior light update" });
+        }
+        const building = await storage.getHouseBundleBuilding(buildingId);
+        if (!building || building.bundleId !== bundleId) {
+          return res.status(404).json({ message: "Building not found" });
+        }
+        const effect = (building.interiorEffects ?? []).find(candidate => candidate.id === effectId);
+        if (!effect || !isHouseInteriorLightEffectType(effect.type)) {
+          return res.status(404).json({ message: "Light effect not found" });
+        }
+      }
+
+      const playerLighting = await storage.updateUserHouseLighting(user.id, bundleId, {
+        ...(hasOutdoorMode ? { outdoorMode } : {}),
+        ...(hasInteriorToggle ? { buildingId, effectId, off } : {}),
+      });
+      if (!playerLighting) return res.status(404).json({ message: "Owned bundle not found" });
+      return res.json({ playerLighting });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
