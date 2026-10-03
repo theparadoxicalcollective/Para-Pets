@@ -61,7 +61,7 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
-import type { HomeSceneItemType } from "@shared/housing";
+import type { HomeOutdoorLightingMode, HomeSceneItemType } from "@shared/housing";
 import { completeCaveTier } from "./caveProgress";
 import { tryConsumeOneFromInventory as consumeOneFromInventory } from "./inventoryConsumption";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
@@ -77,6 +77,27 @@ export interface HomeSceneCatalogItem {
 
 export type HomeSceneInventoryEntry = UserHomeDecorInventory & { item: HomeSceneCatalogItem };
 export type PlacedHomeSceneEntry = PlacedHomeDecor & { item: HomeSceneCatalogItem };
+
+export interface PlayerHomeLightingState {
+  outdoorMode: HomeOutdoorLightingMode;
+  offInteriorEffectIds: Record<string, string[]>;
+}
+
+export type ActiveHouseBundleWithLighting = HouseBundle & {
+  buildings: HouseBundleBuilding[];
+  playerLighting: PlayerHomeLightingState;
+};
+
+function normalizeOffInteriorEffectIds(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result: Record<string, string[]> = {};
+  for (const [buildingId, ids] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(ids)) continue;
+    const clean = Array.from(new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0)));
+    if (clean.length > 0) result[buildingId] = clean;
+  }
+  return result;
+}
 
 export interface EquippedAccessoryDetail {
   id: string;
@@ -353,7 +374,12 @@ export interface IStorage {
   hasUserHouseBundle(userId: string, bundleId: string): Promise<boolean>;
   grantUserHouseBundle(userId: string, bundleId: string): Promise<UserHouseBundle>;
   setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void>;
-  getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null>;
+  getActiveBundleWithBuildings(userId: string): Promise<ActiveHouseBundleWithLighting | null>;
+  updateUserHouseLighting(
+    userId: string,
+    bundleId: string,
+    patch: { outdoorMode?: HomeOutdoorLightingMode; buildingId?: string; effectId?: string; off?: boolean },
+  ): Promise<PlayerHomeLightingState | null>;
   getHouseBundleBuilding(id: string): Promise<HouseBundleBuilding | null>;
   getLocationHouseBundles(locationId: string): Promise<(LocationHouseBundle & { bundle: HouseBundle })[]>;
   addBundleToShop(locationId: string, bundleId: string): Promise<LocationHouseBundle>;
@@ -3161,13 +3187,67 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set({ activeHouseBundleId: bundleId } as any).where(eq(users.id, userId));
   }
 
-  async getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null> {
+  async getActiveBundleWithBuildings(userId: string): Promise<ActiveHouseBundleWithLighting | null> {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user?.activeHouseBundleId) return null;
     const [bundle] = await db.select().from(houseBundles).where(eq(houseBundles.id, user.activeHouseBundleId));
     if (!bundle) return null;
-    const buildings = await db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, bundle.id)).orderBy(asc(houseBundleBuildings.createdAt));
-    return { ...bundle, buildings };
+    const [buildings, ownership] = await Promise.all([
+      db.select().from(houseBundleBuildings).where(eq(houseBundleBuildings.bundleId, bundle.id)).orderBy(asc(houseBundleBuildings.createdAt)),
+      db.select().from(userHouseBundles)
+        .where(and(eq(userHouseBundles.userId, userId), eq(userHouseBundles.bundleId, bundle.id)))
+        .limit(1),
+    ]);
+    const owned = ownership[0];
+    const outdoorMode: HomeOutdoorLightingMode =
+      owned?.outdoorLightingMode === "day" || owned?.outdoorLightingMode === "night"
+        ? owned.outdoorLightingMode
+        : "auto";
+    return {
+      ...bundle,
+      buildings,
+      playerLighting: {
+        outdoorMode,
+        offInteriorEffectIds: normalizeOffInteriorEffectIds(owned?.offInteriorEffectIds),
+      },
+    };
+  }
+
+  async updateUserHouseLighting(
+    userId: string,
+    bundleId: string,
+    patch: { outdoorMode?: HomeOutdoorLightingMode; buildingId?: string; effectId?: string; off?: boolean },
+  ): Promise<PlayerHomeLightingState | null> {
+    const [owned] = await db.select().from(userHouseBundles)
+      .where(and(eq(userHouseBundles.userId, userId), eq(userHouseBundles.bundleId, bundleId)))
+      .limit(1);
+    if (!owned) return null;
+
+    const updates: Partial<UserHouseBundle> = {};
+    if (patch.outdoorMode !== undefined) updates.outdoorLightingMode = patch.outdoorMode;
+
+    if (patch.buildingId && patch.effectId && patch.off !== undefined) {
+      const nextMap = normalizeOffInteriorEffectIds(owned.offInteriorEffectIds);
+      const nextIds = new Set(nextMap[patch.buildingId] ?? []);
+      if (patch.off) nextIds.add(patch.effectId);
+      else nextIds.delete(patch.effectId);
+      if (nextIds.size > 0) nextMap[patch.buildingId] = Array.from(nextIds);
+      else delete nextMap[patch.buildingId];
+      updates.offInteriorEffectIds = nextMap;
+    }
+
+    const [updated] = Object.keys(updates).length > 0
+      ? await db.update(userHouseBundles).set(updates).where(eq(userHouseBundles.id, owned.id)).returning()
+      : [owned];
+
+    const outdoorMode: HomeOutdoorLightingMode =
+      updated.outdoorLightingMode === "day" || updated.outdoorLightingMode === "night"
+        ? updated.outdoorLightingMode
+        : "auto";
+    return {
+      outdoorMode,
+      offInteriorEffectIds: normalizeOffInteriorEffectIds(updated.offInteriorEffectIds),
+    };
   }
 
   // ── Location House Bundle shop stock ─────────────────────────────────────────
