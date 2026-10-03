@@ -266,10 +266,10 @@ function WarmGlowVisual() {
         borderRadius: "50%",
         animation: "para-home-glow-pulse 2.6s ease-in-out infinite",
         background:
-          "radial-gradient(circle, rgba(255,231,130,0.28) 0%, rgba(255,204,82,0.17) 25%, rgba(255,160,48,0.055) 52%, transparent 76%)",
+          "radial-gradient(circle, rgba(255,232,128,0.42) 0%, rgba(255,202,70,0.24) 25%, rgba(255,158,44,0.075) 52%, transparent 76%)",
         filter: "blur(2px)",
         mixBlendMode: "screen",
-        opacity: 0.6,
+        opacity: 0.72,
       }}
     />
   );

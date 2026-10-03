@@ -78,18 +78,24 @@ test("room darkness stays the lights-off baseline while active lights brighten l
   assert.equal(getHouseInteriorLocalLightBoost(stackedLights, new Set(), 0.5, 0.5, 2), HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST);
 });
 
-test("fire brightens a broader, stronger area without changing candle or lamp light reach", () => {
+test("interior lights keep a clear candle < lamp < fire brightness hierarchy", () => {
   const fire = { id: "fire", type: "fire" as const, x: 0.5, y: 0.5, size: 14 };
   const candle = { id: "candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 };
   const lamp = { id: "lamp", type: "warm_glow" as const, x: 0.5, y: 0.5, size: 18 };
 
-  assert.equal(getHouseInteriorLightRadiusRatio(fire), 0.14 * 2.9);
-  assert.equal(getHouseInteriorLightPeakBoost("fire"), 38);
+  assert.equal(getHouseInteriorLightRadiusRatio(candle), 0.1 * 1.45);
+  assert.equal(getHouseInteriorLightRadiusRatio(lamp), 0.18 * 2.5);
+  assert.equal(getHouseInteriorLightRadiusRatio(fire), 0.14 * 3.5);
 
-  assert.equal(getHouseInteriorLightRadiusRatio(candle), 0.1 * 1.9);
-  assert.equal(getHouseInteriorLightPeakBoost("candle_light"), 24);
-  assert.equal(getHouseInteriorLightRadiusRatio(lamp), 0.18 * 2.15);
-  assert.equal(getHouseInteriorLightPeakBoost("warm_glow"), 30);
+  assert.equal(getHouseInteriorLightPeakBoost("candle_light"), 18);
+  assert.equal(getHouseInteriorLightPeakBoost("warm_glow"), 34);
+  assert.equal(getHouseInteriorLightPeakBoost("fire"), 42);
+
+  assert.ok(getHouseInteriorLightRadiusRatio(candle) < getHouseInteriorLightRadiusRatio(lamp));
+  assert.ok(getHouseInteriorLightRadiusRatio(lamp) < getHouseInteriorLightRadiusRatio(fire));
+  assert.ok(getHouseInteriorLightCutoutStrength("candle_light") < getHouseInteriorLightCutoutStrength("warm_glow"));
+  assert.ok(getHouseInteriorLightCutoutStrength("warm_glow") < getHouseInteriorLightCutoutStrength("fire"));
+  assert.ok(getHouseInteriorLightCutoutStrength("fire") < 1);
 });
 
 test("interior pets use the same local light falloff as the room", () => {
@@ -112,6 +118,25 @@ test("interior pets use the same local light falloff as the room", () => {
     assert.match(source, /const petBrightness = \(100 - petDarkness\) \/ 100/);
     assert.match(source, /brightness\(\$\{petBrightness\}\)/);
   }
+});
+
+test("interior decor and objects use the same local room darkness as pets", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  const asset = read("client/src/components/HomeSceneAssetImage.tsx");
+
+  assert.match(owner, /const itemDarkness = getHouseInteriorPointDarkness\([\s\S]*item\.xPct,[\s\S]*item\.yPct,[\s\S]*imageAspect/);
+  assert.match(owner, /const itemBrightness = \(100 - itemDarkness\) \/ 100/);
+  assert.match(owner, /brightness=\{itemBrightness\}/);
+
+  assert.match(visitor, /const itemDarkness = getHouseInteriorPointDarkness\([\s\S]*item\.xPct,[\s\S]*item\.yPct,[\s\S]*imageAspect/);
+  assert.match(visitor, /const itemBrightness = \(100 - itemDarkness\) \/ 100/);
+  assert.match(visitor, /brightness\(\$\{itemBrightness\}\)/);
+
+  assert.match(asset, /brightness\?: number/);
+  assert.match(asset, /brightness = 1/);
+  assert.match(asset, /brightness\(\$\{brightness\}\)/);
+  assert.match(asset, /transition: "filter 260ms ease-out"/);
 });
 
 test("interior effect sanitizer keeps only supported effects and clamps scene-space values", () => {
@@ -330,10 +355,10 @@ test("saved room darkness is cut away locally around active lights without addin
   assert.doesNotMatch(effects, /home-interior-light-wash-/);
   assert.doesNotMatch(effects, /const glow = effect\.type/);
 
-  // Lamp Glow stays warm but is more transparent through the center.
-  assert.match(effects, /rgba\(255,231,130,0\.28\)/);
-  assert.match(effects, /rgba\(255,204,82,0\.17\)/);
-  assert.match(effects, /opacity: 0\.6/);
+  // Lamp Glow stays warm, but now has a stronger visible center.
+  assert.match(effects, /rgba\(255,232,128,0\.42\)/);
+  assert.match(effects, /rgba\(255,202,70,0\.24\)/);
+  assert.match(effects, /opacity: 0\.72/);
 
   // Admin preview uses the same local light cutouts as the player-facing room.
   assert.match(admin, /<HomeInteriorDarknessLayer[\s\S]*darkness=\{darkness\}[\s\S]*effects=\{effects\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerHRef\.current\}[\s\S]*zIndex=\{5\}/);
