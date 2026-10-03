@@ -13,13 +13,16 @@ test("profile Pet Home action opens the existing visitor route instead of Coming
   assert.doesNotMatch(panel, /setComingSoon/);
 });
 
-test("visitor pets expose the actual game coin and reuse Pet Care hearts", () => {
+test("visitor pets expose the canonical Para Pets coin and reuse Pet Care hearts", () => {
   const visit = read("client/src/pages/VisitPetHousePage.tsx");
   const cue = read("client/src/components/PetHomeVisitRewardCue.tsx");
+  const coinAssets = read("client/src/lib/coinAssets.ts");
   const heart = read("client/src/components/PetHeartParticle.tsx");
   const care = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
-  assert.match(cue, /@assets\/icon_coin\.webp/);
+  assert.match(coinAssets, /PARA_PETS_COIN_IMAGE = "\/paw-print-coin\.webp"/);
+  assert.match(cue, /PARA_PETS_COIN_IMAGE/);
+  assert.doesNotMatch(cue, /@assets\/icon_coin/);
   assert.match(cue, /para-visit-pet-coin-spin/);
   assert.match(cue, /PetHeartParticle/);
   assert.match(heart, /feed-heart-rise/);
@@ -29,6 +32,19 @@ test("visitor pets expose the actual game coin and reuse Pet Care hearts", () =>
   assert.match(visit, /<PetHomeVisitRewardCue/);
   assert.match(visit, /visitRewardAvailable/);
   assert.match(visit, /visitRewardAmount/);
+});
+
+test("standalone reward and coin feedback reuse the canonical Para Pets coin artwork", () => {
+  const cardReward = read("client/src/components/CardRewardCoin.tsx");
+  const coinShop = read("client/src/pages/CoinShopPage.tsx");
+  const lava = read("client/src/pages/LavaCrawlPage.tsx");
+
+  for (const source of [cardReward, coinShop, lava]) {
+    assert.match(source, /PARA_PETS_COIN_IMAGE/);
+  }
+  assert.doesNotMatch(cardReward, /world-assets\/icon_coin/);
+  assert.doesNotMatch(coinShop, /@assets\/icon_coin/);
+  assert.doesNotMatch(lava, /@assets\/icon_coin/);
 });
 
 test("collecting a visitor pet reward is server-backed and updates the authoritative coin cache", () => {

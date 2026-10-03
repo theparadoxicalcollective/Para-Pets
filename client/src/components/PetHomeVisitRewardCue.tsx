@@ -1,5 +1,5 @@
 import PetHeartParticle from "@/components/PetHeartParticle";
-import coinIconImg from "@assets/icon_coin.webp";
+import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 
 const HEART_LAYOUT = [
   { left: "34%", top: "38%", size: 18, dx: -18, delay: 0 },
@@ -51,7 +51,7 @@ export default function PetHomeVisitRewardCue({
           }}
         >
           <img
-            src={coinIconImg}
+            src={PARA_PETS_COIN_IMAGE}
             alt=""
             draggable={false}
             style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}

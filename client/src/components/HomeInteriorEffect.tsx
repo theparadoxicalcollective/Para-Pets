@@ -98,37 +98,34 @@ const EFFECT_STYLES = `
 
 const HOME_INTERIOR_EXIT_SPARKLE_STYLES = `
 @keyframes para-home-exit-sparkle-pulse {
-  0%, 100% { opacity: .72; transform: translate(-50%, -50%) scale(.88); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  0%, 100% { opacity: .72; transform: translate(-50%, -50%) scale(.92); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
 }
 @keyframes para-home-exit-sparkle-twinkle {
-  0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(.5) rotate(0deg); }
-  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(45deg); }
-}
-@keyframes para-home-exit-sparkle-core {
-  0%, 100% { opacity: .78; transform: translate(-50%, -50%) scale(.82); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+  0%, 100% { opacity: .14; transform: translate(-50%, -50%) scale(.5) rotate(0deg); }
+  42% { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(36deg); }
+  68% { opacity: .42; transform: translate(-50%, -50%) scale(.78) rotate(58deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .para-home-exit-sparkle-pulse,
-  .para-home-exit-sparkle-twinkle,
-  .para-home-exit-sparkle-core { animation: none !important; }
+  .para-home-exit-sparkle-twinkle { animation: none !important; }
 }
 `;
 
 const HOME_INTERIOR_EXIT_SPARKS = [
-  { left: "50%", top: "5%", size: 5.5, delay: 0 },
-  { left: "84%", top: "22%", size: 3.5, delay: 0.45 },
-  { left: "94%", top: "56%", size: 4.5, delay: 0.9 },
-  { left: "72%", top: "87%", size: 3.25, delay: 0.2 },
-  { left: "35%", top: "94%", size: 4, delay: 0.7 },
-  { left: "7%", top: "69%", size: 3.5, delay: 1.05 },
-  { left: "12%", top: "31%", size: 4.75, delay: 0.35 },
-  { left: "35%", top: "18%", size: 2.75, delay: 0.8 },
+  { left: "50%", top: "16%", size: 3.4, delay: 0 },
+  { left: "72%", top: "27%", size: 2.2, delay: 0.42 },
+  { left: "82%", top: "50%", size: 3.1, delay: 0.86 },
+  { left: "67%", top: "72%", size: 2.5, delay: 0.18 },
+  { left: "45%", top: "82%", size: 3.0, delay: 0.68 },
+  { left: "24%", top: "66%", size: 2.1, delay: 1.02 },
+  { left: "18%", top: "42%", size: 2.8, delay: 0.31 },
+  { left: "36%", top: "30%", size: 2.0, delay: 0.76 },
+  { left: "54%", top: "49%", size: 3.8, delay: 0.12 },
 ] as const;
 
 export function HomeInteriorExitSparkle() {
-  const sparkleSize = 38;
+  const sparkleSize = 28;
   return (
     <>
       <style>{HOME_INTERIOR_EXIT_SPARKLE_STYLES}</style>
@@ -140,23 +137,11 @@ export function HomeInteriorExitSparkle() {
           width: sparkleSize,
           height: sparkleSize,
           transform: "translate(-50%, -50%)",
-          animation: "para-home-exit-sparkle-pulse 2.65s ease-in-out infinite",
-          filter: "drop-shadow(0 0 5px rgba(255,235,156,.95)) drop-shadow(0 0 12px rgba(255,190,44,.72))",
+          animation: "para-home-exit-sparkle-pulse 2.5s ease-in-out infinite",
+          filter: "drop-shadow(0 0 3px rgba(255,235,156,.86)) drop-shadow(0 0 7px rgba(255,190,44,.45))",
           pointerEvents: "none",
         }}
       >
-        <span
-          className="para-home-exit-sparkle-core absolute left-1/2 top-1/2 block"
-          style={{
-            width: Math.max(12, sparkleSize * 0.42),
-            height: Math.max(12, sparkleSize * 0.42),
-            transform: "translate(-50%, -50%)",
-            clipPath: "polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%)",
-            background: "linear-gradient(135deg, #fffce8 8%, #ffe68a 45%, #ffb51f 100%)",
-            boxShadow: "0 0 8px rgba(255,239,166,.95)",
-            animation: "para-home-exit-sparkle-core 1.82s ease-in-out infinite",
-          }}
-        />
         {HOME_INTERIOR_EXIT_SPARKS.map((spark, index) => (
           <span
             key={index}
@@ -167,10 +152,10 @@ export function HomeInteriorExitSparkle() {
               width: spark.size,
               height: spark.size,
               transform: "translate(-50%, -50%)",
-              clipPath: "polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%)",
-              background: "#fff1a8",
-              boxShadow: "0 0 5px rgba(255,211,80,.9)",
-              animation: `para-home-exit-sparkle-twinkle 1.9s ease-in-out ${spark.delay}s infinite`,
+              clipPath: "polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%)",
+              background: index % 3 === 0 ? "#fff8d6" : "#ffe79a",
+              boxShadow: "0 0 3px rgba(255,211,80,.72)",
+              animation: `para-home-exit-sparkle-twinkle ${1.65 + (index % 3) * 0.24}s ease-in-out ${spark.delay}s infinite`,
             }}
           />
         ))}
@@ -260,17 +245,45 @@ function CandleLightVisual() {
 
 function LampLightVisual() {
   return (
-    <div aria-hidden style={{ position: "absolute", inset: "-12%", borderRadius: "50%", animation: "para-home-glow-pulse 2.35s ease-in-out infinite" }}>
+    <div
+      aria-hidden
+      data-testid="home-lamp-light-visual"
+      style={{
+        position: "absolute",
+        inset: "-32% -42% -48%",
+        animation: "para-home-glow-pulse 2.7s ease-in-out infinite",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        data-testid="home-lamp-light-diffusion"
+        style={{
+          position: "absolute",
+          left: "8%",
+          right: "8%",
+          top: "6%",
+          bottom: "0%",
+          borderRadius: "48% 48% 58% 58% / 38% 38% 68% 68%",
+          background:
+            "radial-gradient(ellipse at 50% 31%, rgba(255,239,164,0.34) 0%, rgba(255,211,96,0.23) 24%, rgba(255,177,57,0.11) 48%, rgba(255,145,40,0.035) 66%, transparent 82%)",
+          filter: "blur(5.5px)",
+          mixBlendMode: "screen",
+          opacity: 0.9,
+        }}
+      />
       <div
         style={{
           position: "absolute",
-          inset: 0,
-          borderRadius: "50%",
+          left: "24%",
+          right: "24%",
+          top: "18%",
+          height: "62%",
+          borderRadius: "48% 48% 62% 62% / 38% 38% 72% 72%",
           background:
-            "radial-gradient(circle, rgba(255,237,150,0.42) 0%, rgba(255,207,78,0.25) 27%, rgba(255,169,50,0.09) 52%, transparent 76%)",
-          filter: "blur(1.6px)",
+            "radial-gradient(ellipse at 50% 27%, rgba(255,246,192,0.46) 0%, rgba(255,219,119,0.30) 28%, rgba(255,181,64,0.12) 54%, transparent 78%)",
+          filter: "blur(3.2px)",
           mixBlendMode: "screen",
-          opacity: 0.78,
+          opacity: 0.88,
         }}
       />
       <div
@@ -278,14 +291,16 @@ function LampLightVisual() {
         style={{
           position: "absolute",
           left: "50%",
-          top: "50%",
-          width: "19%",
-          height: "19%",
-          borderRadius: "50%",
+          top: "35%",
+          width: "20%",
+          height: "28%",
+          borderRadius: "46% 46% 58% 58% / 42% 42% 66% 66%",
           transform: "translate(-50%, -50%)",
-          background: "radial-gradient(circle at 42% 38%, rgba(255,252,216,0.96), rgba(255,226,124,0.88) 38%, rgba(255,184,61,0.7) 72%, rgba(255,154,42,0.45) 100%)",
-          boxShadow: "0 0 7px rgba(255,237,168,0.9), 0 0 15px rgba(255,194,73,0.58)",
-          opacity: 0.88,
+          background:
+            "radial-gradient(ellipse at 50% 38%, rgba(255,253,224,0.78) 0%, rgba(255,231,151,0.68) 30%, rgba(255,196,85,0.34) 62%, rgba(255,164,55,0.08) 84%, transparent 100%)",
+          boxShadow: "0 0 6px rgba(255,237,168,0.5), 0 0 13px rgba(255,194,73,0.28)",
+          filter: "blur(1.2px)",
+          opacity: 0.82,
           mixBlendMode: "screen",
         }}
       />

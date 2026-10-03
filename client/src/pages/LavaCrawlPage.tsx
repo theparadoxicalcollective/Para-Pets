@@ -22,7 +22,7 @@ import enemy3Img from "@assets/Photoroom_20260708_34527_PM_1783543636588.png";
 import enemy4Img from "@assets/Photoroom_20260708_34404_PM_1783543636588.png";
 import doubleOrbImg from "@assets/Photoroom_20260708_40336_PM_1783544889601.png";
 import coinOrbImg from "@assets/Photoroom_20260708_40401_PM_1783544889601.png";
-import coinIconImg from "@assets/icon_coin.webp";
+import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
 import slabImg2 from "@assets/lava_slab_2.webp";
@@ -42,7 +42,7 @@ import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 const LAVA_CAVE_BG = lavaCaveBg;
 
 // Pre-load canvas images at module level
-const _coinImg = new Image(); _coinImg.src = coinIconImg;
+const _coinImg = new Image(); _coinImg.src = PARA_PETS_COIN_IMAGE;
 const _slabImgs = [new Image(), new Image(), new Image()];
 _slabImgs[0].src = slabImg1; _slabImgs[1].src = slabImg2; _slabImgs[2].src = slabImg3;
 const _lavaTexImg = new Image(); _lavaTexImg.src = lavaTexImg;
@@ -1603,7 +1603,7 @@ export default function LavaCrawlPage() {
             <div style={{ background: "rgba(20,6,2,0.78)", padding: "10px 22px", display: "flex", flexDirection: "column", alignItems: "center", minWidth: "108px" }}>
               <span style={{ color: "#ffcc44", fontFamily: "monospace", fontSize: "10px", letterSpacing: "1.5px", opacity: 0.85 }}>COINS</span>
               <span style={{ display: "flex", alignItems: "center", gap: "5px", color: "#fff8e0", fontFamily: "monospace", fontSize: "22px", fontWeight: "bold", textShadow: "0 0 10px rgba(255,120,0,0.7)" }} data-testid="text-gameover-coins">
-                <img src={coinIconImg} alt="coins" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                <img src={PARA_PETS_COIN_IMAGE} alt="coins" style={{ width: 18, height: 18, objectFit: "contain" }} />
                 {endCoins}
               </span>
             </div>
@@ -1631,7 +1631,7 @@ export default function LavaCrawlPage() {
           <div style={{ ...titleStyle, color: "#00ff88", fontSize: "30px" }}>🏆 VICTORY!</div>
           <div style={subStyle}>You escaped the lava cavern!</div>
           <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "15px", marginBottom: "4px" }}>Score: <strong>{endScore}</strong></div>
-          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "4px" }}>Coins earned: <strong>{endCoins}</strong> <img src={coinIconImg} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /> added to balance</div>
+          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "4px" }}>Coins earned: <strong>{endCoins}</strong> <img src={PARA_PETS_COIN_IMAGE} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /> added to balance</div>
           <div style={{ color: "#aaa", fontFamily: "monospace", fontSize: "12px", marginBottom: "20px" }}>Lives remaining: <strong>{endLives}</strong></div>
           {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
           <button data-testid="button-lava-restart-victory" style={btnStyle("#ff8800")} onClick={startGame}>↺  Play Again</button>

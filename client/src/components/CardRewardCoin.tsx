@@ -1,6 +1,5 @@
 import "./CardRewardCoin.css";
-
-const coin = "/world-assets/icon_coin.png";
+import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 
 interface CardRewardCoinProps {
   cardName: string;
@@ -32,7 +31,7 @@ export default function CardRewardCoin({ cardName, claimed, claiming, disabled, 
           event.stopPropagation();
           onClaim();
         }} className="card-reward-coin" data-testid="card-reward-coin">
-        <img src={coin} alt="" draggable={false} />
+        <img src={PARA_PETS_COIN_IMAGE} alt="" draggable={false} />
       </button>
     )}
   </div>;

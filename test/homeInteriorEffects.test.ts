@@ -206,7 +206,9 @@ test("player building exits use a world-style sparkle while Admin keeps the mova
   assert.match(effects, /function HomeInteriorExitSparkle/);
   assert.match(effects, /para-home-exit-sparkle-pulse/);
   assert.match(effects, /para-home-exit-sparkle-twinkle/);
-  assert.match(effects, /linear-gradient\(135deg, #fffce8 8%, #ffe68a 45%, #ffb51f 100%\)/);
+  assert.match(effects, /const sparkleSize = 28/);
+  assert.match(effects, /HOME_INTERIOR_EXIT_SPARKS/);
+  assert.doesNotMatch(effects, /para-home-exit-sparkle-core/);
 
   for (const source of [owner, visitor]) {
     assert.match(source, /HomeInteriorExitSparkle/);
@@ -246,8 +248,14 @@ test("campfire, candle, lamp, and sunlight remain distinct renderers", () => {
   assert.match(source, /function CandleLightVisual/);
   assert.match(source, /label: "Lamp Light"/);
   assert.match(source, /function LampLightVisual/);
+  assert.match(source, /data-testid="home-lamp-light-visual"/);
+  assert.match(source, /data-testid="home-lamp-light-diffusion"/);
+  assert.match(source, /radial-gradient\(ellipse at 50% 31%/);
+  assert.match(source, /borderRadius: "48% 48% 58% 58% \/ 38% 38% 68% 68%"/);
+  assert.match(source, /filter: "blur\(5\.5px\)"/);
   assert.match(source, /data-testid="home-lamp-light-core"/);
-  assert.match(source, /opacity: 0\.88/);
+  assert.match(source, /width: "20%"/);
+  assert.match(source, /height: "28%"/);
   assert.match(source, /label: "Sunlight"/);
   assert.match(source, /Soft broad daylight for windows/);
   assert.match(source, /function WarmGlowVisual/);
@@ -348,7 +356,7 @@ test("active fire gives pets the closed-eye X-eyes Easter egg and delayed smoke"
   assert.match(reaction, /para-pet-fire-smoke/);
 });
 
-test("owner light toggles persist per Home while visitors see the owner's saved state read-only", () => {
+test("owner light toggles persist while visitor light toggles stay session-only", () => {
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
@@ -368,13 +376,16 @@ test("owner light toggles persist per Home while visitors see the owner's saved 
   assert.match(owner, /toggleEffectId/);
   assert.match(owner, /Math\.hypot/);
   assert.match(owner, /drag\.moved/);
-  assert.doesNotMatch(owner, /setOffEffectIds/);
 
-  assert.match(visitor, /offInteriorEffectIds/);
-  assert.match(visitor, /offEffectIds=\{new Set\(activeBundle\?\.playerLighting/);
-  assert.doesNotMatch(visitor, /setOffEffectIds/);
-  assert.doesNotMatch(visitor, /onToggleEffect=/);
-  assert.doesNotMatch(visitor, /toggleLightEffect/);
+  assert.match(visitor, /visitorInteriorLightOff/);
+  assert.match(visitor, /toggleVisitorInteriorLight/);
+  assert.match(visitor, /onToggleEffect=\{onToggleLightEffect\}/);
+  assert.match(visitor, /data-player-toggle-effect-id/);
+  assert.match(visitor, /Math\.hypot/);
+  assert.match(visitor, /drag\.moved/);
+  assert.match(visitor, /onToggleLightEffect=\{\(effect\) => toggleVisitorInteriorLight\(openInterior\.buildingId, effect\)\}/);
+  assert.match(visitor, /delete next\[buildingId\]/);
+  assert.doesNotMatch(visitor, /\/player-lighting/);
 });
 
 test("saved room darkness is cut away locally around active lights without adding a colored light wash", () => {
