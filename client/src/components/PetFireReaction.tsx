@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import PetXEyesOverlay from "@/components/PetXEyesOverlay";
+import type { PetXEyesPlacement } from "@shared/activePetPlacement";
 
 const PET_FIRE_REACTION_STYLES = `
 @keyframes para-pet-fire-smoke {
@@ -7,13 +9,13 @@ const PET_FIRE_REACTION_STYLES = `
   65% { opacity: 0.28; }
   100% { transform: translate3d(var(--smoke-x, 8px), -34px, 0) scale(1.18); opacity: 0; }
 }
-@keyframes para-pet-fire-x-wiggle {
-  0%, 100% { transform: rotate(-4deg) scale(0.96); }
-  50% { transform: rotate(4deg) scale(1.05); }
-}
 `;
 
-export default function PetFireReaction() {
+export default function PetFireReaction({
+  xEyes = { x: 500, y: 390, scale: 100 },
+}: {
+  xEyes?: PetXEyesPlacement;
+}) {
   const smoke = [
     { left: "43%", delay: "2.2s", x: "-8px", size: 10 },
     { left: "54%", delay: "2.65s", x: "9px", size: 13 },
@@ -33,28 +35,7 @@ export default function PetFireReaction() {
       }}
     >
       <style>{PET_FIRE_REACTION_STYLES}</style>
-
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "39%",
-          transform: "translate(-50%, -50%)",
-          display: "flex",
-          gap: 5,
-          color: "#ff4038",
-          fontFamily: "Arial Black, Arial, sans-serif",
-          fontWeight: 900,
-          fontSize: 20,
-          lineHeight: 0.9,
-          WebkitTextStroke: "1.2px #b80f0b",
-          textShadow: "0 1px 2px rgba(0,0,0,0.88), 0 0 5px rgba(255,55,45,0.52)",
-          animation: "para-pet-fire-x-wiggle 0.72s ease-in-out infinite",
-        }}
-      >
-        <span>×</span>
-        <span>×</span>
-      </div>
+      <PetXEyesOverlay x={xEyes.x} y={xEyes.y} scale={xEyes.scale} animated />
 
       {smoke.map((puff, index) => (
         <span
