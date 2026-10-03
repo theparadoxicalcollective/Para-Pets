@@ -987,6 +987,7 @@ export const houseBundles = pgTable("house_bundles", {
   giftNotificationY: real("gift_notification_y").notNull().default(0.85),
   maxOutdoorPets: integer("max_outdoor_pets").notNull().default(6),
   maxOutdoorDecor: integer("max_outdoor_decor").notNull().default(8),
+  exteriorEffects: jsonb("exterior_effects").$type<HouseInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
