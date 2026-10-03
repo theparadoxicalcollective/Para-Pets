@@ -604,6 +604,7 @@ export function HomeInteriorEffectsLayer({
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
             onPointerCancel={interactive && onEffectPointerCancel ? event => onEffectPointerCancel(event, effect) : undefined}
             onLostPointerCapture={interactive && onEffectPointerCancel ? event => onEffectPointerCancel(event, effect) : undefined}
+            onClick={interactive ? event => event.stopPropagation() : undefined}
             data-player-toggle-effect-id={playerToggleable ? effect.id : undefined}
             role={playerToggleable ? "button" : undefined}
             tabIndex={playerToggleable ? 0 : undefined}
