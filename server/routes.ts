@@ -88,6 +88,7 @@ import { registerMaintenanceRoutes } from "./routes/maintenance.routes";
 import { registerClientErrorRoutes } from "./routes/clientDiagnostics.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
+import { sanitizeActivePetFrame, sanitizeActivePetTemplateLayout } from "@shared/activePetPlacement";
 import { startVeridianWatcherBackgroundJobs } from "./veridianWatcher/backgroundJobs";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -3677,6 +3678,42 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/settings/active-pet-frame", isAuthenticated, async (_req, res) => {
+    try {
+      const raw = await storage.getGameSetting("active_pet_frame");
+      let parsed: unknown = null;
+      if (raw) {
+        try { parsed = JSON.parse(raw); } catch { parsed = null; }
+      }
+      return res.json(sanitizeActivePetFrame(parsed));
+    } catch (err) {
+      console.error("Get active pet frame error:", err);
+      return res.status(500).json({ message: "Failed to get active pet frame" });
+    }
+  });
+
+  app.patch("/api/admin/settings/active-pet-frame", isAdmin, async (req, res) => {
+    try {
+      const frame = sanitizeActivePetFrame(req.body);
+      await storage.setGameSetting("active_pet_frame", JSON.stringify(frame));
+      return res.json(frame);
+    } catch (err) {
+      console.error("Set active pet frame error:", err);
+      return res.status(500).json({ message: "Failed to update active pet frame" });
+    }
+  });
+
+  app.get("/api/pet-template-layout/:id", isAuthenticated, async (req, res) => {
+    try {
+      const template = await storage.getPetTemplate(req.params.id as string);
+      if (!template) return res.status(404).json({ message: "Template not found" });
+      return res.json(sanitizeActivePetTemplateLayout(template));
+    } catch (err) {
+      console.error("Get active pet template layout error:", err);
+      return res.status(500).json({ message: "Failed to get pet template layout" });
+    }
+  });
+
   app.get("/api/admin/pet-templates", isAdmin, async (req, res) => {
     try {
       const testOnly = req.query.testOnly === "true" || req.query.testOnly === "1";
@@ -3740,13 +3777,33 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      const { name, frontAssembled, backAssembled, facing, canFly, idleStyle, sleepingImageData, clearSleepingImage } = req.body;
+      const {
+        name, frontAssembled, backAssembled, facing, canFly, idleStyle,
+        sleepingImageData, clearSleepingImage,
+        activeDisplayX, activeDisplayY, activeDisplayScale,
+        xEyesBaseX, xEyesBaseY, xEyesBaseScale,
+        xEyesEvolutionX, xEyesEvolutionY, xEyesEvolutionScale,
+      } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
       if (frontAssembled !== undefined) updates.frontAssembled = frontAssembled;
       if (backAssembled !== undefined) updates.backAssembled = backAssembled;
       if (facing !== undefined) updates.facing = facing;
       if (canFly !== undefined) updates.canFly = canFly;
+
+      const layoutInput = {
+        activeDisplayX, activeDisplayY, activeDisplayScale,
+        xEyesBaseX, xEyesBaseY, xEyesBaseScale,
+        xEyesEvolutionX, xEyesEvolutionY, xEyesEvolutionScale,
+      };
+      const sanitizedLayout = sanitizeActivePetTemplateLayout(layoutInput);
+      for (const key of Object.keys(layoutInput) as Array<keyof typeof layoutInput>) {
+        if (layoutInput[key] === undefined) continue;
+        if (typeof layoutInput[key] !== "number" || !Number.isFinite(layoutInput[key])) {
+          return res.status(400).json({ message: `${key} must be a finite number` });
+        }
+        updates[key] = sanitizedLayout[key];
+      }
       if (idleStyle !== undefined) {
         const parsed = petAnimationProfileSchema.safeParse(idleStyle);
         if (!parsed.success) return res.status(400).json({ message: "Invalid pet animation profile" });
