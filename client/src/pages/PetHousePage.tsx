@@ -660,10 +660,25 @@ function InteriorViewer({
   const onPetUp = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    if (!drag || imgWidthRef.current <= 0) {
+    if (!drag || imgWidthRef.current <= 0 || e.type === "pointercancel") {
       setPetDragLive(null);
       return;
     }
+
+    if (!drag.moved) {
+      setPetDragLive(null);
+      const now = Date.now();
+      if (isSecondHomeEditTap(petTapRef.current, drag.inventoryId, now)) {
+        petTapRef.current = null;
+        setPopupPetId(drag.inventoryId);
+        setSelectedItemId(null);
+        setTopPetId(drag.inventoryId);
+      } else {
+        petTapRef.current = { id: drag.inventoryId, at: now };
+      }
+      return;
+    }
+
     const maxY = maxYForHeight(containerHRef.current);
     const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
@@ -677,22 +692,21 @@ function InteriorViewer({
       visiblePetSize / 2 / imgWidthRef.current,
       visiblePetSize / 2 / Math.max(containerHRef.current, 1),
     );
+    const sleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerHRef.current, 1);
     const newXPct = sleepSnap?.x ?? rawXPct;
-    const newYPct = sleepSnap?.y ?? rawYPct;
-    if (sleepSnap || Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
-      const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
-      setTopPetId(drag.inventoryId);
-      setPetDragLive(finalPosition);
-      void onMovePet(drag.inventoryId, newXPct, newYPct, drag.scalePct, drag.flipped)
-        .catch(() => undefined)
-        .finally(() => setPetDragLive(current =>
-          current?.inventoryId === finalPosition.inventoryId &&
-          current.xPct === finalPosition.xPct &&
-          current.yPct === finalPosition.yPct ? null : current
-        ));
-      return;
-    }
-    setPetDragLive(null);
+    const newYPct = sleepSnap
+      ? Math.max(0.02, Math.min(maxY, sleepSnap.y - sleepYOffsetPct))
+      : rawYPct;
+    const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
+    setTopPetId(drag.inventoryId);
+    setPetDragLive(finalPosition);
+    void onMovePet(drag.inventoryId, newXPct, newYPct, drag.scalePct, drag.flipped)
+      .catch(() => undefined)
+      .finally(() => setPetDragLive(current =>
+        current?.inventoryId === finalPosition.inventoryId &&
+        current.xPct === finalPosition.xPct &&
+        current.yPct === finalPosition.yPct ? null : current
+      ));
   }, [effects, onMovePet]);
 
   const displayedItems = useMemo(() =>
