@@ -1,3 +1,4 @@
+import { registerPetPresentationRoutes } from "./routes/petPresentation.routes";
 import { resolvePetArtwork } from "./petArtwork";
 import { processEvolutionImageUpdate } from "./evolutionImageUpload";
 import { AccountConflictError } from "./accounts/errors";
@@ -817,6 +818,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   seedWorldBackgrounds();
+  registerPetPresentationRoutes(app);
 
   registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
   registerClearingShopRoutes(app, { db, isAuthenticated });

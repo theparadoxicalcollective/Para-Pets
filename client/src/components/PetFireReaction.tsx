@@ -13,7 +13,7 @@ const PET_FIRE_REACTION_STYLES = `
 }
 `;
 
-export default function PetFireReaction() {
+export default function PetFireReaction({ hideEyes = false }: { hideEyes?: boolean }) {
   const smoke = [
     { left: "43%", delay: "2.2s", x: "-8px", size: 10 },
     { left: "54%", delay: "2.65s", x: "9px", size: 13 },
@@ -34,7 +34,7 @@ export default function PetFireReaction() {
     >
       <style>{PET_FIRE_REACTION_STYLES}</style>
 
-      <div
+      {!hideEyes && <div
         style={{
           position: "absolute",
           left: "50%",
@@ -54,7 +54,7 @@ export default function PetFireReaction() {
       >
         <span>×</span>
         <span>×</span>
-      </div>
+      </div>}
 
       {smoke.map((puff, index) => (
         <span

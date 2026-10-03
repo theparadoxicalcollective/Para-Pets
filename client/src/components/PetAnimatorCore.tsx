@@ -1,3 +1,6 @@
+import PetXEyes from "./PetXEyes";
+import { usePetPresentation } from "@/lib/petPresentation";
+import { defaultXEyes } from "@shared/petPresentation";
 import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -25,6 +28,7 @@ interface PetPart {
 export interface PetCanvasLayout { templateId: string; innerSize: number; innerOffset: number; transform: string; }
 
 interface PetAnimatorProps {
+  fireReaction?: boolean;
   onCanvasLayout?: (layout: PetCanvasLayout) => void;
   petTemplateId: string;
   artworkForm?: PetArtworkForm;
@@ -1380,7 +1384,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, artworkForm = "base", mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes, onCanvasLayout }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, artworkForm = "base", mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes, onCanvasLayout, fireReaction = false }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -1424,6 +1428,8 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
     ...petTemplateQuery(petTemplateId, artworkForm),
   });
+
+  const presentation = usePetPresentation(petTemplateId, artworkForm, templateData?.facing === "back" ? "back" : "front", fireReaction);
 
   const allParts = useMemo(
     () => normalizePetParts(templateData?.parts).filter(part => !hiddenPartTypes?.has(part.partType)),
@@ -2368,7 +2374,9 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
                 ...(headBobVarStyle ?? {}),
               }}
             >
+              {fireReaction && <div style={{ position: "absolute", inset: 0, containerType: "inline-size", pointerEvents: "none", zIndex: 25000 }}><PetXEyes {...(presentation.placement.eyes[group.head.partType] ?? defaultXEyes(group.head, allParts))} /></div>}
               {allGroupParts.map((part) => {
+                if (fireReaction && ["eyes", "eyes_closed"].includes(basePetPartType(part.partType))) return null;
                 const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
                 const isEyePart = isEyePartType(part.partType);
                 // When in a non-neutral expression (or sleep mode), freeze
