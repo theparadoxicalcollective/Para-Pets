@@ -1456,11 +1456,15 @@ function BagView({
         </div>
       ) : displayCount === 0 ? (
         <div className="text-center py-12">
-          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {activeBagTabLabel} in your bag</p>
+          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">
+            {activeBagCategory === "pets"
+              ? "Full Pets are managed in the Pet Companions inventory."
+              : `No ${activeBagTabLabel} in your bag`}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          {displayItems.map(({ item, count }) => {
+          {displayInventoryEntries.map(({ item, count }) => {
             const typeColor = typeColors[item.type] || "#f0c040";
             return (
               <div
@@ -1479,15 +1483,10 @@ function BagView({
               >
                 <div className="p-3 flex flex-col items-center gap-2">
                   <div className="relative w-full">
-                    <div
-                      className="w-full aspect-square rounded-lg flex items-center justify-center"
-                      style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}
-                    >
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
-                      ) : (
-                        <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
-                      )}
+                    <div className="w-full aspect-square rounded-lg flex items-center justify-center" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
+                        : <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
                     </div>
                     {count > 1 && (
                       <span
@@ -1506,6 +1505,37 @@ function BagView({
               </div>
             );
           })}
+          {displayHomeAssets.map(asset => (
+            <button
+              type="button"
+              key={asset.key}
+              data-testid={`card-bag-${asset.kind}-${asset.key.split(":").at(-1)}`}
+              className="rounded-xl overflow-hidden relative text-left"
+              onClick={() => setSelectedHomeAsset(asset)}
+              style={{
+                background: "linear-gradient(135deg, rgba(12,31,20,.97), rgba(38,31,8,.97))",
+                border: "1px solid rgba(190,235,100,.38)",
+                boxShadow: "0 0 10px rgba(190,235,100,.09)",
+                cursor: "pointer",
+              }}
+            >
+              <div className="p-3 flex flex-col items-center gap-2">
+                <div className="relative w-full">
+                  <div className="w-full aspect-square rounded-lg flex items-center justify-center" style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.06)" }}>
+                    {asset.imageUrl
+                      ? <img src={asset.imageUrl} alt={asset.name} className="w-full h-full object-contain rounded-lg" />
+                      : <img src={bagIconImg} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
+                  </div>
+                  {asset.count > 1 && (
+                    <span className="absolute bottom-1.5 right-1.5 font-fantasy text-xs font-bold px-2 py-0.5 rounded-md" style={{ background: "rgba(10,20,5,.92)", color: "#bef264", border: "1px solid rgba(190,242,100,.4)" }}>
+                      ×{asset.count}
+                    </span>
+                  )}
+                </div>
+                <p className="font-fantasy text-[#d9f99d] text-sm font-semibold text-center truncate w-full">{asset.name}</p>
+              </div>
+            </button>
+          ))}
         </div>
       )}
       </section>
