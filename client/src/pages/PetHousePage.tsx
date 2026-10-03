@@ -692,7 +692,10 @@ function InteriorViewer({
       visiblePetSize / 2 / imgWidthRef.current,
       visiblePetSize / 2 / Math.max(containerHRef.current, 1),
     );
-    const sleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerHRef.current, 1);
+    const sleepEffect = sleepSnap ? effects.find(effect => effect.id === sleepSnap.effectId) : null;
+    const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerHRef.current, 1);
+    const maxSleepYOffsetPct = sleepEffect ? sleepEffect.size / 400 : requestedSleepYOffsetPct;
+    const sleepYOffsetPct = Math.min(requestedSleepYOffsetPct, maxSleepYOffsetPct);
     const newXPct = sleepSnap?.x ?? rawXPct;
     const newYPct = sleepSnap
       ? Math.max(0.02, Math.min(maxY, sleepSnap.y - sleepYOffsetPct))
@@ -1321,7 +1324,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 visiblePetSize / 2 / interior.imgWidth,
                 visiblePetSize / 2 / Math.max(interior.containerH, 1),
               );
-              const sleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(interior.containerH, 1);
+              const sleepEffect = sleepSnap
+                ? openInterior.interiorEffects.find(effect => effect.id === sleepSnap.effectId)
+                : null;
+              const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(interior.containerH, 1);
+              const maxSleepYOffsetPct = sleepEffect ? sleepEffect.size / 400 : requestedSleepYOffsetPct;
+              const sleepYOffsetPct = Math.min(requestedSleepYOffsetPct, maxSleepYOffsetPct);
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
                 xPct: sleepSnap?.x ?? rawXPct,
