@@ -6,6 +6,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
+import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
@@ -21,7 +22,7 @@ interface VisitedPet {
   homeScalePct: number; homeFlipped: boolean;
 }
 interface ActiveBundle {
-  id: string; name: string; bgImageUrl: string | null;
+  id: string; name: string; bgImageUrl: string | null; exteriorEffects?: HouseInteriorEffect[];
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
 }
 interface PlacedDecorItem {
@@ -439,6 +440,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
+  const outdoorLighting = useHomeOutdoorLighting();
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const [selectedPet, setSelectedPet] = useState<VisitedPet | null>(null);
 
@@ -660,6 +662,27 @@ export default function VisitPetHousePage() {
         );
       })}
 
+      {!openInterior && (
+        <>
+          <HomeOutdoorAtmosphereLayer
+            darkness={outdoorLighting.darkness}
+            nightStrength={outdoorLighting.nightStrength}
+            effects={activeBundle?.exteriorEffects ?? []}
+            panX={panX}
+            imgWidth={imgWidth}
+            sceneHeight={containerH}
+            zIndex={20}
+          />
+          <HomeInteriorEffectsLayer
+            effects={activeBundle?.exteriorEffects ?? []}
+            panX={panX}
+            imgWidth={imgWidth}
+            sceneHeight={containerH}
+            zIndex={21}
+          />
+        </>
+      )}
+
       {/* HUD */}
       <div
         className="absolute z-30 left-0 right-0 flex items-center justify-between px-3"
@@ -678,7 +701,11 @@ export default function VisitPetHousePage() {
             {petsData.username}'s Pet House
           </p>
         )}
-        <div className="w-9 h-9 flex-shrink-0" />
+        <HomeDayNightToggle
+          mode={outdoorLighting.mode}
+          onCycle={outdoorLighting.cycleMode}
+          style={{ width: 36, height: 36 }}
+        />
       </div>
 
       {isLoading && (
