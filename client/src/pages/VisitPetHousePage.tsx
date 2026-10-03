@@ -195,7 +195,7 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
@@ -205,6 +205,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   leaveButtonY?: number;
   onClose: () => void;
   onPetClick: (pet: VisitedPet) => void;
+  reactingPetId: string | null;
+  pendingRewardPetId: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const aspectRef = useRef(16 / 9);
@@ -381,6 +383,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           yPct,
           imageAspect,
         );
+        const isRewardReacting = reactingPetId === pet.inventoryId;
         return (
           <div
             key={pet.inventoryId}
@@ -393,6 +396,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           >
             <div
               data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
+              className={isRewardReacting ? "feed-pet-happy" : undefined}
               style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
             >
               {pet.petTemplateId ? (
@@ -402,6 +406,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   costumeAccess="public"
                   fireReaction={isOnFire}
                   mode={isOnFire ? "sleep" : isSleeping ? "sleep" : "house"}
+                  expression={isRewardReacting ? "petted" : undefined}
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
@@ -419,6 +424,11 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               {isSleeping && <PetSleepZzz />}
               {isOnFire && <PetFireReaction hideEyes={!!pet.petTemplateId} />}
             </div>
+            <PetHomeVisitRewardCue
+              available={!!pet.visitRewardAvailable && pendingRewardPetId !== pet.inventoryId}
+              reacting={isRewardReacting}
+              amount={pet.visitRewardAmount ?? 10}
+            />
           </div>
         );
       })}
