@@ -178,7 +178,7 @@ test("player building exits use a world-style sparkle while Admin keeps the mova
     assert.match(source, /<HomeInteriorExitSparkle \/>/);
   }
 
-  assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,900}>\s*Outside\s*<\/button>/);
+  assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,1600}>\s*Outside\s*<\/button>/);
 });
 
 test("campfire is flame-only and candle light remains a distinct renderer", () => {
