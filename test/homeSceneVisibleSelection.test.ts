@@ -40,8 +40,8 @@ test("selected Home items glow around the PNG silhouette without a rectangular b
   assert.match(component, /outline: "none"/);
   assert.match(component, /boxShadow: "none"/);
   assert.match(owner, /zIndex: isSelected \? 180/);
-  assert.match(owner, /setTopItemId\(item\.id\)/);
-  assert.match(owner, /setTopOutdoorDecorId\(item\.id\)/);
+  assert.match(owner, /setTopItemId\(drag\.id\)/);
+  assert.match(owner, /setTopOutdoorDecorId\(drag\.id\)/);
 });
 
 test("Home item controls are positioned from visible alpha bounds instead of the full PNG canvas", () => {
