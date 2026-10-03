@@ -7,9 +7,11 @@ import {
   HOUSE_INTERIOR_EFFECT_TYPES,
   HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST,
   HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST,
+  HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO,
   PET_HOUSE_PLAYER_MAX_SCALE,
   PET_HOUSE_PLAYER_MIN_SCALE,
   clampPetHousePlayerScale,
+  getHouseInteriorPointDarkness,
   getHouseInteriorSideDarkness,
   getHouseInteriorSleepSnapPosition,
   isHouseInteriorSleepPosition,
@@ -75,6 +77,25 @@ test("room darkness is the lights-off baseline and active lights brighten their 
     size: 14,
   }));
   assert.equal(getHouseInteriorSideDarkness(90, manyLeftLights).leftBoost, HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST);
+});
+
+test("interior pets use the same side-aware darkness as the room", () => {
+  const lights = [
+    { id: "left-fire", type: "fire" as const, x: 0.2, y: 0.5, size: 14 },
+    { id: "right-lamp", type: "warm_glow" as const, x: 0.8, y: 0.5, size: 18 },
+  ];
+
+  assert.equal(getHouseInteriorPointDarkness(60, lights, new Set(["right-lamp"]), 0.2), 50);
+  assert.equal(getHouseInteriorPointDarkness(60, lights, new Set(["right-lamp"]), 0.8), 60);
+  assert.equal(getHouseInteriorPointDarkness(60, lights, new Set(["left-fire", "right-lamp"]), 0.5), 60);
+
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  for (const source of [owner, visitor]) {
+    assert.match(source, /getHouseInteriorPointDarkness\(darkness, effects, offEffectIds, xPct\)/);
+    assert.match(source, /const petBrightness = \(100 - petDarkness\) \/ 100/);
+    assert.match(source, /brightness\(\$\{petBrightness\}\)/);
+  }
 });
 
 test("interior effect sanitizer keeps only supported effects and clamps scene-space values", () => {
@@ -161,14 +182,14 @@ test("Sleep Square hit testing and drop snapping use the same scene-space geomet
   assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.7, 0.5, 2), null);
 });
 
-test("Home pet size controls use a 100px-style base range of 50% through 110%", () => {
+test("Home pet size controls keep a 100px start and allow growth through 120px", () => {
   const sizing = read("client/src/lib/petHouseSizing.ts");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
   assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 50);
-  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 110);
-  assert.equal(clampPetHousePlayerScale(999), 110);
+  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 120);
+  assert.equal(clampPetHousePlayerScale(999), 120);
   assert.equal(clampPetHousePlayerScale(10), 50);
   assert.match(sizing, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE = 100/);
   assert.match(sizing, /PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100/);
@@ -196,7 +217,9 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
   assert.match(owner, /visiblePetSize \/ 2 \/ imgWidthRef\.current/);
   assert.match(owner, /visiblePetSize \/ 2 \/ Math\.max\(containerHRef\.current, 1\)/);
   assert.match(owner, /sleepSnap\?\.x \?\? rawXPct/);
-  assert.match(owner, /sleepSnap\?\.y \?\? rawYPct/);
+  assert.match(owner, /HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO/);
+  assert.match(owner, /sleepSnap\.y - sleepYOffsetPct/);
+  assert.equal(HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, 0.08);
 
   for (const source of [owner, visitor]) {
     assert.match(source, /isHouseInteriorSleepPosition/);

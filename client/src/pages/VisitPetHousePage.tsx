@@ -7,7 +7,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
-import { clampPetHousePlayerScale, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -348,6 +348,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
+        const petBrightness = (100 - petDarkness) / 100;
         const isSleeping = isHouseInteriorSleepPosition(
           effects,
           xPct,
@@ -377,7 +379,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
-                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
                 <img
@@ -385,7 +387,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
                 className="pet-idle-squish"
-                style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", filter: `brightness(${petBrightness})`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
               />
               ) : null}
               {isSleeping && <PetSleepZzz />}

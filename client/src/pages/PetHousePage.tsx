@@ -48,7 +48,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorSleepPosition, type BuildingSize, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -324,6 +324,17 @@ function CarePopup({
   );
 }
 
+const HOME_EDIT_DOUBLE_TAP_MS = 360;
+const HOME_EDIT_DRAG_THRESHOLD_PX = 8;
+
+function isSecondHomeEditTap(
+  previous: { id: string; at: number } | null,
+  id: string,
+  now: number,
+): boolean {
+  return !!previous && previous.id === id && now - previous.at <= HOME_EDIT_DOUBLE_TAP_MS;
+}
+
 function maxYForHeight(containerH: number, reservePx = BOTTOM_TOOLBAR_RESERVE_PX): number {
   if (containerH <= 0) return 0.82;
   return Math.min(0.92, (containerH - reservePx) / containerH);
@@ -462,10 +473,12 @@ function InteriorViewer({
   const [popupPetId, setPopupPetId] = useState<string | null>(null);
   const [topPetId, setTopPetId] = useState<string | null>(null);
   const [topItemId, setTopItemId] = useState<string | null>(null);
-  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number } | null>(null);
+  const itemTapRef = useRef<{ id: string; at: number } | null>(null);
+  const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const petTapRef = useRef<{ id: string; at: number } | null>(null);
   const popupPet = placedPets.find(pet => pet.inventoryId === popupPetId) ?? null;
   const popupPetLivePosition = popupPet && petDragLive?.inventoryId === popupPet.inventoryId ? petDragLive : null;
 
@@ -549,24 +562,34 @@ function InteriorViewer({
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    if (selectedItemId !== item.id) {
-      setSelectedItemId(item.id);
-      setPopupPetId(null);
-      setTopItemId(item.id);
-      return;
-    }
-    playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    itemDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-  }, [selectedItemId]);
+    itemDragRef.current = {
+      id: item.id,
+      startXPct: item.xPct,
+      startYPct: item.yPct,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      pid: e.pointerId,
+      moved: false,
+    };
+  }, []);
 
   const onItemMove = useCallback((e: React.PointerEvent) => {
     const drag = itemDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setSelectedItemId(null);
+      setPopupPetId(null);
+    }
+    if (!drag.moved) return;
     setItemDragLive({
       id: drag.id,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current)),
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
+      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + dy / containerHRef.current)),
     });
   }, []);
 
@@ -574,25 +597,30 @@ function InteriorViewer({
     const drag = itemDragRef.current;
     itemDragRef.current = null;
     setItemDragLive(null);
-    if (!drag || imgWidthRef.current <= 0) return;
+    if (!drag || imgWidthRef.current <= 0 || e.type === "pointercancel") return;
+
+    if (!drag.moved) {
+      const now = Date.now();
+      if (isSecondHomeEditTap(itemTapRef.current, drag.id, now)) {
+        itemTapRef.current = null;
+        setSelectedItemId(drag.id);
+        setPopupPetId(null);
+        setTopItemId(drag.id);
+      } else {
+        itemTapRef.current = { id: drag.id, at: now };
+      }
+      return;
+    }
+
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
-    if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
-      setTopItemId(drag.id);
-      onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
-    }
+    setTopItemId(drag.id);
+    onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
   }, [onUpdateItem]);
 
   // Pet drag handlers
   const onPetDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
-    if (popupPetId !== pet.inventoryId) {
-      setPopupPetId(pet.inventoryId);
-      setSelectedItemId(null);
-      setTopPetId(pet.inventoryId);
-      return;
-    }
-    playGrab();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
@@ -605,27 +633,52 @@ function InteriorViewer({
       scalePct: clampPetHousePlayerScale(pet.homeScalePct ?? 100),
       flipped: !!pet.homeFlipped,
       pid: e.pointerId,
+      moved: false,
     };
-  }, [popupPetId]);
+  }, []);
 
   const onPetMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setPopupPetId(null);
+      setSelectedItemId(null);
+    }
+    if (!drag.moved) return;
     const maxY = maxYForHeight(containerHRef.current);
     setPetDragLive({
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current)),
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
+      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + dy / containerHRef.current)),
     });
   }, []);
 
   const onPetUp = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    if (!drag || imgWidthRef.current <= 0) {
+    if (!drag || imgWidthRef.current <= 0 || e.type === "pointercancel") {
       setPetDragLive(null);
       return;
     }
+
+    if (!drag.moved) {
+      setPetDragLive(null);
+      const now = Date.now();
+      if (isSecondHomeEditTap(petTapRef.current, drag.inventoryId, now)) {
+        petTapRef.current = null;
+        setPopupPetId(drag.inventoryId);
+        setSelectedItemId(null);
+        setTopPetId(drag.inventoryId);
+      } else {
+        petTapRef.current = { id: drag.inventoryId, at: now };
+      }
+      return;
+    }
+
     const maxY = maxYForHeight(containerHRef.current);
     const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
@@ -639,22 +692,24 @@ function InteriorViewer({
       visiblePetSize / 2 / imgWidthRef.current,
       visiblePetSize / 2 / Math.max(containerHRef.current, 1),
     );
+    const sleepEffect = sleepSnap ? effects.find(effect => effect.id === sleepSnap.effectId) : null;
+    const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerHRef.current, 1);
+    const maxSleepYOffsetPct = sleepEffect ? sleepEffect.size / 400 : requestedSleepYOffsetPct;
+    const sleepYOffsetPct = Math.min(requestedSleepYOffsetPct, maxSleepYOffsetPct);
     const newXPct = sleepSnap?.x ?? rawXPct;
-    const newYPct = sleepSnap?.y ?? rawYPct;
-    if (sleepSnap || Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
-      const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
-      setTopPetId(drag.inventoryId);
-      setPetDragLive(finalPosition);
-      void onMovePet(drag.inventoryId, newXPct, newYPct, drag.scalePct, drag.flipped)
-        .catch(() => undefined)
-        .finally(() => setPetDragLive(current =>
-          current?.inventoryId === finalPosition.inventoryId &&
-          current.xPct === finalPosition.xPct &&
-          current.yPct === finalPosition.yPct ? null : current
-        ));
-      return;
-    }
-    setPetDragLive(null);
+    const newYPct = sleepSnap
+      ? Math.max(0.02, Math.min(maxY, sleepSnap.y - sleepYOffsetPct))
+      : rawYPct;
+    const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
+    setTopPetId(drag.inventoryId);
+    setPetDragLive(finalPosition);
+    void onMovePet(drag.inventoryId, newXPct, newYPct, drag.scalePct, drag.flipped)
+      .catch(() => undefined)
+      .finally(() => setPetDragLive(current =>
+        current?.inventoryId === finalPosition.inventoryId &&
+        current.xPct === finalPosition.xPct &&
+        current.yPct === finalPosition.yPct ? null : current
+      ));
   }, [effects, onMovePet]);
 
   const displayedItems = useMemo(() =>
@@ -751,6 +806,8 @@ function InteriorViewer({
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
+        const petBrightness = (100 - petDarkness) / 100;
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
         const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
@@ -782,7 +839,7 @@ function InteriorViewer({
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
-                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
                 <img
@@ -790,7 +847,7 @@ function InteriorViewer({
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
                   className={isActivelyDragging ? undefined : "pet-idle-squish"}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: `brightness(${petBrightness})`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
               {isSleeping && <PetSleepZzz />}
@@ -906,7 +963,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor decor drag state
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
+  const outdoorDecorTapRef = useRef<{ id: string; at: number } | null>(null);
 
   // Inventory drag: decor
   const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number } | null>(null);
@@ -921,6 +979,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor pet repositioning drag
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const outdoorPetTapRef = useRef<{ id: string; at: number } | null>(null);
   // Popup selection stores only the inventory id; current pet data stays query-backed.
   const [outdoorPopupPetId, setOutdoorPopupPetId] = useState<string | null>(null);
   // React Query's isPending flag updates on the next render. Keep a synchronous
@@ -1265,10 +1324,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 visiblePetSize / 2 / interior.imgWidth,
                 visiblePetSize / 2 / Math.max(interior.containerH, 1),
               );
+              const sleepEffect = sleepSnap
+                ? openInterior.interiorEffects.find(effect => effect.id === sleepSnap.effectId)
+                : null;
+              const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(interior.containerH, 1);
+              const maxSleepYOffsetPct = sleepEffect ? sleepEffect.size / 400 : requestedSleepYOffsetPct;
+              const sleepYOffsetPct = Math.min(requestedSleepYOffsetPct, maxSleepYOffsetPct);
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
                 xPct: sleepSnap?.x ?? rawXPct,
-                yPct: sleepSnap?.y ?? rawYPct,
+                yPct: sleepSnap ? Math.max(0.03, sleepSnap.y - sleepYOffsetPct) : rawYPct,
                 location: openInterior.buildingId,
                 scalePct: droppedScale,
                 flipped: !!petDrag.pet.homeFlipped,
@@ -1343,23 +1408,34 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Outdoor decor drag ─────────────────────────────────────────────────────
   const handlePlacedDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    if (selectedPlacedId !== item.id) {
-      setSelectedPlacedId(item.id);
-      setOutdoorPopupPetId(null);
-      setTopOutdoorDecorId(item.id);
-      return;
-    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    placedDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-  }, [selectedPlacedId]);
+    placedDragRef.current = {
+      id: item.id,
+      startXPct: item.xPct,
+      startYPct: item.yPct,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      pid: e.pointerId,
+      moved: false,
+    };
+  }, []);
 
   const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
     const drag = placedDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setSelectedPlacedId(null);
+      setOutdoorPopupPetId(null);
+    }
+    if (!drag.moved) return;
     setPlacedDragLive({
       id: drag.id,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH)),
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidth)),
+      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + dy / containerH)),
     });
   }, [imgWidth, containerH]);
 
@@ -1367,24 +1443,30 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const drag = placedDragRef.current;
     placedDragRef.current = null;
     setPlacedDragLive(null);
-    if (!drag || imgWidth <= 0) return;
+    if (!drag || imgWidth <= 0 || e.type === "pointercancel") return;
+
+    if (!drag.moved) {
+      const now = Date.now();
+      if (isSecondHomeEditTap(outdoorDecorTapRef.current, drag.id, now)) {
+        outdoorDecorTapRef.current = null;
+        setSelectedPlacedId(drag.id);
+        setOutdoorPopupPetId(null);
+        setTopOutdoorDecorId(drag.id);
+      } else {
+        outdoorDecorTapRef.current = { id: drag.id, at: now };
+      }
+      return;
+    }
+
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
-    if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
-      setTopOutdoorDecorId(drag.id);
-      updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
-    }
+    setTopOutdoorDecorId(drag.id);
+    updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
   }, [imgWidth, containerH]);
 
   // ── Outdoor pet repositioning drag ─────────────────────────────────────────
   const handlePetDragStart = useCallback((e: React.PointerEvent, pet: HousePet, startXPct: number, startYPct: number) => {
     e.stopPropagation();
-    if (outdoorPopupPetId !== pet.inventoryId) {
-      setOutdoorPopupPetId(pet.inventoryId);
-      setSelectedPlacedId(null);
-      setTopOutdoorPetId(pet.inventoryId);
-      return;
-    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     petDragRef.current = {
       inventoryId: pet.inventoryId,
@@ -1397,14 +1479,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       pid: e.pointerId,
       moved: false,
     };
-  }, [outdoorPopupPetId]);
+  }, []);
 
   const handlePetDragMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
     const dx = e.clientX - drag.startPointerX;
     const dy = e.clientY - drag.startPointerY;
-    if (Math.hypot(dx, dy) > 8) drag.moved = true;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setOutdoorPopupPetId(null);
+      setSelectedPlacedId(null);
+    }
     if (!drag.moved) return;
     const maxYPct = maxYForHeight(containerH);
     setPetDragLive({
@@ -1423,6 +1510,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     }
     if (!drag.moved) {
       setPetDragLive(null);
+      if (e.type === "pointercancel") return;
+      const now = Date.now();
+      if (isSecondHomeEditTap(outdoorPetTapRef.current, drag.inventoryId, now)) {
+        outdoorPetTapRef.current = null;
+        setOutdoorPopupPetId(drag.inventoryId);
+        setSelectedPlacedId(null);
+        setTopOutdoorPetId(drag.inventoryId);
+      } else {
+        outdoorPetTapRef.current = { id: drag.inventoryId, at: now };
+      }
       return;
     }
     if (imgWidth <= 0) {

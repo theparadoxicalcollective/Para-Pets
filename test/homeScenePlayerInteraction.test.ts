@@ -51,10 +51,15 @@ test("players get minus and plus controls for both interior and outdoor Home ite
   assert.equal((owner.match(/clampHomeScenePlayerSize\(item\.item\.homeSceneSize/g) ?? []).length, 4);
 });
 
-test("first press selects; only a selected item can begin dragging", () => {
-  assert.match(owner, /if \(selectedItemId !== item\.id\) \{[\s\S]*setSelectedItemId\(item\.id\);[\s\S]*return;/);
-  assert.match(owner, /if \(selectedPlacedId !== item\.id\) \{[\s\S]*setSelectedPlacedId\(item\.id\);[\s\S]*return;/);
+test("Decor and Objects drag immediately and only expose controls on double tap", () => {
+  assert.match(owner, /itemTapRef/);
+  assert.match(owner, /outdoorDecorTapRef/);
+  assert.match(owner, /isSecondHomeEditTap\(itemTapRef\.current, drag\.id, now\)/);
+  assert.match(owner, /isSecondHomeEditTap\(outdoorDecorTapRef\.current, drag\.id, now\)/);
+  assert.doesNotMatch(owner, /if \(selectedItemId !== item\.id\) \{/);
+  assert.doesNotMatch(owner, /if \(selectedPlacedId !== item\.id\) \{/);
   assert.match(owner, /setPointerCapture\(e\.pointerId\)/);
+  assert.match(owner, /HOME_EDIT_DRAG_THRESHOLD_PX/);
 });
 
 test("only visible artwork receives Home item pointer interaction", () => {

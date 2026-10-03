@@ -23,10 +23,10 @@ test("Home pet size controls are bounded and use stronger decrease than increase
   assert.equal(PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, 25);
   assert.equal(PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, 10);
   assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 50);
-  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 110);
+  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 120);
   assert.equal(clampPetHousePlayerScale(1), 50);
   assert.equal(clampPetHousePlayerScale(100), 100);
-  assert.equal(clampPetHousePlayerScale(999), 110);
+  assert.equal(clampPetHousePlayerScale(999), 120);
 });
 
 test("Pet House pet presentation is stored separately from pet inventory", () => {
@@ -44,11 +44,15 @@ test("Pet House pet route clamps edits and preserves omitted legacy values", () 
   assert.match(route, /clampPetHousePlayerScale\(requestedScalePct\)/);
 });
 
-test("owner pet UI selects before dragging and keeps the selected pet above peers", () => {
-  assert.match(owner, /if \(popupPetId !== pet\.inventoryId\) \{/);
-  assert.match(owner, /setTopPetId\(pet\.inventoryId\)/);
-  assert.match(owner, /if \(outdoorPopupPetId !== pet\.inventoryId\) \{/);
-  assert.match(owner, /setTopOutdoorPetId\(pet\.inventoryId\)/);
+test("owner pet UI drags immediately but only opens edit controls on double tap", () => {
+  assert.match(owner, /HOME_EDIT_DOUBLE_TAP_MS = 360/);
+  assert.match(owner, /HOME_EDIT_DRAG_THRESHOLD_PX = 8/);
+  assert.match(owner, /petTapRef/);
+  assert.match(owner, /outdoorPetTapRef/);
+  assert.match(owner, /isSecondHomeEditTap\(petTapRef\.current, drag\.inventoryId, now\)/);
+  assert.match(owner, /isSecondHomeEditTap\(outdoorPetTapRef\.current, drag\.inventoryId, now\)/);
+  assert.doesNotMatch(owner, /if \(popupPetId !== pet\.inventoryId\) \{/);
+  assert.doesNotMatch(owner, /if \(outdoorPopupPetId !== pet\.inventoryId\) \{/);
   assert.match(owner, /zIndex: isSelectedPet \? 180/);
 });
 

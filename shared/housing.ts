@@ -17,7 +17,7 @@ export function clampHomeScenePlayerSize(baseSize: number, requestedSize: number
 export const PET_HOUSE_PLAYER_SCALE_DECREASE_STEP = 25;
 export const PET_HOUSE_PLAYER_SCALE_INCREASE_STEP = 10;
 export const PET_HOUSE_PLAYER_MIN_SCALE = 50;
-export const PET_HOUSE_PLAYER_MAX_SCALE = 110;
+export const PET_HOUSE_PLAYER_MAX_SCALE = 120;
 
 export function clampPetHousePlayerScale(requestedScale: number): number {
   const requested = Math.round(Number.isFinite(requestedScale) ? requestedScale : 100);
@@ -67,6 +67,20 @@ export interface HouseInteriorSideDarkness {
   rightDarkness: number;
   leftBoost: number;
   rightBoost: number;
+}
+
+export function getHouseInteriorPointDarkness(
+  darkness: unknown,
+  effects: readonly HouseInteriorEffect[],
+  offEffectIds: ReadonlySet<string>,
+  xPct: number,
+): number {
+  const side = getHouseInteriorSideDarkness(darkness, effects, offEffectIds);
+  const x = Math.max(0, Math.min(1, Number.isFinite(xPct) ? xPct : 0.5));
+  if (x <= 0.42) return side.leftDarkness;
+  if (x >= 0.58) return side.rightDarkness;
+  const mix = (x - 0.42) / 0.16;
+  return side.leftDarkness * (1 - mix) + side.rightDarkness * mix;
 }
 
 export function getHouseInteriorSideDarkness(
@@ -144,6 +158,8 @@ export interface HouseInteriorSleepSnapPosition {
   x: number;
   y: number;
 }
+
+export const HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO = 0.08;
 
 export function getHouseInteriorSleepSnapPosition(
   effects: readonly HouseInteriorEffect[],
