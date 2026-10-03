@@ -17,7 +17,8 @@ export function clampHomeScenePlayerSize(baseSize: number, requestedSize: number
 export const PET_HOUSE_PLAYER_SCALE_DECREASE_STEP = 25;
 export const PET_HOUSE_PLAYER_SCALE_INCREASE_STEP = 10;
 export const PET_HOUSE_PLAYER_MIN_SCALE = 50;
-export const PET_HOUSE_PLAYER_MAX_SCALE = 120;
+// Pet House base artwork is 100px, so 250% gives players a 250px max chosen size.
+export const PET_HOUSE_PLAYER_MAX_SCALE = 250;
 
 export function clampPetHousePlayerScale(requestedScale: number): number {
   const requested = Math.round(Number.isFinite(requestedScale) ? requestedScale : 100);
