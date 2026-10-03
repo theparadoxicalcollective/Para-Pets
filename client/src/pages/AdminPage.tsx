@@ -9,15 +9,13 @@ import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.webp";
-import PetDatabasePanel from "@/components/PetDatabasePanel";
+import { AdminEditorLoader, PetDatabasePanel, HomeBundleSection, CardAdminPanel } from "@/components/admin/LazyAdminEditors";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, getItemCategory, ITEM_CATEGORIES, type RewardHouseBundleOption, type RewardHomeDecorOption } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
 import MiniPetAdminPanel from "@/components/MiniPetAdminPanel";
 import ClearingAdminPanel from "@/components/ClearingAdminPanel";
-import HomeBundleSection from "@/components/HomeBundleSection";
-import CardAdminPanel from "@/components/CardAdminPanel";
 import type { CardDefinition } from "@/lib/cardCatalog";
 import RedeemCodeAdminPanel from "@/components/RedeemCodeAdminPanel";
 import DailyRewardsAdminPanel from "@/components/DailyRewardsAdminPanel";
@@ -727,14 +725,20 @@ export default function AdminPage({ user }: AdminPageProps) {
                 <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
               )}
 
-              {activeSection === "cards" && <CardAdminPanel />}
+              {activeSection === "cards" && (
+                <AdminEditorLoader label="Loading Cards…">
+                  <CardAdminPanel />
+                </AdminEditorLoader>
+              )}
 
               {activeSection === "emblems" && (
                 <EmblemDatabaseSection />
               )}
 
               {activeSection === "home_bundle" && (
-                <HomeBundleSection />
+                <AdminEditorLoader label="Loading Home Bundles…">
+                  <HomeBundleSection />
+                </AdminEditorLoader>
               )}
 
               {activeSection === "purchases" && (
@@ -843,11 +847,13 @@ export default function AdminPage({ user }: AdminPageProps) {
             >
               ← Back to Pet
             </button>
-            <PetDatabasePanel
-              key={partsOverlayTemplateId}
-              initialTemplateId={partsOverlayTemplateId}
-              onCostumeDirtyChange={setPartsOverlayDirty}
-            />
+            <AdminEditorLoader label="Loading Pet Parts…">
+              <PetDatabasePanel
+                key={partsOverlayTemplateId}
+                initialTemplateId={partsOverlayTemplateId}
+                onCostumeDirtyChange={setPartsOverlayDirty}
+              />
+            </AdminEditorLoader>
           </div>
         </div>
       )}

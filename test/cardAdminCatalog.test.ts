@@ -15,8 +15,8 @@ const boot = fs.readFileSync("server/startup/migrations/runEssentialBoot.ts", "u
 
 test("Administration Realm exposes a focused Cards section", () => {
   assert.match(adminPage, /key: "cards"[\s\S]*?label: "Cards"/);
-  assert.match(adminPage, /activeSection === "cards" && <CardAdminPanel/);
-  assert.match(adminPage, /import CardAdminPanel/);
+  assert.match(adminPage, /activeSection === "cards" && \([\s\S]*?<CardAdminPanel/);
+  assert.match(adminPage, /import \{[^}]*\bCardAdminPanel\b[^}]*\} from "@\/components\/admin\/LazyAdminEditors"/);
   assert.match(adminPanel, /data-testid="button-add-card"/);
   assert.match(adminPanel, /input-card-artwork/);
   assert.match(adminPanel, /input-card-name/);
