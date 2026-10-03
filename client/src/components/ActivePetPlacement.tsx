@@ -36,8 +36,8 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
   const value = draft ?? query.placement;
   const anchor = editor ? DEFAULT_ACTIVE_PET_ANCHOR : (anchorDraft ?? anchorQuery.anchor);
   // Use one authored-geometry ground point everywhere. The previous editor used
-  // alpha bounds while mobile Home used FULL_BOUNDS, so the same saved pet could
-  // shift when rendered on iPhone/Safari.
+  // alpha bounds while mobile Home used a full-image fallback rectangle, so the
+  // same saved pet could shift when rendered on iPhone/Safari.
   const ground = getStablePetGroundPoint(visibleParts);
   const applied = !editor || editing;
   const finishDrag = (pointerId: number, cancel = false) => {
