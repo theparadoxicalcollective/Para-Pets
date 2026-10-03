@@ -63,6 +63,9 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     turn.style.setProperty("--card-frame-depth", `${intensity * 24}px`);
     turn.style.setProperty("--card-art-depth", `${intensity * -12}px`);
     turn.style.setProperty("--card-backing-depth", `${intensity * -18}px`);
+    // Keep the title almost flush with the face. A large fixed Z offset made
+    // the saved percentage placement look different in the full-size viewer.
+    turn.style.setProperty("--card-title-depth", `${intensity * 6}px`);
     turn.style.setProperty("--card-glow-depth", `${intensity * 28}px`);
     turn.style.setProperty("--card-sparkle-depth", `${intensity * 30}px`);
     turn.style.setProperty("--card-turn-opacity", String(intensity * .9));
