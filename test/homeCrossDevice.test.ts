@@ -77,10 +77,10 @@ test("cancelled mobile gestures do not toggle lights, place inventory items, or 
   const admin = read("client/src/components/HomeBundleSection.tsx");
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
 
-  assert.match(owner, /if \(e\.type === "pointercancel"\) return;[\s\S]*toggleLightEffect/);
-  assert.match(visitor, /if \(e\.type === "pointercancel"\) return;[\s\S]*toggleLightEffect/);
-  assert.match(owner, /if \(e\.type === "pointercancel"\) \{[\s\S]*petInvDragRef\.current = null;[\s\S]*inventoryDragRef\.current = null;/);
-  assert.match(owner, /if \(!drag \|\| e\.type === "pointercancel"\) \{[\s\S]*setPetDragLive\(null\)/);
+  assert.match(owner, /if \(e\.type !== "pointerup"\) return;[\s\S]*toggleLightEffect/);
+  assert.match(visitor, /if \(e\.type !== "pointerup"\) return;[\s\S]*toggleLightEffect/);
+  assert.match(owner, /if \(e\.type !== "pointerup"\) \{[\s\S]*petInvDragRef\.current = null;[\s\S]*inventoryDragRef\.current = null;/);
+  assert.match(owner, /if \(!drag \|\| e\.type !== "pointerup"\) \{[\s\S]*setPetDragLive\(null\)/);
 
   assert.match(admin, /const onLeaveBtnCancel/);
   assert.match(admin, /setLeaveX\(drag\.startLX\)/);
@@ -94,6 +94,11 @@ test("cancelled mobile gestures do not toggle lights, place inventory items, or 
 
   assert.match(effects, /onEffectPointerCancel\?: EffectPointerHandler/);
   assert.match(effects, /onPointerCancel=\{interactive && onEffectPointerCancel/);
+  assert.match(effects, /onLostPointerCapture=\{interactive && onEffectPointerCancel/);
+  assert.match(owner, /onLostPointerCapture=\{onContainerUp\}/);
+  assert.match(owner, /onLostPointerCapture=\{handlePointerUp\}/);
+  assert.match(visitor, /onLostPointerCapture=\{onUp\}/);
+  assert.match(admin, /onLostPointerCapture=\{handleBuildingPointerCancel\}/);
 });
 
 test("Home fixed overlays respect mobile viewport and Admin safe areas", () => {
