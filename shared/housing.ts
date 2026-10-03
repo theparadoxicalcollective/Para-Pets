@@ -37,6 +37,9 @@ export type HomeSceneItemType = "decor" | "object";
 export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
+export const HOUSE_OUTDOOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
+export type HouseOutdoorEffectType = (typeof HOUSE_OUTDOOR_EFFECT_TYPES)[number];
+
 export interface HouseInteriorEffect {
   id: string;
   type: HouseInteriorEffectType;
@@ -193,6 +196,14 @@ export function sanitizeHouseInteriorEffects(value: unknown): HouseInteriorEffec
   }
 
   return effects;
+}
+
+export function isHouseOutdoorEffectType(value: unknown): value is HouseOutdoorEffectType {
+  return typeof value === "string" && (HOUSE_OUTDOOR_EFFECT_TYPES as readonly string[]).includes(value);
+}
+
+export function sanitizeHouseOutdoorEffects(value: unknown): HouseInteriorEffect[] {
+  return sanitizeHouseInteriorEffects(value).filter(effect => isHouseOutdoorEffectType(effect.type));
 }
 
 export interface HouseInteriorSleepSnapPosition {
