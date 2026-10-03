@@ -1400,23 +1400,34 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Outdoor decor drag ─────────────────────────────────────────────────────
   const handlePlacedDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    if (selectedPlacedId !== item.id) {
-      setSelectedPlacedId(item.id);
-      setOutdoorPopupPetId(null);
-      setTopOutdoorDecorId(item.id);
-      return;
-    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    placedDragRef.current = { id: item.id, startXPct: item.xPct, startYPct: item.yPct, startPointerX: e.clientX, startPointerY: e.clientY, pid: e.pointerId };
-  }, [selectedPlacedId]);
+    placedDragRef.current = {
+      id: item.id,
+      startXPct: item.xPct,
+      startYPct: item.yPct,
+      startPointerX: e.clientX,
+      startPointerY: e.clientY,
+      pid: e.pointerId,
+      moved: false,
+    };
+  }, []);
 
   const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
     const drag = placedDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
+    const dx = e.clientX - drag.startPointerX;
+    const dy = e.clientY - drag.startPointerY;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setSelectedPlacedId(null);
+      setOutdoorPopupPetId(null);
+    }
+    if (!drag.moved) return;
     setPlacedDragLive({
       id: drag.id,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH)),
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidth)),
+      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + dy / containerH)),
     });
   }, [imgWidth, containerH]);
 
@@ -1424,24 +1435,30 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const drag = placedDragRef.current;
     placedDragRef.current = null;
     setPlacedDragLive(null);
-    if (!drag || imgWidth <= 0) return;
+    if (!drag || imgWidth <= 0 || e.type === "pointercancel") return;
+
+    if (!drag.moved) {
+      const now = Date.now();
+      if (isSecondHomeEditTap(outdoorDecorTapRef.current, drag.id, now)) {
+        outdoorDecorTapRef.current = null;
+        setSelectedPlacedId(drag.id);
+        setOutdoorPopupPetId(null);
+        setTopOutdoorDecorId(drag.id);
+      } else {
+        outdoorDecorTapRef.current = { id: drag.id, at: now };
+      }
+      return;
+    }
+
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
-    if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
-      setTopOutdoorDecorId(drag.id);
-      updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
-    }
+    setTopOutdoorDecorId(drag.id);
+    updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
   }, [imgWidth, containerH]);
 
   // ── Outdoor pet repositioning drag ─────────────────────────────────────────
   const handlePetDragStart = useCallback((e: React.PointerEvent, pet: HousePet, startXPct: number, startYPct: number) => {
     e.stopPropagation();
-    if (outdoorPopupPetId !== pet.inventoryId) {
-      setOutdoorPopupPetId(pet.inventoryId);
-      setSelectedPlacedId(null);
-      setTopOutdoorPetId(pet.inventoryId);
-      return;
-    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     petDragRef.current = {
       inventoryId: pet.inventoryId,
@@ -1454,14 +1471,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       pid: e.pointerId,
       moved: false,
     };
-  }, [outdoorPopupPetId]);
+  }, []);
 
   const handlePetDragMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
     const dx = e.clientX - drag.startPointerX;
     const dy = e.clientY - drag.startPointerY;
-    if (Math.hypot(dx, dy) > 8) drag.moved = true;
+    if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      playGrab();
+      setOutdoorPopupPetId(null);
+      setSelectedPlacedId(null);
+    }
     if (!drag.moved) return;
     const maxYPct = maxYForHeight(containerH);
     setPetDragLive({
@@ -1480,6 +1502,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     }
     if (!drag.moved) {
       setPetDragLive(null);
+      if (e.type === "pointercancel") return;
+      const now = Date.now();
+      if (isSecondHomeEditTap(outdoorPetTapRef.current, drag.inventoryId, now)) {
+        outdoorPetTapRef.current = null;
+        setOutdoorPopupPetId(drag.inventoryId);
+        setSelectedPlacedId(null);
+        setTopOutdoorPetId(drag.inventoryId);
+      } else {
+        outdoorPetTapRef.current = { id: drag.inventoryId, at: now };
+      }
       return;
     }
     if (imgWidth <= 0) {
