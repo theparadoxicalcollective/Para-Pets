@@ -500,12 +500,12 @@ function InteriorViewer({
     placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
     [placedItems, itemDragLive]);
   const itemLampEffects = useMemo(
-    () => buildHomeLampItemEffects(displayedItems, containerH),
-    [displayedItems, containerH],
+    () => buildHomeLampItemEffects(displayedItems, containerH, undefined, imgWidth),
+    [displayedItems, containerH, imgWidth],
   );
   const itemSleepEffects = useMemo(
-    () => buildHomeSleepDecorEffects(displayedItems, containerH),
-    [displayedItems, containerH],
+    () => buildHomeSleepDecorEffects(displayedItems, containerH, imgWidth),
+    [displayedItems, containerH, imgWidth],
   );
   const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
@@ -1217,12 +1217,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     [placedDecorRaw, placedDragLive]);
 
   const outdoorLampEffects = useMemo(
-    () => buildHomeLampItemEffects(placedDecor, containerH),
-    [placedDecor, containerH],
+    () => buildHomeLampItemEffects(placedDecor, containerH, undefined, imgWidth),
+    [placedDecor, containerH, imgWidth],
   );
   const outdoorSleepDecorEffects = useMemo(
-    () => buildHomeSleepDecorEffects(placedDecor, containerH),
-    [placedDecor, containerH],
+    () => buildHomeSleepDecorEffects(placedDecor, containerH, imgWidth),
+    [placedDecor, containerH, imgWidth],
   );
   const outdoorLightEffects = useMemo(
     () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
