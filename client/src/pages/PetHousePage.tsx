@@ -1319,10 +1319,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 visiblePetSize / 2 / interior.imgWidth,
                 visiblePetSize / 2 / Math.max(interior.containerH, 1),
               );
+              const sleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(interior.containerH, 1);
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
                 xPct: sleepSnap?.x ?? rawXPct,
-                yPct: sleepSnap?.y ?? rawYPct,
+                yPct: sleepSnap ? Math.max(0.03, sleepSnap.y - sleepYOffsetPct) : rawYPct,
                 location: openInterior.buildingId,
                 scalePct: droppedScale,
                 flipped: !!petDrag.pet.homeFlipped,
