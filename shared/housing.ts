@@ -34,6 +34,29 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
+export const HOME_OBJECT_EFFECT_TYPES = ["lamp_light"] as const;
+export const HOME_DECOR_EFFECT_TYPES = ["sleep"] as const;
+export type HomeObjectEffect = (typeof HOME_OBJECT_EFFECT_TYPES)[number];
+export type HomeDecorEffect = (typeof HOME_DECOR_EFFECT_TYPES)[number];
+export type HomeCatalogEffect = HomeObjectEffect | HomeDecorEffect;
+
+export function sanitizeHomeCatalogEffect(itemType: HomeSceneItemType, value: unknown): HomeCatalogEffect | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (itemType === "object" && value === "lamp_light") return "lamp_light";
+  if (itemType === "decor" && value === "sleep") return "sleep";
+  return null;
+}
+
+export function isHomeCatalogEffectAllowed(itemType: HomeSceneItemType, value: unknown): value is HomeCatalogEffect {
+  return sanitizeHomeCatalogEffect(itemType, value) !== null;
+}
+
+export function getHomeAttachedEffectSize(itemSizePx: number, sceneHeightPx: number): number {
+  if (!Number.isFinite(sceneHeightPx) || sceneHeightPx <= 0) return 12;
+  const ratio = (Math.max(1, Number.isFinite(itemSizePx) ? itemSizePx : 100) / sceneHeightPx) * 100;
+  return Math.max(HOUSE_INTERIOR_EFFECT_MIN_SIZE, Math.min(HOUSE_INTERIOR_EFFECT_MAX_SIZE, ratio));
+}
+
 export const HOUSE_BUNDLE_INCLUDED_ITEM_MAX_QUANTITY = 99;
 
 export function sanitizeHouseBundleIncludedItemQuantity(value: unknown): number {
