@@ -693,11 +693,7 @@ export default function VisitPetHousePage() {
             {petsData.username}'s Pet House
           </p>
         )}
-        <HomeDayNightToggle
-          mode={outdoorLighting.mode}
-          onCycle={outdoorLighting.cycleMode}
-          style={{ width: 36, height: 36 }}
-        />
+        <div className="w-9 h-9 flex-shrink-0" aria-hidden="true" />
       </div>
 
       {isLoading && (
