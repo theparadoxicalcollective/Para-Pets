@@ -27,6 +27,7 @@ import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
+import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -116,7 +117,7 @@ interface PetHomePositionUpdate {
   scalePct?: number;
   flipped?: boolean;
 }
-interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; }
+interface HouseBundle { id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; giftNotificationX?: number; giftNotificationY?: number; maxOutdoorPets?: number; maxOutdoorDecor?: number; exteriorEffects?: HouseInteriorEffect[]; }
 interface ActiveBundle extends HouseBundle {
   maxOutdoorPets: number;
   maxOutdoorDecor: number;
@@ -948,6 +949,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const qc = useQueryClient();
+  const outdoorLighting = useHomeOutdoorLighting();
   const { data: friendRequests } = useQuery<{ count: number }>({
     queryKey: ["/api/friends/requests/count"],
     staleTime: 30000,
@@ -1905,6 +1907,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           </div>
         );
       })}
+
+      {!openInterior && (
+        <>
+          <HomeOutdoorAtmosphereLayer
+            darkness={outdoorLighting.darkness}
+            nightStrength={outdoorLighting.nightStrength}
+            effects={activeBundle?.exteriorEffects ?? []}
+            panX={panX}
+            imgWidth={imgWidth}
+            sceneHeight={containerH}
+            zIndex={20}
+          />
+          <HomeInteriorEffectsLayer
+            effects={activeBundle?.exteriorEffects ?? []}
+            panX={panX}
+            imgWidth={imgWidth}
+            sceneHeight={containerH}
+            zIndex={21}
+          />
+          <HomeDayNightToggle
+            mode={outdoorLighting.mode}
+            onCycle={outdoorLighting.cycleMode}
+            style={{
+              position: "absolute",
+              zIndex: 41,
+              top: "max(14px, calc(env(safe-area-inset-top, 0px) + 8px))",
+              right: 14,
+            }}
+          />
+        </>
+      )}
 
       {/* Bottom inventory bar — left-aligned to avoid FloatingNav (bottom-right) */}
       <div
