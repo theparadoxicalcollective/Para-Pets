@@ -27,6 +27,7 @@ export interface HomeDecorRouteDependencies {
   executeDecorPlacement: DecorTransactions["executeDecorPlacement"];
   executeDecorRemoval: DecorTransactions["executeDecorRemoval"];
   processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
+  applyBundleTemplates?: (userId: string) => Promise<unknown>;
 }
 
 /**
@@ -47,6 +48,7 @@ export function registerHomeDecorRoutes(
     executeDecorPlacement,
     executeDecorRemoval,
     processWorldImage,
+    applyBundleTemplates = async () => undefined,
   } = dependencies;
 
   // ── Admin: Home Decor catalog ───────────────────────────────────────────────
@@ -181,6 +183,7 @@ export function registerHomeDecorRoutes(
   app.get("/api/pet-house/decor/placed", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
+      await applyBundleTemplates(userId);
       const location = req.query.location as string | undefined;
       const items = await storage.getPlacedHomeDecor(userId, location);
       return res.json(items);
