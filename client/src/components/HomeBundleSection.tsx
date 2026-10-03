@@ -7,7 +7,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
-import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS, HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ interface HouseBundle {
   giftNotificationX?: number; giftNotificationY?: number;
   maxOutdoorPets?: number;
   maxOutdoorDecor?: number;
+  exteriorEffects?: HouseInteriorEffect[];
 }
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
@@ -540,7 +541,7 @@ function AdminInteriorPreview({
 }
 
 // ─── BundleBgEditor (full-screen background + building editor) ────────────────
-function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle; onClose: () => void; onBgUpdated?: (url: string) => void }) {
+function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bundle: HouseBundle; onClose: () => void; onBgUpdated?: (url: string) => void; onBundleUpdated?: (patch: Partial<HouseBundle>) => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
