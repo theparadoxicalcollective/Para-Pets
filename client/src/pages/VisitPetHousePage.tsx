@@ -349,7 +349,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
-        const petBrightness = Math.max(0.18, (100 - petDarkness) / 100);
+        const petBrightness = (100 - petDarkness) / 100;
         const isSleeping = isHouseInteriorSleepPosition(
           effects,
           xPct,
