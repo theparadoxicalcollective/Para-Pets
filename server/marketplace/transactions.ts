@@ -5,6 +5,10 @@ import {
   playerMarketListings,
   shopItems,
   userInventory,
+  userHomeDecorInventory,
+  homeDecorItems,
+  userHouseBundles,
+  houseBundles,
   petEquippedAccessories,
   users,
   type PlayerMarketListing,
@@ -34,7 +38,7 @@ const assertPrice = (price: number) => {
 };
 
 async function lockUser(tx: MarketTx, userId: string) {
-  const result = await tx.execute(sql`SELECT id, username, market_extra_slots FROM users WHERE id = ${userId} FOR UPDATE`);
+  const result = await tx.execute(sql`SELECT id, username, market_extra_slots, active_house_bundle_id FROM users WHERE id = ${userId} FOR UPDATE`);
   const row = result.rows[0] as any;
   if (!row) throw new MarketplaceError("not_found", "User not found");
   return row;
@@ -128,6 +132,90 @@ export async function createFishListing(input: { actorId: string; fishInventoryI
       sellerId: input.actorId, sellerName: actor.username, inventoryId: escrow.id,
       shopItemId: item.id, itemName: item.name, itemImageUrl: item.imageUrl,
       itemType: "fish", price: input.price,
+    }).returning();
+    return listing;
+  });
+}
+
+export async function createHomeDecorListing(input: { actorId: string; decorInventoryId: string; price: number }): Promise<PlayerMarketListing> {
+  assertPrice(input.price);
+  return db.transaction(async tx => {
+    const actor = await lockUser(tx, input.actorId);
+    const [inventory] = await tx.select().from(userHomeDecorInventory)
+      .where(eq(userHomeDecorInventory.id, input.decorInventoryId)).for("update");
+    if (!inventory || inventory.userId !== input.actorId) {
+      throw new MarketplaceError("item_not_owned", "Home Decor not found in your inventory");
+    }
+    if (inventory.quantity < 1) throw new MarketplaceError("invalid_quantity", "Invalid Home Decor quantity");
+    const [decor] = await tx.select().from(homeDecorItems)
+      .where(eq(homeDecorItems.id, inventory.decorItemId)).for("share");
+    if (!decor) throw new MarketplaceError("unsupported_item", "Home Decor data not found");
+    await assertSlotAvailable(tx, input.actorId, Number(actor.market_extra_slots ?? 0));
+
+    const updated = await tx.update(userHomeDecorInventory)
+      .set({ quantity: sql`${userHomeDecorInventory.quantity} - 1` })
+      .where(and(
+        eq(userHomeDecorInventory.id, inventory.id),
+        eq(userHomeDecorInventory.userId, input.actorId),
+        gte(userHomeDecorInventory.quantity, 1),
+      ))
+      .returning({ quantity: userHomeDecorInventory.quantity });
+    if (updated.length !== 1) throw new MarketplaceError("conflict", "Home Decor is no longer available");
+    if (updated[0].quantity === 0) {
+      await tx.delete(userHomeDecorInventory)
+        .where(and(eq(userHomeDecorInventory.id, inventory.id), eq(userHomeDecorInventory.quantity, 0)));
+    }
+
+    const [listing] = await tx.insert(playerMarketListings).values({
+      sellerId: input.actorId,
+      sellerName: actor.username,
+      inventoryId: inventory.id,
+      shopItemId: decor.id,
+      itemName: decor.name,
+      itemImageUrl: decor.imageUrl,
+      itemType: "home_decor",
+      price: input.price,
+    }).returning();
+    return listing;
+  });
+}
+
+export async function createHomeBundleListing(input: { actorId: string; ownershipId: string; price: number }): Promise<PlayerMarketListing> {
+  assertPrice(input.price);
+  return db.transaction(async tx => {
+    const actor = await lockUser(tx, input.actorId);
+    const [ownership] = await tx.select().from(userHouseBundles)
+      .where(eq(userHouseBundles.id, input.ownershipId)).for("update");
+    if (!ownership || ownership.userId !== input.actorId) {
+      throw new MarketplaceError("item_not_owned", "Home Bundle not found in your inventory");
+    }
+    if (actor.active_house_bundle_id === ownership.bundleId) {
+      throw new MarketplaceError("conflict", "Switch to another Home before listing this Home Bundle");
+    }
+    const [bundle] = await tx.select().from(houseBundles)
+      .where(eq(houseBundles.id, ownership.bundleId)).for("share");
+    if (!bundle) throw new MarketplaceError("unsupported_item", "Home Bundle data not found");
+    await assertSlotAvailable(tx, input.actorId, Number(actor.market_extra_slots ?? 0));
+
+    const removed = await tx.delete(userHouseBundles)
+      .where(and(eq(userHouseBundles.id, ownership.id), eq(userHouseBundles.userId, input.actorId)))
+      .returning({ id: userHouseBundles.id });
+    if (removed.length !== 1) throw new MarketplaceError("conflict", "Home Bundle is no longer owned");
+
+    const [listing] = await tx.insert(playerMarketListings).values({
+      sellerId: input.actorId,
+      sellerName: actor.username,
+      inventoryId: ownership.id,
+      shopItemId: bundle.id,
+      itemName: bundle.name,
+      itemImageUrl: bundle.shopImageUrl ?? bundle.bgImageUrl,
+      itemType: "home_bundle",
+      assetData: {
+        outdoorLightingMode: ownership.outdoorLightingMode,
+        offInteriorEffectIds: ownership.offInteriorEffectIds,
+        purchasedAt: ownership.purchasedAt.toISOString(),
+      },
+      price: input.price,
     }).returning();
     return listing;
   });
