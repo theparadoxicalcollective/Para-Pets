@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import type { HouseInteriorEffect } from "@shared/housing";
@@ -78,7 +78,7 @@ export function HomeDayNightToggle({
 }: {
   mode: HomeOutdoorLightingMode;
   onCycle: () => void;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }) {
   const label = mode === "auto"
     ? "Automatic day and night. Tap for daylight."
