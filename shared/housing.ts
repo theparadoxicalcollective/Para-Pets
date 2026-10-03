@@ -37,6 +37,12 @@ export type HomeSceneItemType = "decor" | "object";
 export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
+export type HomeOutdoorLightingMode = "auto" | "day" | "night";
+
+export function isHomeOutdoorLightingMode(value: unknown): value is HomeOutdoorLightingMode {
+  return value === "auto" || value === "day" || value === "night";
+}
+
 export const HOUSE_OUTDOOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
 export type HouseOutdoorEffectType = (typeof HOUSE_OUTDOOR_EFFECT_TYPES)[number];
 
