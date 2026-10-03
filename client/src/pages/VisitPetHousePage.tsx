@@ -231,12 +231,13 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
       placedItems,
       containerH,
       item => itemEffectOverrides[item.id] ?? item.effectEnabled === true,
+      imgWidth,
     ),
-    [placedItems, containerH, itemEffectOverrides],
+    [placedItems, containerH, itemEffectOverrides, imgWidth],
   );
   const itemSleepEffects = useMemo(
-    () => buildHomeSleepDecorEffects(placedItems, containerH),
-    [placedItems, containerH],
+    () => buildHomeSleepDecorEffects(placedItems, containerH, imgWidth),
+    [placedItems, containerH, imgWidth],
   );
   const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
@@ -607,12 +608,13 @@ export default function VisitPetHousePage() {
       outdoorDecor,
       containerH,
       item => visitorItemEffectOverrides[item.id] ?? item.effectEnabled === true,
+      imgWidth,
     ),
-    [outdoorDecor, containerH, visitorItemEffectOverrides],
+    [outdoorDecor, containerH, visitorItemEffectOverrides, imgWidth],
   );
   const outdoorSleepDecorEffects = useMemo(
-    () => buildHomeSleepDecorEffects(outdoorDecor, containerH),
-    [outdoorDecor, containerH],
+    () => buildHomeSleepDecorEffects(outdoorDecor, containerH, imgWidth),
+    [outdoorDecor, containerH, imgWidth],
   );
   const outdoorLightEffects = useMemo(
     () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
