@@ -58,7 +58,7 @@ test("Decor and Objects drag immediately and only expose controls on double tap"
   assert.match(owner, /isSecondHomeEditTap\(outdoorDecorTapRef\.current, drag\.id, now\)/);
   assert.doesNotMatch(owner, /if \(selectedItemId !== item\.id\) \{/);
   assert.doesNotMatch(owner, /if \(selectedPlacedId !== item\.id\) \{/);
-  assert.match(owner, /setPointerCapture\(e\.pointerId\)/);
+  assert.match(owner, /safeSetPointerCapture\(e\.currentTarget, e\.pointerId\)/);
   assert.match(owner, /HOME_EDIT_DRAG_THRESHOLD_PX/);
 });
 
