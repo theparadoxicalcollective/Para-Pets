@@ -1036,6 +1036,10 @@ export const houseBundleIncludedItems = pgTable("house_bundle_included_items", {
   itemType: text("item_type").notNull(),
   itemId: varchar("item_id").notNull(),
   quantity: integer("quantity").notNull().default(1),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(250),
+  flipped: boolean("flipped").notNull().default(false),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 }, (table) => ({
@@ -1085,6 +1089,7 @@ export const userHouseBundleItemGrants = pgTable("user_house_bundle_item_grants"
   includedItemId: varchar("included_item_id").notNull().references(() => houseBundleIncludedItems.id, { onDelete: "cascade" }),
   grantedQuantity: integer("granted_quantity").notNull().default(0),
   grantedAt: timestamp("granted_at").notNull().default(sql`now()`),
+  templateAppliedAt: timestamp("template_applied_at"),
 }, (table) => ({
   userIncludedItemUnique: unique("user_house_bundle_item_grants_user_item_key")
     .on(table.userId, table.includedItemId),
