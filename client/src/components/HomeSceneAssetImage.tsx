@@ -7,6 +7,7 @@ type HomeSceneAssetImageProps = {
   size: number;
   selected?: boolean;
   flipped?: boolean;
+  brightness?: number;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
   onPointerMove?: PointerEventHandler<HTMLDivElement>;
   onPointerUp?: PointerEventHandler<HTMLDivElement>;
@@ -47,6 +48,7 @@ export function HomeSceneAssetImage({
   size,
   selected = false,
   flipped = false,
+  brightness = 1,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -87,8 +89,9 @@ export function HomeSceneAssetImage({
         style={{
           transform: flipped ? "scaleX(-1)" : undefined,
           filter: selected
-            ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 5px rgba(255,215,0,0.92)) drop-shadow(0 0 10px rgba(255,180,20,0.62)) drop-shadow(0 2px 6px rgba(0,0,0,0.45))"
-            : "drop-shadow(0 2px 6px rgba(0,0,0,0.45))",
+            ? `brightness(${brightness}) drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 5px rgba(255,215,0,0.92)) drop-shadow(0 0 10px rgba(255,180,20,0.62)) drop-shadow(0 2px 6px rgba(0,0,0,0.45))`
+            : `brightness(${brightness}) drop-shadow(0 2px 6px rgba(0,0,0,0.45))`,
+          transition: "filter 260ms ease-out",
           userSelect: "none",
           pointerEvents: "none",
         }}
