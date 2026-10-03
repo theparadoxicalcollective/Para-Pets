@@ -481,6 +481,7 @@ function AdminInteriorPreview({
         onPointerMove={onLeaveBtnMove}
         onPointerUp={onLeaveBtnUp}
         onPointerCancel={onLeaveBtnCancel}
+        onLostPointerCapture={onLeaveBtnCancel}
       >
         Outside
       </button>
@@ -844,6 +845,16 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
     }
   }, [localPos, patchBuilding]);
 
+  const handleBuildingPointerCancel = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    const drag = buildingDragRef.current;
+    if (drag?.pid === e.pointerId) {
+      setLocalPos(prev => ({ ...prev, [drag.id]: { x: drag.origX, y: drag.origY } }));
+    }
+    buildingDragRef.current = null;
+    buildingDidDrag.current = false;
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-[60]"
@@ -853,6 +864,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       onPointerMove={handleContainerPointerMove}
       onPointerUp={handleContainerPointerUp}
       onPointerCancel={handleContainerPointerUp}
+      onLostPointerCapture={handleContainerPointerUp}
       onContextMenu={e => e.preventDefault()}
       onClick={() => setSelectedId(null)}
     >
@@ -894,15 +906,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
                 onPointerDown={e => handleBuildingPointerDown(e, b)}
                 onPointerMove={e => { e.stopPropagation(); handleBuildingPointerMove(e); }}
                 onPointerUp={e => handleBuildingPointerUp(e, b)}
-                onPointerCancel={e => {
-                  e.stopPropagation();
-                  const drag = buildingDragRef.current;
-                  if (drag?.pid === e.pointerId) {
-                    setLocalPos(prev => ({ ...prev, [drag.id]: { x: drag.origX, y: drag.origY } }));
-                  }
-                  buildingDragRef.current = null;
-                  buildingDidDrag.current = false;
-                }}
+                onPointerCancel={handleBuildingPointerCancel}
+                onLostPointerCapture={handleBuildingPointerCancel}
                 onClick={e => e.stopPropagation()}
               >
                 {/* Selection highlight */}
@@ -1026,6 +1031,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           onPointerMove={onGiftBtnMove}
           onPointerUp={onGiftBtnUp}
           onPointerCancel={onGiftBtnCancel}
+          onLostPointerCapture={onGiftBtnCancel}
         >
           <QuillBadge size={18} glow="#4ade80" />
         </button>
