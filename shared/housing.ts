@@ -34,7 +34,7 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
-export const HOME_OBJECT_EFFECT_TYPES = ["lamp_light"] as const;
+export const HOME_OBJECT_EFFECT_TYPES = ["lamp_light", "tap"] as const;
 export const HOME_DECOR_EFFECT_TYPES = ["sleep"] as const;
 export type HomeObjectEffect = (typeof HOME_OBJECT_EFFECT_TYPES)[number];
 export type HomeDecorEffect = (typeof HOME_DECOR_EFFECT_TYPES)[number];
@@ -42,7 +42,7 @@ export type HomeCatalogEffect = HomeObjectEffect | HomeDecorEffect;
 
 export function sanitizeHomeCatalogEffect(itemType: HomeSceneItemType, value: unknown): HomeCatalogEffect | null {
   if (value === null || value === undefined || value === "") return null;
-  if (itemType === "object" && value === "lamp_light") return "lamp_light";
+  if (itemType === "object" && (value === "lamp_light" || value === "tap")) return value;
   if (itemType === "decor" && value === "sleep") return "sleep";
   return null;
 }
