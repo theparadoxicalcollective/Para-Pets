@@ -8,6 +8,7 @@ import {
   PET_HOUSE_PLAYER_SCALE_INCREASE_STEP,
   clampPetHousePlayerScale,
 } from "../shared/housing";
+import { PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "../client/src/lib/petHouseSizing";
 
 const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
 const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
@@ -27,6 +28,7 @@ test("Home pet size controls are bounded and use stronger decrease than increase
   assert.equal(clampPetHousePlayerScale(1), 50);
   assert.equal(clampPetHousePlayerScale(100), 100);
   assert.equal(clampPetHousePlayerScale(999), 250);
+  assert.equal(PET_HOUSE_OUTDOOR_PET_BASE_SIZE * PET_HOUSE_PLAYER_MAX_SCALE / 100, 250);
 });
 
 test("Pet House pet presentation is stored separately from pet inventory", () => {
