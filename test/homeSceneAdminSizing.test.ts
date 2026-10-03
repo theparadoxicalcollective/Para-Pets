@@ -18,7 +18,9 @@ test("Home Bundle admin exposes Decor and Object size editors", () => {
   assert.match(admin, /label: "Home Bundles"/);
   assert.match(admin, /button-edit-decor-/);
   assert.match(admin, /button-edit-object-/);
-  assert.match(admin, /<HomeSceneSizeEditor/);
+  assert.equal((admin.match(/<HomeSceneSizeEditor/g) ?? []).length, 2);
+  assert.match(admin, /itemLabel="Decor"/);
+  assert.match(admin, /itemLabel="Object"/);
   assert.match(admin, /queryKey: \["\/api\/admin\/home-objects"\]/);
 });
 
@@ -50,7 +52,7 @@ test("players can only make bounded size nudges after placement", () => {
   assert.match(owner, /HOME_SCENE_PLAYER_SIZE_INCREASE_STEP/);
   assert.match(owner, /clampHomeScenePlayerSize/);
   assert.match(routes, /clampHomeScenePlayerSize\(placement\.item\.homeSceneSize, Number\(size\)\)/);
-  assert.match(storage, /Partial<\{ xPct: number; yPct: number; size: number; flipped: boolean \}>/);
+  assert.match(storage, /Partial<\{ xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean \}>/);
   assert.doesNotMatch(routes, /size: size \?\? 250/);
 });
 

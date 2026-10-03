@@ -92,6 +92,7 @@ export const shopItems = pgTable("shop_items", {
   shopPosY: real("shop_pos_y").notNull().default(50),
   shopWidth: integer("shop_width").notNull().default(72),
   homeSceneSize: integer("home_scene_size").notNull().default(250),
+  homeEffect: text("home_effect"),
   fishingType: text("fishing_type"),
   // For type === "fishing" + fishingType === "fish": when true, this fish
   // uses the extended "Sea Animal" parts layer set (head_accessory,
@@ -1063,6 +1064,7 @@ export const homeDecorItems = pgTable("home_decor_items", {
   imageUrl: text("image_url"),
   price: integer("price").notNull().default(0),
   homeSceneSize: integer("home_scene_size").notNull().default(250),
+  homeEffect: text("home_effect"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -1134,6 +1136,7 @@ export const placedHomeDecor = pgTable("placed_home_decor", {
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(250),
   flipped: boolean("flipped").notNull().default(false),
+  effectEnabled: boolean("effect_enabled").notNull().default(false),
   location: varchar("location").notNull().default("outside"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });

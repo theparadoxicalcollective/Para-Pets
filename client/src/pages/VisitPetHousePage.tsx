@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Heart, Sword, Shield, Star } from "lucide-react";
@@ -13,9 +13,10 @@ import PetFireReaction from "@/components/PetFireReaction";
 import PetHomeVisitRewardCue from "@/components/PetHomeVisitRewardCue";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -32,8 +33,8 @@ interface ActiveBundle {
   buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
 }
 interface PlacedDecorItem {
-  id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean;
-  item: { id: string; name: string; imageUrl: string | null };
+  id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean;
+  item: { id: string; name: string; imageUrl: string | null; type: HomeSceneItemType; homeSceneSize: number; homeEffect: HomeCatalogEffect | null };
 }
 interface EquippedAccessory {
   id: string; name: string; imageUrl: string | null;
@@ -197,7 +198,7 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, onToggleLightEffect, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, itemEffectOverrides, onToggleLightEffect, onToggleItemEffect, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
@@ -205,7 +206,9 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   darkness?: number;
   sunlightStrength?: number;
   offEffectIds: ReadonlySet<string>;
+  itemEffectOverrides: Readonly<Record<string, boolean>>;
   onToggleLightEffect: (effect: HouseInteriorEffect) => void;
+  onToggleItemEffect: (item: PlacedDecorItem) => void;
   leaveButtonX?: number;
   leaveButtonY?: number;
   onClose: () => void;
@@ -222,6 +225,21 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
   const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; pid: number; moved: boolean; toggleEffectId: string | null } | null>(null);
+
+  const itemLampEffects = useMemo(
+    () => buildHomeLampItemEffects(
+      placedItems,
+      containerH,
+      item => itemEffectOverrides[item.id] ?? item.effectEnabled === true,
+    ),
+    [placedItems, containerH, itemEffectOverrides],
+  );
+  const itemSleepEffects = useMemo(
+    () => buildHomeSleepDecorEffects(placedItems, containerH),
+    [placedItems, containerH],
+  );
+  const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
+  const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -312,7 +330,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 
       <HomeInteriorDarknessLayer
         darkness={darkness}
-        effects={effects}
+        effects={roomLightEffects}
         offEffectIds={offEffectIds}
         panX={panX}
         imgWidth={imgWidth}
@@ -332,12 +350,22 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         zIndex={3}
       />
 
+      <HomeInteriorEffectsLayer
+        effects={itemLampEffects}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerH}
+        offEffectIds={new Set()}
+        sunlightStrength={sunlightStrength}
+        zIndex={4}
+      />
+
       {imgWidth > 0 && placedItems.map((item) => {
         const displaySize = item.size;
         const imageAspect = imgWidth / Math.max(containerH, 1);
         const itemDarkness = getHouseInteriorPointDarkness(
           darkness,
-          effects,
+          roomLightEffects,
           offEffectIds,
           item.xPct,
           item.yPct,
@@ -348,8 +376,11 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         return (
           <div
             key={item.id}
-            className="absolute pointer-events-none"
-            style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}
+            className="absolute"
+            data-home-item-effect={item.item.homeEffect ?? undefined}
+            style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)", pointerEvents: isTapEffectHomeItem(item) ? "auto" : "none", cursor: isTapEffectHomeItem(item) ? "pointer" : "default", touchAction: "manipulation" }}
+            onPointerDown={isTapEffectHomeItem(item) ? event => event.stopPropagation() : undefined}
+            onClick={isTapEffectHomeItem(item) ? event => { event.stopPropagation(); onToggleItemEffect(item); } : undefined}
           >
             <img
               src={item.item.imageUrl ?? ""}
@@ -366,7 +397,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const imageAspect = imgWidth / Math.max(containerH, 1);
-        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect, sunlightStrength);
+        const petDarkness = getHouseInteriorPointDarkness(darkness, roomLightEffects, offEffectIds, xPct, yPct, imageAspect, sunlightStrength);
         const petBrightness = (100 - petDarkness) / 100;
         const isOnFire = isHouseInteriorPointOverActiveFire(
           effects,
@@ -376,7 +407,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           imageAspect,
         );
         const isSleeping = !isOnFire && isHouseInteriorSleepPosition(
-          effects,
+          roomSleepEffects,
           xPct,
           yPct,
           imageAspect,
@@ -475,6 +506,8 @@ export default function VisitPetHousePage() {
   // Visitor-only light state. This never calls the owner's lighting API and is
   // discarded on interior exit, refresh, or leaving the visited Home.
   const [visitorInteriorLightOff, setVisitorInteriorLightOff] = useState<Record<string, string[]>>({});
+  // Placed Object toggles are visit-local only: never written to the owner's Home.
+  const [visitorItemEffectOverrides, setVisitorItemEffectOverrides] = useState<Record<string, boolean>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
@@ -509,6 +542,14 @@ export default function VisitPetHousePage() {
   });
 
   const outdoorLighting = useHomeOutdoorLighting(activeBundle?.playerLighting?.outdoorMode ?? "auto");
+
+  const toggleVisitorItemEffect = useCallback((item: PlacedDecorItem) => {
+    if (!isTapEffectHomeItem(item)) return;
+    setVisitorItemEffectOverrides(current => ({
+      ...current,
+      [item.id]: !(current[item.id] ?? item.effectEnabled === true),
+    }));
+  }, []);
 
   const toggleVisitorInteriorLight = useCallback((buildingId: string, effect: HouseInteriorEffect) => {
     setVisitorInteriorLightOff(current => {
@@ -558,6 +599,23 @@ export default function VisitPetHousePage() {
   });
 
   const pets = petsData?.pets ?? [];
+
+  const outdoorLampEffects = useMemo(
+    () => buildHomeLampItemEffects(
+      outdoorDecor,
+      containerH,
+      item => visitorItemEffectOverrides[item.id] ?? item.effectEnabled === true,
+    ),
+    [outdoorDecor, containerH, visitorItemEffectOverrides],
+  );
+  const outdoorSleepDecorEffects = useMemo(
+    () => buildHomeSleepDecorEffects(outdoorDecor, containerH),
+    [outdoorDecor, containerH],
+  );
+  const outdoorLightEffects = useMemo(
+    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
+    [activeBundle?.exteriorEffects, outdoorLampEffects],
+  );
 
   const { data: me } = useQuery<{ id: string; coins: number } | null>({
     queryKey: ["/api/auth/me"],
@@ -737,6 +795,12 @@ export default function VisitPetHousePage() {
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const isRewardReacting = reactingPetId === pet.inventoryId;
+        const isSleeping = isHouseInteriorSleepPosition(
+          outdoorSleepDecorEffects,
+          xPct,
+          yPct,
+          imgWidth / Math.max(containerH, 1),
+        );
         return (
           <div
             key={pet.inventoryId}
@@ -759,7 +823,7 @@ export default function VisitPetHousePage() {
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
                   costumeAccess="public"
-                  mode="static"
+                  mode={isSleeping ? "sleep" : "static"}
                   expression={isRewardReacting ? "petted" : undefined}
                   size={cfg.size}
                   fillContainer
@@ -776,6 +840,7 @@ export default function VisitPetHousePage() {
                   style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
+              {isSleeping && <PetSleepZzz />}
               </div>
             </div>
             <PetHomeVisitRewardCue
@@ -791,7 +856,14 @@ export default function VisitPetHousePage() {
       {imgWidth > 0 && outdoorDecor.map((item) => {
         const displaySize = item.size;
         return (
-          <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
+          <div
+            key={item.id}
+            className="absolute"
+            data-home-item-effect={item.item.homeEffect ?? undefined}
+            style={{ zIndex: item.item.homeEffect === "lamp_light" && (visitorItemEffectOverrides[item.id] ?? item.effectEnabled) ? 22 : 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)", pointerEvents: isTapEffectHomeItem(item) ? "auto" : "none", cursor: isTapEffectHomeItem(item) ? "pointer" : "default", touchAction: "manipulation" }}
+            onPointerDown={isTapEffectHomeItem(item) ? event => event.stopPropagation() : undefined}
+            onClick={isTapEffectHomeItem(item) ? event => { event.stopPropagation(); toggleVisitorItemEffect(item); } : undefined}
+          >
             <img
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
@@ -807,7 +879,7 @@ export default function VisitPetHousePage() {
           <HomeOutdoorAtmosphereLayer
             darkness={outdoorLighting.darkness}
             nightStrength={outdoorLighting.nightStrength}
-            effects={activeBundle?.exteriorEffects ?? []}
+            effects={outdoorLightEffects}
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
@@ -815,6 +887,13 @@ export default function VisitPetHousePage() {
           />
           <HomeInteriorEffectsLayer
             effects={activeBundle?.exteriorEffects ?? []}
+            panX={panX}
+            imgWidth={imgWidth}
+            sceneHeight={containerH}
+            zIndex={21}
+          />
+          <HomeInteriorEffectsLayer
+            effects={outdoorLampEffects}
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
@@ -890,7 +969,9 @@ export default function VisitPetHousePage() {
                 ?? activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId]
                 ?? [],
             )}
+            itemEffectOverrides={visitorItemEffectOverrides}
             onToggleLightEffect={(effect) => toggleVisitorInteriorLight(openInterior.buildingId, effect)}
+            onToggleItemEffect={toggleVisitorItemEffect}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onClose={closeVisitedInterior}

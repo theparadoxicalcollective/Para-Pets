@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { clampHomeScenePlayerSize } from "@shared/housing";
+import { clampHomeScenePlayerSize, sanitizeHomeCatalogEffect } from "@shared/housing";
 
 type HomeDecorStorage = Pick<typeof import("../storage").storage,
   | "getHomeDecorItems"
@@ -80,11 +80,22 @@ export function registerHomeDecorRoutes(
 
   app.patch("/api/admin/home-decor/:id", isAdmin, async (req, res) => {
     try {
-      const homeSceneSize = Math.max(60, Math.min(500, Math.round(Number(req.body?.homeSceneSize))));
-      if (!Number.isFinite(homeSceneSize)) {
-        return res.status(400).json({ message: "homeSceneSize is required" });
+      const patch: Record<string, unknown> = {};
+      if (req.body?.homeSceneSize !== undefined) {
+        const homeSceneSize = Math.max(60, Math.min(500, Math.round(Number(req.body.homeSceneSize))));
+        if (!Number.isFinite(homeSceneSize)) return res.status(400).json({ message: "homeSceneSize must be a number" });
+        patch.homeSceneSize = homeSceneSize;
       }
-      const item = await storage.updateHomeDecorItem(req.params.id as string, { homeSceneSize });
+      if (Object.prototype.hasOwnProperty.call(req.body ?? {}, "homeEffect")) {
+        const raw = req.body?.homeEffect;
+        const homeEffect = sanitizeHomeCatalogEffect("decor", raw);
+        if (raw !== null && raw !== "" && homeEffect === null) {
+          return res.status(400).json({ message: "Decor effect must be sleep or null" });
+        }
+        patch.homeEffect = homeEffect;
+      }
+      if (Object.keys(patch).length === 0) return res.status(400).json({ message: "No Home Decor changes supplied" });
+      const item = await storage.updateHomeDecorItem(req.params.id as string, patch as any);
       return res.json(item);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -106,11 +117,22 @@ export function registerHomeDecorRoutes(
       if (!existing || existing.type !== "object") {
         return res.status(404).json({ message: "Object not found" });
       }
-      const homeSceneSize = Math.max(60, Math.min(500, Math.round(Number(req.body?.homeSceneSize))));
-      if (!Number.isFinite(homeSceneSize)) {
-        return res.status(400).json({ message: "homeSceneSize is required" });
+      const patch: Record<string, unknown> = {};
+      if (req.body?.homeSceneSize !== undefined) {
+        const homeSceneSize = Math.max(60, Math.min(500, Math.round(Number(req.body.homeSceneSize))));
+        if (!Number.isFinite(homeSceneSize)) return res.status(400).json({ message: "homeSceneSize must be a number" });
+        patch.homeSceneSize = homeSceneSize;
       }
-      const item = await storage.updateShopItem(existing.id, { homeSceneSize });
+      if (Object.prototype.hasOwnProperty.call(req.body ?? {}, "homeEffect")) {
+        const raw = req.body?.homeEffect;
+        const homeEffect = sanitizeHomeCatalogEffect("object", raw);
+        if (raw !== null && raw !== "" && homeEffect === null) {
+          return res.status(400).json({ message: "Object effect must be lamp_light or null" });
+        }
+        patch.homeEffect = homeEffect;
+      }
+      if (Object.keys(patch).length === 0) return res.status(400).json({ message: "No Home Object changes supplied" });
+      const item = await storage.updateShopItem(existing.id, patch as any);
       return res.json(item);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -224,20 +246,40 @@ export function registerHomeDecorRoutes(
   app.patch("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { xPct, yPct, size, flipped } = req.body;
+      const { xPct, yPct, size, flipped, effectEnabled } = req.body;
       let safeSize: number | undefined;
+      let safeEffectEnabled: boolean | undefined;
+      let placement: Awaited<ReturnType<typeof storage.getPlacedHomeDecor>>[number] | undefined;
 
-      if (size !== undefined) {
+      if (size !== undefined || effectEnabled !== undefined) {
         const placements = await storage.getPlacedHomeDecor(userId);
-        const placement = placements.find((item) => item.id === (req.params.id as string));
+        placement = placements.find((item) => item.id === (req.params.id as string));
         if (!placement) return res.status(404).json({ message: "Placed decor not found" });
+      }
+
+      if (size !== undefined && placement) {
         safeSize = clampHomeScenePlayerSize(placement.item.homeSceneSize, Number(size));
       }
+
+      if (effectEnabled !== undefined && placement) {
+        if (placement.item.type !== "object" || placement.item.homeEffect !== "lamp_light") {
+          return res.status(400).json({ message: "This Home item has no tap effect" });
+        }
+        safeEffectEnabled = effectEnabled === true;
+      }
+
+      const placementPatch: Partial<{ xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean }> = {
+        xPct,
+        yPct,
+        size: safeSize,
+        flipped,
+      };
+      if (safeEffectEnabled !== undefined) placementPatch.effectEnabled = safeEffectEnabled;
 
       const row = await storage.updatePlacedHomeDecor(
         req.params.id as string,
         userId,
-        { xPct, yPct, size: safeSize, flipped },
+        placementPatch,
       );
       return res.json(row);
     } catch (err: any) {

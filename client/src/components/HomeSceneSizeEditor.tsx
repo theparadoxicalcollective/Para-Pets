@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, X, Sparkles, MoonStar } from "lucide-react";
 import fallbackHomePreview from "@assets/bg_home_v2.png";
+import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import type { HomeCatalogEffect } from "@shared/housing";
 
 interface PreviewBundle {
   id: string;
@@ -19,6 +21,7 @@ export interface HomeSceneSizeEditorItem {
   name: string;
   imageUrl: string | null;
   homeSceneSize: number;
+  homeEffect?: HomeCatalogEffect | null;
 }
 
 export function HomeSceneSizeEditor({
@@ -31,14 +34,24 @@ export function HomeSceneSizeEditor({
   item: HomeSceneSizeEditorItem;
   itemLabel: "Decor" | "Object";
   onClose: () => void;
-  onSave: (size: number) => void;
+  onSave: (size: number, homeEffect: HomeCatalogEffect | null) => void;
   saving: boolean;
 }) {
   const [size, setSize] = useState(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
+  const [homeEffect, setHomeEffect] = useState<HomeCatalogEffect | null>(item.homeEffect ?? null);
+  const [effectGhost, setEffectGhost] = useState<{ x: number; y: number } | null>(null);
+  const [dropReady, setDropReady] = useState(false);
+  const effectTargetRef = useRef<HTMLDivElement>(null);
+  const effectDragRef = useRef<{ pid: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const effectSuppressClickRef = useRef(false);
 
   useEffect(() => {
     setSize(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
-  }, [item.id, item.homeSceneSize]);
+    setHomeEffect(item.homeEffect ?? null);
+    setEffectGhost(null);
+    setDropReady(false);
+    effectDragRef.current = null;
+  }, [item.id, item.homeSceneSize, item.homeEffect]);
 
   const { data: bundles = [] } = useQuery<PreviewBundle[]>({
     queryKey: ["/api/admin/house-bundles"],
@@ -65,9 +78,49 @@ export function HomeSceneSizeEditor({
 
   const previewY = 0.72;
   const displaySize = size;
+  const availableEffect: HomeCatalogEffect = itemLabel === "Object" ? "lamp_light" : "sleep";
+  const availableEffectLabel = itemLabel === "Object" ? "Lamp Light" : "Sleep Spot";
 
   const changeSize = (next: number) => {
     setSize(Math.max(60, Math.min(500, Math.round(next))));
+  };
+
+  const pointInsideTarget = (clientX: number, clientY: number) => {
+    const rect = effectTargetRef.current?.getBoundingClientRect();
+    return !!rect && clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  };
+
+  const beginEffectDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+    effectDragRef.current = { pid: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
+    setEffectGhost({ x: event.clientX, y: event.clientY });
+    setDropReady(pointInsideTarget(event.clientX, event.clientY));
+  };
+
+  const moveEffectDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = effectDragRef.current;
+    if (!drag || drag.pid !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5) drag.moved = true;
+    setEffectGhost({ x: event.clientX, y: event.clientY });
+    setDropReady(pointInsideTarget(event.clientX, event.clientY));
+  };
+
+  const endEffectDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = effectDragRef.current;
+    effectDragRef.current = null;
+    if (drag?.pid === event.pointerId && event.type === "pointerup" && pointInsideTarget(event.clientX, event.clientY)) {
+      setHomeEffect(availableEffect);
+    }
+    if (drag?.moved) {
+      effectSuppressClickRef.current = true;
+      window.setTimeout(() => { effectSuppressClickRef.current = false; }, 0);
+    }
+    setEffectGhost(null);
+    setDropReady(false);
   };
 
   return (
@@ -112,29 +165,69 @@ export function HomeSceneSizeEditor({
           style={{ top: `${previewY * 100}%`, borderColor: "rgba(255,215,0,0.22)" }}
         />
         <div
-          className="absolute flex items-center justify-center pointer-events-none"
+          ref={effectTargetRef}
+          data-testid="home-scene-effect-drop-target"
+          data-home-effect={homeEffect ?? undefined}
+          className="absolute flex items-center justify-center"
           style={{
             left: "50%",
             top: `${previewY * 100}%`,
             width: displaySize,
             height: displaySize,
             transform: "translate(-50%, -50%)",
+            borderRadius: 18,
+            outline: dropReady ? "3px solid rgba(255,215,0,.95)" : homeEffect ? "1.5px dashed rgba(255,215,0,.58)" : "none",
+            outlineOffset: 7,
+            boxShadow: dropReady ? "0 0 28px rgba(255,215,0,.55)" : "none",
+            transition: "outline 120ms ease, box-shadow 120ms ease",
           }}
         >
+          {homeEffect === "lamp_light" && (
+            <div
+              aria-hidden
+              className="absolute pointer-events-none"
+              style={{
+                width: "82%",
+                height: "105%",
+                top: "-20%",
+                borderRadius: "48% 48% 58% 58% / 38% 38% 68% 68%",
+                background: "radial-gradient(ellipse at 50% 38%, rgba(255,245,190,.38), rgba(255,202,90,.18) 38%, transparent 76%)",
+                filter: "blur(5px)",
+                mixBlendMode: "screen",
+              }}
+            />
+          )}
           {item.imageUrl ? (
             <img
               src={item.imageUrl}
               alt={item.name}
-              className="w-full h-full object-contain"
+              className="relative w-full h-full object-contain pointer-events-none"
               draggable={false}
               style={{ filter: "drop-shadow(0 5px 12px rgba(0,0,0,0.55))" }}
             />
           ) : (
             <div
-              className="w-full h-full rounded-xl flex items-center justify-center font-fantasy"
+              className="relative w-full h-full rounded-xl flex items-center justify-center font-fantasy"
               style={{ background: "rgba(0,0,0,0.45)", border: "1px dashed rgba(255,215,0,0.5)", color: "#ffd700" }}
             >
               {itemLabel}
+            </div>
+          )}
+          {homeEffect === "sleep" && (
+            <div
+              aria-hidden
+              className="absolute right-[12%] top-[10%] font-fantasy"
+              style={{ color: "#fff2bf", fontSize: Math.max(18, Math.min(42, size * 0.13)), textShadow: "0 0 8px rgba(255,220,120,.85), 0 2px 4px #000" }}
+            >
+              Z
+            </div>
+          )}
+          {homeEffect && (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 rounded-full px-2 py-1 font-fantasy text-[8px] whitespace-nowrap"
+              style={{ bottom: -30, background: "rgba(5,10,6,.9)", border: "1px solid rgba(255,215,0,.42)", color: "#ffe98f" }}
+            >
+              {availableEffectLabel} attached
             </div>
           )}
         </div>
@@ -191,17 +284,90 @@ export function HomeSceneSizeEditor({
           </button>
         </div>
 
+        <div
+          className="rounded-xl p-3"
+          style={{ background: "rgba(255,215,0,.045)", border: "1px solid rgba(255,215,0,.16)" }}
+          data-testid="home-item-effect-menu"
+        >
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#ffd700" }}>{itemLabel} Effect</p>
+              <p className="font-fantasy text-[8px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,.42)" }}>
+                {itemLabel === "Object"
+                  ? "Drag Lamp Light onto the object. A player tap turns that placed lamp on or off; dragging still moves it."
+                  : "Drag Sleep Spot onto the decor. Players activate it by dragging a pet onto that decor."}
+              </p>
+            </div>
+            {homeEffect && (
+              <button
+                type="button"
+                data-testid="button-clear-home-item-effect"
+                onClick={() => setHomeEffect(null)}
+                className="rounded-full px-2.5 py-1.5 font-fantasy text-[8px]"
+                style={{ background: "rgba(145,25,25,.28)", border: "1px solid rgba(255,100,100,.32)", color: "#ffabab" }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            data-testid={itemLabel === "Object" ? "effect-chip-lamp-light" : "effect-chip-sleep-spot"}
+            onPointerDown={beginEffectDrag}
+            onPointerMove={moveEffectDrag}
+            onPointerUp={endEffectDrag}
+            onPointerCancel={endEffectDrag}
+            onLostPointerCapture={endEffectDrag}
+            onClick={() => {
+              if (effectSuppressClickRef.current) return;
+              setHomeEffect(availableEffect);
+            }}
+            className="w-full rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 font-fantasy text-[10px]"
+            style={{
+              background: homeEffect === availableEffect ? "rgba(255,215,0,.16)" : "rgba(255,255,255,.035)",
+              border: `1px solid ${homeEffect === availableEffect ? "rgba(255,215,0,.5)" : "rgba(255,215,0,.2)"}`,
+              color: "#ffe98f",
+              touchAction: "none",
+              cursor: "grab",
+            }}
+          >
+            {itemLabel === "Object" ? <Sparkles className="w-4 h-4" /> : <MoonStar className="w-4 h-4" />}
+            {availableEffectLabel}
+            <span style={{ color: "rgba(255,255,255,.32)", fontSize: 8 }}>drag onto preview</span>
+          </button>
+        </div>
+
         <button
           type="button"
           data-testid="button-save-home-scene-size"
-          onClick={() => onSave(size)}
+          onClick={() => onSave(size, homeEffect)}
           disabled={saving}
           className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest disabled:opacity-50"
           style={{ background: "rgba(255,215,0,0.16)", border: "1px solid rgba(255,215,0,0.42)", color: "#ffd700" }}
         >
-          {saving ? "Saving..." : `Save ${itemLabel} Size`}
+          {saving ? "Saving..." : `Save ${itemLabel} Settings`}
         </button>
       </div>
+
+      {effectGhost && (
+        <div
+          aria-hidden
+          className="fixed pointer-events-none rounded-full px-3 py-2 font-fantasy text-[9px]"
+          style={{
+            zIndex: 9999,
+            left: effectGhost.x,
+            top: effectGhost.y,
+            transform: "translate(-50%, -50%)",
+            background: "rgba(7,12,7,.94)",
+            border: "1px solid rgba(255,215,0,.58)",
+            color: "#ffe98f",
+            boxShadow: "0 0 18px rgba(255,215,0,.32)",
+          }}
+        >
+          {availableEffectLabel}
+        </div>
+      )}
     </div>
   );
 }
