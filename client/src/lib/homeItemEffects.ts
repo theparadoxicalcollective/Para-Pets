@@ -20,12 +20,12 @@ export interface HomeEffectPlacement {
 }
 
 export function isTapEffectHomeItem(item: HomeEffectPlacement): boolean {
-  return item.item.type === "object"
-    && (item.item.homeEffect === "lamp_light" || item.item.homeEffect === "tap");
+  return item.item.homeEffect === "lamp_light"
+    || (item.item.type === "object" && item.item.homeEffect === "tap");
 }
 
 export function isLampLightHomeItem(item: HomeEffectPlacement): boolean {
-  return item.item.type === "object" && item.item.homeEffect === "lamp_light";
+  return item.item.homeEffect === "lamp_light";
 }
 
 export function getHomeItemDisplayImage(item: HomeEffectPlacement, enabled = item.effectEnabled === true): string | null {
