@@ -65,6 +65,7 @@ import { db } from "./db";
 import type { HomeOutdoorLightingMode, HomeSceneItemType } from "@shared/housing";
 import { completeCaveTier } from "./caveProgress";
 import { tryConsumeOneFromInventory as consumeOneFromInventory } from "./inventoryConsumption";
+import { grantHouseBundleIncludedItemsInTransaction } from "./housing/bundleContents";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
 
 export interface HomeSceneCatalogItem {
@@ -3248,8 +3249,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async grantUserHouseBundle(userId: string, bundleId: string): Promise<UserHouseBundle> {
-    const [row] = await db.insert(userHouseBundles).values({ userId, bundleId }).returning();
-    return row;
+    return db.transaction(async (tx) => {
+      const [row] = await tx.insert(userHouseBundles).values({ userId, bundleId }).returning();
+      await grantHouseBundleIncludedItemsInTransaction(tx, userId, bundleId);
+      return row;
+    });
   }
 
   async setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void> {

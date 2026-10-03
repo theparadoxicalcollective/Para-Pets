@@ -1,10 +1,11 @@
 import type { Express, RequestHandler } from "express";
-import { eq } from "drizzle-orm";
-import { houseBundles as houseBundlesTable } from "@shared/schema";
-import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHomeOutdoorLightingMode, isHouseBuildingType, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects, sanitizeHouseOutdoorEffects } from "@shared/housing";
+import { and, asc, eq } from "drizzle-orm";
+import { homeDecorItems, houseBundleIncludedItems, houseBundles as houseBundlesTable, shopItems } from "@shared/schema";
+import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHomeOutdoorLightingMode, isHouseBuildingType, isHouseInteriorLightEffectType, sanitizeHouseBundleIncludedItemQuantity, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects, sanitizeHouseOutdoorEffects } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
 import { executeStoreAllHomeScene } from "../housing/decorTransactions";
+import { applyActiveHouseBundleIncludedItemTemplates, ensureAllOwnedHouseBundleIncludedItemsGranted } from "../housing/bundleContents";
 
 export interface HouseBundleRouteDependencies {
   db: typeof database;
@@ -13,6 +14,8 @@ export interface HouseBundleRouteDependencies {
   isAdmin: RequestHandler;
   processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
   storeAllHomeScene?: (userId: string) => Promise<{ returnedDecor: number; returnedObjects: number; returnedPets: number }>;
+  ensureIncludedItemsGranted?: (userId: string) => Promise<unknown>;
+  applyIncludedItemTemplates?: (userId: string, bundleId?: string) => Promise<unknown>;
 }
 
 /**
@@ -24,7 +27,7 @@ export interface HouseBundleRouteDependencies {
  */
 export function registerHouseBundleRoutes(
   app: Express,
-  { db, storage, isAuthenticated, isAdmin, processWorldImage, storeAllHomeScene = executeStoreAllHomeScene }: HouseBundleRouteDependencies,
+  { db, storage, isAuthenticated, isAdmin, processWorldImage, storeAllHomeScene = executeStoreAllHomeScene, ensureIncludedItemsGranted = ensureAllOwnedHouseBundleIncludedItemsGranted, applyIncludedItemTemplates = applyActiveHouseBundleIncludedItemTemplates }: HouseBundleRouteDependencies,
 ): void {
   // ── Player House Bundle Routes ──────────────────────────────────────────────
   app.get("/api/house-bundles", async (_req, res) => {
@@ -39,6 +42,9 @@ export function registerHouseBundleRoutes(
   app.get("/api/users/:userId/house-bundles", async (req, res) => {
     try {
       const { userId } = req.params as { userId: string };
+      if (req.isAuthenticated() && (req.user as any)?.id === userId) {
+        await ensureIncludedItemsGranted(userId);
+      }
       const owned = await storage.getUserHouseBundles(userId);
       return res.json(owned);
     } catch (err: any) {
@@ -49,7 +55,10 @@ export function registerHouseBundleRoutes(
   app.get("/api/users/:userId/active-house-bundle", async (req, res) => {
     try {
       const { userId } = req.params as { userId: string };
+      const isSelf = req.isAuthenticated() && (req.user as any)?.id === userId;
+      if (isSelf) await ensureIncludedItemsGranted(userId);
       const bundle = await storage.getActiveBundleWithBuildings(userId);
+      if (isSelf && bundle) await applyIncludedItemTemplates(userId, bundle.id);
       return res.json(bundle ?? null);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -141,6 +150,8 @@ export function registerHouseBundleRoutes(
       }
 
       await storage.setActiveHouseBundle(user.id, bundleId);
+      await ensureIncludedItemsGranted(user.id);
+      await applyIncludedItemTemplates(user.id, bundleId);
       const bundle = await storage.getActiveBundleWithBuildings(user.id);
       return res.json(bundle);
     } catch (err: any) {
@@ -223,6 +234,172 @@ export function registerHouseBundleRoutes(
   app.delete("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
     try {
       await storage.deleteHouseBundle(req.params.id as string);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Home Bundle included Decor / Objects ───────────────────────────────────
+  const enrichIncludedItem = async (row: typeof houseBundleIncludedItems.$inferSelect) => {
+    if (row.itemType === "decor") {
+      const [item] = await db.select({
+        id: homeDecorItems.id,
+        name: homeDecorItems.name,
+        imageUrl: homeDecorItems.imageUrl,
+        homeSceneSize: homeDecorItems.homeSceneSize,
+      }).from(homeDecorItems).where(eq(homeDecorItems.id, row.itemId)).limit(1);
+      return item ? { ...row, item: { ...item, type: "decor" as const } } : null;
+    }
+
+    const [item] = await db.select({
+      id: shopItems.id,
+      name: shopItems.name,
+      imageUrl: shopItems.imageUrl,
+      homeSceneSize: shopItems.homeSceneSize,
+    }).from(shopItems).where(and(eq(shopItems.id, row.itemId), eq(shopItems.type, "object"))).limit(1);
+    return item ? { ...row, item: { ...item, type: "object" as const } } : null;
+  };
+
+  app.get("/api/admin/house-bundles/:bundleId/included-items", isAdmin, async (req, res) => {
+    try {
+      const rows = await db.select().from(houseBundleIncludedItems)
+        .where(and(
+          eq(houseBundleIncludedItems.bundleId, req.params.bundleId as string),
+          eq(houseBundleIncludedItems.active, true),
+        ))
+        .orderBy(asc(houseBundleIncludedItems.createdAt), asc(houseBundleIncludedItems.id));
+      const detailed = (await Promise.all(rows.map(enrichIncludedItem))).filter(Boolean);
+      return res.json(detailed);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/house-bundles/:bundleId/included-items", isAdmin, async (req, res) => {
+    try {
+      const bundleId = req.params.bundleId as string;
+      const { itemType, itemId, buildingId } = req.body ?? {};
+      if (itemType !== "decor" && itemType !== "object") {
+        return res.status(400).json({ message: "itemType must be decor or object" });
+      }
+      if (typeof itemId !== "string" || !itemId) {
+        return res.status(400).json({ message: "itemId is required" });
+      }
+
+      const [bundle] = await db.select({ id: houseBundlesTable.id }).from(houseBundlesTable)
+        .where(eq(houseBundlesTable.id, bundleId)).limit(1);
+      if (!bundle) return res.status(404).json({ message: "Bundle not found" });
+
+      const safeBuildingId = typeof buildingId === "string" && buildingId ? buildingId : null;
+      if (safeBuildingId) {
+        const building = await storage.getHouseBundleBuilding(safeBuildingId);
+        if (!building || building.bundleId !== bundleId) {
+          return res.status(404).json({ message: "Building not found in this bundle" });
+        }
+      }
+
+      if (itemType === "decor") {
+        const [item] = await db.select({ id: homeDecorItems.id, homeSceneSize: homeDecorItems.homeSceneSize }).from(homeDecorItems)
+          .where(eq(homeDecorItems.id, itemId)).limit(1);
+        if (!item) return res.status(404).json({ message: "Decor item not found" });
+      } else {
+        const [item] = await db.select({ id: shopItems.id, homeSceneSize: shopItems.homeSceneSize }).from(shopItems)
+          .where(and(eq(shopItems.id, itemId), eq(shopItems.type, "object"))).limit(1);
+        if (!item) return res.status(404).json({ message: "Object not found" });
+      }
+
+      const [catalogPlacement] = itemType === "decor"
+        ? await db.select({ homeSceneSize: homeDecorItems.homeSceneSize }).from(homeDecorItems).where(eq(homeDecorItems.id, itemId)).limit(1)
+        : await db.select({ homeSceneSize: shopItems.homeSceneSize }).from(shopItems).where(and(eq(shopItems.id, itemId), eq(shopItems.type, "object"))).limit(1);
+
+      const [existing] = await db.select().from(houseBundleIncludedItems)
+        .where(and(
+          eq(houseBundleIncludedItems.bundleId, bundleId),
+          eq(houseBundleIncludedItems.itemType, itemType),
+          eq(houseBundleIncludedItems.itemId, itemId),
+        ))
+        .limit(1);
+
+      if (existing?.active) {
+        return res.status(409).json({ message: "This item is already included in the Home Bundle" });
+      }
+
+      const [row] = existing
+        ? await db.update(houseBundleIncludedItems).set({
+            active: true,
+            buildingId: safeBuildingId,
+            quantity: 1,
+          }).where(eq(houseBundleIncludedItems.id, existing.id)).returning()
+        : await db.insert(houseBundleIncludedItems).values({
+            bundleId,
+            buildingId: safeBuildingId,
+            itemType,
+            itemId,
+            quantity: 1,
+            xPct: 0.5,
+            yPct: 0.52,
+            size: Math.max(60, Math.min(500, catalogPlacement?.homeSceneSize ?? 250)),
+            flipped: false,
+          }).returning();
+
+      const detailed = row ? await enrichIncludedItem(row) : null;
+      return res.status(existing ? 200 : 201).json(detailed ?? row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/house-bundle-included-items/:id", isAdmin, async (req, res) => {
+    try {
+      const updates: Partial<typeof houseBundleIncludedItems.$inferInsert> = {};
+      if (req.body?.quantity !== undefined) updates.quantity = sanitizeHouseBundleIncludedItemQuantity(req.body.quantity);
+      if (req.body?.xPct !== undefined) {
+        const value = Number(req.body.xPct);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "xPct must be a number" });
+        updates.xPct = Math.max(0.02, Math.min(0.98, value));
+      }
+      if (req.body?.yPct !== undefined) {
+        const value = Number(req.body.yPct);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "yPct must be a number" });
+        updates.yPct = Math.max(0.02, Math.min(0.98, value));
+      }
+      if (req.body?.size !== undefined) {
+        const value = Number(req.body.size);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "size must be a number" });
+        updates.size = Math.max(60, Math.min(500, Math.round(value)));
+      }
+      if (req.body?.flipped !== undefined) {
+        if (typeof req.body.flipped !== "boolean") return res.status(400).json({ message: "flipped must be boolean" });
+        updates.flipped = req.body.flipped;
+      }
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "An included item update is required" });
+      }
+      const [row] = await db.update(houseBundleIncludedItems)
+        .set(updates)
+        .where(and(
+          eq(houseBundleIncludedItems.id, req.params.id as string),
+          eq(houseBundleIncludedItems.active, true),
+        ))
+        .returning();
+      if (!row) return res.status(404).json({ message: "Included item not found" });
+      return res.json((await enrichIncludedItem(row)) ?? row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/house-bundle-included-items/:id", isAdmin, async (req, res) => {
+    try {
+      const [row] = await db.update(houseBundleIncludedItems)
+        .set({ active: false })
+        .where(and(
+          eq(houseBundleIncludedItems.id, req.params.id as string),
+          eq(houseBundleIncludedItems.active, true),
+        ))
+        .returning({ id: houseBundleIncludedItems.id });
+      if (!row) return res.status(404).json({ message: "Included item not found" });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

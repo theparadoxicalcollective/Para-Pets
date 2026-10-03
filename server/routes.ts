@@ -57,6 +57,7 @@ import { invalidTutorialRequest, TutorialError } from "./tutorial/errors";
 import { CaveTierLockedError, isCaveTierAccessible } from "./caveProgress";
 import { executeAcceptGift, executeSendGift } from "./gifts/transactions";
 import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTransactions";
+import { applyActiveHouseBundleIncludedItemTemplates, grantHouseBundleIncludedItemsInTransaction } from "./housing/bundleContents";
 import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerHouseBundleRoutes } from "./routes/houseBundle.routes";
@@ -4320,6 +4321,7 @@ export async function registerRoutes(
                       WHERE user_id = ${user.id} AND bundle_id = ${homeItem.target_id}
                     )
                 `);
+                await grantHouseBundleIncludedItemsInTransaction(tx, user.id, homeItem.target_id);
                 continue;
               }
 
@@ -5286,7 +5288,7 @@ export async function registerRoutes(
 
   registerHouseBundleRoutes(app, { db, storage, isAuthenticated, isAdmin, processWorldImage });
 
-  registerHomeDecorRoutes(app, { storage, isAuthenticated, isAdmin, executeDecorPlacement, executeDecorRemoval, processWorldImage });
+  registerHomeDecorRoutes(app, { storage, isAuthenticated, isAdmin, executeDecorPlacement, executeDecorRemoval, processWorldImage, applyBundleTemplates: applyActiveHouseBundleIncludedItemTemplates });
 
   registerClientErrorRoutes(app, { isAdmin });
 

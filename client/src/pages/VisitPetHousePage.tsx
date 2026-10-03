@@ -197,12 +197,13 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, offEffectIds, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
   effects?: HouseInteriorEffect[];
   darkness?: number;
+  sunlightStrength?: number;
   offEffectIds: ReadonlySet<string>;
   leaveButtonX?: number;
   leaveButtonY?: number;
@@ -304,6 +305,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         panX={panX}
         imgWidth={imgWidth}
         sceneHeight={containerH}
+        sunlightStrength={sunlightStrength}
         zIndex={2}
       />
 
@@ -313,6 +315,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         imgWidth={imgWidth}
         sceneHeight={containerH}
         offEffectIds={offEffectIds}
+        sunlightStrength={sunlightStrength}
         zIndex={3}
       />
 
@@ -326,6 +329,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           item.xPct,
           item.yPct,
           imageAspect,
+          sunlightStrength,
         );
         const itemBrightness = (100 - itemDarkness) / 100;
         return (
@@ -349,7 +353,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const imageAspect = imgWidth / Math.max(containerH, 1);
-        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect);
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect, sunlightStrength);
         const petBrightness = (100 - petDarkness) / 100;
         const isOnFire = isHouseInteriorPointOverActiveFire(
           effects,
@@ -834,6 +838,7 @@ export default function VisitPetHousePage() {
             placedPets={interiorPets}
             effects={openInterior.interiorEffects}
             darkness={openInterior.interiorDarkness}
+            sunlightStrength={outdoorLighting.daylightStrength}
             offEffectIds={new Set(activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId] ?? [])}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}

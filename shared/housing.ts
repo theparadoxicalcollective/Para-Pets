@@ -34,6 +34,25 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
+export const HOUSE_BUNDLE_INCLUDED_ITEM_MAX_QUANTITY = 99;
+
+export function sanitizeHouseBundleIncludedItemQuantity(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(1, Math.min(HOUSE_BUNDLE_INCLUDED_ITEM_MAX_QUANTITY, Math.round(numeric)));
+}
+
+/**
+ * Bundle item delivery is monotonic: lowering an Admin-authored quantity never
+ * removes a player's copies, and raising it only grants the difference above
+ * the largest quantity that player has already received from this entitlement.
+ */
+export function getHouseBundleIncludedItemGrantDelta(grantedQuantity: unknown, targetQuantity: unknown): number {
+  const granted = Math.max(0, Math.round(Number.isFinite(Number(grantedQuantity)) ? Number(grantedQuantity) : 0));
+  const target = sanitizeHouseBundleIncludedItemQuantity(targetQuantity);
+  return Math.max(0, target - granted);
+}
+
 export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "lamp_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
@@ -102,6 +121,7 @@ export function getHouseInteriorLocalLightBoost(
   xPct: number,
   yPct: number,
   imageAspect: number,
+  sunlightStrength = 1,
 ): number {
   if (!Number.isFinite(imageAspect) || imageAspect <= 0) return 0;
   const safeX = Number.isFinite(xPct) ? xPct : 0.5;
@@ -120,7 +140,10 @@ export function getHouseInteriorLocalLightBoost(
 
     const normalized = distance / radius;
     const falloff = Math.pow(1 - normalized, 1.35);
-    totalBoost += getHouseInteriorLightPeakBoost(effect.type) * falloff;
+    const daylightScale = effect.type === "warm_glow"
+      ? Math.max(0, Math.min(1, Number.isFinite(sunlightStrength) ? sunlightStrength : 1))
+      : 1;
+    totalBoost += getHouseInteriorLightPeakBoost(effect.type) * falloff * daylightScale;
   }
 
   return Math.min(HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST, totalBoost);
@@ -133,6 +156,7 @@ export function getHouseInteriorPointDarkness(
   xPct: number,
   yPct: number,
   imageAspect: number,
+  sunlightStrength = 1,
 ): number {
   const baseline = sanitizeHouseInteriorDarkness(darkness);
   const boost = getHouseInteriorLocalLightBoost(
@@ -141,6 +165,7 @@ export function getHouseInteriorPointDarkness(
     xPct,
     yPct,
     imageAspect,
+    sunlightStrength,
   );
   const reveal = Math.min(
     HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL,

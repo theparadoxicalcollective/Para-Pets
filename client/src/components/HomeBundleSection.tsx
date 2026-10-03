@@ -33,6 +33,22 @@ interface HouseBundleBuilding {
   createdAt: string;
 }
 
+interface HouseBundleIncludedItem {
+  id: string;
+  bundleId: string;
+  buildingId: string | null;
+  itemType: "decor" | "object";
+  itemId: string;
+  quantity: number;
+  xPct: number;
+  yPct: number;
+  size: number;
+  flipped: boolean;
+  active: boolean;
+  createdAt: string;
+  item: { id: string; name: string; imageUrl: string | null; homeSceneSize: number; type: "decor" | "object" };
+}
+
 const BUILDING_SIZES = [
   { value: "small", label: "Small", caption: `${BUILDING_SIZE_CAPACITY.small.pets} pets · ${BUILDING_SIZE_CAPACITY.small.decor} decor` },
   { value: "medium", label: "Medium", caption: `${BUILDING_SIZE_CAPACITY.medium.pets} pets · ${BUILDING_SIZE_CAPACITY.medium.decor} decor` },
@@ -46,11 +62,313 @@ const GOLD_BORDER = "rgba(255,215,0,0.2)";
 const BG_CARD = "rgba(255,215,0,0.04)";
 const BUILDING_REF_H = 900;
 
+function BundleIncludedItemsControl({
+  bundleId,
+  buildingId = null,
+  variant,
+  panX,
+  imgWidth,
+  sceneHeight,
+}: {
+  bundleId: string;
+  buildingId?: string | null;
+  variant: "outside" | "interior";
+  panX: number;
+  imgWidth: number;
+  sceneHeight: number;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"decor" | "object">("decor");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [livePosition, setLivePosition] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
+  const dragRef = useRef<{
+    id: string;
+    pid: number;
+    startPointerX: number;
+    startPointerY: number;
+    startXPct: number;
+    startYPct: number;
+  } | null>(null);
+  const queryKey = ["/api/admin/house-bundles", bundleId, "included-items"] as const;
+
+  const { data: included = [] } = useQuery<HouseBundleIncludedItem[]>({
+    queryKey,
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/house-bundles/${bundleId}/included-items`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load included Home items");
+      return res.json();
+    },
+    staleTime: 0,
+  });
+
+  const { data: decorCatalog = [] } = useQuery<HomeDecorItem[]>({ queryKey: ["/api/admin/home-decor"], enabled: open });
+  const { data: objectCatalog = [] } = useQuery<HomeObjectItem[]>({ queryKey: ["/api/admin/home-objects"], enabled: open });
+
+  const updateCachedItem = useCallback((updated: HouseBundleIncludedItem) => {
+    qc.setQueryData<HouseBundleIncludedItem[]>(queryKey, current =>
+      current?.map(item => item.id === updated.id ? updated : item),
+    );
+  }, [qc, queryKey]);
+
+  const addItem = useMutation({
+    mutationFn: async ({ itemType, itemId }: { itemType: "decor" | "object"; itemId: string }) => {
+      const response = await apiRequest("POST", `/api/admin/house-bundles/${bundleId}/included-items`, { itemType, itemId, buildingId });
+      return await response.json() as HouseBundleIncludedItem;
+    },
+    onSuccess: async (row) => {
+      await qc.invalidateQueries({ queryKey });
+      setSelectedId(row.id);
+      setOpen(false);
+    },
+    onError: (error: any) => toast({ title: "Couldn’t add bundle item", description: error?.message || "That item may already be included.", variant: "destructive" }),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<HouseBundleIncludedItem, "quantity" | "xPct" | "yPct" | "size" | "flipped">> }) => {
+      const response = await apiRequest("PATCH", `/api/admin/house-bundle-included-items/${id}`, patch);
+      return await response.json() as HouseBundleIncludedItem;
+    },
+    onSuccess: updateCachedItem,
+    onError: (error: any) => {
+      void qc.invalidateQueries({ queryKey });
+      toast({ title: "Couldn’t update bundle item", description: error?.message, variant: "destructive" });
+    },
+  });
+
+  const removeItem = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/admin/house-bundle-included-items/${id}`); },
+    onSuccess: async (_data, id) => {
+      setSelectedId(current => current === id ? null : current);
+      await qc.invalidateQueries({ queryKey });
+    },
+    onError: (error: any) => toast({ title: "Couldn’t remove bundle item", description: error?.message, variant: "destructive" }),
+  });
+
+  const contextItems = included.filter(item => (item.buildingId ?? null) === buildingId);
+  const contextCopies = contextItems.reduce((sum, item) => sum + item.quantity, 0);
+  const catalog = tab === "decor" ? decorCatalog : objectCatalog;
+  const itemType = tab;
+  const selected = contextItems.find(item => item.id === selectedId) ?? null;
+
+  const onTemplatePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>, item: HouseBundleIncludedItem) => {
+    event.stopPropagation();
+    if (imgWidth <= 0 || sceneHeight <= 0) return;
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+    setSelectedId(item.id);
+    dragRef.current = {
+      id: item.id,
+      pid: event.pointerId,
+      startPointerX: event.clientX,
+      startPointerY: event.clientY,
+      startXPct: item.xPct,
+      startYPct: item.yPct,
+    };
+  }, [imgWidth, sceneHeight]);
+
+  const onTemplatePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pid !== event.pointerId || imgWidth <= 0 || sceneHeight <= 0) return;
+    event.stopPropagation();
+    event.preventDefault();
+    setLivePosition({
+      id: drag.id,
+      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (event.clientX - drag.startPointerX) / imgWidth)),
+      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (event.clientY - drag.startPointerY) / sceneHeight)),
+    });
+  }, [imgWidth, sceneHeight]);
+
+  const onTemplatePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag || drag.pid !== event.pointerId) {
+      setLivePosition(null);
+      return;
+    }
+    event.stopPropagation();
+    const finalPosition = imgWidth > 0 && sceneHeight > 0
+      ? {
+          xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + (event.clientX - drag.startPointerX) / imgWidth)),
+          yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + (event.clientY - drag.startPointerY) / sceneHeight)),
+        }
+      : { xPct: drag.startXPct, yPct: drag.startYPct };
+    setLivePosition(null);
+    if (finalPosition.xPct !== drag.startXPct || finalPosition.yPct !== drag.startYPct) {
+      updateItem.mutate({ id: drag.id, patch: finalPosition });
+    }
+  }, [imgWidth, sceneHeight, updateItem]);
+
+  return (
+    <>
+      {imgWidth > 0 && sceneHeight > 0 && contextItems.map(item => {
+        const live = livePosition?.id === item.id ? livePosition : null;
+        const xPct = live?.xPct ?? item.xPct;
+        const yPct = live?.yPct ?? item.yPct;
+        const isSelected = selectedId === item.id;
+        return (
+          <div
+            key={item.id}
+            data-testid={`bundle-template-item-${item.id}`}
+            className="absolute"
+            style={{
+              left: panX + xPct * imgWidth,
+              top: yPct * sceneHeight,
+              width: item.size,
+              height: item.size,
+              transform: "translate(-50%, -50%)",
+              zIndex: isSelected ? 29 : 16,
+              pointerEvents: "auto",
+              touchAction: "none",
+              cursor: dragRef.current?.id === item.id ? "grabbing" : "grab",
+              borderRadius: 10,
+              outline: isSelected ? "2px solid rgba(255,215,0,.92)" : "1px dashed rgba(255,215,0,.32)",
+              outlineOffset: isSelected ? 3 : 1,
+              filter: isSelected ? "drop-shadow(0 0 8px rgba(255,215,0,.55))" : "drop-shadow(0 2px 5px rgba(0,0,0,.45))",
+            }}
+            onPointerDown={event => onTemplatePointerDown(event, item)}
+            onPointerMove={onTemplatePointerMove}
+            onPointerUp={onTemplatePointerUp}
+            onPointerCancel={onTemplatePointerUp}
+            onLostPointerCapture={onTemplatePointerUp}
+            onClick={event => event.stopPropagation()}
+          >
+            {item.item.imageUrl ? (
+              <img
+                src={item.item.imageUrl}
+                alt={item.item.name}
+                draggable={false}
+                style={{ width: "100%", height: "100%", objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, pointerEvents: "none", userSelect: "none" }}
+              />
+            ) : null}
+            {item.quantity > 1 && (
+              <span
+                className="absolute -right-2 -bottom-2 rounded-full px-1.5 py-0.5 font-fantasy text-[8px]"
+                style={{ background: "rgba(0,0,0,.88)", border: "1px solid rgba(255,215,0,.55)", color: GOLD }}
+              >
+                ×{item.quantity}
+              </span>
+            )}
+          </div>
+        );
+      })}
+
+      <button
+        type="button"
+        data-testid={variant === "outside" ? "button-add-bundle-items-outside" : "button-add-bundle-items-interior"}
+        onPointerDown={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); setSelectedId(null); setOpen(true); }}
+        className="absolute rounded-full px-3 py-2 font-fantasy text-[9px] tracking-wide"
+        style={{
+          zIndex: 31, right: 14,
+          top: variant === "outside" ? "max(104px, calc(env(safe-area-inset-top, 0px) + 76px))" : "max(116px, calc(env(safe-area-inset-top, 0px) + 88px))",
+          background: "rgba(0,0,0,0.76)", border: "1px solid rgba(255,215,0,0.44)", color: GOLD,
+          boxShadow: "0 3px 12px rgba(0,0,0,.42)",
+        }}
+      >
+        + Decor / Objects{contextCopies > 0 ? ` · ${contextCopies}` : ""}
+      </button>
+
+      {!open && selected && (
+        <div
+          data-testid="controls-bundle-template-item"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-2xl px-3 py-2"
+          onPointerDown={event => event.stopPropagation()}
+          onClick={event => event.stopPropagation()}
+          style={{ zIndex: 34, bottom: "max(82px, calc(env(safe-area-inset-bottom, 0px) + 66px))", background: "rgba(5,9,6,.94)", border: "1px solid rgba(255,215,0,.42)", boxShadow: "0 8px 24px rgba(0,0,0,.6)" }}
+        >
+          <span className="font-fantasy text-[8px] max-w-[72px] truncate" style={{ color: "rgba(255,235,170,.92)" }}>{selected.item.name}</span>
+          <button type="button" aria-label="Make included item smaller" onClick={() => updateItem.mutate({ id: selected.id, patch: { size: Math.max(60, selected.size - 20) } })} className="w-8 h-8 rounded-full" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}><Minus className="w-3.5 h-3.5 mx-auto" /></button>
+          <button type="button" aria-label="Make included item larger" onClick={() => updateItem.mutate({ id: selected.id, patch: { size: Math.min(500, selected.size + 20) } })} className="w-8 h-8 rounded-full" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}><Plus className="w-3.5 h-3.5 mx-auto" /></button>
+          <button type="button" aria-label="Flip included item" onClick={() => updateItem.mutate({ id: selected.id, patch: { flipped: !selected.flipped } })} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}><FlipHorizontal className="w-3.5 h-3.5" /></button>
+          <button type="button" aria-label="Remove included item" disabled={removeItem.isPending} onClick={() => removeItem.mutate(selected.id)} className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40" style={{ background: "rgba(145,25,25,.65)", border: "1px solid rgba(255,100,100,.42)", color: "#ff9b9b" }}><Trash2 className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setSelectedId(null)} className="rounded-full px-3 h-8 font-fantasy text-[8px]" style={{ background: "rgba(80,150,80,.18)", border: "1px solid rgba(120,220,120,.35)", color: "#a7f3b0" }}>Done</button>
+        </div>
+      )}
+
+      {open && (
+        <div
+          className="fixed inset-0 flex items-center justify-center px-3"
+          data-testid="modal-bundle-included-items"
+          style={{ zIndex: 220, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}
+          onPointerDown={event => event.stopPropagation()}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-full max-w-[430px] max-h-[82vh] overflow-y-auto rounded-2xl p-4"
+            style={{ background: "rgba(10,12,10,.98)", border: "1px solid rgba(255,215,0,.34)", boxShadow: "0 18px 54px rgba(0,0,0,.75)" }}
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="font-fantasy text-[11px] tracking-widest" style={{ color: GOLD }}>BUNDLE DECOR / OBJECTS</p>
+                <p className="font-fantasy text-[8px] mt-1" style={{ color: "rgba(255,255,255,.46)" }}>{buildingId ? "Included from this building" : "Included from the outside Home editor"}</p>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)" }}>
+                <X className="w-4 h-4 text-white/70" />
+              </button>
+            </div>
+
+            {contextItems.length > 0 && (
+              <div className="space-y-1.5 mb-4">
+                {contextItems.map(entry => (
+                  <div key={entry.id} className="flex items-center gap-2 rounded-xl px-2.5 py-2" style={{ background: "rgba(255,215,0,.055)", border: "1px solid rgba(255,215,0,.13)" }}>
+                    {entry.item.imageUrl ? <img src={entry.item.imageUrl} alt="" className="w-10 h-10 object-contain shrink-0" /> : <div className="w-10 h-10 rounded-lg shrink-0" style={{ background: "rgba(255,255,255,.05)" }} />}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-fantasy text-[9px] truncate" style={{ color: "rgba(255,241,194,.92)" }}>{entry.item.name}</p>
+                      <p className="font-fantasy text-[7px] uppercase mt-0.5" style={{ color: "rgba(255,215,0,.45)" }}>{entry.itemType} · first copy starts in this scene</p>
+                    </div>
+                    <button type="button" aria-label="Decrease included quantity" disabled={entry.quantity <= 1 || updateItem.isPending} onClick={() => updateItem.mutate({ id: entry.id, patch: { quantity: entry.quantity - 1 } })} className="w-8 h-8 rounded-full disabled:opacity-30" style={{ border: `1px solid ${GOLD_BORDER}`, color: GOLD, background: GOLD_DIM }}><Minus className="w-3.5 h-3.5 mx-auto" /></button>
+                    <span className="font-fantasy text-[9px] min-w-5 text-center" style={{ color: GOLD }}>{entry.quantity}</span>
+                    <button type="button" aria-label="Increase included quantity" disabled={entry.quantity >= 99 || updateItem.isPending} onClick={() => updateItem.mutate({ id: entry.id, patch: { quantity: entry.quantity + 1 } })} className="w-8 h-8 rounded-full disabled:opacity-30" style={{ border: `1px solid ${GOLD_BORDER}`, color: GOLD, background: GOLD_DIM }}><Plus className="w-3.5 h-3.5 mx-auto" /></button>
+                    <button type="button" aria-label="Remove included item" disabled={removeItem.isPending} onClick={() => removeItem.mutate(entry.id)} className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40" style={{ background: "rgba(150,30,30,.32)", border: "1px solid rgba(255,110,110,.28)", color: "#ff9b9b" }}><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <button type="button" onClick={() => setTab("decor")} className="rounded-xl py-2 font-fantasy text-[9px]" style={{ background: tab === "decor" ? GOLD_DIM : "rgba(255,255,255,.03)", border: `1px solid ${tab === "decor" ? "rgba(255,215,0,.42)" : "rgba(255,255,255,.08)"}`, color: tab === "decor" ? GOLD : "rgba(255,255,255,.45)" }}>Decor</button>
+              <button type="button" onClick={() => setTab("object")} className="rounded-xl py-2 font-fantasy text-[9px]" style={{ background: tab === "object" ? GOLD_DIM : "rgba(255,255,255,.03)", border: `1px solid ${tab === "object" ? "rgba(255,215,0,.42)" : "rgba(255,255,255,.08)"}`, color: tab === "object" ? GOLD : "rgba(255,255,255,.45)" }}>Objects</button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {catalog.map(item => {
+                const existing = included.find(entry => entry.itemType === itemType && entry.itemId === item.id);
+                const elsewhere = existing && (existing.buildingId ?? null) !== buildingId;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={!!existing || addItem.isPending}
+                    onClick={() => addItem.mutate({ itemType, itemId: item.id })}
+                    className="rounded-xl p-2 min-h-[92px] flex flex-col items-center justify-center gap-1 disabled:opacity-45"
+                    style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}
+                  >
+                    {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-12 h-12 object-contain" /> : <div className="w-12 h-12 rounded-lg" style={{ background: "rgba(255,255,255,.05)" }} />}
+                    <span className="font-fantasy text-[8px] leading-tight text-center line-clamp-2">{item.name}</span>
+                    {existing && <span className="font-fantasy text-[7px]" style={{ color: "rgba(255,255,255,.4)" }}>{elsewhere ? "Included elsewhere" : "Included"}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="font-fantasy text-[8px] leading-relaxed text-center mt-4" style={{ color: "rgba(255,255,255,.42)" }}>
+              The first included copy starts at the position you set in this editor when the player first activates the Home. Extra quantity stays in normal inventory. Removing a placed item sends it back to inventory; reloads and Home switching cannot create another copy.
+            </p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── AdminInteriorPreview — full-screen pannable preview used by admin ────────
 // Uses image-space percentages for controls/effects so iPhone 12 placement stays
 // stable while larger/smaller screens simply reveal a different viewport.
 function AdminInteriorPreview({
   url,
+  bundleId,
   buildingId,
   initialLeaveX = 0.92,
   initialLeaveY = 0.06,
@@ -62,6 +380,7 @@ function AdminInteriorPreview({
   onSaveDarkness,
 }: {
   url: string;
+  bundleId: string;
   buildingId: string;
   initialLeaveX?: number;
   initialLeaveY?: number;
@@ -350,6 +669,8 @@ function AdminInteriorPreview({
         onEffectPointerCancel={onEffectPointerCancel}
         zIndex={12}
       />
+
+      <BundleIncludedItemsControl bundleId={bundleId} buildingId={buildingId} variant="interior" panX={panX} imgWidth={imgWidth} sceneHeight={containerHRef.current} />
 
       <button
         data-testid="button-close-interior-preview"
@@ -1167,6 +1488,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
         />
       )}
 
+      <BundleIncludedItemsControl bundleId={bundle.id} buildingId={null} variant="outside" panX={panX} imgWidth={imgWidth} sceneHeight={containerH} />
+
       <button
         type="button"
         data-testid="button-add-outdoor-effect"
@@ -1620,6 +1943,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
       {previewBuilding && (
         <AdminInteriorPreview
           url={previewBuilding.url}
+          bundleId={bundle.id}
           buildingId={previewBuilding.buildingId}
           initialLeaveX={previewBuilding.leaveButtonX}
           initialLeaveY={previewBuilding.leaveButtonY}

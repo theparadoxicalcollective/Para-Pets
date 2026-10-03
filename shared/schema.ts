@@ -1025,6 +1025,30 @@ export const houseBundleBuildings = pgTable("house_bundle_buildings", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// ── Home Bundle Included Decor / Objects ──────────────────────────────────────
+// One catalog item per bundle row. Quantity changes are deliberate and player
+// delivery is tracked separately so refreshes, relists, and Home switching are
+// idempotent and never revoke already-owned copies.
+export const houseBundleIncludedItems = pgTable("house_bundle_included_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bundleId: varchar("bundle_id").notNull().references(() => houseBundles.id, { onDelete: "cascade" }),
+  buildingId: varchar("building_id").references(() => houseBundleBuildings.id, { onDelete: "set null" }),
+  itemType: text("item_type").notNull(),
+  itemId: varchar("item_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(250),
+  flipped: boolean("flipped").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  bundleCatalogItemUnique: unique("house_bundle_included_items_bundle_type_item_key")
+    .on(table.bundleId, table.itemType, table.itemId),
+}));
+
+export type HouseBundleIncludedItem = typeof houseBundleIncludedItems.$inferSelect;
+
 // Shared capacity/type rules live outside the Drizzle schema so both client and
 // server behavior use one source of truth.
 export { BUILDING_SIZE_CAPACITY, type BuildingSize } from "./housing";
@@ -1055,6 +1079,23 @@ export const userHouseBundles = pgTable("user_house_bundles", {
 });
 
 export type UserHouseBundle = typeof userHouseBundles.$inferSelect;
+
+// Delivery ledger for Home Bundle included items. grantedQuantity is monotonic:
+// decreasing an Admin bundle quantity never takes items away, and re-opening a
+// Home cannot grant the same entitlement twice.
+export const userHouseBundleItemGrants = pgTable("user_house_bundle_item_grants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  includedItemId: varchar("included_item_id").notNull().references(() => houseBundleIncludedItems.id, { onDelete: "cascade" }),
+  grantedQuantity: integer("granted_quantity").notNull().default(0),
+  grantedAt: timestamp("granted_at").notNull().default(sql`now()`),
+  templateAppliedAt: timestamp("template_applied_at"),
+}, (table) => ({
+  userIncludedItemUnique: unique("user_house_bundle_item_grants_user_item_key")
+    .on(table.userId, table.includedItemId),
+}));
+
+export type UserHouseBundleItemGrant = typeof userHouseBundleItemGrants.$inferSelect;
 
 // ── Location House Bundles (shop stock) ───────────────────────────────────────
 export const locationHouseBundles = pgTable("location_house_bundles", {
