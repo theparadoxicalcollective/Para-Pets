@@ -324,24 +324,59 @@ export async function cancelListing(input: { actorId: string; listingId: string 
     if (listing.sellerId !== input.actorId) throw new MarketplaceError("wrong_owner", "Only the seller can cancel this listing");
     if (listing.status === "sold") throw new MarketplaceError("already_sold", "Listing has already sold");
     if (listing.status !== "active") throw new MarketplaceError("not_active", "Listing is not active");
-    const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
-    if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
-      const removed = await tx.delete(playerMarketListings)
-        .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
-        .returning({ id: playerMarketListings.id });
-      if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
-      return;
-    }
-    if (listing.itemType === "fish") {
-      await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
-      await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+    if (listing.itemType === "home_decor") {
+      const rows = await tx.select().from(userHomeDecorInventory)
+        .where(and(eq(userHomeDecorInventory.userId, input.actorId), eq(userHomeDecorInventory.decorItemId, listing.shopItemId)))
+        .orderBy(userHomeDecorInventory.id).for("update");
+      if (rows[0]) {
+        await tx.update(userHomeDecorInventory)
+          .set({ quantity: sql`${userHomeDecorInventory.quantity} + 1` })
+          .where(eq(userHomeDecorInventory.id, rows[0].id));
+      } else {
+        await tx.insert(userHomeDecorInventory).values({
+          id: listing.inventoryId,
+          userId: input.actorId,
+          decorItemId: listing.shopItemId,
+          quantity: 1,
+        });
+      }
+    } else if (listing.itemType === "home_bundle") {
+      const data = (listing.assetData ?? {}) as Record<string, unknown>;
+      const outdoorLightingMode = data.outdoorLightingMode === "day" || data.outdoorLightingMode === "night"
+        ? data.outdoorLightingMode
+        : "auto";
+      const offInteriorEffectIds = data.offInteriorEffectIds && typeof data.offInteriorEffectIds === "object" && !Array.isArray(data.offInteriorEffectIds)
+        ? data.offInteriorEffectIds as Record<string, string[]>
+        : {};
+      const parsedPurchasedAt = typeof data.purchasedAt === "string" ? new Date(data.purchasedAt) : new Date();
+      await tx.insert(userHouseBundles).values({
+        id: listing.inventoryId,
+        userId: input.actorId,
+        bundleId: listing.shopItemId,
+        outdoorLightingMode,
+        offInteriorEffectIds,
+        purchasedAt: Number.isNaN(parsedPurchasedAt.getTime()) ? new Date() : parsedPurchasedAt,
+      });
     } else {
-      const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
-      await tx.update(userInventory).set({
-        isListed: false,
-        hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
-        isHatched: escrow.isHatched,
-      }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
+      if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
+        const removed = await tx.delete(playerMarketListings)
+          .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
+          .returning({ id: playerMarketListings.id });
+        if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
+        return;
+      }
+      if (listing.itemType === "fish") {
+        await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
+        await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      } else {
+        const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
+        await tx.update(userInventory).set({
+          isListed: false,
+          hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
+          isHatched: escrow.isHatched,
+        }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      }
     }
     const removed = await tx.delete(playerMarketListings).where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active"))).returning();
     if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
