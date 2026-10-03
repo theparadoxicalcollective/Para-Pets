@@ -21,32 +21,25 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
 
-  return { mode, nightStrength, darkness };
-}
-
-function AutoLightingIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7.6 4.1V2.4M7.6 21.6v-1.7M1.8 12h1.8M11.6 12h1.8M3.5 7.9 2.2 6.6M12.9 17.3l-1.3-1.3M3.5 16.1l-1.3 1.3M12.9 6.7l-1.3 1.3" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round"/>
-      <circle cx="7.6" cy="12" r="3.35" stroke="currentColor" strokeWidth="1.45"/>
-      <path d="M20.5 6.2a7.2 7.2 0 0 0-4.4 13.1 7.4 7.4 0 0 1-5.6-7.2 7.4 7.4 0 0 1 7.4-7.4c.9 0 1.8.2 2.6.5Z" fill="currentColor" opacity=".82"/>
-    </svg>
-  );
+  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness };
 }
 
 export function HomeDayNightToggle({
   mode,
+  nightStrength,
   onCycle,
   style,
 }: {
   mode: HomeOutdoorLightingMode;
+  nightStrength: number;
   onCycle: () => void;
   style?: CSSProperties;
 }) {
+  const safeNight = mode === "day" ? 0 : mode === "night" ? 1 : Math.max(0, Math.min(1, nightStrength));
   const label = mode === "auto"
-    ? "Automatic day and night. Tap for daylight."
+    ? "Automatic day and night. Tap for daylight override."
     : mode === "day"
-      ? "Daylight override. Tap for night."
+      ? "Daylight override. Tap for night override."
       : "Night override. Tap for automatic day and night.";
 
   return (
@@ -62,19 +55,18 @@ export function HomeDayNightToggle({
         onCycle();
       }}
       style={{
-        width: 42,
-        height: 42,
-        display: "grid",
-        placeItems: "center",
-        borderRadius: "50%",
-        border: mode === "night" ? "1.5px solid rgba(157,196,255,.62)" : "1.5px solid rgba(255,218,116,.62)",
-        color: mode === "night" ? "#d9e7ff" : "#ffe29a",
-        background: mode === "night"
-          ? "radial-gradient(circle at 45% 38%, rgba(73,103,155,.48), rgba(3,10,24,.88) 72%)"
-          : "radial-gradient(circle at 45% 38%, rgba(126,96,34,.42), rgba(8,14,7,.88) 72%)",
-        boxShadow: mode === "night"
-          ? "0 0 14px rgba(102,148,226,.22), 0 4px 12px rgba(0,0,0,.5)"
-          : "0 0 14px rgba(255,201,77,.18), 0 4px 12px rgba(0,0,0,.5)",
+        width: 86,
+        height: 32,
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 8px",
+        borderRadius: 999,
+        border: "1px solid rgba(255,218,116,.46)",
+        color: "#ffe29a",
+        background: "linear-gradient(180deg, rgba(10,18,18,.88), rgba(4,8,14,.92))",
+        boxShadow: "0 0 12px rgba(255,201,77,.12), 0 4px 12px rgba(0,0,0,.48)",
         backdropFilter: "blur(6px)",
         cursor: "pointer",
         pointerEvents: "auto",
@@ -82,7 +74,54 @@ export function HomeDayNightToggle({
         ...style,
       }}
     >
-      {mode === "day" ? <Sun size={20} strokeWidth={1.8} /> : mode === "night" ? <Moon size={19} strokeWidth={1.8} /> : <AutoLightingIcon />}
+      <Sun size={14} strokeWidth={1.8} aria-hidden="true" />
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 26,
+          right: 26,
+          top: "50%",
+          height: 2,
+          transform: "translateY(-50%)",
+          borderRadius: 999,
+          background: "linear-gradient(90deg, rgba(255,218,116,.42), rgba(141,169,226,.34))",
+          boxShadow: "inset 0 0 2px rgba(0,0,0,.7)",
+        }}
+      >
+        <span
+          data-testid="home-day-night-planet"
+          style={{
+            position: "absolute",
+            left: `${safeNight * 100}%`,
+            top: "50%",
+            width: 9,
+            height: 9,
+            borderRadius: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "radial-gradient(circle at 35% 30%, #fff4bd 0%, #ffd75a 38%, #c89014 100%)",
+            border: "1px solid rgba(255,237,153,.9)",
+            boxShadow: "0 0 7px rgba(255,211,72,.82), 0 0 2px rgba(255,255,255,.7)",
+            transition: mode === "auto" ? "left 30s linear" : "left 280ms ease-out",
+          }}
+        />
+      </span>
+      <Moon size={13} strokeWidth={1.8} aria-hidden="true" />
+      {mode === "auto" && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: "50%",
+            bottom: 2,
+            width: 2,
+            height: 2,
+            borderRadius: "50%",
+            background: "rgba(255,226,154,.58)",
+            transform: "translateX(-50%)",
+          }}
+        />
+      )}
     </button>
   );
 }
