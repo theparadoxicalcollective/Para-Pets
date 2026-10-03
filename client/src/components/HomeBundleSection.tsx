@@ -7,7 +7,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
-import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS, HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ interface HouseBundle {
   giftNotificationX?: number; giftNotificationY?: number;
   maxOutdoorPets?: number;
   maxOutdoorDecor?: number;
+  exteriorEffects?: HouseInteriorEffect[];
 }
 interface HouseBundleBuilding {
   id: string; bundleId: string; name: string; imageUrl: string;
@@ -540,7 +541,7 @@ function AdminInteriorPreview({
 }
 
 // ─── BundleBgEditor (full-screen background + building editor) ────────────────
-function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle; onClose: () => void; onBgUpdated?: (url: string) => void }) {
+function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bundle: HouseBundle; onClose: () => void; onBgUpdated?: (url: string) => void; onBundleUpdated?: (patch: Partial<HouseBundle>) => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -561,6 +562,29 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   useEffect(() => { imgWidthRef.current = imgWidth; }, [imgWidth]);
   useEffect(() => { containerHRef.current = containerH; }, [containerH]);
   useEffect(() => { panXRef.current = panX; }, [panX]);
+
+  // ── Outdoor visual effects ──
+  const exteriorEffectsRef = useRef<HouseInteriorEffect[]>(bundle.exteriorEffects ?? []);
+  const [exteriorEffects, setExteriorEffects] = useState<HouseInteriorEffect[]>(bundle.exteriorEffects ?? []);
+  const [selectedExteriorEffectId, setSelectedExteriorEffectId] = useState<string | null>(null);
+  const [showExteriorEffectsMenu, setShowExteriorEffectsMenu] = useState(false);
+  const exteriorEffectsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const exteriorEffectDragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    startEffectX: number;
+    startEffectY: number;
+    pid: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const next = bundle.exteriorEffects ?? [];
+    exteriorEffectsRef.current = next;
+    setExteriorEffects(next);
+    setSelectedExteriorEffectId(null);
+    setShowExteriorEffectsMenu(false);
+  }, [bundle.id]);
 
   // ── Building editor state ──
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -701,6 +725,112 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       });
   }, [toast]);
 
+  const saveExteriorEffects = useCallback((next: HouseInteriorEffect[]) => {
+    exteriorEffectsRef.current = next;
+    setExteriorEffects(next);
+    onBundleUpdated?.({ exteriorEffects: next });
+    exteriorEffectsSaveQueueRef.current = exteriorEffectsSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { exteriorEffects: next });
+        qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] });
+      })
+      .catch((error: any) => {
+        toast({ title: "Failed to save outdoor effect", description: error.message, variant: "destructive" });
+      });
+  }, [bundle.id, onBundleUpdated, qc, toast]);
+
+  const addExteriorEffect = useCallback((type: HouseInteriorEffectType, defaultSize: number) => {
+    if (exteriorEffectsRef.current.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT) {
+      toast({ title: "Effect limit reached", description: `Up to ${HOUSE_INTERIOR_EFFECT_MAX_COUNT} outdoor effects can be placed.` });
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) return;
+    const iw = imgWidthRef.current || container.offsetWidth;
+    const x = Math.max(0.03, Math.min(0.97, (container.offsetWidth / 2 - panXRef.current) / iw));
+    const id = `outdoor-effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const effect: HouseInteriorEffect = { id, type, x, y: 0.52, size: defaultSize };
+    saveExteriorEffects([...exteriorEffectsRef.current, effect]);
+    setSelectedExteriorEffectId(id);
+    setShowExteriorEffectsMenu(false);
+  }, [saveExteriorEffects, toast]);
+
+  const onExteriorEffectPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, effect: HouseInteriorEffect) => {
+    e.stopPropagation();
+    buildingDragRef.current = null;
+    panStartRef.current = null;
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
+    exteriorEffectDragRef.current = {
+      id: effect.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      startEffectX: effect.x,
+      startEffectY: effect.y,
+      pid: e.pointerId,
+    };
+    setSelectedId(null);
+    setSelectedExteriorEffectId(effect.id);
+    setShowExteriorEffectsMenu(false);
+  }, []);
+
+  const onExteriorEffectPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = exteriorEffectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const iw = imgWidthRef.current;
+    const h = containerHRef.current;
+    if (iw <= 0 || h <= 0) return;
+    const next = exteriorEffectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: Math.max(0, Math.min(1, drag.startEffectX + (e.clientX - drag.startX) / iw)),
+      y: Math.max(0, Math.min(1, drag.startEffectY + (e.clientY - drag.startY) / h)),
+    } : effect);
+    exteriorEffectsRef.current = next;
+    setExteriorEffects(next);
+  }, []);
+
+  const onExteriorEffectPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const drag = exteriorEffectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    exteriorEffectDragRef.current = null;
+    saveExteriorEffects(exteriorEffectsRef.current);
+  }, [saveExteriorEffects]);
+
+  const onExteriorEffectPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const drag = exteriorEffectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    exteriorEffectDragRef.current = null;
+    const reverted = exteriorEffectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: drag.startEffectX,
+      y: drag.startEffectY,
+    } : effect);
+    exteriorEffectsRef.current = reverted;
+    setExteriorEffects(reverted);
+  }, []);
+
+  const resizeSelectedExteriorEffect = useCallback((delta: number) => {
+    if (!selectedExteriorEffectId) return;
+    const next = exteriorEffectsRef.current.map(effect => effect.id === selectedExteriorEffectId ? {
+      ...effect,
+      size: Math.max(HOUSE_INTERIOR_EFFECT_MIN_SIZE, Math.min(HOUSE_INTERIOR_EFFECT_MAX_SIZE, effect.size + delta)),
+    } : effect);
+    saveExteriorEffects(next);
+  }, [saveExteriorEffects, selectedExteriorEffectId]);
+
+  const deleteSelectedExteriorEffect = useCallback(() => {
+    if (!selectedExteriorEffectId) return;
+    saveExteriorEffects(exteriorEffectsRef.current.filter(effect => effect.id !== selectedExteriorEffectId));
+    setSelectedExteriorEffectId(null);
+  }, [saveExteriorEffects, selectedExteriorEffectId]);
+
+  const selectedExteriorEffect = exteriorEffects.find(effect => effect.id === selectedExteriorEffectId) ?? null;
+  const selectedExteriorEffectLabel = HOME_OUTDOOR_EFFECT_OPTIONS.find(option => option.type === selectedExteriorEffect?.type)?.label ?? "Effect";
+
   // ── Background image aspect ratio ──
   useEffect(() => {
     if (!bgUrl) return;
@@ -785,14 +915,14 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
 
   // ── Background pan handlers ──
   const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
-    if (buildingDragRef.current) return;
+    if (buildingDragRef.current || exteriorEffectDragRef.current) return;
     isPanningRef.current = false;
     safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
 
   const handleContainerPointerMove = useCallback((e: React.PointerEvent) => {
-    if (buildingDragRef.current) return;
+    if (buildingDragRef.current || exteriorEffectDragRef.current) return;
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
     const container = containerRef.current;
@@ -816,6 +946,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
   // ── Building drag handlers ──
   const handleBuildingPointerDown = useCallback((e: React.PointerEvent, b: HouseBundleBuilding) => {
     e.stopPropagation();
+    setSelectedExteriorEffectId(null);
+    setShowExteriorEffectsMenu(false);
     buildingDidDrag.current = false;
     setTopmostId(b.id);
     if (selectedId !== b.id) return; // first tap = select only
@@ -873,7 +1005,11 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
       onPointerCancel={handleContainerPointerUp}
       onLostPointerCapture={handleContainerPointerUp}
       onContextMenu={e => e.preventDefault()}
-      onClick={() => setSelectedId(null)}
+      onClick={() => {
+        setSelectedId(null);
+        setSelectedExteriorEffectId(null);
+        setShowExteriorEffectsMenu(false);
+      }}
     >
       {/* Background — clipped separately so buildings can overflow the screen edge */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1012,6 +1148,106 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
               </div>
             );
           })}
+        </div>
+      )}
+
+      {imgWidth > 0 && (
+        <HomeInteriorEffectsLayer
+          effects={exteriorEffects}
+          panX={panX}
+          imgWidth={imgWidth}
+          sceneHeight={containerH}
+          selectedId={selectedExteriorEffectId}
+          interactive
+          onEffectPointerDown={onExteriorEffectPointerDown}
+          onEffectPointerMove={onExteriorEffectPointerMove}
+          onEffectPointerUp={onExteriorEffectPointerUp}
+          onEffectPointerCancel={onExteriorEffectPointerCancel}
+          zIndex={18}
+        />
+      )}
+
+      <button
+        type="button"
+        data-testid="button-add-outdoor-effect"
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => {
+          e.stopPropagation();
+          setSelectedId(null);
+          setSelectedExteriorEffectId(null);
+          setShowExteriorEffectsMenu(current => !current);
+        }}
+        className="absolute left-1/2 -translate-x-1/2 rounded-full px-4 py-2 font-fantasy text-[10px] tracking-wider"
+        style={{
+          zIndex: 31,
+          top: "max(104px, calc(env(safe-area-inset-top, 0px) + 76px))",
+          background: "rgba(0,0,0,0.72)",
+          border: "1px solid rgba(255,215,0,0.44)",
+          color: GOLD,
+          boxShadow: "0 3px 12px rgba(0,0,0,.4)",
+        }}
+      >
+        + Effects
+      </button>
+
+      {showExteriorEffectsMenu && (
+        <div
+          data-testid="menu-outdoor-effects"
+          className="absolute left-1/2 -translate-x-1/2 rounded-2xl p-3"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          style={{
+            zIndex: 32,
+            top: "max(148px, calc(env(safe-area-inset-top, 0px) + 120px))",
+            width: "min(92%, 390px)",
+            background: "rgba(7,10,7,.94)",
+            border: "1px solid rgba(255,215,0,.34)",
+            boxShadow: "0 12px 32px rgba(0,0,0,.6)",
+            backdropFilter: "blur(9px)",
+          }}
+        >
+          <p className="font-fantasy text-[10px] tracking-widest text-center mb-2" style={{ color: GOLD }}>OUTDOOR EFFECTS</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => (
+              <button
+                key={option.type}
+                type="button"
+                data-testid={`button-add-outdoor-effect-${option.type}`}
+                onClick={() => addExteriorEffect(option.type, option.defaultSize)}
+                className="rounded-xl px-2.5 py-2 text-left"
+                style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}
+              >
+                <span className="block font-fantasy text-[10px] tracking-wide">{option.label}</span>
+                <span className="block font-fantasy text-[8px] mt-0.5" style={{ color: "rgba(255,215,0,0.48)" }}>{option.description}</span>
+              </button>
+            ))}
+          </div>
+          <p className="font-fantasy text-[8px] text-center mt-2" style={{ color: "rgba(255,255,255,0.38)" }}>
+            Drag an effect after adding it · {exteriorEffects.length}/{HOUSE_INTERIOR_EFFECT_MAX_COUNT}
+          </p>
+        </div>
+      )}
+
+      {selectedExteriorEffect && (
+        <div
+          data-testid="controls-outdoor-effect"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-2xl px-3 py-2"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          style={{
+            zIndex: 32,
+            bottom: "max(88px, calc(env(safe-area-inset-bottom, 0px) + 72px))",
+            background: "rgba(5,9,6,.92)",
+            border: "1px solid rgba(255,215,0,.4)",
+            boxShadow: "0 8px 24px rgba(0,0,0,.56)",
+          }}
+        >
+          <span className="font-fantasy text-[9px] max-w-[72px] truncate" style={{ color: "rgba(255,226,154,.9)" }}>{selectedExteriorEffectLabel}</span>
+          <button type="button" aria-label="Make outdoor effect smaller" onClick={() => resizeSelectedExteriorEffect(-2)} className="w-8 h-8 rounded-full" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}>−</button>
+          <span className="font-fantasy text-[9px] min-w-[34px] text-center" style={{ color: GOLD }}>{Math.round(selectedExteriorEffect.size)}%</span>
+          <button type="button" aria-label="Make outdoor effect larger" onClick={() => resizeSelectedExteriorEffect(2)} className="w-8 h-8 rounded-full" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD }}>+</button>
+          <button type="button" aria-label="Delete outdoor effect" onClick={deleteSelectedExteriorEffect} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(120,20,20,.7)", border: "1px solid rgba(255,100,100,.45)", color: "#ff9a9a" }}><Trash2 className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setSelectedExteriorEffectId(null)} className="rounded-full px-3 h-8 font-fantasy text-[9px]" style={{ background: "rgba(80,150,80,.18)", border: "1px solid rgba(120,220,120,.35)", color: "#a7f3b0" }}>Done</button>
         </div>
       )}
 
@@ -1775,7 +2011,12 @@ function BundlesSubTab() {
 
   // ── Background editor ──
   if (showBgEditor && editingBundle) {
-    return <BundleBgEditor bundle={{ ...editingBundle, bgImageUrl: bgImagePreview ?? editingBundle.bgImageUrl }} onClose={() => setShowBgEditor(false)} onBgUpdated={url => setBgImagePreview(url)} />;
+    return <BundleBgEditor
+      bundle={{ ...editingBundle, bgImageUrl: bgImagePreview ?? editingBundle.bgImageUrl }}
+      onClose={() => setShowBgEditor(false)}
+      onBgUpdated={url => setBgImagePreview(url)}
+      onBundleUpdated={patch => setEditingBundle(current => current ? { ...current, ...patch } : current)}
+    />;
   }
 
   return (

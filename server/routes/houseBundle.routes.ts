@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { eq } from "drizzle-orm";
 import { houseBundles as houseBundlesTable } from "@shared/schema";
-import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects } from "@shared/housing";
+import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize, isHouseBuildingType, sanitizeHouseInteriorDarkness, sanitizeHouseInteriorEffects, sanitizeHouseOutdoorEffects } from "@shared/housing";
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
 import { executeStoreAllHomeScene } from "../housing/decorTransactions";
@@ -155,7 +155,7 @@ export function registerHouseBundleRoutes(
 
   app.patch("/api/admin/house-bundles/:id", isAdmin, async (req, res) => {
     try {
-      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY, maxOutdoorPets, maxOutdoorDecor } = req.body;
+      const { name, price, shopImageData, bgImageData, giftNotificationX, giftNotificationY, maxOutdoorPets, maxOutdoorDecor, exteriorEffects } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
       if (price !== undefined) updates.price = price;
@@ -165,6 +165,10 @@ export function registerHouseBundleRoutes(
       if (giftNotificationY !== undefined) updates.giftNotificationY = giftNotificationY;
       if (maxOutdoorPets !== undefined) updates.maxOutdoorPets = Math.max(0, Number(maxOutdoorPets));
       if (maxOutdoorDecor !== undefined) updates.maxOutdoorDecor = Math.max(0, Number(maxOutdoorDecor));
+      if (exteriorEffects !== undefined) {
+        if (!Array.isArray(exteriorEffects)) return res.status(400).json({ message: "exteriorEffects must be an array" });
+        updates.exteriorEffects = sanitizeHouseOutdoorEffects(exteriorEffects);
+      }
       const bundle = await storage.updateHouseBundle(req.params.id as string, updates);
       return res.json(bundle);
     } catch (err: any) {

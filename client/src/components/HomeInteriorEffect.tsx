@@ -16,6 +16,10 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   { type: "sleep", label: "Sleep Square", description: "Drop a pet here to make it sleep", defaultSize: 18 },
 ];
 
+export const HOME_OUTDOOR_EFFECT_OPTIONS = HOME_INTERIOR_EFFECT_OPTIONS.filter(
+  option => option.type !== "sleep",
+);
+
 type EffectPointerHandler = (
   event: ReactPointerEvent<HTMLDivElement>,
   effect: HouseInteriorEffect,
@@ -600,6 +604,7 @@ export function HomeInteriorEffectsLayer({
             onPointerUp={interactive && onEffectPointerUp ? event => onEffectPointerUp(event, effect) : undefined}
             onPointerCancel={interactive && onEffectPointerCancel ? event => onEffectPointerCancel(event, effect) : undefined}
             onLostPointerCapture={interactive && onEffectPointerCancel ? event => onEffectPointerCancel(event, effect) : undefined}
+            onClick={interactive ? event => event.stopPropagation() : undefined}
             data-player-toggle-effect-id={playerToggleable ? effect.id : undefined}
             role={playerToggleable ? "button" : undefined}
             tabIndex={playerToggleable ? 0 : undefined}
