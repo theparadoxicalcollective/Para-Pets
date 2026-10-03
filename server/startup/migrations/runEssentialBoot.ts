@@ -23,6 +23,29 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE user_house_bundles ADD COLUMN IF NOT EXISTS off_interior_effect_ids JSONB NOT NULL DEFAULT '{}'::jsonb;
     ALTER TABLE player_market_listings ADD COLUMN IF NOT EXISTS asset_data JSONB;
 
+    CREATE TABLE IF NOT EXISTS house_bundle_included_items (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bundle_id varchar NOT NULL REFERENCES house_bundles(id) ON DELETE CASCADE,
+      building_id varchar REFERENCES house_bundle_buildings(id) ON DELETE SET NULL,
+      item_type text NOT NULL CHECK (item_type IN ('decor', 'object')),
+      item_id varchar NOT NULL,
+      quantity integer NOT NULL DEFAULT 1 CHECK (quantity BETWEEN 1 AND 99),
+      active boolean NOT NULL DEFAULT true,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS house_bundle_included_items_bundle_type_item_key
+      ON house_bundle_included_items(bundle_id, item_type, item_id);
+
+    CREATE TABLE IF NOT EXISTS user_house_bundle_item_grants (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      included_item_id varchar NOT NULL REFERENCES house_bundle_included_items(id) ON DELETE CASCADE,
+      granted_quantity integer NOT NULL DEFAULT 0 CHECK (granted_quantity >= 0),
+      granted_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS user_house_bundle_item_grants_user_item_key
+      ON user_house_bundle_item_grants(user_id, included_item_id);
+
     CREATE TABLE IF NOT EXISTS pet_house_visit_rewards (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       visitor_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
