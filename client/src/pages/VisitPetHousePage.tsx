@@ -396,9 +396,12 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           >
             <div
               data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
-              className={isRewardReacting ? "feed-pet-happy" : undefined}
               style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
             >
+              <div
+                className={isRewardReacting ? "pet-care-squish-bounce" : undefined}
+                style={{ position: "absolute", inset: 0 }}
+              >
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
@@ -423,6 +426,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               ) : null}
               {isSleeping && <PetSleepZzz />}
               {isOnFire && <PetFireReaction hideEyes={!!pet.petTemplateId} />}
+              </div>
             </div>
             <PetHomeVisitRewardCue
               available={!!pet.visitRewardAvailable && pendingRewardPetId !== pet.inventoryId}
@@ -712,9 +716,12 @@ export default function VisitPetHousePage() {
           >
             <div
               data-testid={`visit-pet-visible-scale-${pet.inventoryId}`}
-              className={isRewardReacting ? "feed-pet-happy" : undefined}
               style={{ position: "absolute", inset: 0, transform: `scale(${petScale})`, transformOrigin: "50% 50%" }}
             >
+              <div
+                className={isRewardReacting ? "pet-care-squish-bounce" : undefined}
+                style={{ position: "absolute", inset: 0 }}
+              >
               {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
@@ -737,6 +744,7 @@ export default function VisitPetHousePage() {
                   style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
+              </div>
             </div>
             <PetHomeVisitRewardCue
               available={!!pet.visitRewardAvailable && pendingRewardPetId !== pet.inventoryId}
