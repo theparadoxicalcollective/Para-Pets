@@ -1528,7 +1528,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     }
     if (!drag.moved) {
       setPetDragLive(null);
-      if (e.type === "pointercancel") return;
       const now = Date.now();
       if (isSecondHomeEditTap(outdoorPetTapRef.current, drag.inventoryId, now)) {
         outdoorPetTapRef.current = null;
