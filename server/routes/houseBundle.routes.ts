@@ -5,7 +5,7 @@ import { DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, isBuildingSize,
 import type { db as database } from "../db";
 import type { IStorage } from "../storage";
 import { executeStoreAllHomeScene } from "../housing/decorTransactions";
-import { ensureAllOwnedHouseBundleIncludedItemsGranted } from "../housing/bundleContents";
+import { applyActiveHouseBundleIncludedItemTemplates, ensureAllOwnedHouseBundleIncludedItemsGranted } from "../housing/bundleContents";
 
 export interface HouseBundleRouteDependencies {
   db: typeof database;
@@ -15,6 +15,7 @@ export interface HouseBundleRouteDependencies {
   processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
   storeAllHomeScene?: (userId: string) => Promise<{ returnedDecor: number; returnedObjects: number; returnedPets: number }>;
   ensureIncludedItemsGranted?: (userId: string) => Promise<unknown>;
+  applyIncludedItemTemplates?: (userId: string, bundleId?: string) => Promise<unknown>;
 }
 
 /**
@@ -26,7 +27,7 @@ export interface HouseBundleRouteDependencies {
  */
 export function registerHouseBundleRoutes(
   app: Express,
-  { db, storage, isAuthenticated, isAdmin, processWorldImage, storeAllHomeScene = executeStoreAllHomeScene, ensureIncludedItemsGranted = ensureAllOwnedHouseBundleIncludedItemsGranted }: HouseBundleRouteDependencies,
+  { db, storage, isAuthenticated, isAdmin, processWorldImage, storeAllHomeScene = executeStoreAllHomeScene, ensureIncludedItemsGranted = ensureAllOwnedHouseBundleIncludedItemsGranted, applyIncludedItemTemplates = applyActiveHouseBundleIncludedItemTemplates }: HouseBundleRouteDependencies,
 ): void {
   // ── Player House Bundle Routes ──────────────────────────────────────────────
   app.get("/api/house-bundles", async (_req, res) => {
@@ -54,10 +55,10 @@ export function registerHouseBundleRoutes(
   app.get("/api/users/:userId/active-house-bundle", async (req, res) => {
     try {
       const { userId } = req.params as { userId: string };
-      if (req.isAuthenticated() && (req.user as any)?.id === userId) {
-        await ensureIncludedItemsGranted(userId);
-      }
+      const isSelf = req.isAuthenticated() && (req.user as any)?.id === userId;
+      if (isSelf) await ensureIncludedItemsGranted(userId);
       const bundle = await storage.getActiveBundleWithBuildings(userId);
+      if (isSelf && bundle) await applyIncludedItemTemplates(userId, bundle.id);
       return res.json(bundle ?? null);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -149,6 +150,8 @@ export function registerHouseBundleRoutes(
       }
 
       await storage.setActiveHouseBundle(user.id, bundleId);
+      await ensureIncludedItemsGranted(user.id);
+      await applyIncludedItemTemplates(user.id, bundleId);
       const bundle = await storage.getActiveBundleWithBuildings(user.id);
       return res.json(bundle);
     } catch (err: any) {
@@ -297,14 +300,18 @@ export function registerHouseBundleRoutes(
       }
 
       if (itemType === "decor") {
-        const [item] = await db.select({ id: homeDecorItems.id }).from(homeDecorItems)
+        const [item] = await db.select({ id: homeDecorItems.id, homeSceneSize: homeDecorItems.homeSceneSize }).from(homeDecorItems)
           .where(eq(homeDecorItems.id, itemId)).limit(1);
         if (!item) return res.status(404).json({ message: "Decor item not found" });
       } else {
-        const [item] = await db.select({ id: shopItems.id }).from(shopItems)
+        const [item] = await db.select({ id: shopItems.id, homeSceneSize: shopItems.homeSceneSize }).from(shopItems)
           .where(and(eq(shopItems.id, itemId), eq(shopItems.type, "object"))).limit(1);
         if (!item) return res.status(404).json({ message: "Object not found" });
       }
+
+      const [catalogPlacement] = itemType === "decor"
+        ? await db.select({ homeSceneSize: homeDecorItems.homeSceneSize }).from(homeDecorItems).where(eq(homeDecorItems.id, itemId)).limit(1)
+        : await db.select({ homeSceneSize: shopItems.homeSceneSize }).from(shopItems).where(and(eq(shopItems.id, itemId), eq(shopItems.type, "object"))).limit(1);
 
       const [existing] = await db.select().from(houseBundleIncludedItems)
         .where(and(
@@ -330,6 +337,10 @@ export function registerHouseBundleRoutes(
             itemType,
             itemId,
             quantity: 1,
+            xPct: 0.5,
+            yPct: 0.52,
+            size: Math.max(60, Math.min(500, catalogPlacement?.homeSceneSize ?? 250)),
+            flipped: false,
           }).returning();
 
       const detailed = row ? await enrichIncludedItem(row) : null;
@@ -341,12 +352,32 @@ export function registerHouseBundleRoutes(
 
   app.patch("/api/admin/house-bundle-included-items/:id", isAdmin, async (req, res) => {
     try {
-      if (req.body?.quantity === undefined) {
-        return res.status(400).json({ message: "quantity is required" });
+      const updates: Partial<typeof houseBundleIncludedItems.$inferInsert> = {};
+      if (req.body?.quantity !== undefined) updates.quantity = sanitizeHouseBundleIncludedItemQuantity(req.body.quantity);
+      if (req.body?.xPct !== undefined) {
+        const value = Number(req.body.xPct);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "xPct must be a number" });
+        updates.xPct = Math.max(0.02, Math.min(0.98, value));
       }
-      const quantity = sanitizeHouseBundleIncludedItemQuantity(req.body.quantity);
+      if (req.body?.yPct !== undefined) {
+        const value = Number(req.body.yPct);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "yPct must be a number" });
+        updates.yPct = Math.max(0.02, Math.min(0.98, value));
+      }
+      if (req.body?.size !== undefined) {
+        const value = Number(req.body.size);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "size must be a number" });
+        updates.size = Math.max(60, Math.min(500, Math.round(value)));
+      }
+      if (req.body?.flipped !== undefined) {
+        if (typeof req.body.flipped !== "boolean") return res.status(400).json({ message: "flipped must be boolean" });
+        updates.flipped = req.body.flipped;
+      }
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "An included item update is required" });
+      }
       const [row] = await db.update(houseBundleIncludedItems)
-        .set({ quantity })
+        .set(updates)
         .where(and(
           eq(houseBundleIncludedItems.id, req.params.id as string),
           eq(houseBundleIncludedItems.active, true),
