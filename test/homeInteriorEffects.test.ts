@@ -279,7 +279,10 @@ test("saved room darkness is the lights-off baseline and active lights create ci
   assert.match(effects, /getHouseInteriorLightRadiusRatio/);
   assert.match(effects, /radial-gradient\(circle/);
   assert.match(effects, /mixBlendMode: "screen"/);
-  assert.doesNotMatch(effects, /linear-gradient\(90deg/);
+  assert.doesNotMatch(effects, /data-left-light-boost/);
+  assert.doesNotMatch(effects, /data-right-light-boost/);
+  assert.doesNotMatch(effects, /sideLighting\.leftDarkness/);
+  assert.doesNotMatch(effects, /sideLighting\.rightDarkness/);
 
   // Admin preview intentionally shows the exact all-lights-off darkness baseline.
   assert.match(admin, /<HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{5\} \/>/);
