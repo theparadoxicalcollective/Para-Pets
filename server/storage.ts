@@ -77,6 +77,9 @@ export interface HomeSceneCatalogItem {
   homeSceneSize: number;
   homeEffect: HomeCatalogEffect | null;
   homeTapImageUrl: string | null;
+  homeEffectX: number;
+  homeEffectY: number;
+  homeEffectSize: number;
 }
 
 export type HomeSceneInventoryEntry = UserHomeDecorInventory & { item: HomeSceneCatalogItem };
@@ -3371,7 +3374,7 @@ export class DatabaseStorage implements IStorage {
     const result: HomeSceneInventoryEntry[] = [];
     for (const row of rows) {
       const [item] = await db.select().from(homeDecorItems).where(eq(homeDecorItems.id, row.decorItemId));
-      if (item) result.push({ ...row, item: { id: item.id, name: item.name, imageUrl: item.imageUrl, price: item.price, type: "decor", homeSceneSize: item.homeSceneSize, homeEffect: item.homeEffect as HomeCatalogEffect | null, homeTapImageUrl: null } });
+      if (item) result.push({ ...row, item: { id: item.id, name: item.name, imageUrl: item.imageUrl, price: item.price, type: "decor", homeSceneSize: item.homeSceneSize, homeEffect: item.homeEffect as HomeCatalogEffect | null, homeTapImageUrl: null, homeEffectX: item.homeEffectX, homeEffectY: item.homeEffectY, homeEffectSize: item.homeEffectSize } });
     }
 
     const objectRows = await db
@@ -3387,6 +3390,9 @@ export class DatabaseStorage implements IStorage {
         itemHomeSceneSize: shopItems.homeSceneSize,
         itemHomeEffect: shopItems.homeEffect,
         itemHomeTapImageUrl: shopItems.homeTapImageUrl,
+        itemHomeEffectX: shopItems.homeEffectX,
+        itemHomeEffectY: shopItems.homeEffectY,
+        itemHomeEffectSize: shopItems.homeEffectSize,
       })
       .from(userInventory)
       .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
@@ -3407,6 +3413,9 @@ export class DatabaseStorage implements IStorage {
           homeSceneSize: row.itemHomeSceneSize,
           homeEffect: row.itemHomeEffect as HomeCatalogEffect | null,
           homeTapImageUrl: row.itemHomeTapImageUrl,
+          homeEffectX: row.itemHomeEffectX,
+          homeEffectY: row.itemHomeEffectY,
+          homeEffectSize: row.itemHomeEffectSize,
         },
       });
     }
@@ -3438,7 +3447,7 @@ export class DatabaseStorage implements IStorage {
       if (decor) {
         result.push({
           ...row,
-          item: { id: decor.id, name: decor.name, imageUrl: decor.imageUrl, price: decor.price, type: "decor", homeSceneSize: decor.homeSceneSize, homeEffect: decor.homeEffect as HomeCatalogEffect | null, homeTapImageUrl: null },
+          item: { id: decor.id, name: decor.name, imageUrl: decor.imageUrl, price: decor.price, type: "decor", homeSceneSize: decor.homeSceneSize, homeEffect: decor.homeEffect as HomeCatalogEffect | null, homeTapImageUrl: null, homeEffectX: decor.homeEffectX, homeEffectY: decor.homeEffectY, homeEffectSize: decor.homeEffectSize },
         });
         continue;
       }
@@ -3450,7 +3459,7 @@ export class DatabaseStorage implements IStorage {
       if (object) {
         result.push({
           ...row,
-          item: { id: object.id, name: object.name, imageUrl: object.imageUrl, price: object.price, type: "object", homeSceneSize: object.homeSceneSize, homeEffect: object.homeEffect as HomeCatalogEffect | null, homeTapImageUrl: object.homeTapImageUrl },
+          item: { id: object.id, name: object.name, imageUrl: object.imageUrl, price: object.price, type: "object", homeSceneSize: object.homeSceneSize, homeEffect: object.homeEffect as HomeCatalogEffect | null, homeTapImageUrl: object.homeTapImageUrl, homeEffectX: object.homeEffectX, homeEffectY: object.homeEffectY, homeEffectSize: object.homeEffectSize },
         });
       }
     }
