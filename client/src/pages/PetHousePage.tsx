@@ -769,6 +769,16 @@ function InteriorViewer({
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
         const displaySize = item.size;
+        const imageAspect = imgWidth / Math.max(containerH, 1);
+        const itemDarkness = getHouseInteriorPointDarkness(
+          darkness,
+          effects,
+          offEffectIds,
+          item.xPct,
+          item.yPct,
+          imageAspect,
+        );
+        const itemBrightness = (100 - itemDarkness) / 100;
         return (
           <div
             key={item.id}
@@ -781,6 +791,7 @@ function InteriorViewer({
               size={displaySize}
               selected={isSelected}
               flipped={item.flipped}
+              brightness={itemBrightness}
               controls={
                 <div className="flex gap-1">
                   <ControlBtn onClick={() => onUpdateItem(item.id, { size: clampHomeScenePlayerSize(item.item.homeSceneSize, item.size - HOME_SCENE_PLAYER_SIZE_DECREASE_STEP) })}><Minus size={15} color="#ffd700" /></ControlBtn>
