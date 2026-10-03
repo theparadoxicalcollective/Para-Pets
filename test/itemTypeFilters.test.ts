@@ -10,12 +10,14 @@ test("item type filters label known and future catalog types",()=>{
   assert.deepEqual(itemTypeOptions([{type:"potion"},{type:"gift"},{type:"potion"},{type:null}]),["gift","item","potion"]);
 });
 
-test("player bag, Clearing drop picker, and Clearing Shop expose themed type controls",()=>{
+test("player Bag uses shared grouped controls while Clearing controls remain intact",()=>{
   const inventory=fs.readFileSync("client/src/components/PetInventory.tsx","utf8");
   const admin=fs.readFileSync("client/src/components/clearing/ClearingAdminSections.tsx","utf8");
   const shop=fs.readFileSync("client/src/components/clearing/ClearingShopOverlay.tsx","utf8");
-  assert.match(inventory,/visibleTabs\.map/);
-  assert.match(inventory,/itemTypeOptions/);
+  assert.match(inventory,/GAME_ITEM_GROUPS\.map/);
+  assert.match(inventory,/gameItemCategoriesForGroup\(bagGroup\)/);
+  assert.match(inventory,/button-bag-group-\$\{group\.key\}/);
+  assert.match(inventory,/button-bag-tab-\$\{category\}/);
   assert.match(admin,/Filter catalog by item type/);
   assert.match(
     admin,
