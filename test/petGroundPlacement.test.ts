@@ -30,13 +30,13 @@ test("same relative drag produces matching home and editor placements", () => {
   assert.deepEqual({ x: small.x, y: small.y }, { x: 10, y: -5 });
 });
 test("movement preserves size and fitted X eyes while clamping coordinates", () => {
-  const value = { x: 98, y: -99, scale: 1.2, eyes: { head: { x: 400, y: 200, size: 30 } } };
+  const value = { x: 98, y: -99, scale: 1.2, eyes: { head: { x: 400, y: 200, size: 30, rotation: 0 } } };
   assert.deepEqual(dragPetPlacement(value, 100, -100, 390), { ...value, x: 100, y: -100 });
   assert.equal(dragPetPlacement(value, 100, 100, 0), value);
 });
 
 test("centering preserves full size and all head eye fittings", () => {
-  const value = { x: 23, y: -17, scale: 2.4, eyes: { head: { x: 430, y: 270, size: 35 }, h2_head: { x: 700, y: 300, size: 30 } } };
+  const value = { x: 23, y: -17, scale: 2.4, eyes: { head: { x: 430, y: 270, size: 35, rotation: 0 }, h2_head: { x: 700, y: 300, size: 30, rotation: -12 } } };
   assert.deepEqual(centerPetPlacement(value), { ...value, x: 0, y: 0 });
 });
 test("off-center authored feet stay on the fixed spot at every whole-pet size", () => {
