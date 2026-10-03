@@ -8,6 +8,7 @@ export const petPresentationSchema = z.object({
     x: z.number().finite().min(-1000).max(2000),
     y: z.number().finite().min(-1000).max(2000),
     size: z.number().finite().min(10).max(400),
+    rotation: z.number().finite().min(-180).max(180).default(0),
   })).default({}),
 });
 export type PetPresentation = z.infer<typeof petPresentationSchema>;
@@ -28,7 +29,12 @@ export function defaultXEyes(head: PresentationPart, parts: readonly Presentatio
   const prefix = head.partType.replace(/head$/, "");
   const eyes = parts.find(p => p.partType === `${prefix}eyes`) ?? parts.find(p => p.partType === `${prefix}eyes_closed`);
   const anchor = eyes ?? head;
-  return { x: anchor.posX + anchor.width / 2, y: anchor.posY + anchor.height * (eyes ? 0.5 : 0.45), size: Math.max(10, Math.min(400, anchor.width * (eyes ? 0.3 : 0.12))) };
+  return {
+    x: anchor.posX + anchor.width / 2,
+    y: anchor.posY + anchor.height * (eyes ? 0.5 : 0.45),
+    size: Math.max(10, Math.min(400, anchor.width * (eyes ? 0.3 : 0.12))),
+    rotation: 0,
+  };
 }
 export function parsePetPresentation(raw: unknown): PetPresentation {
   const result = petPresentationSchema.safeParse(raw);
