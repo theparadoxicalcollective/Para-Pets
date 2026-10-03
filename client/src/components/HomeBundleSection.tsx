@@ -8,14 +8,14 @@ import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewpor
 import { QuillBadge } from "@/components/QuillBadge";
 import { HomeSceneSizeEditor, type HomeSceneSizeEditorItem } from "@/components/HomeSceneSizeEditor";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HOME_INTERIOR_EFFECT_OPTIONS, HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_EFFECT_MAX_COUNT, HOUSE_INTERIOR_EFFECT_MAX_SIZE, HOUSE_INTERIOR_EFFECT_MIN_SIZE, type BuildingSize, type HomeCatalogEffect, type HouseBuildingType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
-  id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; createdAt: string;
 }
 interface HomeObjectItem {
-  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; createdAt: string;
 }
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
@@ -2014,12 +2014,12 @@ function DecorSubTab() {
   });
 
   const sizeMutation = useMutation({
-    mutationFn: async ({ id, homeSceneSize }: { id: string; homeSceneSize: number }) =>
-      apiRequest("PATCH", `/api/admin/home-decor/${id}`, { homeSceneSize }),
+    mutationFn: async ({ id, homeSceneSize, homeEffect }: { id: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null }) =>
+      apiRequest("PATCH", `/api/admin/home-decor/${id}`, { homeSceneSize, homeEffect }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/admin/home-decor"] });
       setEditingItem(null);
-      toast({ title: "Decor size saved!" });
+      toast({ title: "Decor settings saved!" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -2044,7 +2044,7 @@ function DecorSubTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
-                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px{item.homeEffect === "sleep" ? " · Sleep Spot" : ""}</p>
               </div>
               <button data-testid={`button-edit-decor-${item.id}`} onClick={() => setEditingItem(item)} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,215,0,0.10)", border: "1px solid rgba(255,215,0,0.28)", cursor: "pointer" }}>
                 <Pencil className="w-3.5 h-3.5" style={{ color: GOLD }} />
@@ -2062,7 +2062,7 @@ function DecorSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Decor"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize })}
+          onSave={(homeSceneSize, homeEffect) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect })}
           saving={sizeMutation.isPending}
         />
       )}
@@ -2118,12 +2118,12 @@ function ObjectsSubTab() {
   });
 
   const sizeMutation = useMutation({
-    mutationFn: async ({ id, homeSceneSize }: { id: string; homeSceneSize: number }) =>
-      apiRequest("PATCH", `/api/admin/home-objects/${id}`, { homeSceneSize }),
+    mutationFn: async ({ id, homeSceneSize, homeEffect }: { id: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null }) =>
+      apiRequest("PATCH", `/api/admin/home-objects/${id}`, { homeSceneSize, homeEffect }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/admin/home-objects"] });
       setEditingItem(null);
-      toast({ title: "Object size saved!" });
+      toast({ title: "Object settings saved!" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -2159,7 +2159,7 @@ function ObjectsSubTab() {
               <div className="flex-1 min-w-0">
                 <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
                 <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>
-                  {item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px
+                  {item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px{item.homeEffect === "lamp_light" ? " · Lamp Light" : ""}
                 </p>
               </div>
               <button
@@ -2180,7 +2180,7 @@ function ObjectsSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Object"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize })}
+          onSave={(homeSceneSize, homeEffect) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect })}
           saving={sizeMutation.isPending}
         />
       )}
