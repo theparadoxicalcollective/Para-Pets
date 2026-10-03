@@ -11,7 +11,7 @@ import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 import { ADORNMENT_SLOT_MAP, getWingReplacementPartTypes, normalizeCostumePlacements, type CostumePlacement } from "@shared/costumeFeature";
-import { normalizePetParts } from "@/lib/petRenderSafety";
+import { normalizePetParts, petCanvasScale } from "@/lib/petRenderSafety";
 import { semanticFollowPartType } from "@/lib/costumeFollowPart";
 
 interface PetPart {
@@ -394,7 +394,7 @@ function rebasePlacementToPart(placement: CostumePlacement, target: PetPart, par
 }
 
 function CostumeLayer({
-  depth, costumes, viewParts, mode, resolvedView, artworkForm, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds,
+  depth, costumes, viewParts, mode, resolvedView, artworkForm, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds, lowMemory,
 }: {
   depth: "front" | "back";
   costumes: EquippedCostume[];
@@ -408,6 +408,7 @@ function CostumeLayer({
   bodyDelay: string;
   headBob: string;
   motionElapsedSeconds: number;
+  lowMemory: boolean;
 }) {
   const sortedParts = useMemo(() => [...viewParts].sort((a, b) => getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing)), [viewParts, facing]);
   const bodyPart = sortedParts.find(part => part.partType === "body");
@@ -538,7 +539,7 @@ function CostumeLayer({
             transformOrigin: origin,
             rotate: `${anchor.rotation ?? 0}deg`,
             animation: animName ? buildAnimation(animName, duration, partDelay) : undefined,
-            willChange: animName ? "transform" : undefined,
+            willChange: animName && !lowMemory ? "transform" : undefined,
             overflow: "visible",
             pointerEvents: "none",
           }}
@@ -578,7 +579,7 @@ function CostumeLayer({
           style={{
             position: "absolute", inset: 0, width: "100%", height: "100%",
             animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapperDelay) : undefined,
-            willChange: wrapper.animation ? "transform" : undefined,
+            willChange: wrapper.animation && !lowMemory ? "transform" : undefined,
             pointerEvents: "none",
             ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),
           }}
@@ -598,7 +599,7 @@ function CostumeLayer({
 }
 
 function AboveHeadTopLayer({
-  viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds,
+  viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds, lowMemory,
 }: {
   viewParts: PetPart[];
   mode: PetAnimatorProps["mode"];
@@ -609,6 +610,7 @@ function AboveHeadTopLayer({
   bodyDelay: string;
   headBob: string;
   motionElapsedSeconds: number;
+  lowMemory: boolean;
 }) {
   const sortedParts = useMemo(() => [...viewParts].sort((a, b) => getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing)), [viewParts, facing]);
   const bodyPart = sortedParts.find(part => part.partType === "body");
@@ -635,7 +637,7 @@ function AboveHeadTopLayer({
         style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
           animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapperDelay) : undefined,
-          willChange: wrapper.animation ? "transform" : undefined,
+          willChange: wrapper.animation && !lowMemory ? "transform" : undefined,
           pointerEvents: "none",
           ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),
         }}
@@ -654,7 +656,7 @@ function AboveHeadTopLayer({
             transformOrigin: origin,
             rotate: `${part.rotation ?? 0}deg`,
             animation: animName ? buildAnimation(animName, partDuration, partDelay) : undefined,
-            willChange: animName ? "transform" : undefined,
+            willChange: animName && !lowMemory ? "transform" : undefined,
             imageRendering: "auto",
             pointerEvents: "none",
           }}
@@ -760,7 +762,7 @@ export default function PetAnimator({
   const headBob = computeHeadBob(bodyPart, canFly);
 
   const isLargeStyle = viewParts.some(part => part.width >= 500 || part.height >= 500);
-  const partScale = isLargeStyle ? 0.3 : 1;
+  const partScale = petCanvasScale(isLargeStyle, fillContainer || fitVisible, evolvedLowMemory);
   const fillFull = fillContainer || fitVisible;
   const effectiveSize = fillFull ? measuredSize : size;
   const innerSize = fillFull ? effectiveSize / partScale : size;
@@ -844,6 +846,7 @@ export default function PetAnimator({
           bodyDelay={bodyDelay}
           headBob={headBob}
           motionElapsedSeconds={motionElapsedSeconds}
+          lowMemory={evolvedLowMemory}
         />
       </div>
     </div>
@@ -904,6 +907,7 @@ export default function PetAnimator({
               bodyDelay={bodyDelay}
               headBob={headBob}
               motionElapsedSeconds={motionElapsedSeconds}
+              lowMemory={evolvedLowMemory}
             />
           </div>
         </div>

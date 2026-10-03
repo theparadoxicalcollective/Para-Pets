@@ -2901,11 +2901,11 @@ img[data-interactive], button img, a img {
 }
 @keyframes petIdleLeftLeg {
   from { transform: translateY(0px); }
-  to   { transform: translateY(1.5px); }
+  to   { transform: translateY(calc(1.5px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petIdleRightLeg {
   from { transform: translateY(0px); }
-  to   { transform: translateY(1.5px); }
+  to   { transform: translateY(calc(1.5px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petIdleTail {
   from { transform: rotate(-5deg); }
@@ -2983,8 +2983,8 @@ img[data-interactive], button img, a img {
 }
 @keyframes petWalkHead {
   0%, 100% { transform: translateY(0px); }
-  25% { transform: translateY(-1.5px); }
-  75% { transform: translateY(-1.5px); }
+  25% { transform: translateY(calc(-1.5px * var(--pet-motion-pixel-scale, 1))); }
+  75% { transform: translateY(calc(-1.5px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petWalkLeftEar {
   0%, 100% { transform: rotate(0deg); }
@@ -3008,8 +3008,8 @@ img[data-interactive], button img, a img {
 }
 @keyframes petWalkBody {
   0%, 100% { transform: translateY(0px); }
-  25% { transform: translateY(-4px); }
-  75% { transform: translateY(-4px); }
+  25% { transform: translateY(calc(-4px * var(--pet-motion-pixel-scale, 1))); }
+  75% { transform: translateY(calc(-4px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petWalkLeftWing {
   0%, 100% { transform: rotate(0deg); }
@@ -3033,9 +3033,9 @@ img[data-interactive], button img, a img {
 }
 @keyframes petWalkTail {
   0%, 100% { transform: translateY(0px); }
-  25% { transform: translateY(-1.5px); }
+  25% { transform: translateY(calc(-1.5px * var(--pet-motion-pixel-scale, 1))); }
   50% { transform: translateY(0px); }
-  75% { transform: translateY(-1px); }
+  75% { transform: translateY(calc(-1px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petZoomLeftWing {
   0%, 100% { transform: rotate(0deg); }
@@ -3054,11 +3054,11 @@ img[data-interactive], button img, a img {
 }
 @keyframes petSleepBody {
   0%, 100% { transform: scale(1, 1)         translateY(0px); }
-  50%      { transform: scale(1.030, 1.055) translateY(-1.1px); }
+  50%      { transform: scale(1.030, 1.055) translateY(calc(-1.1px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petSleepHead {
   0%, 100% { transform: translateY(0px)   rotate(0deg); }
-  50%      { transform: translateY(-1.9px) rotate(-0.6deg); }
+  50%      { transform: translateY(calc(-1.9px * var(--pet-motion-pixel-scale, 1))) rotate(-0.6deg); }
 }
 @keyframes petSleepLeftEar {
   0%, 100% { transform: rotate(0deg); }
@@ -3070,7 +3070,7 @@ img[data-interactive], button img, a img {
 }
 @keyframes petSleepTail {
   0%, 100% { transform: translateY(0px)   rotate(0deg); }
-  50%      { transform: translateY(-0.8px) rotate(1.2deg); }
+  50%      { transform: translateY(calc(-0.8px * var(--pet-motion-pixel-scale, 1))) rotate(1.2deg); }
 }
 @keyframes petPettingBody {
   0%, 100% { transform: scale(1, 1); }
@@ -3080,9 +3080,9 @@ img[data-interactive], button img, a img {
 }
 @keyframes petPettingHead {
   0%, 100% { transform: translateY(0px); }
-  25%      { transform: translateY(-0.7px); }
-  50%      { transform: translateY(-1.6px); }
-  75%      { transform: translateY(-0.7px); }
+  25%      { transform: translateY(calc(-0.7px * var(--pet-motion-pixel-scale, 1))); }
+  50%      { transform: translateY(calc(-1.6px * var(--pet-motion-pixel-scale, 1))); }
+  75%      { transform: translateY(calc(-0.7px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petPettingLeftArm {
   0%, 100% { transform: rotate(0deg); }
@@ -3155,7 +3155,7 @@ img[data-interactive], button img, a img {
 }
 @keyframes petIdleAccessoryBodyFollow {
   from { transform: rotate(-0.4deg) translateY(0px); }
-  to   { transform: rotate(0.4deg) translateY(-4px); }
+  to   { transform: rotate(0.4deg) translateY(calc(-4px * var(--pet-motion-pixel-scale, 1))); }
 }
 @keyframes petIdleLeftLegMarionette {
   from { transform: rotate(-0.5deg); }

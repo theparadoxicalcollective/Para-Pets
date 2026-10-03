@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { normalizeCostumePlacements } from "../shared/costumeFeature";
-import { normalizePetParts, shouldUseLowMemoryPetRenderer } from "../client/src/lib/petRenderSafety";
+import { normalizePetParts, shouldUseLowMemoryPetRenderer, petCanvasScale } from "../client/src/lib/petRenderSafety";
 import type { RuntimeMode } from "../client/src/lib/runtimeMode";
 
 const app = readFileSync("client/src/App.tsx", "utf8");
@@ -96,4 +96,35 @@ test("Home placement shares the animator's low-memory and malformed-data safegua
   assert.match(placement, /normalizePetParts\(parts \?\? template\?\.parts\)/);
   assert.match(placement, /if \(lowMemory\) return;[\s\S]*?getAlphaBounds\(url\)/);
   assert.match(placement, /lowMemory \? FULL_BOUNDS/);
+});
+
+
+test("mobile full-size pet canvases preserve artwork coordinates without oversized surfaces", () => {
+  const size = 390;
+  const legacyScale = petCanvasScale(true, true, false);
+  const mobileScale = petCanvasScale(true, true, true);
+  assert.equal(size / legacyScale, 1300);
+  assert.equal(size / mobileScale, size);
+  for (const coordinate of [0, 150, 500, 900, 1000]) {
+    const displayed = (scale: number) => {
+      const inner = size / scale;
+      const offset = -(inner - size) / 2;
+      return offset + inner / 2 + (coordinate / 1000 * inner - inner / 2) * scale;
+    };
+    assert.ok(Math.abs(displayed(legacyScale) - displayed(mobileScale)) < 0.0001);
+  }
+  // Legacy non-fill slots and desktop artwork retain their sizing contract.
+  assert.equal(petCanvasScale(true, false, true), .3);
+  assert.equal(petCanvasScale(false, true, true), 1);
+  const styles = readFileSync("client/src/index.css", "utf8");
+  assert.match(styles, /1\.5px \* var\(--pet-motion-pixel-scale, 1\)/);
+  assert.match(animatorCore, /"--pet-motion-pixel-scale": \(isLargeStyle \? \.3 : 1\) \/ partScale/);
+  assert.match(animator, /petCanvasScale\(isLargeStyle, fillContainer \|\| fitVisible, evolvedLowMemory\)/);
+  assert.match(animatorCore, /petCanvasScale\(isLargeStyle, fillContainer \|\| fitVisible, lowMemory\)/);
+});
+
+test("mobile startup and costume layers do not request unused image or GPU allocations", () => {
+  assert.match(app, /petImageUrl && !lowMemoryPreload/);
+  assert.doesNotMatch(animator, /willChange: (?:animName|wrapper\.animation) \?/);
+  assert.match(animator, /lowMemory=\{evolvedLowMemory\}/);
 });
