@@ -30,6 +30,9 @@ test("included Home items have a persistent entitlement list and per-player deli
   assert.match(schema, /bundleCatalogItemUnique: unique\("house_bundle_included_items_bundle_type_item_key"\)/);
   assert.match(schema, /userHouseBundleItemGrants = pgTable\("user_house_bundle_item_grants"/);
   assert.match(schema, /grantedQuantity: integer\("granted_quantity"\)/);
+  assert.match(schema, /xPct: real\("x_pct"\)/);
+  assert.match(schema, /yPct: real\("y_pct"\)/);
+  assert.match(schema, /templateAppliedAt: timestamp\("template_applied_at"\)/);
   assert.match(boot, /CREATE TABLE IF NOT EXISTS house_bundle_included_items/);
   assert.match(boot, /UNIQUE INDEX IF NOT EXISTS house_bundle_included_items_bundle_type_item_key/);
   assert.match(boot, /CREATE TABLE IF NOT EXISTS user_house_bundle_item_grants/);
@@ -44,6 +47,10 @@ test("delivery is idempotent and never adds included Objects onto marketplace es
   assert.match(helper, /eq\(userInventory\.isListed, false\)/);
   assert.match(helper, /nextGrantedQuantity > previouslyGranted/);
   assert.match(helper, /grantedQuantity: nextGrantedQuantity/);
+  assert.match(helper, /applyActiveHouseBundleIncludedItemTemplates/);
+  assert.match(helper, /tx\.insert\(placedHomeDecor\)/);
+  assert.match(helper, /templateAppliedAt: new Date\(\)/);
+  assert.match(helper, /eq\(userInventory\.isListed, false\)/);
 });
 
 test("every Home Bundle acquisition/return path uses the same included-item delivery helper", () => {
@@ -68,10 +75,28 @@ test("Admin can manage bundle Decor and Objects from both outside and building e
   assert.match(admin, /BUNDLE DECOR \/ OBJECTS/);
   assert.match(admin, /Increase included quantity/);
   assert.match(admin, /Decrease included quantity/);
-  assert.match(admin, /never takes an item away/);
+  assert.match(admin, /bundle-template-item-/);
+  assert.match(admin, /Make included item smaller/);
+  assert.match(admin, /Flip included item/);
+  assert.match(admin, /first included copy starts at the position you set/);
 
   assert.match(routes, /This item is already included in the Home Bundle/);
   assert.match(routes, /active: false/);
   assert.match(routes, /quantity: 1/);
   assert.match(routes, /sanitizeHouseBundleIncludedItemQuantity/);
+  assert.match(routes, /updates\.xPct/);
+  assert.match(routes, /updates\.yPct/);
+  assert.match(routes, /updates\.flipped/);
+});
+
+test("first activation moves, rather than copies, the included scene item", () => {
+  const helper = read("server/housing/bundleContents.ts");
+  const homeRoutes = read("server/routes/homeDecor.routes.ts");
+  const bundleRoutes = read("server/routes/houseBundle.routes.ts");
+
+  assert.match(helper, /quantity: sql`\$\{userHomeDecorInventory\.quantity\} - 1`/);
+  assert.match(helper, /quantity: sql`\$\{userInventory\.quantity\} - 1`/);
+  assert.match(helper, /location: entitlement\.buildingId \?\? "outside"/);
+  assert.match(homeRoutes, /await applyBundleTemplates\(userId\)/);
+  assert.match(bundleRoutes, /await applyIncludedItemTemplates\(user\.id, bundleId\)/);
 });
