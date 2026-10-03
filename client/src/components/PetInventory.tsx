@@ -1541,6 +1541,52 @@ function BagView({
       </section>
       </div>
 
+      {selectedHomeAsset && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setSelectedHomeAsset(null)}
+        >
+          <div
+            data-testid="modal-home-asset-detail"
+            className="relative w-[85%] max-w-sm rounded-xl overflow-hidden p-5"
+            style={{
+              background: "linear-gradient(145deg, rgba(10,31,20,.98), rgba(45,30,8,.98))",
+              border: "1px solid rgba(190,242,100,.38)",
+              boxShadow: "0 0 40px rgba(0,0,0,.65), 0 0 15px rgba(190,242,100,.1)",
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Close Home item details"
+              className="absolute right-3 top-3 h-8 w-8 rounded-full"
+              onClick={() => setSelectedHomeAsset(null)}
+              style={{ background: "rgba(0,0,0,.28)", border: "1px solid rgba(190,242,100,.3)", color: "#d9f99d" }}
+            >
+              ×
+            </button>
+            <div className="flex flex-col items-center gap-3 pt-4 text-center">
+              <div className="w-28 h-28 rounded-lg flex items-center justify-center" style={{ background: "rgba(0,0,0,.28)" }}>
+                {selectedHomeAsset.imageUrl
+                  ? <img src={selectedHomeAsset.imageUrl} alt={selectedHomeAsset.name} className="w-full h-full object-contain" />
+                  : <img src={bagIconImg} alt="" className="w-16 h-16 object-contain opacity-70" />}
+              </div>
+              <h3 className="font-fantasy text-[#e7f7a6] text-lg">{selectedHomeAsset.name}</h3>
+              <p className="font-fantasy text-[#aebc82] text-xs tracking-wider">
+                {selectedHomeAsset.kind === "home_bundle" ? "Home" : "Home Decor"}
+                {selectedHomeAsset.count > 1 ? ` · ×${selectedHomeAsset.count}` : ""}
+              </p>
+              <p className="font-fantasy text-[#8f856b] text-[10px] leading-relaxed">
+                {selectedHomeAsset.kind === "home_bundle"
+                  ? "Owned Home bundle. Activate and arrange it from Pet Home."
+                  : "Owned Home decoration. Place and arrange it from Pet Home."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedItem && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center"
