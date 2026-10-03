@@ -1,15 +1,13 @@
-export type HomeOutdoorLightingMode = "auto" | "day" | "night";
+import type { HomeOutdoorLightingMode } from "@shared/housing";
 
-export const HOME_OUTDOOR_LIGHTING_STORAGE_KEY = "para-home-outdoor-lighting-mode-v1";
-export const HOME_OUTDOOR_NIGHT_DARKNESS = 68;
+export type { HomeOutdoorLightingMode } from "@shared/housing";
+
+export const HOME_OUTDOOR_NIGHT_DARKNESS = 78;
 export const HOME_OUTDOOR_DAWN_START_MINUTE = 5 * 60 + 30;
 export const HOME_OUTDOOR_DAY_START_MINUTE = 7 * 60 + 30;
 export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
 
-export function isHomeOutdoorLightingMode(value: unknown): value is HomeOutdoorLightingMode {
-  return value === "auto" || value === "day" || value === "night";
-}
 
 export function cycleHomeOutdoorLightingMode(mode: HomeOutdoorLightingMode): HomeOutdoorLightingMode {
   if (mode === "auto") return "day";
