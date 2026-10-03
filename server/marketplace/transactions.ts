@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { petEquippedCostumes } from "@shared/costumeSchema";
 import { LONELLE_KEY, parseLonelleProgress } from "../lonelleQuest";
+import { grantHouseBundleIncludedItemsInTransaction } from "../housing/bundleContents";
 
 type MarketTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -284,6 +285,7 @@ export async function buyListing(input: { actorId: string; listingId: string }):
         outdoorLightingMode: "auto",
         offInteriorEffectIds: {},
       });
+      await grantHouseBundleIncludedItemsInTransaction(tx, input.actorId, listing.shopItemId);
     } else {
       if (!escrow) throw new MarketplaceError("conflict", "Marketplace escrow is missing");
       const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
@@ -357,6 +359,7 @@ export async function cancelListing(input: { actorId: string; listingId: string 
         offInteriorEffectIds,
         purchasedAt: Number.isNaN(parsedPurchasedAt.getTime()) ? new Date() : parsedPurchasedAt,
       });
+      await grantHouseBundleIncludedItemsInTransaction(tx, input.actorId, listing.shopItemId);
     } else {
       const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
       if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
