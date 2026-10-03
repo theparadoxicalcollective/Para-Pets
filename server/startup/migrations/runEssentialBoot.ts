@@ -19,6 +19,8 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE house_bundles ADD COLUMN IF NOT EXISTS exterior_effects JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_darkness INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE user_house_bundles ADD COLUMN IF NOT EXISTS outdoor_lighting_mode TEXT NOT NULL DEFAULT 'auto';
+    ALTER TABLE user_house_bundles ADD COLUMN IF NOT EXISTS off_interior_effect_ids JSONB NOT NULL DEFAULT '{}'::jsonb;
   `);
 
   try {
