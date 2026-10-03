@@ -818,7 +818,7 @@ export default function AdminPage({ user }: AdminPageProps) {
             position: "fixed",
             inset: 0,
             zIndex: 99998,
-            background: "rgba(0,0,0,0.92)",
+            background: "#09110e",
             overflowY: "auto",
             padding: "16px",
             paddingTop: "max(20px, calc(env(safe-area-inset-top) + 14px))",
