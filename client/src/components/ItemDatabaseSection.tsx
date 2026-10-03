@@ -206,7 +206,8 @@ export default function ItemDatabaseSection({
   const [subSection, setSubSection] = useState<"items" | "pets">(lockedSection ?? "items");
   const [editingItem, setEditingItem] = useState<ShopItemFull | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [filterType, setFilterType] = useState<string>("all");
+  const [filterGroup, setFilterGroup] = useState<"all" | GameItemGroupKey>("all");
+  const [filterType, setFilterType] = useState<"all" | ItemCategoryKey>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -280,9 +281,9 @@ export default function ItemDatabaseSection({
   });
 
   const filtered = sectionItems.filter(item => {
-    if (filterType === "all") return true;
     const cat = getItemCategory(item);
-    return cat === filterType;
+    if (filterGroup !== "all" && getGameItemGroup(cat) !== filterGroup) return false;
+    return filterType === "all" || cat === filterType;
   });
 
   const isPetSection = subSection === "pets";
@@ -294,7 +295,7 @@ export default function ItemDatabaseSection({
       <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid rgba(212,160,23,0.3)" }}>
         <button
           data-testid="tab-sub-items"
-          onClick={() => { setSubSection("items"); setFilterType("all"); }}
+          onClick={() => { setSubSection("items"); setFilterGroup("all"); setFilterType("all"); }}
           className="flex-1 py-2 font-fantasy text-[11px] tracking-wider transition-all"
           style={{
             background: !isPetSection
@@ -309,7 +310,7 @@ export default function ItemDatabaseSection({
         </button>
         <button
           data-testid="tab-sub-pets"
-          onClick={() => { setSubSection("pets"); setFilterType("all"); }}
+          onClick={() => { setSubSection("pets"); setFilterGroup("all"); setFilterType("all"); }}
           className="flex-1 py-2 font-fantasy text-[11px] tracking-wider transition-all"
           style={{
             background: isPetSection
@@ -346,38 +347,64 @@ export default function ItemDatabaseSection({
         {isPetSection ? "Add New Pet" : "Add New Item"}
       </button>
 
-      {/* Type filter — items section only */}
+      {/* Shared Pets / Fish / Home / Items taxonomy for Admin item browsing. */}
       {!isPetSection && (
-        <div
-          className="flex gap-1.5 overflow-x-auto pb-1"
-          style={{ scrollbarWidth: "none" }}
-          data-testid="row-filter-tabs"
-        >
-          {[{ key: "all", label: "All", color: "#f0c040" }, ...ITEM_CATEGORIES.filter(c => c.key !== "pets")].map(c => {
-            const active = filterType === c.key;
-            return (
+        <div className="space-y-1.5" data-testid="row-filter-tabs">
+          <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            <button
+              type="button"
+              data-testid="tab-filter-group-all"
+              onClick={() => { setFilterGroup("all"); setFilterType("all"); }}
+              className="flex-shrink-0 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider"
+              style={{ border: filterGroup === "all" ? "1px solid rgba(240,192,64,.55)" : "1px solid rgba(212,160,23,.2)", color: filterGroup === "all" ? "#f0c040" : "#a89878", background: "rgba(0,0,0,.25)" }}
+            >
+              All
+            </button>
+            {GAME_ITEM_GROUPS.map(group => {
+              const active = filterGroup === group.key;
+              return (
+                <button
+                  type="button"
+                  key={group.key}
+                  data-testid={`tab-filter-group-${group.key}`}
+                  onClick={() => { setFilterGroup(group.key); setFilterType("all"); }}
+                  className="flex-shrink-0 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider"
+                  style={{ border: active ? "1px solid rgba(240,192,64,.55)" : "1px solid rgba(212,160,23,.2)", color: active ? "#f0c040" : "#a89878", background: "rgba(0,0,0,.25)" }}
+                >
+                  {group.label}
+                </button>
+              );
+            })}
+          </div>
+          {filterGroup !== "all" && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               <button
-                key={c.key}
-                data-testid={`tab-filter-${c.key}`}
-                onClick={() => setFilterType(c.key)}
-                className="flex-shrink-0 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider transition-all"
-                style={{
-                  background: active
-                    ? `linear-gradient(135deg, ${c.color}30 0%, ${c.color}18 100%)`
-                    : "rgba(0,0,0,0.25)",
-                  border: active
-                    ? `1px solid ${c.color}80`
-                    : "1px solid rgba(212,160,23,0.2)",
-                  color: active ? c.color : "rgba(168,152,120,0.85)",
-                  cursor: "pointer",
-                  boxShadow: active ? `0 0 8px ${c.color}30` : "none",
-                  whiteSpace: "nowrap",
-                }}
+                type="button"
+                onClick={() => setFilterType("all")}
+                className="flex-shrink-0 px-2.5 py-1 rounded-full font-fantasy text-[9px]"
+                style={{ border: filterType === "all" ? "1px solid rgba(240,192,64,.45)" : "1px solid rgba(212,160,23,.15)", color: filterType === "all" ? "#f0c040" : "#8e7b60", background: "rgba(0,0,0,.2)" }}
               >
-                {c.label}
+                All {GAME_ITEM_GROUPS.find(group => group.key === filterGroup)?.label}
               </button>
-            );
-          })}
+              {gameItemCategoriesForGroup(filterGroup).map(category => {
+                const meta = ITEM_CATEGORIES.find(entry => entry.key === category);
+                const hasCatalogItems = sectionItems.some(item => getItemCategory(item) === category);
+                if (!hasCatalogItems) return null;
+                return (
+                  <button
+                    type="button"
+                    key={category}
+                    data-testid={`tab-filter-${category}`}
+                    onClick={() => setFilterType(category)}
+                    className="flex-shrink-0 px-2.5 py-1 rounded-full font-fantasy text-[9px]"
+                    style={{ border: filterType === category ? `1px solid ${meta?.color ?? "#f0c040"}88` : "1px solid rgba(212,160,23,.15)", color: filterType === category ? meta?.color ?? "#f0c040" : "#8e7b60", background: "rgba(0,0,0,.2)" }}
+                  >
+                    {GAME_ITEM_CATEGORY_LABELS[category]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
