@@ -331,6 +331,16 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
 
       {imgWidth > 0 && placedItems.map((item) => {
         const displaySize = item.size;
+        const imageAspect = imgWidth / Math.max(containerH, 1);
+        const itemDarkness = getHouseInteriorPointDarkness(
+          darkness,
+          effects,
+          offEffectIds,
+          item.xPct,
+          item.yPct,
+          imageAspect,
+        );
+        const itemBrightness = (100 - itemDarkness) / 100;
         return (
           <div
             key={item.id}
@@ -341,7 +351,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               src={item.item.imageUrl ?? ""}
               alt={item.item.name}
               draggable={false}
-              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+              style={{ width: displaySize, height: displaySize, objectFit: "contain", transform: item.flipped ? "scaleX(-1)" : undefined, filter: `brightness(${itemBrightness}) drop-shadow(0 2px 6px rgba(0,0,0,0.45))`, transition: "filter 260ms ease-out", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
             />
           </div>
         );
