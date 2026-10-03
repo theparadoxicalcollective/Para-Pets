@@ -12,6 +12,17 @@ export const petPresentationSchema = z.object({
 });
 export type PetPresentation = z.infer<typeof petPresentationSchema>;
 export const DEFAULT_PET_PRESENTATION: PetPresentation = { x: 0, y: 0, scale: 1, eyes: {} };
+
+export const activePetAnchorSchema = z.object({
+  x: z.number().finite().min(-100).max(100).default(0),
+  y: z.number().finite().min(-100).max(100).default(0),
+});
+export type ActivePetAnchor = z.infer<typeof activePetAnchorSchema>;
+export const DEFAULT_ACTIVE_PET_ANCHOR: ActivePetAnchor = { x: 0, y: 0 };
+export function parseActivePetAnchor(raw: unknown): ActivePetAnchor {
+  const result = activePetAnchorSchema.safeParse(raw);
+  return result.success ? result.data : DEFAULT_ACTIVE_PET_ANCHOR;
+}
 export interface PresentationPart { partType: string; posX: number; posY: number; width: number; height: number }
 export function defaultXEyes(head: PresentationPart, parts: readonly PresentationPart[]) {
   const prefix = head.partType.replace(/head$/, "");
