@@ -2062,7 +2062,7 @@ function DecorSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Decor"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize, homeEffect, homeTapImageData) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect, homeTapImageData })}
+          onSave={(homeSceneSize, homeEffect) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect })}
           saving={sizeMutation.isPending}
         />
       )}
@@ -2180,7 +2180,7 @@ function ObjectsSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Object"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize, homeEffect) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect })}
+          onSave={(homeSceneSize, homeEffect, homeTapImageData) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect, homeTapImageData })}
           saving={sizeMutation.isPending}
         />
       )}
