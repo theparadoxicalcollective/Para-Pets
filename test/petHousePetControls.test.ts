@@ -23,10 +23,10 @@ test("Home pet size controls are bounded and use stronger decrease than increase
   assert.equal(PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, 25);
   assert.equal(PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, 10);
   assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 50);
-  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 120);
+  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 250);
   assert.equal(clampPetHousePlayerScale(1), 50);
   assert.equal(clampPetHousePlayerScale(100), 100);
-  assert.equal(clampPetHousePlayerScale(999), 120);
+  assert.equal(clampPetHousePlayerScale(999), 250);
 });
 
 test("Pet House pet presentation is stored separately from pet inventory", () => {
