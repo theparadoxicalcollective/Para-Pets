@@ -1,4 +1,4 @@
-import PetPlacementPreview from "./PetPlacementPreview";
+import ActivePetPlacement from "./ActivePetPlacement";
 import PetXEyesEditor from "./PetXEyesEditor";
 import AdornmentArtwork from "./AdornmentArtwork";
 import PetAnimator, { type PetAnimatorPreviewCostume } from "./PetAnimator";
@@ -311,6 +311,7 @@ export default function PetDatabasePanel({
    *  any isTest=true pets on top of this filter. */
   templateNameFilter?: string[];
 } = {}) {
+  const [wholePetEditing, setWholePetEditing] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId ?? null);
 
   // Notify parent whenever the user picks (or clears) a template, so the
@@ -1681,7 +1682,6 @@ export default function PetDatabasePanel({
           </span>
         </div>
 
-        {!testMode && <PetPlacementPreview templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView as "front" | "back"} />}
 
         {/* Direct manipulation canvas — click a visible part, then drag it into place. */}
         <div
@@ -1697,7 +1697,7 @@ export default function PetDatabasePanel({
             touchAction: "none",
             isolation: "isolate",
           }}
-          onClick={handleCanvasClick}
+          onClick={wholePetEditing ? undefined : handleCanvasClick}
           onPointerMove={movePartDrag}
           onPointerUp={(event) => endPartDrag(event.pointerId)}
           onPointerCancel={(event) => endPartDrag(event.pointerId)}
@@ -1722,9 +1722,10 @@ export default function PetDatabasePanel({
               filter: "drop-shadow(0 0 2px rgba(43,220,157,0.7))",
             }}
           />
-          <div>
+          <ActivePetPlacement templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView as "front" | "back"} parts={viewParts} editor admin={!testMode} onEditingChange={setWholePetEditing}>
+          <div style={{ pointerEvents: wholePetEditing ? "none" : undefined }}>
             {viewParts.map(part => {
-              const isSelected = selectedPartId === part.id;
+              const isSelected = !wholePetEditing && selectedPartId === part.id;
               return (
                 <div
                   key={part.id}
@@ -1767,9 +1768,10 @@ export default function PetDatabasePanel({
             })}
 
           </div>
-          <PetXEyesEditor templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView} parts={viewParts} />
+          </ActivePetPlacement>
+          {!wholePetEditing && <PetXEyesEditor templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView} parts={viewParts} toolbarOffset={55} />}
         </div>
-        <div style={{ height: 80 }} />
+        <div style={{ height: wholePetEditing ? 230 : 310 }} />
 
         {selectedPart && (
           <section

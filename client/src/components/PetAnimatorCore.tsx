@@ -1405,8 +1405,8 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     if (!fillContainer || performanceStatic) return;
     const el = wrapperRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const s = Math.min(rect.width, rect.height);
+    // Placement scales the parent; measure the unscaled artwork canvas.
+    const s = Math.min(el.clientWidth, el.clientHeight);
     if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
   }, [fillContainer, performanceStatic]);
   useEffect(() => {
