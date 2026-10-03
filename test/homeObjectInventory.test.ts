@@ -15,12 +15,16 @@ test("Objects do not consume home decor capacity while Decor still does", () => 
   assert.deepEqual(types.filter(homeSceneItemCountsTowardDecorLimit), ["decor"]);
 });
 
-test("admin item editor exposes Object as its own item type and category", () => {
+test("admin item editor exposes Object through the shared Home taxonomy", () => {
   const source = read("client/src/components/ItemDatabaseSection.tsx");
+  const taxonomy = read("shared/itemTaxonomy.ts");
 
-  assert.match(source, /"decor", "object", "edibles"/);
-  assert.match(source, /key: "objects",\s+label: "Objects"/);
-  assert.match(source, /item\.type === "object"\) return "objects"/);
+  assert.match(source, /GAME_ITEM_GROUPS/);
+  assert.match(source, /getGameItemCategory/);
+  assert.match(source, /data-testid=\{`tab-filter-group-\$\{group\.key\}`\}/);
+  assert.match(taxonomy, /categories: \["objects", "decor", "homes"\]/);
+  assert.match(taxonomy, /objects: "Objects"/);
+  assert.match(taxonomy, /rawType === "object"/);
   assert.equal(source.includes("Objects are home-scene items and do not count toward home decor limits."), true);
 });
 

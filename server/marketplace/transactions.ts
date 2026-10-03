@@ -5,6 +5,10 @@ import {
   playerMarketListings,
   shopItems,
   userInventory,
+  userHomeDecorInventory,
+  homeDecorItems,
+  userHouseBundles,
+  houseBundles,
   petEquippedAccessories,
   users,
   type PlayerMarketListing,
@@ -34,7 +38,7 @@ const assertPrice = (price: number) => {
 };
 
 async function lockUser(tx: MarketTx, userId: string) {
-  const result = await tx.execute(sql`SELECT id, username, market_extra_slots FROM users WHERE id = ${userId} FOR UPDATE`);
+  const result = await tx.execute(sql`SELECT id, username, market_extra_slots, active_house_bundle_id FROM users WHERE id = ${userId} FOR UPDATE`);
   const row = result.rows[0] as any;
   if (!row) throw new MarketplaceError("not_found", "User not found");
   return row;
@@ -133,6 +137,90 @@ export async function createFishListing(input: { actorId: string; fishInventoryI
   });
 }
 
+export async function createHomeDecorListing(input: { actorId: string; decorInventoryId: string; price: number }): Promise<PlayerMarketListing> {
+  assertPrice(input.price);
+  return db.transaction(async (tx) => {
+    const actor = await lockUser(tx, input.actorId);
+    const [inventory] = await tx.select().from(userHomeDecorInventory)
+      .where(eq(userHomeDecorInventory.id, input.decorInventoryId)).for("update");
+    if (!inventory || inventory.userId !== input.actorId) {
+      throw new MarketplaceError("item_not_owned", "Home Decor not found in your inventory");
+    }
+    if (inventory.quantity < 1) throw new MarketplaceError("invalid_quantity", "Invalid Home Decor quantity");
+    const [decor] = await tx.select().from(homeDecorItems)
+      .where(eq(homeDecorItems.id, inventory.decorItemId)).for("share");
+    if (!decor) throw new MarketplaceError("unsupported_item", "Home Decor data not found");
+    await assertSlotAvailable(tx, input.actorId, Number(actor.market_extra_slots ?? 0));
+
+    const updated = await tx.update(userHomeDecorInventory)
+      .set({ quantity: sql`${userHomeDecorInventory.quantity} - 1` })
+      .where(and(
+        eq(userHomeDecorInventory.id, inventory.id),
+        eq(userHomeDecorInventory.userId, input.actorId),
+        gte(userHomeDecorInventory.quantity, 1),
+      ))
+      .returning({ quantity: userHomeDecorInventory.quantity });
+    if (updated.length !== 1) throw new MarketplaceError("conflict", "Home Decor is no longer available");
+    if (updated[0].quantity === 0) {
+      await tx.delete(userHomeDecorInventory)
+        .where(and(eq(userHomeDecorInventory.id, inventory.id), eq(userHomeDecorInventory.quantity, 0)));
+    }
+
+    const [listing] = await tx.insert(playerMarketListings).values({
+      sellerId: input.actorId,
+      sellerName: actor.username,
+      inventoryId: inventory.id,
+      shopItemId: decor.id,
+      itemName: decor.name,
+      itemImageUrl: decor.imageUrl,
+      itemType: "home_decor",
+      price: input.price,
+    }).returning();
+    return listing;
+  });
+}
+
+export async function createHomeBundleListing(input: { actorId: string; ownershipId: string; price: number }): Promise<PlayerMarketListing> {
+  assertPrice(input.price);
+  return db.transaction(async (tx) => {
+    const actor = await lockUser(tx, input.actorId);
+    const [ownership] = await tx.select().from(userHouseBundles)
+      .where(eq(userHouseBundles.id, input.ownershipId)).for("update");
+    if (!ownership || ownership.userId !== input.actorId) {
+      throw new MarketplaceError("item_not_owned", "Home Bundle not found in your inventory");
+    }
+    if (actor.active_house_bundle_id === ownership.bundleId) {
+      throw new MarketplaceError("conflict", "Switch to another Home before listing this Home Bundle");
+    }
+    const [bundle] = await tx.select().from(houseBundles)
+      .where(eq(houseBundles.id, ownership.bundleId)).for("share");
+    if (!bundle) throw new MarketplaceError("unsupported_item", "Home Bundle data not found");
+    await assertSlotAvailable(tx, input.actorId, Number(actor.market_extra_slots ?? 0));
+
+    const removed = await tx.delete(userHouseBundles)
+      .where(and(eq(userHouseBundles.id, ownership.id), eq(userHouseBundles.userId, input.actorId)))
+      .returning({ id: userHouseBundles.id });
+    if (removed.length !== 1) throw new MarketplaceError("conflict", "Home Bundle is no longer owned");
+
+    const [listing] = await tx.insert(playerMarketListings).values({
+      sellerId: input.actorId,
+      sellerName: actor.username,
+      inventoryId: ownership.id,
+      shopItemId: bundle.id,
+      itemName: bundle.name,
+      itemImageUrl: bundle.shopImageUrl ?? bundle.bgImageUrl,
+      itemType: "home_bundle",
+      assetData: {
+        outdoorLightingMode: ownership.outdoorLightingMode,
+        offInteriorEffectIds: ownership.offInteriorEffectIds,
+        purchasedAt: ownership.purchasedAt.toISOString(),
+      },
+      price: input.price,
+    }).returning();
+    return listing;
+  });
+}
+
 export async function buyListing(input: { actorId: string; listingId: string }): Promise<{ price: number; replayed: boolean }> {
   const result = await db.transaction(async (tx) => {
     const [listing] = await tx.select().from(playerMarketListings)
@@ -143,8 +231,14 @@ export async function buyListing(input: { actorId: string; listingId: string }):
     if (listing.status !== "active") throw new MarketplaceError("not_active", "This item is no longer available");
     if (listing.sellerId === input.actorId) throw new MarketplaceError("own_listing", "You cannot buy your own listing");
 
-    const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
-    if (!escrow || escrow.userId !== listing.sellerId || !escrow.isListed) {
+    const isHomeDecor = listing.itemType === "home_decor";
+    const isHomeBundle = listing.itemType === "home_bundle";
+    const isHomeAsset = isHomeDecor || isHomeBundle;
+
+    const [escrow] = isHomeAsset
+      ? [null]
+      : await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
+    if (!isHomeAsset && (!escrow || escrow.userId !== listing.sellerId || !escrow.isListed)) {
       const removed = await tx.delete(playerMarketListings)
         .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
         .returning({ id: playerMarketListings.id });
@@ -152,29 +246,66 @@ export async function buyListing(input: { actorId: string; listingId: string }):
       return { price: listing.price, replayed: false, stale: true };
     }
 
+    if (isHomeDecor) {
+      const [decor] = await tx.select({ id: homeDecorItems.id }).from(homeDecorItems)
+        .where(eq(homeDecorItems.id, listing.shopItemId)).for("share");
+      if (!decor) throw new MarketplaceError("not_active", "This Home Decor is no longer available");
+    }
+    if (isHomeBundle) {
+      const [bundle] = await tx.select({ id: houseBundles.id }).from(houseBundles)
+        .where(eq(houseBundles.id, listing.shopItemId)).for("share");
+      if (!bundle) throw new MarketplaceError("not_active", "This Home Bundle is no longer available");
+      const [alreadyOwned] = await tx.select({ id: userHouseBundles.id }).from(userHouseBundles)
+        .where(and(eq(userHouseBundles.userId, input.actorId), eq(userHouseBundles.bundleId, listing.shopItemId)))
+        .limit(1);
+      if (alreadyOwned) throw new MarketplaceError("conflict", "You already own this Home Bundle");
+    }
+
     await lockUser(tx, input.actorId);
     const debit = await tx.update(users).set({ coins: sql`${users.coins} - ${listing.price}` })
       .where(and(eq(users.id, input.actorId), gte(users.coins, listing.price))).returning({ coins: users.coins });
     if (debit.length !== 1) throw new MarketplaceError("insufficient_funds", "Not enough coins");
-    const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
-      .from(petEquippedCostumes)
-      .where(eq(petEquippedCostumes.costumeInventoryId, escrow.id))
-      .limit(1);
-    if (equippedCostume) throw new MarketplaceError("conflict", "Listed adornment is still equipped");
-    if (listing.itemType === "fish") {
-      await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
-      const removed = await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true))).returning();
-      if (removed.length !== 1) throw new MarketplaceError("conflict", "Fish transfer conflicted");
-    } else {
-      const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
-      const moved = await tx.update(userInventory).set({
+
+    if (isHomeDecor) {
+      const rows = await tx.select().from(userHomeDecorInventory)
+        .where(and(eq(userHomeDecorInventory.userId, input.actorId), eq(userHomeDecorInventory.decorItemId, listing.shopItemId)))
+        .orderBy(userHomeDecorInventory.id).for("update");
+      if (rows[0]) {
+        await tx.update(userHomeDecorInventory)
+          .set({ quantity: sql`${userHomeDecorInventory.quantity} + 1` })
+          .where(eq(userHomeDecorInventory.id, rows[0].id));
+      } else {
+        await tx.insert(userHomeDecorInventory).values({ userId: input.actorId, decorItemId: listing.shopItemId, quantity: 1 });
+      }
+    } else if (isHomeBundle) {
+      await tx.insert(userHouseBundles).values({
         userId: input.actorId,
-        isListed: false,
-        hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
-        isHatched: escrow.isHatched,
-      })
-        .where(and(eq(userInventory.id, escrow.id), eq(userInventory.userId, listing.sellerId), eq(userInventory.isListed, true))).returning();
-      if (moved.length !== 1) throw new MarketplaceError("conflict", "Item transfer conflicted");
+        bundleId: listing.shopItemId,
+        outdoorLightingMode: "auto",
+        offInteriorEffectIds: {},
+      });
+    } else {
+      if (!escrow) throw new MarketplaceError("conflict", "Marketplace escrow is missing");
+      const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
+        .from(petEquippedCostumes)
+        .where(eq(petEquippedCostumes.costumeInventoryId, escrow.id))
+        .limit(1);
+      if (equippedCostume) throw new MarketplaceError("conflict", "Listed adornment is still equipped");
+      if (listing.itemType === "fish") {
+        await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
+        const removed = await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true))).returning();
+        if (removed.length !== 1) throw new MarketplaceError("conflict", "Fish transfer conflicted");
+      } else {
+        const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
+        const moved = await tx.update(userInventory).set({
+          userId: input.actorId,
+          isListed: false,
+          hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
+          isHatched: escrow.isHatched,
+        })
+          .where(and(eq(userInventory.id, escrow.id), eq(userInventory.userId, listing.sellerId), eq(userInventory.isListed, true))).returning();
+        if (moved.length !== 1) throw new MarketplaceError("conflict", "Item transfer conflicted");
+      }
     }
     const sold = await tx.update(playerMarketListings).set({ status: "sold", buyerId: input.actorId })
       .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active"))).returning();
@@ -193,24 +324,59 @@ export async function cancelListing(input: { actorId: string; listingId: string 
     if (listing.sellerId !== input.actorId) throw new MarketplaceError("wrong_owner", "Only the seller can cancel this listing");
     if (listing.status === "sold") throw new MarketplaceError("already_sold", "Listing has already sold");
     if (listing.status !== "active") throw new MarketplaceError("not_active", "Listing is not active");
-    const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
-    if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
-      const removed = await tx.delete(playerMarketListings)
-        .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
-        .returning({ id: playerMarketListings.id });
-      if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
-      return;
-    }
-    if (listing.itemType === "fish") {
-      await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
-      await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+    if (listing.itemType === "home_decor") {
+      const rows = await tx.select().from(userHomeDecorInventory)
+        .where(and(eq(userHomeDecorInventory.userId, input.actorId), eq(userHomeDecorInventory.decorItemId, listing.shopItemId)))
+        .orderBy(userHomeDecorInventory.id).for("update");
+      if (rows[0]) {
+        await tx.update(userHomeDecorInventory)
+          .set({ quantity: sql`${userHomeDecorInventory.quantity} + 1` })
+          .where(eq(userHomeDecorInventory.id, rows[0].id));
+      } else {
+        await tx.insert(userHomeDecorInventory).values({
+          id: listing.inventoryId,
+          userId: input.actorId,
+          decorItemId: listing.shopItemId,
+          quantity: 1,
+        });
+      }
+    } else if (listing.itemType === "home_bundle") {
+      const data = (listing.assetData ?? {}) as Record<string, unknown>;
+      const outdoorLightingMode = data.outdoorLightingMode === "day" || data.outdoorLightingMode === "night"
+        ? data.outdoorLightingMode
+        : "auto";
+      const offInteriorEffectIds = data.offInteriorEffectIds && typeof data.offInteriorEffectIds === "object" && !Array.isArray(data.offInteriorEffectIds)
+        ? data.offInteriorEffectIds as Record<string, string[]>
+        : {};
+      const parsedPurchasedAt = typeof data.purchasedAt === "string" ? new Date(data.purchasedAt) : new Date();
+      await tx.insert(userHouseBundles).values({
+        id: listing.inventoryId,
+        userId: input.actorId,
+        bundleId: listing.shopItemId,
+        outdoorLightingMode,
+        offInteriorEffectIds,
+        purchasedAt: Number.isNaN(parsedPurchasedAt.getTime()) ? new Date() : parsedPurchasedAt,
+      });
     } else {
-      const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
-      await tx.update(userInventory).set({
-        isListed: false,
-        hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
-        isHatched: escrow.isHatched,
-      }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
+      if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
+        const removed = await tx.delete(playerMarketListings)
+          .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
+          .returning({ id: playerMarketListings.id });
+        if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
+        return;
+      }
+      if (listing.itemType === "fish") {
+        await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
+        await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      } else {
+        const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
+        await tx.update(userInventory).set({
+          isListed: false,
+          hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
+          isHatched: escrow.isHatched,
+        }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      }
     }
     const removed = await tx.delete(playerMarketListings).where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active"))).returning();
     if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");

@@ -46,6 +46,8 @@ import {
   cancelListing,
   collectProceeds,
   createFishListing,
+  createHomeDecorListing,
+  createHomeBundleListing,
   createInventoryListing,
 } from "./marketplace/transactions";
 import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
@@ -837,6 +839,8 @@ export async function registerRoutes(
     cancelListing,
     collectProceeds,
     createFishListing,
+    createHomeDecorListing,
+    createHomeBundleListing,
     createInventoryListing,
   };
 

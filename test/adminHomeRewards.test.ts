@@ -19,15 +19,19 @@ test("admin reward picker loads and sends Home Bundle and Home Decor catalogs", 
   assert.match(admin, /homeDecor=\{rewardHomeDecor\}/);
 });
 
-test("reward picker exposes correct Home and Object filters without changing normal picker defaults", () => {
-  assert.match(picker, /label: "Home Bundles"/);
-  assert.match(picker, /label: "Home Decor"/);
-  assert.match(picker, /\{ key: "objects",\s+label: "Objects"/);
-  assert.match(picker, /if \(item\.type === "object"\) return "objects"/);
-  assert.match(picker, /activeCategory === "home_bundles"/);
-  assert.match(picker, /activeCategory === "home_decor"/);
+test("reward picker exposes Home rewards through the shared Home group without changing normal picker defaults", () => {
+  const taxonomy = fs.readFileSync("shared/itemTaxonomy.ts", "utf8");
+
+  assert.match(picker, /const homeBundlesEnabled = !!onSelectHomeBundle/);
+  assert.match(picker, /const homeDecorEnabled = !!onSelectHomeDecor/);
+  assert.match(picker, /activeGroup === "all" \|\| activeGroup === "home"/);
+  assert.match(picker, /activeCategory === "all" \|\| activeCategory === "homes"/);
+  assert.match(picker, /activeCategory === "all" \|\| activeCategory === "decor"/);
   assert.match(picker, /bundle\.name\.toLowerCase\(\)\.includes\(normalizedSearch\)/);
   assert.match(picker, /decor\.name\.toLowerCase\(\)\.includes\(normalizedSearch\)/);
+  assert.match(taxonomy, /categories: \["objects", "decor", "homes"\]/);
+  assert.match(taxonomy, /objects: "Objects"/);
+  assert.match(taxonomy, /homes: "Homes"/);
   assert.match(routes, /const catalogItems = items\.filter\(i => !\(i\.fishingType === "bait" && i\.locationId !== null\)\)/);
 });
 

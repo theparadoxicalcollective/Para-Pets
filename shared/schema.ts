@@ -755,6 +755,7 @@ export const playerMarketListings = pgTable("player_market_listings", {
   itemName: text("item_name").notNull(),
   itemImageUrl: text("item_image_url"),
   itemType: text("item_type").notNull(),
+  assetData: jsonb("asset_data").$type<Record<string, unknown> | null>(),
   price: integer("price").notNull(),
   status: text("status").notNull().default("active"),
   buyerId: varchar("buyer_id"),

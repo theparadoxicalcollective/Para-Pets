@@ -115,7 +115,8 @@ test("admin reward pickers integrate cards with the normal reward categories", (
   assert.match(admin, /Rewards \(\{selectedItems\.length \+ selectedCards\.length \+ selectedHomeRewards\.length\} types/);
 
   assert.match(picker, /key: "cards" as const, label: "Cards"/);
-  assert.match(picker, /activeCategory.*"cards"/);
+  assert.match(picker, /button-item-group-cards/);
+  assert.match(picker, /activeGroup.*"cards"/);
   assert.match(picker, /button-pick-card-/);
   assert.match(picker, /Card · \{"★"\.repeat\(card\.rarity\)\}/);
 

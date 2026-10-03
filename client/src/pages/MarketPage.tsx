@@ -14,20 +14,17 @@ import marketSearchBar from "@assets/uploads/MarketSearchBar.png";
 import marketItemCard from "@assets/uploads/MarketItemCard.png";
 import marketTabs from "@assets/uploads/MarketTabs.png";
 import marketPetCard from "@assets/uploads/MarketPetCard.png";
+import {
+  GAME_ITEM_CATEGORY_LABELS,
+  GAME_ITEM_GROUPS,
+  gameItemCategoriesForGroup,
+  getGameItemCategory,
+  getGameItemGroup,
+  type GameItemCategoryKey,
+  type GameItemGroupKey,
+} from "@shared/itemTaxonomy";
 
-type MainTab = "all" | "pets" | "items" | "fish";
-
-const ITEMS_SUB_FILTERS = [
-  { label: "All Items", value: "items" },
-  { label: "Power-Ups", value: "power_up" },
-  { label: "Edibles", value: "edibles" },
-  { label: "Potions", value: "potion" },
-  { label: "Special", value: "special" },
-  { label: "Accessories", value: "accessory" },
-  { label: "Ingredients", value: "ingredient" },
-  { label: "Bait", value: "bait" },
-  { label: "Poles", value: "pole" },
-];
+type MainTab = "all" | GameItemGroupKey;
 
 interface Listing {
   id: string;
@@ -62,6 +59,7 @@ interface InventoryItem {
   petHealth?: number;
   petAtk?: number;
   petDef?: number;
+  fishingType?: string | null;
 }
 
 interface FishItem {
@@ -69,6 +67,43 @@ interface FishItem {
   shopItemId: string;
   inAquarium: boolean;
   item: { name: string; imageUrl: string | null } | null;
+}
+
+interface MarketHomeDecorItem {
+  id: string;
+  userId: string;
+  decorItemId: string;
+  quantity: number;
+  item: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    type: "decor" | "object";
+  };
+}
+
+interface MarketHomeBundleItem {
+  id: string;
+  userId: string;
+  bundleId: string;
+  bundle: {
+    id: string;
+    name: string;
+    shopImageUrl: string | null;
+    bgImageUrl: string | null;
+  };
+}
+
+type SellAssetSource = "inventory" | "fish" | "home_decor" | "home_bundle";
+
+interface SellAsset {
+  key: string;
+  id: string;
+  source: SellAssetSource;
+  category: GameItemCategoryKey;
+  name: string;
+  imageUrl: string | null;
+  inventory?: InventoryItem;
 }
 
 interface PetEggDetails {
@@ -308,39 +343,231 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
   );
 }
 
-function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFish, onSubmitPet, isPending, isPetPending }: { inventory: InventoryItem[]; fishInventory: FishItem[]; onClose: () => void; onSubmit: (inventoryId: string, price: number) => void; onSubmitFish: (fishInventoryId: string, price: number) => void; onSubmitPet: (inventoryId: string, price: number) => void; isPending: boolean; isPetPending: boolean }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [kind, setKind] = useState<"items" | "fish" | "pets">("items");
+function SellItemModal({
+  inventory,
+  fishInventory,
+  homeDecorInventory,
+  homeBundles,
+  activeHouseBundleId,
+  onClose,
+  onSubmit,
+  onSubmitFish,
+  onSubmitPet,
+  onSubmitHomeDecor,
+  onSubmitHomeBundle,
+  isPending,
+  isPetPending,
+}: {
+  inventory: InventoryItem[];
+  fishInventory: FishItem[];
+  homeDecorInventory: MarketHomeDecorItem[];
+  homeBundles: MarketHomeBundleItem[];
+  activeHouseBundleId?: string | null;
+  onClose: () => void;
+  onSubmit: (inventoryId: string, price: number) => void;
+  onSubmitFish: (fishInventoryId: string, price: number) => void;
+  onSubmitPet: (inventoryId: string, price: number) => void;
+  onSubmitHomeDecor: (decorInventoryId: string, price: number) => void;
+  onSubmitHomeBundle: (ownershipId: string, price: number) => void;
+  isPending: boolean;
+  isPetPending: boolean;
+}) {
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [kind, setKind] = useState<GameItemGroupKey>("items");
+  const [category, setCategory] = useState<"all" | GameItemCategoryKey>("all");
   const [price, setPrice] = useState("");
   const [showPetConfirm, setShowPetConfirm] = useState(false);
-  const regular = inventory.filter(i => i.type !== "pet" && !i.isListed);
-  const pets = inventory.filter(i => i.type === "pet" && !i.isListed);
-  const fish = fishInventory.filter(i => !i.inAquarium);
-  const selectedItem = kind === "fish" ? fish.find(i => i.id === selectedId) : kind === "pets" ? pets.find(i => i.id === selectedId) : regular.find(i => i.id === selectedId);
+
+  const normalAssets: SellAsset[] = inventory
+    .filter(item => !item.isListed)
+    .map(item => ({
+      key: `inventory:${item.id}`,
+      id: item.id,
+      source: "inventory" as const,
+      category: getGameItemCategory({ type: item.type, fishingType: item.fishingType }),
+      name: item.petNickname || item.name,
+      imageUrl: item.type === "pet"
+        ? (item.isHatched ? item.hatchedImageUrl || item.imageUrl : item.eggImageUrl || item.imageUrl)
+        : item.imageUrl,
+      inventory: item,
+    }));
+
+  const caughtFishAssets: SellAsset[] = fishInventory
+    .filter(item => !item.inAquarium)
+    .map(item => ({
+      key: `fish:${item.id}`,
+      id: item.id,
+      source: "fish" as const,
+      category: "fish" as const,
+      name: item.item?.name || "Fish",
+      imageUrl: item.item?.imageUrl ?? null,
+    }));
+
+  // Objects already live in /api/inventory. Only merge the separate legacy
+  // Home Decor ownership table here so Home items do not appear twice.
+  const homeDecorAssets: SellAsset[] = homeDecorInventory
+    .filter(entry => entry.item?.type === "decor" && entry.quantity > 0)
+    .map(entry => ({
+      key: `home-decor:${entry.id}`,
+      id: entry.id,
+      source: "home_decor" as const,
+      category: "decor" as const,
+      name: entry.item.name,
+      imageUrl: entry.item.imageUrl,
+    }));
+
+  const homeBundleAssets: SellAsset[] = homeBundles.map(entry => ({
+    key: `home-bundle:${entry.id}`,
+    id: entry.id,
+    source: "home_bundle" as const,
+    category: "homes" as const,
+    name: entry.bundle.name,
+    imageUrl: entry.bundle.shopImageUrl ?? entry.bundle.bgImageUrl,
+  }));
+
+  const allAssets = [...normalAssets, ...caughtFishAssets, ...homeDecorAssets, ...homeBundleAssets];
+  const categoryOptions = gameItemCategoriesForGroup(kind);
+  const groupAssets = allAssets.filter(asset => getGameItemGroup(asset.category) === kind);
+  const list = groupAssets
+    .filter(asset => category === "all" || asset.category === category)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const selectedAsset = allAssets.find(asset => asset.key === selectedKey) ?? null;
+  const selectedPet = selectedAsset?.source === "inventory" && selectedAsset.inventory?.type === "pet"
+    ? selectedAsset.inventory
+    : undefined;
   const priceNum = parseInt(price, 10);
   const valid = Number.isFinite(priceNum) && priceNum >= 1 && priceNum <= 1000000;
-  const selectedPet = kind === "pets" ? selectedItem as InventoryItem | undefined : undefined;
-  const list = kind === "fish" ? fish : kind === "pets" ? pets : regular;
 
-  const nameFor = (item: any) => kind === "fish" ? item.item?.name || "Fish" : item.petNickname || item.name;
-  const imageFor = (item: any) => kind === "fish" ? item.item?.imageUrl : kind === "pets" ? (item.isHatched ? item.hatchedImageUrl || item.imageUrl : item.eggImageUrl || item.imageUrl) : item.imageUrl;
+  const counts = useMemo(() => Object.fromEntries(
+    GAME_ITEM_GROUPS.map(group => [
+      group.key,
+      allAssets.filter(asset => getGameItemGroup(asset.category) === group.key).length,
+    ]),
+  ) as Record<GameItemGroupKey, number>, [allAssets]);
 
   function submit() {
-    if (!selectedId || !valid) return;
-    if (kind === "pets") return setShowPetConfirm(true);
-    if (kind === "fish") onSubmitFish(selectedId, priceNum); else onSubmit(selectedId, priceNum);
+    if (!selectedAsset || !valid) return;
+    if (selectedPet) return setShowPetConfirm(true);
+    if (selectedAsset.source === "fish") return onSubmitFish(selectedAsset.id, priceNum);
+    if (selectedAsset.source === "home_decor") return onSubmitHomeDecor(selectedAsset.id, priceNum);
+    if (selectedAsset.source === "home_bundle") return onSubmitHomeBundle(selectedAsset.id, priceNum);
+    return onSubmit(selectedAsset.id, priceNum);
   }
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "calc(100% - 8px)", maxWidth: 390, maxHeight: "82vh", overflowY: "auto", borderRadius: 20, padding: 16, boxSizing: "border-box", background: "linear-gradient(160deg,rgba(14,6,27,.98),rgba(20,52,25,.98))", border: "2px solid rgba(214,166,58,.42)", boxShadow: "0 0 40px rgba(0,0,0,.7)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}><h2 style={{ margin: 0, color: cream, fontFamily: "Georgia, serif", fontSize: 18 }}>List Item for Sale</h2><button onClick={onClose} style={{ border: 0, background: "transparent", color: cream, fontSize: 20, cursor: "pointer" }}>×</button></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 5, marginBottom: 12 }}>{([['items', powerupBagIcon, regular.length], ['fish', fishInvIcon, fish.length], ['pets', eggMagicIcon, pets.length]] as const).map(([key, icon, count]) => <button key={key} data-testid={`button-sell-tab-${key}`} onClick={() => { setKind(key); setSelectedId(null); playTick(); }} style={{ ...artButtonStyle(kind === key), minWidth: 0, minHeight: 48, padding: "4px 2px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, fontSize: 9, lineHeight: 1.05, whiteSpace: "normal" }}><img src={icon} alt="" style={{ width: 14, height: 14, objectFit: "contain", flexShrink: 0 }} />{key === 'items' ? 'Items' : key === 'fish' ? 'Fish' : 'Pets'} ({count})</button>)}</div>
-        {list.length ? <div style={{ display: "grid", gridTemplateColumns: kind === "pets" ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: 8, maxHeight: 300, overflowY: "auto", padding: 2 }}>{list.map((item: any) => <button key={item.id} onClick={() => { setSelectedId(item.id); playClick(); }} style={{ borderRadius: 10, border: selectedId === item.id ? "2px solid #e9c164" : "1px solid rgba(255,255,255,.14)", background: selectedId === item.id ? "rgba(174,95,218,.18)" : "rgba(0,0,0,.22)", color: cream, minHeight: 92, padding: 7, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}><div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}>{imageFor(item) ? <img src={imageFor(item)} alt="" style={{ maxWidth: 56, maxHeight: 54, objectFit: "contain" }} /> : <img src={powerupBagIcon} alt="" style={{ width: 38, opacity: .6 }} />}</div><span style={{ fontFamily: "Georgia, serif", fontSize: 9, textAlign: "center" }}>{nameFor(item)}</span></button>)}</div> : <div style={{ color: "rgba(255,255,255,.5)", fontFamily: "Georgia, serif", textAlign: "center", padding: 25 }}>No {kind} to sell.</div>}
-        {selectedItem && <div style={{ marginTop: 14 }}><label style={{ display: "block", color: "rgba(255,255,255,.75)", fontSize: 11, marginBottom: 5 }}>Price (1–1,000,000 coins)</label><div style={{ display: "flex", alignItems: "center", gap: 6 }}><CoinIcon size={18} /><input data-testid="input-listing-price" type="number" min={1} max={1000000} value={price} onChange={e => setPrice(e.target.value)} placeholder="Enter price" style={{ flex: 1, borderRadius: 9, border: `1px solid ${valid || !price ? "rgba(225,190,90,.4)" : "#ff7d89"}`, background: "rgba(0,0,0,.3)", padding: "9px 11px", color: cream, outline: "none" }} /></div></div>}
-        <button data-testid="button-confirm-listing" disabled={!selectedItem || !valid || isPending || isPetPending} onClick={submit} style={{ ...artButtonStyle(!!selectedItem && valid), width: "100%", minHeight: 42, marginTop: 14, opacity: selectedItem && valid ? 1 : .5 }}>{isPending || isPetPending ? "Listing…" : "List for Sale"}</button>
+      <div onClick={e => e.stopPropagation()} style={{ width: "calc(100% - 8px)", maxWidth: 410, maxHeight: "84vh", overflowY: "auto", borderRadius: 20, padding: 16, boxSizing: "border-box", background: "linear-gradient(160deg,rgba(14,6,27,.98),rgba(20,52,25,.98))", border: "2px solid rgba(214,166,58,.42)", boxShadow: "0 0 40px rgba(0,0,0,.7)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0, color: cream, fontFamily: "Georgia, serif", fontSize: 18 }}>List Item for Sale</h2>
+          <button onClick={onClose} style={{ border: 0, background: "transparent", color: cream, fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div data-testid="market-sell-group-tabs" style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 5, marginBottom: 8 }}>
+          {GAME_ITEM_GROUPS.map(group => (
+            <button
+              key={group.key}
+              data-testid={`button-sell-tab-${group.key}`}
+              onClick={() => { setKind(group.key); setCategory("all"); setSelectedKey(null); playTick(); }}
+              style={{ ...artButtonStyle(kind === group.key), minWidth: 0, minHeight: 48, padding: "4px 2px", fontSize: 9, lineHeight: 1.05 }}
+            >
+              {group.label} ({counts[group.key] ?? 0})
+            </button>
+          ))}
+        </div>
+
+        <div data-testid="market-sell-category-tabs" style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6, marginBottom: 5 }}>
+          <button
+            type="button"
+            onClick={() => { setCategory("all"); setSelectedKey(null); }}
+            style={{ ...subFilterButtonStyle(category === "all"), minWidth: 70, minHeight: 28, padding: "0 7px", fontSize: 8.5, flexShrink: 0 }}
+          >
+            All {GAME_ITEM_GROUPS.find(group => group.key === kind)?.label}
+          </button>
+          {categoryOptions.map(option => (
+            <button
+              type="button"
+              key={option}
+              data-testid={`button-sell-category-${option}`}
+              onClick={() => { setCategory(option); setSelectedKey(null); }}
+              style={{ ...subFilterButtonStyle(category === option), minWidth: 76, minHeight: 28, padding: "0 7px", fontSize: 8.5, flexShrink: 0 }}
+            >
+              {GAME_ITEM_CATEGORY_LABELS[option]}
+            </button>
+          ))}
+        </div>
+
+        {list.length ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxHeight: 300, overflowY: "auto", padding: 2 }}>
+            {list.map(asset => {
+              const isActiveHome = asset.source === "home_bundle"
+                && homeBundles.find(entry => entry.id === asset.id)?.bundleId === activeHouseBundleId;
+              return (
+                <button
+                  key={asset.key}
+                  data-testid={`button-sell-asset-${asset.key.replace(/:/g, "-")}`}
+                  onClick={() => { setSelectedKey(asset.key); playClick(); }}
+                  style={{
+                    borderRadius: 10,
+                    border: selectedKey === asset.key ? "2px solid #e9c164" : "1px solid rgba(255,255,255,.14)",
+                    background: selectedKey === asset.key ? "rgba(174,95,218,.18)" : "rgba(0,0,0,.22)",
+                    color: cream,
+                    minHeight: 92,
+                    padding: 7,
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {asset.imageUrl
+                      ? <img src={asset.imageUrl} alt="" style={{ maxWidth: 56, maxHeight: 54, objectFit: "contain" }} />
+                      : <img src={powerupBagIcon} alt="" style={{ width: 38, opacity: .6 }} />}
+                  </div>
+                  <span style={{ fontFamily: "Georgia, serif", fontSize: 9, textAlign: "center" }}>{asset.name}</span>
+                  <span style={{ fontFamily: "Georgia, serif", fontSize: 7.5, color: isActiveHome ? "#ffad95" : "rgba(255,255,255,.48)", textAlign: "center" }}>
+                    {isActiveHome ? "Active Home — switch first" : GAME_ITEM_CATEGORY_LABELS[asset.category]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ color: "rgba(255,255,255,.5)", fontFamily: "Georgia, serif", textAlign: "center", padding: 25 }}>
+            No {category === "all" ? kind : GAME_ITEM_CATEGORY_LABELS[category]} to sell.
+          </div>
+        )}
+
+        {selectedAsset && (
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", color: "rgba(255,255,255,.75)", fontSize: 11, marginBottom: 5 }}>Price (1–1,000,000 coins)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <CoinIcon size={18} />
+              <input data-testid="input-listing-price" type="number" min={1} max={1000000} value={price} onChange={e => setPrice(e.target.value)} placeholder="Enter price" style={{ flex: 1, borderRadius: 9, border: `1px solid ${valid || !price ? "rgba(225,190,90,.4)" : "#ff7d89"}`, background: "rgba(0,0,0,.3)", padding: "9px 11px", color: cream, outline: "none" }} />
+            </div>
+          </div>
+        )}
+
+        <button
+          data-testid="button-confirm-listing"
+          disabled={!selectedAsset || !valid || isPending || isPetPending}
+          onClick={submit}
+          style={{ ...artButtonStyle(!!selectedAsset && valid), width: "100%", minHeight: 42, marginTop: 14, opacity: selectedAsset && valid ? 1 : .5 }}
+        >
+          {isPending || isPetPending ? "Listing…" : "List for Sale"}
+        </button>
       </div>
-      {showPetConfirm && selectedPet && <PetListingConfirmModal pet={selectedPet} isPending={isPetPending} onCancel={() => setShowPetConfirm(false)} onConfirm={() => { if (valid) onSubmitPet(selectedPet.id, priceNum); }} />}
+
+      {showPetConfirm && selectedPet && (
+        <PetListingConfirmModal
+          pet={selectedPet}
+          isPending={isPetPending}
+          onCancel={() => setShowPetConfirm(false)}
+          onConfirm={() => { if (valid) onSubmitPet(selectedPet.id, priceNum); }}
+        />
+      )}
     </div>
   );
 }
@@ -351,22 +578,30 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const [activeTab, setActiveTab] = useState<"browse" | "myshop">("browse");
   const [search, setSearch] = useState("");
   const [mainTab, setMainTab] = useState<MainTab>("all");
-  const [itemsSubFilter, setItemsSubFilter] = useState("items");
+  const [marketCategory, setMarketCategory] = useState<"all" | GameItemCategoryKey>("all");
   const [showSellModal, setShowSellModal] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Listing | null>(null);
 
-  const effectiveItemType = mainTab === "all" ? "all" : mainTab === "pets" ? "pet_egg" : mainTab === "fish" ? "fish" : itemsSubFilter;
-
   const marketQuery = useQuery<Listing[]>({
-    queryKey: ["/api/market", search, effectiveItemType],
+    queryKey: ["/api/market", search],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (effectiveItemType !== "all") params.set("itemType", effectiveItemType);
       return fetch(`/api/market?${params}`).then(r => r.json());
     },
     refetchInterval: 15000,
   });
+
+  const visibleMarketListings = useMemo(() => {
+    const rows = marketQuery.data ?? [];
+    return rows.filter(listing => {
+      const category = getGameItemCategory({ itemType: listing.itemType });
+      if (mainTab !== "all" && getGameItemGroup(category) !== mainTab) return false;
+      return marketCategory === "all" || category === marketCategory;
+    });
+  }, [marketQuery.data, mainTab, marketCategory]);
+
+  const marketCategoryOptions = mainTab === "all" ? [] : gameItemCategoriesForGroup(mainTab);
 
   const myListingsQuery = useQuery<Listing[]>({
     queryKey: ["/api/market/my-listings"],
@@ -378,11 +613,45 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   });
   const inventoryQuery = useQuery<InventoryItem[]>({ queryKey: ["/api/inventory"], enabled: showSellModal });
   const fishInventoryQuery = useQuery<FishItem[]>({ queryKey: ["/api/fishing/inventory"], enabled: showSellModal });
+  const homeDecorInventoryQuery = useQuery<MarketHomeDecorItem[]>({ queryKey: ["/api/pet-house/decor/inventory"], enabled: showSellModal });
+  const homeBundlesQuery = useQuery<MarketHomeBundleItem[]>({
+    queryKey: ["/api/users", user?.id, "house-bundles"],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${user?.id}/house-bundles`, { credentials: "include" });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: showSellModal && !!user?.id,
+  });
 
   const listMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Listed!", description: "Your item is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }) });
   const listFishMutation = useMutation({ mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Fish listed!", description: "Your fish is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }) });
   const listPetMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-pet", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] }); toast({ title: "Pet listed!", description: "Your pet is safely held by the market until it is bought or returned." }); }, onError: (e: any) => toast({ title: "Failed to list pet", description: e.message, variant: "destructive" }) });
-  const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
+  const listHomeDecorMutation = useMutation({
+    mutationFn: ({ decorInventoryId, price }: { decorInventoryId: string; price: number }) =>
+      apiRequest("POST", "/api/market/list-home-decor", { decorInventoryId, price }),
+    onSuccess: () => {
+      setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
+      toast({ title: "Home Decor listed!", description: "Your decoration is now on the market." });
+    },
+    onError: (e: any) => toast({ title: "Failed to list Home Decor", description: e.message, variant: "destructive" }),
+  });
+  const listHomeBundleMutation = useMutation({
+    mutationFn: ({ ownershipId, price }: { ownershipId: string; price: number }) =>
+      apiRequest("POST", "/api/market/list-home-bundle", { ownershipId, price }),
+    onSuccess: () => {
+      setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "house-bundles"] });
+      toast({ title: "Home listed!", description: "Your Home bundle is now on the market." });
+    },
+    onError: (e: any) => toast({ title: "Failed to list Home", description: e.message, variant: "destructive" }),
+  });
+  const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "house-bundles"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
   const collectMutation = useMutation({
     mutationFn: async (listingId: string) => {
       const response = await apiRequest("POST", `/api/market/${listingId}/collect`, {});
@@ -412,7 +681,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       toast({ title: "Failed to collect", description: e.message, variant: "destructive" });
     },
   });
-  const cancelMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Listing cancelled", description: "Your item is back in inventory." }); }, onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }) });
+  const cancelMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "house-bundles"] }); toast({ title: "Listing cancelled", description: "Your item is back in inventory." }); }, onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }) });
   const buySlotMutation = useMutation({ mutationFn: () => apiRequest("POST", "/api/market/buy-slot", {}), onSuccess: async () => { const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); toast({ title: "New slot unlocked!" }); }, onError: (e: any) => toast({ title: "Failed to buy slot", description: e.message, variant: "destructive" }) });
 
   const totalSlots = 25 + (user?.marketExtraSlots ?? 0);
@@ -421,7 +690,10 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const emptySlots = Math.max(0, totalSlots - activeOrPending.length);
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value), []);
 
-  const mainTabs = useMemo(() => ([{ value: "all", label: "All" }, { value: "pets", label: "Pets" }, { value: "items", label: "Items" }, { value: "fish", label: "Fish" }] as { value: MainTab; label: string }[]), []);
+  const mainTabs = useMemo(() => ([
+    { value: "all" as const, label: "All" },
+    ...GAME_ITEM_GROUPS.map(group => ({ value: group.key as MainTab, label: group.label })),
+  ]), []);
 
   return (
     <div style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
@@ -455,12 +727,53 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
               <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder="Search the market…" style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 4, marginBottom: 6 }}>{mainTabs.map(tab => <button key={tab.value} data-testid={`button-main-tab-${tab.value}`} onClick={() => { setMainTab(tab.value); playTick(); if (tab.value !== "items") setItemsSubFilter("items"); }} style={{ ...artButtonStyle(mainTab === tab.value), minWidth: 0, minHeight: 40, padding: "4px 3px", fontSize: "clamp(9px,2.7vw,11px)", lineHeight: 1.05, whiteSpace: "nowrap" }}>{tab.label}</button>)}</div>
+            <div
+              data-testid="market-browse-group-tabs"
+              style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 4, marginBottom: 6 }}
+            >
+              {mainTabs.map(tab => (
+                <button
+                  key={tab.value}
+                  data-testid={`button-main-tab-${tab.value}`}
+                  onClick={() => { setMainTab(tab.value); setMarketCategory("all"); playTick(); }}
+                  style={{ ...artButtonStyle(mainTab === tab.value), minWidth: 0, minHeight: 40, padding: "4px 2px", fontSize: "clamp(8px,2.3vw,10px)", lineHeight: 1.05, whiteSpace: "nowrap" }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-            {mainTab === "items" && <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>{ITEMS_SUB_FILTERS.map(sf => <button key={sf.value} data-testid={`button-sub-filter-${sf.value}`} onClick={() => { setItemsSubFilter(sf.value); playTick(); }} style={{ ...subFilterButtonStyle(itemsSubFilter === sf.value), minWidth: 82, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}>{sf.label}</button>)}</div>}
+            {mainTab !== "all" && (
+              <div data-testid="market-browse-category-tabs" style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>
+                <button
+                  type="button"
+                  onClick={() => { setMarketCategory("all"); playTick(); }}
+                  style={{ ...subFilterButtonStyle(marketCategory === "all"), minWidth: 78, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}
+                >
+                  All {GAME_ITEM_GROUPS.find(group => group.key === mainTab)?.label}
+                </button>
+                {marketCategoryOptions.map(category => (
+                  <button
+                    type="button"
+                    key={category}
+                    data-testid={`button-market-category-${category}`}
+                    onClick={() => { setMarketCategory(category); playTick(); }}
+                    style={{ ...subFilterButtonStyle(marketCategory === category), minWidth: 78, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}
+                  >
+                    {GAME_ITEM_CATEGORY_LABELS[category]}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div style={{ flex: 1, overflowY: "auto", padding: "3px 2px 20px", scrollbarWidth: "none" }}>
-              {marketQuery.isLoading ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div> : !marketQuery.data?.length ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>{marketQuery.data.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}</div>}
+              {marketQuery.isLoading
+                ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div>
+                : !visibleMarketListings.length
+                  ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div>
+                  : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>
+                      {visibleMarketListings.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}
+                    </div>}
             </div>
           </div>
         ) : (
@@ -474,7 +787,23 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
         )}
       </div>
 
-      {showSellModal && <SellItemModal inventory={inventoryQuery.data ?? []} fishInventory={fishInventoryQuery.data ?? []} onClose={() => setShowSellModal(false)} onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })} onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })} onSubmitPet={(inventoryId, price) => listPetMutation.mutate({ inventoryId, price })} isPending={listMutation.isPending || listFishMutation.isPending} isPetPending={listPetMutation.isPending} />}
+      {showSellModal && (
+        <SellItemModal
+          inventory={inventoryQuery.data ?? []}
+          fishInventory={fishInventoryQuery.data ?? []}
+          homeDecorInventory={homeDecorInventoryQuery.data ?? []}
+          homeBundles={homeBundlesQuery.data ?? []}
+          activeHouseBundleId={user?.activeHouseBundleId ?? null}
+          onClose={() => setShowSellModal(false)}
+          onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })}
+          onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })}
+          onSubmitPet={(inventoryId, price) => listPetMutation.mutate({ inventoryId, price })}
+          onSubmitHomeDecor={(decorInventoryId, price) => listHomeDecorMutation.mutate({ decorInventoryId, price })}
+          onSubmitHomeBundle={(ownershipId, price) => listHomeBundleMutation.mutate({ ownershipId, price })}
+          isPending={listMutation.isPending || listFishMutation.isPending || listHomeDecorMutation.isPending || listHomeBundleMutation.isPending}
+          isPetPending={listPetMutation.isPending}
+        />
+      )}
       {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
       {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
     </div>

@@ -11,6 +11,8 @@ test("each public marketplace mutation is registered exactly once", () => {
     'app.post("/api/market/list"',
     'app.post("/api/market/list-pet"',
     'app.post("/api/market/list-fish"',
+    'app.post("/api/market/list-home-decor"',
+    'app.post("/api/market/list-home-bundle"',
     'app.post("/api/market/:listingId/buy"',
     'app.post("/api/market/:listingId/collect"',
     'app.delete("/api/market/:listingId"',
@@ -18,14 +20,14 @@ test("each public marketplace mutation is registered exactly once", () => {
 });
 
 test("value-moving routes delegate authenticated identity to focused services", () => {
-  for (const call of ["createInventoryListing({ actorId: user.id", "createFishListing({ actorId: user.id", "buyListing({ actorId: user.id", "collectProceeds({ actorId: user.id", "cancelListing({ actorId: user.id"]) {
+  for (const call of ["createInventoryListing({ actorId: user.id", "createFishListing({ actorId: user.id", "createHomeDecorListing({ actorId: user.id", "createHomeBundleListing({ actorId: user.id", "buyListing({ actorId: user.id", "collectProceeds({ actorId: user.id", "cancelListing({ actorId: user.id"]) {
     assert.match(routes, new RegExp(call.replace(/[({.]/g, "\\$&")));
   }
   assert.doesNotMatch(routes.slice(routes.indexOf('app.post("/api/market/list"'), routes.indexOf('app.post("/api/market/buy-slot"')), /atomicDeductCoins|addCoins|buyMarketListing|createMarketListing|cancelMarketListing|collectMarketCoins/);
 });
 
 test("transactions lock authoritative rows and keep all core writes in one boundary", () => {
-  assert.equal(service.split("db.transaction(async (tx)").length - 1, 5);
+  assert.equal(service.split("db.transaction(async (tx)").length - 1, 7);
   assert.match(service, /from\(playerMarketListings\)[\s\S]*?for\("update"\)/);
   assert.match(service, /FROM users WHERE id = \$\{userId\} FOR UPDATE/);
   assert.match(service, /from\(playerFishInventory\)[\s\S]*?for\("update"\)/);
@@ -45,8 +47,9 @@ test("buyers validate escrow before coin debit and stale listings self-clean", (
   assert.match(cancel, /!escrow \|\| escrow\.userId !== input\.actorId \|\| !escrow\.isListed[\s\S]*?tx\.delete\(playerMarketListings\)/);
 });
 
-test("market browse hides listings whose escrow inventory disappeared", () => {
+test("market browse validates inventory escrow while Home listings use the listing row as escrow", () => {
   assert.match(routes, /async function liveEscrowListings/);
+  assert.match(routes, /listing\.itemType === "home_decor" \|\| listing\.itemType === "home_bundle"/);
   assert.match(routes, /inventory && inventory\.userId === listing\.sellerId && inventory\.isListed/);
   assert.match(routes, /const listings = await liveEscrowListings\([\s\S]*?await storage\.getMarketListings/);
 });
@@ -55,6 +58,8 @@ test("browser callers submit identifiers and player-selected list price only", (
   assert.match(client, /\/api\/market\/list", \{ inventoryId, price \}/);
   assert.match(client, /\/api\/market\/list-pet", \{ inventoryId, price \}/);
   assert.match(client, /\/api\/market\/list-fish", \{ fishInventoryId, price \}/);
+  assert.match(client, /\/api\/market\/list-home-decor", \{ decorInventoryId, price \}/);
+  assert.match(client, /\/api\/market\/list-home-bundle", \{ ownershipId, price \}/);
   assert.doesNotMatch(client, /revert-to-egg/);
   assert.doesNotMatch(client, /\/api\/market[^\n]*(sellerId|buyerId|ownerId|coinsEarned|newBalance)/);
 });
@@ -100,4 +105,34 @@ test("unhatched market eggs keep the existing hatch-start behavior", () => {
   const matches = service.match(/const isUnhatchedPet = listing\.itemType === "pet_egg" && !escrow\.isHatched/g) ?? [];
   assert.equal(matches.length, 2, "buy and cancel paths should both distinguish true eggs from hatched pets");
   assert.match(service, /hatchStartedAt: isUnhatchedPet \? new Date\(\) : escrow\.hatchStartedAt/);
+});
+
+test("Home Decor and Home Bundle listings use dedicated escrow without duplicating player ownership", () => {
+  assert.match(service, /export async function createHomeDecorListing/);
+  assert.match(service, /from\(userHomeDecorInventory\)[\s\S]*?for\("update"\)/);
+  assert.match(service, /itemType: "home_decor"/);
+  assert.match(service, /set\(\{ quantity: sql`\$\{userHomeDecorInventory\.quantity\} - 1` \}\)/);
+
+  assert.match(service, /export async function createHomeBundleListing/);
+  assert.match(service, /active_house_bundle_id === ownership\.bundleId/);
+  assert.match(service, /tx\.delete\(userHouseBundles\)/);
+  assert.match(service, /itemType: "home_bundle"/);
+  assert.match(service, /outdoorLightingMode: ownership\.outdoorLightingMode/);
+  assert.match(service, /offInteriorEffectIds: ownership\.offInteriorEffectIds/);
+
+  assert.match(service, /listing\.itemType === "home_decor"/);
+  assert.match(service, /listing\.itemType === "home_bundle"/);
+  assert.match(service, /tx\.insert\(userHomeDecorInventory\)/);
+  assert.match(service, /tx\.insert\(userHouseBundles\)/);
+});
+
+test("market UI shares Pets Fish Home Items taxonomy and loads Home ownership for selling", () => {
+  assert.match(client, /GAME_ITEM_GROUPS/);
+  assert.match(client, /gameItemCategoriesForGroup/);
+  assert.match(client, /getGameItemCategory\(\{ itemType: listing\.itemType \}\)/);
+  assert.match(client, /market-browse-group-tabs/);
+  assert.match(client, /market-sell-group-tabs/);
+  assert.match(client, /queryKey: \["\/api\/pet-house\/decor\/inventory"\]/);
+  assert.match(client, /\/api\/users\/\$\{user\?\.id\}\/house-bundles/);
+  assert.match(client, /entry\.item\?\.type === "decor"/);
 });

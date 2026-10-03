@@ -22,7 +22,16 @@ import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
 import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
-import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
+import { itemTypeLabel } from "@/lib/itemTypeFilters";
+import {
+  GAME_ITEM_CATEGORY_LABELS,
+  GAME_ITEM_GROUPS,
+  gameItemCategoriesForGroup,
+  getGameItemCategory,
+  getGameItemGroup,
+  type GameItemCategoryKey,
+  type GameItemGroupKey,
+} from "@shared/itemTaxonomy";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -106,6 +115,42 @@ interface InventoryItem {
   itemsUsedThisLevel: number;
   fishingType: string | null;
   quantity: number;
+}
+
+interface HomeDecorBagInventoryEntry {
+  id: string;
+  userId: string;
+  decorItemId: string;
+  quantity: number;
+  item: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    price: number;
+    type: "decor" | "object";
+  };
+}
+
+interface OwnedHomeBundleBagEntry {
+  id: string;
+  userId: string;
+  bundleId: string;
+  bundle: {
+    id: string;
+    name: string;
+    shopImageUrl: string | null;
+    bgImageUrl: string | null;
+    price: number;
+  };
+}
+
+interface BagHomeAsset {
+  key: string;
+  kind: "home_decor" | "home_bundle";
+  name: string;
+  imageUrl: string | null;
+  count: number;
+  category: GameItemCategoryKey;
 }
 
 interface PetInventoryProps {
@@ -483,7 +528,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
+              <BagView items={bagItems} userId={user.id} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
@@ -1173,31 +1218,58 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 
 const POTION_STACK_MAX = 50;
 
-type BagTabKey = string;
+const BAG_CATEGORY_ICONS: Record<GameItemCategoryKey, string> = {
+  pets: petPawIcon,
+  mini_pets: petPawIcon,
+  costumes: tabIconAccessory,
+  accessories: tabIconAccessory,
+  fish: tabIconItem,
+  poles: tabIconItem,
+  bait: tabIconItem,
+  objects: tabIconItem,
+  decor: tabIconItem,
+  homes: bagIconImg,
+  potions: tabIconPotion,
+  power_ups: powerupBagIcon,
+  specials: tabIconSpecial,
+  edibles: tabIconPotion,
+  gifts: tabIconSpecial,
+  ingredients: tabIconItem,
+  recipes: recipeScrollIcon,
+  clearing: tabIconAccessory,
+};
 
-const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
-  { key: "costume",    label: "Adornments",    icon: tabIconAccessory },
-  { key: "clearing",   label: "Clearing Gear", icon: tabIconAccessory },
-  { key: "edibles",    label: "Edibles",       icon: tabIconPotion    },
-  { key: "fish",       label: "Fish",          icon: tabIconItem      },
-  { key: "fishing",    label: "Fishing",       icon: tabIconItem      },
-  { key: "accessory",  label: "Gear",          icon: tabIconAccessory },
-  { key: "gift",       label: "Gifts",         icon: tabIconSpecial   },
-  { key: "ingredient", label: "Ingredients",   icon: tabIconItem      },
-  { key: "item",       label: "Items",         icon: tabIconItem      },
-  { key: "mini_pet",   label: "Mini Pets",     icon: petPawIcon      },
-  { key: "potion",     label: "Potions",       icon: tabIconPotion    },
-  { key: "recipe",     label: "Recipes",       icon: recipeScrollIcon },
-  { key: "special",    label: "Special",       icon: tabIconSpecial   },
-];
-
-function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
+function BagView({
+  items,
+  userId,
+  onItemPointerDown,
+}: {
+  items: InventoryItem[];
+  userId: string;
+  onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void;
+}) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
+  const [selectedHomeAsset, setSelectedHomeAsset] = useState<BagHomeAsset | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [bagTab, setBagTab] = useState<BagTabKey | null>(null);
+  const [bagGroup, setBagGroup] = useState<GameItemGroupKey>("items");
+  const [bagCategory, setBagCategory] = useState<GameItemCategoryKey | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: homeDecorInventory = [] } = useQuery<HomeDecorBagInventoryEntry[]>({
+    queryKey: ["/api/pet-house/decor/inventory"],
+    staleTime: 15000,
+  });
+  const { data: ownedHomeBundles = [] } = useQuery<OwnedHomeBundleBagEntry[]>({
+    queryKey: ["/api/users", userId, "house-bundles"],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${userId}/house-bundles`, { credentials: "include" });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 30000,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -1235,73 +1307,116 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     staleTime: 60 * 1000,
   });
 
-  // Build stacked display items. Pets are never part of the Bag, even if a
-  // future caller accidentally passes them through.
+  // Build stacked player inventory entries. Full pets remain in the dedicated
+  // Pet Companions view; the shared Pets group here contains Mini Pets,
+  // Adornments, and Accessories.
   const stackMap = new Map<string, { item: InventoryItem; count: number }>();
   for (const item of items) {
     if (item.type === "pet") continue;
     const itemQty = item.quantity ?? 1;
     const existing = stackMap.get(item.shopItemId);
-    if (existing) {
-      existing.count += itemQty;
-    } else {
-      stackMap.set(item.shopItemId, { item, count: itemQty });
-    }
+    if (existing) existing.count += itemQty;
+    else stackMap.set(item.shopItemId, { item, count: itemQty });
   }
-  const allDisplayItems: { item: InventoryItem; count: number }[] = Array.from(stackMap.values());
 
-  // Fish share the general "fishing" shop-item type with rods/bait, so give
-  // caught fish their own virtual Bag category without changing stored data.
-  const bagCategoryKey = (item: InventoryItem): BagTabKey =>
-    item.fishingType === "fish" ? "fish" : item.type;
+  const inventoryEntries = Array.from(stackMap.values()).map(({ item, count }) => ({
+    kind: "inventory" as const,
+    key: `inventory:${item.shopItemId}`,
+    category: getGameItemCategory({ type: item.type, fishingType: item.fishingType }),
+    item,
+    count,
+  }));
 
-  // Show every known Bag category (even when currently empty), then append any
-  // future item type discovered in a player's inventory. Pets are never added.
-  const configuredTabs = new Set(BAG_TABS.map(tab => tab.key));
-  const storedTypes = itemTypeOptions(allDisplayItems.map(({ item }) => item))
-    .filter(type => type !== "pet");
-  const discoveredTabs = [
-    ...storedTypes,
-    ...(allDisplayItems.some(({ item }) => item.fishingType === "fish") ? ["fish"] : []),
-  ];
-  const visibleTabs = [
-    ...BAG_TABS,
-    ...discoveredTabs
-      .filter(type => !configuredTabs.has(type))
-      .map(type => ({ key: type, label: itemTypeLabel(type), icon: tabIconItem })),
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  // Decor has its own ownership table, while Objects already live in
+  // /api/inventory. Only merge Decor here to avoid showing Objects twice.
+  const homeDecorAssets: BagHomeAsset[] = homeDecorInventory
+    .filter(entry => entry.item?.type === "decor")
+    .map(entry => ({
+      key: `home-decor:${entry.id}`,
+      kind: "home_decor",
+      name: entry.item.name,
+      imageUrl: entry.item.imageUrl,
+      count: Math.max(1, entry.quantity ?? 1),
+      category: "decor",
+    }));
 
-  // Open to the first alphabetically sorted category that actually contains an
-  // item, rather than dumping the entire Bag on screen.
-  const firstPopulatedTabKey = visibleTabs.find(tab =>
-    allDisplayItems.some(({ item }) => bagCategoryKey(item) === tab.key),
-  )?.key ?? visibleTabs[0]?.key ?? "item";
-  const activeBagTab = bagTab && visibleTabs.some(tab => tab.key === bagTab)
-    ? bagTab
-    : firstPopulatedTabKey;
-  const activeBagTabLabel = visibleTabs.find(tab => tab.key === activeBagTab)?.label
-    ?? itemTypeLabel(activeBagTab);
+  const homeBundleAssets: BagHomeAsset[] = ownedHomeBundles.map(entry => ({
+    key: `home-bundle:${entry.id}`,
+    kind: "home_bundle",
+    name: entry.bundle.name,
+    imageUrl: entry.bundle.shopImageUrl ?? entry.bundle.bgImageUrl,
+    count: 1,
+    category: "homes",
+  }));
 
-  const displayItems = allDisplayItems
-    .filter(({ item }) => bagCategoryKey(item) === activeBagTab)
+  const homeAssets = [...homeDecorAssets, ...homeBundleAssets];
+  const categoriesForActiveGroup = gameItemCategoriesForGroup(bagGroup);
+  const categoryHasItems = (category: GameItemCategoryKey) =>
+    inventoryEntries.some(entry => entry.category === category)
+    || homeAssets.some(entry => entry.category === category);
+
+  const firstPopulatedCategory = categoriesForActiveGroup.find(categoryHasItems)
+    ?? categoriesForActiveGroup.find(category => category !== "pets")
+    ?? categoriesForActiveGroup[0]
+    ?? "power_ups";
+  const activeBagCategory = bagCategory && categoriesForActiveGroup.includes(bagCategory)
+    ? bagCategory
+    : firstPopulatedCategory;
+  const activeBagTabLabel = GAME_ITEM_CATEGORY_LABELS[activeBagCategory];
+
+  const displayInventoryEntries = inventoryEntries
+    .filter(entry => entry.category === activeBagCategory)
     .sort((a, b) => a.item.name.localeCompare(b.item.name));
-
-  const isEmpty = allDisplayItems.length === 0;
+  const displayHomeAssets = homeAssets
+    .filter(entry => entry.category === activeBagCategory)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const displayCount = displayInventoryEntries.length + displayHomeAssets.length;
+  const isEmpty = inventoryEntries.length === 0 && homeAssets.length === 0;
 
   return (
     <>
-      {/* The category rail scrolls independently of the item shelf on phones. */}
-      <div className="flex items-start gap-2 sm:gap-4 min-w-0">
-      <nav aria-label="Bag item categories" className="w-[104px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
-        <p className="font-fantasy text-[#d8b864] text-[10px] sm:text-xs tracking-widest px-1 pb-1">BAG ITEMS</p>
-        {visibleTabs.map(tab => {
-          const active = activeBagTab === tab.key;
+      <div
+        data-testid="bag-group-tabs"
+        className="grid grid-cols-4 gap-1.5 mb-3"
+        aria-label="Bag groups"
+      >
+        {GAME_ITEM_GROUPS.map(group => {
+          const active = bagGroup === group.key;
           return (
             <button
-              key={tab.key}
-              data-testid={`button-bag-tab-${tab.key}`}
-              onClick={() => setBagTab(tab.key)}
-              className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[10px] sm:text-xs leading-tight tracking-wide transition-all active:scale-95"
+              type="button"
+              key={group.key}
+              data-testid={`button-bag-group-${group.key}`}
+              onClick={() => { setBagGroup(group.key); setBagCategory(null); }}
+              className="min-h-10 rounded-lg px-1 py-1.5 font-fantasy text-[10px] sm:text-xs tracking-wide transition-all active:scale-95"
+              style={{
+                background: active ? "linear-gradient(180deg, rgba(147,105,25,.66), rgba(45,35,15,.92))" : "rgba(15,21,13,.72)",
+                border: active ? "1px solid rgba(240,192,64,.58)" : "1px solid rgba(212,160,23,.2)",
+                color: active ? "#f3d177" : "#9d8a6b",
+                boxShadow: active ? "0 0 10px rgba(240,192,64,.12)" : "none",
+              }}
+            >
+              {group.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* The category rail scrolls independently of the item shelf on phones. */}
+      <div className="flex items-start gap-2 sm:gap-4 min-w-0">
+      <nav aria-label={`${GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label ?? "Bag"} categories`} className="w-[112px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
+        <p className="font-fantasy text-[#d8b864] text-[9px] sm:text-[10px] tracking-widest px-1 pb-1">
+          {GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label.toUpperCase()}
+        </p>
+        {categoriesForActiveGroup.map(category => {
+          const active = activeBagCategory === category;
+          const count = inventoryEntries.filter(entry => entry.category === category).length
+            + homeAssets.filter(entry => entry.category === category).length;
+          return (
+            <button
+              key={category}
+              data-testid={`button-bag-tab-${category}`}
+              onClick={() => setBagCategory(category)}
+              className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[9px] sm:text-[10px] leading-tight tracking-wide transition-all active:scale-95"
               style={{
                 background: active ? "linear-gradient(90deg, rgba(147,105,25,.6), rgba(55,44,19,.88))" : "rgba(255,255,255,0.04)",
                 border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.15)",
@@ -1309,11 +1424,12 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
               }}
             >
               <img
-                src={tab.icon}
+                src={BAG_CATEGORY_ICONS[category]}
                 alt=""
                 style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.65, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
               />
-              <span className="min-w-0 break-words">{tab.label}</span>
+              <span className="min-w-0 break-words flex-1">{GAME_ITEM_CATEGORY_LABELS[category]}</span>
+              {count > 0 && <span className="text-[8px] opacity-70">{count}</span>}
             </button>
           );
         })}
@@ -1321,7 +1437,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
       <section aria-label={activeBagTabLabel} className="flex-1 min-w-0 rounded-xl p-2 sm:p-3" style={{ background: "rgba(15,19,10,.43)", border: "1px solid rgba(212,160,23,.22)" }}>
         <div className="flex flex-wrap items-baseline justify-between gap-1 mb-3 px-1">
           <h3 className="font-fantasy text-[#f4d482] text-sm sm:text-base tracking-wider">{activeBagTabLabel}</h3>
-          <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayItems.length} {displayItems.length === 1 ? "item" : "items"}</span>
+          <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayCount} {displayCount === 1 ? "item" : "items"}</span>
         </div>
 
       {isEmpty ? (
@@ -1338,13 +1454,17 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
           <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
         </div>
-      ) : displayItems.length === 0 ? (
+      ) : displayCount === 0 ? (
         <div className="text-center py-12">
-          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">No {activeBagTabLabel} in your bag</p>
+          <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">
+            {activeBagCategory === "pets"
+              ? "Full Pets are managed in the Pet Companions inventory."
+              : `No ${activeBagTabLabel} in your bag`}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          {displayItems.map(({ item, count }) => {
+          {displayInventoryEntries.map(({ item, count }) => {
             const typeColor = typeColors[item.type] || "#f0c040";
             return (
               <div
@@ -1363,15 +1483,10 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
               >
                 <div className="p-3 flex flex-col items-center gap-2">
                   <div className="relative w-full">
-                    <div
-                      className="w-full aspect-square rounded-lg flex items-center justify-center"
-                      style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}
-                    >
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
-                      ) : (
-                        <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
-                      )}
+                    <div className="w-full aspect-square rounded-lg flex items-center justify-center" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain rounded-lg" />
+                        : <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
                     </div>
                     {count > 1 && (
                       <span
@@ -1390,10 +1505,87 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
               </div>
             );
           })}
+          {displayHomeAssets.map(asset => (
+            <button
+              type="button"
+              key={asset.key}
+              data-testid={`card-bag-${asset.kind}-${asset.key.split(":").at(-1)}`}
+              className="rounded-xl overflow-hidden relative text-left"
+              onClick={() => setSelectedHomeAsset(asset)}
+              style={{
+                background: "linear-gradient(135deg, rgba(12,31,20,.97), rgba(38,31,8,.97))",
+                border: "1px solid rgba(190,235,100,.38)",
+                boxShadow: "0 0 10px rgba(190,235,100,.09)",
+                cursor: "pointer",
+              }}
+            >
+              <div className="p-3 flex flex-col items-center gap-2">
+                <div className="relative w-full">
+                  <div className="w-full aspect-square rounded-lg flex items-center justify-center" style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.06)" }}>
+                    {asset.imageUrl
+                      ? <img src={asset.imageUrl} alt={asset.name} className="w-full h-full object-contain rounded-lg" />
+                      : <img src={bagIconImg} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />}
+                  </div>
+                  {asset.count > 1 && (
+                    <span className="absolute bottom-1.5 right-1.5 font-fantasy text-xs font-bold px-2 py-0.5 rounded-md" style={{ background: "rgba(10,20,5,.92)", color: "#bef264", border: "1px solid rgba(190,242,100,.4)" }}>
+                      ×{asset.count}
+                    </span>
+                  )}
+                </div>
+                <p className="font-fantasy text-[#d9f99d] text-sm font-semibold text-center truncate w-full">{asset.name}</p>
+              </div>
+            </button>
+          ))}
         </div>
       )}
       </section>
       </div>
+
+      {selectedHomeAsset && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setSelectedHomeAsset(null)}
+        >
+          <div
+            data-testid="modal-home-asset-detail"
+            className="relative w-[85%] max-w-sm rounded-xl overflow-hidden p-5"
+            style={{
+              background: "linear-gradient(145deg, rgba(10,31,20,.98), rgba(45,30,8,.98))",
+              border: "1px solid rgba(190,242,100,.38)",
+              boxShadow: "0 0 40px rgba(0,0,0,.65), 0 0 15px rgba(190,242,100,.1)",
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Close Home item details"
+              className="absolute right-3 top-3 h-8 w-8 rounded-full"
+              onClick={() => setSelectedHomeAsset(null)}
+              style={{ background: "rgba(0,0,0,.28)", border: "1px solid rgba(190,242,100,.3)", color: "#d9f99d" }}
+            >
+              ×
+            </button>
+            <div className="flex flex-col items-center gap-3 pt-4 text-center">
+              <div className="w-28 h-28 rounded-lg flex items-center justify-center" style={{ background: "rgba(0,0,0,.28)" }}>
+                {selectedHomeAsset.imageUrl
+                  ? <img src={selectedHomeAsset.imageUrl} alt={selectedHomeAsset.name} className="w-full h-full object-contain" />
+                  : <img src={bagIconImg} alt="" className="w-16 h-16 object-contain opacity-70" />}
+              </div>
+              <h3 className="font-fantasy text-[#e7f7a6] text-lg">{selectedHomeAsset.name}</h3>
+              <p className="font-fantasy text-[#aebc82] text-xs tracking-wider">
+                {selectedHomeAsset.kind === "home_bundle" ? "Home" : "Home Decor"}
+                {selectedHomeAsset.count > 1 ? ` · ×${selectedHomeAsset.count}` : ""}
+              </p>
+              <p className="font-fantasy text-[#8f856b] text-[10px] leading-relaxed">
+                {selectedHomeAsset.kind === "home_bundle"
+                  ? "Owned Home bundle. Activate and arrange it from Pet Home."
+                  : "Owned Home decoration. Place and arrange it from Pet Home."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedItem && (
         <div

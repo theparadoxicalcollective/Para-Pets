@@ -67,8 +67,11 @@ test("market artwork fields retain the requested card alignment", () => {
   assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 64[\s\S]*?center\/100% auto no-repeat/);
 });
 
-test("market item subfilters use simple text controls instead of ornate tab art", () => {
+test("market category subfilters use simple text controls under the shared groups", () => {
   assert.match(market, /function subFilterButtonStyle[\s\S]*?background: "transparent"/);
   assert.match(market, /function subFilterButtonStyle[\s\S]*?borderBottom: active/);
-  assert.match(market, /button-sub-filter-\$\{sf\.value\}[\s\S]*?subFilterButtonStyle\(itemsSubFilter === sf\.value\)/);
+  assert.match(market, /data-testid="market-browse-category-tabs"/);
+  assert.match(market, /button-market-category-\$\{category\}/);
+  assert.match(market, /subFilterButtonStyle\(marketCategory === category\)/);
+  assert.match(market, /gameItemCategoriesForGroup\(mainTab\)/);
 });
