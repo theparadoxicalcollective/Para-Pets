@@ -803,6 +803,8 @@ function InteriorViewer({
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
+        const petBrightness = Math.max(0.18, (100 - petDarkness) / 100);
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
         const isSleeping = !isActivelyDragging && isHouseInteriorSleepPosition(
@@ -834,7 +836,7 @@ function InteriorViewer({
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
-                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
                 <img
@@ -842,7 +844,7 @@ function InteriorViewer({
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
                   className={isActivelyDragging ? undefined : "pet-idle-squish"}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: `brightness(${petBrightness})`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
               {isSleeping && <PetSleepZzz />}
