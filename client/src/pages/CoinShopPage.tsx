@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { pendingPurchaseSession, clearPendingPurchase, PURCHASE_QUERY_KEYS, PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { useToast } from "@/hooks/use-toast";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import coinIconImg from "@assets/icon_coin.webp";
+import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 import coinPack100 from "@assets/Photoroom_20260629_101811_PM_1782789946363.png";
 import coinPack500 from "@assets/Photoroom_20260629_102009_PM_1782789946363.png";
 import coinPack1000 from "@assets/Photoroom_20260629_102249_PM_1782789946363.png";
@@ -944,7 +944,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     />
                   )}
                   <div className="flex items-center gap-1 relative">
-                    <img src={coinIconImg} alt="" className="w-4 h-4" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.5))" }} />
+                    <img src={PARA_PETS_COIN_IMAGE} alt="" className="w-4 h-4" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.5))" }} />
                     <span className="font-fantasy text-[#f0c040] text-sm tracking-wider" style={{ textShadow: "0 0 8px rgba(240,192,64,0.3)" }}>
                       {pack.coins.toLocaleString()}
                     </span>
@@ -1207,7 +1207,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </button>
 
           <img
-            src={coinIconImg}
+            src={PARA_PETS_COIN_IMAGE}
             alt=""
             style={{
               width: 88, height: 88, objectFit: "contain", marginBottom: 28,
@@ -1269,7 +1269,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
             <div style={{ marginBottom: "20px" }}>
               <img
-                src={coinIconImg}
+                src={PARA_PETS_COIN_IMAGE}
                 alt="coins"
                 style={{
                   width: "72px", height: "72px",
