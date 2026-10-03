@@ -74,5 +74,5 @@ test("Admin X-eye editor can rotate each head independently and runtime X eyes a
 
   // Runtime fire reactions already spread the saved per-head placement into PetXEyes,
   // so the new rotation persists everywhere this authored X-eye overlay is used.
-  assert.match(core, /<PetXEyes \.\.\.\(presentation\.placement\.eyes\[group\.head\.partType\]/);
+  assert.match(core, /<PetXEyes\s+\{\.\.\.\(presentation\.placement\.eyes\[group\.head\.partType\]/);
 });
