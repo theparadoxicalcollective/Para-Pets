@@ -18,7 +18,10 @@
 
   #game-stage {
     box-sizing: border-box;
-    border: 3px solid rgba(222, 178, 62, 0.9);
+    /* Decorate the frame without subtracting pixels from the phone canvas. */
+    border: 0;
+    outline: 3px solid rgba(222, 178, 62, 0.9);
+    outline-offset: -3px;
     border-radius: 18px;
     box-shadow:
       0 0 0 1px rgba(255, 231, 154, 0.28),
@@ -50,7 +53,10 @@
 
   #game-stage {
     box-sizing: border-box;
-    border: 3px solid rgba(222, 178, 62, 0.9);
+    /* Decorate the frame without subtracting pixels from the phone canvas. */
+    border: 0;
+    outline: 3px solid rgba(222, 178, 62, 0.9);
+    outline-offset: -3px;
     border-radius: 18px;
     box-shadow:
       0 0 0 1px rgba(255, 231, 154, 0.28),

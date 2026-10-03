@@ -12,10 +12,12 @@ export type DisplayMode =
 export type RuntimeMode = {
   displayMode: DisplayMode;
   isStandalone: boolean;
+  /** Rendering safety follows device capabilities, separately from viewport layout. */
+  mobileDevice?: boolean;
   browserClassification: string;
 };
 
-type RuntimeNavigator = Pick<Navigator, "userAgent"> & { standalone?: boolean };
+type RuntimeNavigator = Pick<Navigator, "userAgent"> & { standalone?: boolean; maxTouchPoints?: number };
 type RuntimeEnvironment = {
   viewportWidth?: number;
   standalone?: boolean;
@@ -39,15 +41,20 @@ export function detectRuntimeMode(
   const standalone = environment.standalone ?? (!!nav.standalone || match("(display-mode: standalone)"));
   const coarsePointer = environment.coarsePointer ?? match("(pointer: coarse)");
   const canHover = environment.canHover ?? match("(hover: hover)");
+  // Tablet desktop-style user agents and attached mice must not opt mobile
+  // hardware out of memory safeguards. Layout still follows viewport width.
+  const mobileDevice = /iP(?:hone|ad|od)|Android/i.test(ua)
+    || (/Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1)
+    || (coarsePointer && !canHover);
   const iosPhone = /iP(?:hone|od)/.test(ua);
   const android = /Android/i.test(ua);
 
-  if (iosPhone && standalone) return { displayMode: "ios-standalone", isStandalone: true, browserClassification: "ios-standalone" };
+  if (iosPhone && standalone) return { mobileDevice, displayMode: "ios-standalone", isStandalone: true, browserClassification: "ios-standalone" };
   if (iosPhone) {
     const safari = /Safari/.test(ua) && /Version\//.test(ua) && !/(CriOS|FxiOS|EdgiOS|OPiOS)/.test(ua);
     return safari
-      ? { displayMode: "ios-browser", isStandalone: false, browserClassification: "safari" }
-      : { displayMode: "ios-embedded", isStandalone: false, browserClassification: "ios-embedded" };
+      ? { mobileDevice, displayMode: "ios-browser", isStandalone: false, browserClassification: "safari" }
+      : { mobileDevice, displayMode: "ios-embedded", isStandalone: false, browserClassification: "ios-embedded" };
   }
 
   const narrow = viewportWidth < WIDE_BREAKPOINT;
@@ -60,6 +67,7 @@ export function detectRuntimeMode(
           ? "android-chrome"
           : "android-browser";
     return {
+      mobileDevice,
       displayMode: standalone ? "android-standalone" : "android-browser",
       isStandalone: standalone,
       browserClassification,
@@ -68,9 +76,10 @@ export function detectRuntimeMode(
 
   if (narrow) {
     const touchClassification = coarsePointer && !canHover ? "touch-mobile" : "mobile";
-    return { displayMode: "mobile-browser", isStandalone: standalone, browserClassification: touchClassification };
+    return { mobileDevice, displayMode: "mobile-browser", isStandalone: standalone, browserClassification: touchClassification };
   }
   return {
+    mobileDevice,
     displayMode: "desktop",
     isStandalone: standalone,
     browserClassification: coarsePointer && !canHover ? "tablet" : "desktop",
