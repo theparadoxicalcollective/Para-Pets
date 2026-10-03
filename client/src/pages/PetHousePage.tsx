@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
+import { HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
@@ -501,10 +502,7 @@ function InteriorViewer({
         panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h };
       } catch {}
     };
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    ro.observe(container);
-    return () => ro.disconnect();
+    return observeHomeViewport(container, recalc);
   }, [aspect, panStateRef]);
 
   const toggleLightEffect = useCallback((effect: HouseInteriorEffect) => {
@@ -524,7 +522,7 @@ function InteriorViewer({
     const effectTarget = e.target instanceof Element
       ? e.target.closest<HTMLElement>("[data-player-toggle-effect-id]")
       : null;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -555,6 +553,7 @@ function InteriorViewer({
     e.stopPropagation();
     const drag = panStartRef.current;
     panStartRef.current = null;
+    if (e.type === "pointercancel") return;
     if (!drag || drag.pid !== e.pointerId || drag.moved || !drag.toggleEffectId) return;
     const effect = effects.find(candidate => candidate.id === drag.toggleEffectId);
     if (effect) toggleLightEffect(effect);
@@ -563,7 +562,7 @@ function InteriorViewer({
   // Decor drag handlers
   const onItemDown = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     itemDragRef.current = {
       id: item.id,
       startXPct: item.xPct,
@@ -622,7 +621,7 @@ function InteriorViewer({
   // Pet drag handlers
   const onPetDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     const savedX = parsePetPct(pet.posLeft) ?? 0.5;
     const savedY = parsePetPct(pet.posTop) ?? 0.5;
     petDragRef.current = {
@@ -719,7 +718,7 @@ function InteriorViewer({
     <div
       ref={containerRef}
       className="fixed inset-0"
-      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
       onPointerDown={onContainerDown}
       onPointerMove={onContainerMove}
       onPointerUp={onContainerUp}
@@ -738,7 +737,7 @@ function InteriorViewer({
             setAspect(a);
           }
         }}
-        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
       />
 
       <HomeInteriorDarknessLayer
@@ -1265,7 +1264,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     if (petInvDragRef.current?.pid === e.pointerId) return;
     if (selectedPlacedId) setSelectedPlacedId(null);
     if (outdoorPopupPetId) setOutdoorPopupPetId(null);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX, selectedPlacedId, outdoorPopupPetId]);
 
@@ -1298,6 +1297,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [bgAspect]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (e.type === "pointercancel") {
+      petInvDragRef.current = null;
+      inventoryDragRef.current = null;
+      panStartRef.current = null;
+      setPetInvDragState(null);
+      setInventoryDragState(null);
+      setIsDraggingPet(false);
+      setIsDraggingDecor(false);
+      return;
+    }
+
     // Pet inventory drag end
     const petDrag = petInvDragRef.current;
     if (petDrag && petDrag.pid === e.pointerId) {
@@ -1412,7 +1422,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Outdoor decor drag ─────────────────────────────────────────────────────
   const handlePlacedDragStart = useCallback((e: React.PointerEvent, item: PlacedDecorItem) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     placedDragRef.current = {
       id: item.id,
       startXPct: item.xPct,
@@ -1471,7 +1481,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Outdoor pet repositioning drag ─────────────────────────────────────────
   const handlePetDragStart = useCallback((e: React.PointerEvent, pet: HousePet, startXPct: number, startYPct: number) => {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
     petDragRef.current = {
       inventoryId: pet.inventoryId,
       startXPct,
@@ -1508,7 +1518,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePetDragEnd = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    if (!drag) {
+    if (!drag || e.type === "pointercancel") {
       setPetDragLive(null);
       return;
     }
@@ -1552,13 +1562,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // ── Inventory drag starters ────────────────────────────────────────────────
   const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null, itemType: HomeSceneItemType) => {
     e.stopPropagation();
-    containerRef.current?.setPointerCapture(e.pointerId);
+    safeSetPointerCapture(containerRef.current, e.pointerId);
     inventoryDragRef.current = { decorItemId, imageUrl, itemType, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
 
   const handlePetInvDragStart = useCallback((e: React.PointerEvent, pet: HousePet) => {
     e.stopPropagation();
-    containerRef.current?.setPointerCapture(e.pointerId);
+    safeSetPointerCapture(containerRef.current, e.pointerId);
     petInvDragRef.current = { pet, ghostX: e.clientX, ghostY: e.clientY, startX: e.clientX, startY: e.clientY, isDragging: false, pid: e.pointerId };
   }, []);
 
@@ -1578,7 +1588,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       timer: setTimeout(() => {
         // Hold confirmed: steal pointer from browser scroll and begin drag
         playGrab();
-        el.setPointerCapture(pid);
+        safeSetPointerCapture(el, pid);
         petInvDragRef.current = { pet, ghostX: startX, ghostY: startY, startX, startY, isDragging: true, pid };
         setPetInvDragState({ pet, ghostX: startX, ghostY: startY });
         setIsDraggingPet(true);
@@ -1639,7 +1649,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     <div
       ref={containerRef}
       className="relative w-full h-screen-frame"
-      style={{ maxWidth: "768px", margin: "0 auto", touchAction: "none", cursor: "grab" }}
+      style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -1659,7 +1669,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               const img = e.currentTarget;
               if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
             }}
-            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
+            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
           />
         ) : !bgUrl ? (
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
