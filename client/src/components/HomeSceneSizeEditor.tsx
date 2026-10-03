@@ -258,8 +258,8 @@ export function HomeSceneSizeEditor({
       </div>
 
       <div
-        className="px-4 pt-4 pb-5 flex flex-col gap-3"
-        style={{ background: "rgba(10,12,8,0.98)", borderTop: "1px solid rgba(255,215,0,0.22)" }}
+        className="px-4 pt-4 pb-5 flex flex-col gap-3 overflow-y-auto"
+        style={{ background: "rgba(10,12,8,0.98)", borderTop: "1px solid rgba(255,215,0,0.22)", maxHeight: "52dvh" }}
       >
         <div className="flex items-center justify-between">
           <div>
@@ -312,7 +312,7 @@ export function HomeSceneSizeEditor({
               <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#ffd700" }}>{itemLabel} Effect</p>
               <p className="font-fantasy text-[8px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,.42)" }}>
                 {itemLabel === "Object"
-                  ? "Drag Lamp Light onto the object. A player tap turns that placed lamp on or off; dragging still moves it."
+                  ? "Choose Lamp Light or Tap Image. A normal player tap activates the saved Object effect while dragging still moves the item."
                   : "Drag Sleep Spot onto the decor. Players activate it by dragging a pet onto that decor."}
               </p>
             </div>
