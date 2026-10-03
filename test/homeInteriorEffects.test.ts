@@ -5,15 +5,17 @@ import {
   HOUSE_INTERIOR_DARKNESS_MAX,
   HOUSE_INTERIOR_EFFECT_MAX_COUNT,
   HOUSE_INTERIOR_EFFECT_TYPES,
-  HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST,
-  HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST,
+  HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST,
   HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO,
   PET_HOUSE_PLAYER_MAX_SCALE,
   PET_HOUSE_PLAYER_MIN_SCALE,
   clampPetHousePlayerScale,
+  getHouseInteriorLightPeakBoost,
+  getHouseInteriorLightRadiusRatio,
+  getHouseInteriorLocalLightBoost,
   getHouseInteriorPointDarkness,
-  getHouseInteriorSideDarkness,
   getHouseInteriorSleepSnapPosition,
+  isHouseInteriorPointOverActiveFire,
   isHouseInteriorSleepPosition,
   sanitizeHouseInteriorDarkness,
   sanitizeHouseInteriorEffects,
@@ -41,58 +43,51 @@ test("interior darkness is bounded and defaults safely", () => {
   assert.equal(sanitizeHouseInteriorDarkness(120), 90);
 });
 
-test("room darkness is the lights-off baseline and active lights brighten their side", () => {
+test("room darkness stays the lights-off baseline while active lights brighten local circular areas", () => {
   const lights = [
     { id: "left-fire", type: "fire" as const, x: 0.2, y: 0.5, size: 14 },
     { id: "right-lamp", type: "warm_glow" as const, x: 0.8, y: 0.5, size: 18 },
     { id: "center-candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 },
   ];
-
   const allOff = new Set(lights.map(light => light.id));
-  assert.deepEqual(getHouseInteriorSideDarkness(60, lights, allOff), {
-    leftDarkness: 60,
-    rightDarkness: 60,
-    leftBoost: 0,
-    rightBoost: 0,
-  });
 
-  const leftOnly = getHouseInteriorSideDarkness(60, lights, new Set(["right-lamp", "center-candle"]));
-  assert.equal(leftOnly.leftBoost, HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST);
-  assert.equal(leftOnly.leftDarkness, 50);
-  assert.equal(leftOnly.rightDarkness, 60);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, allOff, 0.2, 0.5, 2), 0);
+  assert.equal(getHouseInteriorPointDarkness(60, lights, allOff, 0.2, 0.5, 2), 60);
 
-  const centerOnly = getHouseInteriorSideDarkness(60, lights, new Set(["left-fire", "right-lamp"]));
-  assert.equal(centerOnly.leftDarkness, 50);
-  assert.equal(centerOnly.rightDarkness, 50);
+  const fireOnlyOff = new Set(["right-lamp", "center-candle"]);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2, 0.5, 2), getHouseInteriorLightPeakBoost("fire"));
+  assert.equal(getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.2, 0.5, 2), 26);
+  assert.equal(getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.8, 0.5, 2), 60);
 
-  const allOn = getHouseInteriorSideDarkness(60, lights);
-  assert.equal(allOn.leftDarkness, 46);
-  assert.equal(allOn.rightDarkness, 46);
+  const fireRadius = getHouseInteriorLightRadiusRatio(lights[0]);
+  assert.equal(fireRadius > lights[0].size / 100, true);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2 + fireRadius / 2 / 2, 0.5, 2) > 0, true);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2 + fireRadius / 2 + 0.01, 0.5, 2), 0);
 
-  const manyLeftLights = Array.from({ length: 10 }, (_, index) => ({
-    id: `left-${index}`,
+  const stackedLights = Array.from({ length: 10 }, (_, index) => ({
+    id: `light-${index}`,
     type: "fire" as const,
-    x: 0.2,
+    x: 0.5,
     y: 0.5,
     size: 14,
   }));
-  assert.equal(getHouseInteriorSideDarkness(90, manyLeftLights).leftBoost, HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST);
+  assert.equal(getHouseInteriorLocalLightBoost(stackedLights, new Set(), 0.5, 0.5, 2), HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST);
 });
 
-test("interior pets use the same side-aware darkness as the room", () => {
+test("interior pets use the same local light falloff as the room", () => {
   const lights = [
-    { id: "left-fire", type: "fire" as const, x: 0.2, y: 0.5, size: 14 },
-    { id: "right-lamp", type: "warm_glow" as const, x: 0.8, y: 0.5, size: 18 },
+    { id: "fire", type: "fire" as const, x: 0.25, y: 0.55, size: 14 },
   ];
+  const allOff = new Set(["fire"]);
 
-  assert.equal(getHouseInteriorPointDarkness(60, lights, new Set(["right-lamp"]), 0.2), 50);
-  assert.equal(getHouseInteriorPointDarkness(60, lights, new Set(["right-lamp"]), 0.8), 60);
-  assert.equal(getHouseInteriorPointDarkness(60, lights, new Set(["left-fire", "right-lamp"]), 0.5), 60);
+  assert.equal(getHouseInteriorPointDarkness(70, lights, allOff, 0.25, 0.55, 2), 70);
+  assert.equal(getHouseInteriorPointDarkness(70, lights, new Set(), 0.25, 0.55, 2), 36);
+  assert.equal(getHouseInteriorPointDarkness(70, lights, new Set(), 0.9, 0.55, 2), 70);
 
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   for (const source of [owner, visitor]) {
-    assert.match(source, /getHouseInteriorPointDarkness\(darkness, effects, offEffectIds, xPct\)/);
+    assert.match(source, /getHouseInteriorPointDarkness\(darkness, effects, offEffectIds, xPct, yPct, imageAspect\)/);
     assert.match(source, /const petBrightness = \(100 - petDarkness\) \/ 100/);
     assert.match(source, /brightness\(\$\{petBrightness\}\)/);
   }
@@ -170,15 +165,11 @@ test("Sleep Square hit testing and drop snapping use the same scene-space geomet
   assert.equal(isHouseInteriorSleepPosition(effects, 0.5, 0.61, 2), false);
 
   assert.deepEqual(
-    getHouseInteriorSleepSnapPosition(effects, 0.56, 0.5, 2),
+    getHouseInteriorSleepSnapPosition(effects, 0.54, 0.5, 2),
     { effectId: "sleep-1", x: 0.5, y: 0.5 },
   );
-  // A pet can visibly overlap a sleep spot even when its center lands outside
-  // the square. Footprint-aware catching should still snap it into the spot.
-  assert.deepEqual(
-    getHouseInteriorSleepSnapPosition(effects, 0.09, 0.5, 2, 0.5, 0.37, 0.05),
-    { effectId: "sleep-1", x: 0.5, y: 0.5 },
-  );
+  assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.56, 0.5, 2), null);
+  assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.5, 0.61, 2), null);
   assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.7, 0.5, 2), null);
 });
 
@@ -214,8 +205,8 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
   assert.match(effects, /adminPreview \? <SleepSquareVisual \/> : <SleepSpotHintVisual \/>/);
 
   assert.match(owner, /getHouseInteriorSleepSnapPosition/);
-  assert.match(owner, /visiblePetSize \/ 2 \/ imgWidthRef\.current/);
-  assert.match(owner, /visiblePetSize \/ 2 \/ Math\.max\(containerHRef\.current, 1\)/);
+  assert.doesNotMatch(owner, /visiblePetSize \/ 2 \/ imgWidthRef\.current/);
+  assert.doesNotMatch(owner, /visiblePetSize \/ 2 \/ Math\.max\(containerHRef\.current, 1\)/);
   assert.match(owner, /sleepSnap\?\.x \?\? rawXPct/);
   assert.match(owner, /HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO/);
   assert.match(owner, /sleepSnap\.y - sleepYOffsetPct/);
@@ -227,6 +218,27 @@ test("Sleep Square switches interior pets to sleep mode and shows Zzz for owners
     assert.match(source, /data-sleeping=\{isSleeping \? "true" : undefined\}/);
     assert.match(source, /"sleep"/);
   }
+});
+
+test("active fire gives pets the closed-eye X-eyes Easter egg and delayed smoke", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  const reaction = read("client/src/components/PetFireReaction.tsx");
+
+  const fire = [{ id: "fire-1", type: "fire" as const, x: 0.5, y: 0.5, size: 14 }];
+  assert.equal(isHouseInteriorPointOverActiveFire(fire, new Set(), 0.5, 0.5, 2), true);
+  assert.equal(isHouseInteriorPointOverActiveFire(fire, new Set(["fire-1"]), 0.5, 0.5, 2), false);
+  assert.equal(isHouseInteriorPointOverActiveFire(fire, new Set(), 0.8, 0.5, 2), false);
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /isHouseInteriorPointOverActiveFire/);
+    assert.match(source, /isOnFire \? "sleep"/);
+    assert.match(source, /isOnFire && <PetFireReaction \/>/);
+  }
+
+  assert.match(reaction, /<span>×<\/span>/);
+  assert.match(reaction, /delay: "2\.2s"/);
+  assert.match(reaction, /para-pet-fire-smoke/);
 });
 
 test("players can locally toggle Campfire, Candle Light, and Lamp Glow without changing saved placement", () => {
@@ -252,7 +264,7 @@ test("players can locally toggle Campfire, Candle Light, and Lamp Glow without c
   }
 });
 
-test("saved room darkness is the lights-off baseline and player light toggles brighten left/right sides", () => {
+test("saved room darkness is the lights-off baseline and active lights create circular local washes", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
@@ -261,18 +273,18 @@ test("saved room darkness is the lights-off baseline and player light toggles br
   for (const source of [owner, visitor]) {
     assert.match(source, /<HomeInteriorDarknessLayer[\s\S]*effects=\{effects\}[\s\S]*offEffectIds=\{offEffectIds\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerH\}[\s\S]*zIndex=\{2\}/);
     assert.match(source, /darkness=\{openInterior\.interiorDarkness\}/);
-    assert.match(source, /interiorDarkness: b\.interiorDarkness \?\? 0/);
   }
 
-  assert.match(effects, /getHouseInteriorSideDarkness/);
-  assert.match(effects, /data-left-light-boost=\{sideLighting\.leftBoost\}/);
-  assert.match(effects, /data-right-light-boost=\{sideLighting\.rightBoost\}/);
-  assert.match(effects, /linear-gradient\(90deg/);
-  assert.match(effects, /const useImageSpace/);
-  assert.match(effects, /left: panX/);
-  assert.match(effects, /width: imgWidth/);
+  assert.match(effects, /home-interior-light-wash-/);
+  assert.match(effects, /getHouseInteriorLightRadiusRatio/);
+  assert.match(effects, /radial-gradient\(circle/);
+  assert.match(effects, /mixBlendMode: "screen"/);
+  assert.doesNotMatch(effects, /data-left-light-boost/);
+  assert.doesNotMatch(effects, /data-right-light-boost/);
+  assert.doesNotMatch(effects, /sideLighting\.leftDarkness/);
+  assert.doesNotMatch(effects, /sideLighting\.rightDarkness/);
 
-  // Admin preview intentionally remains the exact saved all-lights-off baseline.
+  // Admin preview intentionally shows the exact all-lights-off darkness baseline.
   assert.match(admin, /<HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{5\} \/>/);
 });
 

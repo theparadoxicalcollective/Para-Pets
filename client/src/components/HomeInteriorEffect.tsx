@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { getHouseInteriorSideDarkness, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   type: HouseInteriorEffectType;
@@ -353,40 +353,64 @@ export function HomeInteriorDarknessLayer({
   const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
   if (safeDarkness <= 0) return null;
 
-  const sideLighting = effects
-    ? getHouseInteriorSideDarkness(safeDarkness, effects, offEffectIds)
-    : { leftDarkness: safeDarkness, rightDarkness: safeDarkness, leftBoost: 0, rightBoost: 0 };
-  const leftOpacity = sideLighting.leftDarkness / 100;
-  const rightOpacity = sideLighting.rightDarkness / 100;
-  const centerOpacity = (leftOpacity + rightOpacity) / 2;
   const useImageSpace = Number.isFinite(panX) && Number.isFinite(imgWidth) && Number.isFinite(sceneHeight)
     && (imgWidth ?? 0) > 0 && (sceneHeight ?? 0) > 0;
+  const activeLights = effects?.filter(effect =>
+    isHouseInteriorLightEffectType(effect.type) && !offEffectIds?.has(effect.id)
+  ) ?? [];
 
   return (
-    <div
-      aria-hidden
-      data-testid="home-interior-darkness-layer"
-      data-left-light-boost={sideLighting.leftBoost}
-      data-right-light-boost={sideLighting.rightBoost}
-      style={{
-        position: "absolute",
-        ...(useImageSpace ? {
-          left: panX,
-          top: 0,
-          width: imgWidth,
-          height: sceneHeight,
-        } : { inset: 0 }),
-        zIndex,
-        pointerEvents: "none",
-        transition: "background 260ms ease-out",
-        background: `linear-gradient(90deg,
-          rgba(0,0,0,${leftOpacity}) 0%,
-          rgba(0,0,0,${leftOpacity}) 42%,
-          rgba(0,0,0,${centerOpacity}) 50%,
-          rgba(0,0,0,${rightOpacity}) 58%,
-          rgba(0,0,0,${rightOpacity}) 100%)`,
-      }}
-    />
+    <>
+      <div
+        aria-hidden
+        data-testid="home-interior-darkness-layer"
+        style={{
+          position: "absolute",
+          ...(useImageSpace ? {
+            left: panX,
+            top: 0,
+            width: imgWidth,
+            height: sceneHeight,
+          } : { inset: 0 }),
+          zIndex,
+          pointerEvents: "none",
+          background: `rgba(0,0,0,${safeDarkness / 100})`,
+          transition: "background 260ms ease-out",
+        }}
+      />
+      {useImageSpace && activeLights.map(effect => {
+        const radiusPx = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * (sceneHeight ?? 0));
+        const diameter = radiusPx * 2;
+        const glow = effect.type === "fire"
+          ? "rgba(255,151,45,0.58)"
+          : effect.type === "candle_light"
+            ? "rgba(255,225,154,0.46)"
+            : "rgba(255,238,181,0.52)";
+        return (
+          <div
+            key={`light-wash-${effect.id}`}
+            aria-hidden
+            data-testid={`home-interior-light-wash-${effect.id}`}
+            style={{
+              position: "absolute",
+              left: (panX ?? 0) + effect.x * (imgWidth ?? 0),
+              top: effect.y * (sceneHeight ?? 0),
+              width: diameter,
+              height: diameter,
+              transform: "translate(-50%, -50%)",
+              borderRadius: "50%",
+              zIndex: zIndex + 1,
+              pointerEvents: "none",
+              background: `radial-gradient(circle, ${glow} 0%, rgba(255,210,120,0.24) 38%, rgba(255,177,68,0.08) 68%, transparent 100%)`,
+              mixBlendMode: "screen",
+              filter: "blur(4px)",
+              opacity: 0.95,
+              transition: "opacity 260ms ease-out",
+            }}
+          />
+        );
+      })}
+    </>
   );
 }
 

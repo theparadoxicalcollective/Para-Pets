@@ -50,9 +50,22 @@ export const HOUSE_INTERIOR_EFFECT_MIN_SIZE = 4;
 export const HOUSE_INTERIOR_EFFECT_MAX_SIZE = 40;
 export const HOUSE_INTERIOR_DARKNESS_MIN = 0;
 export const HOUSE_INTERIOR_DARKNESS_MAX = 90;
-export const HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST = 10;
-export const HOUSE_INTERIOR_LIGHT_ADDITIONAL_BOOST = 4;
-export const HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST = 26;
+export const HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST = 46;
+
+export function getHouseInteriorLightRadiusRatio(effect: HouseInteriorEffect): number {
+  const sizeRatio = effect.size / 100;
+  if (effect.type === "fire") return sizeRatio * 2.4;
+  if (effect.type === "candle_light") return sizeRatio * 1.9;
+  if (effect.type === "warm_glow") return sizeRatio * 2.15;
+  return 0;
+}
+
+export function getHouseInteriorLightPeakBoost(type: HouseInteriorEffectType): number {
+  if (type === "fire") return 34;
+  if (type === "candle_light") return 24;
+  if (type === "warm_glow") return 30;
+  return 0;
+}
 
 export function isHouseInteriorEffectType(value: unknown): value is HouseInteriorEffectType {
   return typeof value === "string" && (HOUSE_INTERIOR_EFFECT_TYPES as readonly string[]).includes(value);
@@ -62,11 +75,34 @@ export function isHouseInteriorLightEffectType(type: HouseInteriorEffectType): b
   return type === "fire" || type === "candle_light" || type === "warm_glow";
 }
 
-export interface HouseInteriorSideDarkness {
-  leftDarkness: number;
-  rightDarkness: number;
-  leftBoost: number;
-  rightBoost: number;
+export function getHouseInteriorLocalLightBoost(
+  effects: readonly HouseInteriorEffect[],
+  offEffectIds: ReadonlySet<string>,
+  xPct: number,
+  yPct: number,
+  imageAspect: number,
+): number {
+  if (!Number.isFinite(imageAspect) || imageAspect <= 0) return 0;
+  const safeX = Number.isFinite(xPct) ? xPct : 0.5;
+  const safeY = Number.isFinite(yPct) ? yPct : 0.5;
+  let totalBoost = 0;
+
+  for (const effect of effects) {
+    if (!isHouseInteriorLightEffectType(effect.type) || offEffectIds.has(effect.id)) continue;
+    const radius = getHouseInteriorLightRadiusRatio(effect);
+    if (radius <= 0) continue;
+
+    const dxScene = (safeX - effect.x) * imageAspect;
+    const dyScene = safeY - effect.y;
+    const distance = Math.hypot(dxScene, dyScene);
+    if (distance >= radius) continue;
+
+    const normalized = distance / radius;
+    const falloff = Math.pow(1 - normalized, 1.35);
+    totalBoost += getHouseInteriorLightPeakBoost(effect.type) * falloff;
+  }
+
+  return Math.min(HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST, totalBoost);
 }
 
 export function getHouseInteriorPointDarkness(
@@ -74,46 +110,37 @@ export function getHouseInteriorPointDarkness(
   effects: readonly HouseInteriorEffect[],
   offEffectIds: ReadonlySet<string>,
   xPct: number,
+  yPct: number,
+  imageAspect: number,
 ): number {
-  const side = getHouseInteriorSideDarkness(darkness, effects, offEffectIds);
-  const x = Math.max(0, Math.min(1, Number.isFinite(xPct) ? xPct : 0.5));
-  if (x <= 0.42) return side.leftDarkness;
-  if (x >= 0.58) return side.rightDarkness;
-  const mix = (x - 0.42) / 0.16;
-  return side.leftDarkness * (1 - mix) + side.rightDarkness * mix;
+  const baseline = sanitizeHouseInteriorDarkness(darkness);
+  return Math.max(0, baseline - getHouseInteriorLocalLightBoost(
+    effects,
+    offEffectIds,
+    xPct,
+    yPct,
+    imageAspect,
+  ));
 }
 
-export function getHouseInteriorSideDarkness(
-  darkness: unknown,
+export function isHouseInteriorPointOverActiveFire(
   effects: readonly HouseInteriorEffect[],
-  offEffectIds: ReadonlySet<string> = new Set<string>(),
-): HouseInteriorSideDarkness {
-  const baseline = sanitizeHouseInteriorDarkness(darkness);
-  let leftLights = 0;
-  let rightLights = 0;
+  offEffectIds: ReadonlySet<string>,
+  xPct: number,
+  yPct: number,
+  imageAspect: number,
+): boolean {
+  if (!Number.isFinite(imageAspect) || imageAspect <= 0) return false;
+  const safeX = Number.isFinite(xPct) ? xPct : 0.5;
+  const safeY = Number.isFinite(yPct) ? yPct : 0.5;
 
-  for (const effect of effects) {
-    if (!isHouseInteriorLightEffectType(effect.type) || offEffectIds.has(effect.id)) continue;
-    // Lights close to center softly influence both room halves.
-    if (effect.x <= 0.54) leftLights += 1;
-    if (effect.x >= 0.46) rightLights += 1;
-  }
-
-  const boostForCount = (count: number) => count <= 0
-    ? 0
-    : Math.min(
-        HOUSE_INTERIOR_LIGHT_MAX_BRIGHTNESS_BOOST,
-        HOUSE_INTERIOR_LIGHT_BASE_BRIGHTNESS_BOOST + (count - 1) * HOUSE_INTERIOR_LIGHT_ADDITIONAL_BOOST,
-      );
-
-  const leftBoost = boostForCount(leftLights);
-  const rightBoost = boostForCount(rightLights);
-  return {
-    leftBoost,
-    rightBoost,
-    leftDarkness: Math.max(0, baseline - leftBoost),
-    rightDarkness: Math.max(0, baseline - rightBoost),
-  };
+  return effects.some(effect => {
+    if (effect.type !== "fire" || offEffectIds.has(effect.id)) return false;
+    const halfHeightPct = effect.size / 200;
+    const halfWidthPct = halfHeightPct / imageAspect;
+    return Math.abs(safeX - effect.x) <= halfWidthPct
+      && Math.abs(safeY - effect.y) <= halfHeightPct;
+  });
 }
 
 export function sanitizeHouseInteriorDarkness(value: unknown): number {
@@ -166,7 +193,7 @@ export function getHouseInteriorSleepSnapPosition(
   xPct: number,
   yPct: number,
   imageAspect: number,
-  paddingRatio = 0.35,
+  paddingRatio = 0,
   petHalfWidthPct = 0,
   petHalfHeightPct = 0,
 ): HouseInteriorSleepSnapPosition | null {
