@@ -8,8 +8,7 @@ import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import { getQuestGuideSurface, guideDialogMaxHeight } from "@/lib/questGuideViewport";
 import { usePrimaryQuestGuideActive } from "@/lib/questGuideOwnership";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
-
-const pawCoin = "/paw-print-coin.webp";
+import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 const API = "/api/quests/lonelle-lost-adornment";
 const WORLD = "/world/swamp";
 const CLEARING = "/explore/elysian-bayou-clearing";
@@ -240,7 +239,7 @@ export default function LonelleQuestOverlay() {
       <section role="dialog" aria-modal="true" aria-label="Quest rewards" data-testid="lonelle-quest-rewards" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#ffe28b] p-6 text-center font-fantasy text-[#fff6d5] shadow-[0_0_40px_#e8bd6c88]" style={{ maxHeight: dialogMaxHeight, background: "radial-gradient(#31513a,#12251e)" }}>
         <span className="text-3xl">✦</span><h2 className="mt-2 text-2xl text-[#ffe28b]">Quest Complete!</h2><p className="mt-2 text-sm">Lonelle's thanks are yours.</p>
         <div className="mt-5 flex items-center justify-center gap-4 rounded-xl bg-black/20 p-3">{prize.reward?.imageUrl && <img src={prize.reward.imageUrl} alt="Firefly Cluster" className="h-20 w-20 object-contain" />}<strong>{prize.reward?.name ?? "Firefly Cluster"}</strong></div>
-        <div className="mt-3 flex items-center justify-center gap-2 text-xl font-bold"><img src={pawCoin} alt="Paw print coins" className="h-8 w-8 object-contain" />+{prize.coinsGranted}</div>
+        <div className="mt-3 flex items-center justify-center gap-2 text-xl font-bold"><img src={PARA_PETS_COIN_IMAGE} alt="Paw print coins" className="h-8 w-8 object-contain" />+{prize.coinsGranted}</div>
         <button type="button" data-testid="button-close-lonelle-rewards" onClick={() => setPrize(null)} className="mt-5 w-full rounded-xl bg-[#e8c46e] p-3 font-bold text-[#13281d]">Wonderful!</button>
       </section>
     </div>, surface.target)}
