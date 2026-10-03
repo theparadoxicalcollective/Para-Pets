@@ -4,6 +4,7 @@ import test from "node:test";
 
 const petHouse = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
 const feedingOverlay = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+const petHeartParticle = readFileSync("client/src/components/PetHeartParticle.tsx", "utf8");
 
 test("outdoor pet edit panel follows live drag coordinates and current pet data", () => {
   assert.match(petHouse, /const \[outdoorPopupPetId, setOutdoorPopupPetId\] = useState<string \| null>\(null\)/);
@@ -36,5 +37,6 @@ test("Pet Care has no rectangular gold drag-target outline", () => {
   assert.doesNotMatch(feedingOverlay, /2px solid rgba\(255,215,0,0\.75\)/);
   assert.match(petTarget, /petGlow/);
   assert.match(feedingOverlay, /feed-sparkle/);
-  assert.match(feedingOverlay, /feed-heart-rise/);
+  assert.match(feedingOverlay, /<PetHeartParticle/);
+  assert.match(petHeartParticle, /feed-heart-rise/);
 });
