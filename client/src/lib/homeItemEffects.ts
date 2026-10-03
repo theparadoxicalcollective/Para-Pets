@@ -9,6 +9,7 @@ export interface HomeEffectPlacement {
   xPct: number;
   yPct: number;
   size: number;
+  flipped?: boolean;
   effectEnabled?: boolean;
   item: {
     type: HomeSceneItemType;
