@@ -90,7 +90,7 @@ export function registerHomeDecorRoutes(
         const raw = req.body?.homeEffect;
         const homeEffect = sanitizeHomeCatalogEffect("decor", raw);
         if (raw !== null && raw !== "" && homeEffect === null) {
-          return res.status(400).json({ message: "Decor effect must be sleep or null" });
+          return res.status(400).json({ message: "Decor effect must be sleep, lamp_light, or null" });
         }
         patch.homeEffect = homeEffect;
       }
@@ -279,7 +279,9 @@ export function registerHomeDecorRoutes(
       }
 
       if (effectEnabled !== undefined && placement) {
-        if (placement.item.type !== "object" || (placement.item.homeEffect !== "lamp_light" && placement.item.homeEffect !== "tap")) {
+        const isLampToggle = placement.item.homeEffect === "lamp_light";
+        const isTapImageToggle = placement.item.type === "object" && placement.item.homeEffect === "tap";
+        if (!isLampToggle && !isTapImageToggle) {
           return res.status(400).json({ message: "This Home item has no tap effect" });
         }
         safeEffectEnabled = effectEnabled === true;
