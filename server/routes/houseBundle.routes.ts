@@ -464,7 +464,7 @@ export function registerHouseBundleRoutes(
       if (name !== undefined) updates.name = name;
       if (posX !== undefined) updates.posX = posX;
       if (posY !== undefined) updates.posY = posY;
-      if (width !== undefined) updates.width = Math.max(20, Math.min(400, Number(width)));
+      if (width !== undefined) updates.width = Math.max(20, Math.min(600, Number(width)));
       if (flippedX !== undefined) updates.flippedX = Boolean(flippedX);
       if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
       if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 2000);

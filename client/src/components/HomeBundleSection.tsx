@@ -12,10 +12,12 @@ import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PE
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
-  id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; homeSceneSize: number; homeEffect: HomeCatalogEffect | null;
+  homeEffectX: number; homeEffectY: number; homeEffectSize: number; createdAt: string;
 }
 interface HomeObjectItem {
-  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null; createdAt: string;
+  id: string; name: string; imageUrl: string | null; price: number; type: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageUrl: string | null;
+  homeEffectX: number; homeEffectY: number; homeEffectSize: number; createdAt: string;
 }
 interface HouseBundle {
   id: string; name: string; shopImageUrl: string | null; bgImageUrl: string | null; price: number; createdAt: string;
@@ -1439,7 +1441,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
                       data-testid={`button-grow-building-${b.id}`}
                       onPointerDown={e => e.stopPropagation()}
                       onPointerUp={e => e.stopPropagation()}
-                      onClick={e => { e.stopPropagation(); patchBuilding.mutate({ id: b.id, width: Math.min(400, b.width + 20) }); }}
+                      onClick={e => { e.stopPropagation(); patchBuilding.mutate({ id: b.id, width: Math.min(600, b.width + 20) }); }}
                       className="absolute z-30 w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ bottom: -20, right: -16, background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                     >
@@ -2014,8 +2016,21 @@ function DecorSubTab() {
   });
 
   const sizeMutation = useMutation({
-    mutationFn: async ({ id, homeSceneSize, homeEffect }: { id: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null }) =>
-      apiRequest("PATCH", `/api/admin/home-decor/${id}`, { homeSceneSize, homeEffect }),
+    mutationFn: async ({ id, homeSceneSize, homeEffect, effectTransform }: {
+      id: string;
+      homeSceneSize: number;
+      homeEffect: HomeCatalogEffect | null;
+      effectTransform?: { x: number; y: number; size: number };
+    }) =>
+      apiRequest("PATCH", `/api/admin/home-decor/${id}`, {
+        homeSceneSize,
+        homeEffect,
+        ...(effectTransform ? {
+          homeEffectX: effectTransform.x,
+          homeEffectY: effectTransform.y,
+          homeEffectSize: effectTransform.size,
+        } : {}),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/admin/home-decor"] });
       setEditingItem(null);
@@ -2062,7 +2077,8 @@ function DecorSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Decor"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize, homeEffect) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect })}
+          onSave={(homeSceneSize, homeEffect, _homeTapImageData, effectTransform) =>
+            sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect, effectTransform })}
           saving={sizeMutation.isPending}
         />
       )}
@@ -2118,8 +2134,23 @@ function ObjectsSubTab() {
   });
 
   const sizeMutation = useMutation({
-    mutationFn: async ({ id, homeSceneSize, homeEffect, homeTapImageData }: { id: string; homeSceneSize: number; homeEffect: HomeCatalogEffect | null; homeTapImageData?: string | null }) =>
-      apiRequest("PATCH", `/api/admin/home-objects/${id}`, { homeSceneSize, homeEffect, ...(homeTapImageData ? { homeTapImageData } : {}) }),
+    mutationFn: async ({ id, homeSceneSize, homeEffect, homeTapImageData, effectTransform }: {
+      id: string;
+      homeSceneSize: number;
+      homeEffect: HomeCatalogEffect | null;
+      homeTapImageData?: string | null;
+      effectTransform?: { x: number; y: number; size: number };
+    }) =>
+      apiRequest("PATCH", `/api/admin/home-objects/${id}`, {
+        homeSceneSize,
+        homeEffect,
+        ...(homeTapImageData ? { homeTapImageData } : {}),
+        ...(effectTransform ? {
+          homeEffectX: effectTransform.x,
+          homeEffectY: effectTransform.y,
+          homeEffectSize: effectTransform.size,
+        } : {}),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/admin/home-objects"] });
       setEditingItem(null);
@@ -2180,7 +2211,8 @@ function ObjectsSubTab() {
           item={editingItem as HomeSceneSizeEditorItem}
           itemLabel="Object"
           onClose={() => setEditingItem(null)}
-          onSave={(homeSceneSize, homeEffect, homeTapImageData) => sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect, homeTapImageData })}
+          onSave={(homeSceneSize, homeEffect, homeTapImageData, effectTransform) =>
+            sizeMutation.mutate({ id: editingItem.id, homeSceneSize, homeEffect, homeTapImageData, effectTransform })}
           saving={sizeMutation.isPending}
         />
       )}

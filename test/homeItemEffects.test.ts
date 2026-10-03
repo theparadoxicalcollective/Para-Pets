@@ -34,6 +34,9 @@ const placement = (
     homeEffect,
     imageUrl: "/normal.png",
     homeTapImageUrl,
+    homeEffectX: 0.5,
+    homeEffectY: 0.5,
+    homeEffectSize: 40,
   },
 });
 
@@ -73,6 +76,15 @@ test("placed Lamp Light follows either an Object or Decor and Tap Image Objects 
   const decorLamp = placement("decor-lamp-copy", "decor", "lamp_light", true);
   const [decorEffect] = buildHomeLampItemEffects([decorLamp], 800);
   assert.equal(decorEffect.id, "home-item-lamp:decor-lamp-copy");
+
+  const movedLamp = placement("moved-lamp", "decor", "lamp_light", true);
+  movedLamp.item.homeEffectX = 0.8;
+  movedLamp.item.homeEffectY = 0.2;
+  movedLamp.item.homeEffectSize = 80;
+  const [movedEffect] = buildHomeLampItemEffects([movedLamp], 800, undefined, 1200);
+  assert.ok(movedEffect.x > movedLamp.xPct);
+  assert.ok(movedEffect.y < movedLamp.yPct);
+  assert.ok(movedEffect.size > effect.size);
 
   const visitorOverride = buildHomeLampItemEffects([lamp], 800, () => true);
   assert.equal(visitorOverride.length, 1);
@@ -120,6 +132,11 @@ test("Admin uses the shared sizing editor and exposes Decor Sleep/Lamp plus Obje
   assert.match(editor, /home-scene-effect-drop-target/);
   assert.match(editor, /beginEffectDrag\(event, option\.effect\)/);
   assert.match(editor, /pointInsideTarget/);
+  assert.match(editor, /<HomeInteriorEffectsLayer/);
+  assert.match(editor, /Position \/ Resize/);
+  assert.match(editor, /effectEditMode/);
+  assert.match(editor, /home-item-effect-position-controls/);
+  assert.match(editor, /setEffectTransform/);
 });
 
 test("Tap artwork and per-placement Object state persist independently", () => {
@@ -130,15 +147,23 @@ test("Tap artwork and per-placement Object state persist independently", () => {
 
   assert.equal((schema.match(/homeEffect: text\("home_effect"\)/g) ?? []).length, 2);
   assert.match(schema, /homeTapImageUrl: text\("home_tap_image_url"\)/);
+  assert.equal((schema.match(/homeEffectX: real\("home_effect_x"\)/g) ?? []).length, 2);
+  assert.equal((schema.match(/homeEffectY: real\("home_effect_y"\)/g) ?? []).length, 2);
+  assert.equal((schema.match(/homeEffectSize: integer\("home_effect_size"\)/g) ?? []).length, 2);
   assert.match(schema, /effectEnabled: boolean\("effect_enabled"\)\.notNull\(\)\.default\(false\)/);
   assert.match(boot, /shop_items ADD COLUMN IF NOT EXISTS home_effect TEXT/);
   assert.match(boot, /shop_items ADD COLUMN IF NOT EXISTS home_tap_image_url TEXT/);
+  assert.match(boot, /shop_items ADD COLUMN IF NOT EXISTS home_effect_x REAL/);
+  assert.match(boot, /home_decor_items ADD COLUMN IF NOT EXISTS home_effect_size INTEGER/);
   assert.match(boot, /placed_home_decor ADD COLUMN IF NOT EXISTS effect_enabled BOOLEAN NOT NULL DEFAULT false/);
 
   assert.match(routes, /sanitizeHomeCatalogEffect\("object", raw\)/);
   assert.match(routes, /homeTapImageData/);
   assert.match(routes, /processWorldImage\(req\.body\.homeTapImageData, 2000\)/);
   assert.match(routes, /Tap effect requires an alternate Tap image/);
+  assert.match(routes, /patch\.homeEffectX/);
+  assert.match(routes, /patch\.homeEffectY/);
+  assert.match(routes, /patch\.homeEffectSize/);
   assert.match(routes, /const isLampToggle = placement\.item\.homeEffect === "lamp_light"/);
   assert.match(routes, /const isTapImageToggle = placement\.item\.type === "object" && placement\.item\.homeEffect === "tap"/);
   assert.match(storage, /effectEnabled: boolean/);
@@ -165,14 +190,14 @@ test("Sleep Decor augments pet drop and sleep rendering without replacing buildi
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
-  assert.match(owner, /buildHomeSleepDecorEffects\(displayedItems, containerH\)/);
+  assert.match(owner, /buildHomeSleepDecorEffects\(displayedItems, containerH, imgWidth\)/);
   assert.match(owner, /roomSleepEffects/);
   assert.match(owner, /getHouseInteriorSleepSnapPosition\([\s\S]{0,120}roomSleepEffects/);
-  assert.match(owner, /buildHomeSleepDecorEffects\(placedDecor, containerH\)/);
+  assert.match(owner, /buildHomeSleepDecorEffects\(placedDecor, containerH, imgWidth\)/);
   assert.match(owner, /getHouseInteriorSleepSnapPosition\([\s\S]{0,120}outdoorSleepDecorEffects/);
 
-  assert.match(visitor, /buildHomeSleepDecorEffects\(placedItems, containerH\)/);
-  assert.match(visitor, /buildHomeSleepDecorEffects\(outdoorDecor, containerH\)/);
+  assert.match(visitor, /buildHomeSleepDecorEffects\(placedItems, containerH, imgWidth\)/);
+  assert.match(visitor, /buildHomeSleepDecorEffects\(outdoorDecor, containerH, imgWidth\)/);
   assert.match(visitor, /isHouseInteriorSleepPosition\([\s\S]{0,120}outdoorSleepDecorEffects/);
 });
 

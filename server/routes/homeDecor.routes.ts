@@ -94,6 +94,21 @@ export function registerHomeDecorRoutes(
         }
         patch.homeEffect = homeEffect;
       }
+      if (req.body?.homeEffectX !== undefined) {
+        const value = Number(req.body.homeEffectX);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "homeEffectX must be a number" });
+        patch.homeEffectX = Math.max(-0.5, Math.min(1.5, value));
+      }
+      if (req.body?.homeEffectY !== undefined) {
+        const value = Number(req.body.homeEffectY);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "homeEffectY must be a number" });
+        patch.homeEffectY = Math.max(-0.5, Math.min(1.5, value));
+      }
+      if (req.body?.homeEffectSize !== undefined) {
+        const value = Math.round(Number(req.body.homeEffectSize));
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "homeEffectSize must be a number" });
+        patch.homeEffectSize = Math.max(10, Math.min(220, value));
+      }
       if (Object.keys(patch).length === 0) return res.status(400).json({ message: "No Home Decor changes supplied" });
       const item = await storage.updateHomeDecorItem(req.params.id as string, patch as any);
       return res.json(item);
@@ -130,6 +145,21 @@ export function registerHomeDecorRoutes(
           return res.status(400).json({ message: "Object effect must be lamp_light, tap, or null" });
         }
         patch.homeEffect = homeEffect;
+      }
+      if (req.body?.homeEffectX !== undefined) {
+        const value = Number(req.body.homeEffectX);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "homeEffectX must be a number" });
+        patch.homeEffectX = Math.max(-0.5, Math.min(1.5, value));
+      }
+      if (req.body?.homeEffectY !== undefined) {
+        const value = Number(req.body.homeEffectY);
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "homeEffectY must be a number" });
+        patch.homeEffectY = Math.max(-0.5, Math.min(1.5, value));
+      }
+      if (req.body?.homeEffectSize !== undefined) {
+        const value = Math.round(Number(req.body.homeEffectSize));
+        if (!Number.isFinite(value)) return res.status(400).json({ message: "homeEffectSize must be a number" });
+        patch.homeEffectSize = Math.max(10, Math.min(220, value));
       }
       if (typeof req.body?.homeTapImageData === "string" && req.body.homeTapImageData) {
         patch.homeTapImageUrl = await processWorldImage(req.body.homeTapImageData, 2000);

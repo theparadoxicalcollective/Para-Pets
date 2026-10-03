@@ -15,7 +15,13 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_scene_size INTEGER NOT NULL DEFAULT 250;
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_effect TEXT;
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_tap_image_url TEXT;
+    ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_effect_x REAL NOT NULL DEFAULT 0.5;
+    ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_effect_y REAL NOT NULL DEFAULT 0.5;
+    ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS home_effect_size INTEGER NOT NULL DEFAULT 40;
     ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_effect TEXT;
+    ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_effect_x REAL NOT NULL DEFAULT 0.5;
+    ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_effect_y REAL NOT NULL DEFAULT 0.5;
+    ALTER TABLE home_decor_items ADD COLUMN IF NOT EXISTS home_effect_size INTEGER NOT NULL DEFAULT 40;
     ALTER TABLE placed_home_decor ADD COLUMN IF NOT EXISTS effect_enabled BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE pet_house_positions ADD COLUMN IF NOT EXISTS scale_pct INTEGER NOT NULL DEFAULT 100;
     ALTER TABLE pet_house_positions ADD COLUMN IF NOT EXISTS flipped BOOLEAN NOT NULL DEFAULT false;

@@ -284,14 +284,14 @@ test("Sleep Square hit testing and drop snapping use the same scene-space geomet
   assert.equal(getHouseInteriorSleepSnapPosition(effects, 0.7, 0.5, 2), null);
 });
 
-test("Home pet size controls keep a 100px start and allow growth through 120px", () => {
+test("Home pet size controls keep a 100px start and allow growth through 250px", () => {
   const sizing = read("client/src/lib/petHouseSizing.ts");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
   assert.equal(PET_HOUSE_PLAYER_MIN_SCALE, 50);
-  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 120);
-  assert.equal(clampPetHousePlayerScale(999), 120);
+  assert.equal(PET_HOUSE_PLAYER_MAX_SCALE, 250);
+  assert.equal(clampPetHousePlayerScale(999), 250);
   assert.equal(clampPetHousePlayerScale(10), 50);
   assert.match(sizing, /PET_HOUSE_OUTDOOR_PET_BASE_SIZE = 100/);
   assert.match(sizing, /PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100/);

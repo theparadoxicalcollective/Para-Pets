@@ -4,7 +4,8 @@ import { Minus, Plus, X, Sparkles, MoonStar, MousePointerClick, Upload } from "l
 import fallbackHomePreview from "@assets/bg_home_v2.png";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { readFileAsDataUrl } from "@/lib/utils";
-import type { HomeCatalogEffect } from "@shared/housing";
+import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import type { HomeCatalogEffect, HouseInteriorEffect } from "@shared/housing";
 
 interface PreviewBundle {
   id: string;
@@ -24,6 +25,9 @@ export interface HomeSceneSizeEditorItem {
   homeSceneSize: number;
   homeEffect?: HomeCatalogEffect | null;
   homeTapImageUrl?: string | null;
+  homeEffectX?: number;
+  homeEffectY?: number;
+  homeEffectSize?: number;
 }
 
 export function HomeSceneSizeEditor({
@@ -36,28 +40,58 @@ export function HomeSceneSizeEditor({
   item: HomeSceneSizeEditorItem;
   itemLabel: "Decor" | "Object";
   onClose: () => void;
-  onSave: (size: number, homeEffect: HomeCatalogEffect | null, homeTapImageData?: string | null) => void;
+  onSave: (
+    size: number,
+    homeEffect: HomeCatalogEffect | null,
+    homeTapImageData?: string | null,
+    effectTransform?: { x: number; y: number; size: number },
+  ) => void;
   saving: boolean;
 }) {
   const [size, setSize] = useState(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
   const [homeEffect, setHomeEffect] = useState<HomeCatalogEffect | null>(item.homeEffect ?? null);
+  const [effectTransform, setEffectTransform] = useState({
+    x: Number.isFinite(item.homeEffectX) ? Number(item.homeEffectX) : 0.5,
+    y: Number.isFinite(item.homeEffectY) ? Number(item.homeEffectY) : 0.5,
+    size: Number.isFinite(item.homeEffectSize) ? Number(item.homeEffectSize) : 40,
+  });
+  const [effectEditMode, setEffectEditMode] = useState(false);
   const [tapImageData, setTapImageData] = useState<string | null>(null);
   const [previewTapActive, setPreviewTapActive] = useState(false);
   const [effectGhost, setEffectGhost] = useState<{ x: number; y: number; effect: HomeCatalogEffect } | null>(null);
   const [dropReady, setDropReady] = useState(false);
   const effectTargetRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [previewDims, setPreviewDims] = useState({ width: 0, height: 0 });
   const effectDragRef = useRef<{ pid: number; startX: number; startY: number; moved: boolean; effect: HomeCatalogEffect } | null>(null);
+  const positionedEffectDragRef = useRef<{ pid: number; startX: number; startY: number; startEffectX: number; startEffectY: number } | null>(null);
   const effectSuppressClickRef = useRef(false);
 
   useEffect(() => {
     setSize(Math.max(60, Math.min(500, item.homeSceneSize || 250)));
     setHomeEffect(item.homeEffect ?? null);
+    setEffectTransform({
+      x: Number.isFinite(item.homeEffectX) ? Number(item.homeEffectX) : 0.5,
+      y: Number.isFinite(item.homeEffectY) ? Number(item.homeEffectY) : 0.5,
+      size: Number.isFinite(item.homeEffectSize) ? Number(item.homeEffectSize) : 40,
+    });
+    setEffectEditMode(false);
     setTapImageData(null);
     setPreviewTapActive(false);
     setEffectGhost(null);
     setDropReady(false);
     effectDragRef.current = null;
-  }, [item.id, item.homeSceneSize, item.homeEffect, item.homeTapImageUrl]);
+  }, [item.id, item.homeSceneSize, item.homeEffect, item.homeTapImageUrl, item.homeEffectX, item.homeEffectY, item.homeEffectSize]);
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview) return;
+    const recalc = () => setPreviewDims({ width: preview.clientWidth, height: preview.clientHeight });
+    recalc();
+    const observer = new ResizeObserver(recalc);
+    observer.observe(preview);
+    return () => observer.disconnect();
+  }, []);
 
   const { data: bundles = [] } = useQuery<PreviewBundle[]>({
     queryKey: ["/api/admin/house-bundles"],
@@ -99,6 +133,17 @@ export function HomeSceneSizeEditor({
       ];
   const selectedEffectLabel = effectOptions.find(option => option.effect === homeEffect)?.label ?? null;
 
+  const spatialEffectType = homeEffect === "lamp_light" ? "lamp_light" : homeEffect === "sleep" ? "sleep" : null;
+  const previewEffect: HouseInteriorEffect[] = spatialEffectType && previewDims.width > 0 && previewDims.height > 0
+    ? [{
+        id: "home-item-editor-effect",
+        type: spatialEffectType,
+        x: Math.max(0, Math.min(1, (previewDims.width / 2 + (effectTransform.x - 0.5) * size) / previewDims.width)),
+        y: Math.max(0, Math.min(1, (previewY * previewDims.height + (effectTransform.y - 0.5) * size) / previewDims.height)),
+        size: Math.max(4, Math.min(40, (size * effectTransform.size / 100 / previewDims.height) * 100)),
+      }]
+    : [];
+
   const changeSize = (next: number) => {
     setSize(Math.max(60, Math.min(500, Math.round(next))));
   };
@@ -133,6 +178,7 @@ export function HomeSceneSizeEditor({
     if (drag?.pid === event.pointerId && event.type === "pointerup" && pointInsideTarget(event.clientX, event.clientY)) {
       setHomeEffect(drag.effect);
       setPreviewTapActive(false);
+      if (drag.effect === "lamp_light" || drag.effect === "sleep") setEffectEditMode(true);
     }
     if (drag?.moved) {
       effectSuppressClickRef.current = true;
@@ -140,6 +186,44 @@ export function HomeSceneSizeEditor({
     }
     setEffectGhost(null);
     setDropReady(false);
+  };
+
+  const onPositionedEffectDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+    positionedEffectDragRef.current = {
+      pid: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startEffectX: effectTransform.x,
+      startEffectY: effectTransform.y,
+    };
+  };
+
+  const onPositionedEffectMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = positionedEffectDragRef.current;
+    if (!drag || drag.pid !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const itemSize = Math.max(1, size);
+    setEffectTransform(current => ({
+      ...current,
+      x: Math.max(-0.5, Math.min(1.5, drag.startEffectX + (event.clientX - drag.startX) / itemSize)),
+      y: Math.max(-0.5, Math.min(1.5, drag.startEffectY + (event.clientY - drag.startY) / itemSize)),
+    }));
+  };
+
+  const onPositionedEffectUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (positionedEffectDragRef.current?.pid === event.pointerId) positionedEffectDragRef.current = null;
+  };
+
+  const onPositionedEffectCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    const drag = positionedEffectDragRef.current;
+    if (!drag || drag.pid !== event.pointerId) return;
+    positionedEffectDragRef.current = null;
+    setEffectTransform(current => ({ ...current, x: drag.startEffectX, y: drag.startEffectY }));
   };
 
   return (
@@ -176,7 +260,7 @@ export function HomeSceneSizeEditor({
         </button>
       </div>
 
-      <div className="relative flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+      <div ref={previewRef} className="relative flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <img
           src={previewBackground}
           alt="Fall Home interior preview"
@@ -206,21 +290,6 @@ export function HomeSceneSizeEditor({
             transition: "outline 120ms ease, box-shadow 120ms ease",
           }}
         >
-          {homeEffect === "lamp_light" && (
-            <div
-              aria-hidden
-              className="absolute pointer-events-none"
-              style={{
-                width: "82%",
-                height: "105%",
-                top: "-20%",
-                borderRadius: "48% 48% 58% 58% / 38% 38% 68% 68%",
-                background: "radial-gradient(ellipse at 50% 38%, rgba(255,245,190,.38), rgba(255,202,90,.18) 38%, transparent 76%)",
-                filter: "blur(5px)",
-                mixBlendMode: "screen",
-              }}
-            />
-          )}
           {displayedItemImage ? (
             <img
               src={displayedItemImage}
@@ -237,15 +306,6 @@ export function HomeSceneSizeEditor({
               {itemLabel}
             </div>
           )}
-          {homeEffect === "sleep" && (
-            <div
-              aria-hidden
-              className="absolute right-[12%] top-[10%] font-fantasy"
-              style={{ color: "#fff2bf", fontSize: Math.max(18, Math.min(42, size * 0.13)), textShadow: "0 0 8px rgba(255,220,120,.85), 0 2px 4px #000" }}
-            >
-              Z
-            </div>
-          )}
           {homeEffect && (
             <div
               className="absolute left-1/2 -translate-x-1/2 rounded-full px-2 py-1 font-fantasy text-[8px] whitespace-nowrap"
@@ -255,6 +315,23 @@ export function HomeSceneSizeEditor({
             </div>
           )}
         </div>
+
+        {previewEffect.length > 0 && (
+          <HomeInteriorEffectsLayer
+            effects={previewEffect}
+            panX={0}
+            imgWidth={previewDims.width}
+            sceneHeight={previewDims.height}
+            selectedId={effectEditMode ? "home-item-editor-effect" : null}
+            interactive={effectEditMode}
+            onEffectPointerDown={effectEditMode ? onPositionedEffectDown : undefined}
+            onEffectPointerMove={effectEditMode ? onPositionedEffectMove : undefined}
+            onEffectPointerUp={effectEditMode ? onPositionedEffectUp : undefined}
+            onEffectPointerCancel={effectEditMode ? onPositionedEffectCancel : undefined}
+            zIndex={18}
+          />
+        )}
+
         <div
           className="absolute left-3 bottom-3 rounded-lg px-2 py-1 font-fantasy text-[8px]"
           style={{ background: "rgba(0,0,0,0.62)", color: "rgba(255,255,255,0.72)" }}
@@ -263,7 +340,7 @@ export function HomeSceneSizeEditor({
         </div>
       </div>
 
-      <div
+      {!effectEditMode && <div
         className="px-4 pt-4 pb-5 flex flex-col gap-3 overflow-y-auto"
         style={{ background: "rgba(10,12,8,0.98)", borderTop: "1px solid rgba(255,215,0,0.22)", maxHeight: "52dvh" }}
       >
@@ -326,7 +403,7 @@ export function HomeSceneSizeEditor({
               <button
                 type="button"
                 data-testid="button-clear-home-item-effect"
-                onClick={() => setHomeEffect(null)}
+                onClick={() => { setHomeEffect(null); setEffectEditMode(false); }}
                 className="rounded-full px-2.5 py-1.5 font-fantasy text-[8px]"
                 style={{ background: "rgba(145,25,25,.28)", border: "1px solid rgba(255,100,100,.32)", color: "#ffabab" }}
               >
@@ -350,6 +427,7 @@ export function HomeSceneSizeEditor({
                   if (effectSuppressClickRef.current) return;
                   setHomeEffect(option.effect);
                   setPreviewTapActive(false);
+                  if (option.effect === "lamp_light" || option.effect === "sleep") setEffectEditMode(true);
                 }}
                 className="w-full rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 font-fantasy text-[10px]"
                 style={{
@@ -367,6 +445,18 @@ export function HomeSceneSizeEditor({
               </button>
             ))}
           </div>
+
+          {spatialEffectType && homeEffect && (
+            <button
+              type="button"
+              data-testid="button-position-home-item-effect"
+              onClick={() => setEffectEditMode(true)}
+              className="w-full mt-2 rounded-xl px-3 py-2 font-fantasy text-[9px]"
+              style={{ background: "rgba(80,150,80,.12)", border: "1px solid rgba(120,220,120,.28)", color: "#b7f5bd" }}
+            >
+              Position / Resize {selectedEffectLabel}
+            </button>
+          )}
 
           {itemLabel === "Object" && homeEffect === "tap" && (
             <div
@@ -443,14 +533,57 @@ export function HomeSceneSizeEditor({
         <button
           type="button"
           data-testid="button-save-home-scene-size"
-          onClick={() => onSave(size, homeEffect, homeEffect === "tap" ? tapImageData : null)}
+          onClick={() => onSave(
+            size,
+            homeEffect,
+            homeEffect === "tap" ? tapImageData : null,
+            { x: effectTransform.x, y: effectTransform.y, size: effectTransform.size },
+          )}
           disabled={saving || (homeEffect === "tap" && !effectiveTapImage)}
           className="w-full py-3 rounded-xl font-fantasy text-sm tracking-widest disabled:opacity-50"
           style={{ background: "rgba(255,215,0,0.16)", border: "1px solid rgba(255,215,0,0.42)", color: "#ffd700" }}
         >
           {saving ? "Saving..." : `Save ${itemLabel} Settings`}
         </button>
-      </div>
+      </div>}
+
+      {effectEditMode && spatialEffectType && (
+        <div
+          data-testid="home-item-effect-position-controls"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-2xl px-3 py-2"
+          style={{
+            zIndex: 60,
+            bottom: "max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px))",
+            background: "rgba(5,9,6,.94)",
+            border: "1px solid rgba(255,215,0,.46)",
+            boxShadow: "0 10px 28px rgba(0,0,0,.68)",
+          }}
+          onPointerDown={event => event.stopPropagation()}
+        >
+          <span className="font-fantasy text-[9px] max-w-[82px]" style={{ color: "#ffe98f" }}>{selectedEffectLabel}</span>
+          <button
+            type="button"
+            aria-label="Make attached effect smaller"
+            onClick={() => setEffectTransform(current => ({ ...current, size: Math.max(10, current.size - 10) }))}
+            className="w-9 h-9 rounded-full"
+            style={{ background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.34)", color: "#ffd700" }}
+          ><Minus className="w-4 h-4 mx-auto" /></button>
+          <button
+            type="button"
+            aria-label="Make attached effect larger"
+            onClick={() => setEffectTransform(current => ({ ...current, size: Math.min(220, current.size + 10) }))}
+            className="w-9 h-9 rounded-full"
+            style={{ background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.34)", color: "#ffd700" }}
+          ><Plus className="w-4 h-4 mx-auto" /></button>
+          <button
+            type="button"
+            data-testid="button-done-positioning-home-effect"
+            onClick={() => setEffectEditMode(false)}
+            className="rounded-full px-4 h-9 font-fantasy text-[9px]"
+            style={{ background: "rgba(80,150,80,.18)", border: "1px solid rgba(120,220,120,.35)", color: "#b7f5bd" }}
+          >Done</button>
+        </div>
+      )}
 
       {effectGhost && (
         <div

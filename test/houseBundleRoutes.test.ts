@@ -512,7 +512,7 @@ test("building editing keeps current size and placement clamps", async () => {
     [
       "building-1",
       {
-        width: 400,
+        width: 600,
         imageUrl: "processed-1000",
         interiorImageUrl: "processed-2000",
         leaveButtonX: 0,
