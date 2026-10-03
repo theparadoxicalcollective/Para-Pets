@@ -39,6 +39,7 @@ test("outdoor Home effects reuse safe visual effects but exclude the interior Sl
   assert.deepEqual(HOUSE_OUTDOOR_EFFECT_TYPES, [
     "fire",
     "candle_light",
+    "lamp_light",
     "warm_glow",
     "sparkles",
     "dust_motes",
@@ -47,11 +48,13 @@ test("outdoor Home effects reuse safe visual effects but exclude the interior Sl
   assert.deepEqual(
     sanitizeHouseOutdoorEffects([
       { id: "fire", type: "fire", x: -1, y: 2, size: 99 },
+      { id: "lamp", type: "lamp_light", x: 0.2, y: 0.3, size: 16 },
       { id: "sleep", type: "sleep", x: 0.5, y: 0.5, size: 18 },
       { id: "mist", type: "soft_mist", x: 0.4, y: 0.6, size: 20 },
     ]),
     [
       { id: "fire", type: "fire", x: 0, y: 1, size: 40 },
+      { id: "lamp", type: "lamp_light", x: 0.2, y: 0.3, size: 16 },
       { id: "mist", type: "soft_mist", x: 0.4, y: 0.6, size: 20 },
     ],
   );

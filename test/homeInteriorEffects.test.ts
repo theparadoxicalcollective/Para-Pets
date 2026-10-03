@@ -28,6 +28,7 @@ test("home interior effect catalog includes the requested scene-enhancing effect
   assert.deepEqual(HOUSE_INTERIOR_EFFECT_TYPES, [
     "fire",
     "candle_light",
+    "lamp_light",
     "warm_glow",
     "sparkles",
     "dust_motes",
@@ -78,22 +79,24 @@ test("room darkness stays the lights-off baseline while active lights brighten l
   assert.equal(getHouseInteriorLocalLightBoost(stackedLights, new Set(), 0.5, 0.5, 2), HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST);
 });
 
-test("interior lights keep a clear candle < lamp < fire brightness hierarchy", () => {
+test("interior lights keep candle < lamp < sunlight < fire reach/strength", () => {
   const fire = { id: "fire", type: "fire" as const, x: 0.5, y: 0.5, size: 14 };
   const candle = { id: "candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 };
-  const lamp = { id: "lamp", type: "warm_glow" as const, x: 0.5, y: 0.5, size: 18 };
+  const lamp = { id: "lamp", type: "lamp_light" as const, x: 0.5, y: 0.5, size: 16 };
+  const sunlight = { id: "sunlight", type: "warm_glow" as const, x: 0.5, y: 0.5, size: 18 };
 
   assert.equal(getHouseInteriorLightRadiusRatio(candle), 0.1 * 1.45);
-  assert.equal(getHouseInteriorLightRadiusRatio(lamp), 0.18 * 2.5);
+  assert.equal(getHouseInteriorLightRadiusRatio(lamp), 0.16 * 2.2);
+  assert.equal(getHouseInteriorLightRadiusRatio(sunlight), 0.18 * 2.5);
   assert.equal(getHouseInteriorLightRadiusRatio(fire), 0.14 * 3.5);
 
   assert.equal(getHouseInteriorLightPeakBoost("candle_light"), 18);
+  assert.equal(getHouseInteriorLightPeakBoost("lamp_light"), 32);
   assert.equal(getHouseInteriorLightPeakBoost("warm_glow"), 34);
   assert.equal(getHouseInteriorLightPeakBoost("fire"), 42);
 
-  assert.ok(getHouseInteriorLightRadiusRatio(candle) < getHouseInteriorLightRadiusRatio(lamp));
-  assert.ok(getHouseInteriorLightRadiusRatio(lamp) < getHouseInteriorLightRadiusRatio(fire));
-  assert.ok(getHouseInteriorLightCutoutStrength("candle_light") < getHouseInteriorLightCutoutStrength("warm_glow"));
+  assert.ok(getHouseInteriorLightCutoutStrength("candle_light") < getHouseInteriorLightCutoutStrength("lamp_light"));
+  assert.ok(getHouseInteriorLightCutoutStrength("lamp_light") < getHouseInteriorLightCutoutStrength("warm_glow"));
   assert.ok(getHouseInteriorLightCutoutStrength("warm_glow") < getHouseInteriorLightCutoutStrength("fire"));
   assert.ok(getHouseInteriorLightCutoutStrength("fire") < 1);
 });
@@ -206,7 +209,7 @@ test("player building exits use a world-style sparkle while Admin keeps the mova
   assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,1600}>\s*Outside\s*<\/button>/);
 });
 
-test("campfire is flame-only and candle light remains a distinct renderer", () => {
+test("campfire, candle, lamp, and sunlight remain distinct renderers", () => {
   const source = read("client/src/components/HomeInteriorEffect.tsx");
 
   assert.match(source, /label: "Campfire"/);
@@ -218,8 +221,17 @@ test("campfire is flame-only and candle light remains a distinct renderer", () =
   assert.match(source, /para-home-flame-c/);
   assert.match(source, /label: "Candle Light"/);
   assert.match(source, /function CandleLightVisual/);
+  assert.match(source, /label: "Lamp Light"/);
+  assert.match(source, /function LampLightVisual/);
+  assert.match(source, /data-testid="home-lamp-light-core"/);
+  assert.match(source, /opacity: 0\.88/);
+  assert.match(source, /label: "Sunlight"/);
+  assert.match(source, /Soft broad daylight for windows/);
+  assert.match(source, /function WarmGlowVisual/);
   assert.match(source, /type === "fire"\) return <CampfireVisual/);
   assert.match(source, /type === "candle_light"\) return <CandleLightVisual/);
+  assert.match(source, /type === "lamp_light"\) return <LampLightVisual/);
+  assert.match(source, /type === "warm_glow"\) return <WarmGlowVisual/);
 });
 
 test("Sleep Square hit testing and drop snapping use the same scene-space geometry", () => {
@@ -361,7 +373,7 @@ test("saved room darkness is cut away locally around active lights without addin
   assert.doesNotMatch(effects, /home-interior-light-wash-/);
   assert.doesNotMatch(effects, /const glow = effect\.type/);
 
-  // Lamp Glow stays warm, but now has a stronger visible center.
+  // The legacy Warm Glow visual is preserved exactly and is now presented as Sunlight.
   assert.match(effects, /rgba\(255,232,128,0\.42\)/);
   assert.match(effects, /rgba\(255,202,70,0\.24\)/);
   assert.match(effects, /opacity: 0\.72/);
@@ -389,4 +401,18 @@ test("database schema and startup migration persist building interior effects", 
   assert.match(schema, /interiorDarkness: integer\("interior_darkness"\)\.notNull\(\)\.default\(0\)/);
   assert.match(boot, /house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_effects JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
   assert.match(boot, /house_bundle_buildings ADD COLUMN IF NOT EXISTS interior_darkness INTEGER NOT NULL DEFAULT 0/);
+});
+
+
+test("legacy warm_glow saves stay valid as Sunlight while new lamp_light saves validate independently", () => {
+  assert.deepEqual(
+    sanitizeHouseInteriorEffects([
+      { id: "legacy-window", type: "warm_glow", x: 0.4, y: 0.4, size: 18 },
+      { id: "lamp", type: "lamp_light", x: 0.6, y: 0.6, size: 16 },
+    ]),
+    [
+      { id: "legacy-window", type: "warm_glow", x: 0.4, y: 0.4, size: 18 },
+      { id: "lamp", type: "lamp_light", x: 0.6, y: 0.6, size: 16 },
+    ],
+  );
 });

@@ -34,7 +34,7 @@ export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 
-export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
+export const HOUSE_INTERIOR_EFFECT_TYPES = ["fire", "candle_light", "lamp_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseInteriorEffectType = (typeof HOUSE_INTERIOR_EFFECT_TYPES)[number];
 
 export type HomeOutdoorLightingMode = "auto" | "day" | "night";
@@ -43,7 +43,7 @@ export function isHomeOutdoorLightingMode(value: unknown): value is HomeOutdoorL
   return value === "auto" || value === "day" || value === "night";
 }
 
-export const HOUSE_OUTDOOR_EFFECT_TYPES = ["fire", "candle_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
+export const HOUSE_OUTDOOR_EFFECT_TYPES = ["fire", "candle_light", "lamp_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
 export type HouseOutdoorEffectType = (typeof HOUSE_OUTDOOR_EFFECT_TYPES)[number];
 
 export interface HouseInteriorEffect {
@@ -66,6 +66,7 @@ export function getHouseInteriorLightRadiusRatio(effect: HouseInteriorEffect): n
   const sizeRatio = effect.size / 100;
   if (effect.type === "fire") return sizeRatio * 3.5;
   if (effect.type === "candle_light") return sizeRatio * 1.45;
+  if (effect.type === "lamp_light") return sizeRatio * 2.2;
   if (effect.type === "warm_glow") return sizeRatio * 2.5;
   return 0;
 }
@@ -73,6 +74,7 @@ export function getHouseInteriorLightRadiusRatio(effect: HouseInteriorEffect): n
 export function getHouseInteriorLightPeakBoost(type: HouseInteriorEffectType): number {
   if (type === "fire") return 42;
   if (type === "candle_light") return 18;
+  if (type === "lamp_light") return 32;
   if (type === "warm_glow") return 34;
   return 0;
 }
@@ -91,7 +93,7 @@ export function isHouseInteriorEffectType(value: unknown): value is HouseInterio
 }
 
 export function isHouseInteriorLightEffectType(type: HouseInteriorEffectType): boolean {
-  return type === "fire" || type === "candle_light" || type === "warm_glow";
+  return type === "fire" || type === "candle_light" || type === "lamp_light" || type === "warm_glow";
 }
 
 export function getHouseInteriorLocalLightBoost(
