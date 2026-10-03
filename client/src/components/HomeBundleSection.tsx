@@ -915,14 +915,14 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
 
   // ── Background pan handlers ──
   const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
-    if (buildingDragRef.current) return;
+    if (buildingDragRef.current || exteriorEffectDragRef.current) return;
     isPanningRef.current = false;
     safeSetPointerCapture(e.currentTarget, e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
   }, [panX]);
 
   const handleContainerPointerMove = useCallback((e: React.PointerEvent) => {
-    if (buildingDragRef.current) return;
+    if (buildingDragRef.current || exteriorEffectDragRef.current) return;
     const drag = panStartRef.current;
     if (!drag || drag.pid !== e.pointerId) return;
     const container = containerRef.current;
@@ -946,6 +946,8 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
   // ── Building drag handlers ──
   const handleBuildingPointerDown = useCallback((e: React.PointerEvent, b: HouseBundleBuilding) => {
     e.stopPropagation();
+    setSelectedExteriorEffectId(null);
+    setShowExteriorEffectsMenu(false);
     buildingDidDrag.current = false;
     setTopmostId(b.id);
     if (selectedId !== b.id) return; // first tap = select only
@@ -1003,7 +1005,11 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
       onPointerCancel={handleContainerPointerUp}
       onLostPointerCapture={handleContainerPointerUp}
       onContextMenu={e => e.preventDefault()}
-      onClick={() => setSelectedId(null)}
+      onClick={() => {
+        setSelectedId(null);
+        setSelectedExteriorEffectId(null);
+        setShowExteriorEffectsMenu(false);
+      }}
     >
       {/* Background — clipped separately so buildings can overflow the screen edge */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
