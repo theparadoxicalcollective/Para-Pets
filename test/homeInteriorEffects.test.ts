@@ -10,6 +10,7 @@ import {
   PET_HOUSE_PLAYER_MAX_SCALE,
   PET_HOUSE_PLAYER_MIN_SCALE,
   clampPetHousePlayerScale,
+  getHouseInteriorLightCutoutStrength,
   getHouseInteriorLightPeakBoost,
   getHouseInteriorLightRadiusRatio,
   getHouseInteriorLocalLightBoost,
@@ -56,7 +57,10 @@ test("room darkness stays the lights-off baseline while active lights brighten l
 
   const fireOnlyOff = new Set(["right-lamp", "center-candle"]);
   assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2, 0.5, 2), getHouseInteriorLightPeakBoost("fire"));
-  assert.equal(getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.2, 0.5, 2), 26);
+  assert.equal(
+    getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.2, 0.5, 2),
+    60 * (1 - getHouseInteriorLightCutoutStrength("fire")),
+  );
   assert.equal(getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.8, 0.5, 2), 60);
 
   const fireRadius = getHouseInteriorLightRadiusRatio(lights[0]);
@@ -81,7 +85,10 @@ test("interior pets use the same local light falloff as the room", () => {
   const allOff = new Set(["fire"]);
 
   assert.equal(getHouseInteriorPointDarkness(70, lights, allOff, 0.25, 0.55, 2), 70);
-  assert.equal(getHouseInteriorPointDarkness(70, lights, new Set(), 0.25, 0.55, 2), 36);
+  assert.equal(
+    getHouseInteriorPointDarkness(70, lights, new Set(), 0.25, 0.55, 2),
+    70 * (1 - getHouseInteriorLightCutoutStrength("fire")),
+  );
   assert.equal(getHouseInteriorPointDarkness(70, lights, new Set(), 0.9, 0.55, 2), 70);
 
   const owner = read("client/src/pages/PetHousePage.tsx");
@@ -237,6 +244,9 @@ test("active fire gives pets the closed-eye X-eyes Easter egg and delayed smoke"
   }
 
   assert.match(reaction, /<span>×<\/span>/);
+  assert.match(reaction, /top: "39%"/);
+  assert.match(reaction, /fontSize: 20/);
+  assert.match(reaction, /WebkitTextStroke: "1\.2px #b80f0b"/);
   assert.match(reaction, /delay: "2\.2s"/);
   assert.match(reaction, /para-pet-fire-smoke/);
 });
@@ -264,7 +274,7 @@ test("players can locally toggle Campfire, Candle Light, and Lamp Glow without c
   }
 });
 
-test("saved room darkness is the lights-off baseline and active lights create circular local washes", () => {
+test("saved room darkness is cut away locally around active lights without adding a colored light wash", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
@@ -275,14 +285,17 @@ test("saved room darkness is the lights-off baseline and active lights create ci
     assert.match(source, /darkness=\{openInterior\.interiorDarkness\}/);
   }
 
-  assert.match(effects, /home-interior-light-wash-/);
-  assert.match(effects, /getHouseInteriorLightRadiusRatio/);
-  assert.match(effects, /radial-gradient\(circle/);
-  assert.match(effects, /mixBlendMode: "screen"/);
-  assert.doesNotMatch(effects, /data-left-light-boost/);
-  assert.doesNotMatch(effects, /data-right-light-boost/);
-  assert.doesNotMatch(effects, /sideLighting\.leftDarkness/);
-  assert.doesNotMatch(effects, /sideLighting\.rightDarkness/);
+  assert.match(effects, /<mask[\s\S]*maskType: "luminance"/);
+  assert.match(effects, /<radialGradient/);
+  assert.match(effects, /getHouseInteriorLightCutoutStrength/);
+  assert.match(effects, /fillOpacity=\{safeDarkness \/ 100\}/);
+  assert.match(effects, /mask=\{\`url\(#\$\{maskId\}\)\`\}/);
+  assert.doesNotMatch(effects, /home-interior-light-wash-/);
+  assert.doesNotMatch(effects, /const glow = effect\.type/);
+
+  // Lamp Glow itself stays intentionally subtle because the darkness cutout does the room brightening.
+  assert.match(effects, /rgba\(255,243,181,0\.4\)/);
+  assert.match(effects, /opacity: 0\.68/);
 
   // Admin preview intentionally shows the exact all-lights-off darkness baseline.
   assert.match(admin, /<HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{5\} \/>/);
