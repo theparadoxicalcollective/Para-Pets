@@ -489,11 +489,30 @@ function InteriorViewer({
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const itemTapRef = useRef<{ id: string; at: number } | null>(null);
+  const itemEffectTapTimerRef = useRef<number | null>(null);
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   const petTapRef = useRef<{ id: string; at: number } | null>(null);
   const popupPet = placedPets.find(pet => pet.inventoryId === popupPetId) ?? null;
   const popupPetLivePosition = popupPet && petDragLive?.inventoryId === popupPet.inventoryId ? petDragLive : null;
+
+  const displayedItems = useMemo(() =>
+    placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
+    [placedItems, itemDragLive]);
+  const itemLampEffects = useMemo(
+    () => buildHomeLampItemEffects(displayedItems, containerH),
+    [displayedItems, containerH],
+  );
+  const itemSleepEffects = useMemo(
+    () => buildHomeSleepDecorEffects(displayedItems, containerH),
+    [displayedItems, containerH],
+  );
+  const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
+  const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
+
+  useEffect(() => () => {
+    if (itemEffectTapTimerRef.current != null) window.clearTimeout(itemEffectTapTimerRef.current);
+  }, []);
 
   // Recalc layout whenever aspect changes or container resizes
   useEffect(() => {
@@ -603,13 +622,26 @@ function InteriorViewer({
 
     if (!drag.moved) {
       const now = Date.now();
+      const item = placedItems.find(candidate => candidate.id === drag.id);
       if (isSecondHomeEditTap(itemTapRef.current, drag.id, now)) {
         itemTapRef.current = null;
+        if (itemEffectTapTimerRef.current != null) {
+          window.clearTimeout(itemEffectTapTimerRef.current);
+          itemEffectTapTimerRef.current = null;
+        }
         setSelectedItemId(drag.id);
         setPopupPetId(null);
         setTopItemId(drag.id);
       } else {
         itemTapRef.current = { id: drag.id, at: now };
+        if (item && isTapEffectHomeItem(item)) {
+          if (itemEffectTapTimerRef.current != null) window.clearTimeout(itemEffectTapTimerRef.current);
+          itemEffectTapTimerRef.current = window.setTimeout(() => {
+            itemEffectTapTimerRef.current = null;
+            itemTapRef.current = null;
+            onUpdateItem(item.id, { effectEnabled: !item.effectEnabled });
+          }, HOME_EDIT_DOUBLE_TAP_MS);
+        }
       }
       return;
     }
@@ -618,7 +650,7 @@ function InteriorViewer({
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
     setTopItemId(drag.id);
     onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
-  }, [onUpdateItem]);
+  }, [onUpdateItem, placedItems]);
 
   // Pet drag handlers
   const onPetDown = useCallback((e: React.PointerEvent, pet: HousePet) => {
@@ -686,12 +718,12 @@ function InteriorViewer({
     const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
     const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * clampPetHousePlayerScale(drag.scalePct) / 100;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
-      effects,
+      roomSleepEffects,
       rawXPct,
       rawYPct,
       imgWidthRef.current / Math.max(containerHRef.current, 1),
     );
-    const sleepEffect = sleepSnap ? effects.find(effect => effect.id === sleepSnap.effectId) : null;
+    const sleepEffect = sleepSnap ? roomSleepEffects.find(effect => effect.id === sleepSnap.effectId) : null;
     const requestedSleepYOffsetPct = visiblePetSize * HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO / Math.max(containerHRef.current, 1);
     const maxSleepYOffsetPct = sleepEffect ? sleepEffect.size / 400 : requestedSleepYOffsetPct;
     const sleepYOffsetPct = Math.min(requestedSleepYOffsetPct, maxSleepYOffsetPct);
@@ -709,12 +741,7 @@ function InteriorViewer({
         current.xPct === finalPosition.xPct &&
         current.yPct === finalPosition.yPct ? null : current
       ));
-  }, [effects, onMovePet]);
-
-  const displayedItems = useMemo(() =>
-    placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
-    [placedItems, itemDragLive]);
-
+  }, [roomSleepEffects, onMovePet]);
 
   return (
     <div
@@ -746,7 +773,7 @@ function InteriorViewer({
 
       <HomeInteriorDarknessLayer
         darkness={darkness}
-        effects={effects}
+        effects={roomLightEffects}
         offEffectIds={offEffectIds}
         panX={panX}
         imgWidth={imgWidth}
@@ -766,6 +793,16 @@ function InteriorViewer({
         zIndex={3}
       />
 
+      <HomeInteriorEffectsLayer
+        effects={itemLampEffects}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerH}
+        offEffectIds={new Set()}
+        sunlightStrength={sunlightStrength}
+        zIndex={4}
+      />
+
       {/* Placed decor */}
       {imgWidth > 0 && displayedItems.map((item) => {
         const isSelected = selectedItemId === item.id;
@@ -775,7 +812,7 @@ function InteriorViewer({
         const imageAspect = imgWidth / Math.max(containerH, 1);
         const itemDarkness = getHouseInteriorPointDarkness(
           darkness,
-          effects,
+          roomLightEffects,
           offEffectIds,
           item.xPct,
           item.yPct,
@@ -823,7 +860,7 @@ function InteriorViewer({
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
         const imageAspect = imgWidth / Math.max(containerH, 1);
-        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect, sunlightStrength);
+        const petDarkness = getHouseInteriorPointDarkness(darkness, roomLightEffects, offEffectIds, xPct, yPct, imageAspect, sunlightStrength);
         const petBrightness = (100 - petDarkness) / 100;
         const isSelectedPet = popupPetId === pet.inventoryId;
         const isActivelyDragging = petDragRef.current?.inventoryId === pet.inventoryId;
@@ -835,7 +872,7 @@ function InteriorViewer({
           imageAspect,
         );
         const isSleeping = !isOnFire && !isActivelyDragging && isHouseInteriorSleepPosition(
-          effects,
+          roomSleepEffects,
           xPct,
           yPct,
           imageAspect,
