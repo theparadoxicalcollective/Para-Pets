@@ -38,16 +38,17 @@ export default function PetFireReaction() {
         style={{
           position: "absolute",
           left: "50%",
-          top: "35%",
+          top: "39%",
           transform: "translate(-50%, -50%)",
           display: "flex",
-          gap: 8,
-          color: "#ff3a32",
+          gap: 5,
+          color: "#ff4038",
           fontFamily: "Arial Black, Arial, sans-serif",
           fontWeight: 900,
-          fontSize: 15,
-          lineHeight: 1,
-          textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(255,80,40,0.45)",
+          fontSize: 20,
+          lineHeight: 0.9,
+          WebkitTextStroke: "1.2px #b80f0b",
+          textShadow: "0 1px 2px rgba(0,0,0,0.88), 0 0 5px rgba(255,55,45,0.52)",
           animation: "para-pet-fire-x-wiggle 0.72s ease-in-out infinite",
         }}
       >

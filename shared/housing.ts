@@ -51,6 +51,7 @@ export const HOUSE_INTERIOR_EFFECT_MAX_SIZE = 40;
 export const HOUSE_INTERIOR_DARKNESS_MIN = 0;
 export const HOUSE_INTERIOR_DARKNESS_MAX = 90;
 export const HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST = 46;
+export const HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL = 0.82;
 
 export function getHouseInteriorLightRadiusRatio(effect: HouseInteriorEffect): number {
   const sizeRatio = effect.size / 100;
@@ -65,6 +66,15 @@ export function getHouseInteriorLightPeakBoost(type: HouseInteriorEffectType): n
   if (type === "candle_light") return 24;
   if (type === "warm_glow") return 30;
   return 0;
+}
+
+export function getHouseInteriorLightCutoutStrength(type: HouseInteriorEffectType): number {
+  const peak = getHouseInteriorLightPeakBoost(type);
+  if (peak <= 0) return 0;
+  return Math.min(
+    HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL,
+    (peak / HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST) * HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL,
+  );
 }
 
 export function isHouseInteriorEffectType(value: unknown): value is HouseInteriorEffectType {
@@ -114,13 +124,18 @@ export function getHouseInteriorPointDarkness(
   imageAspect: number,
 ): number {
   const baseline = sanitizeHouseInteriorDarkness(darkness);
-  return Math.max(0, baseline - getHouseInteriorLocalLightBoost(
+  const boost = getHouseInteriorLocalLightBoost(
     effects,
     offEffectIds,
     xPct,
     yPct,
     imageAspect,
-  ));
+  );
+  const reveal = Math.min(
+    HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL,
+    (boost / HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST) * HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL,
+  );
+  return Math.max(0, baseline * (1 - reveal));
 }
 
 export function isHouseInteriorPointOverActiveFire(
