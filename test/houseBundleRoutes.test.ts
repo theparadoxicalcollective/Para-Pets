@@ -68,6 +68,7 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean }
   const calls: any = {
     images: [],
     createdBundles: [],
+    updatedBundles: [],
     updatedBuildings: [],
     createdBuildings: [],
     locationBundles: [],
@@ -93,7 +94,10 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean }
       calls.createdBundles.push(data);
       return { id: "bundle-1", ...data };
     },
-    updateHouseBundle: async (_id: string, data: any) => data,
+    updateHouseBundle: async (id: string, data: any) => {
+      calls.updatedBundles.push([id, data]);
+      return { id, ...data };
+    },
     deleteHouseBundle: async () => undefined,
     getAllUsers: async () => [],
     getHouseBundleBuildings: async () => [],
@@ -305,6 +309,39 @@ test("admin bundle creation keeps the existing image processing limits", async (
     },
   ]);
   assert.equal(res.statusCode, 201);
+});
+
+test("bundle outdoor effects are sanitized and Sleep Square cannot be saved outside", async () => {
+  const { app, calls } = setup();
+
+  const res = await call(app, "PATCH", "/api/admin/house-bundles/:id", {
+    params: { id: "bundle-1" },
+    body: {
+      exteriorEffects: [
+        { id: "fire", type: "fire", x: -1, y: 2, size: 90 },
+        { id: "sleep", type: "sleep", x: 0.5, y: 0.5, size: 18 },
+        { id: "mist", type: "soft_mist", x: 0.4, y: 0.6, size: 20 },
+      ],
+    },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(calls.updatedBundles, [[
+    "bundle-1",
+    {
+      exteriorEffects: [
+        { id: "fire", type: "fire", x: 0, y: 1, size: 40 },
+        { id: "mist", type: "soft_mist", x: 0.4, y: 0.6, size: 20 },
+      ],
+    },
+  ]]);
+
+  const invalid = await call(app, "PATCH", "/api/admin/house-bundles/:id", {
+    params: { id: "bundle-1" },
+    body: { exteriorEffects: "mist" },
+  });
+  assert.deepEqual([invalid.statusCode, invalid.body], [400, { message: "exteriorEffects must be an array" }]);
+  assert.equal(calls.updatedBundles.length, 1);
 });
 
 test("bundle limits and building/mailbox types preserve the requested admin contract", async () => {
