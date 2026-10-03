@@ -58,16 +58,16 @@ export const HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL = 0.82;
 
 export function getHouseInteriorLightRadiusRatio(effect: HouseInteriorEffect): number {
   const sizeRatio = effect.size / 100;
-  if (effect.type === "fire") return sizeRatio * 2.9;
-  if (effect.type === "candle_light") return sizeRatio * 1.9;
-  if (effect.type === "warm_glow") return sizeRatio * 2.15;
+  if (effect.type === "fire") return sizeRatio * 3.5;
+  if (effect.type === "candle_light") return sizeRatio * 1.45;
+  if (effect.type === "warm_glow") return sizeRatio * 2.5;
   return 0;
 }
 
 export function getHouseInteriorLightPeakBoost(type: HouseInteriorEffectType): number {
-  if (type === "fire") return 38;
-  if (type === "candle_light") return 24;
-  if (type === "warm_glow") return 30;
+  if (type === "fire") return 42;
+  if (type === "candle_light") return 18;
+  if (type === "warm_glow") return 34;
   return 0;
 }
 
