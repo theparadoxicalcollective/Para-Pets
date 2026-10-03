@@ -2044,7 +2044,7 @@ function DecorSubTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: GOLD }}>{item.name}</p>
-                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px{item.homeEffect === "sleep" ? " · Sleep Spot" : ""}</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "rgba(255,215,0,0.4)" }}>{item.price.toLocaleString()} coins · {item.homeSceneSize ?? 250}px{item.homeEffect === "sleep" ? " · Sleep Spot" : item.homeEffect === "lamp_light" ? " · Lamp Light" : ""}</p>
               </div>
               <button data-testid={`button-edit-decor-${item.id}`} onClick={() => setEditingItem(item)} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,215,0,0.10)", border: "1px solid rgba(255,215,0,0.28)", cursor: "pointer" }}>
                 <Pencil className="w-3.5 h-3.5" style={{ color: GOLD }} />
