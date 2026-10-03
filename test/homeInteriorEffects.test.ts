@@ -79,6 +79,16 @@ test("room darkness stays the lights-off baseline while active lights brighten l
   assert.equal(getHouseInteriorLocalLightBoost(stackedLights, new Set(), 0.5, 0.5, 2), HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST);
 });
 
+test("Sunlight strength follows daylight without changing other saved light types", () => {
+  const sunlight = [{ id: "window", type: "warm_glow" as const, x: 0.5, y: 0.5, size: 18 }];
+  const peak = getHouseInteriorLightPeakBoost("warm_glow");
+
+  assert.equal(getHouseInteriorLocalLightBoost(sunlight, new Set(), 0.5, 0.5, 2, 1), peak);
+  assert.equal(getHouseInteriorLocalLightBoost(sunlight, new Set(), 0.5, 0.5, 2, 0.5), peak * 0.5);
+  assert.equal(getHouseInteriorLocalLightBoost(sunlight, new Set(), 0.5, 0.5, 2, 0), 0);
+  assert.equal(getHouseInteriorPointDarkness(70, sunlight, new Set(), 0.5, 0.5, 2, 0), 70);
+});
+
 test("interior lights keep candle < lamp < sunlight < fire reach/strength", () => {
   const fire = { id: "fire", type: "fire" as const, x: 0.5, y: 0.5, size: 14 };
   const candle = { id: "candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 };
@@ -117,7 +127,7 @@ test("interior pets use the same local light falloff as the room", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   for (const source of [owner, visitor]) {
-    assert.match(source, /getHouseInteriorPointDarkness\(darkness, effects, offEffectIds, xPct, yPct, imageAspect\)/);
+    assert.match(source, /getHouseInteriorPointDarkness\([\s\S]{0,180}imageAspect[\s\S]{0,80}sunlightStrength/);
     assert.match(source, /const petBrightness = \(100 - petDarkness\) \/ 100/);
     assert.match(source, /brightness\(\$\{petBrightness\}\)/);
   }
@@ -207,6 +217,19 @@ test("player building exits use a world-style sparkle while Admin keeps the mova
   }
 
   assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,1600}>\s*Outside\s*<\/button>/);
+});
+
+test("player and visitor interiors fade Sunlight with the outside day-night cycle", () => {
+  const effects = read("client/src/components/HomeInteriorEffect.tsx");
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.match(effects, /sunlightStrength = 1/);
+  assert.match(effects, /effect\.type === "warm_glow" \? safeSunlight : 1/);
+  assert.match(effects, /daylightOpacity = effect\.type === "warm_glow"/);
+  for (const source of [owner, visitor]) {
+    assert.match(source, /sunlightStrength=\{outdoorLighting\.daylightStrength\}/);
+  }
 });
 
 test("campfire, candle, lamp, and sunlight remain distinct renderers", () => {
