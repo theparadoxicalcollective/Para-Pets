@@ -30,6 +30,10 @@ export async function runEssentialBoot(): Promise<void> {
       item_type text NOT NULL CHECK (item_type IN ('decor', 'object')),
       item_id varchar NOT NULL,
       quantity integer NOT NULL DEFAULT 1 CHECK (quantity BETWEEN 1 AND 99),
+      x_pct real NOT NULL DEFAULT 0.5,
+      y_pct real NOT NULL DEFAULT 0.5,
+      size integer NOT NULL DEFAULT 250,
+      flipped boolean NOT NULL DEFAULT false,
       active boolean NOT NULL DEFAULT true,
       created_at timestamp NOT NULL DEFAULT now()
     );
@@ -41,10 +45,16 @@ export async function runEssentialBoot(): Promise<void> {
       user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       included_item_id varchar NOT NULL REFERENCES house_bundle_included_items(id) ON DELETE CASCADE,
       granted_quantity integer NOT NULL DEFAULT 0 CHECK (granted_quantity >= 0),
-      granted_at timestamp NOT NULL DEFAULT now()
+      granted_at timestamp NOT NULL DEFAULT now(),
+      template_applied_at timestamp
     );
     CREATE UNIQUE INDEX IF NOT EXISTS user_house_bundle_item_grants_user_item_key
       ON user_house_bundle_item_grants(user_id, included_item_id);
+    ALTER TABLE house_bundle_included_items ADD COLUMN IF NOT EXISTS x_pct real NOT NULL DEFAULT 0.5;
+    ALTER TABLE house_bundle_included_items ADD COLUMN IF NOT EXISTS y_pct real NOT NULL DEFAULT 0.5;
+    ALTER TABLE house_bundle_included_items ADD COLUMN IF NOT EXISTS size integer NOT NULL DEFAULT 250;
+    ALTER TABLE house_bundle_included_items ADD COLUMN IF NOT EXISTS flipped boolean NOT NULL DEFAULT false;
+    ALTER TABLE user_house_bundle_item_grants ADD COLUMN IF NOT EXISTS template_applied_at timestamp;
 
     CREATE TABLE IF NOT EXISTS pet_house_visit_rewards (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
