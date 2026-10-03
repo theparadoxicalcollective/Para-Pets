@@ -5,7 +5,7 @@ import { X, Heart, Sword, Shield, Star } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
-import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
@@ -409,20 +409,27 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
       })}
 
       <button
+        type="button"
+        aria-label="Outside"
+        data-testid="button-interior-exit-sparkle"
         onClick={onClose}
         onPointerDown={e => e.stopPropagation()}
-        className="absolute flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
+        className="absolute flex items-center justify-center"
         style={{
           zIndex: 10,
           left: imgWidth > 0 ? panX + leaveButtonX * imgWidth : `${leaveButtonX * 100}%`,
           top: containerH > 0 ? leaveButtonY * containerH : `${leaveButtonY * 100}%`,
           transform: "translate(-50%, -50%)",
-          background: "rgba(0,0,0,0.32)", color: "rgba(255,255,255,0.7)",
-          border: "1px solid rgba(255,255,255,0.18)",
-          fontFamily: "Lora, serif",
+          width: 48,
+          height: 48,
+          padding: 0,
+          border: 0,
+          background: "transparent",
+          cursor: "pointer",
+          touchAction: "manipulation",
         }}
       >
-        Outside
+        <HomeInteriorExitSparkle />
       </button>
     </div>
   );

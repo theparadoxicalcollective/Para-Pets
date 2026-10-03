@@ -327,7 +327,14 @@ function AdminInteriorPreview({
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      <HomeInteriorDarknessLayer darkness={darkness} zIndex={5} />
+      <HomeInteriorDarknessLayer
+        darkness={darkness}
+        effects={effects}
+        panX={panX}
+        imgWidth={imgWidth}
+        sceneHeight={containerHRef.current}
+        zIndex={5}
+      />
 
       <HomeInteriorEffectsLayer
         effects={effects}

@@ -78,6 +78,20 @@ test("room darkness stays the lights-off baseline while active lights brighten l
   assert.equal(getHouseInteriorLocalLightBoost(stackedLights, new Set(), 0.5, 0.5, 2), HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST);
 });
 
+test("fire brightens a broader, stronger area without changing candle or lamp light reach", () => {
+  const fire = { id: "fire", type: "fire" as const, x: 0.5, y: 0.5, size: 14 };
+  const candle = { id: "candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 };
+  const lamp = { id: "lamp", type: "warm_glow" as const, x: 0.5, y: 0.5, size: 18 };
+
+  assert.equal(getHouseInteriorLightRadiusRatio(fire), 0.14 * 2.9);
+  assert.equal(getHouseInteriorLightPeakBoost("fire"), 38);
+
+  assert.equal(getHouseInteriorLightRadiusRatio(candle), 0.1 * 1.9);
+  assert.equal(getHouseInteriorLightPeakBoost("candle_light"), 24);
+  assert.equal(getHouseInteriorLightRadiusRatio(lamp), 0.18 * 2.15);
+  assert.equal(getHouseInteriorLightPeakBoost("warm_glow"), 30);
+});
+
 test("interior pets use the same local light falloff as the room", () => {
   const lights = [
     { id: "fire", type: "fire" as const, x: 0.25, y: 0.55, size: 14 },
@@ -133,7 +147,7 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /env\(safe-area-inset-top, 0px\)/);
   assert.match(source, /max\(64px, calc\(env\(safe-area-inset-top, 0px\) \+ 34px\)\)/);
   assert.match(source, /slider-interior-darkness/);
-  assert.match(source, /HomeInteriorDarknessLayer darkness=\{darkness\}/);
+  assert.match(source, /<HomeInteriorDarknessLayer[\s\S]{0,240}darkness=\{darkness\}/);
   assert.match(source, /interiorDarkness: selBuilding\.interiorDarkness \?\? 0/);
   assert.match(source, /interiorPreviewSaveQueueRef/);
   assert.match(source, /updateBuildingCache/);
@@ -143,6 +157,28 @@ test("admin interior preview exposes touch-friendly panning and effect editing",
   assert.match(source, /interiorEffects: selBuilding\.interiorEffects \?\? \[\]/);
   assert.doesNotMatch(source, /await refetch\(\);[\s\S]{0,120}Failed to save effect/);
   assert.match(source, /\}, \[buildingId\]\);/);
+});
+
+test("player building exits use a world-style sparkle while Admin keeps the movable Outside marker", () => {
+  const effects = read("client/src/components/HomeInteriorEffect.tsx");
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  const admin = read("client/src/components/HomeBundleSection.tsx");
+
+  assert.match(effects, /function HomeInteriorExitSparkle/);
+  assert.match(effects, /para-home-exit-sparkle-pulse/);
+  assert.match(effects, /para-home-exit-sparkle-twinkle/);
+  assert.match(effects, /linear-gradient\(135deg, #fffce8 8%, #ffe68a 45%, #ffb51f 100%\)/);
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /HomeInteriorExitSparkle/);
+    assert.match(source, /data-testid="button-interior-exit-sparkle"/);
+    assert.match(source, /aria-label="Outside"/);
+    assert.match(source, /background: "transparent"/);
+    assert.match(source, /<HomeInteriorExitSparkle \/>/);
+  }
+
+  assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,1600}>\s*Outside\s*<\/button>/);
 });
 
 test("campfire is flame-only and candle light remains a distinct renderer", () => {
@@ -294,12 +330,13 @@ test("saved room darkness is cut away locally around active lights without addin
   assert.doesNotMatch(effects, /home-interior-light-wash-/);
   assert.doesNotMatch(effects, /const glow = effect\.type/);
 
-  // Lamp Glow itself stays intentionally subtle because the darkness cutout does the room brightening.
-  assert.match(effects, /rgba\(255,243,181,0\.4\)/);
-  assert.match(effects, /opacity: 0\.68/);
+  // Lamp Glow stays warm but is more transparent through the center.
+  assert.match(effects, /rgba\(255,231,130,0\.28\)/);
+  assert.match(effects, /rgba\(255,204,82,0\.17\)/);
+  assert.match(effects, /opacity: 0\.6/);
 
-  // Admin preview intentionally shows the exact all-lights-off darkness baseline.
-  assert.match(admin, /<HomeInteriorDarknessLayer darkness=\{darkness\} zIndex=\{5\} \/>/);
+  // Admin preview uses the same local light cutouts as the player-facing room.
+  assert.match(admin, /<HomeInteriorDarknessLayer[\s\S]*darkness=\{darkness\}[\s\S]*effects=\{effects\}[\s\S]*panX=\{panX\}[\s\S]*imgWidth=\{imgWidth\}[\s\S]*sceneHeight=\{containerHRef\.current\}[\s\S]*zIndex=\{5\}/);
 });
 
 test("owner and visitor building interiors render saved effects in image-space coordinates", () => {
