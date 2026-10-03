@@ -9,7 +9,8 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
 }> = [
   { type: "fire", label: "Campfire", description: "Natural open flame only — no logs or base", defaultSize: 14 },
   { type: "candle_light", label: "Candle Light", description: "Small focused flame for candles and lanterns", defaultSize: 10 },
-  { type: "warm_glow", label: "Lamp Glow", description: "Soft lamp or window light without a visible flame", defaultSize: 18 },
+  { type: "lamp_light", label: "Lamp Light", description: "Warm lamp glow with a small visible light source in the center", defaultSize: 16 },
+  { type: "warm_glow", label: "Sunlight", description: "Soft broad daylight for windows and naturally lit areas", defaultSize: 18 },
   { type: "sparkles", label: "Sparkles", description: "Soft magical twinkle", defaultSize: 14 },
   { type: "dust_motes", label: "Dust Motes", description: "Subtle floating room particles", defaultSize: 18 },
   { type: "soft_mist", label: "Soft Mist", description: "Low translucent atmospheric haze", defaultSize: 22 },
@@ -256,6 +257,41 @@ function CandleLightVisual() {
   );
 }
 
+function LampLightVisual() {
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: "-12%", borderRadius: "50%", animation: "para-home-glow-pulse 2.35s ease-in-out infinite" }}>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(255,237,150,0.42) 0%, rgba(255,207,78,0.25) 27%, rgba(255,169,50,0.09) 52%, transparent 76%)",
+          filter: "blur(1.6px)",
+          mixBlendMode: "screen",
+          opacity: 0.78,
+        }}
+      />
+      <div
+        data-testid="home-lamp-light-core"
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: "19%",
+          height: "19%",
+          borderRadius: "50%",
+          transform: "translate(-50%, -50%)",
+          background: "radial-gradient(circle at 42% 38%, rgba(255,252,216,0.96), rgba(255,226,124,0.88) 38%, rgba(255,184,61,0.7) 72%, rgba(255,154,42,0.45) 100%)",
+          boxShadow: "0 0 7px rgba(255,237,168,0.9), 0 0 15px rgba(255,194,73,0.58)",
+          opacity: 0.88,
+          mixBlendMode: "screen",
+        }}
+      />
+    </div>
+  );
+}
+
 function WarmGlowVisual() {
   return (
     <div
@@ -415,6 +451,7 @@ function SleepSpotHintVisual() {
 function EffectVisual({ type, adminPreview }: { type: HouseInteriorEffectType; adminPreview: boolean }) {
   if (type === "fire") return <CampfireVisual />;
   if (type === "candle_light") return <CandleLightVisual />;
+  if (type === "lamp_light") return <LampLightVisual />;
   if (type === "warm_glow") return <WarmGlowVisual />;
   if (type === "sparkles") return <SparklesVisual />;
   if (type === "dust_motes") return <DustMotesVisual />;
