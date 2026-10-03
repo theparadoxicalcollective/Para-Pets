@@ -725,6 +725,112 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated, onBundleUpdated }: { bun
       });
   }, [toast]);
 
+  const saveExteriorEffects = useCallback((next: HouseInteriorEffect[]) => {
+    exteriorEffectsRef.current = next;
+    setExteriorEffects(next);
+    onBundleUpdated?.({ exteriorEffects: next });
+    exteriorEffectsSaveQueueRef.current = exteriorEffectsSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await apiRequest("PATCH", `/api/admin/house-bundles/${bundle.id}`, { exteriorEffects: next });
+        qc.invalidateQueries({ queryKey: ["/api/admin/house-bundles"] });
+      })
+      .catch((error: any) => {
+        toast({ title: "Failed to save outdoor effect", description: error.message, variant: "destructive" });
+      });
+  }, [bundle.id, onBundleUpdated, qc, toast]);
+
+  const addExteriorEffect = useCallback((type: HouseInteriorEffectType, defaultSize: number) => {
+    if (exteriorEffectsRef.current.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT) {
+      toast({ title: "Effect limit reached", description: `Up to ${HOUSE_INTERIOR_EFFECT_MAX_COUNT} outdoor effects can be placed.` });
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) return;
+    const iw = imgWidthRef.current || container.offsetWidth;
+    const x = Math.max(0.03, Math.min(0.97, (container.offsetWidth / 2 - panXRef.current) / iw));
+    const id = `outdoor-effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const effect: HouseInteriorEffect = { id, type, x, y: 0.52, size: defaultSize };
+    saveExteriorEffects([...exteriorEffectsRef.current, effect]);
+    setSelectedExteriorEffectId(id);
+    setShowExteriorEffectsMenu(false);
+  }, [saveExteriorEffects, toast]);
+
+  const onExteriorEffectPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, effect: HouseInteriorEffect) => {
+    e.stopPropagation();
+    buildingDragRef.current = null;
+    panStartRef.current = null;
+    safeSetPointerCapture(e.currentTarget, e.pointerId);
+    exteriorEffectDragRef.current = {
+      id: effect.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      startEffectX: effect.x,
+      startEffectY: effect.y,
+      pid: e.pointerId,
+    };
+    setSelectedId(null);
+    setSelectedExteriorEffectId(effect.id);
+    setShowExteriorEffectsMenu(false);
+  }, []);
+
+  const onExteriorEffectPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = exteriorEffectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const iw = imgWidthRef.current;
+    const h = containerHRef.current;
+    if (iw <= 0 || h <= 0) return;
+    const next = exteriorEffectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: Math.max(0, Math.min(1, drag.startEffectX + (e.clientX - drag.startX) / iw)),
+      y: Math.max(0, Math.min(1, drag.startEffectY + (e.clientY - drag.startY) / h)),
+    } : effect);
+    exteriorEffectsRef.current = next;
+    setExteriorEffects(next);
+  }, []);
+
+  const onExteriorEffectPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const drag = exteriorEffectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    exteriorEffectDragRef.current = null;
+    saveExteriorEffects(exteriorEffectsRef.current);
+  }, [saveExteriorEffects]);
+
+  const onExteriorEffectPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const drag = exteriorEffectDragRef.current;
+    if (!drag || drag.pid !== e.pointerId) return;
+    exteriorEffectDragRef.current = null;
+    const reverted = exteriorEffectsRef.current.map(effect => effect.id === drag.id ? {
+      ...effect,
+      x: drag.startEffectX,
+      y: drag.startEffectY,
+    } : effect);
+    exteriorEffectsRef.current = reverted;
+    setExteriorEffects(reverted);
+  }, []);
+
+  const resizeSelectedExteriorEffect = useCallback((delta: number) => {
+    if (!selectedExteriorEffectId) return;
+    const next = exteriorEffectsRef.current.map(effect => effect.id === selectedExteriorEffectId ? {
+      ...effect,
+      size: Math.max(HOUSE_INTERIOR_EFFECT_MIN_SIZE, Math.min(HOUSE_INTERIOR_EFFECT_MAX_SIZE, effect.size + delta)),
+    } : effect);
+    saveExteriorEffects(next);
+  }, [saveExteriorEffects, selectedExteriorEffectId]);
+
+  const deleteSelectedExteriorEffect = useCallback(() => {
+    if (!selectedExteriorEffectId) return;
+    saveExteriorEffects(exteriorEffectsRef.current.filter(effect => effect.id !== selectedExteriorEffectId));
+    setSelectedExteriorEffectId(null);
+  }, [saveExteriorEffects, selectedExteriorEffectId]);
+
+  const selectedExteriorEffect = exteriorEffects.find(effect => effect.id === selectedExteriorEffectId) ?? null;
+  const selectedExteriorEffectLabel = HOME_OUTDOOR_EFFECT_OPTIONS.find(option => option.type === selectedExteriorEffect?.type)?.label ?? "Effect";
+
   // ── Background image aspect ratio ──
   useEffect(() => {
     if (!bgUrl) return;
