@@ -121,6 +121,7 @@ export function getHouseInteriorLocalLightBoost(
   xPct: number,
   yPct: number,
   imageAspect: number,
+  sunlightStrength = 1,
 ): number {
   if (!Number.isFinite(imageAspect) || imageAspect <= 0) return 0;
   const safeX = Number.isFinite(xPct) ? xPct : 0.5;
@@ -139,7 +140,10 @@ export function getHouseInteriorLocalLightBoost(
 
     const normalized = distance / radius;
     const falloff = Math.pow(1 - normalized, 1.35);
-    totalBoost += getHouseInteriorLightPeakBoost(effect.type) * falloff;
+    const daylightScale = effect.type === "warm_glow"
+      ? Math.max(0, Math.min(1, Number.isFinite(sunlightStrength) ? sunlightStrength : 1))
+      : 1;
+    totalBoost += getHouseInteriorLightPeakBoost(effect.type) * falloff * daylightScale;
   }
 
   return Math.min(HOUSE_INTERIOR_LIGHT_MAX_LOCAL_BOOST, totalBoost);
@@ -152,6 +156,7 @@ export function getHouseInteriorPointDarkness(
   xPct: number,
   yPct: number,
   imageAspect: number,
+  sunlightStrength = 1,
 ): number {
   const baseline = sanitizeHouseInteriorDarkness(darkness);
   const boost = getHouseInteriorLocalLightBoost(
@@ -160,6 +165,7 @@ export function getHouseInteriorPointDarkness(
     xPct,
     yPct,
     imageAspect,
+    sunlightStrength,
   );
   const reveal = Math.min(
     HOUSE_INTERIOR_LIGHT_MAX_DARKNESS_REVEAL,
