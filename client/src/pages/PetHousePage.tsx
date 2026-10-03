@@ -960,7 +960,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor decor drag state
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
+  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
+  const outdoorDecorTapRef = useRef<{ id: string; at: number } | null>(null);
 
   // Inventory drag: decor
   const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number } | null>(null);
@@ -975,6 +976,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor pet repositioning drag
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const outdoorPetTapRef = useRef<{ id: string; at: number } | null>(null);
   // Popup selection stores only the inventory id; current pet data stays query-backed.
   const [outdoorPopupPetId, setOutdoorPopupPetId] = useState<string | null>(null);
   // React Query's isPending flag updates on the next render. Keep a synchronous
