@@ -38,6 +38,7 @@ import { registerHubNoticeRoutes } from "./routes/hubNotice.routes";
 import { registerAvatarRoutes } from "./routes/avatar.routes";
 import { registerPrivacyPolicyRoutes } from "./routes/privacyPolicy.routes";
 import { registerPublicPetShowcaseRoute } from "./routes/publicPetShowcase.routes";
+import { registerEmblemRoutes } from "./routes/emblem.routes";
 import { registerBadgeRoutes, registerPlayerBadgeRoutes } from "./routes/badge.routes";
 import { registerFishingAquariumRoutes, registerFishingRoutes, type FishingRouteDependencies } from "./routes/fishing.routes";
 import { registerMarketplaceRoutes, type MarketplaceRouteDependencies } from "./routes/marketplace.routes";
@@ -5082,61 +5083,10 @@ export async function registerRoutes(
 
   registerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage }, "definitions");
 
-  // ───────── Emblems (PvP rank-trophy catalog, admin-managed) ─────────
-  app.get("/api/admin/emblems", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const all = await storage.listEmblems();
-      return res.json(all);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to fetch emblems" });
-    }
-  });
-
-  app.post("/api/admin/emblems", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { name, description, imageData } = req.body;
-      if (!name || !imageData) return res.status(400).json({ message: "name and imageData required" });
-      const imageUrl = await processWorldImage(imageData, 1000);
-      const emblem = await storage.createEmblem({
-        name: String(name).trim(),
-        description: description ? String(description) : null,
-        imageUrl,
-      });
-      return res.json(emblem);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to create emblem" });
-    }
-  });
-
-  app.patch("/api/admin/emblems/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { name, description, imageData } = req.body;
-      const updateData: { name?: string; description?: string | null; imageUrl?: string } = {};
-      if (name !== undefined && String(name).trim()) updateData.name = String(name).trim();
-      if (description !== undefined) updateData.description = description ? String(description) : null;
-      if (imageData) updateData.imageUrl = await processWorldImage(imageData, 1000);
-      await storage.updateEmblem(req.params.id as string, updateData);
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to update emblem" });
-    }
-  });
-
-  app.delete("/api/admin/emblems/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      await storage.deleteEmblem(req.params.id as string);
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to delete emblem" });
-    }
+  registerEmblemRoutes(app, {
+    storage,
+    isAuthenticated,
+    processEmblemImage: (imageData) => processWorldImage(imageData, 1000),
   });
 
   registerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage }, "leaderboards");
