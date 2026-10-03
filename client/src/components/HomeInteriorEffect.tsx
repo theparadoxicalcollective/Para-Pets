@@ -16,6 +16,10 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   { type: "sleep", label: "Sleep Square", description: "Drop a pet here to make it sleep", defaultSize: 18 },
 ];
 
+export const HOME_OUTDOOR_EFFECT_OPTIONS = HOME_INTERIOR_EFFECT_OPTIONS.filter(
+  option => option.type !== "sleep",
+);
+
 type EffectPointerHandler = (
   event: ReactPointerEvent<HTMLDivElement>,
   effect: HouseInteriorEffect,
