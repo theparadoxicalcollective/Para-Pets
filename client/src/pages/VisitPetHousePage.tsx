@@ -7,7 +7,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
 import PetSleepZzz from "@/components/PetSleepZzz";
-import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import PetFireReaction from "@/components/PetFireReaction";
+import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -348,13 +349,21 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct);
+        const imageAspect = imgWidth / Math.max(containerH, 1);
+        const petDarkness = getHouseInteriorPointDarkness(darkness, effects, offEffectIds, xPct, yPct, imageAspect);
         const petBrightness = (100 - petDarkness) / 100;
-        const isSleeping = isHouseInteriorSleepPosition(
+        const isOnFire = isHouseInteriorPointOverActiveFire(
+          effects,
+          offEffectIds,
+          xPct,
+          yPct,
+          imageAspect,
+        );
+        const isSleeping = !isOnFire && isHouseInteriorSleepPosition(
           effects,
           xPct,
           yPct,
-          imgWidth / Math.max(containerH, 1),
+          imageAspect,
         );
         return (
           <div
@@ -375,7 +384,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
                   costumeAccess="public"
-                  mode={isSleeping ? "sleep" : "house"}
+                  mode={isOnFire ? "sleep" : isSleeping ? "sleep" : "house"}
                   size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
                   fillContainer
                   fitVisible
@@ -391,6 +400,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
               />
               ) : null}
               {isSleeping && <PetSleepZzz />}
+              {isOnFire && <PetFireReaction />}
             </div>
           </div>
         );
