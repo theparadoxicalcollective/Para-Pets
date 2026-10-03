@@ -424,6 +424,19 @@ export const petTemplates = pgTable("pet_templates", {
   // Validated by petAnimationProfileSchema at API boundaries. Legacy nulls are
   // normalized to standard_ground/standard_flying by renderers.
   idleStyle: text("idle_style"),
+  // Active Pet page presentation is authored per template without moving the
+  // underlying 1000x1000 part coordinates used everywhere else.
+  activeDisplayX: integer("active_display_x").notNull().default(0),
+  activeDisplayY: integer("active_display_y").notNull().default(8),
+  activeDisplayScale: integer("active_display_scale").notNull().default(112),
+  // Reusable red X-eye reaction anchor, authored separately for regular and
+  // evolution artwork in the same logical 1000x1000 pet canvas.
+  xEyesBaseX: integer("x_eyes_base_x").notNull().default(500),
+  xEyesBaseY: integer("x_eyes_base_y").notNull().default(390),
+  xEyesBaseScale: integer("x_eyes_base_scale").notNull().default(100),
+  xEyesEvolutionX: integer("x_eyes_evolution_x").notNull().default(500),
+  xEyesEvolutionY: integer("x_eyes_evolution_y").notNull().default(390),
+  xEyesEvolutionScale: integer("x_eyes_evolution_scale").notNull().default(100),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
