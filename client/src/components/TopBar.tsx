@@ -363,7 +363,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           </div>
         </div>
 
-        {/* RIGHT: gifts (only outside the home page — on home, the gift floats under the profile photo so it never collides with the tutorial button) */}
+        {/* RIGHT: gifts on non-home pages; the home page uses its own stage-safe floating cue below the upper-right controls. */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {hasRewards && location !== "/" && (
             <button
