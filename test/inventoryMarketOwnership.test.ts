@@ -4,7 +4,7 @@ import test from "node:test";
 
 const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
 const market = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
-const routes = readFileSync("server/routes.ts", "utf8");
+const accessoryRoutes = readFileSync("server/routes/petAccessory.routes.ts", "utf8");
 const essentialBoot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
 const inventoryConsumption = readFileSync("server/inventoryConsumption.ts", "utf8");
 
@@ -20,9 +20,9 @@ test("marketplace escrow cannot be consumed while it is listed", () => {
 });
 
 test("Closet prevents cross-pet accessory reuse and accepts normalized item types", () => {
-  assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
-  assert.match(routes, /That accessory is already equipped to a pet/);
-  assert.match(routes, /accShopItem\.type\?\.trim\(\)\.toLowerCase\(\) !== "accessory"/);
+  assert.match(accessoryRoutes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
+  assert.match(accessoryRoutes, /That accessory is already equipped to a pet/);
+  assert.match(accessoryRoutes, /accShopItem\.type\?\.trim\(\)\.toLowerCase\(\) !== "accessory"/);
 });
 
 test("accessories are enforced as individual physical inventory copies", () => {
