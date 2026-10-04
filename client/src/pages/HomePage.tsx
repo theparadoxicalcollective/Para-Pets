@@ -600,10 +600,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // dozens of identical boosts. Keep the first owned row as the consume target
   // and combine every matching row into the quantity shown on that card. After
   // one use, the inventory refetch selects the next row when necessary.
-  const statBoostItems = (() => {
+  const powerUpItems = (() => {
     const stacks = new Map<string, PowerUpItem>();
     for (const inventoryItem of inventory) {
-      if (inventoryItem.type !== "power_up" || inventoryItem.statBoostType === "lvl") continue;
+      const isStatPowerUp = inventoryItem.type === "power_up" && inventoryItem.statBoostType !== "lvl";
+      const isEvolutionNodeSpecial = inventoryItem.type === "special" && inventoryItem.specialType === "fill_evolution_node";
+      if (!isStatPowerUp && !isEvolutionNodeSpecial) continue;
+
       const item = toModalItem(inventoryItem);
       const existing = stacks.get(item.shopItemId);
       if (existing) {
@@ -648,9 +651,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     onSuccess: (data, variables) => {
       const item = inventory.find(i => i.inventoryId === variables.itemInvId);
       const isHatchTime = item?.specialType === "hatch_time";
-      const label = isHatchTime ? `-${item?.specialAmount || "?"} min` : `+${item?.specialAmount || "?"} LVL pts`;
+      const isFillEvolutionNode = item?.specialType === "fill_evolution_node";
+      const label = isFillEvolutionNode
+        ? "NODE FILLED!"
+        : isHatchTime
+          ? `-${item?.specialAmount || "?"} min`
+          : `+${item?.specialAmount || "?"} LVL pts`;
       const effectType: "stat" | "level" | "hatch" = isHatchTime ? "hatch" : "level";
       setPetModalSuccess({ type: effectType, label });
+      if (isFillEvolutionNode) {
+        window.dispatchEvent(new CustomEvent("pet_evolution_refresh"));
+      }
       if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
         fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId, activePetForModal.inventoryId);
       }
@@ -1770,7 +1781,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           petDef={activePetForModal.petDef ?? 50}
           petHealth={activePetForModal.petHealth ?? 1000}
           itemsRemaining={(() => { const r = activePetForModal.rarity || 1; const slotsPerLvl = r <= 2 ? 1 : r === 3 ? 2 : 3; return Math.max(0, (activePetForModal.petLevel || 1) * slotsPerLvl - (activePetForModal.itemsUsedThisLevel || 0)); })()}
-          items={statBoostItems}
+          items={powerUpItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           subtitle={`Drag an item onto ${activePetForModal.petNickname || activePetForModal.name} to boost their stats`}
           showBuyButton={powerUpFromQuest}
