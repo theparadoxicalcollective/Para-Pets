@@ -91,17 +91,29 @@ test("placed Lamp Light follows either an Object or Decor and Tap Image Objects 
   assert.equal(visitorOverride.length, 1);
 });
 
-test("attached Lamp Light keeps its visible size but gets a slightly broader lighting footprint", () => {
-  const lamp = placement("lamp-copy", "decor", "lamp_light", true);
-  const [visible] = buildHomeLampItemEffects([lamp], 800, undefined, 1200);
-  const [illumination] = broadenHomeAttachedLampIllumination([visible]);
+test("attached Lamp Light keeps its visible size while larger saved effects illuminate more area", () => {
+  const smallLamp = placement("small-lamp", "decor", "lamp_light", true);
+  smallLamp.item.homeEffectSize = 30;
+  const largeLamp = placement("large-lamp", "decor", "lamp_light", true);
+  largeLamp.item.homeEffectSize = 100;
 
-  assert.equal(illumination.id, visible.id);
-  assert.equal(illumination.x, visible.x);
-  assert.equal(illumination.y, visible.y);
-  assert.ok(illumination.size > visible.size);
-  assert.ok(illumination.size <= 40);
-  assert.equal(visible.size, buildHomeLampItemEffects([lamp], 800, undefined, 1200)[0].size);
+  const [smallVisible] = buildHomeLampItemEffects([smallLamp], 800, undefined, 1200);
+  const [largeVisible] = buildHomeLampItemEffects([largeLamp], 800, undefined, 1200);
+  const [smallIllumination] = broadenHomeAttachedLampIllumination([smallVisible]);
+  const [largeIllumination] = broadenHomeAttachedLampIllumination([largeVisible]);
+
+  assert.equal(smallIllumination.x, smallVisible.x);
+  assert.equal(smallIllumination.y, smallVisible.y);
+  assert.equal(largeIllumination.x, largeVisible.x);
+  assert.equal(largeIllumination.y, largeVisible.y);
+  assert.ok(smallIllumination.size > smallVisible.size);
+  assert.ok(largeIllumination.size > largeVisible.size);
+  assert.ok(largeIllumination.size > smallIllumination.size);
+  assert.ok(largeIllumination.size <= 46);
+  assert.equal(
+    smallVisible.size,
+    buildHomeLampItemEffects([smallLamp], 800, undefined, 1200)[0].size,
+  );
 });
 
 test("Tap Image Objects alternate between catalog artwork without changing placement geometry", () => {
