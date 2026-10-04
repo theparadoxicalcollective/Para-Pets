@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -239,7 +239,14 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     () => buildHomeSleepDecorEffects(placedItems, containerH, imgWidth),
     [placedItems, containerH, imgWidth],
   );
-  const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
+  const itemLampIlluminationEffects = useMemo(
+    () => broadenHomeAttachedLampIllumination(itemLampEffects),
+    [itemLampEffects],
+  );
+  const roomLightEffects = useMemo(
+    () => [...effects, ...itemLampIlluminationEffects],
+    [effects, itemLampIlluminationEffects],
+  );
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
 
   useEffect(() => {
@@ -616,9 +623,13 @@ export default function VisitPetHousePage() {
     () => buildHomeSleepDecorEffects(outdoorDecor, containerH, imgWidth),
     [outdoorDecor, containerH, imgWidth],
   );
+  const outdoorLampIlluminationEffects = useMemo(
+    () => broadenHomeAttachedLampIllumination(outdoorLampEffects),
+    [outdoorLampEffects],
+  );
   const outdoorLightEffects = useMemo(
-    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
-    [activeBundle?.exteriorEffects, outdoorLampEffects],
+    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampIlluminationEffects],
+    [activeBundle?.exteriorEffects, outdoorLampIlluminationEffects],
   );
 
   const { data: me } = useQuery<{ id: string; coins: number } | null>({
