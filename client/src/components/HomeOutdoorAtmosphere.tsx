@@ -5,6 +5,8 @@ import type { HouseInteriorEffect } from "@shared/housing";
 import {
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
+  HOME_OUTDOOR_AUTO_TRANSITION_MS,
+  HOME_OUTDOOR_OVERRIDE_TRANSITION_MS,
   type HomeOutdoorLightingMode,
 } from "@/lib/homeOutdoorLighting";
 
@@ -21,7 +23,11 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
 
-  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness };
+  const transitionMs = mode === "auto"
+    ? HOME_OUTDOOR_AUTO_TRANSITION_MS
+    : HOME_OUTDOOR_OVERRIDE_TRANSITION_MS;
+
+  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs };
 }
 
 export function HomeDayNightToggle({
@@ -102,7 +108,9 @@ export function HomeDayNightToggle({
             background: "radial-gradient(circle at 35% 30%, #fff4bd 0%, #ffd75a 38%, #c89014 100%)",
             border: "1px solid rgba(255,237,153,.9)",
             boxShadow: "0 0 7px rgba(255,211,72,.82), 0 0 2px rgba(255,255,255,.7)",
-            transition: mode === "auto" ? "left 30s linear" : "left 280ms ease-out",
+            transition: mode === "auto"
+              ? `left ${HOME_OUTDOOR_AUTO_TRANSITION_MS}ms linear`
+              : `left ${HOME_OUTDOOR_OVERRIDE_TRANSITION_MS}ms ease-out`,
           }}
         />
       </span>
@@ -134,6 +142,7 @@ export function HomeOutdoorAtmosphereLayer({
   imgWidth,
   sceneHeight,
   zIndex = 20,
+  transitionMs = HOME_OUTDOOR_AUTO_TRANSITION_MS,
 }: {
   darkness: number;
   nightStrength: number;
@@ -142,6 +151,7 @@ export function HomeOutdoorAtmosphereLayer({
   imgWidth: number;
   sceneHeight: number;
   zIndex?: number;
+  transitionMs?: number;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
   return (
@@ -154,7 +164,7 @@ export function HomeOutdoorAtmosphereLayer({
           zIndex: zIndex - 1,
           opacity: safeNight * .30,
           background: "radial-gradient(circle at 52% 12%, rgba(43,69,120,.38), transparent 42%), linear-gradient(180deg, rgba(7,18,45,.5), rgba(1,5,15,.78))",
-          transition: "opacity 30s linear",
+          transition: `opacity ${transitionMs}ms linear`,
         }}
       />
       <HomeInteriorDarknessLayer
@@ -163,6 +173,7 @@ export function HomeOutdoorAtmosphereLayer({
         panX={panX}
         imgWidth={imgWidth}
         sceneHeight={sceneHeight}
+        transitionMs={transitionMs}
         zIndex={zIndex}
       />
     </>
