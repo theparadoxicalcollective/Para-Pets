@@ -1639,16 +1639,15 @@ export async function registerRoutes(
     db,
     isAuthenticated,
     applyPetXp,
-    i  registerPetGiftLoyaltyRoutes(app, {
+    incrementQuestProgress,
+  });
+
+  registerPetGiftLoyaltyRoutes(app, {
     storage,
     db,
     isAuthenticated,
     applyPetXp,
     incrementQuestProgress,
-  });
-
-alty reward" });
-    }
   });
 
   // Called by the client when the player's pet is knocked out in a world
