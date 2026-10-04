@@ -91,6 +91,7 @@ import { registerCauldronRoutes } from "./routes/cauldron.routes";
 import { registerMixingTreeRecipeRoutes } from "./routes/mixingTreeRecipe.routes";
 import { registerMaintenanceRoutes } from "./routes/maintenance.routes";
 import { registerClientErrorRoutes } from "./routes/clientDiagnostics.routes";
+import { registerWelcomeBundleAdminRoutes } from "./routes/welcomeBundleAdmin.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 import { startVeridianWatcherBackgroundJobs } from "./veridianWatcher/backgroundJobs";
@@ -4164,45 +4165,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/welcome-bundle", isAdmin, async (req, res) => {
-    try {
-      const config = await getWelcomeBundleConfig();
-      const allShopItems = await storage.getAllShopItems();
-      const itemsWithDetails = config.items.map(({ name, qty }) => {
-        const shop = allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-        // Pet shop items leave `image_url` blank and use `egg_image_url`
-        // as the primary art (they live in the shop as un-hatched eggs).
-        // Fall back through every art column so the welcome-bundle
-        // editor never renders a "?" tile when the item actually has
-        // artwork — just stored under a non-default field.
-        const resolvedImage =
-          (shop as any)?.imageUrl
-          || (shop as any)?.eggImageUrl
-          || (shop as any)?.hatchedImageUrl
-          || (shop as any)?.hooklessImageUrl
-          || (shop as any)?.sleepingImageUrl
-          || null;
-        return { name, qty, found: !!shop, imageUrl: resolvedImage, type: shop?.type ?? null, effect: computeItemEffect(shop) };
-      });
-      return res.json({ coinAmount: config.coinAmount, message: config.message, items: itemsWithDetails });
-    } catch (err) {
-      console.error("Get welcome bundle config error:", err);
-      return res.status(500).json({ message: "Failed to get welcome bundle config" });
-    }
+  registerWelcomeBundleAdminRoutes(app, {
+    storage,
+    isAdmin,
+    getWelcomeBundleConfig,
+    computeItemEffect,
   });
-
-  app.put("/api/admin/welcome-bundle", isAdmin, async (req, res) => {
-    try {
-      const { coinAmount, message, items } = req.body;
-      const config = { coinAmount: Number(coinAmount) || 0, message: message || "", items: items || [] };
-      await storage.setGameSetting("welcome_bundle_config", JSON.stringify(config));
-      return res.json({ success: true, config });
-    } catch (err) {
-      console.error("Save welcome bundle config error:", err);
-      return res.status(500).json({ message: "Failed to save welcome bundle config" });
-    }
-  });
-
 
   app.get("/api/rewards/pending", isAuthenticated, async (req, res) => {
     try {
