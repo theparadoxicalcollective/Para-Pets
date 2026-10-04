@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { broadenHomeBundleLampIllumination, HOME_BUNDLE_LAMP_ILLUMINATION_SCALE } from "../client/src/lib/homeBundleLighting";
+import { broadenHomeAttachedLampIllumination } from "../client/src/lib/homeItemEffects";
 import {
   HOUSE_INTERIOR_DARKNESS_MAX,
   HOUSE_INTERIOR_EFFECT_MAX_COUNT,
@@ -109,6 +111,35 @@ test("interior lights keep lamp focused but brighter at the center while Sunligh
   assert.ok(getHouseInteriorLightCutoutStrength("lamp_light") > getHouseInteriorLightCutoutStrength("warm_glow"));
   assert.ok(getHouseInteriorLightCutoutStrength("warm_glow") < getHouseInteriorLightCutoutStrength("fire"));
   assert.ok(getHouseInteriorLightCutoutStrength("fire") < 1);
+});
+
+test("Home Bundle Lamp Light reveals nearly a campfire-sized radius without changing attached Decor/Object lamps", () => {
+  const bundleLamp = { id: "bundle-lamp", type: "lamp_light" as const, x: 0.5, y: 0.5, size: 16 };
+  const bundleFire = { id: "bundle-fire", type: "fire" as const, x: 0.5, y: 0.5, size: 16 };
+  const [bundleLampIllumination, unchangedFire] = broadenHomeBundleLampIllumination([bundleLamp, bundleFire]);
+  const [attachedLampIllumination] = broadenHomeAttachedLampIllumination([bundleLamp]);
+
+  assert.equal(HOME_BUNDLE_LAMP_ILLUMINATION_SCALE, 1.5);
+  assert.equal(bundleLamp.size, 16);
+  assert.equal(bundleLampIllumination.size, 24);
+  assert.deepEqual(unchangedFire, bundleFire);
+  assert.ok(bundleLampIllumination.size > attachedLampIllumination.size);
+
+  const bundleLampRadius = getHouseInteriorLightRadiusRatio(bundleLampIllumination);
+  const sameSizeFireRadius = getHouseInteriorLightRadiusRatio(bundleFire);
+  assert.ok(bundleLampRadius < sameSizeFireRadius);
+  assert.ok(bundleLampRadius > sameSizeFireRadius * 0.9);
+
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  for (const source of [owner, visitor]) {
+    assert.match(source, /broadenHomeBundleLampIllumination\(effects\)/);
+    assert.match(source, /broadenHomeBundleLampIllumination\(activeBundle\?\.exteriorEffects \?\? \[\]\)/);
+    assert.match(source, /bundleLampIlluminationEffects/);
+    assert.match(source, /bundleOutdoorIlluminationEffects/);
+    assert.match(source, /effects=\{effects\}/);
+    assert.match(source, /effects=\{activeBundle\?\.exteriorEffects \?\? \[\]\}/);
+  }
 });
 
 test("interior pets use the same local light falloff as the room", () => {
