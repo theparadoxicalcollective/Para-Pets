@@ -486,7 +486,7 @@ function InteriorViewer({
   const [popupPetId, setPopupPetId] = useState<string | null>(null);
   const [topPetId, setTopPetId] = useState<string | null>(null);
   const [topItemId, setTopItemId] = useState<string | null>(null);
-  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
+  const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean; canMove: boolean } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const itemTapRef = useRef<{ id: string; at: number } | null>(null);
   const itemEffectTapTimerRef = useRef<number | null>(null);
@@ -592,8 +592,9 @@ function InteriorViewer({
       startPointerY: e.clientY,
       pid: e.pointerId,
       moved: false,
+      canMove: selectedItemId === item.id,
     };
-  }, []);
+  }, [selectedItemId]);
 
   const onItemMove = useCallback((e: React.PointerEvent) => {
     const drag = itemDragRef.current;
@@ -602,11 +603,13 @@ function InteriorViewer({
     const dy = e.clientY - drag.startPointerY;
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
-      playGrab();
-      setSelectedItemId(null);
-      setPopupPetId(null);
+      if (drag.canMove) {
+        playGrab();
+        setPopupPetId(null);
+        setTopItemId(drag.id);
+      }
     }
-    if (!drag.moved) return;
+    if (!drag.moved || !drag.canMove) return;
     setItemDragLive({
       id: drag.id,
       xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
@@ -623,6 +626,11 @@ function InteriorViewer({
     if (!drag.moved) {
       const now = Date.now();
       const item = placedItems.find(candidate => candidate.id === drag.id);
+
+      // Once double-tap-selected, taps are reserved for editing/moving until
+      // the player taps the background to leave edit mode.
+      if (drag.canMove) return;
+
       if (isSecondHomeEditTap(itemTapRef.current, drag.id, now)) {
         itemTapRef.current = null;
         if (itemEffectTapTimerRef.current != null) {
@@ -645,6 +653,9 @@ function InteriorViewer({
       }
       return;
     }
+
+    // Unselected Decor/Objects do not move. Double tap first to enter edit mode.
+    if (!drag.canMove) return;
 
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
@@ -800,7 +811,7 @@ function InteriorViewer({
         sceneHeight={containerH}
         offEffectIds={new Set()}
         sunlightStrength={sunlightStrength}
-        zIndex={4}
+        zIndex={24}
       />
 
       {/* Placed decor */}
@@ -824,13 +835,15 @@ function InteriorViewer({
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: isSelected ? 180 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelected ? 22 : (topItemId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <HomeSceneAssetImage
               src={getHomeItemDisplayImage(item) ?? ""}
               alt={item.item.name}
               size={displaySize}
               selected={isSelected}
+              showSelectionVisual={false}
+              interactionPadding={14}
               flipped={item.flipped}
               brightness={itemBrightness}
               controls={
@@ -882,7 +895,7 @@ function InteriorViewer({
             key={pet.inventoryId}
             className="absolute"
             data-sleeping={isSleeping ? "true" : undefined}
-            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: PET_HOUSE_INTERIOR_PET_BASE_SIZE, height: PET_HOUSE_INTERIOR_PET_BASE_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: isSelectedPet ? "grab" : "pointer", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
+            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: PET_HOUSE_INTERIOR_PET_BASE_SIZE, height: PET_HOUSE_INTERIOR_PET_BASE_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
@@ -1031,7 +1044,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor decor drag state
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
+  const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean; canMove: boolean } | null>(null);
   const outdoorDecorTapRef = useRef<{ id: string; at: number } | null>(null);
   const outdoorItemEffectTapTimerRef = useRef<number | null>(null);
 
@@ -1580,8 +1593,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       startPointerY: e.clientY,
       pid: e.pointerId,
       moved: false,
+      canMove: selectedPlacedId === item.id,
     };
-  }, []);
+  }, [selectedPlacedId]);
 
   const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
     const drag = placedDragRef.current;
@@ -1590,11 +1604,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const dy = e.clientY - drag.startPointerY;
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
-      playGrab();
-      setSelectedPlacedId(null);
-      setOutdoorPopupPetId(null);
+      if (drag.canMove) {
+        playGrab();
+        setOutdoorPopupPetId(null);
+        setTopOutdoorDecorId(drag.id);
+      }
     }
-    if (!drag.moved) return;
+    if (!drag.moved || !drag.canMove) return;
     setPlacedDragLive({
       id: drag.id,
       xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidth)),
@@ -1611,6 +1627,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     if (!drag.moved) {
       const now = Date.now();
       const item = placedDecorRaw.find(candidate => candidate.id === drag.id);
+
+      if (drag.canMove) return;
+
       if (isSecondHomeEditTap(outdoorDecorTapRef.current, drag.id, now)) {
         outdoorDecorTapRef.current = null;
         if (outdoorItemEffectTapTimerRef.current != null) {
@@ -1633,6 +1652,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       }
       return;
     }
+
+    if (!drag.canMove) return;
 
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
     const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
@@ -1956,7 +1977,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none", filter: isSelectedPet ? "drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 6px rgba(255,215,0,0.9)) drop-shadow(0 0 12px rgba(255,180,20,0.6))" : undefined }}
+            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <div
               data-testid={`home-pet-visible-scale-${pet.inventoryId}`}
@@ -2055,13 +2076,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={item.id}
             className="absolute"
-            style={{ zIndex: isSelected ? 180 : (item.item.homeEffect === "lamp_light" && item.effectEnabled ? 22 : (topOutdoorDecorId === item.id ? 20 : 6)), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelected ? 22 : (topOutdoorDecorId === item.id ? 20 : 6), left, top, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <HomeSceneAssetImage
               src={getHomeItemDisplayImage(item) ?? ""}
               alt={item.item.name}
               size={displaySize}
               selected={isSelected}
+              showSelectionVisual={false}
+              interactionPadding={14}
               flipped={item.flipped}
               controls={
                 <div className="flex gap-1">
@@ -2103,7 +2126,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
-            zIndex={21}
+            zIndex={24}
           />
           <HomeDayNightToggle
             mode={outdoorLighting.mode}
