@@ -289,6 +289,18 @@ const ALL_PART_DEFS: PartDef[] = [
 ].filter((v, i, a) => a.findIndex(x => x.key === v.key) === i);
 
 const CANVAS_SIZE = 1000;
+
+const newEvolutionEffect = (type: EvolutionPetEffectType): EvolutionPetEffect => ({
+  id: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  type,
+  xPct: 0.5,
+  yPct: 0.45,
+  sizePct: type === "smoke" ? 34 : type === "light_ball" ? 22 : 28,
+  ...(type === "smoke" ? {} : { color: DEFAULT_EVOLUTION_EFFECT_COLOR[type] }),
+});
+
 type EditorTab = "parts" | "evolution" | "costume";
 
 function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
