@@ -1143,7 +1143,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const currentOutdoorLightingMode = activeBundle?.playerLighting?.outdoorMode ?? "auto";
   const outdoorLighting = useHomeOutdoorLighting(currentOutdoorLightingMode);
 
-  outdoorLightingSessionRef.current.bundleId = activeBundle?.id ?? null;
+  // Keep the latest mode available to the departure cleanup. Bundle identity is
+  // changed only by the session effect below so a newly activated bundle can
+  // start a fresh temporary-override session.
   outdoorLightingSessionRef.current.mode = currentOutdoorLightingMode;
 
   const persistPlayerLightingPatch = useCallback((
