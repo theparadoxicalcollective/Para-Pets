@@ -133,6 +133,22 @@ test("interior pets use the same local light falloff as the room", () => {
   }
 });
 
+test("dragged outdoor pets stay beneath the atmosphere layer so darkness and lamp cutouts continue to affect them", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.match(owner, /const isDraggingThis = petDragLive\?\.inventoryId === pet\.inventoryId/);
+  assert.match(owner, /const xPct = isDraggingThis \? petDragLive\.xPct/);
+  assert.match(owner, /const yPct = isDraggingThis \? petDragLive\.yPct/);
+  assert.match(owner, /zIndex: isSelectedPet \|\| isDraggingThis \? 19/);
+  assert.match(owner, /<HomeOutdoorAtmosphereLayer[\s\S]{0,420}zIndex=\{20\}/);
+  assert.match(owner, /<HomeInteriorEffectsLayer[\s\S]{0,260}effects=\{outdoorLampEffects\}[\s\S]{0,260}zIndex=\{24\}/);
+
+  // Visitors do not drag pets; their pet layer already stays below the same atmosphere.
+  assert.match(visitor, /data-testid=\{`visit-pet-outdoor-\$\{pet\.inventoryId\}`\}[\s\S]{0,220}zIndex: 5/);
+  assert.match(visitor, /<HomeOutdoorAtmosphereLayer[\s\S]{0,420}zIndex=\{20\}/);
+});
+
 test("interior decor and objects use the same local room darkness as pets", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
@@ -221,7 +237,7 @@ test("player building exits use a world-style sparkle while Admin keeps the mova
   assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,1600}>\s*Outside\s*<\/button>/);
 });
 
-test("player and visitor interiors fade Sunlight with the outside day-night cycle", () => {
+test("player and visitor interiors fade Sunlight with the outside day-night cycle while keeping it tappable", () => {
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
@@ -229,8 +245,16 @@ test("player and visitor interiors fade Sunlight with the outside day-night cycl
   assert.match(effects, /sunlightStrength = 1/);
   assert.match(effects, /effect\.type === "warm_glow" \? safeSunlight : 1/);
   assert.match(effects, /daylightOpacity = effect\.type === "warm_glow"/);
+  assert.match(effects, /const hitSizePx = playerToggleable \? Math\.max\(48, sizePx\) : sizePx/);
+  assert.match(effects, /data-sunlight-synced-toggle=/);
+  assert.match(effects, /width: hitSizePx/);
+  assert.match(effects, /height: hitSizePx/);
+  assert.match(effects, /opacity: daylightOpacity/);
+  assert.match(effects, /pointerEvents: "none"/);
   for (const source of [owner, visitor]) {
     assert.match(source, /sunlightStrength=\{outdoorLighting\.daylightStrength\}/);
+    assert.match(source, /data-player-toggle-effect-id/);
+    assert.match(source, /toggleEffectId/);
   }
 });
 
@@ -367,7 +391,8 @@ test("owner light toggles persist while visitor light toggles stay session-only"
   assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);
   assert.match(effects, /data-player-toggle-effect-id=\{playerToggleable \? effect\.id : undefined\}/);
   assert.doesNotMatch(effects, /onClick=\{playerToggleable/);
-  assert.match(effects, /!isOff && <EffectVisual/);
+  assert.match(effects, /!isOff && \(/);
+  assert.match(effects, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/);
 
   assert.match(owner, /toggleSavedInteriorLight/);
   assert.match(owner, /offInteriorEffectIds/);
