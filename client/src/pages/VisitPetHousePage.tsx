@@ -6,6 +6,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
+import HomeCapacityIndicator from "@/components/HomeCapacityIndicator";
 import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import type { HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
@@ -13,7 +14,7 @@ import PetFireReaction from "@/components/PetFireReaction";
 import PetHomeVisitRewardCue from "@/components/PetHomeVisitRewardCue";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
@@ -29,9 +30,9 @@ interface VisitedPet {
   visitRewardAvailable?: boolean; visitRewardAmount?: number;
 }
 interface ActiveBundle {
-  id: string; name: string; bgImageUrl: string | null; exteriorEffects?: HouseInteriorEffect[];
+  id: string; name: string; bgImageUrl: string | null; maxOutdoorPets?: number; maxOutdoorDecor?: number; exteriorEffects?: HouseInteriorEffect[];
   playerLighting?: { outdoorMode: HomeOutdoorLightingMode; offInteriorEffectIds: Record<string, string[]> };
-  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; buildingType?: HouseBuildingType | null }[];
+  buildings: { id: string; name: string; imageUrl: string; posX: number; posY: number; width: number; flippedX: boolean; interiorImageUrl?: string | null; interiorEffects?: HouseInteriorEffect[]; interiorDarkness?: number; leaveButtonX?: number | null; leaveButtonY?: number | null; maxPets?: number | null; size?: BuildingSize | null; buildingType?: HouseBuildingType | null }[];
 }
 interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean; effectEnabled: boolean;
@@ -199,7 +200,7 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
 }
 
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, itemEffectOverrides, onToggleLightEffect, onToggleItemEffect, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkness = 0, sunlightStrength = 1, offEffectIds, itemEffectOverrides, onToggleLightEffect, onToggleItemEffect, petLimit, decorLimit, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick, reactingPetId, pendingRewardPetId }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
@@ -210,6 +211,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   itemEffectOverrides: Readonly<Record<string, boolean>>;
   onToggleLightEffect: (effect: HouseInteriorEffect) => void;
   onToggleItemEffect: (item: PlacedDecorItem) => void;
+  petLimit: number;
+  decorLimit: number;
   leaveButtonX?: number;
   leaveButtonY?: number;
   onClose: () => void;
@@ -339,6 +342,14 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
           }
         }}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+      />
+
+      <HomeCapacityIndicator
+        petCount={placedPets.length}
+        petLimit={petLimit}
+        decorCount={placedItems.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length}
+        decorLimit={decorLimit}
+        style={{ zIndex: 55 }}
       />
 
       <HomeInteriorDarknessLayer
@@ -531,7 +542,7 @@ export default function VisitPetHousePage() {
   const [containerH, setContainerH] = useState(0);
   const [bgAspect, setBgAspect] = useState(DEFAULT_BG_RATIO);
 
-  const { data: petsData, isLoading, isError } = useQuery<{ username: string; pets: VisitedPet[] }>({
+  const { data: petsData, isLoading, isError } = useQuery<{ username: string; pets: VisitedPet[]; capacityCleanup?: { returnedPets: number } }>({
     queryKey: ["/api/users", userId, "pets"],
     queryFn: async () => {
       const res = await fetch(`/api/users/${userId}/pets`, { credentials: "include" });
@@ -700,8 +711,22 @@ export default function VisitPetHousePage() {
   }, [visitRewardMutation.isPending, visitRewardMutation.mutate]);
 
   const [showGiftModal, setShowGiftModal] = useState(false);
-  const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
-  const interiorPets = openInterior ? pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null) : [];
+  const outdoorPetLimit = getHouseOutdoorPetLimit(activeBundle);
+  const outdoorDecorLimit = getHouseOutdoorDecorLimit(activeBundle);
+  const outdoorPets = pets
+    .filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null))
+    .slice(0, outdoorPetLimit);
+  const currentInteriorBuilding = openInterior
+    ? activeBundle?.buildings.find(building => building.id === openInterior.buildingId)
+    : null;
+  const interiorPetLimit = getHouseBuildingPetLimit(currentInteriorBuilding);
+  const interiorDecorLimit = getHouseBuildingDecorLimit(currentInteriorBuilding);
+  const interiorPets = openInterior
+    ? pets
+        .filter(p => p.location === openInterior.buildingId && p.posLeft !== null)
+        .slice(0, interiorPetLimit)
+    : [];
+  const outdoorDecorCount = outdoorDecor.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
 
   const bgUrl = activeBundle?.bgImageUrl ?? null;
 
@@ -770,7 +795,7 @@ export default function VisitPetHousePage() {
       </div>
 
       {/* Buildings layer */}
-      {imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
+      {!openInterior && imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
@@ -813,7 +838,7 @@ export default function VisitPetHousePage() {
       )}
 
       {/* Outdoor pets — tappable */}
-      {imgWidth > 0 && outdoorPets.map((pet, i) => {
+      {!openInterior && imgWidth > 0 && outdoorPets.map((pet, i) => {
         const cfg = randomGroundConfig(i);
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
@@ -877,7 +902,7 @@ export default function VisitPetHousePage() {
       })}
 
       {/* Outdoor decor */}
-      {imgWidth > 0 && outdoorDecor.map((item) => {
+      {!openInterior && imgWidth > 0 && outdoorDecor.map((item) => {
         const displaySize = item.size;
         const itemEffectEnabled = visitorItemEffectOverrides[item.id] ?? item.effectEnabled;
         const displayImage = getHomeItemDisplayImage(item, itemEffectEnabled);
@@ -927,6 +952,15 @@ export default function VisitPetHousePage() {
             zIndex={24}
           />
         </>
+      )}
+
+      {!openInterior && (
+        <HomeCapacityIndicator
+          petCount={outdoorPets.length}
+          petLimit={outdoorPetLimit}
+          decorCount={outdoorDecorCount}
+          decorLimit={outdoorDecorLimit}
+        />
       )}
 
       {/* HUD */}
@@ -999,6 +1033,8 @@ export default function VisitPetHousePage() {
             itemEffectOverrides={visitorItemEffectOverrides}
             onToggleLightEffect={(effect) => toggleVisitorInteriorLight(openInterior.buildingId, effect)}
             onToggleItemEffect={toggleVisitorItemEffect}
+            petLimit={interiorPetLimit}
+            decorLimit={interiorDecorLimit}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onClose={closeVisitedInterior}
