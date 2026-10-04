@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { clampHomeScenePlayerSize, sanitizeHomeCatalogEffect } from "@shared/housing";
+import { clampHomeScenePlayerSize, getHouseBuildingDecorLimit, getHouseOutdoorDecorLimit, homeSceneItemCountsTowardDecorLimit, sanitizeHomeCatalogEffect } from "@shared/housing";
 
 type HomeDecorStorage = Pick<typeof import("../storage").storage,
   | "getHomeDecorItems"
@@ -15,6 +15,7 @@ type HomeDecorStorage = Pick<typeof import("../storage").storage,
   | "getAllUsers"
   | "grantHomeDecorToUser"
   | "getUserHomeDecorInventory"
+  | "getActiveBundleWithBuildings"
   | "getPlacedHomeDecor"
   | "updatePlacedHomeDecor"
 >;
@@ -278,11 +279,41 @@ export function registerHomeDecorRoutes(
       const userId = (req.user as any).id;
       const { decorItemId, xPct, yPct, flipped, location } = req.body;
       if (!decorItemId) return res.status(400).json({ message: "decorItemId required" });
+
+      const targetLocation = typeof location === "string" && location ? location : "outside";
+      const inventory = await storage.getUserHomeDecorInventory(userId);
+      const sourceItem = inventory.find((entry) => entry.decorItemId === decorItemId && entry.quantity > 0);
+
+      if (sourceItem && homeSceneItemCountsTowardDecorLimit(sourceItem.item.type)) {
+        const activeBundle = await storage.getActiveBundleWithBuildings(userId);
+        const placed = await storage.getPlacedHomeDecor(userId, targetLocation);
+        const decorCount = placed.filter((entry) => homeSceneItemCountsTowardDecorLimit(entry.item.type)).length;
+
+        let decorLimit: number;
+        if (targetLocation === "outside") {
+          decorLimit = getHouseOutdoorDecorLimit(activeBundle);
+        } else {
+          const building = activeBundle?.buildings.find((candidate) => candidate.id === targetLocation);
+          if (!building || building.buildingType === "mailbox") {
+            return res.status(400).json({ message: "Home building not found" });
+          }
+          decorLimit = getHouseBuildingDecorLimit(building);
+        }
+
+        if (decorCount >= decorLimit) {
+          return res.status(409).json({
+            code: "decor_limit",
+            message: `This home can only hold ${decorLimit} decor items`,
+            limit: decorLimit,
+          });
+        }
+      }
+
       const row = await executeDecorPlacement(userId, decorItemId, {
         xPct: xPct ?? 0.5,
         yPct: yPct ?? 0.5,
         flipped: flipped ?? false,
-        location: location ?? "outside",
+        location: targetLocation,
       });
       return res.status(201).json(row);
     } catch (err: any) {
