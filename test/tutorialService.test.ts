@@ -228,10 +228,10 @@ test("Begin Journey exposes all complete production 3-star pets and locks select
 });
 
 test("three tutorial potions, hatching, and completion are server-authoritative", () => {
-  const routes = readFileSync("server/routes.ts", "utf8");
+  const progressionRoutes = readFileSync("server/routes/petProgressionItem.routes.ts", "utf8");
   const service = readFileSync("server/tutorial/tutorialService.ts", "utf8");
-  assert.match(routes, /tutorialStepMs = \(hatchTimeHours \* 3600 \* 1000\) \/ BEGIN_JOURNEY_TUTORIAL\.hatchPotion\.quantity/);
-  assert.match(routes, /currentStart\.getTime\(\) - tutorialStepMs - 500/);
+  assert.match(progressionRoutes, /tutorialStepMs = \(hatchTimeHours \* 3600 \* 1000\) \/ BEGIN_JOURNEY_TUTORIAL\.hatchPotion\.quantity/);
+  assert.match(progressionRoutes, /currentStart\.getTime\(\) - tutorialStepMs - 500/);
   assert.match(service, /pet\.id AS active_pet_id, pet\.is_hatched/);
   assert.match(service, /COALESCE\(item\.star_rarity, item\.rarity\) AS rarity/);
   assert.match(service, /player\.is_hatched !== true \|\| Number\(player\.rarity\) !== 3/);
