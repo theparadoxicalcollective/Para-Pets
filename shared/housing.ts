@@ -38,14 +38,16 @@ export function getHouseBuildingPetLimit(
 ): number {
   const override = Number(building?.maxPets);
   if (Number.isFinite(override) && override >= 0) return Math.floor(override);
-  const size: BuildingSize = isBuildingSize(building?.size) ? building.size : "medium";
+  const rawSize = building?.size;
+  const size: BuildingSize = isBuildingSize(rawSize) ? rawSize : "medium";
   return BUILDING_SIZE_CAPACITY[size].pets;
 }
 
 export function getHouseBuildingDecorLimit(
   building: { size?: unknown } | null | undefined,
 ): number {
-  const size: BuildingSize = isBuildingSize(building?.size) ? building.size : "medium";
+  const rawSize = building?.size;
+  const size: BuildingSize = isBuildingSize(rawSize) ? rawSize : "medium";
   return BUILDING_SIZE_CAPACITY[size].decor;
 }
 
