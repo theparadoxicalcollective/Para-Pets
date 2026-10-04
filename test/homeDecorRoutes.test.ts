@@ -43,7 +43,11 @@ function response() {
   });
 }
 
-function setup() {
+function setup(options: {
+  decorInventory?: any[];
+  placedItems?: any[];
+  activeBundle?: any;
+} = {}) {
   const calls: any = {
     catalog: 0,
     created: [],
@@ -118,11 +122,16 @@ function setup() {
       },
       getUserHomeDecorInventory: async (id: string) => {
         calls.inventory.push(id);
-        return [{ id: "inventory" }] as any;
+        return (options.decorInventory ?? [{ id: "inventory" }]) as any;
       },
+      getActiveBundleWithBuildings: async () => options.activeBundle ?? ({
+        id: "bundle-1",
+        maxOutdoorDecor: 8,
+        buildings: [{ id: "inside", size: "small", buildingType: "building" }],
+      } as any),
       getPlacedHomeDecor: async (id: string, location?: string) => {
         calls.placed.push([id, location]);
-        return [
+        return (options.placedItems ?? [
           {
             id: "placed-1",
             size: 250,
@@ -133,7 +142,7 @@ function setup() {
             size: 250,
             item: { id: "object-1", type: "object", homeSceneSize: 250, homeEffect: "tap", homeTapImageUrl: "/tap.png" },
           },
-        ] as any;
+        ]) as any;
       },
       updatePlacedHomeDecor: async (id: string, userId: string, data: any) => {
         calls.update.push([id, userId, data]);
@@ -420,6 +429,61 @@ test("Decor/Object inventory and placement behavior stays delegated to existing 
     201,
     { id: "new-placement" },
   ]);
+});
+
+test("Decor placement enforces home limits while Objects remain unlimited", async () => {
+  const existingDecor = Array.from({ length: 5 }, (_, index) => ({
+    id: `placed-${index}`,
+    size: 250,
+    item: { id: `decor-${index}`, type: "decor", homeSceneSize: 250 },
+  }));
+
+  const decorSetup = setup({
+    decorInventory: [{
+      id: "inventory-decor",
+      decorItemId: "decor-new",
+      quantity: 1,
+      item: { id: "decor-new", type: "decor", homeSceneSize: 250 },
+    }],
+    placedItems: existingDecor,
+    activeBundle: {
+      id: "bundle-1",
+      maxOutdoorDecor: 10,
+      buildings: [{ id: "inside", size: "small", buildingType: "building" }],
+    },
+  });
+
+  const blocked = await handler(decorSetup.app, "POST", "/api/pet-house/decor/place", {
+    user: { id: "owner" },
+    body: { decorItemId: "decor-new", location: "inside" },
+  });
+  assert.deepEqual(
+    [blocked.statusCode, blocked.body],
+    [409, { code: "decor_limit", message: "This home can only hold 5 decor items", limit: 5 }],
+  );
+  assert.deepEqual(decorSetup.calls.place, []);
+
+  const objectSetup = setup({
+    decorInventory: [{
+      id: "inventory-object",
+      decorItemId: "object-new",
+      quantity: 1,
+      item: { id: "object-new", type: "object", homeSceneSize: 250 },
+    }],
+    placedItems: existingDecor,
+    activeBundle: {
+      id: "bundle-1",
+      maxOutdoorDecor: 10,
+      buildings: [{ id: "inside", size: "small", buildingType: "building" }],
+    },
+  });
+
+  const allowed = await handler(objectSetup.app, "POST", "/api/pet-house/decor/place", {
+    user: { id: "owner" },
+    body: { decorItemId: "object-new", location: "inside" },
+  });
+  assert.equal(allowed.statusCode, 201);
+  assert.equal(objectSetup.calls.place.length, 1);
 });
 
 test("placement PATCH/removal remain scoped to the authenticated player", async () => {
