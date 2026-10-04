@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, sql } from "drizzle-orm";
 import { userInventory } from "@shared/schema";
-import { tryConsumeInventoryQuantity } from "../inventoryConsumption";
+import { tryConsumeInventoryQuantity, tryConsumeOneFromInventory } from "../inventoryConsumption";
 
 type PetCareStorage = Pick<
   typeof import("../storage").storage,
@@ -245,6 +245,148 @@ export function registerPetFeedingRoute(
         return res.status(409).json({ message: "Edible has already been consumed" });
       }
       return res.status(500).json({ message: "Failed to feed edible" });
+    }
+  });
+}
+
+
+/**
+ * Pet gift and loyalty-reward routes.
+ *
+ * These stay together because they share the same loyalty meter, rarity caps,
+ * pet ownership checks, and Pet Care surface. Behavior is intentionally
+ * preserved from the legacy registry.
+ */
+export function registerPetGiftLoyaltyRoutes(
+  app: Express,
+  {
+    storage,
+    db,
+    isAuthenticated,
+    applyPetXp,
+  }: PetCareRouteDependencies,
+): void {
+  // Give a "gift" item to a pet on the Pet Care page. Each gift adds the
+  // item's giftPoints to the pet's loyalty meter (cap is rarity-based:
+  // 1★=1000, 2★=2000, 3★=3000, 4★=4000, 5★=5000) and is removed from
+  // inventory. Configured pet EXP also uses the standard leveling curve.
+  app.post("/api/pet/:inventoryId/give-gift", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { itemInventoryId } = req.body;
+      if (typeof itemInventoryId !== "string" || !itemInventoryId) {
+        return res.status(400).json({ message: "itemInventoryId required" });
+      }
+
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId as string);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+
+      const itemInv = await storage.getInventoryItemById(itemInventoryId);
+      if (!itemInv || itemInv.userId !== user.id) {
+        return res.status(404).json({ message: "Gift not found in inventory" });
+      }
+      if ((itemInv.quantity ?? 0) <= 0) {
+        return res.status(409).json({ message: "Gift has already been consumed" });
+      }
+
+      const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
+      if (!itemShopItem || itemShopItem.type !== "gift") {
+        return res.status(400).json({ message: "Not a gift item" });
+      }
+
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      const starRarity = petShopItem?.starRarity ?? 1;
+      const loyaltyMaxMap: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
+      const loyaltyMax = loyaltyMaxMap[starRarity] ?? 1000;
+
+      const points = Math.max(0, itemShopItem.giftPoints || 0);
+      const newLoyalty = Math.min(loyaltyMax, (petInv.petLoyalty ?? 0) + points);
+      const expAdded = Math.max(0, itemShopItem.petExp ?? 0);
+      const updated = await db.transaction(async (tx) => {
+        const locked = await tx.execute(sql`SELECT pet_level, pet_level_points FROM user_inventory
+          WHERE id = ${petInv.id} AND user_id = ${user.id} FOR UPDATE`);
+        const current = locked.rows[0];
+        if (!current) throw new Error("Pet was not available for gift");
+        const xp = expAdded > 0
+          ? applyPetXp(Number(current.pet_level), Number(current.pet_level_points), expAdded) : null;
+        const [pet] = await tx.update(userInventory)
+          .set({ petLoyalty: newLoyalty, ...(xp ? { petLevel: xp.newLevel, petLevelPoints: xp.newPoints } : {}) })
+          .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
+          .returning();
+        if (!pet) throw new Error("Pet was not available for gift");
+        const { consumed } = await tryConsumeOneFromInventory(tx, user.id, itemInv.id);
+        if (!consumed) throw new Error("Gift is no longer available");
+        return pet;
+      });
+      return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty, expAdded });
+    } catch (err) {
+      console.error("Give gift error:", err);
+      if (err instanceof Error && err.message === "Gift is no longer available") {
+        return res.status(409).json({ message: "Gift has already been consumed" });
+      }
+      return res.status(500).json({ message: "Failed to give gift" });
+    }
+  });
+
+  // Claim the loyalty reward once the bar is full. Awards coins based on the
+  // pet's star rarity, optionally levels up all of the player's hatched pets,
+  // restores hunger + mood to max, and resets petLoyalty to 0.
+  app.post("/api/pet/:inventoryId/claim-loyalty-reward", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId as string);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      const starRarity = petShopItem?.starRarity ?? 1;
+      const loyaltyMaxMap: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
+      const loyaltyMax = loyaltyMaxMap[starRarity] ?? 1000;
+
+      if ((petInv.petLoyalty ?? 0) < loyaltyMax) {
+        return res.status(400).json({ message: "Loyalty bar is not full yet" });
+      }
+
+      // Coin rewards by star rarity
+      const coinRewardMap: Record<number, number> = { 1: 1000, 2: 1000, 3: 1500, 4: 2500, 5: 3500 };
+      const coinsToAward = coinRewardMap[starRarity] ?? 1000;
+
+      // XP boost: 1-3 stars → 10%, 4-5 stars → 20%, lasts 1 hour
+      const xpBoostPct = starRarity >= 4 ? 20 : 10;
+      const xpBoostUntil = new Date(Date.now() + 60 * 60 * 1000);
+
+      // Award coins to the user
+      const updatedUser = await storage.addCoins(user.id, coinsToAward);
+
+      // Fill hunger + mood, apply XP boost, and reset loyalty to 0
+      const updatedPet = await storage.updateInventoryItem(petInv.id, {
+        petLoyalty: 0,
+        petHunger: 1000,
+        petMood: 100,
+        petStatsUpdatedAt: new Date(),
+        lastFedAt: new Date(),
+        xpBoostPct,
+        xpBoostUntil,
+      } as any);
+
+      return res.json({
+        pet: updatedPet,
+        coinsAwarded: coinsToAward,
+        xpBoostPct,
+        userCoins: updatedUser.coins,
+      });
+    } catch (err) {
+      console.error("Claim loyalty reward error:", err);
+      return res.status(500).json({ message: "Failed to claim loyalty reward" });
     }
   });
 }
