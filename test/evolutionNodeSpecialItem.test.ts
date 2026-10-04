@@ -37,18 +37,25 @@ test("Admin Special items expose Completely fill a node without an amount field"
   assert.match(admin, /Completes exactly the evolution node currently being filled/);
 });
 
-test("node-fill specials stay in Special Bag filtering and also appear in the Power Up tray", () => {
+test("node-fill specials stay in Special Bag filtering and use their own Power Up box", () => {
   assert.equal(getGameItemCategory({ type: "special" }), "specials");
 
   const home = read("client/src/pages/HomePage.tsx");
   const bag = read("client/src/components/PetInventory.tsx");
   const powerUp = read("client/src/components/PetPowerUpPage.tsx");
+  const modalTypes = read("client/src/components/powerup/PowerUpModalTypes.ts");
 
   assert.match(home, /inventoryItem\.type === "special" && inventoryItem\.specialType === "fill_evolution_node"/);
   assert.match(home, /items=\{powerUpItems\}/);
+  assert.match(home, /specialItems=\{powerUpSpecialItems\}/);
+  assert.match(modalTypes, /specialItems\?: PowerUpItem\[\]/);
   assert.match(bag, /item\.specialType === "fill_evolution_node"/);
   assert.match(bag, /where: "Power Up page"/);
-  assert.match(powerUp, /item\.specialType === "fill_evolution_node"\) return "FILL NODE"/);
+  assert.match(powerUp, /data-testid="item-powerup-special-node-fill"/);
+  assert.match(powerUp, /pupage-special-box/);
+  assert.match(powerUp, /onPointerDown=\{\(event\) => onPointerDown\(event, specialItem\)\}/);
+  assert.match(powerUp, /const sortedItems = useMemo\(\(\) => \[\.\.\.items\]/);
+  assert.match(powerUp, /const specialItem = specialItems\.find/);
 });
 
 test("server fills the locked current node and consumes the special atomically", () => {
