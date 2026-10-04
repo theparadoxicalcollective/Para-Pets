@@ -909,6 +909,7 @@ export default function VisitPetHousePage() {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
+            transitionMs={outdoorLighting.transitionMs}
             zIndex={20}
           />
           <HomeInteriorEffectsLayer
