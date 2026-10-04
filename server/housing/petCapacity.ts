@@ -1,8 +1,6 @@
 import {
   getHouseBuildingPetLimit,
   getHouseOutdoorPetLimit,
-  type BuildingSize,
-  type HouseBuildingType,
 } from "@shared/housing";
 
 export interface PetHomeCapacityPosition {
