@@ -4,6 +4,7 @@ import { currencyAssets } from "@/lib/currencyAssets";
 import { queryClient } from "@/lib/queryClient";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 import { chestAssets } from "@/lib/chestAssets";
+import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 
 export type ClearingChestPresentationState = "closed" | "opening" | "opened";
 export function chestSparkleTier(rarity:number){return rarity>=5?"legendary":rarity>=4?"epic":rarity>=3?"rare":"none";}
@@ -13,26 +14,37 @@ const FALLBACK_UNOPENED_CHEST_TTL_MS = 30_000;
 const OPENED_CHEST_DISPLAY_MS = 3200;
 
 type RewardArtSize = "coin" | "reward";
-function RewardImage({src,alt,size}:{src:string|null;alt:string;size:RewardArtSize}){
+function RewardImage({src,alt,size,stars}:{src:string|null;alt:string;size:RewardArtSize;stars:number}){
   const [failed,setFailed]=useState(false);
-  const sizeClass=size==="coin"?"h-7 w-7":"h-10 w-10";
-  return <span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-950/90 ring-2 ring-amber-200 shadow-[0_2px_9px_#000,0_0_10px_#f4cf79]">
-    {failed||!src?<span role="img" aria-label={`${alt} artwork unavailable`} className={`flex ${sizeClass} items-center justify-center ${size==="coin"?"text-lg":"text-2xl"}`}>🎁</span>:<img src={src} alt={alt} className={`${sizeClass} object-contain`} style={{filter:"drop-shadow(1px 0 0 #fff2bd) drop-shadow(-1px 0 0 #fff2bd) drop-shadow(0 1px 0 #fff2bd) drop-shadow(0 -1px 0 #fff2bd) drop-shadow(0 3px 4px #000)"}} onError={()=>setFailed(true)}/>}
+  const sizeClass=size==="coin"?"h-9 w-9":"h-11 w-11";
+  const glow=stars>=5
+    ?"drop-shadow(0 0 10px rgba(253,224,71,.95)) drop-shadow(0 0 18px rgba(234,179,8,.65))"
+    :stars>=4
+      ?"drop-shadow(0 0 9px rgba(232,121,249,.9)) drop-shadow(0 0 16px rgba(168,85,247,.55))"
+      :stars>=3
+        ?"drop-shadow(0 0 8px rgba(196,181,253,.85))"
+        :size==="coin"
+          ?"drop-shadow(0 0 8px rgba(250,204,21,.72))"
+          :"drop-shadow(0 0 7px rgba(187,247,208,.48))";
+  return <span className="relative grid h-12 w-12 place-items-center">
+    {failed||!src
+      ?<span role="img" aria-label={`${alt} artwork unavailable`} className={`flex ${sizeClass} items-center justify-center ${size==="coin"?"text-lg":"text-2xl"}`} style={{filter:`${glow} drop-shadow(0 3px 4px rgba(0,0,0,.86))`}}>🎁</span>
+      :<img src={src} alt={alt} className={`relative ${sizeClass} object-contain`} style={{filter:`drop-shadow(1px 0 0 rgba(255,244,184,.92)) drop-shadow(-1px 0 0 rgba(255,244,184,.92)) drop-shadow(0 1px 0 rgba(255,244,184,.92)) drop-shadow(0 -1px 0 rgba(255,244,184,.92)) ${glow} drop-shadow(0 3px 4px rgba(0,0,0,.86))`}} onError={()=>setFailed(true)}/>}
+    <span aria-hidden className="absolute left-0 top-1 text-[10px] text-amber-100 drop-shadow-[0_0_4px_rgba(253,230,138,.9)]">✦</span>
+    <span aria-hidden className="absolute bottom-1 right-0 text-[8px] text-emerald-100 drop-shadow-[0_0_4px_rgba(167,243,208,.85)]">✦</span>
   </span>;
 }
 
 function ChestRewardArc({chest,error,onRetry}:{chest:ClearingRewardChest;error:string|null;onRetry:()=>void}){
   const rewards=[
-    ...(chest.rewards.coins>0?[{key:"coins",name:`+${chest.rewards.coins} Coins`,imageUrl:currencyAssets.coin,stars:0,artSize:"coin" as const}]:[]),
+    ...(chest.rewards.coins>0?[{key:"coins",name:`+${chest.rewards.coins} Coins`,imageUrl:PARA_PETS_COIN_IMAGE,stars:0,artSize:"coin" as const}]:[]),
     ...(chest.rewards.essence>0?[{key:"essence",name:`+${chest.rewards.essence} Essence`,imageUrl:currencyAssets.essenceToken,stars:0,artSize:"reward" as const}]:[]),
     ...chest.rewards.items.map((item,index)=>({key:`${item.shopItemId}-${index}`,name:item.quantity>1?`${item.name} ×${item.quantity}`:item.name,imageUrl:item.imageUrl,stars:item.starRarity,artSize:"reward" as const})),
   ];
   const spread=Math.min(140,58+Math.max(0,rewards.length-1)*23);
   return <span data-testid="clearing-chest-reward-arc" className="pointer-events-none absolute left-1/2 top-1/2">
-    {rewards.map((reward,index)=>{const angle=rewards.length===1?90:90-spread/2+(spread*index)/(rewards.length-1),radians=angle*Math.PI/180,radius=68+(index%2)*4;return <span aria-label={`${reward.name} received`} key={reward.key} className="clearing-chest-drop absolute flex w-14 flex-col items-center text-center" style={{"--drop-x":`${Math.cos(radians)*radius}px`,"--drop-y":`${-Math.sin(radians)*radius}px`,"--drop-delay":`${index*70}ms`} as CSSProperties}>
-      <RewardImage src={reward.imageUrl} alt={reward.name} size={reward.artSize}/>
-      <span className="mt-1 max-w-20 rounded bg-emerald-950/95 px-1 text-[9px] font-bold leading-tight text-amber-100 [text-shadow:0_1px_2px_#000]">{reward.name}</span>
-      {reward.stars>0&&<span aria-label={`${reward.stars} star rarity`} className="mt-1 text-[11px] leading-none text-amber-300 drop-shadow-[0_1px_2px_#000]">{"★".repeat(reward.stars)}</span>}
+    {rewards.map((reward,index)=>{const angle=rewards.length===1?90:90-spread/2+(spread*index)/(rewards.length-1),radians=angle*Math.PI/180,radius=64+(index%2)*4;return <span aria-label={`${reward.name} received`} data-reward-kind={reward.key} key={reward.key} className="clearing-chest-drop absolute flex w-12 items-center justify-center" style={{"--drop-x":`${Math.cos(radians)*radius}px`,"--drop-y":`${-Math.sin(radians)*radius}px`,"--drop-delay":`${index*70}ms`} as CSSProperties}>
+      <RewardImage src={reward.imageUrl} alt={reward.name} size={reward.artSize} stars={reward.stars}/>
     </span>})}
     {error&&<button type="button" data-interactive data-testid="button-clearing-chest-retry" className="pointer-events-auto absolute left-1/2 top-8 w-40 -translate-x-1/2 rounded-lg border border-red-200/70 bg-emerald-950/95 px-2 py-1 text-[10px] font-bold text-red-100 shadow-xl" onClick={event=>{event.stopPropagation();onRetry()}}>{error} · Tap to retry</button>}
   </span>;
