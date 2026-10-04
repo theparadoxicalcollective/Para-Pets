@@ -89,7 +89,7 @@ test("Sunlight strength follows daylight without changing other saved light type
   assert.equal(getHouseInteriorPointDarkness(70, sunlight, new Set(), 0.5, 0.5, 2, 0), 70);
 });
 
-test("interior lights keep candle < lamp < sunlight < fire reach/strength", () => {
+test("interior lights keep lamp focused but brighter at the center while Sunlight reaches farther", () => {
   const fire = { id: "fire", type: "fire" as const, x: 0.5, y: 0.5, size: 14 };
   const candle = { id: "candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 };
   const lamp = { id: "lamp", type: "lamp_light" as const, x: 0.5, y: 0.5, size: 16 };
@@ -101,12 +101,12 @@ test("interior lights keep candle < lamp < sunlight < fire reach/strength", () =
   assert.equal(getHouseInteriorLightRadiusRatio(fire), 0.14 * 3.5);
 
   assert.equal(getHouseInteriorLightPeakBoost("candle_light"), 18);
-  assert.equal(getHouseInteriorLightPeakBoost("lamp_light"), 32);
+  assert.equal(getHouseInteriorLightPeakBoost("lamp_light"), 38);
   assert.equal(getHouseInteriorLightPeakBoost("warm_glow"), 34);
   assert.equal(getHouseInteriorLightPeakBoost("fire"), 42);
 
   assert.ok(getHouseInteriorLightCutoutStrength("candle_light") < getHouseInteriorLightCutoutStrength("lamp_light"));
-  assert.ok(getHouseInteriorLightCutoutStrength("lamp_light") < getHouseInteriorLightCutoutStrength("warm_glow"));
+  assert.ok(getHouseInteriorLightCutoutStrength("lamp_light") > getHouseInteriorLightCutoutStrength("warm_glow"));
   assert.ok(getHouseInteriorLightCutoutStrength("warm_glow") < getHouseInteriorLightCutoutStrength("fire"));
   assert.ok(getHouseInteriorLightCutoutStrength("fire") < 1);
 });
@@ -274,12 +274,19 @@ test("campfire, candle, lamp, and sunlight remain distinct renderers", () => {
   assert.match(source, /function LampLightVisual/);
   assert.match(source, /data-testid="home-lamp-light-visual"/);
   assert.match(source, /data-testid="home-lamp-light-diffusion"/);
-  assert.match(source, /radial-gradient\(ellipse at 50% 31%/);
-  assert.match(source, /borderRadius: "48% 48% 58% 58% \/ 38% 38% 68% 68%"/);
-  assert.match(source, /filter: "blur\(5\.5px\)"/);
+  assert.match(source, /data-testid="home-lamp-light-halo"/);
+  assert.match(source, /radial-gradient\(circle at 50% 50%/);
+  assert.match(source, /width: "16%"/);
+  assert.match(source, /height: "16%"/);
+  assert.match(source, /inset: "-38%"/);
+  assert.match(source, /borderRadius: "50%"/);
+  assert.match(source, /filter: "blur\(6px\)"/);
   assert.match(source, /data-testid="home-lamp-light-core"/);
-  assert.match(source, /width: "20%"/);
-  assert.match(source, /height: "28%"/);
+  assert.match(source, /left: "50%"/);
+  assert.match(source, /top: "50%"/);
+  assert.match(source, /width: "16%"/);
+  assert.match(source, /height: "16%"/);
+  assert.match(source, /filter: "blur\(2px\)"/);
   assert.match(source, /label: "Sunlight"/);
   assert.match(source, /Soft broad daylight for windows/);
   assert.match(source, /function WarmGlowVisual/);

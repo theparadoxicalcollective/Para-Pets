@@ -54,8 +54,8 @@ test("players get minus and plus controls for both interior and outdoor Home ite
 test("Decor and Objects require double-tap edit mode before moving, while pets remain instant-drag", () => {
   assert.match(owner, /itemTapRef/);
   assert.match(owner, /outdoorDecorTapRef/);
-  assert.match(owner, /isSecondHomeEditTap\(itemTapRef\.current, drag\.id, now\)/);
-  assert.match(owner, /isSecondHomeEditTap\(outdoorDecorTapRef\.current, drag\.id, now\)/);
+  assert.equal((owner.match(/const pendingTap = .*TapRef\.current/g) ?? []).length, 2);
+  assert.equal((owner.match(/isSecondHomeEditTap\(pendingTap, drag\.id, now\)/g) ?? []).length, 2);
 
   assert.match(owner, /canMove: selectedItemId === item\.id/);
   assert.match(owner, /canMove: selectedPlacedId === item\.id/);

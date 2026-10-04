@@ -488,8 +488,9 @@ function InteriorViewer({
   const [topItemId, setTopItemId] = useState<string | null>(null);
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean; canMove: boolean } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
-  const itemTapRef = useRef<{ id: string; at: number } | null>(null);
+  const itemTapRef = useRef<{ id: string; at: number; previousEffectEnabled?: boolean } | null>(null);
   const itemEffectTapTimerRef = useRef<number | null>(null);
+  const [itemEffectPreview, setItemEffectPreview] = useState<Record<string, boolean>>({});
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; scalePct: number; flipped: boolean; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   const petTapRef = useRef<{ id: string; at: number } | null>(null);
@@ -497,8 +498,14 @@ function InteriorViewer({
   const popupPetLivePosition = popupPet && petDragLive?.inventoryId === popupPet.inventoryId ? petDragLive : null;
 
   const displayedItems = useMemo(() =>
-    placedItems.map(item => itemDragLive?.id === item.id ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct } : item),
-    [placedItems, itemDragLive]);
+    placedItems.map(item => {
+      const moved = itemDragLive?.id === item.id
+        ? { ...item, xPct: itemDragLive.xPct, yPct: itemDragLive.yPct }
+        : item;
+      const previewEnabled = itemEffectPreview[item.id];
+      return previewEnabled === undefined ? moved : { ...moved, effectEnabled: previewEnabled };
+    }),
+    [placedItems, itemDragLive, itemEffectPreview]);
   const itemLampEffects = useMemo(
     () => buildHomeLampItemEffects(displayedItems, containerH, undefined, imgWidth),
     [displayedItems, containerH, imgWidth],
@@ -520,6 +527,21 @@ function InteriorViewer({
   useEffect(() => () => {
     if (itemEffectTapTimerRef.current != null) window.clearTimeout(itemEffectTapTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    setItemEffectPreview(current => {
+      let changed = false;
+      const next = { ...current };
+      for (const [id, enabled] of Object.entries(current)) {
+        const actual = placedItems.find(item => item.id === id)?.effectEnabled;
+        if (actual === enabled) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [placedItems]);
 
   // Recalc layout whenever aspect changes or container resizes
   useEffect(() => {
@@ -638,23 +660,36 @@ function InteriorViewer({
       // the player taps the background to leave edit mode.
       if (drag.canMove) return;
 
-      if (isSecondHomeEditTap(itemTapRef.current, drag.id, now)) {
+      const pendingTap = itemTapRef.current;
+      if (isSecondHomeEditTap(pendingTap, drag.id, now)) {
         itemTapRef.current = null;
         if (itemEffectTapTimerRef.current != null) {
           window.clearTimeout(itemEffectTapTimerRef.current);
           itemEffectTapTimerRef.current = null;
         }
+        if (pendingTap?.previousEffectEnabled !== undefined) {
+          setItemEffectPreview(current => {
+            const next = { ...current };
+            delete next[drag.id];
+            return next;
+          });
+        }
         setSelectedItemId(drag.id);
         setPopupPetId(null);
         setTopItemId(drag.id);
       } else {
-        itemTapRef.current = { id: drag.id, at: now };
+        const previousEffectEnabled = item && isTapEffectHomeItem(item) ? item.effectEnabled : undefined;
+        itemTapRef.current = { id: drag.id, at: now, previousEffectEnabled };
         if (item && isTapEffectHomeItem(item)) {
+          const nextEffectEnabled = !item.effectEnabled;
+          // Show the lamp/tap-image change immediately. Persistence waits only
+          // long enough to distinguish a single tap from double-tap edit mode.
+          setItemEffectPreview(current => ({ ...current, [item.id]: nextEffectEnabled }));
           if (itemEffectTapTimerRef.current != null) window.clearTimeout(itemEffectTapTimerRef.current);
           itemEffectTapTimerRef.current = window.setTimeout(() => {
             itemEffectTapTimerRef.current = null;
             itemTapRef.current = null;
-            onUpdateItem(item.id, { effectEnabled: !item.effectEnabled });
+            onUpdateItem(item.id, { effectEnabled: nextEffectEnabled });
           }, HOME_EDIT_DOUBLE_TAP_MS);
         }
       }
@@ -1052,8 +1087,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [placedDragLive, setPlacedDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const placedDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean; canMove: boolean } | null>(null);
-  const outdoorDecorTapRef = useRef<{ id: string; at: number } | null>(null);
+  const outdoorDecorTapRef = useRef<{ id: string; at: number; previousEffectEnabled?: boolean } | null>(null);
   const outdoorItemEffectTapTimerRef = useRef<number | null>(null);
+  const [outdoorItemEffectPreview, setOutdoorItemEffectPreview] = useState<Record<string, boolean>>({});
 
   // Inventory drag: decor
   const [inventoryDragState, setInventoryDragState] = useState<{ decorItemId: string; imageUrl: string | null; itemType: HomeSceneItemType; ghostX: number; ghostY: number } | null>(null);
@@ -1233,8 +1269,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   // Merge live drag positions into outdoor placed decor
   const placedDecor = useMemo(() =>
-    placedDecorRaw.map(item => placedDragLive?.id === item.id ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct } : item),
-    [placedDecorRaw, placedDragLive]);
+    placedDecorRaw.map(item => {
+      const moved = placedDragLive?.id === item.id
+        ? { ...item, xPct: placedDragLive.xPct, yPct: placedDragLive.yPct }
+        : item;
+      const previewEnabled = outdoorItemEffectPreview[item.id];
+      return previewEnabled === undefined ? moved : { ...moved, effectEnabled: previewEnabled };
+    }),
+    [placedDecorRaw, placedDragLive, outdoorItemEffectPreview]);
 
   const outdoorLampEffects = useMemo(
     () => buildHomeLampItemEffects(placedDecor, containerH, undefined, imgWidth),
@@ -1256,6 +1298,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   useEffect(() => () => {
     if (outdoorItemEffectTapTimerRef.current != null) window.clearTimeout(outdoorItemEffectTapTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    setOutdoorItemEffectPreview(current => {
+      let changed = false;
+      const next = { ...current };
+      for (const [id, enabled] of Object.entries(current)) {
+        const actual = placedDecorRaw.find(item => item.id === id)?.effectEnabled;
+        if (actual === enabled) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [placedDecorRaw]);
 
   const petsQueryKey = ["/api/users", user.id, "pets"] as const;
   const petHomeSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -1335,7 +1392,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       return res.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] }),
   });
 
   const removeDecorMutation = useMutation({
@@ -1641,23 +1698,34 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       if (drag.canMove) return;
 
-      if (isSecondHomeEditTap(outdoorDecorTapRef.current, drag.id, now)) {
+      const pendingTap = outdoorDecorTapRef.current;
+      if (isSecondHomeEditTap(pendingTap, drag.id, now)) {
         outdoorDecorTapRef.current = null;
         if (outdoorItemEffectTapTimerRef.current != null) {
           window.clearTimeout(outdoorItemEffectTapTimerRef.current);
           outdoorItemEffectTapTimerRef.current = null;
         }
+        if (pendingTap?.previousEffectEnabled !== undefined) {
+          setOutdoorItemEffectPreview(current => {
+            const next = { ...current };
+            delete next[drag.id];
+            return next;
+          });
+        }
         setSelectedPlacedId(drag.id);
         setOutdoorPopupPetId(null);
         setTopOutdoorDecorId(drag.id);
       } else {
-        outdoorDecorTapRef.current = { id: drag.id, at: now };
+        const previousEffectEnabled = item && isTapEffectHomeItem(item) ? item.effectEnabled : undefined;
+        outdoorDecorTapRef.current = { id: drag.id, at: now, previousEffectEnabled };
         if (item && isTapEffectHomeItem(item)) {
+          const nextEffectEnabled = !item.effectEnabled;
+          setOutdoorItemEffectPreview(current => ({ ...current, [item.id]: nextEffectEnabled }));
           if (outdoorItemEffectTapTimerRef.current != null) window.clearTimeout(outdoorItemEffectTapTimerRef.current);
           outdoorItemEffectTapTimerRef.current = window.setTimeout(() => {
             outdoorItemEffectTapTimerRef.current = null;
             outdoorDecorTapRef.current = null;
-            updateDecorMutation.mutate({ id: item.id, effectEnabled: !item.effectEnabled });
+            updateDecorMutation.mutate({ id: item.id, effectEnabled: nextEffectEnabled });
           }, HOME_EDIT_DOUBLE_TAP_MS);
         }
       }
