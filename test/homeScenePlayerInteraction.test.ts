@@ -81,10 +81,10 @@ test("only visible artwork receives Home item pointer interaction", () => {
   assert.match(asset, /data-testid="home-scene-visible-hit-target"/);
   assert.match(asset, /pointerEvents: "none"/);
   assert.match(asset, /pointerEvents: "auto"/);
-  assert.match(asset, /left: rect\.left/);
-  assert.match(asset, /top: rect\.top/);
-  assert.match(asset, /width: rect\.width/);
-  assert.match(asset, /height: rect\.height/);
+  assert.match(asset, /left: Math\.max\(0, rect\.left - interactionPadding\)/);
+  assert.match(asset, /top: Math\.max\(0, rect\.top - interactionPadding\)/);
+  assert.match(asset, /rect\.left \+ rect\.width \+ interactionPadding/);
+  assert.match(asset, /rect\.top \+ rect\.height \+ interactionPadding/);
   assert.match(owner, /pointerEvents: "none"/);
   assert.equal((owner.match(/onPointerDown=\{\(e\) => onItemDown\(e, item\)\}/g) ?? []).length, 1);
   assert.equal((owner.match(/onPointerDown=\{\(e\) => handlePlacedDragStart\(e, item\)\}/g) ?? []).length, 1);
