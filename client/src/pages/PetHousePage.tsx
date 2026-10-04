@@ -28,7 +28,7 @@ import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
-import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
@@ -507,7 +507,14 @@ function InteriorViewer({
     () => buildHomeSleepDecorEffects(displayedItems, containerH, imgWidth),
     [displayedItems, containerH, imgWidth],
   );
-  const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
+  const itemLampIlluminationEffects = useMemo(
+    () => broadenHomeAttachedLampIllumination(itemLampEffects),
+    [itemLampEffects],
+  );
+  const roomLightEffects = useMemo(
+    () => [...effects, ...itemLampIlluminationEffects],
+    [effects, itemLampIlluminationEffects],
+  );
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
 
   useEffect(() => () => {
@@ -1237,9 +1244,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     () => buildHomeSleepDecorEffects(placedDecor, containerH, imgWidth),
     [placedDecor, containerH, imgWidth],
   );
+  const outdoorLampIlluminationEffects = useMemo(
+    () => broadenHomeAttachedLampIllumination(outdoorLampEffects),
+    [outdoorLampEffects],
+  );
   const outdoorLightEffects = useMemo(
-    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
-    [activeBundle?.exteriorEffects, outdoorLampEffects],
+    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampIlluminationEffects],
+    [activeBundle?.exteriorEffects, outdoorLampIlluminationEffects],
   );
 
   useEffect(() => () => {
