@@ -29,6 +29,9 @@ export const PET_LAYER_ORDER: Readonly<Record<string, number>> = {
   back_wing: 2, back_wing_2: 2, right_wing: 2, left_wing: 2, wing_set2_left: 2, wing_set2_right: 2,
   back_leg: 3, back_accessory_2: 3, back_accessory_1: 3, front_left_accessory: 3, front_right_accessory: 3,
   back_arm: 4, back_shoulder: 4, body_2: 4.5,
+  // Head 2/3 rear-neck artwork is a sandwich layer: it follows its head but
+  // must paint just behind the torso while the head/face itself stays in front.
+  neck_back: 4.75,
   // Front-view limbs deliberately sit above the body.  The former tie with
   // body made their depth depend on database/upload order (notably left_arm).
   body: 5,
@@ -46,7 +49,10 @@ export const PET_LAYER_ORDER: Readonly<Record<string, number>> = {
 export interface LayerablePetPart { partType: string; zIndex: number }
 export function getEffectivePetLayer(part: LayerablePetPart, facing: PetFacing = "front"): number {
   const base = basePetPartType(part.partType);
-  if (isSecondaryHeadPart(part.partType)) return 4 + (PET_LAYER_ORDER[base] ?? 10) * 0.001;
+  // Secondary heads share the same semantic front bands as Head 1. The runtime
+  // wraps each head separately, but static/server composites must also keep
+  // h2_/h3_ head and face artwork in front of the body.
+  if (isSecondaryHeadPart(part.partType)) return PET_LAYER_ORDER[base] ?? part.zIndex;
   // Only left/right side-facing templates use the special front-leg depth.
   // "back" is a distinct template facing and must retain the same layer
   // semantics as the runtime renderer; remapping it to left previously caused
