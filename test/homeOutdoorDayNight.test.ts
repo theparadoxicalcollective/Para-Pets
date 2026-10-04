@@ -65,7 +65,7 @@ test("outdoor Home effects reuse safe visual effects but exclude the interior Sl
   );
 });
 
-test("owner and visitor Home yards use the owner's persisted day-night setting", () => {
+test("owner and visitor Home yards use the owner's current day-night setting during the visit", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
@@ -142,6 +142,20 @@ test("outdoor effects persist on Home bundles and the server sanitizes Admin upd
   assert.match(routes, /updates\.exteriorEffects = sanitizeHouseOutdoorEffects\(exteriorEffects\)/);
 });
 
+
+test("manual Day/Night overrides reset to Auto whenever the owner leaves the Pet Home", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+
+  assert.match(owner, /outdoorLightingSessionRef/);
+  assert.match(owner, /resetOutdoorLightingOnDeparture/);
+  assert.match(owner, /return \(\) => resetOutdoorLightingOnDeparture\(\)/);
+  assert.match(owner, /outdoorMode: "auto"/);
+  assert.match(owner, /keepalive: true/);
+  assert.match(owner, /session\.touched = false/);
+  assert.match(owner, /session\.touched = true/);
+  assert.match(owner, /persistedMode === "auto" \|\| session\.touched/);
+  assert.match(owner, /persistPlayerLightingPatch\(activeBundle\.id, \{ outdoorMode: "auto" \}\)/);
+});
 
 test("player Home lighting is stored per owned bundle instead of globally in the browser", () => {
   const schema = read("shared/schema.ts");
