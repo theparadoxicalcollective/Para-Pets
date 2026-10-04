@@ -174,6 +174,11 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   }, [enabled]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    const handler = () => { void refresh(); };
+    window.addEventListener("pet_evolution_refresh", handler);
+    return () => window.removeEventListener("pet_evolution_refresh", handler);
+  }, [refresh]);
   useEffect(() => { if (!pickerOpen) setSelected(new Set()); }, [pickerOpen]);
   useEffect(() => () => {
     if (nodeMessageTimer.current !== null) window.clearTimeout(nodeMessageTimer.current);
