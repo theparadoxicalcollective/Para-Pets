@@ -30,7 +30,9 @@ test("admin Parts and Evolution editors expose direct drag, proportional size, a
   const editor = fs.readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
   assert.match(editor, /data-testid="selected-part-transform-panel"/);
   assert.match(editor, /onPointerDown=\{isSelected \? \(event\) => startPartDrag\(event, part\)/);
-  assert.match(editor, /onPointerMove=\{movePartDrag\}/);
+  assert.match(editor, /onPointerMove=\{\(event\) => \{/);
+  assert.match(editor, /if \(editorTool === "effects"\) moveEvolutionEffectDrag\(event\)/);
+  assert.match(editor, /else movePartDrag\(event\)/);
   assert.match(editor, /data-testid="input-part-size"/);
   assert.match(editor, /resizePetPartTransform/);
   assert.match(editor, /data-testid="input-part-rotation"/);
