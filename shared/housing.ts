@@ -117,7 +117,7 @@ export function getHouseInteriorLightRadiusRatio(effect: HouseInteriorEffect): n
 export function getHouseInteriorLightPeakBoost(type: HouseInteriorEffectType): number {
   if (type === "fire") return 42;
   if (type === "candle_light") return 18;
-  if (type === "lamp_light") return 32;
+  if (type === "lamp_light") return 38;
   if (type === "warm_glow") return 34;
   return 0;
 }
