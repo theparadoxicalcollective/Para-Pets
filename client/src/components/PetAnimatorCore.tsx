@@ -2527,7 +2527,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
 
         {artworkForm === "evolution" && (templateData?.evolutionEffects?.length ?? 0) > 0 && (
           <EvolutionPetEffectsLayer
-            effects={templateData?.evolutionEffects ?? []}
+            effects={(templateData?.evolutionEffects ?? []).filter(effect => effect.view === resolvedView)}
             animated={!performanceStatic && !lowMemory}
           />
         )}
