@@ -358,7 +358,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         sceneHeight={containerH}
         offEffectIds={new Set()}
         sunlightStrength={sunlightStrength}
-        zIndex={4}
+        zIndex={24}
       />
 
       {imgWidth > 0 && placedItems.map((item) => {
@@ -866,7 +866,7 @@ export default function VisitPetHousePage() {
             key={item.id}
             className="absolute"
             data-home-item-effect={item.item.homeEffect ?? undefined}
-            style={{ zIndex: item.item.homeEffect === "lamp_light" && (visitorItemEffectOverrides[item.id] ?? item.effectEnabled) ? 22 : 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)", pointerEvents: isTapEffectHomeItem(item) ? "auto" : "none", cursor: isTapEffectHomeItem(item) ? "pointer" : "default", touchAction: "manipulation" }}
+            style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)", pointerEvents: isTapEffectHomeItem(item) ? "auto" : "none", cursor: isTapEffectHomeItem(item) ? "pointer" : "default", touchAction: "manipulation" }}
             onPointerDown={isTapEffectHomeItem(item) ? event => event.stopPropagation() : undefined}
             onClick={isTapEffectHomeItem(item) ? event => { event.stopPropagation(); toggleVisitorItemEffect(item); } : undefined}
           >
@@ -903,7 +903,7 @@ export default function VisitPetHousePage() {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
-            zIndex={21}
+            zIndex={24}
           />
         </>
       )}
