@@ -197,17 +197,19 @@ test("Tap artwork and per-placement Object state persist independently", () => {
   assert.match(storage, /itemHomeTapImageUrl: shopItems\.homeTapImageUrl/);
 });
 
-test("owner Object taps do not collide with drag or double-tap editing, and Tap artwork renders in both locations", () => {
+test("owner Lamp/Tap effects respond immediately while persistence still protects double-tap editing", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
 
   assert.match(owner, /HOME_EDIT_DRAG_THRESHOLD_PX/);
   assert.match(owner, /if \(!drag\.moved\)/);
-  assert.match(owner, /isSecondHomeEditTap\(itemTapRef\.current, drag\.id, now\)/);
-  assert.match(owner, /isSecondHomeEditTap\(outdoorDecorTapRef\.current, drag\.id, now\)/);
+  assert.equal((owner.match(/const pendingTap = .*TapRef\.current/g) ?? []).length, 2);
+  assert.match(owner, /isSecondHomeEditTap\(pendingTap, drag\.id, now\)/);
+  assert.match(owner, /setItemEffectPreview\(current => \(\{ \.\.\.current, \[item\.id\]: nextEffectEnabled \}\)\)/);
+  assert.match(owner, /setOutdoorItemEffectPreview\(current => \(\{ \.\.\.current, \[item\.id\]: nextEffectEnabled \}\)\)/);
   assert.match(owner, /itemEffectTapTimerRef/);
   assert.match(owner, /outdoorItemEffectTapTimerRef/);
-  assert.match(owner, /effectEnabled: !item\.effectEnabled/);
-  assert.match(owner, /setTimeout\([\s\S]{0,260}HOME_EDIT_DOUBLE_TAP_MS/);
+  assert.equal((owner.match(/effectEnabled: nextEffectEnabled/g) ?? []).length, 2);
+  assert.match(owner, /setTimeout\([\s\S]{0,320}HOME_EDIT_DOUBLE_TAP_MS/);
   assert.match(owner, /e\.type !== "pointerup"/);
   assert.equal((owner.match(/getHomeItemDisplayImage\(item\)/g) ?? []).length, 2);
 });
