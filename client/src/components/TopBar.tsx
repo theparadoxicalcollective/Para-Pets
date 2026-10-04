@@ -381,15 +381,15 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                     "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
                   maskImage:
                     "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
-                  filter: "drop-shadow(0 0 8px rgba(255,200,80,0.65)) drop-shadow(0 0 16px rgba(127,191,176,0.45))",
+                  filter: "drop-shadow(0 0 6px rgba(134,239,172,0.95)) drop-shadow(0 0 14px rgba(34,197,94,0.78)) drop-shadow(0 0 22px rgba(16,185,129,0.48))",
                 }}
               />
               <div
                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
                 style={{
-                  background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
-                  border: "1.5px solid rgba(30,15,5,0.8)",
-                  boxShadow: "0 0 6px rgba(248,113,113,0.6)",
+                  background: "radial-gradient(circle at 35% 30%, #bbf7d0 0%, #22c55e 48%, #15803d 100%)",
+                  border: "1.5px solid rgba(220,252,231,0.95)",
+                  boxShadow: "0 0 7px rgba(74,222,128,0.9), 0 0 14px rgba(34,197,94,0.5)",
                 }}
               >
                 <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
@@ -399,21 +399,19 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         </div>
       </div>
 
-      {/* Floating gift button on the home page — overlays the active pet at bottom-center */}
+      {/* Floating gift button on the home page — tucked below the upper-right controls so it stays clear of the active pet. */}
       {hasRewards && location === "/" && (
         <button
           data-testid="button-gift-rewards-floating"
           onClick={() => setShowRewards(true)}
-          className="fixed transition-transform active:scale-90 animate-bounce"
+          className="fixed transition-transform active:scale-90"
           style={{
-            bottom: "calc(22*var(--vh))",
-            left: "50%",
-            transform: "translateX(-50%)",
+            top: "calc(17*var(--vh))",
+            right: "max(calc((100vw - 768px) / 2 + 14px), 14px)",
             zIndex: 40,
             background: "none",
             border: "none",
             cursor: "pointer",
-            animationDuration: "2s",
             pointerEvents: "auto",
           }}
         >
@@ -421,22 +419,22 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             src={giftIconImg}
             alt="Gifts"
             style={{
-              width: 80,
-              height: 80,
+              width: 70,
+              height: 70,
               objectFit: "contain",
               filter:
-                "drop-shadow(0 0 3px rgba(255,200,60,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.7))",
+                "drop-shadow(0 0 5px rgba(187,247,208,0.95)) drop-shadow(0 0 13px rgba(34,197,94,0.9)) drop-shadow(0 0 24px rgba(16,185,129,0.58)) drop-shadow(0 3px 5px rgba(0,0,0,0.78))",
             }}
           />
           <div
             className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
             style={{
-              background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
-              border: "1.5px solid rgba(30,15,5,0.8)",
-              boxShadow: "0 0 6px rgba(248,113,113,0.6)",
+              background: "radial-gradient(circle at 35% 30%, #bbf7d0 0%, #22c55e 48%, #15803d 100%)",
+              border: "1.5px solid rgba(220,252,231,0.95)",
+              boxShadow: "0 0 8px rgba(74,222,128,0.95), 0 0 16px rgba(34,197,94,0.55)",
             }}
           >
-            <span className="font-bold text-[9px] text-white leading-none">{pendingRewards.length}</span>
+            <span className="font-bold text-[9px] text-emerald-950 leading-none">{pendingRewards.length}</span>
           </div>
         </button>
       )}
