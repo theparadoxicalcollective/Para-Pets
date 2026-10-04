@@ -118,6 +118,7 @@ test("real parts endpoint isolates evolution cache and falls back without changi
     app: { get: (_path: string, _auth: any, fn: any) => { handler = fn; } }, isAuthenticated: () => {},
     storage: { getPetTemplateParts: async (_id: string, form = "base") => form === "evolution" ? evolution : base, getPetTemplate: async () => ({ facing: "front" }) },
     getCachedTemplateParts: (key: string) => cache.get(key), setCachedTemplateParts: (key: string, value: any) => cache.set(key, value), resolvePetArtwork,
+    getEvolutionPetEffects: async () => [],
     console,
   });
   const request = async (form?: string) => {
