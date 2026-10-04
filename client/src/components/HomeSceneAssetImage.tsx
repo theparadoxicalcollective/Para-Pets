@@ -6,6 +6,8 @@ type HomeSceneAssetImageProps = {
   alt: string;
   size: number;
   selected?: boolean;
+  showSelectionVisual?: boolean;
+  interactionPadding?: number;
   flipped?: boolean;
   brightness?: number;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
@@ -47,6 +49,8 @@ export function HomeSceneAssetImage({
   alt,
   size,
   selected = false,
+  showSelectionVisual = true,
+  interactionPadding = 0,
   flipped = false,
   brightness = 1,
   onPointerDown,
@@ -88,7 +92,7 @@ export function HomeSceneAssetImage({
         className="absolute inset-0 w-full h-full object-contain"
         style={{
           transform: flipped ? "scaleX(-1)" : undefined,
-          filter: selected
+          filter: selected && showSelectionVisual
             ? `brightness(${brightness}) drop-shadow(0 0 2px rgba(255,235,130,0.95)) drop-shadow(0 0 5px rgba(255,215,0,0.92)) drop-shadow(0 0 10px rgba(255,180,20,0.62)) drop-shadow(0 2px 6px rgba(0,0,0,0.45))`
             : `brightness(${brightness}) drop-shadow(0 2px 6px rgba(0,0,0,0.45))`,
           transition: "filter 260ms ease-out",
@@ -124,10 +128,10 @@ export function HomeSceneAssetImage({
           onLostPointerCapture={onLostPointerCapture}
           style={{
             ...(rect ? {
-              left: rect.left,
-              top: rect.top,
-              width: rect.width,
-              height: rect.height,
+              left: Math.max(0, rect.left - interactionPadding),
+              top: Math.max(0, rect.top - interactionPadding),
+              width: Math.min(size, rect.left + rect.width + interactionPadding) - Math.max(0, rect.left - interactionPadding),
+              height: Math.min(size, rect.top + rect.height + interactionPadding) - Math.max(0, rect.top - interactionPadding),
             } : {
               inset: 0,
             }),
