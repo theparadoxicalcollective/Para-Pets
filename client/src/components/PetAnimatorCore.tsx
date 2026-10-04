@@ -1677,6 +1677,19 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   }));
   const headGroupPartIds = new Set(headGroups.flatMap(g => [g.head.id, ...g.faceParts.map(p => p.id)]));
 
+  // Neck 2 / Neck 3 live outside the head wrapper so their layer can sit
+  // between body and head, but they still inherit their matching head motion.
+  const secondaryNeckHeadGroups = new Map<string, { head: PetPart; groupIndex: number }>();
+  for (const part of viewParts) {
+    const match = part.partType.match(/^(h[23])_neck$/);
+    if (!match) continue;
+    const targetHeadType = `${match[1]}_head`;
+    const groupIndex = headGroups.findIndex(group => group.head.partType === targetHeadType);
+    if (groupIndex >= 0) {
+      secondaryNeckHeadGroups.set(part.id, { head: headGroups[groupIndex].head, groupIndex });
+    }
+  }
+
   // Head 2 / Head 3 rear neck pieces intentionally live outside the head's
   // z=9 wrapper so the body can paint over them. Map each one back to its
   // semantic head so it still receives exactly the same head motion.
@@ -2106,6 +2119,28 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
           const partZ = overHeadPartTypes.has(part.partType)
             ? OVER_HEAD_Z
             : compressedZ.get(part.id);
+          const secondaryNeckHeadGroup = secondaryNeckHeadGroups.get(part.id);
+          if (secondaryNeckHeadGroup) {
+            const headMotion = headWrapperMotion(secondaryNeckHeadGroup.head, secondaryNeckHeadGroup.groupIndex);
+            return (
+              <div
+                key={`secondary-neck-${part.id}`}
+                data-secondary-neck-head-sync={secondaryNeckHeadGroup.head.partType}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  animation: headMotion.animation,
+                  willChange: headMotion.animationName && !lowMemory ? "transform" : undefined,
+                  zIndex: 8.5,
+                  pointerEvents: "none",
+                  ...(headMotion.headBobStyle ?? {}),
+                }}
+              >
+                {renderPartImg(part, null, undefined, undefined, undefined, 0)}
+              </div>
+            );
+          }
+
           const rearNeckHeadGroup = rearNeckHeadGroups.get(part.id);
           if (rearNeckHeadGroup) {
             const headMotion = headWrapperMotion(rearNeckHeadGroup.head, rearNeckHeadGroup.groupIndex);
