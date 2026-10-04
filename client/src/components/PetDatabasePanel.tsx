@@ -135,6 +135,11 @@ const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[]
     // Head 2 / Head 3 get a dedicated rear neck segment. It belongs to the
     // head's authoring section but is deliberately below the body layer.
     ...(i === 2 || i === 3 ? [
+      // Secondary necks sit directly under their matching head. They are
+      // authored in Head Two / Head Three and render above the torso.
+      { key: k("neck"), label: i === 2 ? "Neck 2" : "Neck 3", defaultZ: baseZ, layer: "front" as const },
+      // Keep the existing optional rear-neck segment for artwork that needs
+      // to disappear behind the torso.
       { key: k("neck_back"), label: "Neck Back", defaultZ: 48, layer: "back" as const },
     ] : []),
     // Back hair lives in this head's section but renders behind the body so
