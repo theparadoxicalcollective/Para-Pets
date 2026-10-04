@@ -89,9 +89,8 @@ test("Closet route opens the clicked Home pet without changing active pet", () =
   assert.match(equip, /onClose=\{\(\) => navigate\(returnPath\)\}/);
 });
 
-test("selected Home pets use a gold silhouette glow and compact controls", () => {
-  assert.match(owner, /drop-shadow\(0 0 2px rgba\(255,235,130,0\.95\)\)/);
-  assert.match(owner, /drop-shadow\(0 0 6px rgba\(255,215,0,0\.9\)\)/);
+test("selected Home pets keep compact controls without a visible selection glow", () => {
+  assert.doesNotMatch(owner, /filter: isSelectedPet \? "drop-shadow/);
   assert.match(owner, /width: 34, height: 32, borderRadius: 9/);
   assert.match(owner, /minWidth: 82, minHeight: 34/);
   assert.match(owner, /minWidth: 106, minHeight: 34/);

@@ -33,13 +33,13 @@ test("both owner placement views use visible-only hit targets", () => {
   assert.doesNotMatch(owner, /outline: isSelected \? "2px solid rgba\(255,215,0,0\.8\)"/);
 });
 
-test("selected Home items glow around the PNG silhouette without a rectangular box", () => {
-  assert.match(component, /drop-shadow\(0 0 2px rgba\(255,235,130,0\.95\)\)/);
-  assert.match(component, /drop-shadow\(0 0 5px rgba\(255,215,0,0\.92\)\)/);
-  assert.match(component, /drop-shadow\(0 0 10px rgba\(255,180,20,0\.62\)\)/);
+test("double-tapped Home items expose controls without a visible selection box or glow", () => {
+  assert.match(component, /showSelectionVisual\?: boolean/);
+  assert.match(component, /selected && showSelectionVisual/);
   assert.match(component, /outline: "none"/);
   assert.match(component, /boxShadow: "none"/);
-  assert.match(owner, /zIndex: isSelected \? 180/);
+  assert.equal((owner.match(/showSelectionVisual=\{false\}/g) ?? []).length, 2);
+  assert.match(owner, /zIndex: isSelected \? 22/);
   assert.match(owner, /setTopItemId\(drag\.id\)/);
   assert.match(owner, /setTopOutdoorDecorId\(drag\.id\)/);
 });

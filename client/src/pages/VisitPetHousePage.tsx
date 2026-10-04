@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseInteriorPointDarkness, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -239,7 +239,14 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     () => buildHomeSleepDecorEffects(placedItems, containerH, imgWidth),
     [placedItems, containerH, imgWidth],
   );
-  const roomLightEffects = useMemo(() => [...effects, ...itemLampEffects], [effects, itemLampEffects]);
+  const itemLampIlluminationEffects = useMemo(
+    () => broadenHomeAttachedLampIllumination(itemLampEffects),
+    [itemLampEffects],
+  );
+  const roomLightEffects = useMemo(
+    () => [...effects, ...itemLampIlluminationEffects],
+    [effects, itemLampIlluminationEffects],
+  );
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
 
   useEffect(() => {
@@ -358,7 +365,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         sceneHeight={containerH}
         offEffectIds={new Set()}
         sunlightStrength={sunlightStrength}
-        zIndex={4}
+        zIndex={24}
       />
 
       {imgWidth > 0 && placedItems.map((item) => {
@@ -616,9 +623,13 @@ export default function VisitPetHousePage() {
     () => buildHomeSleepDecorEffects(outdoorDecor, containerH, imgWidth),
     [outdoorDecor, containerH, imgWidth],
   );
+  const outdoorLampIlluminationEffects = useMemo(
+    () => broadenHomeAttachedLampIllumination(outdoorLampEffects),
+    [outdoorLampEffects],
+  );
   const outdoorLightEffects = useMemo(
-    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampEffects],
-    [activeBundle?.exteriorEffects, outdoorLampEffects],
+    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampIlluminationEffects],
+    [activeBundle?.exteriorEffects, outdoorLampIlluminationEffects],
   );
 
   const { data: me } = useQuery<{ id: string; coins: number } | null>({
@@ -866,7 +877,7 @@ export default function VisitPetHousePage() {
             key={item.id}
             className="absolute"
             data-home-item-effect={item.item.homeEffect ?? undefined}
-            style={{ zIndex: item.item.homeEffect === "lamp_light" && (visitorItemEffectOverrides[item.id] ?? item.effectEnabled) ? 22 : 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)", pointerEvents: isTapEffectHomeItem(item) ? "auto" : "none", cursor: isTapEffectHomeItem(item) ? "pointer" : "default", touchAction: "manipulation" }}
+            style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)", pointerEvents: isTapEffectHomeItem(item) ? "auto" : "none", cursor: isTapEffectHomeItem(item) ? "pointer" : "default", touchAction: "manipulation" }}
             onPointerDown={isTapEffectHomeItem(item) ? event => event.stopPropagation() : undefined}
             onClick={isTapEffectHomeItem(item) ? event => { event.stopPropagation(); toggleVisitorItemEffect(item); } : undefined}
           >
@@ -903,7 +914,7 @@ export default function VisitPetHousePage() {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
-            zIndex={21}
+            zIndex={24}
           />
         </>
       )}

@@ -51,25 +51,40 @@ test("players get minus and plus controls for both interior and outdoor Home ite
   assert.equal((owner.match(/clampHomeScenePlayerSize\(item\.item\.homeSceneSize/g) ?? []).length, 4);
 });
 
-test("Decor and Objects drag immediately and only expose controls on double tap", () => {
+test("Decor and Objects require double-tap edit mode before moving, while pets remain instant-drag", () => {
   assert.match(owner, /itemTapRef/);
   assert.match(owner, /outdoorDecorTapRef/);
   assert.match(owner, /isSecondHomeEditTap\(itemTapRef\.current, drag\.id, now\)/);
   assert.match(owner, /isSecondHomeEditTap\(outdoorDecorTapRef\.current, drag\.id, now\)/);
-  assert.doesNotMatch(owner, /if \(selectedItemId !== item\.id\) \{/);
-  assert.doesNotMatch(owner, /if \(selectedPlacedId !== item\.id\) \{/);
+
+  assert.match(owner, /canMove: selectedItemId === item\.id/);
+  assert.match(owner, /canMove: selectedPlacedId === item\.id/);
+  assert.match(owner, /if \(!drag\.moved \|\| !drag\.canMove\) return/);
+  assert.match(owner, /if \(!drag\.canMove\) return/);
+
+  // Pets still capture immediately and move from a normal drag.
+  assert.match(owner, /const onPetDown = useCallback/);
+  assert.match(owner, /const handlePetDragStart = useCallback/);
   assert.match(owner, /safeSetPointerCapture\(e\.currentTarget, e\.pointerId\)/);
   assert.match(owner, /HOME_EDIT_DRAG_THRESHOLD_PX/);
+});
+
+test("Home item edit selection stays invisible while controls remain available", () => {
+  assert.match(asset, /showSelectionVisual\?: boolean/);
+  assert.match(asset, /interactionPadding\?: number/);
+  assert.match(asset, /selected && showSelectionVisual/);
+  assert.match(owner, /showSelectionVisual=\{false\}/);
+  assert.equal((owner.match(/interactionPadding=\{14\}/g) ?? []).length, 2);
 });
 
 test("only visible artwork receives Home item pointer interaction", () => {
   assert.match(asset, /data-testid="home-scene-visible-hit-target"/);
   assert.match(asset, /pointerEvents: "none"/);
   assert.match(asset, /pointerEvents: "auto"/);
-  assert.match(asset, /left: rect\.left/);
-  assert.match(asset, /top: rect\.top/);
-  assert.match(asset, /width: rect\.width/);
-  assert.match(asset, /height: rect\.height/);
+  assert.match(asset, /left: Math\.max\(0, rect\.left - interactionPadding\)/);
+  assert.match(asset, /top: Math\.max\(0, rect\.top - interactionPadding\)/);
+  assert.match(asset, /rect\.left \+ rect\.width \+ interactionPadding/);
+  assert.match(asset, /rect\.top \+ rect\.height \+ interactionPadding/);
   assert.match(owner, /pointerEvents: "none"/);
   assert.equal((owner.match(/onPointerDown=\{\(e\) => onItemDown\(e, item\)\}/g) ?? []).length, 1);
   assert.equal((owner.match(/onPointerDown=\{\(e\) => handlePlacedDragStart\(e, item\)\}/g) ?? []).length, 1);

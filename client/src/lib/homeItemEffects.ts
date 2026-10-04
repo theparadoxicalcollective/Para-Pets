@@ -84,6 +84,24 @@ export function buildHomeLampItemEffects(
     .map(item => buildAttachedEffect(item, "lamp_light", sceneHeight, imageWidth, "home-item-lamp"));
 }
 
+export function broadenHomeAttachedLampIllumination(
+  effects: readonly HouseInteriorEffect[],
+): HouseInteriorEffect[] {
+  return effects.map(effect => {
+    if (effect.type !== "lamp_light") return effect;
+
+    const visibleSize = Math.max(4, effect.size);
+    // Larger Admin-authored Lamp Lights should light a larger surrounding area,
+    // not just draw a larger glow. The multiplier grows mildly with the saved
+    // visual size, while this runtime-only footprint stays capped for mobile.
+    const sizeScale = 1.18 + Math.min(0.20, visibleSize / 140);
+    return {
+      ...effect,
+      size: Math.min(46, visibleSize * sizeScale),
+    };
+  });
+}
+
 export function buildHomeSleepDecorEffects(
   items: readonly HomeEffectPlacement[],
   sceneHeight: number,
