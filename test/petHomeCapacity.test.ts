@@ -18,6 +18,17 @@ test("legacy building maxPets overrides size capacity", () => {
   );
 });
 
+test("unset capacity fields fall back instead of being treated as zero", () => {
+  assert.equal(
+    getHouseBuildingPetLimit({ size: "small", maxPets: null }),
+    3,
+  );
+  assert.equal(
+    getHouseOutdoorPetLimit({ maxOutdoorPets: null }),
+    6,
+  );
+});
+
 test("bundle outdoor pet capacity supports ten pets and overflows the eleventh", () => {
   const positions = Array.from({ length: 11 }, (_, index) => ({
     inventoryId: `pet-${index + 1}`,
