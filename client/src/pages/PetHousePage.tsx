@@ -29,6 +29,7 @@ import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
@@ -518,9 +519,13 @@ function InteriorViewer({
     () => broadenHomeAttachedLampIllumination(itemLampEffects),
     [itemLampEffects],
   );
+  const bundleLampIlluminationEffects = useMemo(
+    () => broadenHomeBundleLampIllumination(effects),
+    [effects],
+  );
   const roomLightEffects = useMemo(
-    () => [...effects, ...itemLampIlluminationEffects],
-    [effects, itemLampIlluminationEffects],
+    () => [...bundleLampIlluminationEffects, ...itemLampIlluminationEffects],
+    [bundleLampIlluminationEffects, itemLampIlluminationEffects],
   );
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
 
@@ -1057,6 +1062,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
   const lightingSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const outdoorLightingSessionRef = useRef<{
+    bundleId: string | null;
+    mode: HomeOutdoorLightingMode;
+    touched: boolean;
+  }>({ bundleId: null, mode: "auto", touched: false });
+  const outdoorLightingDepartureResetRef = useRef<string | null>(null);
   const { data: friendRequests } = useQuery<{ count: number }>({
     queryKey: ["/api/friends/requests/count"],
     staleTime: 30000,
@@ -1129,7 +1140,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     staleTime: 30000,
   });
 
-  const outdoorLighting = useHomeOutdoorLighting(activeBundle?.playerLighting?.outdoorMode ?? "auto");
+  const currentOutdoorLightingMode = activeBundle?.playerLighting?.outdoorMode ?? "auto";
+  const outdoorLighting = useHomeOutdoorLighting(currentOutdoorLightingMode);
+
+  // Keep the latest mode available to the departure cleanup. Bundle identity is
+  // changed only by the session effect below so a newly activated bundle can
+  // start a fresh temporary-override session.
+  outdoorLightingSessionRef.current.mode = currentOutdoorLightingMode;
 
   const persistPlayerLightingPatch = useCallback((
     bundleId: string,
@@ -1151,24 +1168,81 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       });
   }, [qc, toast, user.id]);
 
+  const setCachedOutdoorMode = useCallback((mode: HomeOutdoorLightingMode) => {
+    const queryKey = ["/api/users", user.id, "active-house-bundle"] as const;
+    qc.setQueryData<ActiveBundle | null>(queryKey, current => current ? {
+      ...current,
+      playerLighting: {
+        outdoorMode: mode,
+        offInteriorEffectIds: current.playerLighting?.offInteriorEffectIds ?? {},
+      },
+    } : current);
+  }, [qc, user.id]);
+
+  const resetOutdoorLightingOnDeparture = useCallback(() => {
+    const { bundleId, mode } = outdoorLightingSessionRef.current;
+    if (!bundleId || mode === "auto" || outdoorLightingDepartureResetRef.current === bundleId) return;
+
+    outdoorLightingDepartureResetRef.current = bundleId;
+    outdoorLightingSessionRef.current.mode = "auto";
+    setCachedOutdoorMode("auto");
+
+    // Queue Auto after any in-flight manual Day/Night save. Without this ordering,
+    // leaving immediately after tapping the toggle could let the older manual
+    // PATCH arrive after the reset and make the Home look stuck on Day/Night.
+    lightingSaveQueueRef.current = lightingSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await fetch(`/api/house-bundles/${bundleId}/player-lighting`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outdoorMode: "auto" }),
+          credentials: "include",
+          keepalive: true,
+        });
+      })
+      .catch(() => undefined);
+  }, [setCachedOutdoorMode]);
+
+  // Manual Day/Night is visit-scoped. If an older session closed before its
+  // cleanup request completed, normalize that stale persisted override as soon
+  // as this Home is loaded again.
+  useEffect(() => {
+    if (!activeBundle?.id) return;
+
+    const session = outdoorLightingSessionRef.current;
+    if (session.bundleId !== activeBundle.id) {
+      session.bundleId = activeBundle.id;
+      session.touched = false;
+      outdoorLightingDepartureResetRef.current = null;
+    }
+
+    const persistedMode = activeBundle.playerLighting?.outdoorMode ?? "auto";
+    session.mode = persistedMode;
+    if (persistedMode === "auto" || session.touched) return;
+
+    session.mode = "auto";
+    setCachedOutdoorMode("auto");
+    persistPlayerLightingPatch(activeBundle.id, { outdoorMode: "auto" });
+  }, [activeBundle?.id, activeBundle?.playerLighting?.outdoorMode, persistPlayerLightingPatch, setCachedOutdoorMode]);
+
+  useEffect(() => {
+    return () => resetOutdoorLightingOnDeparture();
+  }, [resetOutdoorLightingOnDeparture]);
+
   const cycleOutdoorLighting = useCallback(() => {
     if (!activeBundle) return;
-    const queryKey = ["/api/users", user.id, "active-house-bundle"] as const;
-    let nextMode: HomeOutdoorLightingMode = "auto";
-    qc.setQueryData<ActiveBundle | null>(queryKey, current => {
-      if (!current) return current;
-      const currentMode = current.playerLighting?.outdoorMode ?? "auto";
-      nextMode = cycleHomeOutdoorLightingMode(currentMode);
-      return {
-        ...current,
-        playerLighting: {
-          outdoorMode: nextMode,
-          offInteriorEffectIds: current.playerLighting?.offInteriorEffectIds ?? {},
-        },
-      };
-    });
+    const currentMode = activeBundle.playerLighting?.outdoorMode ?? "auto";
+    const nextMode = cycleHomeOutdoorLightingMode(currentMode);
+
+    outdoorLightingSessionRef.current.bundleId = activeBundle.id;
+    outdoorLightingSessionRef.current.mode = nextMode;
+    outdoorLightingSessionRef.current.touched = true;
+    outdoorLightingDepartureResetRef.current = null;
+
+    setCachedOutdoorMode(nextMode);
     persistPlayerLightingPatch(activeBundle.id, { outdoorMode: nextMode });
-  }, [activeBundle?.id, persistPlayerLightingPatch, qc, user.id]);
+  }, [activeBundle, persistPlayerLightingPatch, setCachedOutdoorMode]);
 
   const toggleSavedInteriorLight = useCallback((buildingId: string, effect: HouseInteriorEffect) => {
     if (!activeBundle) return;
@@ -1290,9 +1364,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     () => broadenHomeAttachedLampIllumination(outdoorLampEffects),
     [outdoorLampEffects],
   );
+  const bundleOutdoorIlluminationEffects = useMemo(
+    () => broadenHomeBundleLampIllumination(activeBundle?.exteriorEffects ?? []),
+    [activeBundle?.exteriorEffects],
+  );
   const outdoorLightEffects = useMemo(
-    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampIlluminationEffects],
-    [activeBundle?.exteriorEffects, outdoorLampIlluminationEffects],
+    () => [...bundleOutdoorIlluminationEffects, ...outdoorLampIlluminationEffects],
+    [bundleOutdoorIlluminationEffects, outdoorLampIlluminationEffects],
   );
 
   useEffect(() => () => {
@@ -2191,6 +2269,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
+            transitionMs={outdoorLighting.transitionMs}
             zIndex={20}
           />
           <HomeInteriorEffectsLayer

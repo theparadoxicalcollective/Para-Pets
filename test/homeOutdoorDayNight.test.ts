@@ -6,7 +6,9 @@ import {
   sanitizeHouseOutdoorEffects,
 } from "../shared/housing";
 import {
+  HOME_OUTDOOR_AUTO_TRANSITION_MS,
   HOME_OUTDOOR_NIGHT_DARKNESS,
+  HOME_OUTDOOR_OVERRIDE_TRANSITION_MS,
   cycleHomeOutdoorLightingMode,
   getAutomaticHomeNightStrength,
   getHomeOutdoorDarkness,
@@ -27,6 +29,9 @@ test("automatic Home lighting eases through dawn and dusk using the player's loc
   assert.equal(getAutomaticHomeNightStrength(at(20)), 1);
   assert.equal(getHomeOutdoorDarkness("day", at(23)), 0);
   assert.equal(getHomeOutdoorDarkness("night", at(12)), HOME_OUTDOOR_NIGHT_DARKNESS);
+  assert.equal(getHomeOutdoorDarkness("auto", at(18, 30)), HOME_OUTDOOR_NIGHT_DARKNESS * 0.25);
+  assert.equal(HOME_OUTDOOR_AUTO_TRANSITION_MS, 30_000);
+  assert.equal(HOME_OUTDOOR_OVERRIDE_TRANSITION_MS, 280);
 });
 
 test("day-night control cycles auto to sun, moon, and back to automatic", () => {
@@ -60,13 +65,16 @@ test("outdoor Home effects reuse safe visual effects but exclude the interior Sl
   );
 });
 
-test("owner and visitor Home yards use the owner's persisted day-night setting", () => {
+test("owner and visitor Home yards use the owner's current day-night setting during the visit", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
+  assert.match(owner, /const currentOutdoorLightingMode = activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"/);
+  assert.match(owner, /useHomeOutdoorLighting\(currentOutdoorLightingMode\)/);
+  assert.match(visitor, /useHomeOutdoorLighting\(activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"\)/);
+
   for (const source of [owner, visitor]) {
-    assert.match(source, /useHomeOutdoorLighting\(activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"\)/);
     assert.match(source, /HomeOutdoorAtmosphereLayer/);
     assert.match(source, /effects=\{activeBundle\?\.exteriorEffects \?\? \[\]\}/);
     assert.match(source, /<HomeInteriorEffectsLayer[\s\S]*activeBundle\?\.exteriorEffects/);
@@ -85,7 +93,11 @@ test("owner and visitor Home yards use the owner's persisted day-night setting",
   assert.match(atmosphere, /data-lighting-mode=\{mode\}/);
   assert.match(atmosphere, /data-testid="home-day-night-planet"/);
   assert.match(atmosphere, /safeNight \* 100/);
-  assert.match(atmosphere, /mode === "auto" \? "left 30s linear"/);
+  assert.match(atmosphere, /HOME_OUTDOOR_AUTO_TRANSITION_MS/);
+  assert.match(atmosphere, /HOME_OUTDOOR_OVERRIDE_TRANSITION_MS/);
+  assert.match(atmosphere, /transitionMs = mode === "auto"/);
+  assert.match(atmosphere, /transition: `opacity \$\{transitionMs\}ms linear`/);
+  assert.match(atmosphere, /transitionMs=\{transitionMs\}/);
   assert.match(atmosphere, /<Sun /);
   assert.match(atmosphere, /<Moon /);
   assert.doesNotMatch(atmosphere, /function AutoLightingIcon/);
@@ -134,6 +146,22 @@ test("outdoor effects persist on Home bundles and the server sanitizes Admin upd
 });
 
 
+test("manual Day/Night overrides reset to Auto whenever the owner leaves the Pet Home", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+
+  assert.match(owner, /outdoorLightingSessionRef/);
+  assert.match(owner, /resetOutdoorLightingOnDeparture/);
+  assert.match(owner, /return \(\) => resetOutdoorLightingOnDeparture\(\)/);
+  assert.match(owner, /outdoorMode: "auto"/);
+  assert.match(owner, /keepalive: true/);
+  assert.match(owner, /session\.touched = false/);
+  assert.match(owner, /outdoorLightingSessionRef\.current\.touched = true/);
+  assert.match(owner, /persistedMode === "auto" \|\| session\.touched/);
+  assert.match(owner, /persistPlayerLightingPatch\(activeBundle\.id, \{ outdoorMode: "auto" \}\)/);
+  assert.match(owner, /body: JSON\.stringify\(\{ outdoorMode: "auto" \}\)/);
+  assert.match(owner, /lightingSaveQueueRef\.current = lightingSaveQueueRef\.current/);
+});
+
 test("player Home lighting is stored per owned bundle instead of globally in the browser", () => {
   const schema = read("shared/schema.ts");
   const boot = read("server/startup/migrations/runEssentialBoot.ts");
@@ -152,6 +180,19 @@ test("player Home lighting is stored per owned bundle instead of globally in the
   assert.match(owner, /lightingSaveQueueRef/);
   assert.match(owner, /toggleSavedInteriorLight/);
   assert.match(owner, /cycleOutdoorLighting/);
+});
+
+test("automatic darkness visually interpolates instead of stepping between clock samples", () => {
+  const effects = read("client/src/components/HomeInteriorEffect.tsx");
+  const lighting = read("client/src/lib/homeOutdoorLighting.ts");
+  const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
+
+  assert.doesNotMatch(lighting, /Math\.round\(getHomeOutdoorNightStrength/);
+  assert.match(effects, /transitionMs = 260/);
+  assert.match(effects, /fillOpacity: safeDarkness \/ 100/);
+  assert.match(effects, /transition: `fill-opacity \$\{transitionMs\}ms linear`/);
+  assert.match(effects, /transition: `background \$\{transitionMs\}ms linear`/);
+  assert.match(atmosphere, /transitionMs=\{transitionMs\}/);
 });
 
 test("full nighttime uses a darker maximum and stronger tint than the original implementation", () => {
