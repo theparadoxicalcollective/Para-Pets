@@ -98,9 +98,9 @@ interface PartDef { key: string; label: string; defaultZ: number; layer: PartLay
 type HeadIdx = 1 | 2 | 3;
 const headPrefix = (i: HeadIdx) => (i === 1 ? "" : `h${i}_`);
 
-/** Build the full part stack for a given head index. The first 11 entries are
- *  the "face stack" (drawn above body parts); back_hair is appended last and
- *  uses a low z-index so it sits BEHIND body parts but in front of wings. */
+/** Build the full part stack for a given head index. The face stack draws
+ *  above the body. Head 2/3 also expose a Neck Back piece that is authored
+ *  behind the body, while back_hair remains a rear head layer. */
 const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[] => {
   const p = headPrefix(i);
   // Reuse the original key names for Head 1 so existing data is preserved.
@@ -128,6 +128,11 @@ const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[]
     ...(i === 1 ? [
       { key: "left_ear_2",  label: "Left Ear 2",  defaultZ: baseZ - 1, layer: "front" as const },
       { key: "right_ear_2", label: "Right Ear 2", defaultZ: baseZ - 2, layer: "front" as const },
+    ] : []),
+    // Head 2 / Head 3 get a dedicated rear neck segment. It belongs to the
+    // head's authoring section but is deliberately below the body layer.
+    ...(i === 2 || i === 3 ? [
+      { key: k("neck_back"), label: "Neck Back", defaultZ: 48, layer: "back" as const },
     ] : []),
     // Back hair lives in this head's section but renders behind the body so
     // it visually sways behind the head/shoulders. Per-head so each head has
