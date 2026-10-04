@@ -29,6 +29,7 @@ import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
+import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
@@ -518,9 +519,13 @@ function InteriorViewer({
     () => broadenHomeAttachedLampIllumination(itemLampEffects),
     [itemLampEffects],
   );
+  const bundleLampIlluminationEffects = useMemo(
+    () => broadenHomeBundleLampIllumination(effects),
+    [effects],
+  );
   const roomLightEffects = useMemo(
-    () => [...effects, ...itemLampIlluminationEffects],
-    [effects, itemLampIlluminationEffects],
+    () => [...bundleLampIlluminationEffects, ...itemLampIlluminationEffects],
+    [bundleLampIlluminationEffects, itemLampIlluminationEffects],
   );
   const roomSleepEffects = useMemo(() => [...effects, ...itemSleepEffects], [effects, itemSleepEffects]);
 
@@ -1290,9 +1295,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     () => broadenHomeAttachedLampIllumination(outdoorLampEffects),
     [outdoorLampEffects],
   );
+  const bundleOutdoorIlluminationEffects = useMemo(
+    () => broadenHomeBundleLampIllumination(activeBundle?.exteriorEffects ?? []),
+    [activeBundle?.exteriorEffects],
+  );
   const outdoorLightEffects = useMemo(
-    () => [...(activeBundle?.exteriorEffects ?? []), ...outdoorLampIlluminationEffects],
-    [activeBundle?.exteriorEffects, outdoorLampIlluminationEffects],
+    () => [...bundleOutdoorIlluminationEffects, ...outdoorLampIlluminationEffects],
+    [bundleOutdoorIlluminationEffects, outdoorLampIlluminationEffects],
   );
 
   useEffect(() => () => {
