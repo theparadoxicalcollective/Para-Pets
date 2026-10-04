@@ -3,6 +3,7 @@ import ActivePetPlacement from "./ActivePetPlacement";
 import PetXEyesEditor from "./PetXEyesEditor";
 import AdornmentArtwork from "./AdornmentArtwork";
 import PetAnimator, { type PetAnimatorPreviewCostume } from "./PetAnimator";
+import { EvolutionPetEffectVisual } from "./EvolutionPetEffects";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ import {
   resizeCostumePlacement,
 } from "@/lib/costumePlacement";
 import { fitAdornmentStage, pointInAdornmentStage } from "@/lib/adornmentStageFit";
+import { DEFAULT_EVOLUTION_EFFECT_COLOR, type EvolutionPetEffect, type EvolutionPetEffectType } from "@shared/petEvolutionEffects";
 import {
   clampPetPartRotation,
   getDraggedPetPartPosition,
@@ -67,6 +69,7 @@ interface PetTemplatePart {
 interface PetTemplateWithParts extends PetTemplate {
   parts: PetTemplatePart[];
   evolutionParts: PetTemplatePart[];
+  evolutionEffects?: EvolutionPetEffect[];
 }
 
 interface CostumeItem { id: string; name: string; imageUrl: string | null; adornmentSlot?: string | null; adornmentEffect?: string | null; }
@@ -317,7 +320,7 @@ export default function PetDatabasePanel({
    *  any isTest=true pets on top of this filter. */
   templateNameFilter?: string[];
 } = {}) {
-  const [editorTool, setEditorTool] = useState<"parts" | "placement" | "eyes">("parts");
+  const [editorTool, setEditorTool] = useState<"parts" | "placement" | "eyes" | "effects">("parts");
   const wholePetEditing = editorTool === "placement";
   const setWholePetEditing = useCallback((editing: boolean) => setEditorTool(editing ? "placement" : "parts"), []);
   const [placementControls, setPlacementControls] = useState<HTMLDivElement | null>(null);
@@ -349,6 +352,10 @@ export default function PetDatabasePanel({
   // Base and evolution artwork are separate layer stacks on one template.
   // Costume placement remains a third focused authoring surface.
   const [editorTab, setEditorTab] = useState<EditorTab>("parts");
+  const [evolutionEffectsDraft, setEvolutionEffectsDraft] = useState<EvolutionPetEffect[]>([]);
+  const [selectedEvolutionEffectId, setSelectedEvolutionEffectId] = useState<string | null>(null);
+  const [evolutionEffectsDirty, setEvolutionEffectsDirty] = useState(false);
+  const effectDragRef = useRef<{ pointerId: number; effectId: string; offsetX: number; offsetY: number } | null>(null);
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
   const [costumeArtworkForm, setCostumeArtworkForm] = useState<"base" | "evolution">("base");
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
