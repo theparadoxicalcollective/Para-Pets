@@ -3,6 +3,7 @@ import ActivePetPlacement from "./ActivePetPlacement";
 import PetXEyesEditor from "./PetXEyesEditor";
 import AdornmentArtwork from "./AdornmentArtwork";
 import PetAnimator, { type PetAnimatorPreviewCostume } from "./PetAnimator";
+import { EvolutionPetEffectVisual } from "./EvolutionPetEffects";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ import {
   resizeCostumePlacement,
 } from "@/lib/costumePlacement";
 import { fitAdornmentStage, pointInAdornmentStage } from "@/lib/adornmentStageFit";
+import { DEFAULT_EVOLUTION_EFFECT_COLOR, type EvolutionPetEffect, type EvolutionPetEffectType } from "@shared/petEvolutionEffects";
 import {
   clampPetPartRotation,
   getDraggedPetPartPosition,
@@ -67,6 +69,7 @@ interface PetTemplatePart {
 interface PetTemplateWithParts extends PetTemplate {
   parts: PetTemplatePart[];
   evolutionParts: PetTemplatePart[];
+  evolutionEffects?: EvolutionPetEffect[];
 }
 
 interface CostumeItem { id: string; name: string; imageUrl: string | null; adornmentSlot?: string | null; adornmentEffect?: string | null; }
@@ -98,9 +101,9 @@ interface PartDef { key: string; label: string; defaultZ: number; layer: PartLay
 type HeadIdx = 1 | 2 | 3;
 const headPrefix = (i: HeadIdx) => (i === 1 ? "" : `h${i}_`);
 
-/** Build the full part stack for a given head index. The first 11 entries are
- *  the "face stack" (drawn above body parts); back_hair is appended last and
- *  uses a low z-index so it sits BEHIND body parts but in front of wings. */
+/** Build the full part stack for a given head index. The face stack draws
+ *  above the body. Head 2/3 also expose a Neck Back piece that is authored
+ *  behind the body, while back_hair remains a rear head layer. */
 const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[] => {
   const p = headPrefix(i);
   // Reuse the original key names for Head 1 so existing data is preserved.
@@ -128,6 +131,16 @@ const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[]
     ...(i === 1 ? [
       { key: "left_ear_2",  label: "Left Ear 2",  defaultZ: baseZ - 1, layer: "front" as const },
       { key: "right_ear_2", label: "Right Ear 2", defaultZ: baseZ - 2, layer: "front" as const },
+    ] : []),
+    // Head 2 / Head 3 get a dedicated rear neck segment. It belongs to the
+    // head's authoring section but is deliberately below the body layer.
+    ...(i === 2 || i === 3 ? [
+      // Secondary necks sit directly under their matching head. They are
+      // authored in Head Two / Head Three and render above the torso.
+      { key: k("neck"), label: i === 2 ? "Neck 2" : "Neck 3", defaultZ: baseZ, layer: "front" as const },
+      // Keep the existing optional rear-neck segment for artwork that needs
+      // to disappear behind the torso.
+      { key: k("neck_back"), label: "Neck Back", defaultZ: 48, layer: "back" as const },
     ] : []),
     // Back hair lives in this head's section but renders behind the body so
     // it visually sways behind the head/shoulders. Per-head so each head has
@@ -281,6 +294,19 @@ const ALL_PART_DEFS: PartDef[] = [
 ].filter((v, i, a) => a.findIndex(x => x.key === v.key) === i);
 
 const CANVAS_SIZE = 1000;
+
+const newEvolutionEffect = (type: EvolutionPetEffectType, view: "front" | "back"): EvolutionPetEffect => ({
+  id: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  type,
+  view,
+  xPct: 0.5,
+  yPct: 0.45,
+  sizePct: type === "smoke" ? 34 : type === "light_ball" ? 22 : 28,
+  ...(type === "smoke" ? {} : { color: DEFAULT_EVOLUTION_EFFECT_COLOR[type] }),
+});
+
 type EditorTab = "parts" | "evolution" | "costume";
 
 function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
@@ -312,7 +338,7 @@ export default function PetDatabasePanel({
    *  any isTest=true pets on top of this filter. */
   templateNameFilter?: string[];
 } = {}) {
-  const [editorTool, setEditorTool] = useState<"parts" | "placement" | "eyes">("parts");
+  const [editorTool, setEditorTool] = useState<"parts" | "placement" | "eyes" | "effects">("parts");
   const wholePetEditing = editorTool === "placement";
   const setWholePetEditing = useCallback((editing: boolean) => setEditorTool(editing ? "placement" : "parts"), []);
   const [placementControls, setPlacementControls] = useState<HTMLDivElement | null>(null);
@@ -344,6 +370,10 @@ export default function PetDatabasePanel({
   // Base and evolution artwork are separate layer stacks on one template.
   // Costume placement remains a third focused authoring surface.
   const [editorTab, setEditorTab] = useState<EditorTab>("parts");
+  const [evolutionEffectsDraft, setEvolutionEffectsDraft] = useState<EvolutionPetEffect[]>([]);
+  const [selectedEvolutionEffectId, setSelectedEvolutionEffectId] = useState<string | null>(null);
+  const [evolutionEffectsDirty, setEvolutionEffectsDirty] = useState(false);
+  const effectDragRef = useRef<{ pointerId: number; effectId: string; offsetX: number; offsetY: number } | null>(null);
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
   const [costumeArtworkForm, setCostumeArtworkForm] = useState<"base" | "evolution">("base");
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
@@ -416,6 +446,16 @@ export default function PetDatabasePanel({
     enabled: !!selectedTemplateId,
   });
 
+  useEffect(() => {
+    if (!templateDetail) return;
+    const next = templateDetail.evolutionEffects ?? [];
+    setEvolutionEffectsDraft(next);
+    setSelectedEvolutionEffectId(current =>
+      current && next.some(effect => effect.id === current) ? current : null
+    );
+    setEvolutionEffectsDirty(false);
+  }, [templateDetail?.id]);
+
   const { data: costumeItems = [], isPending: costumeItemsLoading, isError: costumeItemsError, refetch: refetchCostumeItems } = useQuery<CostumeItem[]>({
     queryKey: ["/api/admin/costumes"],
     // Costume media is intentionally lazy: the normal parts editor should not
@@ -463,6 +503,8 @@ export default function PetDatabasePanel({
     .filter(p => p.view === activeView)
     .map(part => partDraft?.partId === part.id ? { ...part, ...partDraft } : part)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
+  const viewEvolutionEffects = evolutionEffectsDraft.filter(effect => effect.view === activeView);
+  const selectedEvolutionEffect = evolutionEffectsDraft.find(effect => effect.id === selectedEvolutionEffectId) ?? null;
 
   const currentCostumeView = activeView === "back" ? "side" as const : "front" as const;
   const normalizedCostumeSearch = costumeSearch.trim().toLowerCase();
@@ -743,6 +785,34 @@ export default function PetDatabasePanel({
     },
   });
 
+  const saveEvolutionEffectsMutation = useMutation({
+    mutationFn: async (effects: EvolutionPetEffect[]) => {
+      if (!selectedTemplateId) throw new Error("No pet template selected");
+      const res = await apiRequest("PUT", `/api/admin/pet-templates/${selectedTemplateId}/evolution-effects`, { effects });
+      return res.json() as Promise<{ effects: EvolutionPetEffect[] }>;
+    },
+    onSuccess: ({ effects }) => {
+      setEvolutionEffectsDraft(effects);
+      setEvolutionEffectsDirty(false);
+      setSelectedEvolutionEffectId(current =>
+        current && effects.some(effect => effect.id === current) ? current : null
+      );
+      queryClient.setQueryData<PetTemplateWithParts>(
+        ["/api/admin/pet-templates", selectedTemplateId],
+        current => current ? { ...current, evolutionEffects: effects } : current,
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId, "evolution"] });
+      toast({ title: "Effects saved", description: "Evolution pet effects saved." });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Could not save effects",
+        description: error.message || "Failed to save evolution effects",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deletePartMutation = useMutation({
     mutationFn: async (partId: string) => {
       await apiRequest("DELETE", `/api/admin/pet-template-parts/${partId}`);
@@ -954,9 +1024,16 @@ export default function PetDatabasePanel({
     setFacingMode(mode);
   };
   const changeEditorTab = (tab: EditorTab) => {
-    if (saveCostumeMutation.isPending || tab === editorTab) return;
+    if (saveCostumeMutation.isPending || saveEvolutionEffectsMutation.isPending || tab === editorTab) return;
     if (editorTab === "costume" && costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
+    if (editorTab === "evolution" && tab !== "evolution" && evolutionEffectsDirty) {
+      if (!window.confirm("Discard the unsaved evolution effects?")) return;
+      setEvolutionEffectsDraft(templateDetail?.evolutionEffects ?? []);
+      setEvolutionEffectsDirty(false);
+      setSelectedEvolutionEffectId(null);
+    }
     if (editorTab === "costume") discardCostumeDraft();
+    if (tab !== "evolution" && editorTool === "effects") setEditorTool("parts");
     setSelectedPartId(null);
     setEditorTab(tab);
   };
@@ -1131,6 +1208,64 @@ export default function PetDatabasePanel({
     const next = { ...current, ...changes, partId: selectedPart.id };
     setEditablePartDraft(next);
     updatePartMutation.mutate(next);
+  };
+
+  const updateEvolutionEffect = (effectId: string, changes: Partial<EvolutionPetEffect>) => {
+    setEvolutionEffectsDraft(current =>
+      current.map(effect => effect.id === effectId ? { ...effect, ...changes } : effect)
+    );
+    setEvolutionEffectsDirty(true);
+  };
+
+  const addEvolutionEffect = (type: EvolutionPetEffectType) => {
+    if (evolutionEffectsDraft.length >= 12) {
+      toast({ title: "Effects limit", description: "Up to 12 evolution effects can be placed on one pet." });
+      return;
+    }
+    const effect = newEvolutionEffect(type, activeView as "front" | "back");
+    setEvolutionEffectsDraft(current => [...current, effect]);
+    setSelectedEvolutionEffectId(effect.id);
+    setEvolutionEffectsDirty(true);
+  };
+
+  const removeEvolutionEffect = (effectId: string) => {
+    setEvolutionEffectsDraft(current => current.filter(effect => effect.id !== effectId));
+    setSelectedEvolutionEffectId(current => current === effectId ? null : current);
+    setEvolutionEffectsDirty(true);
+  };
+
+  const startEvolutionEffectDrag = (event: React.PointerEvent<HTMLDivElement>, effect: EvolutionPetEffect) => {
+    if (editorTool !== "effects" || saveEvolutionEffectsMutation.isPending) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedEvolutionEffectId(effect.id);
+    const pointerX = (event.clientX - rect.left) / rect.width;
+    const pointerY = (event.clientY - rect.top) / rect.height;
+    effectDragRef.current = {
+      pointerId: event.pointerId,
+      effectId: effect.id,
+      offsetX: pointerX - effect.xPct,
+      offsetY: pointerY - effect.yPct,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveEvolutionEffectDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = effectDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    event.preventDefault();
+    const xPct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width - drag.offsetX));
+    const yPct = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height - drag.offsetY));
+    updateEvolutionEffect(drag.effectId, { xPct, yPct });
+  };
+
+  const endEvolutionEffectDrag = (pointerId?: number) => {
+    if (pointerId !== undefined && effectDragRef.current?.pointerId !== pointerId) return;
+    effectDragRef.current = null;
   };
 
   const nudgeAll = useCallback(async (dx: number, dy: number) => {
@@ -1730,7 +1865,23 @@ export default function PetDatabasePanel({
 
 
         {!testMode && <div className="pet-editor-tool-tabs" role="group" aria-label="Pet editor tools">
-          {([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes']] as const).map(([tool, label]) => <button key={tool} type="button" aria-pressed={editorTool === tool} onClick={() => setEditorTool(tool)}>{label}</button>)}
+          {(editorTab === "evolution"
+            ? ([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes'], ['effects', 'Effects']] as const)
+            : ([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes']] as const)
+          ).map(([tool, label]) => (
+            <button
+              key={tool}
+              type="button"
+              aria-pressed={editorTool === tool}
+              onClick={() => {
+                setEditorTool(tool);
+                if (tool !== "parts") setSelectedPartId(null);
+                if (tool !== "effects") setSelectedEvolutionEffectId(null);
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>}
 
         {/* Direct manipulation canvas — click a visible part, then drag it into place. */}
@@ -1748,9 +1899,18 @@ export default function PetDatabasePanel({
             isolation: "isolate",
           }}
           onClick={editorTool === "parts" ? handleCanvasClick : undefined}
-          onPointerMove={movePartDrag}
-          onPointerUp={(event) => endPartDrag(event.pointerId)}
-          onPointerCancel={(event) => endPartDrag(event.pointerId)}
+          onPointerMove={(event) => {
+            if (editorTool === "effects") moveEvolutionEffectDrag(event);
+            else movePartDrag(event);
+          }}
+          onPointerUp={(event) => {
+            if (editorTool === "effects") endEvolutionEffectDrag(event.pointerId);
+            else endPartDrag(event.pointerId);
+          }}
+          onPointerCancel={(event) => {
+            if (editorTool === "effects") endEvolutionEffectDrag(event.pointerId);
+            else endPartDrag(event.pointerId);
+          }}
         >
           <div
             data-testid="pet-part-center-guide-horizontal"
@@ -1817,12 +1977,191 @@ export default function PetDatabasePanel({
               );
             })}
 
+            {editorTab === "evolution" && viewEvolutionEffects.map(effect => {
+              const selected = editorTool === "effects" && effect.id === selectedEvolutionEffectId;
+              return (
+                <div
+                  key={effect.id}
+                  data-testid={`evolution-effect-${effect.id}`}
+                  className="absolute"
+                  style={{
+                    left: `${effect.xPct * 100}%`,
+                    top: `${effect.yPct * 100}%`,
+                    width: `${effect.sizePct}%`,
+                    aspectRatio: "1",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 31000,
+                    pointerEvents: editorTool === "effects" ? "auto" : "none",
+                    touchAction: "none",
+                    cursor: editorTool === "effects" ? "grab" : "default",
+                    outline: selected ? "2px solid rgba(192,132,252,.95)" : "none",
+                    outlineOffset: "3px",
+                    borderRadius: "50%",
+                  }}
+                  onPointerDown={editorTool === "effects" ? (event) => startEvolutionEffectDrag(event, effect) : undefined}
+                  onLostPointerCapture={editorTool === "effects" ? (event) => endEvolutionEffectDrag(event.pointerId) : undefined}
+                >
+                  <EvolutionPetEffectVisual effect={effect} animated />
+                  {selected && (
+                    <span
+                      className="absolute left-1/2 -top-6 -translate-x-1/2 rounded px-2 py-0.5 font-fantasy text-[8px] tracking-wider whitespace-nowrap"
+                      style={{ background: "rgba(126,34,206,.92)", color: "#f3e8ff", pointerEvents: "none" }}
+                    >
+                      {effect.type.replace("_", " ")}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
           </div>
           </ActivePetPlacement>
           <PetXEyesEditor templateId={selectedTemplateId!} form={editorTab === "evolution" ? "evolution" : "base"} view={activeView} parts={viewParts} controlsContainer={eyeControls} active={editorTool === "eyes"} />
         </div>
         <div ref={setPlacementControls} className="pet-editor-tool-controls" />
         <div ref={setEyeControls} className="pet-editor-tool-controls" />
+
+        {editorTab === "evolution" && editorTool === "effects" && !testMode && (
+          <section
+            data-testid="evolution-effects-menu"
+            className="rounded-xl p-3 space-y-3"
+            style={{
+              background: "linear-gradient(180deg, rgba(126,34,206,.10), rgba(0,0,0,.24))",
+              border: "1px solid rgba(192,132,252,.32)",
+            }}
+          >
+            <div>
+              <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "#c084fc" }}>EVOLUTION EFFECTS</p>
+              <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>
+                Add an effect, then drag it directly over the evolved pet on the canvas to place it.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ["sparkle", "Sparkle"],
+                ["smoke", "Smoke"],
+                ["light_ball", "Light Ball"],
+              ] as const).map(([type, label]) => (
+                <button
+                  key={type}
+                  type="button"
+                  data-testid={`button-add-evolution-effect-${type}`}
+                  onClick={() => addEvolutionEffect(type)}
+                  disabled={evolutionEffectsDraft.length >= 12}
+                  className="rounded-lg px-2 py-2 font-fantasy text-[9px] tracking-wider disabled:opacity-40"
+                  style={{
+                    background: "rgba(192,132,252,.12)",
+                    border: "1px solid rgba(192,132,252,.32)",
+                    color: "#e9d5ff",
+                  }}
+                >
+                  + {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between text-[9px]" style={{ color: "#806f8f" }}>
+              <span>{viewEvolutionEffects.length} effect{viewEvolutionEffects.length === 1 ? "" : "s"} on this view</span>
+              <span>{evolutionEffectsDraft.length}/12 total</span>
+            </div>
+
+            {selectedEvolutionEffect && selectedEvolutionEffect.view === activeView ? (
+              <div
+                data-testid="selected-evolution-effect-controls"
+                className="rounded-lg p-3 space-y-3"
+                style={{ background: "rgba(0,0,0,.24)", border: "1px solid rgba(192,132,252,.24)" }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-fantasy text-[9px] uppercase tracking-wider" style={{ color: "#e9d5ff" }}>
+                      {selectedEvolutionEffect.type.replace("_", " ")}
+                    </p>
+                    <p className="mt-0.5 text-[9px]" style={{ color: "#806f8f" }}>Drag the effect on the pet canvas to reposition it.</p>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="button-remove-evolution-effect"
+                    onClick={() => removeEvolutionEffect(selectedEvolutionEffect.id)}
+                    className="grid h-8 w-8 place-items-center rounded-full"
+                    style={{ background: "rgba(220,38,38,.2)", border: "1px solid rgba(248,113,113,.35)", color: "#fca5a5" }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {selectedEvolutionEffect.type !== "smoke" && (
+                  <label className="flex items-center justify-between gap-3 text-[10px]" style={{ color: "#a89878" }}>
+                    <span>
+                      Color
+                      <span className="block text-[8px]" style={{ color: "#6f617a" }}>Sparkle/glow tint</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <input
+                        data-testid="input-evolution-effect-color"
+                        type="color"
+                        value={selectedEvolutionEffect.color ?? DEFAULT_EVOLUTION_EFFECT_COLOR[selectedEvolutionEffect.type]}
+                        onChange={(event) => updateEvolutionEffect(selectedEvolutionEffect.id, { color: event.target.value })}
+                        className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
+                        aria-label="Evolution effect color"
+                      />
+                      <span className="font-mono text-[9px]" style={{ color: "#e9d5ff" }}>
+                        {selectedEvolutionEffect.color ?? DEFAULT_EVOLUTION_EFFECT_COLOR[selectedEvolutionEffect.type]}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-[10px]">
+                    <span style={{ color: "#a89878" }}>Effect size</span>
+                    <span style={{ color: "#e9d5ff" }}>{Math.round(selectedEvolutionEffect.sizePct)}%</span>
+                  </div>
+                  <input
+                    data-testid="input-evolution-effect-size"
+                    type="range"
+                    min={6}
+                    max={80}
+                    step={1}
+                    value={selectedEvolutionEffect.sizePct}
+                    onChange={(event) => updateEvolutionEffect(selectedEvolutionEffect.id, { sizePct: Number(event.target.value) })}
+                    className="block w-full"
+                    style={{ accentColor: "#c084fc" }}
+                  />
+                </div>
+
+                <div className="text-[9px]" style={{ color: "#806f8f" }}>
+                  Position: {Math.round(selectedEvolutionEffect.xPct * 100)}%, {Math.round(selectedEvolutionEffect.yPct * 100)}%
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg px-3 py-2 text-[9px]" style={{ background: "rgba(0,0,0,.18)", color: "#806f8f" }}>
+                Add an effect or tap one on the canvas to edit its color, size, and placement.
+              </p>
+            )}
+
+            <button
+              type="button"
+              data-testid="button-save-evolution-effects"
+              onClick={() => saveEvolutionEffectsMutation.mutate(evolutionEffectsDraft)}
+              disabled={!evolutionEffectsDirty || saveEvolutionEffectsMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 font-fantasy text-xs tracking-wider disabled:opacity-45"
+              style={{
+                background: "linear-gradient(135deg, rgba(88,28,135,.95), rgba(126,34,206,.82))",
+                border: "1px solid rgba(216,180,254,.48)",
+                color: "#f3e8ff",
+              }}
+            >
+              <Save className="h-4 w-4" />
+              {saveEvolutionEffectsMutation.isPending
+                ? "Saving Effects..."
+                : evolutionEffectsDirty
+                  ? "Save Effects"
+                  : "Effects Saved"}
+            </button>
+          </section>
+        )}
+
         <div hidden={editorTool !== "parts"} className="pet-part-library-section">
 
         {selectedPart && (

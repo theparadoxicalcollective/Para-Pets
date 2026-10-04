@@ -8,6 +8,8 @@ import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBoun
 import { EAR_PART_TYPES, PET_LAYER_ORDER, basePetPartType, getEffectivePetLayer } from "@/lib/petPartConfig";
 import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 import { normalizePetParts, petCanvasScale } from "@/lib/petRenderSafety";
+import EvolutionPetEffectsLayer from "./EvolutionPetEffects";
+import type { EvolutionPetEffect } from "@shared/petEvolutionEffects";
 
 interface PetPart {
   id: string;
@@ -1425,7 +1427,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     return () => ro.disconnect();
   }, [fillContainer, performanceStatic, lowMemory]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null; evolutionEffects?: EvolutionPetEffect[] }>({
     ...petTemplateQuery(petTemplateId, artworkForm),
   });
 
@@ -1484,12 +1486,10 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // Every pet renders from the same global per-part-type animation map
   // (IDLE_ANIMATIONS, IDLE_ANIMATIONS_GROUND, WALK_ANIMATIONS, etc.) so
   // animation behaviour is tweaked in ONE place and applies to every
-  // pet uniformly. The only built-in special-case is multi-head pets:
-  // SECONDARY head wrappers (h2_/h3_-prefixed head part types) always
-  // layer BEHIND the body silhouette and use a tiny horizontal sway
-  // instead of the standard vertical bob (see headWrapperZ + wrapperAnim
-  // in the head-group render block below). The PRIMARY head
-  // ("head" part type) keeps its normal in-front placement and bob.
+  // pet uniformly. The built-in multi-head special-case gives secondary
+  // heads (h2_/h3_) their own subtle sway while all heads remain in front
+  // of the body. Dedicated h2_/h3_ neck_back artwork is handled separately
+  // below so it can follow that head motion while staying behind the body.
   const isBodyBreathAnim = (name: string | null | undefined) =>
     name === "petIdleBody" ||
     name === "petIdleLeftArmBreath" ||
@@ -1677,7 +1677,34 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   }));
   const headGroupPartIds = new Set(headGroups.flatMap(g => [g.head.id, ...g.faceParts.map(p => p.id)]));
 
-  // Non-head-group body parts (plus rear-layer evolution ears).
+  // Neck 2 / Neck 3 live outside the head wrapper so their layer can sit
+  // between body and head, but they still inherit their matching head motion.
+  const secondaryNeckHeadGroups = new Map<string, { head: PetPart; groupIndex: number }>();
+  for (const part of viewParts) {
+    const match = part.partType.match(/^(h[23])_neck$/);
+    if (!match) continue;
+    const targetHeadType = `${match[1]}_head`;
+    const groupIndex = headGroups.findIndex(group => group.head.partType === targetHeadType);
+    if (groupIndex >= 0) {
+      secondaryNeckHeadGroups.set(part.id, { head: headGroups[groupIndex].head, groupIndex });
+    }
+  }
+
+  // Head 2 / Head 3 rear neck pieces intentionally live outside the head's
+  // z=9 wrapper so the body can paint over them. Map each one back to its
+  // semantic head so it still receives exactly the same head motion.
+  const rearNeckHeadGroups = new Map<string, { head: PetPart; groupIndex: number }>();
+  for (const part of viewParts) {
+    const match = part.partType.match(/^(h[23])_neck_back$/);
+    if (!match) continue;
+    const targetHeadType = `${match[1]}_head`;
+    const groupIndex = headGroups.findIndex(group => group.head.partType === targetHeadType);
+    if (groupIndex >= 0) {
+      rearNeckHeadGroups.set(part.id, { head: headGroups[groupIndex].head, groupIndex });
+    }
+  }
+
+  // Non-head-group body parts (plus rear-layer evolution ears and rear necks).
   const bodyParts = viewParts.filter(p => !headGroupPartIds.has(p.id));
 
   // Track per-type index for duplicate same-type parts (for staggering)
@@ -1701,6 +1728,19 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   sortedBodyByZ.forEach((part, idx) => {
     compressedZ.set(part.id, Math.min(idx + 1, 8));
   });
+
+  // Neck Back is a strict sandwich layer. Even if an older/custom zIndex is
+  // unusual, force it immediately behind the body rather than allowing it to
+  // drift in front of the torso.
+  const bodyForLayering = bodyParts.find(part => part.partType === "body");
+  const bodyCompressedZ = bodyForLayering ? compressedZ.get(bodyForLayering.id) : undefined;
+  if (bodyCompressedZ !== undefined) {
+    for (const part of bodyParts) {
+      if (basePetPartType(part.partType) === "neck_back") {
+        compressedZ.set(part.id, Math.max(0, bodyCompressedZ - 0.5));
+      }
+    }
+  }
 
   // Evolution ears render outside the head wrapper so they can pass behind
   // foreground limbs. Preserve every other authored body-layer relationship
@@ -2079,6 +2119,50 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
           const partZ = overHeadPartTypes.has(part.partType)
             ? OVER_HEAD_Z
             : compressedZ.get(part.id);
+          const secondaryNeckHeadGroup = secondaryNeckHeadGroups.get(part.id);
+          if (secondaryNeckHeadGroup) {
+            const headMotion = headWrapperMotion(secondaryNeckHeadGroup.head, secondaryNeckHeadGroup.groupIndex);
+            return (
+              <div
+                key={`secondary-neck-${part.id}`}
+                data-secondary-neck-head-sync={secondaryNeckHeadGroup.head.partType}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  animation: headMotion.animation,
+                  willChange: headMotion.animationName && !lowMemory ? "transform" : undefined,
+                  zIndex: 8.5,
+                  pointerEvents: "none",
+                  ...(headMotion.headBobStyle ?? {}),
+                }}
+              >
+                {renderPartImg(part, null, undefined, undefined, undefined, 0)}
+              </div>
+            );
+          }
+
+          const rearNeckHeadGroup = rearNeckHeadGroups.get(part.id);
+          if (rearNeckHeadGroup) {
+            const headMotion = headWrapperMotion(rearNeckHeadGroup.head, rearNeckHeadGroup.groupIndex);
+            return (
+              <div
+                key={`rear-neck-${part.id}`}
+                data-rear-neck-head-sync={rearNeckHeadGroup.head.partType}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  animation: headMotion.animation,
+                  willChange: headMotion.animationName && !lowMemory ? "transform" : undefined,
+                  zIndex: partZ,
+                  pointerEvents: "none",
+                  ...(headMotion.headBobStyle ?? {}),
+                }}
+              >
+                {renderPartImg(part, null, undefined, undefined, undefined, 0)}
+              </div>
+            );
+          }
+
           const evolutionEarHeadGroup = evolutionRearEarHeadGroups.get(part.id);
           if (evolutionEarHeadGroup) {
             const headMotion = headWrapperMotion(evolutionEarHeadGroup.head, evolutionEarHeadGroup.groupIndex);
@@ -2475,6 +2559,13 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
             </div>
           );
         })}
+
+        {artworkForm === "evolution" && (templateData?.evolutionEffects?.length ?? 0) > 0 && (
+          <EvolutionPetEffectsLayer
+            effects={(templateData?.evolutionEffects ?? []).filter(effect => effect.view === resolvedView)}
+            animated={!performanceStatic && !lowMemory}
+          />
+        )}
 
       </div>
     </div>

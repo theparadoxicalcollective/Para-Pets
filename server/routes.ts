@@ -12,7 +12,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, petAnimationProfileSchema } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
@@ -99,6 +99,7 @@ import { registerPetFeedingRoute, registerPetGiftLoyaltyRoutes, registerPetPetti
 import { registerPetStateRoutes } from "./routes/petState.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
+import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
 import { startVeridianWatcherBackgroundJobs } from "./veridianWatcher/backgroundJobs";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -206,6 +207,21 @@ function getCachedTemplateParts(templateId: string) {
 function setCachedTemplateParts(templateId: string, data: any) {
   templatePartsCache.set(templateId, { data, expiresAt: Date.now() + TEMPLATE_CACHE_TTL });
 }
+
+const evolutionEffectsSettingKey = (templateId: string) => `pet_evolution_effects:${templateId}`;
+
+async function getEvolutionPetEffects(templateId: string) {
+  const [row] = await db.select({ value: gameSettings.value })
+    .from(gameSettings)
+    .where(eq(gameSettings.key, evolutionEffectsSettingKey(templateId)));
+  if (!row?.value) return [];
+  try {
+    return sanitizeEvolutionPetEffects(JSON.parse(row.value));
+  } catch {
+    return [];
+  }
+}
+
 
 const COIN_PACKS = COIN_PACKAGES;
 
@@ -2652,6 +2668,9 @@ export async function registerRoutes(
         ...artwork,
         canFly: template?.canFly ?? false,
         idleStyle: template?.idleStyle ?? null,
+        ...(requestedForm === "evolution"
+          ? { evolutionEffects: await getEvolutionPetEffects(templateId) }
+          : {}),
       };
       setCachedTemplateParts(cacheKey, result);
       return res.json(result);
@@ -2753,10 +2772,11 @@ export async function registerRoutes(
   app.get("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
       const templateId = req.params.id as string;
-      const [template, parts, evolutionParts] = await Promise.all([
+      const [template, parts, evolutionParts, evolutionEffects] = await Promise.all([
         storage.getPetTemplate(templateId),
         storage.getPetTemplateParts(templateId, "base"),
         storage.getPetTemplateParts(templateId, "evolution"),
+        getEvolutionPetEffects(templateId),
       ]);
       if (!template) return res.status(404).json({ message: "Template not found" });
       // Strip base64 — return URL refs instead, matching the list endpoint.
@@ -2769,6 +2789,7 @@ export async function registerRoutes(
         backAssembledUrl:  backAssembled  ? `/api/pet-template-image/${template.id}/back`  : null,
         parts,
         evolutionParts,
+        evolutionEffects,
       });
     } catch (err) {
       console.error("Get pet template error:", err);
@@ -2812,6 +2833,28 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Update pet template error:", err);
       return res.status(500).json({ message: "Failed to update pet template" });
+    }
+  });
+
+  app.put("/api/admin/pet-templates/:id/evolution-effects", isAdmin, async (req, res) => {
+    try {
+      const templateId = req.params.id as string;
+      const template = await storage.getPetTemplate(templateId);
+      if (!template) return res.status(404).json({ message: "Template not found" });
+
+      const effects = sanitizeEvolutionPetEffects(req.body?.effects);
+      const key = evolutionEffectsSettingKey(templateId);
+      await db.insert(gameSettings)
+        .values({ key, value: JSON.stringify(effects) })
+        .onConflictDoUpdate({
+          target: gameSettings.key,
+          set: { value: JSON.stringify(effects) },
+        });
+      templatePartsCache.clear();
+      return res.json({ effects });
+    } catch (err) {
+      console.error("Save evolution pet effects error:", err);
+      return res.status(500).json({ message: "Failed to save evolution effects" });
     }
   });
 

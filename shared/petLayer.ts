@@ -20,6 +20,7 @@ export const isHeadPart = (partType: string) => basePetPartType(partType) === "h
 export const isFacePart = (partType: string) => !isHeadPart(partType) && FACE_PART_TYPES.has(basePetPartType(partType));
 export const isHeadGroupPart = (partType: string) => isHeadPart(partType) || isFacePart(partType);
 export const isSecondaryHeadPart = (partType: string) => MULTI_HEAD_PREFIX.test(partType) && isHeadGroupPart(partType);
+export const isSecondaryNeckPart = (partType: string) => /^h[23]_neck$/.test(partType);
 export const EAR_PART_TYPES = new Set(["left_ear", "right_ear", "left_ear_2", "right_ear_2"]);
 export const HAIR_PART_TYPES = new Set(["hair_left", "hair_right", "hair_center", "back_hair"]);
 export const PLANTED_PART_TYPES = new Set(["left_leg", "right_leg", "front_leg", "back_leg"]);
@@ -29,6 +30,9 @@ export const PET_LAYER_ORDER: Readonly<Record<string, number>> = {
   back_wing: 2, back_wing_2: 2, right_wing: 2, left_wing: 2, wing_set2_left: 2, wing_set2_right: 2,
   back_leg: 3, back_accessory_2: 3, back_accessory_1: 3, front_left_accessory: 3, front_right_accessory: 3,
   back_arm: 4, back_shoulder: 4, body_2: 4.5,
+  // Head 2/3 rear-neck artwork is a sandwich layer: it follows its head but
+  // must paint just behind the torso while the head/face itself stays in front.
+  neck_back: 4.75,
   // Front-view limbs deliberately sit above the body.  The former tie with
   // body made their depth depend on database/upload order (notably left_arm).
   body: 5,
@@ -46,7 +50,13 @@ export const PET_LAYER_ORDER: Readonly<Record<string, number>> = {
 export interface LayerablePetPart { partType: string; zIndex: number }
 export function getEffectivePetLayer(part: LayerablePetPart, facing: PetFacing = "front"): number {
   const base = basePetPartType(part.partType);
-  if (isSecondaryHeadPart(part.partType)) return 4 + (PET_LAYER_ORDER[base] ?? 10) * 0.001;
+  // Neck 2 / Neck 3 are authored with their matching secondary head and must
+  // stay in the narrow sandwich between the body and the head wrapper.
+  if (isSecondaryNeckPart(part.partType)) return 10;
+  // Secondary heads share the same semantic front bands as Head 1. The runtime
+  // wraps each head separately, but static/server composites must also keep
+  // h2_/h3_ head and face artwork in front of the body.
+  if (isSecondaryHeadPart(part.partType)) return PET_LAYER_ORDER[base] ?? part.zIndex;
   // Only left/right side-facing templates use the special front-leg depth.
   // "back" is a distinct template facing and must retain the same layer
   // semantics as the runtime renderer; remapping it to left previously caused
