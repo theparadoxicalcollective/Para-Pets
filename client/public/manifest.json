@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Para Pets",
   "short_name": "Para Pets",
-  "description": "Collect, raise, and battle magical pets in a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, and climb the leaderboards!",
+  "description": "Para Pets is a free browser-based fantasy creature-collecting RPG. Hatch pets, explore worlds, complete quests, battle, play mini-games, and trade.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
