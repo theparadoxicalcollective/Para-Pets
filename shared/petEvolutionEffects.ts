@@ -36,9 +36,12 @@ export function sanitizeEvolutionPetEffects(value: unknown): EvolutionPetEffect[
       ? candidate.id.trim().slice(0, 80)
       : `effect-${effects.length + 1}`;
     const view = candidate.view === "back" ? "back" : "front";
-    const xPct = Math.max(0, Math.min(1, Number(candidate.xPct) || 0.5));
-    const yPct = Math.max(0, Math.min(1, Number(candidate.yPct) || 0.5));
-    const sizePct = Math.max(6, Math.min(80, Number(candidate.sizePct) || (type === "smoke" ? 34 : 24)));
+    const rawX = Number(candidate.xPct);
+    const rawY = Number(candidate.yPct);
+    const rawSize = Number(candidate.sizePct);
+    const xPct = Math.max(0, Math.min(1, Number.isFinite(rawX) ? rawX : 0.5));
+    const yPct = Math.max(0, Math.min(1, Number.isFinite(rawY) ? rawY : 0.5));
+    const sizePct = Math.max(6, Math.min(80, Number.isFinite(rawSize) ? rawSize : (type === "smoke" ? 34 : 24)));
 
     const effect: EvolutionPetEffect = { id, type, view, xPct, yPct, sizePct };
     if (type !== "smoke") {
