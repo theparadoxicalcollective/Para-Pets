@@ -61,11 +61,12 @@ test("anonymous requests and non-administrators retain their rejection boundarie
 test("routes.ts has one registration boundary while cross-domain progress integrations remain connected", () => {
   const rootSource = fs.readFileSync("server/routes.ts", "utf8");
   const progressionSource = fs.readFileSync("server/routes/petProgressionItem.routes.ts", "utf8");
+  const petCareSource = fs.readFileSync("server/routes/petCare.routes.ts", "utf8");
   const questSource = fs.readFileSync("server/routes/quest.routes.ts", "utf8");
   assert.equal((rootSource.match(/registerQuestRoutes\(app,/g) ?? []).length, 1);
   assert.equal((questSource.match(/app\.(?:get|post|patch)\("\/api\/(?:quests\/(?:daily|npc-discovery-tour\/reset-token)|daily-quests|admin\/(?:daily-quests|moderator-quests))/g) ?? []).length, expected.length);
   assert.match(questSource, /executeDailyQuestClaim\(\{/);
   assert.match(progressionSource, /incrementQuestProgress\(user\.id, "use_powerup"\)/);
-  assert.match(rootSource, /incrementQuestProgress\(user\.id, "feed_pet"\)/);
+  assert.match(petCareSource, /incrementQuestProgress\(user\.id, "feed_pet"\)/);
   assert.match(rootSource, /incrementQuestProgress,/);
 });

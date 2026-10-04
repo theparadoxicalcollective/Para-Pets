@@ -183,7 +183,7 @@ test("legacy registry keeps one progression registration between accessories and
 
   const accessories = routes.indexOf("registerPetAccessoryRoutes(app");
   const progression = routes.indexOf("registerPetProgressionItemRoutes(app");
-  const petting = routes.indexOf('app.post("/api/pets/:inventoryId/petting-reward"');
+  const petting = routes.indexOf("registerPetPettingRewardRoute(app");
 
   assert.ok(accessories >= 0);
   assert.ok(progression > accessories);
