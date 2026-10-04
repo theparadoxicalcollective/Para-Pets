@@ -133,20 +133,20 @@ test("interior pets use the same local light falloff as the room", () => {
   }
 });
 
-test("outdoor pets use the current local darkness and light level, including while the owner drags them", () => {
+test("dragged outdoor pets stay beneath the atmosphere layer so darkness and lamp cutouts continue to affect them", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
   assert.match(owner, /const isDraggingThis = petDragLive\?\.inventoryId === pet\.inventoryId/);
   assert.match(owner, /const xPct = isDraggingThis \? petDragLive\.xPct/);
   assert.match(owner, /const yPct = isDraggingThis \? petDragLive\.yPct/);
-  assert.match(owner, /getHouseInteriorPointDarkness\([\s\S]{0,120}outdoorLighting\.darkness,[\s\S]{0,120}outdoorLightEffects,[\s\S]{0,120}NO_OUTDOOR_EFFECT_IDS,[\s\S]{0,180}outdoorLighting\.daylightStrength/);
-  assert.match(owner, /const petBrightness = \(100 - petDarkness\) \/ 100/);
-  assert.match(owner, /brightness\(\$\{petBrightness\}\)/);
+  assert.match(owner, /zIndex: isSelectedPet \|\| isDraggingThis \? 19/);
+  assert.match(owner, /<HomeOutdoorAtmosphereLayer[\s\S]{0,220}zIndex=\{20\}/);
+  assert.match(owner, /<HomeInteriorEffectsLayer[\s\S]{0,180}effects=\{outdoorLampEffects\}[\s\S]{0,180}zIndex=\{24\}/);
 
-  assert.match(visitor, /getHouseInteriorPointDarkness\([\s\S]{0,120}outdoorLighting\.darkness,[\s\S]{0,120}outdoorLightEffects,[\s\S]{0,120}NO_OUTDOOR_EFFECT_IDS,[\s\S]{0,180}outdoorLighting\.daylightStrength/);
-  assert.match(visitor, /const petBrightness = \(100 - petDarkness\) \/ 100/);
-  assert.match(visitor, /brightness\(\$\{petBrightness\}\)/);
+  // Visitors do not drag pets; their pet layer already stays below the same atmosphere.
+  assert.match(visitor, /data-testid=\{`visit-pet-outdoor-\$\{pet\.inventoryId\}`\}[\s\S]{0,220}zIndex: 5/);
+  assert.match(visitor, /<HomeOutdoorAtmosphereLayer[\s\S]{0,220}zIndex=\{20\}/);
 });
 
 test("interior decor and objects use the same local room darkness as pets", () => {
