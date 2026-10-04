@@ -16,7 +16,7 @@ test("catalog descriptions are stored and collected by the admin form", () => {
 });
 
 test("authored descriptions reach sale and owned-item cards", () => {
-  const routes = read("server/routes.ts");
+  const routes = read("server/routes/inventoryRead.routes.ts");
   const shop = read("client/src/components/world/WorldShopOverlay.tsx");
   const inventory = read("client/src/components/PetInventory.tsx");
 

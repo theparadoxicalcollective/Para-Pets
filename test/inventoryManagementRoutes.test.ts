@@ -286,7 +286,7 @@ test("legacy registry delegates inventory management once between inventory read
     assert.equal(root.includes(fragment), false, fragment);
   }
 
-  const inventoryRead = root.indexOf('app.get("/api/inventory"');
+  const inventoryRead = root.indexOf("registerInventoryReadRoutes(app");
   const management = root.indexOf("registerInventoryManagementRoutes(app");
   const shopPurchase = root.indexOf('app.post("/api/shop/:worldId/buy/:itemId"');
 
