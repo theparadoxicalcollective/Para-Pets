@@ -42,12 +42,20 @@ function usesCapacity(item: PowerUpItem) {
 
 function itemLabel(item: PowerUpItem) {
   const amount = item.type === "special" ? item.specialAmount : item.statBoostAmount;
-  if (item.type === "special") return item.specialType === "hatch_time" ? `-${amount ?? "?"} min` : `${amount ?? "?"} LVL`;
+  if (item.type === "special") {
+    if (item.specialType === "hatch_time") return `-${amount ?? "?"} min`;
+    if (item.specialType === "fill_evolution_node") return "FILL NODE";
+    return `${amount ?? "?"} LVL`;
+  }
   return item.statBoostType === "health" ? `${amount ?? "?"} HP` : `${amount ?? "?"} ${(item.statBoostType || "").toUpperCase()}`;
 }
 
 function itemColor(item: PowerUpItem) {
-  if (item.type === "special") return item.specialType === "hatch_time" ? "#38bdf8" : "#f0c040";
+  if (item.type === "special") {
+    if (item.specialType === "hatch_time") return "#38bdf8";
+    if (item.specialType === "fill_evolution_node") return "#34d399";
+    return "#f0c040";
+  }
   if (item.statBoostType === "health") return "#4ade80";
   if (item.statBoostType === "atk") return "#f87171";
   if (item.statBoostType === "def") return "#60a5fa";
