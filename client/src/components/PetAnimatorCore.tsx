@@ -8,6 +8,8 @@ import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBoun
 import { EAR_PART_TYPES, PET_LAYER_ORDER, basePetPartType, getEffectivePetLayer } from "@/lib/petPartConfig";
 import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 import { normalizePetParts, petCanvasScale } from "@/lib/petRenderSafety";
+import EvolutionPetEffectsLayer from "./EvolutionPetEffects";
+import type { EvolutionPetEffect } from "@shared/petEvolutionEffects";
 
 interface PetPart {
   id: string;
@@ -1425,7 +1427,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     return () => ro.disconnect();
   }, [fillContainer, performanceStatic, lowMemory]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null; evolutionEffects?: EvolutionPetEffect[] }>({
     ...petTemplateQuery(petTemplateId, artworkForm),
   });
 
@@ -2522,6 +2524,13 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
             </div>
           );
         })}
+
+        {artworkForm === "evolution" && (templateData?.evolutionEffects?.length ?? 0) > 0 && (
+          <EvolutionPetEffectsLayer
+            effects={templateData?.evolutionEffects ?? []}
+            animated={!performanceStatic && !lowMemory}
+          />
+        )}
 
       </div>
     </div>
