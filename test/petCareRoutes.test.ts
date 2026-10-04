@@ -247,14 +247,14 @@ test("legacy registry keeps original pet care registration order around Molten B
   const molten = root.indexOf("registerMoltenBlocksRoutes(app");
   const feeding = root.indexOf("registerPetFeedingRoute(app");
   const giftLoyalty = root.indexOf("registerPetGiftLoyaltyRoutes(app");
-  const defeat = root.indexOf('app.post("/api/pet/:inventoryId/world-defeat"');
+  const petState = root.indexOf("registerPetStateRoutes(app");
 
   assert.ok(progression >= 0);
   assert.ok(petting > progression);
   assert.ok(molten > petting);
   assert.ok(feeding > molten);
   assert.ok(giftLoyalty > feeding);
-  assert.ok(defeat > giftLoyalty);
+  assert.ok(petState > giftLoyalty);
   assert.equal(root.match(/registerPetPettingRewardRoute\(app/g)?.length, 1);
   assert.equal(root.match(/registerPetFeedingRoute\(app/g)?.length, 1);
   assert.equal(root.match(/registerPetGiftLoyaltyRoutes\(app/g)?.length, 1);
