@@ -177,7 +177,7 @@ test("Head adornments can optionally hide the native Above Head pet part", () =>
 test("player Closet filters assigned adornments by space and Wings replaces native wing parts", () => {
   const closet = read("client/src/components/PetCostumeEquipmentSection.tsx");
   const routes = read("server/routes/costumePlayer.routes.ts");
-  const inventory = read("server/routes.ts");
+  const inventory = read("server/routes/inventoryRead.routes.ts");
   const animator = read("client/src/components/PetAnimator.tsx");
 
   assert.match(closet, /item\.adornmentSlot === selectedSlotDefinition\.key/);
