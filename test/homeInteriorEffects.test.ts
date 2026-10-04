@@ -141,12 +141,12 @@ test("dragged outdoor pets stay beneath the atmosphere layer so darkness and lam
   assert.match(owner, /const xPct = isDraggingThis \? petDragLive\.xPct/);
   assert.match(owner, /const yPct = isDraggingThis \? petDragLive\.yPct/);
   assert.match(owner, /zIndex: isSelectedPet \|\| isDraggingThis \? 19/);
-  assert.match(owner, /<HomeOutdoorAtmosphereLayer[\s\S]{0,220}zIndex=\{20\}/);
-  assert.match(owner, /<HomeInteriorEffectsLayer[\s\S]{0,180}effects=\{outdoorLampEffects\}[\s\S]{0,180}zIndex=\{24\}/);
+  assert.match(owner, /<HomeOutdoorAtmosphereLayer[\s\S]{0,420}zIndex=\{20\}/);
+  assert.match(owner, /<HomeInteriorEffectsLayer[\s\S]{0,260}effects=\{outdoorLampEffects\}[\s\S]{0,260}zIndex=\{24\}/);
 
   // Visitors do not drag pets; their pet layer already stays below the same atmosphere.
   assert.match(visitor, /data-testid=\{`visit-pet-outdoor-\$\{pet\.inventoryId\}`\}[\s\S]{0,220}zIndex: 5/);
-  assert.match(visitor, /<HomeOutdoorAtmosphereLayer[\s\S]{0,220}zIndex=\{20\}/);
+  assert.match(visitor, /<HomeOutdoorAtmosphereLayer[\s\S]{0,420}zIndex=\{20\}/);
 });
 
 test("interior decor and objects use the same local room darkness as pets", () => {
@@ -391,7 +391,8 @@ test("owner light toggles persist while visitor light toggles stay session-only"
   assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);
   assert.match(effects, /data-player-toggle-effect-id=\{playerToggleable \? effect\.id : undefined\}/);
   assert.doesNotMatch(effects, /onClick=\{playerToggleable/);
-  assert.match(effects, /!isOff && <EffectVisual/);
+  assert.match(effects, /!isOff && \(/);
+  assert.match(effects, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/);
 
   assert.match(owner, /toggleSavedInteriorLight/);
   assert.match(owner, /offInteriorEffectIds/);
