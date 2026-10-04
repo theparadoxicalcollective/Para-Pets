@@ -45,6 +45,42 @@ export function evolutionStatRewardForRarity(value: unknown): number {
   return EVOLUTION_STAT_REWARD_BY_RARITY[normalizePetRarity(value)];
 }
 
+/**
+ * Completes exactly the evolution node that is currently in progress.
+ * Existing partial points on that node are consumed by the completion; no
+ * overflow carries into the following node because the special item's promise
+ * is one complete node, not a point grant.
+ */
+export function completelyFillCurrentEvolutionNode(
+  completedSlotsInput: number,
+  targetRarity: unknown,
+): EvolutionProgressResult {
+  const pointsRequired = evolutionTargetForRarity(targetRarity);
+  const completedSlots = Math.max(0, Math.min(EVOLUTION_SLOT_COUNT, Math.trunc(completedSlotsInput || 0)));
+
+  if (completedSlots >= EVOLUTION_SLOT_COUNT) {
+    return {
+      completedSlots: EVOLUTION_SLOT_COUNT,
+      currentPoints: 0,
+      pointsRequired,
+      percent: 100,
+      completedNow: 0,
+      isComplete: true,
+    };
+  }
+
+  const nextCompletedSlots = completedSlots + 1;
+  const isComplete = nextCompletedSlots >= EVOLUTION_SLOT_COUNT;
+  return {
+    completedSlots: nextCompletedSlots,
+    currentPoints: 0,
+    pointsRequired,
+    percent: isComplete ? 100 : 0,
+    completedNow: 1,
+    isComplete,
+  };
+}
+
 export interface EvolutionProgressResult {
   completedSlots: number;
   currentPoints: number;

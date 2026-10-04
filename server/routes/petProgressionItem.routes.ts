@@ -3,6 +3,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { userInventory } from "@shared/schema";
 import { tryConsumeOneFromInventory } from "../inventoryConsumption";
 import { BEGIN_JOURNEY_TUTORIAL } from "../tutorial/config";
+import { ensureEvolutionStorage } from "../petEvolution";
+import { EVOLUTION_SLOT_COUNT, completelyFillCurrentEvolutionNode } from "@shared/evolution";
 
 type PetProgressionStorage = Pick<
   typeof import("../storage").storage,
@@ -158,7 +160,53 @@ export function registerPetProgressionItemRoutes(
       const specialType = itemShopItem.specialType;
       const specialAmount = itemShopItem.specialAmount || 10;
 
-      if (specialType === "hatch_time") {
+      if (specialType === "fill_evolution_node") {
+        if (!petInv.isHatched) {
+          return res.status(400).json({ message: "Pet has not hatched yet" });
+        }
+
+        await ensureEvolutionStorage();
+        const evolutionProgress = await db.transaction(async (tx) => {
+          await tx.execute(sql`
+            INSERT INTO pet_evolution_progress(pet_inventory_id, completed_slots, current_points)
+            VALUES (${petInv.id}, 0, 0)
+            ON CONFLICT (pet_inventory_id) DO NOTHING
+          `);
+
+          const progressResult = await tx.execute(sql`
+            SELECT completed_slots, current_points
+            FROM pet_evolution_progress
+            WHERE pet_inventory_id = ${petInv.id}
+            FOR UPDATE
+          `);
+          const progress = (progressResult as any).rows?.[0] ?? (progressResult as any)?.[0];
+          const completedSlots = Number(progress?.completed_slots ?? 0);
+
+          if (completedSlots >= EVOLUTION_SLOT_COUNT) {
+            const error: any = new Error("This pet's evolution track is already complete");
+            error.statusCode = 409;
+            throw error;
+          }
+
+          const next = completelyFillCurrentEvolutionNode(completedSlots, petShopItem.rarity);
+          await tx.execute(sql`
+            UPDATE pet_evolution_progress
+            SET completed_slots = ${next.completedSlots},
+                current_points = 0,
+                updated_at = now()
+            WHERE pet_inventory_id = ${petInv.id}
+          `);
+
+          const { consumed } = await tryConsumeOneFromInventory(tx, user.id, itemInv.id);
+          if (!consumed) throw new Error("Special item is no longer available");
+          return next;
+        });
+
+        return res.json({
+          ...petInv,
+          evolutionProgress,
+        });
+      } else if (specialType === "hatch_time") {
         if (petInv.isHatched) {
           return res.status(400).json({ message: "Pet is already hatched" });
         }
@@ -233,8 +281,11 @@ export function registerPetProgressionItemRoutes(
       } else {
         return res.status(400).json({ message: "Unknown special type" });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Use special error:", err);
+      if (Number.isInteger(err?.statusCode)) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
       return res.status(500).json({ message: "Failed to use special item" });
     }
   });

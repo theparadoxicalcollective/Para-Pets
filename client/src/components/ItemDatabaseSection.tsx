@@ -171,6 +171,8 @@ export function getItemEffectText(item: ShopItemFull): string | null {
   }
   if (item.type === "special") {
     if (item.specialType === "hatch_time") return item.specialAmount ? `−${item.specialAmount}% hatch time` : "Reduces hatch time";
+    if (item.specialType === "level") return item.specialAmount ? `+${item.specialAmount} level points` : "Adds level points";
+    if (item.specialType === "fill_evolution_node") return "Completely fills the current evolution node";
     return item.specialType ?? null;
   }
   if (item.type === "pet") {
@@ -842,7 +844,9 @@ function AdminItemForm({
 
         if (effectiveType === "special") {
           payload.specialType = specialType;
-          payload.specialAmount = parseInt(specialAmount) || 10;
+          payload.specialAmount = specialType === "fill_evolution_node"
+            ? null
+            : (parseInt(specialAmount) || 10);
         } else {
           payload.specialType = null;
           payload.specialAmount = null;
@@ -1508,26 +1512,39 @@ function AdminItemForm({
                 >
                   <option value="hatch_time">Reduce Hatching Time</option>
                   <option value="level">Level Up Points</option>
+                  <option value="fill_evolution_node">Completely fill a node</option>
                 </select>
               </div>
-              <div>
-                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
-                  {specialType === "hatch_time" ? "Minutes Reduced" : "Level Points Added"}
-                </label>
-                <input
-                  data-testid="input-special-amount"
-                  type="number"
-                  value={specialAmount}
-                  onChange={(e) => setSpecialAmount(e.target.value)}
-                  placeholder="10"
-                  min="1"
-                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
-                  style={inputStyle}
-                />
-                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
-                  {specialType === "hatch_time" ? "1 = 1 minute off hatching time" : "1 = 1 level point towards leveling up"}
-                </p>
-              </div>
+              {specialType === "fill_evolution_node" ? (
+                <div
+                  data-testid="special-fill-node-note"
+                  className="rounded-lg px-3 py-2 text-center"
+                  style={{ background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.25)" }}
+                >
+                  <p className="font-fantasy text-[#7fffd4] text-[9px] tracking-wider">
+                    Completes exactly the evolution node currently being filled. No amount is required.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
+                    {specialType === "hatch_time" ? "Minutes Reduced" : "Level Points Added"}
+                  </label>
+                  <input
+                    data-testid="input-special-amount"
+                    type="number"
+                    value={specialAmount}
+                    onChange={(e) => setSpecialAmount(e.target.value)}
+                    placeholder="10"
+                    min="1"
+                    className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                    style={inputStyle}
+                  />
+                  <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">
+                    {specialType === "hatch_time" ? "1 = 1 minute off hatching time" : "1 = 1 level point towards leveling up"}
+                  </p>
+                </div>
+              )}
               <p className="font-fantasy text-[#f0c040] text-[8px] tracking-wider text-center">Special items do NOT count toward a pet's limited power-up uses</p>
             </>
           )}
