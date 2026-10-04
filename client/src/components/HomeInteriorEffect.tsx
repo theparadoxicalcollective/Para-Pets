@@ -1,5 +1,5 @@
 import { useId, type PointerEvent as ReactPointerEvent } from "react";
-import { getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, sanitizeHouseInteriorDarkness, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_DARKNESS_MIN, getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
 
 export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   type: HouseInteriorEffectType;
@@ -480,6 +480,7 @@ export function HomeInteriorDarknessLayer({
   sceneHeight,
   sunlightStrength = 1,
   zIndex = 2,
+  transitionMs = 260,
 }: {
   darkness: number;
   effects?: readonly HouseInteriorEffect[];
@@ -489,8 +490,12 @@ export function HomeInteriorDarknessLayer({
   sceneHeight?: number;
   sunlightStrength?: number;
   zIndex?: number;
+  transitionMs?: number;
 }) {
-  const safeDarkness = sanitizeHouseInteriorDarkness(darkness);
+  const numericDarkness = Number(darkness);
+  const safeDarkness = Number.isFinite(numericDarkness)
+    ? Math.max(HOUSE_INTERIOR_DARKNESS_MIN, Math.min(HOUSE_INTERIOR_DARKNESS_MAX, numericDarkness))
+    : 0;
   const safeSunlight = Math.max(0, Math.min(1, Number.isFinite(sunlightStrength) ? sunlightStrength : 1));
   const rawId = useId();
   const maskId = `home-darkness-mask-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -518,7 +523,7 @@ export function HomeInteriorDarknessLayer({
           zIndex,
           pointerEvents: "none",
           background: `rgba(0,0,0,${safeDarkness / 100})`,
-          transition: "background 260ms ease-out",
+          transition: `background ${transitionMs}ms linear`,
         }}
       />
     );
@@ -598,8 +603,11 @@ export function HomeInteriorDarknessLayer({
         width={width}
         height={height}
         fill="black"
-        fillOpacity={safeDarkness / 100}
         mask={`url(#${maskId})`}
+        style={{
+          fillOpacity: safeDarkness / 100,
+          transition: `fill-opacity ${transitionMs}ms linear`,
+        }}
       />
     </svg>
   );
