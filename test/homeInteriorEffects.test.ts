@@ -465,7 +465,7 @@ test("saved room darkness is cut away locally around active lights without addin
   assert.match(effects, /<mask[\s\S]*maskType: "luminance"/);
   assert.match(effects, /<radialGradient/);
   assert.match(effects, /getHouseInteriorLightCutoutStrength/);
-  assert.match(effects, /fillOpacity=\{safeDarkness \/ 100\}/);
+  assert.match(effects, /fillOpacity: safeDarkness \/ 100/);
   assert.match(effects, /mask=\{\`url\(#\$\{maskId\}\)\`\}/);
   assert.doesNotMatch(effects, /home-interior-light-wash-/);
   assert.doesNotMatch(effects, /const glow = effect\.type/);
