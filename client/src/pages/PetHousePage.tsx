@@ -1427,7 +1427,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           scalePct: clampPetHousePlayerScale(update.scalePct ?? 100),
           flipped: update.flipped ?? false,
         });
-        if (!res.ok) throw new Error("Failed");
+        if (!res.ok) {
+          let payload: any = null;
+          try { payload = await res.json(); } catch {}
+          throw Object.assign(new Error(payload?.message || "Failed to save pet position"), {
+            code: payload?.code,
+            limit: payload?.limit,
+          });
+        }
       });
     petHomeSaveQueueRef.current = task.catch(() => undefined);
     return task;
@@ -1476,14 +1483,23 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const placeDecorMutation = useMutation({
     mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; flipped: boolean; location?: string }) => {
       const res = await apiRequest("POST", "/api/pet-house/decor/place", data);
-      if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+      if (!res.ok) {
+        const e = await res.json();
+        throw Object.assign(new Error(e.message), { code: e.code, limit: e.limit });
+      }
       return res.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] });
     },
-    onError: (e: any) => toast({ title: "Could not place item", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      if (e?.code === "decor_limit") {
+        toast({ title: "Decor Limit", description: `This home can only hold ${e.limit ?? "this many"} decor items.` });
+        return;
+      }
+      toast({ title: "Could not place item", description: e.message, variant: "destructive" });
+    },
   });
 
   const updateDecorMutation = useMutation({
@@ -1514,8 +1530,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       await queuePetHomePositionPatch(update);
     },
     onMutate: (update) => ({ previousPets: applyOptimisticPetHomeUpdate(update) }),
-    onError: (_error, _update, context) => {
+    onError: (error: any, _update, context) => {
       if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+      if (error?.code === "pet_limit") {
+        toast({ title: "Pet Limit", description: `This home can only hold ${error.limit ?? "this many"} pets.` });
+      }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
@@ -1527,8 +1546,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onMutate: (update) => ({
       previousPets: applyOptimisticPetHomeUpdate({ ...update, location: "outside" }),
     }),
-    onError: (_error, _update, context) => {
+    onError: (error: any, _update, context) => {
       if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+      if (error?.code === "pet_limit") {
+        toast({ title: "Pet Limit", description: `This home can only hold ${error.limit ?? "this many"} pets.` });
+      }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
