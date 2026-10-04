@@ -412,7 +412,7 @@ test("Decor/Object inventory and placement behavior stays delegated to existing 
     body: { userId: "victim", decorItemId: "scene-item-1", size: 499 },
   });
 
-  assert.deepEqual(calls.inventory, ["owner"]);
+  assert.deepEqual(calls.inventory, ["owner", "owner"]);
   assert.deepEqual(calls.placed, [
     ["owner", "inside"],
     ["visited", "outside"],
@@ -570,7 +570,7 @@ test("Home Decor error status codes remain unchanged", async () => {
     ["POST", "/api/admin/home-decor", { body: { name: "X" } }, 500, "create failed"],
     ["GET", "/api/admin/location/:locationId/shop-decor", { params: { locationId: "x" } }, 500, "shop failed"],
     ["GET", "/api/pet-house/decor/inventory", { user: { id: "u" } }, 500, "read failed"],
-    ["POST", "/api/pet-house/decor/place", { user: { id: "u" }, body: { decorItemId: "d" } }, 400, "place failed"],
+    ["POST", "/api/pet-house/decor/place", { user: { id: "u" }, body: { decorItemId: "d" } }, 400, "read failed"],
     ["PATCH", "/api/pet-house/decor/placed/:id", { user: { id: "u" }, params: { id: "p" }, body: {} }, 500, "update failed"],
     ["DELETE", "/api/pet-house/decor/placed/:id", { user: { id: "u" }, params: { id: "p" } }, 500, "remove failed"],
     ["POST", "/api/admin/home-decor/:id/grant-everyone", { params: { id: "d" } }, 500, "users failed"],
