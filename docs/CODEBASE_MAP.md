@@ -72,6 +72,14 @@ The extraction preserves the fixed 1,000 Hunger maximum, six-hour full Hunger de
 
 The extraction preserves the existing two-coins-per-item sell value, pet/fish sell exclusions, stack decrement/removal behavior, active-pet deletion protection, Lonelle scarf quest protection, nickname ownership checks, 20-character limit, and profanity rejection. No item prices, inventory ownership rules, quest behavior, moderation rules, response shapes, UI, database schema, or shop-purchase behavior are intentionally changed.
 
+## Pet Home capacity integrity (2026-10)
+
+Pet Home capacity is resolved through shared helpers in `shared/housing.ts` so the owner UI, visitor UI, and server routes agree on the same limits. A building's explicit legacy/admin `maxPets` value takes precedence when present; otherwise Small/Medium/Large capacities remain 3/10/15 pets and 5/15/25 Decor. Bundle-configured outdoor pet/decor limits remain authoritative. Objects do not count toward Decor capacity.
+
+`server/routes/petHousePosition.routes.ts` rejects new pet placements that would exceed the authoritative destination capacity. `server/routes/homeDecor.routes.ts` does the same for Decor while leaving Objects unlimited. `server/routes/petHouseVisitor.routes.ts` reconciles stale or over-capacity pet positions when a Home is loaded, removing only the scene position so excess pets return to normal inventory rather than being deleted. Position reads are ordered oldest-first so existing placements are preserved before newer overflow entries.
+
+Owner and visitor Home screens render subtle safe-area-aware capacity counters and defensively cap rendered pets. The visitor screen also unmounts outdoor buildings/pets/decor while an interior is open to reduce image/animation pressure on mobile. No pet inventory row, pet stats, visitor reward amount, Home Bundle ownership, schema, or Admin-authored scene coordinates are changed by this repair.
+
 ## Security-sensitive areas
 
 ### Gift and player home-decoration route boundaries (2026-07)

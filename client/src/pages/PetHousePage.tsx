@@ -27,6 +27,7 @@ import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
+import HomeCapacityIndicator from "@/components/HomeCapacityIndicator";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
@@ -54,7 +55,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { BUILDING_SIZE_CAPACITY, DEFAULT_OUTDOOR_DECOR_LIMIT, DEFAULT_OUTDOOR_PET_LIMIT, HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
+import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -452,7 +453,7 @@ function HousePetControlPanel({
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
   effects = [], darkness = 0, sunlightStrength = 1, leaveButtonX = 0.92, leaveButtonY = 0.06,
-  offEffectIds, onToggleLightEffect,
+  offEffectIds, onToggleLightEffect, petLimit, decorLimit,
   onUpdateItem, onRemoveItem, onMovePet, onOpenCloset, onRemovePet, removingPetId, onClose,
 }: {
   url: string;
@@ -466,6 +467,8 @@ function InteriorViewer({
   leaveButtonY?: number;
   offEffectIds: ReadonlySet<string>;
   onToggleLightEffect: (effect: HouseInteriorEffect) => void;
+  petLimit: number;
+  decorLimit: number;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean; effectEnabled?: boolean }) => void;
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number, scalePct: number, flipped: boolean) => Promise<void>;
@@ -827,6 +830,14 @@ function InteriorViewer({
           }
         }}
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+      />
+
+      <HomeCapacityIndicator
+        petCount={placedPets.length}
+        petLimit={petLimit}
+        decorCount={placedItems.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length}
+        decorLimit={decorLimit}
+        style={{ zIndex: 55 }}
       />
 
       <HomeInteriorDarknessLayer
@@ -1316,7 +1327,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     staleTime: 15000,
   });
 
-  const { data: petsData } = useQuery<{ username: string; pets: HousePet[] }>({
+  const { data: petsData } = useQuery<{ username: string; pets: HousePet[]; capacityCleanup?: { returnedPets: number } }>({
     queryKey: ["/api/users", user.id, "pets"],
     queryFn: async () => {
       const res = await fetch(`/api/users/${user.id}/pets`, { credentials: "include" });
@@ -1328,6 +1339,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   });
 
   const pets = petsData?.pets ?? [];
+  const capacityCleanupNoticeRef = useRef(false);
+
+  useEffect(() => {
+    const returnedPets = petsData?.capacityCleanup?.returnedPets ?? 0;
+    if (returnedPets <= 0 || capacityCleanupNoticeRef.current) return;
+    capacityCleanupNoticeRef.current = true;
+    toast({
+      title: "Pet Limit",
+      description: `${returnedPets} pet${returnedPets === 1 ? "" : "s"} returned to inventory because this home was over its pet limit.`,
+    });
+  }, [petsData?.capacityCleanup?.returnedPets, toast]);
 
   // (Care/Feed used to open here as an in-page overlay via `?feed=<id>`. It
   // now lives at its own real route `/pet-care/:inventoryId` — see HomePage's
@@ -1405,7 +1427,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           scalePct: clampPetHousePlayerScale(update.scalePct ?? 100),
           flipped: update.flipped ?? false,
         });
-        if (!res.ok) throw new Error("Failed");
+        if (!res.ok) {
+          let payload: any = null;
+          try { payload = await res.json(); } catch {}
+          throw Object.assign(new Error(payload?.message || "Failed to save pet position"), {
+            code: payload?.code,
+            limit: payload?.limit,
+          });
+        }
       });
     petHomeSaveQueueRef.current = task.catch(() => undefined);
     return task;
@@ -1454,14 +1483,23 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const placeDecorMutation = useMutation({
     mutationFn: async (data: { decorItemId: string; xPct: number; yPct: number; flipped: boolean; location?: string }) => {
       const res = await apiRequest("POST", "/api/pet-house/decor/place", data);
-      if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+      if (!res.ok) {
+        const e = await res.json();
+        throw Object.assign(new Error(e.message), { code: e.code, limit: e.limit });
+      }
       return res.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/pet-house/decor/placed"] });
     },
-    onError: (e: any) => toast({ title: "Could not place item", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      if (e?.code === "decor_limit") {
+        toast({ title: "Decor Limit", description: `This home can only hold ${e.limit ?? "this many"} decor items.` });
+        return;
+      }
+      toast({ title: "Could not place item", description: e.message, variant: "destructive" });
+    },
   });
 
   const updateDecorMutation = useMutation({
@@ -1492,8 +1530,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       await queuePetHomePositionPatch(update);
     },
     onMutate: (update) => ({ previousPets: applyOptimisticPetHomeUpdate(update) }),
-    onError: (_error, _update, context) => {
+    onError: (error: any, _update, context) => {
       if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+      if (error?.code === "pet_limit") {
+        toast({ title: "Pet Limit", description: `This home can only hold ${error.limit ?? "this many"} pets.` });
+      }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
@@ -1505,8 +1546,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onMutate: (update) => ({
       previousPets: applyOptimisticPetHomeUpdate({ ...update, location: "outside" }),
     }),
-    onError: (_error, _update, context) => {
+    onError: (error: any, _update, context) => {
       if (context?.previousPets) qc.setQueryData(petsQueryKey, context.previousPets);
+      if (error?.code === "pet_limit") {
+        toast({ title: "Pet Limit", description: `This home can only hold ${error.limit ?? "this many"} pets.` });
+      }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: petsQueryKey }),
   });
@@ -1631,10 +1675,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
-            const maxPets = building?.size ? BUILDING_SIZE_CAPACITY[building.size].pets : BUILDING_SIZE_CAPACITY.medium.pets;
+            const maxPets = getHouseBuildingPetLimit(building);
             const currentCount = pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null).length;
             if (currentCount >= maxPets) {
-              toast({ title: "Pet limit reached!", description: `This building can hold up to ${maxPets} pets.` });
+              toast({ title: "Pet Limit", description: `This home can only hold ${maxPets} pets.` });
             } else {
               const rawXPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
               const rawYPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
@@ -1662,9 +1706,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               });
             }
           } else if (imgWidth > 0) {
-            const maxOutdoor = activeBundle?.maxOutdoorPets ?? DEFAULT_OUTDOOR_PET_LIMIT;
+            const maxOutdoor = getHouseOutdoorPetLimit(activeBundle);
             if (outdoorPets.length >= maxOutdoor) {
-              toast({ title: "Pet limit reached!", description: `Your yard can hold up to ${maxOutdoor} pets outdoors.` });
+              toast({ title: "Pet Limit", description: `This home can only hold ${maxOutdoor} pets.` });
             } else {
               const maxYPct = maxYForHeight(containerH);
               placePetMutation.mutate({
@@ -1694,10 +1738,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           const localY = e.clientY - rect.top;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
-            const maxItems = building?.size ? BUILDING_SIZE_CAPACITY[building.size].decor : BUILDING_SIZE_CAPACITY.medium.decor;
+            const maxItems = getHouseBuildingDecorLimit(building);
             const placedDecorCount = interiorPlacedRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
             if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxItems) {
-              toast({ title: "Decor limit reached!", description: `This building can hold up to ${maxItems} decorations.` });
+              toast({ title: "Decor Limit", description: `This home can only hold ${maxItems} decor items.` });
             } else {
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, flipped: false,
@@ -1707,10 +1751,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               });
             }
           } else if (imgWidth > 0) {
-            const maxOutdoorDecor = activeBundle?.maxOutdoorDecor ?? DEFAULT_OUTDOOR_DECOR_LIMIT;
+            const maxOutdoorDecor = getHouseOutdoorDecorLimit(activeBundle);
             const placedDecorCount = placedDecorRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
             if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxOutdoorDecor) {
-              toast({ title: "Decor limit reached!", description: `Your yard can hold up to ${maxOutdoorDecor} decorations outdoors.` });
+              toast({ title: "Decor Limit", description: `This home can only hold ${maxOutdoorDecor} decor items.` });
             } else {
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, flipped: false,
@@ -1988,7 +2032,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     handlePointerUp(e);
   }, [handlePointerUp]);
 
-  const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
+  const outdoorPetLimit = getHouseOutdoorPetLimit(activeBundle);
+  const outdoorDecorLimit = getHouseOutdoorDecorLimit(activeBundle);
+  const outdoorPets = pets
+    .filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null))
+    .slice(0, outdoorPetLimit);
+  const outdoorDecorCount = placedDecorRaw.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
   const outdoorPopupPet = outdoorPets.find(pet => pet.inventoryId === outdoorPopupPetId) ?? null;
   const outdoorPopupLivePosition = outdoorPopupPet && petDragLive?.inventoryId === outdoorPopupPet.inventoryId ? petDragLive : null;
 
@@ -2030,6 +2079,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         ) : null}
         <div className="absolute inset-0" style={{ zIndex: 1, background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.45) 100%)" }} />
       </div>
+
+      {!openInterior && (
+        <HomeCapacityIndicator
+          petCount={outdoorPets.length}
+          petLimit={outdoorPetLimit}
+          decorCount={outdoorDecorCount}
+          decorLimit={outdoorDecorLimit}
+        />
+      )}
 
       {/* Buildings layer */}
       {imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
@@ -2708,13 +2766,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <InteriorViewer
             url={openInterior.url}
             placedItems={interiorPlacedRaw}
-            placedPets={pets.filter(p => p.posLeft !== null && p.location === openInterior.buildingId)}
+            placedPets={pets
+              .filter(p => p.posLeft !== null && p.location === openInterior.buildingId)
+              .slice(0, getHouseBuildingPetLimit(activeBundle?.buildings.find(b => b.id === openInterior.buildingId)))}
             panStateRef={interiorPanRef}
             effects={openInterior.interiorEffects}
             darkness={openInterior.interiorDarkness}
             sunlightStrength={outdoorLighting.daylightStrength}
             offEffectIds={new Set(activeBundle?.playerLighting?.offInteriorEffectIds?.[openInterior.buildingId] ?? [])}
             onToggleLightEffect={(effect) => toggleSavedInteriorLight(openInterior.buildingId, effect)}
+            petLimit={getHouseBuildingPetLimit(activeBundle?.buildings.find(b => b.id === openInterior.buildingId))}
+            decorLimit={getHouseBuildingDecorLimit(activeBundle?.buildings.find(b => b.id === openInterior.buildingId))}
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}

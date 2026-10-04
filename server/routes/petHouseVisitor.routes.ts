@@ -1,4 +1,5 @@
 import type { Express, RequestHandler } from "express";
+import { getPetHomeOverflowInventoryIds } from "../housing/petCapacity";
 
 const PET_HOME_VISIT_REWARD_COINS = 10;
 
@@ -10,6 +11,8 @@ type PetHouseVisitorStorage = Pick<typeof import("../storage").storage,
   | "getUser"
   | "getUserInventoryWithItems"
   | "getPetHousePositions"
+  | "getActiveBundleWithBuildings"
+  | "deletePetHousePosition"
   | "getClaimedPetHouseVisitRewardPetIds"
   | "claimPetHouseVisitReward"
 >;
@@ -38,10 +41,32 @@ export function registerPetHouseVisitorRoutes(
       }
 
       const visitor = req.user as any;
-      const [inventoryRows, savedPositions] = await Promise.all([
+      const [inventoryRows, rawSavedPositions, activeBundle] = await Promise.all([
         storage.getUserInventoryWithItems(targetUser.id),
         storage.getPetHousePositions(targetUser.id),
+        storage.getActiveBundleWithBuildings(targetUser.id),
       ]);
+
+      const validPlacedPetIds = new Set(
+        inventoryRows
+          .filter((row) => row.inventory.isHatched && row.shopItem?.type === "pet")
+          .map((row) => row.inventory.id),
+      );
+      const stalePositionIds = rawSavedPositions
+        .filter((position) => !validPlacedPetIds.has(position.inventoryId))
+        .map((position) => position.inventoryId);
+      const validPositions = rawSavedPositions.filter((position) => validPlacedPetIds.has(position.inventoryId));
+      const overflowPositionIds = getPetHomeOverflowInventoryIds(validPositions, activeBundle);
+      const returnedPetIds = Array.from(new Set([...stalePositionIds, ...overflowPositionIds]));
+
+      if (returnedPetIds.length > 0) {
+        await Promise.all(
+          returnedPetIds.map((inventoryId) => storage.deletePetHousePosition(targetUser.id, inventoryId)),
+        );
+      }
+
+      const returnedSet = new Set(returnedPetIds);
+      const savedPositions = rawSavedPositions.filter((position) => !returnedSet.has(position.inventoryId));
       const posMap = new Map(
         savedPositions.map((p) => [
           p.inventoryId,
@@ -87,7 +112,11 @@ export function registerPetHouseVisitorRoutes(
           };
         });
 
-      return res.json({ username: targetUser.username, pets: hatchedPets });
+      return res.json({
+        username: targetUser.username,
+        pets: hatchedPets,
+        capacityCleanup: { returnedPets: returnedPetIds.length },
+      });
     } catch (err) {
       console.error("Get user pets error:", err);
       return res.status(500).json({ message: "Failed to get pets" });

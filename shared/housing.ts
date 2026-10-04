@@ -32,6 +32,49 @@ export const BUILDING_SIZE_CAPACITY = {
 } as const;
 
 export type BuildingSize = keyof typeof BUILDING_SIZE_CAPACITY;
+
+export function getHouseBuildingPetLimit(
+  building: { size?: unknown; maxPets?: unknown } | null | undefined,
+): number {
+  const rawOverride = building?.maxPets;
+  if (rawOverride !== null && rawOverride !== undefined && rawOverride !== "") {
+    const override = Number(rawOverride);
+    if (Number.isFinite(override) && override >= 0) return Math.floor(override);
+  }
+  const rawSize = building?.size;
+  const size: BuildingSize = isBuildingSize(rawSize) ? rawSize : "medium";
+  return BUILDING_SIZE_CAPACITY[size].pets;
+}
+
+export function getHouseBuildingDecorLimit(
+  building: { size?: unknown } | null | undefined,
+): number {
+  const rawSize = building?.size;
+  const size: BuildingSize = isBuildingSize(rawSize) ? rawSize : "medium";
+  return BUILDING_SIZE_CAPACITY[size].decor;
+}
+
+export function getHouseOutdoorPetLimit(
+  bundle: { maxOutdoorPets?: unknown } | null | undefined,
+): number {
+  const rawValue = bundle?.maxOutdoorPets;
+  if (rawValue !== null && rawValue !== undefined && rawValue !== "") {
+    const value = Number(rawValue);
+    if (Number.isFinite(value) && value >= 0) return Math.floor(value);
+  }
+  return DEFAULT_OUTDOOR_PET_LIMIT;
+}
+
+export function getHouseOutdoorDecorLimit(
+  bundle: { maxOutdoorDecor?: unknown } | null | undefined,
+): number {
+  const rawValue = bundle?.maxOutdoorDecor;
+  if (rawValue !== null && rawValue !== undefined && rawValue !== "") {
+    const value = Number(rawValue);
+    if (Number.isFinite(value) && value >= 0) return Math.floor(value);
+  }
+  return DEFAULT_OUTDOOR_DECOR_LIMIT;
+}
 export type HouseBuildingType = "building" | "mailbox";
 export type HomeSceneItemType = "decor" | "object";
 

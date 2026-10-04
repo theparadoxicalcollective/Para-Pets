@@ -43,6 +43,7 @@ function setup(options: {
   positions?: any[];
   claimedPetIds?: string[];
   claimResult?: { rewarded: boolean; coins: number } | null;
+  activeBundle?: any;
 } = {}) {
   const app = new RouteRecorder();
   const calls: any = {
@@ -51,6 +52,7 @@ function setup(options: {
     positions: [],
     claimed: [],
     claims: [],
+    deletedPositions: [],
   };
 
   const inventoryRows = [
@@ -135,6 +137,16 @@ function setup(options: {
             flipped: true,
           },
         ]) as any;
+      },
+      getActiveBundleWithBuildings: async () => options.activeBundle ?? ({
+        id: "bundle-1",
+        maxOutdoorPets: 10,
+        buildings: [
+          { id: "inside", size: "small", maxPets: 3, buildingType: "building" },
+        ],
+      } as any),
+      deletePetHousePosition: async (userId: string, inventoryId: string) => {
+        calls.deletedPositions.push([userId, inventoryId]);
       },
       getClaimedPetHouseVisitRewardPetIds: async (visitorId: string, petIds: string[], claimDay: string) => {
         calls.claimed.push([visitorId, petIds, claimDay]);
@@ -274,7 +286,50 @@ test("visitor response preserves pet fields and exposes one daily reward only fo
         visitRewardAmount: 0,
       },
     ],
+    capacityCleanup: { returnedPets: 0 },
   });
+});
+
+test("visitor load automatically returns over-limit pets to normal inventory placement state", async () => {
+  const positions = [
+    {
+      inventoryId: "pet-hatched",
+      posLeft: "24",
+      posTop: "61",
+      location: "inside",
+      scalePct: 125,
+      flipped: true,
+    },
+    {
+      inventoryId: "pet-unplaced",
+      posLeft: "55",
+      posTop: "70",
+      location: "inside",
+      scalePct: 100,
+      flipped: false,
+    },
+  ];
+  const { app, calls } = setup({
+    positions,
+    activeBundle: {
+      id: "bundle-1",
+      maxOutdoorPets: 10,
+      buildings: [
+        { id: "inside", size: "medium", maxPets: 1, buildingType: "building" },
+      ],
+    },
+  });
+
+  const res = await callGet(app);
+  assert.deepEqual(calls.deletedPositions, [["owner", "pet-unplaced"]]);
+  assert.equal(res.body.capacityCleanup.returnedPets, 1);
+
+  const kept = res.body.pets.find((pet: any) => pet.inventoryId === "pet-hatched");
+  const returned = res.body.pets.find((pet: any) => pet.inventoryId === "pet-unplaced");
+  assert.equal(kept.location, "inside");
+  assert.equal(returned.location, null);
+  assert.equal(returned.posLeft, null);
+  assert.equal(returned.visitRewardAvailable, false);
 });
 
 test("already-claimed placed pets do not show another coin cue that UTC day", async () => {

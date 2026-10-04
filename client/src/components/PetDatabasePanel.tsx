@@ -702,6 +702,47 @@ export default function PetDatabasePanel({
     },
   });
 
+  const savePartsMutation = useMutation({
+    mutationFn: async ({ form, parts }: {
+      form: "base" | "evolution";
+      parts: Array<Pick<PetTemplatePart, "id" | "posX" | "posY" | "width" | "height" | "zIndex" | "pivotX" | "pivotY" | "rotation">>;
+    }) => {
+      await Promise.all(parts.map(part =>
+        apiRequest("PATCH", `/api/admin/pet-template-parts/${part.id}`, {
+          posX: part.posX,
+          posY: part.posY,
+          width: part.width,
+          height: part.height,
+          zIndex: part.zIndex,
+          pivotX: part.pivotX,
+          pivotY: part.pivotY,
+          rotation: part.rotation ?? 0,
+        })
+      ));
+      return { form };
+    },
+    onSuccess: ({ form }) => {
+      partDraftRef.current = null;
+      setPartDraft(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
+      toast({
+        title: "Parts saved",
+        description: form === "evolution"
+          ? "Evolution pet parts saved."
+          : "Regular pet parts saved.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save pet parts",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deletePartMutation = useMutation({
     mutationFn: async (partId: string) => {
       await apiRequest("DELETE", `/api/admin/pet-template-parts/${partId}`);
@@ -2045,6 +2086,57 @@ export default function PetDatabasePanel({
         </div>
 
 
+
+        {(editorTab === "parts" || editorTab === "evolution") && !testMode && (
+          <button
+            type="button"
+            data-testid={editorTab === "evolution" ? "button-save-evolution-parts" : "button-save-regular-parts"}
+            onClick={() => {
+              if (!selectedTemplateId || viewParts.length === 0) return;
+              if (partDraftRef.current && !updatePartMutation.isPending) {
+                const draft = partDraftRef.current;
+                const draftIndex = viewParts.findIndex(part => part.id === draft.partId);
+                const snapshot = viewParts.map((part, index) =>
+                  index === draftIndex ? { ...part, ...draft } : part
+                );
+                savePartsMutation.mutate({
+                  form: editorTab === "evolution" ? "evolution" : "base",
+                  parts: snapshot,
+                });
+                return;
+              }
+              savePartsMutation.mutate({
+                form: editorTab === "evolution" ? "evolution" : "base",
+                parts: viewParts,
+              });
+            }}
+            disabled={
+              savePartsMutation.isPending
+              || updatePartMutation.isPending
+              || addPartMutation.isPending
+              || deletePartMutation.isPending
+              || viewParts.length === 0
+            }
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
+            style={{
+              background: editorTab === "evolution"
+                ? "linear-gradient(135deg, rgba(88,28,135,.92), rgba(126,34,206,.78))"
+                : "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+              border: editorTab === "evolution"
+                ? "1px solid rgba(216,180,254,.5)"
+                : "1px solid rgba(127,255,212,.4)",
+              color: editorTab === "evolution" ? "#e9d5ff" : "#7fffd4",
+              cursor: "pointer",
+            }}
+          >
+            <Save className="w-4 h-4" />
+            {savePartsMutation.isPending
+              ? "Saving Parts..."
+              : editorTab === "evolution"
+                ? "Save Evolution Parts"
+                : "Save Regular Parts"}
+          </button>
+        )}
 
         {/* Single Can-Fly toggle, sitting just above the Save button so it's
             always visible regardless of which part group is expanded. */}

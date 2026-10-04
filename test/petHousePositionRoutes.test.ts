@@ -46,6 +46,9 @@ function setup(options: {
   failSave?: boolean;
   failDeleteAll?: boolean;
   failDelete?: boolean;
+  positions?: any[];
+  maxOutdoorPets?: number;
+  building?: any;
 } = {}) {
   const app = new RouteRecorder();
   const calls: any = {
@@ -61,7 +64,7 @@ function setup(options: {
       getPetHousePositions: async (userId: string) => {
         if (options.failGet) throw new Error("boom");
         calls.get.push(userId);
-        return [
+        return options.positions ?? [
           {
             inventoryId: "pet-1",
             posLeft: "25",
@@ -72,6 +75,18 @@ function setup(options: {
           },
         ];
       },
+      getActiveBundleWithBuildings: async () => ({
+        id: "bundle-1",
+        maxOutdoorPets: options.maxOutdoorPets ?? 10,
+        buildings: [
+          options.building ?? {
+            id: "inside-building",
+            size: "small",
+            maxPets: null,
+            buildingType: "building",
+          },
+        ],
+      } as any),
       upsertPetHousePosition: async (
         userId: string,
         inventoryId: string,
@@ -218,6 +233,50 @@ test("position PATCH clamps Home pet scale and accepts flip", async () => {
     body: { posLeft: "10", posTop: "20", scalePct: 999, flipped: false },
   });
   assert.deepEqual(calls.save, [["owner", "pet-1", "10", "20", "outside", 250, false]]);
+});
+
+test("position PATCH honors legacy per-building maxPets and outdoor bundle limits", async () => {
+  const indoor = setup({
+    building: {
+      id: "inside-building",
+      size: "medium",
+      maxPets: 3,
+      buildingType: "building",
+    },
+    positions: [
+      { inventoryId: "a", posLeft: "1", posTop: "1", location: "inside-building", scalePct: 100, flipped: false },
+      { inventoryId: "b", posLeft: "2", posTop: "2", location: "inside-building", scalePct: 100, flipped: false },
+      { inventoryId: "c", posLeft: "3", posTop: "3", location: "inside-building", scalePct: 100, flipped: false },
+    ],
+  });
+  const indoorRes = await call(indoor.app, "PATCH", "/api/pet-house-positions/:inventoryId", {
+    user: { id: "owner" },
+    params: { inventoryId: "new-pet" },
+    body: { posLeft: "10", posTop: "20", location: "inside-building" },
+  });
+  assert.deepEqual(
+    [indoorRes.statusCode, indoorRes.body],
+    [409, { code: "pet_limit", message: "This home can only hold 3 pets", limit: 3 }],
+  );
+  assert.deepEqual(indoor.calls.save, []);
+
+  const outside = setup({
+    maxOutdoorPets: 2,
+    positions: [
+      { inventoryId: "a", posLeft: "1", posTop: "1", location: "outside", scalePct: 100, flipped: false },
+      { inventoryId: "b", posLeft: "2", posTop: "2", location: "outside", scalePct: 100, flipped: false },
+    ],
+  });
+  const outsideRes = await call(outside.app, "PATCH", "/api/pet-house-positions/:inventoryId", {
+    user: { id: "owner" },
+    params: { inventoryId: "new-pet" },
+    body: { posLeft: "10", posTop: "20", location: "outside" },
+  });
+  assert.deepEqual(
+    [outsideRes.statusCode, outsideRes.body],
+    [409, { code: "pet_limit", message: "This home can only hold 2 pets", limit: 2 }],
+  );
+  assert.deepEqual(outside.calls.save, []);
 });
 
 test("store-all and single-pet removal preserve ownership and response shapes", async () => {

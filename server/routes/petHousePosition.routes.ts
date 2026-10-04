@@ -1,8 +1,9 @@
 import type { Express, RequestHandler } from "express";
-import { clampPetHousePlayerScale } from "@shared/housing";
+import { clampPetHousePlayerScale, getHouseBuildingPetLimit, getHouseOutdoorPetLimit } from "@shared/housing";
 
 type PetHousePositionStorage = Pick<typeof import("../storage").storage,
   | "getPetHousePositions"
+  | "getActiveBundleWithBuildings"
   | "upsertPetHousePosition"
   | "deleteAllPetHousePositions"
   | "deletePetHousePosition"
@@ -42,19 +43,47 @@ export function registerPetHousePositionRoutes(
       if (typeof posLeft !== "string" || typeof posTop !== "string") {
         return res.status(400).json({ message: "posLeft and posTop are required strings" });
       }
-      const existing = (await storage.getPetHousePositions(user.id))
-        .find((position) => position.inventoryId === inventoryId);
+      const positions = await storage.getPetHousePositions(user.id);
+      const existing = positions.find((position) => position.inventoryId === inventoryId);
       const requestedScalePct = typeof scalePct === "number" && Number.isFinite(scalePct)
         ? scalePct
         : (existing?.scalePct ?? 100);
       const safeScalePct = clampPetHousePlayerScale(requestedScalePct);
       const safeFlipped = typeof flipped === "boolean" ? flipped : (existing?.flipped ?? false);
+      const destination = typeof location === "string" && location ? location : "outside";
+      const activeBundle = await storage.getActiveBundleWithBuildings(user.id);
+      const otherPositions = positions.filter((position) => position.inventoryId !== inventoryId);
+
+      let petLimit: number;
+      let currentCount: number;
+      if (destination === "outside") {
+        petLimit = getHouseOutdoorPetLimit(activeBundle);
+        currentCount = otherPositions.filter((position) =>
+          !position.location || position.location === "outside"
+        ).length;
+      } else {
+        const building = activeBundle?.buildings.find((candidate) => candidate.id === destination);
+        if (!building || building.buildingType === "mailbox") {
+          return res.status(400).json({ message: "Home building not found" });
+        }
+        petLimit = getHouseBuildingPetLimit(building);
+        currentCount = otherPositions.filter((position) => position.location === destination).length;
+      }
+
+      if (currentCount >= petLimit) {
+        return res.status(409).json({
+          code: "pet_limit",
+          message: `This home can only hold ${petLimit} pets`,
+          limit: petLimit,
+        });
+      }
+
       await storage.upsertPetHousePosition(
         user.id,
         inventoryId,
         posLeft,
         posTop,
-        location ?? "outside",
+        destination,
         safeScalePct,
         safeFlipped,
       );

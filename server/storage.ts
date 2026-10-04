@@ -2906,7 +2906,8 @@ export class DatabaseStorage implements IStorage {
   async getPetHousePositions(userId: string): Promise<{ inventoryId: string; posLeft: string; posTop: string; location: string; scalePct: number; flipped: boolean }[]> {
     return db.select({ inventoryId: petHousePositions.inventoryId, posLeft: petHousePositions.posLeft, posTop: petHousePositions.posTop, location: petHousePositions.location, scalePct: petHousePositions.scalePct, flipped: petHousePositions.flipped })
       .from(petHousePositions)
-      .where(eq(petHousePositions.userId, userId));
+      .where(eq(petHousePositions.userId, userId))
+      .orderBy(asc(petHousePositions.updatedAt), asc(petHousePositions.id));
   }
 
   async upsertPetHousePosition(userId: string, inventoryId: string, posLeft: string, posTop: string, location: string = "outside", scalePct: number = 100, flipped: boolean = false): Promise<void> {
