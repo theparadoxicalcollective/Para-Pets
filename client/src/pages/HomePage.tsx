@@ -600,13 +600,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // dozens of identical boosts. Keep the first owned row as the consume target
   // and combine every matching row into the quantity shown on that card. After
   // one use, the inventory refetch selects the next row when necessary.
-  const powerUpItems = (() => {
+  const stackModalItems = (predicate: (item: InventoryItem) => boolean) => {
     const stacks = new Map<string, PowerUpItem>();
     for (const inventoryItem of inventory) {
-      const isStatPowerUp = inventoryItem.type === "power_up" && inventoryItem.statBoostType !== "lvl";
-      const isEvolutionNodeSpecial = inventoryItem.type === "special" && inventoryItem.specialType === "fill_evolution_node";
-      if (!isStatPowerUp && !isEvolutionNodeSpecial) continue;
-
+      if (!predicate(inventoryItem)) continue;
       const item = toModalItem(inventoryItem);
       const existing = stacks.get(item.shopItemId);
       if (existing) {
@@ -616,7 +613,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       }
     }
     return Array.from(stacks.values());
-  })();
+  };
+
+  const powerUpItems = stackModalItems(
+    (inventoryItem) => inventoryItem.type === "power_up" && inventoryItem.statBoostType !== "lvl",
+  );
+  const powerUpSpecialItems = stackModalItems(
+    (inventoryItem) => inventoryItem.type === "special" && inventoryItem.specialType === "fill_evolution_node",
+  );
 
   const activePetForModal = activePet ?? frozenActivePetRef.current;
 
@@ -1782,6 +1786,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           petHealth={activePetForModal.petHealth ?? 1000}
           itemsRemaining={(() => { const r = activePetForModal.rarity || 1; const slotsPerLvl = r <= 2 ? 1 : r === 3 ? 2 : 3; return Math.max(0, (activePetForModal.petLevel || 1) * slotsPerLvl - (activePetForModal.itemsUsedThisLevel || 0)); })()}
           items={powerUpItems}
+          specialItems={powerUpSpecialItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           subtitle={`Drag an item onto ${activePetForModal.petNickname || activePetForModal.name} to boost their stats`}
           showBuyButton={powerUpFromQuest}
