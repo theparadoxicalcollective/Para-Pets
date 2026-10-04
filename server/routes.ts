@@ -1216,13 +1216,13 @@ export async function registerRoutes(
 
   registerPlayerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage });
 
-  registerPetHouseVisitorRoutes(app, { storage, isAuthenticate  registerInventoryReadRoutes(app, {
+  registerPetHouseVisitorRoutes(app, { storage, isAuthenticated });
+
+  registerPetHousePositionRoutes(app, { storage, isAuthenticated });
+
+  registerInventoryReadRoutes(app, {
     storage,
     isAuthenticated,
-  });
-
-n res.status(500).json({ message: "Failed to get inventory" });
-    }
   });
 
   registerInventoryManagementRoutes(app, {
