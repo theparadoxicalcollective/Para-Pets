@@ -333,9 +333,9 @@ test("legacy registry has one pet accessory registration boundary and no duplica
 
   const hatch = root.indexOf('app.post("/api/pet/:inventoryId/hatch-check"');
   const registration = root.indexOf("registerPetAccessoryRoutes(app,");
-  const powerUp = root.indexOf('app.post("/api/pet/:inventoryId/power-up"');
+  const progression = root.indexOf("registerPetProgressionItemRoutes(app,");
   assert.ok(hatch >= 0);
   assert.ok(registration > hatch);
-  assert.ok(powerUp > registration);
+  assert.ok(progression > registration);
   assert.match(root, /registerPetAccessoryRoutes\(app, \{[\s\S]{0,160}storage,[\s\S]{0,160}db,[\s\S]{0,160}isAuthenticated/);
 });
