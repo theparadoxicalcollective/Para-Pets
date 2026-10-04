@@ -498,6 +498,8 @@ export default function PetDatabasePanel({
     .filter(p => p.view === activeView)
     .map(part => partDraft?.partId === part.id ? { ...part, ...partDraft } : part)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
+  const viewEvolutionEffects = evolutionEffectsDraft.filter(effect => effect.view === activeView);
+  const selectedEvolutionEffect = evolutionEffectsDraft.find(effect => effect.id === selectedEvolutionEffectId) ?? null;
 
   const currentCostumeView = activeView === "back" ? "side" as const : "front" as const;
   const normalizedCostumeSearch = costumeSearch.trim().toLowerCase();
@@ -1194,6 +1196,64 @@ export default function PetDatabasePanel({
     const next = { ...current, ...changes, partId: selectedPart.id };
     setEditablePartDraft(next);
     updatePartMutation.mutate(next);
+  };
+
+  const updateEvolutionEffect = (effectId: string, changes: Partial<EvolutionPetEffect>) => {
+    setEvolutionEffectsDraft(current =>
+      current.map(effect => effect.id === effectId ? { ...effect, ...changes } : effect)
+    );
+    setEvolutionEffectsDirty(true);
+  };
+
+  const addEvolutionEffect = (type: EvolutionPetEffectType) => {
+    if (evolutionEffectsDraft.length >= 12) {
+      toast({ title: "Effects limit", description: "Up to 12 evolution effects can be placed on one pet." });
+      return;
+    }
+    const effect = newEvolutionEffect(type, activeView as "front" | "back");
+    setEvolutionEffectsDraft(current => [...current, effect]);
+    setSelectedEvolutionEffectId(effect.id);
+    setEvolutionEffectsDirty(true);
+  };
+
+  const removeEvolutionEffect = (effectId: string) => {
+    setEvolutionEffectsDraft(current => current.filter(effect => effect.id !== effectId));
+    setSelectedEvolutionEffectId(current => current === effectId ? null : current);
+    setEvolutionEffectsDirty(true);
+  };
+
+  const startEvolutionEffectDrag = (event: React.PointerEvent<HTMLDivElement>, effect: EvolutionPetEffect) => {
+    if (editorTool !== "effects" || saveEvolutionEffectsMutation.isPending) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedEvolutionEffectId(effect.id);
+    const pointerX = (event.clientX - rect.left) / rect.width;
+    const pointerY = (event.clientY - rect.top) / rect.height;
+    effectDragRef.current = {
+      pointerId: event.pointerId,
+      effectId: effect.id,
+      offsetX: pointerX - effect.xPct,
+      offsetY: pointerY - effect.yPct,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveEvolutionEffectDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = effectDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    event.preventDefault();
+    const xPct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width - drag.offsetX));
+    const yPct = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height - drag.offsetY));
+    updateEvolutionEffect(drag.effectId, { xPct, yPct });
+  };
+
+  const endEvolutionEffectDrag = (pointerId?: number) => {
+    if (pointerId !== undefined && effectDragRef.current?.pointerId !== pointerId) return;
+    effectDragRef.current = null;
   };
 
   const nudgeAll = useCallback(async (dx: number, dy: number) => {
