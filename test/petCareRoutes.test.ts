@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import type { RequestHandler } from "express";
-import { registerPetFeedingRoute, registerPetPettingRewardRoute } from "../server/routes/petCare.routes";
+import { registerPetFeedingRoute, registerPetGiftLoyaltyRoutes, registerPetPettingRewardRoute } from "../server/routes/petCare.routes";
 
 type Route = { method: string; path: string; handlers: RequestHandler[] };
 
@@ -67,6 +67,13 @@ function setup() {
       quantity: 2,
       isListed: false,
     },
+    "gift-1": {
+      id: "gift-1",
+      userId: "user-1",
+      shopItemId: "gift-shop",
+      quantity: 1,
+      isListed: false,
+    },
   };
 
   const storage = {
@@ -89,7 +96,8 @@ function setup() {
     getUser: async () => ({ coins: 250 }),
     getShopItem: async (id: string) => {
       if (id === "edible-shop") return { id, type: "edibles", statBoostAmount: 5, petExp: 0 };
-      if (id === "pet-shop") return { id, type: "pet" };
+      if (id === "gift-shop") return { id, type: "gift", giftPoints: 25, petExp: 0 };
+      if (id === "pet-shop") return { id, type: "pet", starRarity: 1 };
       return null;
     },
   };
@@ -104,6 +112,7 @@ function setup() {
 
   registerPetPettingRewardRoute(app as any, deps);
   registerPetFeedingRoute(app as any, deps);
+  registerPetGiftLoyaltyRoutes(app as any, deps);
 
   return { app, calls };
 }
@@ -120,7 +129,7 @@ async function call(app: RouteRecorder, path: string, req: any) {
   return res;
 }
 
-test("pet care module preserves the petting and feeding routes with authentication", () => {
+test("pet care module preserves petting, feeding, gift, and loyalty routes with authentication", () => {
   const { app } = setup();
 
   assert.deepEqual(
@@ -128,6 +137,8 @@ test("pet care module preserves the petting and feeding routes with authenticati
     [
       "POST /api/pets/:inventoryId/petting-reward",
       "POST /api/pet/:inventoryId/feed-edible",
+      "POST /api/pet/:inventoryId/give-gift",
+      "POST /api/pet/:inventoryId/claim-loyalty-reward",
     ],
   );
 
@@ -178,6 +189,31 @@ test("feeding preserves request validation and hatched-pet ownership boundary", 
   assert.deepEqual([unhatched.statusCode, unhatched.body], [400, { message: "Pet has not hatched yet" }]);
 });
 
+test("gift and loyalty routes preserve validation before value-moving mutations", async () => {
+  const { app } = setup();
+
+  const missingGift = await call(app, "/api/pet/:inventoryId/give-gift", {
+    params: { inventoryId: "pet-1" },
+    user: { id: "user-1" },
+    body: {},
+  });
+  assert.deepEqual([missingGift.statusCode, missingGift.body], [400, { message: "itemInventoryId required" }]);
+
+  const unhatchedGift = await call(app, "/api/pet/:inventoryId/give-gift", {
+    params: { inventoryId: "pet-unhatched" },
+    user: { id: "user-1" },
+    body: { itemInventoryId: "gift-1" },
+  });
+  assert.deepEqual([unhatchedGift.statusCode, unhatchedGift.body], [400, { message: "Pet has not hatched yet" }]);
+
+  const incompleteLoyalty = await call(app, "/api/pet/:inventoryId/claim-loyalty-reward", {
+    params: { inventoryId: "pet-1" },
+    user: { id: "user-1" },
+    body: {},
+  });
+  assert.deepEqual([incompleteLoyalty.statusCode, incompleteLoyalty.body], [400, { message: "Loyalty bar is not full yet" }]);
+});
+
 test("pet care source preserves mood, reward, hunger, XP, consumption, and quest rules", () => {
   const source = fs.readFileSync("server/routes/petCare.routes.ts", "utf8");
 
@@ -191,6 +227,11 @@ test("pet care source preserves mood, reward, hunger, XP, consumption, and quest
   assert.match(source, /applyPetXp\(Number\(current\.pet_level\), Number\(current\.pet_level_points\), expAdded\)/);
   assert.match(source, /tryConsumeInventoryQuantity\(tx, user\.id, itemInv\.id, quantity\)/);
   assert.match(source, /incrementQuestProgress\(user\.id, "feed_pet"\)\.catch/);
+  assert.match(source, /const loyaltyMaxMap: Record<number, number> = \{ 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 \}/);
+  assert.match(source, /tryConsumeOneFromInventory\(tx, user\.id, itemInv\.id\)/);
+  assert.match(source, /const coinRewardMap: Record<number, number> = \{ 1: 1000, 2: 1000, 3: 1500, 4: 2500, 5: 3500 \}/);
+  assert.match(source, /const xpBoostPct = starRarity >= 4 \? 20 : 10/);
+  assert.match(source, /const xpBoostUntil = new Date\(Date\.now\(\) \+ 60 \* 60 \* 1000\)/);
 });
 
 test("legacy registry keeps original pet care registration order around Molten Blocks", () => {
@@ -198,18 +239,23 @@ test("legacy registry keeps original pet care registration order around Molten B
 
   assert.doesNotMatch(root, /app\.post\("\/api\/pets\/:inventoryId\/petting-reward"/);
   assert.doesNotMatch(root, /app\.post\("\/api\/pet\/:inventoryId\/feed-edible"/);
+  assert.doesNotMatch(root, /app\.post\("\/api\/pet\/:inventoryId\/give-gift"/);
+  assert.doesNotMatch(root, /app\.post\("\/api\/pet\/:inventoryId\/claim-loyalty-reward"/);
 
   const progression = root.indexOf("registerPetProgressionItemRoutes(app");
   const petting = root.indexOf("registerPetPettingRewardRoute(app");
   const molten = root.indexOf("registerMoltenBlocksRoutes(app");
   const feeding = root.indexOf("registerPetFeedingRoute(app");
-  const gift = root.indexOf('app.post("/api/pet/:inventoryId/give-gift"');
+  const giftLoyalty = root.indexOf("registerPetGiftLoyaltyRoutes(app");
+  const defeat = root.indexOf('app.post("/api/pet/:inventoryId/world-defeat"');
 
   assert.ok(progression >= 0);
   assert.ok(petting > progression);
   assert.ok(molten > petting);
   assert.ok(feeding > molten);
-  assert.ok(gift > feeding);
+  assert.ok(giftLoyalty > feeding);
+  assert.ok(defeat > giftLoyalty);
   assert.equal(root.match(/registerPetPettingRewardRoute\(app/g)?.length, 1);
   assert.equal(root.match(/registerPetFeedingRoute\(app/g)?.length, 1);
+  assert.equal(root.match(/registerPetGiftLoyaltyRoutes\(app/g)?.length, 1);
 });
