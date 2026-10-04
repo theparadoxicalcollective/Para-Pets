@@ -6,7 +6,9 @@ import {
   sanitizeHouseOutdoorEffects,
 } from "../shared/housing";
 import {
+  HOME_OUTDOOR_AUTO_TRANSITION_MS,
   HOME_OUTDOOR_NIGHT_DARKNESS,
+  HOME_OUTDOOR_OVERRIDE_TRANSITION_MS,
   cycleHomeOutdoorLightingMode,
   getAutomaticHomeNightStrength,
   getHomeOutdoorDarkness,
@@ -27,6 +29,9 @@ test("automatic Home lighting eases through dawn and dusk using the player's loc
   assert.equal(getAutomaticHomeNightStrength(at(20)), 1);
   assert.equal(getHomeOutdoorDarkness("day", at(23)), 0);
   assert.equal(getHomeOutdoorDarkness("night", at(12)), HOME_OUTDOOR_NIGHT_DARKNESS);
+  assert.equal(getHomeOutdoorDarkness("auto", at(18, 30)), HOME_OUTDOOR_NIGHT_DARKNESS * 0.25);
+  assert.equal(HOME_OUTDOOR_AUTO_TRANSITION_MS, 30_000);
+  assert.equal(HOME_OUTDOOR_OVERRIDE_TRANSITION_MS, 280);
 });
 
 test("day-night control cycles auto to sun, moon, and back to automatic", () => {
@@ -85,7 +90,11 @@ test("owner and visitor Home yards use the owner's persisted day-night setting",
   assert.match(atmosphere, /data-lighting-mode=\{mode\}/);
   assert.match(atmosphere, /data-testid="home-day-night-planet"/);
   assert.match(atmosphere, /safeNight \* 100/);
-  assert.match(atmosphere, /mode === "auto" \? "left 30s linear"/);
+  assert.match(atmosphere, /HOME_OUTDOOR_AUTO_TRANSITION_MS/);
+  assert.match(atmosphere, /HOME_OUTDOOR_OVERRIDE_TRANSITION_MS/);
+  assert.match(atmosphere, /transitionMs = mode === "auto"/);
+  assert.match(atmosphere, /transition: `opacity \$\{transitionMs\}ms linear`/);
+  assert.match(atmosphere, /transitionMs=\{transitionMs\}/);
   assert.match(atmosphere, /<Sun /);
   assert.match(atmosphere, /<Moon /);
   assert.doesNotMatch(atmosphere, /function AutoLightingIcon/);
@@ -152,6 +161,19 @@ test("player Home lighting is stored per owned bundle instead of globally in the
   assert.match(owner, /lightingSaveQueueRef/);
   assert.match(owner, /toggleSavedInteriorLight/);
   assert.match(owner, /cycleOutdoorLighting/);
+});
+
+test("automatic darkness visually interpolates instead of stepping between clock samples", () => {
+  const effects = read("client/src/components/HomeInteriorEffect.tsx");
+  const lighting = read("client/src/lib/homeOutdoorLighting.ts");
+  const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
+
+  assert.doesNotMatch(lighting, /Math\.round\(getHomeOutdoorNightStrength/);
+  assert.match(effects, /transitionMs = 260/);
+  assert.match(effects, /fillOpacity: safeDarkness \/ 100/);
+  assert.match(effects, /transition: `fill-opacity \$\{transitionMs\}ms linear`/);
+  assert.match(effects, /transition: `background \$\{transitionMs\}ms linear`/);
+  assert.match(atmosphere, /transitionMs=\{transitionMs\}/);
 });
 
 test("full nighttime uses a darker maximum and stronger tint than the original implementation", () => {
