@@ -250,7 +250,8 @@ function LampLightVisual() {
       data-testid="home-lamp-light-visual"
       style={{
         position: "absolute",
-        inset: "-32% -42% -48%",
+        inset: "-38%",
+        borderRadius: "50%",
         animation: "para-home-glow-pulse 2.7s ease-in-out infinite",
         pointerEvents: "none",
       }}
@@ -259,31 +260,26 @@ function LampLightVisual() {
         data-testid="home-lamp-light-diffusion"
         style={{
           position: "absolute",
-          left: "8%",
-          right: "8%",
-          top: "6%",
-          bottom: "0%",
-          borderRadius: "48% 48% 58% 58% / 38% 38% 68% 68%",
+          inset: "2%",
+          borderRadius: "50%",
           background:
-            "radial-gradient(ellipse at 50% 31%, rgba(255,239,164,0.34) 0%, rgba(255,211,96,0.23) 24%, rgba(255,177,57,0.11) 48%, rgba(255,145,40,0.035) 66%, transparent 82%)",
-          filter: "blur(5.5px)",
+            "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.25) 0%, rgba(255,219,126,0.20) 24%, rgba(255,183,74,0.11) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
+          filter: "blur(6px)",
           mixBlendMode: "screen",
           opacity: 0.9,
         }}
       />
       <div
+        data-testid="home-lamp-light-halo"
         style={{
           position: "absolute",
-          left: "24%",
-          right: "24%",
-          top: "18%",
-          height: "62%",
-          borderRadius: "48% 48% 62% 62% / 38% 38% 72% 72%",
+          inset: "22%",
+          borderRadius: "50%",
           background:
-            "radial-gradient(ellipse at 50% 27%, rgba(255,246,192,0.46) 0%, rgba(255,219,119,0.30) 28%, rgba(255,181,64,0.12) 54%, transparent 78%)",
-          filter: "blur(3.2px)",
+            "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.30) 0%, rgba(255,224,143,0.22) 32%, rgba(255,188,80,0.09) 62%, transparent 86%)",
+          filter: "blur(4px)",
           mixBlendMode: "screen",
-          opacity: 0.88,
+          opacity: 0.78,
         }}
       />
       <div
@@ -291,16 +287,16 @@ function LampLightVisual() {
         style={{
           position: "absolute",
           left: "50%",
-          top: "35%",
-          width: "20%",
-          height: "28%",
-          borderRadius: "46% 46% 58% 58% / 42% 42% 66% 66%",
+          top: "50%",
+          width: "16%",
+          height: "16%",
+          borderRadius: "50%",
           transform: "translate(-50%, -50%)",
           background:
-            "radial-gradient(ellipse at 50% 38%, rgba(255,253,224,0.78) 0%, rgba(255,231,151,0.68) 30%, rgba(255,196,85,0.34) 62%, rgba(255,164,55,0.08) 84%, transparent 100%)",
-          boxShadow: "0 0 6px rgba(255,237,168,0.5), 0 0 13px rgba(255,194,73,0.28)",
-          filter: "blur(1.2px)",
-          opacity: 0.82,
+            "radial-gradient(circle, rgba(255,253,229,0.58) 0%, rgba(255,236,174,0.44) 34%, rgba(255,202,103,0.18) 68%, transparent 100%)",
+          boxShadow: "0 0 7px rgba(255,232,159,0.34), 0 0 15px rgba(255,193,82,0.16)",
+          filter: "blur(2px)",
+          opacity: 0.68,
           mixBlendMode: "screen",
         }}
       />
