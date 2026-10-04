@@ -17,7 +17,7 @@ test("front legs cover the body seam while side back legs remain behind", () => 
 
 test("multi-head grouping and layers are canonical", () => {
   assert.equal(isHeadGroupPart("h3_left_ear_2"), true);
-  assert.ok(getEffectivePetLayer({ partType: "h2_eyes", zIndex: 100 }) < getEffectivePetLayer({ partType: "body", zIndex: 0 }));
+  assert.ok(getEffectivePetLayer({ partType: "h2_eyes", zIndex: 100 }) > getEffectivePetLayer({ partType: "body", zIndex: 0 }));
 });
 
 test("legacy profiles and padded PNG pivots normalize safely", () => {
