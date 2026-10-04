@@ -1860,7 +1860,23 @@ export default function PetDatabasePanel({
 
 
         {!testMode && <div className="pet-editor-tool-tabs" role="group" aria-label="Pet editor tools">
-          {([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes']] as const).map(([tool, label]) => <button key={tool} type="button" aria-pressed={editorTool === tool} onClick={() => setEditorTool(tool)}>{label}</button>)}
+          {(editorTab === "evolution"
+            ? ([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes'], ['effects', 'Effects']] as const)
+            : ([['parts', 'Parts'], ['placement', 'Pet placement'], ['eyes', 'X X eyes']] as const)
+          ).map(([tool, label]) => (
+            <button
+              key={tool}
+              type="button"
+              aria-pressed={editorTool === tool}
+              onClick={() => {
+                setEditorTool(tool);
+                if (tool !== "parts") setSelectedPartId(null);
+                if (tool !== "effects") setSelectedEvolutionEffectId(null);
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>}
 
         {/* Direct manipulation canvas — click a visible part, then drag it into place. */}
@@ -1878,9 +1894,18 @@ export default function PetDatabasePanel({
             isolation: "isolate",
           }}
           onClick={editorTool === "parts" ? handleCanvasClick : undefined}
-          onPointerMove={movePartDrag}
-          onPointerUp={(event) => endPartDrag(event.pointerId)}
-          onPointerCancel={(event) => endPartDrag(event.pointerId)}
+          onPointerMove={(event) => {
+            if (editorTool === "effects") moveEvolutionEffectDrag(event);
+            else movePartDrag(event);
+          }}
+          onPointerUp={(event) => {
+            if (editorTool === "effects") endEvolutionEffectDrag(event.pointerId);
+            else endPartDrag(event.pointerId);
+          }}
+          onPointerCancel={(event) => {
+            if (editorTool === "effects") endEvolutionEffectDrag(event.pointerId);
+            else endPartDrag(event.pointerId);
+          }}
         >
           <div
             data-testid="pet-part-center-guide-horizontal"
@@ -1942,6 +1967,43 @@ export default function PetDatabasePanel({
                     >
                       {part.partType}
                     </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {editorTab === "evolution" && viewEvolutionEffects.map(effect => {
+              const selected = editorTool === "effects" && effect.id === selectedEvolutionEffectId;
+              return (
+                <div
+                  key={effect.id}
+                  data-testid={`evolution-effect-${effect.id}`}
+                  className="absolute"
+                  style={{
+                    left: `${effect.xPct * 100}%`,
+                    top: `${effect.yPct * 100}%`,
+                    width: `${effect.sizePct}%`,
+                    aspectRatio: "1",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 31000,
+                    pointerEvents: editorTool === "effects" ? "auto" : "none",
+                    touchAction: "none",
+                    cursor: editorTool === "effects" ? "grab" : "default",
+                    outline: selected ? "2px solid rgba(192,132,252,.95)" : "none",
+                    outlineOffset: "3px",
+                    borderRadius: "50%",
+                  }}
+                  onPointerDown={editorTool === "effects" ? (event) => startEvolutionEffectDrag(event, effect) : undefined}
+                  onLostPointerCapture={editorTool === "effects" ? (event) => endEvolutionEffectDrag(event.pointerId) : undefined}
+                >
+                  <EvolutionPetEffectVisual effect={effect} animated />
+                  {selected && (
+                    <span
+                      className="absolute left-1/2 -top-6 -translate-x-1/2 rounded px-2 py-0.5 font-fantasy text-[8px] tracking-wider whitespace-nowrap"
+                      style={{ background: "rgba(126,34,206,.92)", color: "#f3e8ff", pointerEvents: "none" }}
+                    >
+                      {effect.type.replace("_", " ")}
+                    </span>
                   )}
                 </div>
               );
