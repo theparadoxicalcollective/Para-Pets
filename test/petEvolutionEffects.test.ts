@@ -47,7 +47,9 @@ test("Evolution Parts editor exposes an Effects tool with drag, color, size, and
 
   assert.match(source, /\['effects', 'Effects'\]/);
   assert.ok(source.includes('data-testid={`button-add-evolution-effect-${type}`}'));
-  assert.match(source, /\["sparkle", "smoke", "light_ball"\]/);
+  assert.ok(source.includes('["sparkle", "Sparkle"]'));
+  assert.ok(source.includes('["smoke", "Smoke"]'));
+  assert.ok(source.includes('["light_ball", "Light Ball"]'));
   assert.match(source, /input-evolution-effect-color/);
   assert.match(source, /input-evolution-effect-size/);
   assert.match(source, /button-save-evolution-effects/);
