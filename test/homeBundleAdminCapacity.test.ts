@@ -44,11 +44,14 @@ test("player and visitor homes use explicit mailbox metadata while retaining leg
   assert.match(visitor, /!b\.buildingType/);
 });
 
-test("Pet House placement UI uses bundle outdoor limits and shared building capacities", () => {
+test("Pet House placement UI uses shared capacity resolvers and preserves per-building overrides", () => {
   const source = read("client/src/pages/PetHousePage.tsx");
+  const shared = read("shared/housing.ts");
 
-  assert.match(source, /activeBundle\?\.maxOutdoorPets \?\? DEFAULT_OUTDOOR_PET_LIMIT/);
-  assert.match(source, /activeBundle\?\.maxOutdoorDecor \?\? DEFAULT_OUTDOOR_DECOR_LIMIT/);
-  assert.match(source, /BUILDING_SIZE_CAPACITY\[building\.size\]\.pets/);
-  assert.match(source, /BUILDING_SIZE_CAPACITY\[building\.size\]\.decor/);
+  assert.match(source, /getHouseOutdoorPetLimit\(activeBundle\)/);
+  assert.match(source, /getHouseOutdoorDecorLimit\(activeBundle\)/);
+  assert.match(source, /getHouseBuildingPetLimit\(building\)/);
+  assert.match(source, /getHouseBuildingDecorLimit\(building\)/);
+  assert.match(shared, /getHouseBuildingPetLimit/);
+  assert.match(shared, /building\?\.maxPets/);
 });
