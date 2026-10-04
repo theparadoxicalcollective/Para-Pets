@@ -1187,15 +1187,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     outdoorLightingSessionRef.current.mode = "auto";
     setCachedOutdoorMode("auto");
 
-    // Keep this request independent from component lifetime so SPA navigation
-    // or a browser/app reload cannot leave a temporary Day/Night override saved.
-    void fetch(`/api/house-bundles/${bundleId}/player-lighting`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ outdoorMode: "auto" }),
-      credentials: "include",
-      keepalive: true,
-    }).catch(() => undefined);
+    // Queue Auto after any in-flight manual Day/Night save. Without this ordering,
+    // leaving immediately after tapping the toggle could let the older manual
+    // PATCH arrive after the reset and make the Home look stuck on Day/Night.
+    lightingSaveQueueRef.current = lightingSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await fetch(`/api/house-bundles/${bundleId}/player-lighting`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outdoorMode: "auto" }),
+          credentials: "include",
+          keepalive: true,
+        });
+      })
+      .catch(() => undefined);
   }, [setCachedOutdoorMode]);
 
   // Manual Day/Night is visit-scoped. If an older session closed before its
