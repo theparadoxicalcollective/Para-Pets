@@ -69,6 +69,14 @@ test("Decor and Objects require double-tap edit mode before moving, while pets r
   assert.match(owner, /HOME_EDIT_DRAG_THRESHOLD_PX/);
 });
 
+test("Home item edit selection stays invisible while controls remain available", () => {
+  assert.match(asset, /showSelectionVisual\?: boolean/);
+  assert.match(asset, /interactionPadding\?: number/);
+  assert.match(asset, /selected && showSelectionVisual/);
+  assert.match(owner, /showSelectionVisual=\{false\}/);
+  assert.equal((owner.match(/interactionPadding=\{14\}/g) ?? []).length, 2);
+});
+
 test("only visible artwork receives Home item pointer interaction", () => {
   assert.match(asset, /data-testid="home-scene-visible-hit-target"/);
   assert.match(asset, /pointerEvents: "none"/);
