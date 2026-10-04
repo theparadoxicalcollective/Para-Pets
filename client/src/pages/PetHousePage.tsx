@@ -2200,6 +2200,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
+            transitionMs={outdoorLighting.transitionMs}
             zIndex={20}
           />
           <HomeInteriorEffectsLayer
