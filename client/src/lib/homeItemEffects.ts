@@ -84,6 +84,17 @@ export function buildHomeLampItemEffects(
     .map(item => buildAttachedEffect(item, "lamp_light", sceneHeight, imageWidth, "home-item-lamp"));
 }
 
+export function broadenHomeAttachedLampIllumination(
+  effects: readonly HouseInteriorEffect[],
+): HouseInteriorEffect[] {
+  return effects.map(effect => effect.type === "lamp_light" ? {
+    ...effect,
+    // Keep the visible lamp glow authored by Admin unchanged, but let its
+    // illumination reach a little farther into the surrounding room/yard.
+    size: Math.max(effect.size, Math.min(40, effect.size * 1.28)),
+  } : effect);
+}
+
 export function buildHomeSleepDecorEffects(
   items: readonly HomeEffectPlacement[],
   sceneHeight: number,
