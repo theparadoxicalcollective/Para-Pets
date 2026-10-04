@@ -441,6 +441,16 @@ export default function PetDatabasePanel({
     enabled: !!selectedTemplateId,
   });
 
+  useEffect(() => {
+    if (!templateDetail) return;
+    const next = templateDetail.evolutionEffects ?? [];
+    setEvolutionEffectsDraft(next);
+    setSelectedEvolutionEffectId(current =>
+      current && next.some(effect => effect.id === current) ? current : null
+    );
+    setEvolutionEffectsDirty(false);
+  }, [templateDetail?.id]);
+
   const { data: costumeItems = [], isPending: costumeItemsLoading, isError: costumeItemsError, refetch: refetchCostumeItems } = useQuery<CostumeItem[]>({
     queryKey: ["/api/admin/costumes"],
     // Costume media is intentionally lazy: the normal parts editor should not
