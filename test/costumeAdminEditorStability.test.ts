@@ -88,7 +88,7 @@ test("costume controls cannot change the draft while a save is pending", () => {
   assert.match(editor, /if \(!selectedCostumeId \|\| saveCostumeMutation\.isPending\) return/);
   assert.match(editor, /disabled=\{saveCostumeMutation\.isPending\}/);
   assert.match(editor, /if \(saveCostumeMutation\.isPending \|\| itemId === selectedCostumeId\) return/);
-  assert.match(editor, /if \(saveCostumeMutation\.isPending \|\| tab === editorTab\) return/);
+  assert.match(editor, /if \(saveCostumeMutation\.isPending \|\| saveEvolutionEffectsMutation\.isPending \|\| tab === editorTab\) return/);
 });
 
 test("adornment fitter no longer exposes Don't Move as a placement toggle", () => {
