@@ -140,7 +140,6 @@ const BUILDING_REF_H = 900;
 // Space (in CSS px) reserved at the bottom of the scene so pets & decor
 // cannot be dragged behind the bottom inventory toolbar.
 const BOTTOM_TOOLBAR_RESERVE_PX = 140;
-const NO_OUTDOOR_EFFECT_IDS: ReadonlySet<string> = new Set();
 
 // Clamp helper for Y drag limits — reserves the bottom toolbar area.
 // ── Care wreath popup ────────────────────────────────────────────────────────
@@ -1978,17 +1977,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const left = panX + xPct * imgWidth;
         const top = yPct * containerH;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
-        const imageAspect = imgWidth / Math.max(containerH, 1);
-        const petDarkness = getHouseInteriorPointDarkness(
-          outdoorLighting.darkness,
-          outdoorLightEffects,
-          NO_OUTDOOR_EFFECT_IDS,
-          xPct,
-          yPct,
-          imageAspect,
-          outdoorLighting.daylightStrength,
-        );
-        const petBrightness = (100 - petDarkness) / 100;
         const isSelectedPet = outdoorPopupPetId === pet.inventoryId;
         const isSleeping = !isDraggingThis && isHouseInteriorSleepPosition(
           outdoorSleepDecorEffects,
@@ -2000,7 +1988,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet ? 180 : (isDraggingThis ? 90 : (topOutdoorPetId === pet.inventoryId ? 30 : 12)), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelectedPet || isDraggingThis ? 19 : (topOutdoorPetId === pet.inventoryId ? 18 : 12), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <div
               data-testid={`home-pet-visible-scale-${pet.inventoryId}`}
@@ -2015,7 +2003,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   fillContainer
                   fitVisible
                   className={isDraggingThis ? undefined : "pet-idle-squish"}
-                  style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 120ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
                 <img
@@ -2023,7 +2011,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
                   className={isDraggingThis ? undefined : "pet-idle-squish"}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 120ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
               {isSleeping && <PetSleepZzz />}
