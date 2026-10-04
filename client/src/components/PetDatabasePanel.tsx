@@ -290,11 +290,12 @@ const ALL_PART_DEFS: PartDef[] = [
 
 const CANVAS_SIZE = 1000;
 
-const newEvolutionEffect = (type: EvolutionPetEffectType): EvolutionPetEffect => ({
+const newEvolutionEffect = (type: EvolutionPetEffectType, view: "front" | "back"): EvolutionPetEffect => ({
   id: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
     : `effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   type,
+  view,
   xPct: 0.5,
   yPct: 0.45,
   sizePct: type === "smoke" ? 34 : type === "light_ball" ? 22 : 28,
