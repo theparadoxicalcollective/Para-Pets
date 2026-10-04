@@ -4,7 +4,7 @@ import test from "node:test";
 
 const startup = readFileSync("server/startup/runStartup.ts", "utf8");
 const repair = readFileSync("server/startup/migrations/repairAccessoryEquipmentIntegrity.ts", "utf8");
-const routes = readFileSync("server/routes.ts", "utf8");
+const accessoryRoutes = readFileSync("server/routes/petAccessory.routes.ts", "utf8");
 
 test("accessory integrity repair runs before any inventory routes are registered", () => {
   assert.match(startup, /await runEssentialBoot\(\);[\s\S]*?await repairAccessoryEquipmentIntegrity\(\);[\s\S]*?await registerRoutes/);
@@ -32,8 +32,8 @@ test("database prevents one accessory copy or pet slot from being equipped twice
 });
 
 test("current accessory API still rejects cross-pet reuse and global bag filtering reads equipment ids", () => {
-  assert.match(routes, /app\.get\("\/api\/user\/equipped-accessory-ids"/);
-  assert.match(routes, /SELECT pea\.accessory_inventory_id AS id[\s\S]*?WHERE ui\.user_id = \$\{user\.id\}/);
-  assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
-  assert.match(routes, /That accessory is already equipped to a pet/);
+  assert.match(accessoryRoutes, /app\.get\("\/api\/user\/equipped-accessory-ids"/);
+  assert.match(accessoryRoutes, /SELECT pea\.accessory_inventory_id AS id[\s\S]*?WHERE ui\.user_id = \$\{user\.id\}/);
+  assert.match(accessoryRoutes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
+  assert.match(accessoryRoutes, /That accessory is already equipped to a pet/);
 });
