@@ -46,7 +46,7 @@ test("Evolution Parts editor exposes an Effects tool with drag, color, size, and
   const source = read("client/src/components/PetDatabasePanel.tsx");
 
   assert.match(source, /\['effects', 'Effects'\]/);
-  assert.match(source, /data-testid={`button-add-evolution-effect-${type}`}/);
+  assert.ok(source.includes('data-testid={`button-add-evolution-effect-${type}`}'));
   assert.match(source, /\["sparkle", "smoke", "light_ball"\]/);
   assert.match(source, /input-evolution-effect-color/);
   assert.match(source, /input-evolution-effect-size/);
