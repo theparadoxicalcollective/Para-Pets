@@ -212,11 +212,11 @@ test("accessory reads preserve global equipped-id, public pet, and owner-only pe
   });
   assert.deepEqual(ownedRead.body, { equipped: [], extraSlots: 1 });
 
-  const чужой = await call(app, "GET", "/api/pet/:inventoryId/accessories", {
+  const foreignPet = await call(app, "GET", "/api/pet/:inventoryId/accessories", {
     params: { inventoryId: "pet-other" },
     user: { id: "user-1" },
   });
-  assert.deepEqual([чужой.statusCode, чужой.body], [404, { message: "Pet not found" }]);
+  assert.deepEqual([foreignPet.statusCode, foreignPet.body], [404, { message: "Pet not found" }]);
 });
 
 test("equip preserves ownership, slot count, duplicate protection, and stat gains", async () => {
