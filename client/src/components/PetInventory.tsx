@@ -1163,6 +1163,9 @@ function getItemDescription(item: InventoryItem): string {
   if (item.specialType === "level" && item.specialAmount) {
     parts.push(`Grants ${item.specialAmount} level point${item.specialAmount > 1 ? "s" : ""} to your pet.`);
   }
+  if (item.specialType === "fill_evolution_node") {
+    parts.push("Completely fills the evolution node your pet is currently working on.");
+  }
   if (parts.length === 0) {
     if (item.type === "potion") parts.push("A mystical potion for your pet.");
     else if (item.type === "accessory") parts.push("An accessory for your pet.");
@@ -1196,6 +1199,12 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
     return {
       where: "Pet Companions tab",
       how: "Tap any hatched pet and apply this to grant them instant level points!",
+    };
+  }
+  if (item.type === "special" && item.specialType === "fill_evolution_node") {
+    return {
+      where: "Power Up page",
+      how: "Open your active pet's Power Up page and drag this special item onto the pet to completely fill its current evolution node.",
     };
   }
   if (item.type === "special" && item.specialType === "pvp_ticket") {
