@@ -43,6 +43,7 @@ interface EquippedAccessory {
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H = 900;
+const NO_OUTDOOR_EFFECT_IDS: ReadonlySet<string> = new Set();
 
 const RARITY_LABEL: Record<number, string> = { 1: "Common", 2: "Uncommon", 3: "Rare", 4: "Epic", 5: "Legendary" };
 const RARITY_COLOR: Record<number, string> = { 1: "#a89878", 2: "#6dbf6d", 3: "#5ba3e0", 4: "#c373f5", 5: "#ffd700" };
@@ -809,6 +810,17 @@ export default function VisitPetHousePage() {
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
         const yPct = parsePetPct(pet.posTop) ?? cfg.centerY / 100;
         const petScale = clampPetHousePlayerScale(pet.homeScalePct ?? 100) / 100;
+        const imageAspect = imgWidth / Math.max(containerH, 1);
+        const petDarkness = getHouseInteriorPointDarkness(
+          outdoorLighting.darkness,
+          outdoorLightEffects,
+          NO_OUTDOOR_EFFECT_IDS,
+          xPct,
+          yPct,
+          imageAspect,
+          outdoorLighting.daylightStrength,
+        );
+        const petBrightness = (100 - petDarkness) / 100;
         const isRewardReacting = reactingPetId === pet.inventoryId;
         const isSleeping = isHouseInteriorSleepPosition(
           outdoorSleepDecorEffects,
@@ -844,7 +856,7 @@ export default function VisitPetHousePage() {
                   fillContainer
                   fitVisible
                   className="pet-idle-squish"
-                  style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 180ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
                 <img
@@ -852,7 +864,7 @@ export default function VisitPetHousePage() {
                   alt={pet.nickname ?? pet.name}
                   draggable={false}
                   className="pet-idle-squish"
-                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 180ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
                 />
               ) : null}
               {isSleeping && <PetSleepZzz />}
