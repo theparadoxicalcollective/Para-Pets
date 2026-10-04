@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  broadenHomeAttachedLampIllumination,
   buildHomeLampItemEffects,
   buildHomeSleepDecorEffects,
   getHomeItemDisplayImage,
@@ -88,6 +89,19 @@ test("placed Lamp Light follows either an Object or Decor and Tap Image Objects 
 
   const visitorOverride = buildHomeLampItemEffects([lamp], 800, () => true);
   assert.equal(visitorOverride.length, 1);
+});
+
+test("attached Lamp Light keeps its visible size but gets a slightly broader lighting footprint", () => {
+  const lamp = placement("lamp-copy", "decor", "lamp_light", true);
+  const [visible] = buildHomeLampItemEffects([lamp], 800, undefined, 1200);
+  const [illumination] = broadenHomeAttachedLampIllumination([visible]);
+
+  assert.equal(illumination.id, visible.id);
+  assert.equal(illumination.x, visible.x);
+  assert.equal(illumination.y, visible.y);
+  assert.ok(illumination.size > visible.size);
+  assert.ok(illumination.size <= 40);
+  assert.equal(visible.size, buildHomeLampItemEffects([lamp], 800, undefined, 1200)[0].size);
 });
 
 test("Tap Image Objects alternate between catalog artwork without changing placement geometry", () => {
@@ -199,6 +213,21 @@ test("Sleep Decor augments pet drop and sleep rendering without replacing buildi
   assert.match(visitor, /buildHomeSleepDecorEffects\(placedItems, containerH, imgWidth\)/);
   assert.match(visitor, /buildHomeSleepDecorEffects\(outdoorDecor, containerH, imgWidth\)/);
   assert.match(visitor, /isHouseInteriorSleepPosition\([\s\S]{0,120}outdoorSleepDecorEffects/);
+});
+
+test("owner and visitor darkness layers use the broader attached-lamp illumination footprint", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.match(owner, /broadenHomeAttachedLampIllumination\(itemLampEffects\)/);
+  assert.match(owner, /broadenHomeAttachedLampIllumination\(outdoorLampEffects\)/);
+  assert.match(owner, /roomLightEffects[\s\S]{0,180}itemLampIlluminationEffects/);
+  assert.match(owner, /outdoorLightEffects[\s\S]{0,220}outdoorLampIlluminationEffects/);
+
+  assert.match(visitor, /broadenHomeAttachedLampIllumination\(itemLampEffects\)/);
+  assert.match(visitor, /broadenHomeAttachedLampIllumination\(outdoorLampEffects\)/);
+  assert.match(visitor, /roomLightEffects[\s\S]{0,180}itemLampIlluminationEffects/);
+  assert.match(visitor, /outdoorLightEffects[\s\S]{0,220}outdoorLampIlluminationEffects/);
 });
 
 test("attached Lamp Light renders in front of placed Home artwork for owners and visitors", () => {
