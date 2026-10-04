@@ -4,6 +4,7 @@ export type EvolutionPetEffectType = typeof EVOLUTION_PET_EFFECT_TYPES[number];
 export interface EvolutionPetEffect {
   id: string;
   type: EvolutionPetEffectType;
+  view: "front" | "back";
   xPct: number;
   yPct: number;
   sizePct: number;
@@ -34,11 +35,12 @@ export function sanitizeEvolutionPetEffects(value: unknown): EvolutionPetEffect[
     const id = typeof candidate.id === "string" && candidate.id.trim()
       ? candidate.id.trim().slice(0, 80)
       : `effect-${effects.length + 1}`;
+    const view = candidate.view === "back" ? "back" : "front";
     const xPct = Math.max(0, Math.min(1, Number(candidate.xPct) || 0.5));
     const yPct = Math.max(0, Math.min(1, Number(candidate.yPct) || 0.5));
     const sizePct = Math.max(6, Math.min(80, Number(candidate.sizePct) || (type === "smoke" ? 34 : 24)));
 
-    const effect: EvolutionPetEffect = { id, type, xPct, yPct, sizePct };
+    const effect: EvolutionPetEffect = { id, type, view, xPct, yPct, sizePct };
     if (type !== "smoke") {
       effect.color = typeof candidate.color === "string" && COLOR_RE.test(candidate.color)
         ? candidate.color
