@@ -778,6 +778,34 @@ export default function PetDatabasePanel({
     },
   });
 
+  const saveEvolutionEffectsMutation = useMutation({
+    mutationFn: async (effects: EvolutionPetEffect[]) => {
+      if (!selectedTemplateId) throw new Error("No pet template selected");
+      const res = await apiRequest("PUT", `/api/admin/pet-templates/${selectedTemplateId}/evolution-effects`, { effects });
+      return res.json() as Promise<{ effects: EvolutionPetEffect[] }>;
+    },
+    onSuccess: ({ effects }) => {
+      setEvolutionEffectsDraft(effects);
+      setEvolutionEffectsDirty(false);
+      setSelectedEvolutionEffectId(current =>
+        current && effects.some(effect => effect.id === current) ? current : null
+      );
+      queryClient.setQueryData<PetTemplateWithParts>(
+        ["/api/admin/pet-templates", selectedTemplateId],
+        current => current ? { ...current, evolutionEffects: effects } : current,
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId, "evolution"] });
+      toast({ title: "Effects saved", description: "Evolution pet effects saved." });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Could not save effects",
+        description: error.message || "Failed to save evolution effects",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deletePartMutation = useMutation({
     mutationFn: async (partId: string) => {
       await apiRequest("DELETE", `/api/admin/pet-template-parts/${partId}`);
