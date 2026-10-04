@@ -2015,6 +2015,148 @@ export default function PetDatabasePanel({
         </div>
         <div ref={setPlacementControls} className="pet-editor-tool-controls" />
         <div ref={setEyeControls} className="pet-editor-tool-controls" />
+
+        {editorTab === "evolution" && editorTool === "effects" && !testMode && (
+          <section
+            data-testid="evolution-effects-menu"
+            className="rounded-xl p-3 space-y-3"
+            style={{
+              background: "linear-gradient(180deg, rgba(126,34,206,.10), rgba(0,0,0,.24))",
+              border: "1px solid rgba(192,132,252,.32)",
+            }}
+          >
+            <div>
+              <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "#c084fc" }}>EVOLUTION EFFECTS</p>
+              <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>
+                Add an effect, then drag it directly over the evolved pet on the canvas to place it.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ["sparkle", "Sparkle"],
+                ["smoke", "Smoke"],
+                ["light_ball", "Light Ball"],
+              ] as const).map(([type, label]) => (
+                <button
+                  key={type}
+                  type="button"
+                  data-testid={`button-add-evolution-effect-${type}`}
+                  onClick={() => addEvolutionEffect(type)}
+                  disabled={evolutionEffectsDraft.length >= 12}
+                  className="rounded-lg px-2 py-2 font-fantasy text-[9px] tracking-wider disabled:opacity-40"
+                  style={{
+                    background: "rgba(192,132,252,.12)",
+                    border: "1px solid rgba(192,132,252,.32)",
+                    color: "#e9d5ff",
+                  }}
+                >
+                  + {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between text-[9px]" style={{ color: "#806f8f" }}>
+              <span>{viewEvolutionEffects.length} effect{viewEvolutionEffects.length === 1 ? "" : "s"} on this view</span>
+              <span>{evolutionEffectsDraft.length}/12 total</span>
+            </div>
+
+            {selectedEvolutionEffect && selectedEvolutionEffect.view === activeView ? (
+              <div
+                data-testid="selected-evolution-effect-controls"
+                className="rounded-lg p-3 space-y-3"
+                style={{ background: "rgba(0,0,0,.24)", border: "1px solid rgba(192,132,252,.24)" }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-fantasy text-[9px] uppercase tracking-wider" style={{ color: "#e9d5ff" }}>
+                      {selectedEvolutionEffect.type.replace("_", " ")}
+                    </p>
+                    <p className="mt-0.5 text-[9px]" style={{ color: "#806f8f" }}>Drag the effect on the pet canvas to reposition it.</p>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="button-remove-evolution-effect"
+                    onClick={() => removeEvolutionEffect(selectedEvolutionEffect.id)}
+                    className="grid h-8 w-8 place-items-center rounded-full"
+                    style={{ background: "rgba(220,38,38,.2)", border: "1px solid rgba(248,113,113,.35)", color: "#fca5a5" }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {selectedEvolutionEffect.type !== "smoke" && (
+                  <label className="flex items-center justify-between gap-3 text-[10px]" style={{ color: "#a89878" }}>
+                    <span>
+                      Color
+                      <span className="block text-[8px]" style={{ color: "#6f617a" }}>Sparkle/glow tint</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <input
+                        data-testid="input-evolution-effect-color"
+                        type="color"
+                        value={selectedEvolutionEffect.color ?? DEFAULT_EVOLUTION_EFFECT_COLOR[selectedEvolutionEffect.type]}
+                        onChange={(event) => updateEvolutionEffect(selectedEvolutionEffect.id, { color: event.target.value })}
+                        className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
+                        aria-label="Evolution effect color"
+                      />
+                      <span className="font-mono text-[9px]" style={{ color: "#e9d5ff" }}>
+                        {selectedEvolutionEffect.color ?? DEFAULT_EVOLUTION_EFFECT_COLOR[selectedEvolutionEffect.type]}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-[10px]">
+                    <span style={{ color: "#a89878" }}>Effect size</span>
+                    <span style={{ color: "#e9d5ff" }}>{Math.round(selectedEvolutionEffect.sizePct)}%</span>
+                  </div>
+                  <input
+                    data-testid="input-evolution-effect-size"
+                    type="range"
+                    min={6}
+                    max={80}
+                    step={1}
+                    value={selectedEvolutionEffect.sizePct}
+                    onChange={(event) => updateEvolutionEffect(selectedEvolutionEffect.id, { sizePct: Number(event.target.value) })}
+                    className="block w-full"
+                    style={{ accentColor: "#c084fc" }}
+                  />
+                </div>
+
+                <div className="text-[9px]" style={{ color: "#806f8f" }}>
+                  Position: {Math.round(selectedEvolutionEffect.xPct * 100)}%, {Math.round(selectedEvolutionEffect.yPct * 100)}%
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg px-3 py-2 text-[9px]" style={{ background: "rgba(0,0,0,.18)", color: "#806f8f" }}>
+                Add an effect or tap one on the canvas to edit its color, size, and placement.
+              </p>
+            )}
+
+            <button
+              type="button"
+              data-testid="button-save-evolution-effects"
+              onClick={() => saveEvolutionEffectsMutation.mutate(evolutionEffectsDraft)}
+              disabled={!evolutionEffectsDirty || saveEvolutionEffectsMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 font-fantasy text-xs tracking-wider disabled:opacity-45"
+              style={{
+                background: "linear-gradient(135deg, rgba(88,28,135,.95), rgba(126,34,206,.82))",
+                border: "1px solid rgba(216,180,254,.48)",
+                color: "#f3e8ff",
+              }}
+            >
+              <Save className="h-4 w-4" />
+              {saveEvolutionEffectsMutation.isPending
+                ? "Saving Effects..."
+                : evolutionEffectsDirty
+                  ? "Save Effects"
+                  : "Effects Saved"}
+            </button>
+          </section>
+        )}
+
         <div hidden={editorTool !== "parts"} className="pet-part-library-section">
 
         {selectedPart && (
