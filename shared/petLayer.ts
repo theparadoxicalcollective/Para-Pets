@@ -20,6 +20,7 @@ export const isHeadPart = (partType: string) => basePetPartType(partType) === "h
 export const isFacePart = (partType: string) => !isHeadPart(partType) && FACE_PART_TYPES.has(basePetPartType(partType));
 export const isHeadGroupPart = (partType: string) => isHeadPart(partType) || isFacePart(partType);
 export const isSecondaryHeadPart = (partType: string) => MULTI_HEAD_PREFIX.test(partType) && isHeadGroupPart(partType);
+export const isSecondaryNeckPart = (partType: string) => /^h[23]_neck$/.test(partType);
 export const EAR_PART_TYPES = new Set(["left_ear", "right_ear", "left_ear_2", "right_ear_2"]);
 export const HAIR_PART_TYPES = new Set(["hair_left", "hair_right", "hair_center", "back_hair"]);
 export const PLANTED_PART_TYPES = new Set(["left_leg", "right_leg", "front_leg", "back_leg"]);
@@ -49,6 +50,9 @@ export const PET_LAYER_ORDER: Readonly<Record<string, number>> = {
 export interface LayerablePetPart { partType: string; zIndex: number }
 export function getEffectivePetLayer(part: LayerablePetPart, facing: PetFacing = "front"): number {
   const base = basePetPartType(part.partType);
+  // Neck 2 / Neck 3 are authored with their matching secondary head and must
+  // stay in the narrow sandwich between the body and the head wrapper.
+  if (isSecondaryNeckPart(part.partType)) return 10;
   // Secondary heads share the same semantic front bands as Head 1. The runtime
   // wraps each head separately, but static/server composites must also keep
   // h2_/h3_ head and face artwork in front of the body.
