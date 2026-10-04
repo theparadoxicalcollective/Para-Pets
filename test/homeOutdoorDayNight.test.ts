@@ -70,8 +70,11 @@ test("owner and visitor Home yards use the owner's current day-night setting dur
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
+  assert.match(owner, /const currentOutdoorLightingMode = activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"/);
+  assert.match(owner, /useHomeOutdoorLighting\(currentOutdoorLightingMode\)/);
+  assert.match(visitor, /useHomeOutdoorLighting\(activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"\)/);
+
   for (const source of [owner, visitor]) {
-    assert.match(source, /useHomeOutdoorLighting\(activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"\)/);
     assert.match(source, /HomeOutdoorAtmosphereLayer/);
     assert.match(source, /effects=\{activeBundle\?\.exteriorEffects \?\? \[\]\}/);
     assert.match(source, /<HomeInteriorEffectsLayer[\s\S]*activeBundle\?\.exteriorEffects/);
@@ -152,9 +155,11 @@ test("manual Day/Night overrides reset to Auto whenever the owner leaves the Pet
   assert.match(owner, /outdoorMode: "auto"/);
   assert.match(owner, /keepalive: true/);
   assert.match(owner, /session\.touched = false/);
-  assert.match(owner, /session\.touched = true/);
+  assert.match(owner, /outdoorLightingSessionRef\.current\.touched = true/);
   assert.match(owner, /persistedMode === "auto" \|\| session\.touched/);
   assert.match(owner, /persistPlayerLightingPatch\(activeBundle\.id, \{ outdoorMode: "auto" \}\)/);
+  assert.match(owner, /body: JSON\.stringify\(\{ outdoorMode: "auto" \}\)/);
+  assert.match(owner, /lightingSaveQueueRef\.current = lightingSaveQueueRef\.current/);
 });
 
 test("player Home lighting is stored per owned bundle instead of globally in the browser", () => {
