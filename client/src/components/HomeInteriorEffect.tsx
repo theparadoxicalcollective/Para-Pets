@@ -638,16 +638,20 @@ export function HomeInteriorEffectsLayer({
         const daylightOpacity = effect.type === "warm_glow" && !interactive ? safeSunlight : 1;
         const playerToggleable = !interactive && !!onToggleEffect && isPlayerToggleableInteriorEffect(effect.type);
         const isOff = playerToggleable && offEffectIds?.has(effect.id) === true;
+        // Keep a reliable player tap target even when synced Sunlight fades
+        // almost completely at night. Only the visual fades; the hit target does not.
+        const hitSizePx = playerToggleable ? Math.max(48, sizePx) : sizePx;
         return (
           <div
             key={effect.id}
             data-testid={`home-interior-effect-${effect.id}`}
+            data-sunlight-synced-toggle={effect.type === "warm_glow" && playerToggleable ? "true" : undefined}
             style={{
               position: "absolute",
               left: panX + effect.x * imgWidth,
               top: effect.y * sceneHeight,
-              width: sizePx,
-              height: sizePx,
+              width: hitSizePx,
+              height: hitSizePx,
               transform: "translate(-50%, -50%)",
               zIndex,
               pointerEvents: interactive || playerToggleable ? "auto" : "none",
@@ -657,9 +661,6 @@ export function HomeInteriorEffectsLayer({
               outline: selected ? "1.5px dashed rgba(255,215,0,0.9)" : "none",
               outlineOffset: selected ? 5 : 0,
               filter: selected ? "drop-shadow(0 0 7px rgba(255,215,0,0.8))" : "none",
-              fontSize: sizePx,
-              opacity: daylightOpacity,
-              transition: effect.type === "warm_glow" && !interactive ? "opacity 30s linear" : undefined,
             }}
             onPointerDown={interactive && onEffectPointerDown ? event => onEffectPointerDown(event, effect) : undefined}
             onPointerMove={interactive && onEffectPointerMove ? event => onEffectPointerMove(event, effect) : undefined}
@@ -679,7 +680,25 @@ export function HomeInteriorEffectsLayer({
             aria-label={playerToggleable ? `${isOff ? "Turn on" : "Turn off"} ${effect.type.replaceAll("_", " ")} effect` : undefined}
             data-effect-off={isOff ? "true" : undefined}
           >
-            {!isOff && <EffectVisual type={effect.type} adminPreview={interactive} />}
+            {!isOff && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: sizePx,
+                  height: sizePx,
+                  transform: "translate(-50%, -50%)",
+                  fontSize: sizePx,
+                  opacity: daylightOpacity,
+                  transition: effect.type === "warm_glow" && !interactive ? "opacity 30s linear" : undefined,
+                  pointerEvents: "none",
+                }}
+              >
+                <EffectVisual type={effect.type} adminPreview={interactive} />
+              </div>
+            )}
           </div>
         );
       })}
