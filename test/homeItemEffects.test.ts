@@ -201,6 +201,16 @@ test("Sleep Decor augments pet drop and sleep rendering without replacing buildi
   assert.match(visitor, /isHouseInteriorSleepPosition\([\s\S]{0,120}outdoorSleepDecorEffects/);
 });
 
+test("attached Lamp Light renders in front of placed Home artwork for owners and visitors", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.equal((owner.match(/effects=\{itemLampEffects\}[\s\S]{0,180}zIndex=\{24\}/g) ?? []).length, 1);
+  assert.equal((owner.match(/effects=\{outdoorLampEffects\}[\s\S]{0,180}zIndex=\{24\}/g) ?? []).length, 1);
+  assert.equal((visitor.match(/effects=\{itemLampEffects\}[\s\S]{0,180}zIndex=\{24\}/g) ?? []).length, 1);
+  assert.equal((visitor.match(/effects=\{outdoorLampEffects\}[\s\S]{0,180}zIndex=\{24\}/g) ?? []).length, 1);
+});
+
 test("visitors can toggle Lamp or Tap Image Objects locally without changing the owner's saved copy", () => {
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
