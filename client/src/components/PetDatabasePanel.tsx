@@ -1019,9 +1019,16 @@ export default function PetDatabasePanel({
     setFacingMode(mode);
   };
   const changeEditorTab = (tab: EditorTab) => {
-    if (saveCostumeMutation.isPending || tab === editorTab) return;
+    if (saveCostumeMutation.isPending || saveEvolutionEffectsMutation.isPending || tab === editorTab) return;
     if (editorTab === "costume" && costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
+    if (editorTab === "evolution" && tab !== "evolution" && evolutionEffectsDirty) {
+      if (!window.confirm("Discard the unsaved evolution effects?")) return;
+      setEvolutionEffectsDraft(templateDetail?.evolutionEffects ?? []);
+      setEvolutionEffectsDirty(false);
+      setSelectedEvolutionEffectId(null);
+    }
     if (editorTab === "costume") discardCostumeDraft();
+    if (tab !== "evolution" && editorTool === "effects") setEditorTool("parts");
     setSelectedPartId(null);
     setEditorTab(tab);
   };
