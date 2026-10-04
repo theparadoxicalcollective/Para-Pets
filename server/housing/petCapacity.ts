@@ -12,9 +12,11 @@ export interface PetHomeCapacityPosition {
 
 export interface PetHomeCapacityBuilding {
   id: string;
-  size?: BuildingSize | null;
-  maxPets?: number | null;
-  buildingType?: HouseBuildingType | null;
+  // Storage rows expose these text columns as generic strings. The shared
+  // capacity resolvers validate/narrow them before using them.
+  size?: unknown;
+  maxPets?: unknown;
+  buildingType?: unknown;
 }
 
 export interface PetHomeCapacityBundle {
