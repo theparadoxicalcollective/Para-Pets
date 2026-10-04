@@ -23,6 +23,7 @@ export interface PetUpgradeModalProps {
   petHealth: number;
   itemsRemaining: number;
   items: PowerUpItem[];
+  specialItems?: PowerUpItem[];
   isPending: boolean;
   title?: string;
   subtitle?: string;
