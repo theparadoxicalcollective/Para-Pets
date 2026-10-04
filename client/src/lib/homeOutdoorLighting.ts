@@ -7,6 +7,8 @@ export const HOME_OUTDOOR_DAWN_START_MINUTE = 5 * 60 + 30;
 export const HOME_OUTDOOR_DAY_START_MINUTE = 7 * 60 + 30;
 export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
+export const HOME_OUTDOOR_AUTO_TRANSITION_MS = 30_000;
+export const HOME_OUTDOOR_OVERRIDE_TRANSITION_MS = 280;
 
 
 export function cycleHomeOutdoorLightingMode(mode: HomeOutdoorLightingMode): HomeOutdoorLightingMode {
@@ -42,5 +44,7 @@ export function getHomeOutdoorNightStrength(mode: HomeOutdoorLightingMode, date:
 }
 
 export function getHomeOutdoorDarkness(mode: HomeOutdoorLightingMode, date: Date): number {
-  return Math.round(getHomeOutdoorNightStrength(mode, date) * HOME_OUTDOOR_NIGHT_DARKNESS);
+  // Keep the fractional value so the rendered darkness can interpolate
+  // continuously between the 30-second automatic lighting updates.
+  return getHomeOutdoorNightStrength(mode, date) * HOME_OUTDOOR_NIGHT_DARKNESS;
 }
