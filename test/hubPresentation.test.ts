@@ -17,7 +17,7 @@ test("the optional desktop Hub companion is completely removed", () => {
   assert.equal(existsSync(fromRoot("client", "src", "lib", "desktopCompanion.ts")), false);
 });
 
-test("the normal Hub route, artwork button, and themed scrollbar remain", () => {
+test("the normal Hub route keeps natural scrolling with scrollbar chrome hidden", () => {
   const app = readFileSync(fromRoot("client", "src", "App.tsx"), "utf8");
   const auth = readFileSync(fromRoot("client", "src", "pages", "AuthPage.tsx"), "utf8");
   const hub = readFileSync(fromRoot("client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
@@ -26,8 +26,9 @@ test("the normal Hub route, artwork button, and themed scrollbar remain", () => 
   assert.match(app, /<Route path="\/hub"><ParaPetsHubPage \/><\/Route>/);
   assert.match(auth, /onActivate=\{\(\) => setLocation\("\/hub"\)\}/);
   assert.match(hub, /para-pets-hub-scrollbar fixed inset-0 overflow-y-auto/);
-  assert.match(indexCss, /\.para-pets-hub-scrollbar::\-webkit-scrollbar-thumb/);
-  assert.match(indexCss, /scrollbar-color: #a88432 #07150f/);
+  assert.match(indexCss, /\*\s*\{[\s\S]*?scrollbar-width: none;[\s\S]*?-ms-overflow-style: none;/);
+  assert.match(indexCss, /\*::\-webkit-scrollbar\s*\{[\s\S]*?width: 0;[\s\S]*?height: 0;[\s\S]*?display: none;/);
+  assert.doesNotMatch(indexCss, /scrollbar-color: #a88432 #07150f/);
 });
 
 test("sign-in landing spacing and Hub button use the refined proportions", () => {
