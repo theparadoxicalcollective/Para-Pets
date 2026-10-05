@@ -5,7 +5,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { DESIGN_H, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
+import { DESIGN_H, clientDeltaToStage, getDesignW, getStageSurface } from "@/lib/stage";
 import {
   calculateExpandedWorldCameraScale,
   calculateWorldFitScale,
@@ -14,6 +14,20 @@ import {
 
 export const WORLD_MAP_PAN_THRESHOLD_PX = 4;
 export const WORLD_MAP_POST_PAN_CLICK_MS = 80;
+
+function safeSetWorldPointerCapture(target: EventTarget | null, pointerId: number): boolean {
+  const element = target as (Element & { setPointerCapture?: (id: number) => void }) | null;
+  if (!element || typeof element.setPointerCapture !== "function") return false;
+  try {
+    element.setPointerCapture(pointerId);
+    return true;
+  } catch {
+    // Safari/WebView may reject capture if the gesture was cancelled while
+    // switching between browser and game ownership. World panning can still
+    // continue through normal pointer delivery, so capture is best-effort.
+    return false;
+  }
+}
 
 interface UseWorldViewportControllerOptions {
   worldId: string;
@@ -170,9 +184,7 @@ export function useWorldViewportController({
     }
     if (isLocationDragActive() || isObjectDragActive()) return;
 
-    try {
-      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    } catch {}
+    safeSetWorldPointerCapture(event.currentTarget, event.pointerId);
 
     mapPanPointersRef.current.set(event.pointerId, {
       x: event.clientX,
@@ -203,9 +215,10 @@ export function useWorldViewportController({
 
     const pointers = Array.from(mapPanPointersRef.current.values());
     if (pointers.length === 1 && mapPanStartRef.current) {
-      const stageScale = getStageScale();
-      const dx = (event.clientX - mapPanStartRef.current.x) / stageScale;
-      const dy = (event.clientY - mapPanStartRef.current.y) / stageScale;
+      const { x: dx, y: dy } = clientDeltaToStage(
+        event.clientX - mapPanStartRef.current.x,
+        event.clientY - mapPanStartRef.current.y,
+      );
 
       if (
         !mapPanningRef.current
@@ -218,6 +231,7 @@ export function useWorldViewportController({
       }
 
       if (mapPanningRef.current) {
+        event.preventDefault();
         applyMapTransform(
           mapPanStartRef.current.mapX + dx,
           mapPanStartRef.current.mapY + dy,
@@ -227,12 +241,12 @@ export function useWorldViewportController({
     }
   }, [applyMapTransform, isLocationDragActive, isObjectDragActive]);
 
-  const handleVpPointerUp = useCallback((event: ReactPointerEvent) => {
+  const finishViewportPointer = useCallback((event: ReactPointerEvent, cancelled: boolean) => {
     mapPanPointersRef.current.delete(event.pointerId);
     const remaining = mapPanPointersRef.current.size;
 
     if (remaining === 0) {
-      if (mapPanningRef.current) {
+      if (mapPanningRef.current && !cancelled) {
         mapJustPannedRef.current = true;
         setTimeout(() => {
           mapJustPannedRef.current = false;
@@ -256,6 +270,14 @@ export function useWorldViewportController({
       mapPanningRef.current = false;
     }
   }, []);
+
+  const handleVpPointerUp = useCallback((event: ReactPointerEvent) => {
+    finishViewportPointer(event, false);
+  }, [finishViewportPointer]);
+
+  const handleVpPointerCancel = useCallback((event: ReactPointerEvent) => {
+    finishViewportPointer(event, true);
+  }, [finishViewportPointer]);
 
   const handleVpWheel = useCallback((event: WheelEvent) => {
     event.preventDefault();
@@ -284,5 +306,6 @@ export function useWorldViewportController({
     handleVpPointerDown,
     handleVpPointerMove,
     handleVpPointerUp,
+    handleVpPointerCancel,
   };
 }
