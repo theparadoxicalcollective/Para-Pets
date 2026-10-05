@@ -34,7 +34,7 @@ import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
-import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import PetHomeTutorialOverlay, { type PetHomeTutorialStep } from "@/components/PetHomeTutorialOverlay";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
 import hungerMeterFrame from "@assets/ui/pet-care/hunger-meter-frame.png";
