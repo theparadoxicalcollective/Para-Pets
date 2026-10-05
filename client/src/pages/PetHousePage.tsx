@@ -1187,6 +1187,96 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     staleTime: 30000,
   });
 
+  const tutorialMailboxBuilding = useMemo(
+    () => activeBundle?.buildings.find(isMailboxBuilding) ?? null,
+    [activeBundle?.buildings],
+  );
+  const tutorialPrimaryBuilding = useMemo(
+    () => activeBundle?.buildings.find(building => !isMailboxBuilding(building)) ?? null,
+    [activeBundle?.buildings],
+  );
+
+  useEffect(() => {
+    if (!petHomeTutorialStatusReady
+      || petHomeTutorialStatus?.completed
+      || petHomeTutorialStep
+      || bundleLoading
+      || !activeBundle
+      || imgWidth <= 0
+    ) return;
+
+    // The guide starts only once the actual Home scene has measurable targets.
+    // Close incidental UI so every arrow points at the same clean first-visit layout.
+    setOpenInventory(null);
+    setOpenGiftModal(false);
+    setShowNoMailPopup(false);
+    setPendingActivate(null);
+    setPetHomeTutorialStep("welcome");
+  }, [
+    activeBundle,
+    bundleLoading,
+    imgWidth,
+    petHomeTutorialStatus?.completed,
+    petHomeTutorialStatusReady,
+    petHomeTutorialStep,
+  ]);
+
+  const continuePetHomeTutorial = useCallback(() => {
+    if (!petHomeTutorialStep || completePetHomeTutorialMutation.isPending) return;
+
+    switch (petHomeTutorialStep) {
+      case "welcome":
+        setPetHomeTutorialStep("lighting");
+        return;
+      case "lighting":
+        setPetHomeTutorialStep("inventory");
+        return;
+      case "inventory":
+        setPetHomeTutorialStep("home");
+        return;
+      case "home":
+        if (tutorialMailboxBuilding) {
+          setPetHomeTutorialStep("mailbox");
+        } else if (tutorialPrimaryBuilding) {
+          setPetHomeTutorialStep("building");
+        } else {
+          completePetHomeTutorialMutation.mutate();
+        }
+        return;
+      case "mailbox":
+        if (tutorialPrimaryBuilding) {
+          setPetHomeTutorialStep("building");
+        } else {
+          completePetHomeTutorialMutation.mutate();
+        }
+        return;
+      case "building":
+        completePetHomeTutorialMutation.mutate();
+        return;
+    }
+  }, [
+    completePetHomeTutorialMutation,
+    petHomeTutorialStep,
+    tutorialMailboxBuilding,
+    tutorialPrimaryBuilding,
+  ]);
+
+  useEffect(() => {
+    const building = petHomeTutorialStep === "mailbox"
+      ? tutorialMailboxBuilding
+      : petHomeTutorialStep === "building"
+        ? tutorialPrimaryBuilding
+        : null;
+    const containerWidth = containerRef.current?.clientWidth ?? 0;
+    if (!building || imgWidth <= 0 || containerWidth <= 0) return;
+
+    // Home scenes can be wider than the phone. Bring the tutorial target into
+    // view automatically because normal scene panning is intentionally blocked.
+    const minPan = Math.min(0, containerWidth - imgWidth);
+    const desiredPan = containerWidth / 2 - (building.posX / 100) * imgWidth;
+    setPanX(Math.max(minPan, Math.min(0, desiredPan)));
+  }, [imgWidth, petHomeTutorialStep, tutorialMailboxBuilding, tutorialPrimaryBuilding]);
+
   const currentOutdoorLightingMode = activeBundle?.playerLighting?.outdoorMode ?? "auto";
   const outdoorLighting = useHomeOutdoorLighting(currentOutdoorLightingMode);
 
