@@ -1,4 +1,5 @@
 import type { Express, RequestHandler } from "express";
+import { isDedicatedQaTester } from "../qaTester";
 
 type ChatFilterStorage = Pick<typeof import("../storage").storage,
   | "getChatFilterWords"
@@ -25,7 +26,7 @@ export function registerChatFilterRoutes(
   app.get("/api/admin/chat-filter", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      if (!user.isAdmin && !user.isModerator) {
+      if (!user.isAdmin && (!user.isModerator || isDedicatedQaTester(user))) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const custom = await storage.getChatFilterWords();
@@ -38,7 +39,7 @@ export function registerChatFilterRoutes(
   app.post("/api/admin/chat-filter", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      if (!user.isAdmin && !user.isModerator) {
+      if (!user.isAdmin && (!user.isModerator || isDedicatedQaTester(user))) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const { word } = req.body;
@@ -58,7 +59,7 @@ export function registerChatFilterRoutes(
   app.delete("/api/admin/chat-filter/:id", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      if (!user.isAdmin && !user.isModerator) {
+      if (!user.isAdmin && (!user.isModerator || isDedicatedQaTester(user))) {
         return res.status(403).json({ message: "Forbidden" });
       }
       await storage.deleteChatFilterWord(String(req.params.id));

@@ -56,6 +56,8 @@ interface MemberUser {
   coins: number;
   isAdmin: boolean;
   isModerator: boolean;
+  isSpecialMember?: boolean;
+  specialMemberRole?: string | null;
   isBanned: boolean;
   banUntil: string | null;
   createdAt: string;
@@ -120,6 +122,8 @@ export default function AdminPage({ user }: AdminPageProps) {
   const unreadSupportCount = supportMsgsAll.filter((m: SupportMsg) => !m.isRead).length;
 
   const sortedMembers = [...members].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const regularMembers = sortedMembers.filter(member => !member.isSpecialMember);
+  const specialMembers = sortedMembers.filter(member => member.isSpecialMember);
 
   const banMutation = useMutation({
     mutationFn: async ({ userId, ban, days }: { userId: string; ban: boolean; days?: number }) => {
@@ -336,7 +340,19 @@ export default function AdminPage({ user }: AdminPageProps) {
               </div>
             ) : (
               <div className="space-y-2">
-                {sortedMembers.map((member, index) => {
+                <div
+                  data-testid="member-section-regular"
+                  className="rounded-lg px-3 py-2 mb-2 flex items-center justify-between gap-3"
+                  style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)" }}
+                >
+                  <div>
+                    <p className="font-fantasy text-xs tracking-wider" style={{ color: "#f0c040" }}>Regular Members</p>
+                    <p className="font-fantasy text-[9px] tracking-wide" style={{ color: "#8f8068" }}>Player and administrator accounts</p>
+                  </div>
+                  <span className="font-fantasy text-[10px]" style={{ color: "#b99a62" }}>{regularMembers.length}</span>
+                </div>
+
+                {regularMembers.map((member, index) => {
                   const rank = index + 1;
                   const isExpanded = expandedUser === member.id;
                   const rankColor = rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : rank === 3 ? "#cd7f32" : "#a89878";
@@ -513,6 +529,69 @@ export default function AdminPage({ user }: AdminPageProps) {
                     </div>
                   );
                 })}
+
+                <div className="pt-3 space-y-2" data-testid="member-section-special">
+                  <div
+                    className="rounded-lg px-3 py-2 flex items-center justify-between gap-3"
+                    style={{ background: "rgba(76,29,149,0.16)", border: "1px solid rgba(192,132,252,0.28)" }}
+                  >
+                    <div>
+                      <p className="font-fantasy text-xs tracking-wider" style={{ color: "#d8b4fe" }}>Special Members</p>
+                      <p className="font-fantasy text-[9px] tracking-wide" style={{ color: "#9f8aae" }}>Reserved QA testing accounts</p>
+                    </div>
+                    <span className="font-fantasy text-[10px]" style={{ color: "#c084fc" }}>{specialMembers.length}</span>
+                  </div>
+
+                  {specialMembers.length === 0 ? (
+                    <div
+                      className="rounded-lg px-3 py-4 text-center"
+                      style={{ background: "rgba(30,15,45,0.5)", border: "1px solid rgba(192,132,252,0.14)" }}
+                    >
+                      <p className="font-fantasy text-[10px] tracking-wide" style={{ color: "#8f7a99" }}>No QA testing accounts are active yet.</p>
+                    </div>
+                  ) : specialMembers.map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      data-testid={`card-special-member-${member.id}`}
+                      onClick={() => setViewingUserId(member.id)}
+                      className="w-full rounded-lg p-3 flex items-center gap-3 text-left"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(35,18,52,0.88) 0%, rgba(58,28,78,0.84) 100%)",
+                        border: "1px solid rgba(192,132,252,0.28)",
+                        boxShadow: "0 2px 10px rgba(0,0,0,0.25)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div
+                        className="w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center"
+                        style={{ border: "2px solid rgba(192,132,252,0.55)", background: "rgba(25,12,36,0.9)" }}
+                      >
+                        {member.profileImage ? (
+                          <img src={member.profileImage} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-fantasy text-sm font-bold" style={{ color: "#d8b4fe" }}>
+                            {(member.username ?? "?").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-fantasy text-sm font-semibold truncate" style={{ color: "#ead7ff" }}>{member.username}</p>
+                          {member.isModerator && <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#c084fc" }}>MOD</span>}
+                          <span
+                            className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded"
+                            style={{ color: "#e9d5ff", background: "rgba(126,34,206,0.25)", border: "1px solid rgba(192,132,252,0.3)" }}
+                          >
+                            {member.specialMemberRole ?? "QA Tester"}
+                          </span>
+                        </div>
+                        <p className="text-[10px] truncate" style={{ color: "#aa97b7" }}>{member.email}</p>
+                      </div>
+                      <span className="font-fantasy text-[9px] tracking-wide" style={{ color: "#b79ac8" }}>View</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )
           )}

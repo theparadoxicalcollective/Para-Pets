@@ -29,6 +29,7 @@ import { StripePurchaseError } from "./payments/errors";
 import { claimPurchaseMilestone } from "./milestones/claimPurchaseMilestone";
 import { PurchaseMilestoneError } from "./milestones/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
+import { isConfiguredQaIdentity, isDedicatedQaTester } from "./qaTester";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 import { tryConsumeOneFromInventory } from "./inventoryConsumption";
 import { registerAccountRoutes } from "./routes/account.routes";
@@ -1023,6 +1024,9 @@ export async function registerRoutes(
   app.patch("/api/user/password", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "This reserved QA account is managed by the testing configuration." });
+      }
       const { currentPassword, newPassword } = req.body;
       if (!currentPassword || !newPassword) {
         return res.status(400).json({ message: "Current password and new password are required" });
@@ -1051,6 +1055,9 @@ export async function registerRoutes(
   app.post("/api/user/delete-account", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "Reserved QA accounts cannot delete themselves." });
+      }
       const { password } = req.body;
       if (!password) {
         return res.status(400).json({ message: "Password is required to delete your account" });
@@ -1081,6 +1088,9 @@ export async function registerRoutes(
   app.patch("/api/user/username", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "Reserved QA usernames are managed by the testing configuration." });
+      }
       const { username } = req.body;
 
       const parse = updateUsernameSchema.safeParse({ username });
@@ -1433,6 +1443,9 @@ export async function registerRoutes(
   app.post("/api/coins/checkout", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "Real-money checkout is disabled for the QA tester account." });
+      }
       const { packId } = req.body;
 
       const pack = COIN_PACKS.find(p => p.id === packId);
@@ -1718,7 +1731,11 @@ export async function registerRoutes(
   app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
-      const safeUsers = allUsers.map(publicAccount);
+      const safeUsers = allUsers.map(user => ({
+        ...publicAccount(user),
+        isSpecialMember: isConfiguredQaIdentity(user),
+        specialMemberRole: isConfiguredQaIdentity(user) ? "QA Tester" : null,
+      }));
       return res.json(safeUsers);
     } catch (err) {
       console.error("Get users error:", err);

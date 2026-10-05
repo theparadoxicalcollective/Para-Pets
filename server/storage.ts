@@ -531,6 +531,7 @@ export class DatabaseStorage implements IStorage {
     //     server/seedSampleTemplates.ts on fresh dev DBs as `demo_admin`)
     //   • Emails ending in @parapets.local          (dev-only seed domain
     //     used by the same seeder, future-proofs against renames)
+    //   • Emails ending in @qa.parapets.invalid      (reserved QA players)
     //   • The literal username "demo_admin"         (belt-and-suspenders
     //     in case someone wipes the email but keeps the seeded user)
     const DEMO_ADMIN_ID = "00000000-0000-4000-a000-000000000301";
@@ -542,7 +543,8 @@ export class DatabaseStorage implements IStorage {
         AND ${users.username} <> 'demo_admin'
         AND ${users.id}       <> ${DEMO_ADMIN_ID}
         AND COALESCE(${users.email}, '') NOT ILIKE '%@test.com'
-        AND COALESCE(${users.email}, '') NOT ILIKE '%@parapets.local'`);
+        AND COALESCE(${users.email}, '') NOT ILIKE '%@parapets.local'
+        AND COALESCE(${users.email}, '') NOT ILIKE '%@qa.parapets.invalid'`);
     return members;
   }
 

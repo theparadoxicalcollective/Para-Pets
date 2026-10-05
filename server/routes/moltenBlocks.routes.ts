@@ -6,6 +6,13 @@ export interface MoltenBlocksRouteDependencies {
   isAdmin: RequestHandler;
 }
 
+const moltenRewardState = new Map<string, { dayKey: string; total: number; lastAt: number }>();
+
+/** QA-only reset hook. The route that exposes this verifies the reserved QA identity. */
+export function resetMoltenBlocksRewardState(userId: string): void {
+  moltenRewardState.delete(userId);
+}
+
 /**
  * Molten Blocks routes extracted from the legacy route registry without
  * changing endpoint URLs, reward caps, cooldowns, score handling, drop pools,
@@ -30,7 +37,6 @@ export function registerMoltenBlocksRoutes(
   // Caps are tracked in-memory; on a server restart the daily counter
   // resets, but the cap itself is small enough that the worst case is
   // bounded to ~one extra cap window per restart.
-  const moltenRewardState = new Map<string, { dayKey: string; total: number; lastAt: number }>();
   const MB_PER_CALL_CAP = 300;
   const MB_DAILY_CAP = 500;
   const MB_MIN_COOLDOWN_MS = 4_000;

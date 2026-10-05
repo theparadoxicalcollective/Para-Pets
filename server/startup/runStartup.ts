@@ -8,6 +8,7 @@ import { registerLonelleQuestRoutes } from "../routes/lonelleQuest.routes";
 import { ensureLonelleReward } from "./ensureLonelleReward";
 import { registerJansonQuestRoutes } from "../routes/jansonQuest.routes";
 import { registerBeauPrizeWheelRoutes } from "../routes/beauPrizeWheel.routes";
+import { registerQaTesterRoutes } from "../routes/qaTester.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileCanonicalWorldMaps } from "../worlds/canonicalWorldMaps";
@@ -22,6 +23,7 @@ import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
 import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
 import { withStartupAdvisoryLock } from "./advisoryLock";
 import { preserveDynamicWorldLocationsDuringLegacyStartup } from "./preserveDynamicWorldLocations";
+import { ensureQaModeratorAccount } from "./ensureQaModeratorAccount";
 
 interface StartupDependencies {
   app: Express;
@@ -72,6 +74,24 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   // constrain that state synchronously before registering routes.
   await repairAccessoryEquipmentIntegrity();
 
+  // Dedicated player QA account. This is opt-in through Railway variables and
+  // deliberately non-fatal so a testing-account problem can never block normal
+  // players from the production realm.
+  try {
+    const qaAccount = await ensureQaModeratorAccount();
+    if (qaAccount.enabled) {
+      for (const account of qaAccount.accounts) {
+        if (account.error) {
+          console.error(`[qa] tester slot ${account.slot} skipped (${account.username}): ${account.error}`);
+        } else {
+          console.log(`[qa] tester slot ${account.slot} ${account.created ? "created" : "ready"}: ${account.username}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[qa] moderator account provisioning skipped:", error instanceof Error ? error.message : error);
+  }
+
   // Register focused infrastructure routes before the legacy route monolith.
   // Diagnostics must exist in production even if the failing feature is owned
   // by a later route module, and it intentionally accepts both authenticated
@@ -86,6 +106,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   registerLonelleQuestRoutes(app);
   registerJansonQuestRoutes(app);
   registerBeauPrizeWheelRoutes(app);
+  registerQaTesterRoutes(app);
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
