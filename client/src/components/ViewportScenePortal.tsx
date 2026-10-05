@@ -19,6 +19,18 @@ export default function ViewportScenePortal({ children }: { children: ReactNode 
     setTarget(document.getElementById(VIEWPORT_SCENE_ID));
   }, []);
 
+  useLayoutEffect(() => {
+    if (!target) return;
+    const stage = document.getElementById("game-stage");
+    if (!stage) return;
+    stage.dataset.viewportSceneActive = "true";
+    return () => {
+      if (stage.dataset.viewportSceneActive === "true") {
+        delete stage.dataset.viewportSceneActive;
+      }
+    };
+  }, [target]);
+
   if (!target) return <>{children}</>;
 
   return createPortal(
