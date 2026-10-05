@@ -25,6 +25,7 @@ import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
+import { getStageSurface } from "@/lib/stage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 interface NavUser {
@@ -92,10 +93,10 @@ const BUTTON_SIZE = 58;
 const NAV_RIGHT   = 12;
 
 function calcSpacing() {
-  // Keep all LEFT_ITEMS on-screen by shrinking spacing on narrow viewports.
-  // Formula: (viewportWidth - right-offset - button-width - 4px-buffer) / n
-  // Capped at 62 (the comfortable desktop/wide-phone spacing).
-  const available = window.innerWidth - NAV_RIGHT - BUTTON_SIZE - 4;
+  // Navigation belongs to the logical game stage, not the physical browser
+  // window. Today this preserves native phone spacing; after portrait scaling
+  // lands, the same math will still match the 390px reference composition.
+  const available = getStageSurface().logicalWidth - NAV_RIGHT - BUTTON_SIZE - 4;
   return Math.min(62, Math.max(34, Math.floor(available / LEFT_ITEMS.length)));
 }
 
