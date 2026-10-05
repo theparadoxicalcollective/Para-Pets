@@ -76,6 +76,12 @@ export async function runEssentialBoot(): Promise<void> {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS pet_house_visit_rewards_daily_uidx
       ON pet_house_visit_rewards(visitor_id, pet_inventory_id, claim_day);
+
+    CREATE TABLE IF NOT EXISTS pet_home_tutorial_progress (
+      user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      tutorial_version integer NOT NULL DEFAULT 0 CHECK (tutorial_version >= 0),
+      completed_at timestamp NOT NULL DEFAULT now()
+    );
   `);
 
   try {
