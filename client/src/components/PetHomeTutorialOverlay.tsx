@@ -272,7 +272,7 @@ export default function PetHomeTutorialOverlay({
         top: layout.stage.top,
         width: layout.stage.width,
         maxWidth: 768,
-        background: revealHomeScene ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.62)",
+        background: revealHomeScene ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.62)",
         pointerEvents: "auto",
         overflow: "hidden",
       }}
