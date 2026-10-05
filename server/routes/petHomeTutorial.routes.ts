@@ -1,11 +1,10 @@
 import type { Express, RequestHandler } from "express";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
 
 export const PET_HOME_TUTORIAL_VERSION = 1;
 
 export interface PetHomeTutorialRouteDependencies {
-  db: NodePgDatabase<any>;
+  db: Pick<typeof import("../db").db, "execute">;
   isAuthenticated: RequestHandler;
 }
 
