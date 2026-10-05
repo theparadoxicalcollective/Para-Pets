@@ -344,6 +344,15 @@ export function getStageLogicalCenter(): { x: number; y: number } {
   };
 }
 
+/** Client-pixel center for effects that intentionally portal to document.body. */
+export function getStageRenderedCenter(): { x: number; y: number } {
+  const surface = getStageSurface();
+  return {
+    x: surface.left + (surface.logicalWidth * surface.scale) / 2,
+    y: surface.top + (surface.logicalHeight * surface.scale) / 2,
+  };
+}
+
 /** Pure inverse helpers make hit-testing independently regression-testable. */
 export function logicalToRendered(layout: StageLayout, x: number, y: number) {
   return { x: layout.left + x * layout.scale, y: layout.top + y * layout.scale };
