@@ -639,7 +639,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Step 5 demonstration: the real potion artwork repeatedly travels
           from its card to the egg, showing the exact gesture the player should copy. */}
-      {stepNum === 5 && potionRect && eggOnHomeRect && !step5TapMode && !dragPotionPreview && (() => {
+      {stepNum === 5 && potionGuideRect && eggGuideRect && !step5TapMode && !dragPotionPreview && (() => {
         const tutorialPotion = ((invHatch as any[] | undefined) ?? []).find(
           (i: any) => i.type === "special" && i.specialType === "hatch_time"
         );
