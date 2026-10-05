@@ -71,11 +71,16 @@ export function weaponArtOffsetForStyle(style:"sword_slash"|"staff_orb"|"default
 export type Circle = { x: number; y: number; radius: number };
 export type Capsule = { from: PetWalkPos; to: PetWalkPos; radius: number };
 
-/** Aspect-ratio preserving Clearing canvas. Height is preferred; width grows only
- * enough to cover the viewport, so there are no bars and no vertical camera pan. */
+/** Aspect-ratio preserving Clearing canvas.
+ *
+ * The world canvas follows the authored image ratio, never the device width.
+ * Wider tablets/desktops therefore reveal more of the same real canvas instead
+ * of inventing extra world-coordinate space beside the artwork.
+ */
 export function clearingWorldSize(viewport: WorldPixels, imageAspect: number): WorldPixels {
   const height = Math.max(1, viewport.height);
-  return { width: Math.max(viewport.width, height * imageAspect), height };
+  const aspect = Number.isFinite(imageAspect) && imageAspect > 0 ? imageAspect : 1;
+  return { width: height * aspect, height };
 }
 
 /** Converts artwork bounds into centre-coordinate bounds that include the
@@ -113,10 +118,17 @@ export function clampPoint(point: PetWalkPos, bounds: WalkableBounds) {
   return { x:Math.max(bounds.xMin,Math.min(bounds.xMax,x)), y:Math.max(bounds.yMin,Math.min(bounds.yMax,y)) };
 }
 
+function cameraAxisTarget(position: number, worldSize: number, viewportSize: number): number {
+  const safeWorld = Math.max(1, worldSize);
+  const safeViewport = Math.max(1, viewportSize);
+  if (safeWorld <= safeViewport) return (safeWorld - safeViewport) / 2;
+  return Math.max(0, Math.min(safeWorld - safeViewport, position * safeWorld - safeViewport / 2));
+}
+
 export function cameraTarget(pet: PetWalkPos, world: WorldPixels, viewport: WorldPixels) {
   return {
-    x: Math.max(0, Math.min(world.width - viewport.width, pet.x * world.width - viewport.width / 2)),
-    y: Math.max(0, Math.min(world.height - viewport.height, pet.y * world.height - viewport.height / 2)),
+    x: cameraAxisTarget(pet.x, world.width, viewport.width),
+    y: cameraAxisTarget(pet.y, world.height, viewport.height),
   };
 }
 
