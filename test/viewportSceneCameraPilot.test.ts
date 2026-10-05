@@ -84,7 +84,7 @@ test("only explicitly opted-in scenes use the device viewport scene portal", () 
   assert.match(clearing, /<ViewportScenePortal>\{scene\}<\/ViewportScenePortal>/);
   assert.match(clearing, /data-testid="elysian-clearing-camera-surface"/);
   assert.match(portal, /game-viewport-scene/);
-  assert.match(portal, /if \(!target\) return <>\{children\}<\/?>/);
+  assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/?>/);
 });
 
 test("GameStage provides a scene surface only on the stage-owned presentation path", () => {
@@ -120,6 +120,7 @@ test("full-device Clearing removes only the centered presentation frame, not gam
   const portal = read("client/src/components/ViewportScenePortal.tsx");
   const css = read("client/src/tabletStageShell.css");
 
+  assert.match(portal, /enabled = true/);
   assert.match(portal, /stage\.dataset\.viewportSceneActive = "true"/);
   assert.match(css, /#game-stage\[data-viewport-scene-active="true"\]/);
   assert.match(css, /outline: 0/);

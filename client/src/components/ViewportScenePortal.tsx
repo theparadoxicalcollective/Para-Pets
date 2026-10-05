@@ -10,7 +10,13 @@ const VIEWPORT_SCENE_ID = "game-viewport-scene";
  * Native iPhone-12-style viewport ownership has no expanded scene target, so
  * the children render inline and retain the exact existing DOM/layout path.
  */
-export default function ViewportScenePortal({ children }: { children: ReactNode }) {
+export default function ViewportScenePortal({
+  children,
+  enabled = true,
+}: {
+  children: ReactNode;
+  enabled?: boolean;
+}) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
     typeof document === "undefined" ? null : document.getElementById(VIEWPORT_SCENE_ID),
   );
@@ -20,7 +26,7 @@ export default function ViewportScenePortal({ children }: { children: ReactNode 
   }, []);
 
   useLayoutEffect(() => {
-    if (!target) return;
+    if (!enabled || !target) return;
     const stage = document.getElementById("game-stage");
     if (!stage) return;
     stage.dataset.viewportSceneActive = "true";
@@ -29,9 +35,9 @@ export default function ViewportScenePortal({ children }: { children: ReactNode 
         delete stage.dataset.viewportSceneActive;
       }
     };
-  }, [target]);
+  }, [enabled, target]);
 
-  if (!target) return <>{children}</>;
+  if (!enabled || !target) return <>{children}</>;
 
   return createPortal(
     <div

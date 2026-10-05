@@ -5,8 +5,9 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
+import { DESIGN_H, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
 import {
+  calculateExpandedWorldCameraScale,
   calculateWorldFitScale,
   clampWorldMapOffset,
 } from "@/lib/worldViewport";
@@ -21,6 +22,7 @@ interface UseWorldViewportControllerOptions {
   isLocationDragActive: () => boolean;
   clearStaleLocationDrag: () => void;
   isObjectDragActive: () => boolean;
+  expandedCamera?: boolean;
 }
 
 export function useWorldViewportController({
@@ -30,6 +32,7 @@ export function useWorldViewportController({
   isLocationDragActive,
   clearStaleLocationDrag,
   isObjectDragActive,
+  expandedCamera = false,
 }: UseWorldViewportControllerOptions) {
   const vpRef = useRef<HTMLDivElement>(null);
 
@@ -69,10 +72,10 @@ export function useWorldViewportController({
     if (!el) return;
 
     const measure = () => {
-      // Measure only the logical world frame supplied by #game-stage.
-      // Browser chrome, orientation and portrait-device fitting are owned by
-      // the shared stage controller; ResizeObserver fires when that logical
-      // frame actually changes.
+      // Measure the actual logical camera surface. On iPhone 12 this is still
+      // the canonical 390×844 stage. Opted-in tablet/desktop WorldPage maps can
+      // instead use the expanded viewport-scene surface; the authored map
+      // coordinates remain unchanged and only the camera frame gets larger.
       const width = el.clientWidth || getDesignW();
       const height = el.clientHeight || DESIGN_H;
       frameWRef.current = width;
@@ -113,35 +116,51 @@ export function useWorldViewportController({
   }, [mapWidth]);
 
   const applyMapTransform = useCallback((x: number, y: number, _scale: number) => {
-    const fitScale = calculateWorldFitScale(
-      frameWRef.current,
-      frameHRef.current,
-      mapHRef.current,
-      false,
-      mapWidth,
-    );
+    const useExpandedCamera = expandedCamera && !getStageSurface().viewportOwned;
+    const fitScale = useExpandedCamera
+      ? calculateExpandedWorldCameraScale(
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          mapWidth,
+        )
+      : calculateWorldFitScale(
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          false,
+          mapWidth,
+        );
     const { x: clampedX, y: clampedY } = clampTransform(x, y, fitScale);
     mapTransformRef.current = { x: clampedX, y: clampedY, scale: fitScale };
     setMapX(clampedX);
     setMapY(clampedY);
     setMapScale(fitScale);
-  }, [clampTransform, mapWidth]);
+  }, [clampTransform, expandedCamera, mapWidth]);
 
   useEffect(() => {
-    const fitScale = calculateWorldFitScale(
-      frameWRef.current,
-      frameHRef.current,
-      mapHRef.current,
-      false,
-      mapWidth,
-    );
+    const useExpandedCamera = expandedCamera && !getStageSurface().viewportOwned;
+    const fitScale = useExpandedCamera
+      ? calculateExpandedWorldCameraScale(
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          mapWidth,
+        )
+      : calculateWorldFitScale(
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          false,
+          mapWidth,
+        );
     const initialX = (frameWRef.current - mapWidth * fitScale) / 2;
     const initialY = (frameHRef.current - mapHRef.current * fitScale) / 2;
     mapTransformRef.current = { x: initialX, y: initialY, scale: fitScale };
     setMapX(initialX);
     setMapY(initialY);
     setMapScale(fitScale);
-  }, [frameH, frameW, mapH, mapWidth, worldId]);
+  }, [expandedCamera, frameH, frameW, mapH, mapWidth, worldId]);
 
   const handleVpPointerDown = useCallback((event: ReactPointerEvent) => {
     // Preserve the stale-drag recovery used by the shared admin location
