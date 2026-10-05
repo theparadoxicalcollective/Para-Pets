@@ -397,8 +397,8 @@ export type ViewportHudRect = {
 export function calculateViewportHudRect(layout: StageLayout): ViewportHudRect {
   const scale = Math.max(layout.scale, 0.0001);
   return {
-    left: -layout.left / scale,
-    top: -layout.top / scale,
+    left: layout.left === 0 ? 0 : -layout.left / scale,
+    top: layout.top === 0 ? 0 : -layout.top / scale,
     width: layout.viewportWidth / scale,
     height: layout.viewportHeight / scale,
   };
