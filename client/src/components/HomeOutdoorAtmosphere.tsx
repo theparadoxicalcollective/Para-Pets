@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
-import type { HouseInteriorEffect } from "@shared/housing";
+import { getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
 import {
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
@@ -204,14 +204,13 @@ export function HomeOutdoorAtmosphereLayer({
   // Outdoor night previously reused the interior SVG-mask renderer. On iOS
   // Safari/WebKit that meant the full-yard darkness surface could switch from
   // a DIV to a large animated SVG mask as Home dimensions/effects finished
-  // loading. At full night the clock value is stable, so any bright/dark flash
-  // came from that renderer swap rather than the automatic clock itself.
-  //
-  // Keep one lightweight CSS darkness surface mounted for the entire visit.
-  // Saved outdoor light/fire effects still render above this layer in
-  // HomeInteriorEffectsLayer, but the outdoor scene no longer allocates or
-  // animates a full-screen SVG mask on every night-time Home render.
-  void effects;
+  // loading. Keep one lightweight CSS darkness surface mounted for the entire
+  // visit, then add small local CSS illumination pools above it. This preserves
+  // the stable renderer while allowing lamps/fire to visibly push back the
+  // darkness around their authored positions.
+  const activeLights = hasSceneBox
+    ? effects.filter(effect => isHouseInteriorLightEffectType(effect.type))
+    : [];
 
   return (
     <>
@@ -245,6 +244,45 @@ export function HomeOutdoorAtmosphereLayer({
           contain: "paint",
         }}
       />
+      {activeLights.map(effect => {
+        const rawRadius = getHouseInteriorLightRadiusRatio(effect) * sceneHeight;
+        const radius = Math.max(36, Math.min(sceneHeight * 0.68, rawRadius));
+        const baseStrength = getHouseInteriorLightCutoutStrength(effect.type);
+        // Sunlight should not create an artificial night lamp. Other light
+        // sources strengthen naturally as the yard gets darker.
+        const lightStrength = effect.type === "warm_glow"
+          ? baseStrength * (1 - safeNight)
+          : baseStrength;
+        const illumination = Math.max(
+          0,
+          Math.min(0.78, (safeDarkness / 100) * lightStrength * 1.18),
+        );
+        if (illumination <= 0.002) return null;
+
+        return (
+          <div
+            key={`outdoor-light-reveal-${effect.id}`}
+            data-testid={`home-outdoor-light-reveal-${effect.id}`}
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: panX + effect.x * imgWidth,
+              top: effect.y * sceneHeight,
+              width: radius * 2,
+              height: radius * 2,
+              transform: "translate(-50%, -50%)",
+              zIndex: zIndex + 1,
+              pointerEvents: "none",
+              borderRadius: "50%",
+              background: `radial-gradient(circle, rgba(255,250,226,${illumination}) 0%, rgba(255,226,158,${illumination * 0.72}) 31%, rgba(255,190,105,${illumination * 0.28}) 62%, rgba(255,170,75,0) 100%)`,
+              mixBlendMode: "screen",
+              transition: `opacity ${transitionMs}ms linear`,
+              opacity: safeNight,
+              contain: "paint",
+            }}
+          />
+        );
+      })}
     </>
   );
 }
