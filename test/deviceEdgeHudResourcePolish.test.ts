@@ -38,25 +38,20 @@ test("upper-right button group preserves the original iPhone 12 geometry", () =>
   assert.equal(supportTop, 66);
 });
 
-test("chat and support panels remain on the canonical stage instead of expanding with the HUD buttons", () => {
+test("chat and support overlays share the device HUD so they render above persistent controls", () => {
   const home = read("client/src/pages/HomePage.tsx");
 
-  const cornerHud = home.indexOf('data-testid="viewport-hud-corner-actions"');
-  const hudEnd = home.indexOf("</ViewportHudPortal>", cornerHud);
-  const chatPanel = home.indexOf("<WorldChatPanel", hudEnd);
-  const supportModal = home.indexOf("{showSupportModal && (", hudEnd);
-
-  assert.ok(cornerHud >= 0);
-  assert.ok(hudEnd > cornerHud);
-  assert.ok(chatPanel > hudEnd);
-  assert.ok(supportModal > hudEnd);
+  assert.match(home, /data-testid="viewport-hud-world-chat-layer"/);
+  assert.match(home, /<ViewportHudPortal>[\s\S]*?<WorldChatPanel/);
+  assert.match(home, /\{showSupportModal && \([\s\S]*?<ViewportHudPortal>/);
+  assert.match(home, /!showWorldChat && !showSupportModal/);
 });
 
 test("coin and essence balances share a compact coordinated resource cluster", () => {
   const topBar = read("client/src/components/TopBar.tsx");
 
   assert.match(topBar, /data-testid="topbar-resource-cluster"/);
-  assert.match(topBar, /gridTemplateColumns: "auto 54px"/);
+  assert.match(topBar, /gridTemplateColumns: "auto 44px"/);
   assert.match(topBar, /gridTemplateRows: "30px 30px"/);
   assert.match(topBar, /data-testid="button-coin-shop"/);
   assert.match(topBar, /gridColumn: 1/);
@@ -76,13 +71,13 @@ test("coin-bundle control is more visible without changing the coin shop destina
   assert.match(block, /title="Coin Bundles"/);
   assert.match(block, /navigate\("\/coins"\)/);
   assert.match(block, /gridRow: "1 \/ span 2"/);
-  assert.match(block, /width: 54/);
-  assert.match(block, /height: 54/);
+  assert.match(block, /width: 44/);
+  assert.match(block, /height: 44/);
   assert.match(block, /border: "1\.5px solid rgba\(240,192,64,0\.72\)"/);
-  assert.match(block, /boxShadow: "0 4px 14px/);
-  assert.match(block, /width: 47/);
-  assert.match(block, /height: 47/);
-  assert.match(block, /brightness\(1\.08\)/);
+  assert.match(block, /boxShadow: "0 3px 10px/);
+  assert.match(block, /width: 38/);
+  assert.match(block, /height: 38/);
+  assert.match(block, /brightness\(1\.06\)/);
   assert.match(block, />\s*\+\s*<\/span>/);
 });
 
