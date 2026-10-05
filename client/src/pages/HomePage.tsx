@@ -123,9 +123,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
   }, [showPetStats]);
-  // Sparkle bursts for the pet-action ring buttons. Each entry is one floating
-  // particle positioned in viewport coords with a colour that matches the
-  // rune that was tapped.
+  // Sparkle bursts for the pet-action ring buttons. DOM events arrive in
+  // client pixels, but stored particles use logical stage coordinates so the
+  // burst stays on the tapped rune when the portrait stage is scaled.
   const [ringSparkles, setRingSparkles] = useState<
     { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number }[]
   >([]);
