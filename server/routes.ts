@@ -29,6 +29,7 @@ import { StripePurchaseError } from "./payments/errors";
 import { claimPurchaseMilestone } from "./milestones/claimPurchaseMilestone";
 import { PurchaseMilestoneError } from "./milestones/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
+import { isDedicatedQaTester } from "./qaTester";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 import { tryConsumeOneFromInventory } from "./inventoryConsumption";
 import { registerAccountRoutes } from "./routes/account.routes";
@@ -1433,6 +1434,9 @@ export async function registerRoutes(
   app.post("/api/coins/checkout", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "Real-money checkout is disabled for the QA tester account." });
+      }
       const { packId } = req.body;
 
       const pack = COIN_PACKS.find(p => p.id === packId);
