@@ -8,6 +8,7 @@ import { registerLonelleQuestRoutes } from "../routes/lonelleQuest.routes";
 import { ensureLonelleReward } from "./ensureLonelleReward";
 import { registerJansonQuestRoutes } from "../routes/jansonQuest.routes";
 import { registerBeauPrizeWheelRoutes } from "../routes/beauPrizeWheel.routes";
+import { registerQaTesterRoutes } from "../routes/qaTester.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileCanonicalWorldMaps } from "../worlds/canonicalWorldMaps";
@@ -79,7 +80,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   try {
     const qaAccount = await ensureQaModeratorAccount();
     if (qaAccount.enabled) {
-      console.log(`[qa] moderator account ${qaAccount.created ? "created" : "ready"}: ${qaAccount.username}`);
+      console.log(`[qa] QA tester account ${qaAccount.created ? "created" : "ready"}: ${qaAccount.username}`);
     }
   } catch (error) {
     console.error("[qa] moderator account provisioning skipped:", error instanceof Error ? error.message : error);
@@ -99,6 +100,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   registerLonelleQuestRoutes(app);
   registerJansonQuestRoutes(app);
   registerBeauPrizeWheelRoutes(app);
+  registerQaTesterRoutes(app);
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
