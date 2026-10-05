@@ -9,6 +9,7 @@ import {
   HOME_OUTDOOR_AUTO_TRANSITION_MS,
   HOME_OUTDOOR_NIGHT_DARKNESS,
   HOME_OUTDOOR_OVERRIDE_TRANSITION_MS,
+  HOME_OUTDOOR_RESUME_TRANSITION_MS,
   cycleHomeOutdoorLightingMode,
   getAutomaticHomeNightStrength,
   getHomeOutdoorDarkness,
@@ -32,6 +33,7 @@ test("automatic Home lighting eases through dawn and dusk using the player's loc
   assert.equal(getHomeOutdoorDarkness("auto", at(18, 30)), HOME_OUTDOOR_NIGHT_DARKNESS * 0.25);
   assert.equal(HOME_OUTDOOR_AUTO_TRANSITION_MS, 30_000);
   assert.equal(HOME_OUTDOOR_OVERRIDE_TRANSITION_MS, 280);
+  assert.equal(HOME_OUTDOOR_RESUME_TRANSITION_MS, 420);
 });
 
 test("day-night control cycles auto to sun, moon, and back to automatic", () => {
@@ -70,7 +72,7 @@ test("owner and visitor Home yards use the owner's current day-night setting dur
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
-  assert.match(owner, /const currentOutdoorLightingMode = activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"/);
+  assert.match(owner, /useState<HomeOutdoorLightingMode>\("auto"\)/);
   assert.match(owner, /useHomeOutdoorLighting\(currentOutdoorLightingMode\)/);
   assert.match(visitor, /useHomeOutdoorLighting\(activeBundle\?\.playerLighting\?\.outdoorMode \?\? "auto"\)/);
 
@@ -89,7 +91,11 @@ test("owner and visitor Home yards use the owner's current day-night setting dur
 
   assert.doesNotMatch(atmosphere, /localStorage/);
   assert.doesNotMatch(atmosphere, /HOME_OUTDOOR_LIGHTING_STORAGE_KEY/);
-  assert.match(atmosphere, /window\.setInterval\(\(\) => setNow\(new Date\(\)\), 30_000\)/);
+  assert.match(atmosphere, /document\.addEventListener\("visibilitychange", syncFromLifecycle\)/);
+  assert.match(atmosphere, /window\.addEventListener\("pageshow", syncFromLifecycle\)/);
+  assert.match(atmosphere, /document\.visibilityState === "hidden"/);
+  assert.match(atmosphere, /HOME_OUTDOOR_RESUME_TRANSITION_MS/);
+  assert.match(atmosphere, /window\.setInterval\(\(\) => \{[\s\S]*?HOME_OUTDOOR_AUTO_TRANSITION_MS[\s\S]*?\}, 30_000\)/);
   assert.match(atmosphere, /data-lighting-mode=\{mode\}/);
   assert.match(atmosphere, /data-testid="home-day-night-planet"/);
   assert.match(atmosphere, /safeNight \* 100/);
@@ -110,6 +116,7 @@ test("night darkness is cut away by saved outdoor lights while decorative effect
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
   assert.match(atmosphere, /<HomeInteriorDarknessLayer[\s\S]*darkness=\{darkness\}[\s\S]*effects=\{effects\}/);
+  assert.match(atmosphere, /sunlightStrength=\{1 - safeNight\}/);
   assert.match(atmosphere, /data-testid="home-outdoor-night-tint"/);
   for (const source of [owner, visitor]) {
     assert.match(source, /zIndex=\{20\}/);
@@ -150,6 +157,8 @@ test("manual Day/Night overrides reset to Auto whenever the owner leaves the Pet
   const owner = read("client/src/pages/PetHousePage.tsx");
 
   assert.match(owner, /outdoorLightingSessionRef/);
+  assert.match(owner, /setCurrentOutdoorLightingMode\(nextMode\)/);
+  assert.match(owner, /if \(session\.touched \|\| persistedMode === "auto"\) return/);
   assert.match(owner, /resetOutdoorLightingOnDeparture/);
   assert.match(owner, /return \(\) => resetOutdoorLightingOnDeparture\(\)/);
   assert.match(owner, /outdoorMode: "auto"/);
@@ -200,4 +209,19 @@ test("full nighttime uses a darker maximum and stronger tint than the original i
   assert.equal(HOME_OUTDOOR_NIGHT_DARKNESS, 78);
   assert.match(atmosphere, /opacity: safeNight \* \.30/);
   assert.match(atmosphere, /rgba\(1,5,15,\.78\)/);
+});
+
+
+test("day-night rendering stays mounted at zero darkness so manual overrides can fade instead of flash", () => {
+  const darknessLayer = read("client/src/components/HomeInteriorEffect.tsx");
+  assert.doesNotMatch(darknessLayer, /if \(safeDarkness <= 0\) return null/);
+  assert.match(darknessLayer, /background: \`rgba\(0,0,0,\$\{safeDarkness \/ 100\}\)\`/);
+  assert.match(darknessLayer, /fillOpacity: safeDarkness \/ 100/);
+});
+
+test("outdoor sunlight visuals follow daylight strength for owners and visitors", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  assert.match(owner, /sunlightStrength=\{tutorialSceneRevealActive \? 1 : outdoorLighting\.daylightStrength\}/);
+  assert.match(visitor, /sunlightStrength=\{outdoorLighting\.daylightStrength\}/);
 });
