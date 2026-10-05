@@ -11,7 +11,7 @@
     background-image:
       linear-gradient(
         180deg,
-        rgba(2, 8, 5, calc(var(--stage-surrounding-overlay-alpha, 0.24) * 0.25)),
+        rgba(2, 8, 5, 0.06),
         rgba(2, 8, 5, var(--stage-surrounding-overlay-alpha, 0.24))
       ),
       var(--stage-surrounding-image, var(--desktop-stage-background-image)) !important;
@@ -50,7 +50,7 @@
     background-image:
       linear-gradient(
         180deg,
-        rgba(2, 8, 5, calc(var(--stage-surrounding-overlay-alpha, 0.24) * 0.25)),
+        rgba(2, 8, 5, 0.06),
         rgba(2, 8, 5, var(--stage-surrounding-overlay-alpha, 0.24))
       ),
       var(--stage-surrounding-image, var(--desktop-stage-background-image)) !important;
