@@ -48,3 +48,18 @@ test("the native iPhone 12 path is preserved by body-owned stage portals", () =>
   assert.match(stage, /if \(stage\?\.dataset\.coordinateOwner === "viewport"\) return document\.body/);
   assert.match(stage, /return getStagePortalTarget\(\) === document\.body[\s\S]*?\{ x: clientX, y: clientY \}/);
 });
+
+test("coin shop reward bursts seed from the rendered player stage instead of the browser viewport", () => {
+  const source = read("client/src/pages/CoinShopPage.tsx");
+  const stage = read("client/src/lib/stage.ts");
+
+  assert.match(source, /getStageRenderedPoint/);
+  assert.match(source, /getStageRenderedPoint\(1 \/ 3, 1 \/ 3\)/);
+  assert.match(source, /getStageRenderedPoint\(2 \/ 3, 1 \/ 3\)/);
+  assert.doesNotMatch(source, /window\.innerWidth/);
+  assert.doesNotMatch(source, /window\.innerHeight/);
+
+  assert.match(stage, /export function getStageRenderedPoint/);
+  assert.match(stage, /surface\.left \+ surface\.logicalWidth \* surface\.scale \* xRatio/);
+  assert.match(stage, /surface\.top \+ surface\.logicalHeight \* surface\.scale \* yRatio/);
+});
