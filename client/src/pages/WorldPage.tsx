@@ -39,6 +39,7 @@ import FishingPage from "@/pages/FishingPage";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import SellFishPage from "@/pages/SellFishPage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import { useStageSurroundings } from "@/lib/stageSurroundings";
 
 const recipeBookClosed = "/recipe-book-closed.png";
 const mixingTreeTitle = "/mixing-tree-title.png";
@@ -317,6 +318,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
   const autoOpenDone = useRef(false);
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
+  useStageSurroundings({
+    imageUrl: showLocationView && committedLocBgUrl ? committedLocBgUrl : committedWorldBg || null,
+    backgroundPosition: "center top",
+    overlayAlpha: 0.3,
+  });
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
     queryKey: ["/api/world", worldId, "locations"],

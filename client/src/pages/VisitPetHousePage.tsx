@@ -20,6 +20,7 @@ import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewpor
 import { clientDeltaToStage } from "@/lib/stage";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
+import { useStageSurroundings } from "@/lib/stageSurroundings";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -731,6 +732,11 @@ export default function VisitPetHousePage() {
   const outdoorDecorCount = outdoorDecor.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
 
   const bgUrl = activeBundle?.bgImageUrl ?? null;
+  useStageSurroundings({
+    imageUrl: openInterior?.url ?? bgUrl,
+    backgroundPosition: "center center",
+    overlayAlpha: openInterior ? 0.38 : 0.22,
+  });
 
   useEffect(() => {
     const container = containerRef.current;

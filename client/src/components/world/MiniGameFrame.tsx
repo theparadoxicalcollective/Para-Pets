@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useStageSurroundings } from "@/lib/stageSurroundings";
 import volcanicWorld from "@assets/bg_volcanic_map_v4.webp";
 import hauntedWorld from "@assets/bg_haunted_woods_v2.webp";
 import swampWorld from "@assets/bg_bayous_heart.webp";
@@ -24,6 +25,7 @@ export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   backgroundUrl?: string | null;
 }) {
   const artwork = backgroundUrl || worldBackgrounds[worldId];
+  useStageSurroundings({ imageUrl: artwork, backgroundPosition: "center", overlayAlpha: 0.32, priority: 20 });
 
   return (
     <div

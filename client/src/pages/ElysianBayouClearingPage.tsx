@@ -16,6 +16,7 @@ import WalkAroundScene from "@/components/WalkAroundScene";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import backgroundUrl from "@assets/uploads/NewClearingBg.png";
+import { useStageSurroundings } from "@/lib/stageSurroundings";
 
 // ── Scene configuration ───────────────────────────────────────────────────────
 //
@@ -81,6 +82,7 @@ interface ElysianBayouClearingPageProps {
 }
 
 export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingPageProps) {
+  useStageSurroundings({ imageUrl: backgroundUrl, backgroundPosition: "center center", overlayAlpha: 0.28 });
   useEffect(() => {
     stabilityDiagnostic("component-mount", { component: "ElysianBayouClearingPage" });
     return () => stabilityDiagnostic("component-unmount", { component: "ElysianBayouClearingPage" });
