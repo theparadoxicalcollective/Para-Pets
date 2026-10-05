@@ -1106,6 +1106,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     handleVpPointerDown,
     handleVpPointerMove,
     handleVpPointerUp,
+    handleVpPointerCancel,
   } = useWorldViewportController({
     worldId,
     mapWidth: MAP_W,
@@ -1460,11 +1461,19 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         data-testid="world-expanded-camera"
         data-quest-guide-pan-surface
         className="absolute inset-0 overflow-hidden"
-        style={{ touchAction: "none" }}
+        style={{
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+          overscrollBehavior: "none",
+        }}
         onPointerDown={handleVpPointerDown}
         onPointerMove={handleVpPointerMove}
         onPointerUp={handleVpPointerUp}
-        onPointerCancel={handleVpPointerUp}
+        onPointerCancel={handleVpPointerCancel}
+        onLostPointerCapture={handleVpPointerCancel}
+        onContextMenu={event => event.preventDefault()}
       >
           <div
             ref={areaRef}

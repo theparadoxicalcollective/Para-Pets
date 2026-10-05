@@ -10,10 +10,12 @@ test("shared world viewport controller owns frame measurement and pan lifecycle"
   assert.match(source, /new ResizeObserver\(measure\)/);
   assert.doesNotMatch(source, /window\.addEventListener\("orientationchange", measure\)/);
   assert.doesNotMatch(source, /visualViewport|window\.innerWidth|window\.innerHeight|display-mode: standalone/);
-  assert.match(source, /getStageScale\(\)/);
+  assert.match(source, /clientDeltaToStage\(/);
+  assert.doesNotMatch(source, /getStageScale\(\)/);
   assert.match(source, /WORLD_MAP_PAN_THRESHOLD_PX = 4/);
   assert.match(source, /WORLD_MAP_POST_PAN_CLICK_MS = 80/);
-  assert.match(source, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(source, /safeSetWorldPointerCapture\(event\.currentTarget, event\.pointerId\)/);
+  assert.match(source, /typeof element\.setPointerCapture !== "function"/);
   assert.match(source, /event\.preventDefault\(\)/);
   assert.match(source, /addEventListener\("wheel", handleVpWheel, \{ passive: false \}\)/);
 });
@@ -96,7 +98,8 @@ test("WorldPage delegates viewport state and pointer handlers to the shared cont
   assert.match(worldPage, /onPointerDown=\{handleVpPointerDown\}/);
   assert.match(worldPage, /onPointerMove=\{handleVpPointerMove\}/);
   assert.match(worldPage, /onPointerUp=\{handleVpPointerUp\}/);
-  assert.match(worldPage, /onPointerCancel=\{handleVpPointerUp\}/);
+  assert.match(worldPage, /onPointerCancel=\{handleVpPointerCancel\}/);
+  assert.match(worldPage, /onLostPointerCapture=\{handleVpPointerCancel\}/);
 
   assert.doesNotMatch(worldPage, /const mapPanPointersRef/);
   assert.doesNotMatch(worldPage, /const handleVpPointerDown = useCallback/);
@@ -116,4 +119,23 @@ test("Janson fishing guidance still uses the public viewport transform API", () 
     worldPage,
     /applyMapTransform\(frameW \/ 2 - centerX \* scale, frameH \/ 2 - centerY \* scale, scale\)/,
   );
+});
+
+test("World camera uses Pet Home-style cancellation and lost-capture recovery", () => {
+  const controller = read("client/src/worlds/useWorldViewportController.ts");
+  const worldPage = read("client/src/pages/WorldPage.tsx");
+
+  assert.match(controller, /const finishViewportPointer = useCallback/);
+  assert.match(controller, /const handleVpPointerCancel = useCallback/);
+  assert.match(controller, /finishViewportPointer\(event, true\)/);
+  assert.match(controller, /mapPanPointersRef\.current\.delete\(event\.pointerId\)/);
+  assert.match(controller, /mapPanStartRef\.current = null/);
+  assert.match(controller, /mapPanningRef\.current = false/);
+
+  assert.match(worldPage, /onPointerCancel=\{handleVpPointerCancel\}/);
+  assert.match(worldPage, /onLostPointerCapture=\{handleVpPointerCancel\}/);
+  assert.match(worldPage, /touchAction: "none"/);
+  assert.match(worldPage, /WebkitTouchCallout: "none"/);
+  assert.match(worldPage, /overscrollBehavior: "none"/);
+  assert.match(worldPage, /onContextMenu=\{event => event\.preventDefault\(\)\}/);
 });
