@@ -972,7 +972,6 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
         <CrashReporter />
         <DesktopNotice />
         {/* Fixed phone-frame stage, uniformly scaled to fit any device. */}
@@ -983,6 +982,7 @@ function App() {
           <ErrorBoundary fallback={null}>
             <GlobalLevelUpOverlay />
           </ErrorBoundary>
+          <Toaster />
         </GameStage>
       </TooltipProvider>
     </QueryClientProvider>
