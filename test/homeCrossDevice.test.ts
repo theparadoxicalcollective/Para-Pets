@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  centeredHomeCameraPanX,
+  clampHomeCameraPanX,
   HOME_FIXED_VIEWPORT_STYLE,
   HOME_TOUCH_SURFACE_STYLE,
   safeSetPointerCapture,
@@ -128,4 +130,17 @@ test("cross-device hardening preserves image-space scene placement", () => {
   assert.match(visitor, /top: item\.yPct \* containerH/);
   assert.match(admin, /x: Math\.max\(0, Math\.min\(1, drag\.startEffectX/);
   assert.match(admin, /y: Math\.max\(0, Math\.min\(1, drag\.startEffectY/);
+});
+
+
+test("expanded Home camera pans real artwork but centers it when the camera is wider", () => {
+  assert.equal(centeredHomeCameraPanX(390, 760), -185);
+  assert.equal(clampHomeCameraPanX(-9999, 390, 760), -370);
+  assert.equal(clampHomeCameraPanX(9999, 390, 760), 0);
+
+  assert.equal(centeredHomeCameraPanX(700, 560), 70);
+  assert.equal(clampHomeCameraPanX(-9999, 700, 560), 70);
+  assert.equal(clampHomeCameraPanX(9999, 700, 560), 70);
+
+  assert.equal(clampHomeCameraPanX(Number.NaN, 700, 560), 0);
 });
