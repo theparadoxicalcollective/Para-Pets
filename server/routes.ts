@@ -1024,6 +1024,9 @@ export async function registerRoutes(
   app.patch("/api/user/password", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "This reserved QA account is managed by the testing configuration." });
+      }
       const { currentPassword, newPassword } = req.body;
       if (!currentPassword || !newPassword) {
         return res.status(400).json({ message: "Current password and new password are required" });
@@ -1052,6 +1055,9 @@ export async function registerRoutes(
   app.post("/api/user/delete-account", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "Reserved QA accounts cannot delete themselves." });
+      }
       const { password } = req.body;
       if (!password) {
         return res.status(400).json({ message: "Password is required to delete your account" });
@@ -1082,6 +1088,9 @@ export async function registerRoutes(
   app.patch("/api/user/username", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (isDedicatedQaTester(user)) {
+        return res.status(403).json({ message: "Reserved QA usernames are managed by the testing configuration." });
+      }
       const { username } = req.body;
 
       const parse = updateUsernameSchema.safeParse({ username });
