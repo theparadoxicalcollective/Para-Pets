@@ -70,8 +70,8 @@ test("smaller and larger portrait phones uniformly scale instead of reflowing th
   assert.equal(small.designHeight, 844);
   assert.equal(large.designWidth, 390);
   assert.equal(large.designHeight, 844);
-  assert.equal(small.renderedWidth / small.renderedHeight, 390 / 844);
-  assert.equal(large.renderedWidth / large.renderedHeight, 390 / 844);
+  assert.ok(Math.abs(small.renderedWidth / small.renderedHeight - 390 / 844) < 1e-12);
+  assert.ok(Math.abs(large.renderedWidth / large.renderedHeight - 390 / 844) < 1e-12);
 });
 
 test("portrait fitting is touch-first only and does not activate during keyboard or landscape", () => {
