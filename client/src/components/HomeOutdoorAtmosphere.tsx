@@ -214,6 +214,7 @@ export function HomeOutdoorAtmosphereLayer({
         panX={panX}
         imgWidth={imgWidth}
         sceneHeight={sceneHeight}
+        sunlightStrength={1 - safeNight}
         transitionMs={transitionMs}
         zIndex={zIndex}
       />
