@@ -6,6 +6,7 @@ import BeauPrizeWheelBridge from "./components/BeauPrizeWheelBridge";
 import GinnyGuideAlignmentFix from "./components/GinnyGuideAlignmentFix";
 import AdornmentTerminologyBridge from "./components/AdornmentTerminologyBridge";
 import { detectRuntimeMode } from "./lib/runtimeMode";
+import { installAppHeightSync } from "./lib/stageViewport";
 import "./index.css";
 import "./tabletStageShell.css";
 import "./petCarePolish.css";
@@ -19,11 +20,7 @@ import "./components/world/CasinoMobilePolish.css";
 
 declare const __BUILD_ID__: string;
 
-function setAppHeight() {
-  document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
-}
-setAppHeight();
-window.addEventListener("resize", setAppHeight);
+installAppHeightSync();
 
 // ── Global error reporter ─────────────────────────────────────────────────────
 // Captures unhandled JS errors and promise rejections that bypass React's
