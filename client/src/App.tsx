@@ -21,6 +21,7 @@ import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
 import mainGameBg from "@assets/uploads/MainGameBG.png";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
+import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
@@ -802,6 +803,7 @@ function GameStage({ children }: { children: ReactNode }) {
             height: "100%",
             overflow: "hidden",
             isolation: "isolate",
+            visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
             "--fh": `${layout.viewportHeight}px`,
             "--vh": `${layout.viewportHeight * 0.01}px`,
             "--vw": `${layout.viewportWidth * 0.01}px`,
@@ -809,6 +811,7 @@ function GameStage({ children }: { children: ReactNode }) {
         >
           {children}
         </div>
+        <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
       </div>
     );
   }
@@ -838,6 +841,7 @@ function GameStage({ children }: { children: ReactNode }) {
           transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
+          visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
           // Frame-relative viewport units remain logical pixels while the
           // complete stage is uniformly scaled into the visual viewport.
           "--fh": `${layout.designHeight}px`,
@@ -847,6 +851,7 @@ function GameStage({ children }: { children: ReactNode }) {
       >
         {children}
       </div>
+      <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>
   );
 }
