@@ -314,7 +314,7 @@
 }
 
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (min-height: 700px) {
   .auth-page-root {
     background: #03100b;
   }
