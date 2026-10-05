@@ -1422,6 +1422,30 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }
 
   const accent = world.accent;
+  const worldMapCameraBlocked = Boolean(
+    showProfile
+    || showLocationView
+    || showShop
+    || showFishing
+    || showSellFish
+    || showDangerWarning
+    || showNoPetMessage
+    || showBattlePrep
+    || showBattle
+    || showCaveEntry
+    || cauldronOpen
+    || showAddLocation
+    || editingLocation
+    || showAddObject
+    || showDecorPanel
+    || showAddDecorForm
+    || editingDecorItem
+    || showExploreAdmin
+    || showPondAdmin
+    || showItemPicker
+    || recipeDetail
+    || showRecipeBook
+  );
 
   return (
     <div
@@ -1430,7 +1454,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     >
       <style>{`.world-scroll::-webkit-scrollbar-thumb{background:${accent}40;border-radius:4px;}.world-scroll::-webkit-scrollbar-thumb:hover{background:${accent}70;}`}</style>
 
-      <ViewportScenePortal>
+      <ViewportScenePortal enabled={!worldMapCameraBlocked}>
       <div
         ref={vpRef}
         data-testid="world-expanded-camera"
