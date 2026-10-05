@@ -105,14 +105,16 @@ test("cancelled mobile gestures do not toggle lights, place inventory items, or 
   assert.match(admin, /onLostPointerCapture=\{handleBuildingPointerCancel\}/);
 });
 
-test("Home fixed overlays respect mobile viewport and Admin safe areas", () => {
+test("Home player interiors use the shared scene camera while Admin fixed overlays keep safe areas", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const admin = read("client/src/components/HomeBundleSection.tsx");
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
 
-  assert.match(owner, /HOME_FIXED_VIEWPORT_STYLE/);
-  assert.match(visitor, /HOME_FIXED_VIEWPORT_STYLE/);
+  assert.match(owner, /<ViewportScenePortal>/);
+  assert.match(visitor, /<ViewportScenePortal>/);
+  assert.doesNotMatch(owner, /className="fixed inset-0"[\s\S]{0,220}HOME_FIXED_VIEWPORT_STYLE/);
+  assert.doesNotMatch(visitor, /className="fixed inset-0"[\s\S]{0,220}HOME_FIXED_VIEWPORT_STYLE/);
   assert.match(admin, /HOME_FIXED_VIEWPORT_STYLE/);
   assert.match(admin, /bottom: "max\(16px, env\(safe-area-inset-bottom, 0px\)\)"/);
   assert.match(admin, /env\(safe-area-inset-top, 0px\)/);
