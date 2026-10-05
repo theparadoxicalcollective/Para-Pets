@@ -1085,6 +1085,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
+  const { data: petHomeTutorialStatus, isSuccess: petHomeTutorialStatusReady } = useQuery<{
+    completed: boolean;
+    tutorialVersion: number;
+    currentVersion: number;
+  }>({
+    queryKey: ["/api/pet-home/tutorial"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/pet-home/tutorial");
+      return res.json();
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  const [petHomeTutorialStep, setPetHomeTutorialStep] = useState<PetHomeTutorialStep | null>(null);
+  const completePetHomeTutorialMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/pet-home/tutorial/complete", {});
+      return res.json();
+    },
+    onSuccess: (result: { completed: boolean; tutorialVersion: number; currentVersion: number }) => {
+      qc.setQueryData(["/api/pet-home/tutorial"], result);
+      setPetHomeTutorialStep(null);
+    },
+    onError: () => {
+      toast({
+        title: "Tutorial progress not saved",
+        description: "Please tap Continue again so your Pet Home guide does not repeat next visit.",
+        variant: "destructive",
+      });
+    },
+  });
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
