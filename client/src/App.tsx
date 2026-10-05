@@ -813,7 +813,6 @@ function GameStage({ children }: { children: ReactNode }) {
           <div
             id="game-viewport-hud"
             data-testid="game-viewport-hud"
-            aria-hidden="true"
             style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
           />
         </div>
@@ -871,7 +870,6 @@ function GameStage({ children }: { children: ReactNode }) {
         <div
           id="game-viewport-hud"
           data-testid="game-viewport-hud"
-          aria-hidden="true"
           style={{
             position: "absolute",
             left: -layout.left / Math.max(layout.scale, 0.0001),
