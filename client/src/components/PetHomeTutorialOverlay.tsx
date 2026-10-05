@@ -318,7 +318,7 @@ export default function PetHomeTutorialOverlay({
           top: cardPosition.centerY,
           transform: "translate(-50%, -50%)",
           width: cardWidth,
-          maxWidth: "calc(100vw - 28px)",
+          maxWidth: Math.max(0, layout.stage.width - 28),
           maxHeight: "calc(var(--home-visual-height, 100dvh) - 28px)",
           overflowY: "auto",
           WebkitOverflowScrolling: "touch",
