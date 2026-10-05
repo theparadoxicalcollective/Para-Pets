@@ -493,7 +493,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           data-testid="button-gift-rewards-floating"
           aria-label={`Open ${pendingRewards.length} pending reward${pendingRewards.length === 1 ? "" : "s"}`}
           onClick={() => setShowRewards(true)}
-          className="fixed transition-transform active:scale-90"
+          className="absolute transition-transform active:scale-90"
           style={{
             top: "calc(17*var(--vh))",
             right: "calc(7 * var(--vw))",
