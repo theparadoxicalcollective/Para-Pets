@@ -774,19 +774,41 @@ export default function VisitPetHousePage() {
 
   const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
 
+  const visitorOutdoorCameraBlocked = Boolean(
+    openInterior
+    || showGiftModal
+    || selectedPet
+  );
+
   return (
     <div
-      ref={containerRef}
       className="relative w-full h-screen-frame"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab", overflow: "hidden" }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onLostPointerCapture={handlePointerUp}
-      onContextMenu={e => e.preventDefault()}
+      style={{ maxWidth: "768px", margin: "0 auto", overflow: "hidden" }}
     >
+      <ViewportScenePortal enabled={!visitorOutdoorCameraBlocked}>
+        <div
+          ref={containerRef}
+          data-testid="visit-pet-home-stage"
+          className="absolute inset-0 overflow-hidden"
+          style={{ ...HOME_TOUCH_SURFACE_STYLE, cursor: "grab" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
+          onContextMenu={e => e.preventDefault()}
+        >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {!openInterior && (
+          <div
+            data-testid="visit-pet-home-camera-extension-darkness"
+            className="absolute inset-0"
+            style={{
+              background: `rgba(0,0,0,${outdoorLighting.darkness / 100})`,
+              pointerEvents: "none",
+            }}
+          />
+        )}
         {bgUrl && !openInterior ? (
           <img
             src={bgUrl}
@@ -973,6 +995,9 @@ export default function VisitPetHousePage() {
           decorLimit={outdoorDecorLimit}
         />
       )}
+
+        </div>
+      </ViewportScenePortal>
 
       {/* HUD */}
       <div
