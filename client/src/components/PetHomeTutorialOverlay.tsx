@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE } from "@/lib/homeCrossDevice";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 export type PetHomeTutorialStep =
@@ -16,6 +17,19 @@ type TargetRect = {
   bottom: number;
   width: number;
   height: number;
+};
+
+type ViewportRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type TutorialLayout = {
+  targets: TargetRect[];
+  viewport: ViewportRect;
+  stage: ViewportRect;
 };
 
 const STEP_COPY: Record<PetHomeTutorialStep, { title: string; body: string }> = {
@@ -67,6 +81,52 @@ function toRect(element: Element): TargetRect {
   };
 }
 
+function currentVisualViewport(): ViewportRect {
+  if (typeof window === "undefined") {
+    return { left: 0, top: 0, width: 390, height: 844 };
+  }
+  const visualViewport = window.visualViewport;
+  return {
+    left: visualViewport?.offsetLeft ?? 0,
+    top: visualViewport?.offsetTop ?? 0,
+    width: visualViewport?.width ?? window.innerWidth,
+    height: visualViewport?.height ?? window.innerHeight,
+  };
+}
+
+function currentStageRect(viewport: ViewportRect): ViewportRect {
+  if (typeof document === "undefined") return viewport;
+  const stage = document.querySelector('[data-testid="pet-home-stage"]');
+  if (!stage) return viewport;
+  const rect = stage.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return viewport;
+  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+}
+
+function sameLayout(a: TutorialLayout, b: TutorialLayout): boolean {
+  const rounded = (value: number) => Math.round(value);
+  if (
+    rounded(a.viewport.left) !== rounded(b.viewport.left)
+    || rounded(a.viewport.top) !== rounded(b.viewport.top)
+    || rounded(a.viewport.width) !== rounded(b.viewport.width)
+    || rounded(a.viewport.height) !== rounded(b.viewport.height)
+    || rounded(a.stage.left) !== rounded(b.stage.left)
+    || rounded(a.stage.top) !== rounded(b.stage.top)
+    || rounded(a.stage.width) !== rounded(b.stage.width)
+    || rounded(a.stage.height) !== rounded(b.stage.height)
+    || a.targets.length !== b.targets.length
+  ) return false;
+
+  return a.targets.every((rect, index) => {
+    const other = b.targets[index];
+    return !!other
+      && rounded(rect.left) === rounded(other.left)
+      && rounded(rect.top) === rounded(other.top)
+      && rounded(rect.width) === rounded(other.width)
+      && rounded(rect.height) === rounded(other.height);
+  });
+}
+
 export default function PetHomeTutorialOverlay({
   step,
   onContinue,
@@ -76,46 +136,91 @@ export default function PetHomeTutorialOverlay({
   onContinue: () => void;
   completing?: boolean;
 }) {
-  const [rects, setRects] = useState<TargetRect[]>([]);
+  const initialViewport = currentVisualViewport();
+  const [layout, setLayout] = useState<TutorialLayout>(() => ({
+    targets: [],
+    viewport: initialViewport,
+    stage: currentStageRect(initialViewport),
+  }));
 
   useEffect(() => {
     const selectors = TARGETS[step] ?? [];
-    if (selectors.length === 0) {
-      setRects([]);
-      return;
-    }
+    let resizeObserver: ResizeObserver | null = null;
+    const settleTimers: number[] = [];
 
-    let raf = 0;
-    let lastSignature = "";
     const update = () => {
-      const next = selectors
+      const viewport = currentVisualViewport();
+      const targets = selectors
         .map(selector => document.querySelector(selector))
         .filter((element): element is Element => !!element)
         .map(toRect)
         .filter(rect => rect.width > 0 && rect.height > 0);
-
-      const signature = next
-        .map(rect => [rect.left, rect.top, rect.width, rect.height].map(value => Math.round(value)).join(":"))
-        .join("|");
-      if (signature !== lastSignature) {
-        lastSignature = signature;
-        setRects(next);
-      }
-      raf = window.requestAnimationFrame(update);
+      const next: TutorialLayout = {
+        targets,
+        viewport,
+        stage: currentStageRect(viewport),
+      };
+      setLayout(current => sameLayout(current, next) ? current : next);
     };
 
-    raf = window.requestAnimationFrame(update);
-    return () => window.cancelAnimationFrame(raf);
+    update();
+
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(update);
+      const stage = document.querySelector('[data-testid="pet-home-stage"]');
+      if (stage) resizeObserver.observe(stage);
+      for (const selector of selectors) {
+        const target = document.querySelector(selector);
+        if (target) resizeObserver.observe(target);
+      }
+    }
+
+    // Let delayed image/layout work settle without polling every animation frame.
+    for (const delay of [50, 250, 750]) {
+      settleTimers.push(window.setTimeout(update, delay));
+    }
+
+    window.addEventListener("resize", update, { passive: true });
+    window.addEventListener("orientationchange", update, { passive: true });
+    window.visualViewport?.addEventListener("resize", update, { passive: true });
+    window.visualViewport?.addEventListener("scroll", update, { passive: true });
+
+    return () => {
+      resizeObserver?.disconnect();
+      for (const timer of settleTimers) window.clearTimeout(timer);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
   }, [step]);
 
   const copy = STEP_COPY[step];
   const stepNumber = STEP_ORDER.indexOf(step) + 1;
-  const firstTarget = rects[0] ?? null;
-  const cardTop = useMemo(() => {
-    if (step === "welcome" || !firstTarget) return "50%";
-    const centerY = firstTarget.top + firstTarget.height / 2;
-    return centerY < window.innerHeight * 0.5 ? "68%" : "24%";
-  }, [firstTarget, step]);
+  const firstTarget = layout.targets[0] ?? null;
+
+  const cardPosition = useMemo(() => {
+    const viewport = layout.viewport;
+    const stage = layout.stage;
+    const centerX = stage.left + stage.width / 2;
+    const viewportMiddle = viewport.top + viewport.height / 2;
+    const preferredY = step === "welcome" || !firstTarget
+      ? viewportMiddle
+      : firstTarget.top + firstTarget.height / 2 < viewportMiddle
+        ? viewport.top + viewport.height * 0.69
+        : viewport.top + viewport.height * 0.27;
+
+    const verticalMargin = Math.min(130, Math.max(82, viewport.height * 0.22));
+    const minY = viewport.top + verticalMargin;
+    const maxY = viewport.top + viewport.height - verticalMargin;
+    const centerY = maxY <= minY
+      ? viewportMiddle
+      : Math.max(minY, Math.min(maxY, preferredY));
+
+    return { centerX, centerY };
+  }, [firstTarget, layout.stage, layout.viewport, step]);
+
+  const cardWidth = Math.min(370, Math.max(250, layout.stage.width - 28));
 
   return (
     <div
@@ -123,7 +228,7 @@ export default function PetHomeTutorialOverlay({
       role="dialog"
       aria-modal="true"
       aria-label={copy.title}
-      className="fixed inset-0"
+      className="fixed"
       onPointerDown={event => {
         event.preventDefault();
         event.stopPropagation();
@@ -140,22 +245,44 @@ export default function PetHomeTutorialOverlay({
         event.preventDefault();
         event.stopPropagation();
       }}
+      onContextMenu={event => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onKeyDownCapture={event => {
+        if (event.key === "Tab" || event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.key === "Tab") {
+            event.currentTarget
+              .querySelector<HTMLButtonElement>('[data-testid="button-pet-home-tutorial-continue"]')
+              ?.focus();
+          }
+        }
+      }}
       style={{
+        ...HOME_TOUCH_SURFACE_STYLE,
+        ...HOME_FIXED_VIEWPORT_STYLE,
         zIndex: 99000,
+        left: layout.stage.left,
+        top: layout.stage.top,
+        width: layout.stage.width,
         maxWidth: 768,
-        margin: "0 auto",
-        left: 0,
-        right: 0,
         background: "rgba(0,0,0,0.62)",
-        touchAction: "none",
         pointerEvents: "auto",
+        overflow: "hidden",
       }}
     >
-      {rects.map((rect, index) => {
+      {layout.targets.map((rect, index) => {
         const pad = 8;
-        const arrowAbove = rect.top >= 82;
+        const arrowAbove = rect.top >= layout.viewport.top + 82;
         const arrowTop = arrowAbove ? rect.top - 68 : rect.bottom + 8;
-        const arrowLeft = Math.max(8, Math.min(window.innerWidth - 56, rect.left + rect.width / 2 - 24));
+        const minArrowLeft = layout.stage.left + 8;
+        const maxArrowLeft = layout.stage.left + layout.stage.width - 56;
+        const arrowLeft = Math.max(
+          minArrowLeft,
+          Math.min(maxArrowLeft, rect.left + rect.width / 2 - 24),
+        );
         return (
           <div key={index} aria-hidden="true">
             <div
@@ -206,11 +333,14 @@ export default function PetHomeTutorialOverlay({
         data-testid={`pet-home-tutorial-step-${step}`}
         style={{
           position: "fixed",
-          left: "50%",
-          top: cardTop,
+          left: cardPosition.centerX,
+          top: cardPosition.centerY,
           transform: "translate(-50%, -50%)",
-          width: "min(88vw, 370px)",
-          maxWidth: "calc(100% - 28px)",
+          width: cardWidth,
+          maxWidth: "calc(100vw - 28px)",
+          maxHeight: "calc(var(--home-visual-height, 100dvh) - 28px)",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
           zIndex: 99004,
           borderRadius: 18,
           padding: "18px 18px 16px",
@@ -244,7 +374,7 @@ export default function PetHomeTutorialOverlay({
           }}
           style={{
             width: "100%",
-            minHeight: 40,
+            minHeight: 44,
             borderRadius: 12,
             border: "1.5px solid rgba(240,192,64,0.72)",
             background: "linear-gradient(180deg, rgba(240,192,64,0.94), rgba(190,135,22,0.94))",
@@ -256,6 +386,7 @@ export default function PetHomeTutorialOverlay({
             cursor: completing ? "default" : "pointer",
             opacity: completing ? 0.65 : 1,
             boxShadow: "0 0 14px rgba(240,192,64,0.22)",
+            touchAction: "manipulation",
           }}
         >
           {completing ? "Saving…" : "Continue"}
