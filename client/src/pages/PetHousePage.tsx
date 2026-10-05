@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
-import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientDeltaToStage, clientPointInStageElement, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
@@ -840,13 +840,13 @@ function InteriorViewer({
         src={url}
         draggable={false}
         data-testid="pet-home-interior-camera-extension"
-        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none" style={{ zIndex: 0 }}
       />
       <div
         aria-hidden
         data-testid="pet-home-interior-extension-darkness"
         className="absolute inset-0 pointer-events-none"
-        style={{ background: `rgba(0,0,0,${Math.max(0, Math.min(100, darkness)) / 100})`, zIndex: 1 }}
+        style={{ background: `rgba(0,0,0,${Math.max(0, Math.min(100, darkness)) / 100})`, zIndex: 0 }}
       />
       {/* Interior background image — single authored coordinate canvas */}
       <img
@@ -861,7 +861,7 @@ function InteriorViewer({
             setAspect(a);
           }
         }}
-        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", zIndex: 1, userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
       />
 
       <HomeCapacityIndicator
@@ -2258,7 +2258,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               const img = e.currentTarget;
               if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
             }}
-            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", zIndex: 1, userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
           />
         ) : !bgUrl ? (
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
