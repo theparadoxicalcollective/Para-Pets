@@ -1261,22 +1261,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     tutorialPrimaryBuilding,
   ]);
 
-  useEffect(() => {
-    const building = petHomeTutorialStep === "mailbox"
-      ? tutorialMailboxBuilding
-      : petHomeTutorialStep === "building"
-        ? tutorialPrimaryBuilding
-        : null;
-    const containerWidth = containerRef.current?.clientWidth ?? 0;
-    if (!building || imgWidth <= 0 || containerWidth <= 0) return;
-
-    // Home scenes can be wider than the phone. Bring the tutorial target into
-    // view automatically because normal scene panning is intentionally blocked.
-    const minPan = Math.min(0, containerWidth - imgWidth);
-    const desiredPan = containerWidth / 2 - (building.posX / 100) * imgWidth;
-    setPanX(Math.max(minPan, Math.min(0, desiredPan)));
-  }, [imgWidth, petHomeTutorialStep, tutorialMailboxBuilding, tutorialPrimaryBuilding]);
-
   const currentOutdoorLightingMode = activeBundle?.playerLighting?.outdoorMode ?? "auto";
   const outdoorLighting = useHomeOutdoorLighting(currentOutdoorLightingMode);
 
