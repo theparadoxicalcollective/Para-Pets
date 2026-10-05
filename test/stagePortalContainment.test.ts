@@ -26,3 +26,41 @@ test("Clearing ground input converts rendered pointer geometry to logical stage 
   assert.match(clearing, /e\.pointerType === "mouse" && e\.button !== 0/);
   assert.match(clearing, /onPointerCancel=\{onJoystickPointerUp\}/);
 });
+
+
+test("player-facing overlays share the stage coordinate contract instead of physical window geometry", () => {
+  const stage = readFileSync("client/src/lib/stage.ts", "utf8");
+  const guides = readFileSync("client/src/lib/questGuideViewport.ts", "utf8");
+  const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
+  const petCare = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+
+  assert.match(stage, /export function getStageSurface\(\): StageSurface/);
+  assert.match(stage, /export function clientRectPointToStage/);
+  assert.match(stage, /export function getStageLogicalCenter/);
+
+  assert.match(guides, /const surface = getStageSurface\(\)/);
+  assert.doesNotMatch(guides, /window\.innerWidth|window\.innerHeight/);
+
+  assert.match(nav, /getStageSurface\(\)\.logicalWidth/);
+  assert.doesNotMatch(nav, /const available = window\.innerWidth/);
+
+  assert.match(petCare, /clientRectPointToStage\(box, 0\.5, 0\.3\)/);
+  assert.match(petCare, /getStageLogicalCenter\(\)/);
+  assert.doesNotMatch(petCare, /const cx = box \? box\.left \+ box\.width \/ 2 : window\.innerWidth \/ 2/);
+  assert.doesNotMatch(petCare, /const cy = box \? box\.top \+ box\.height \* 0\.3 : window\.innerHeight \/ 2/);
+});
+
+test("battle drag ghosts and Clearing input keep using the shared stage conversion boundary", () => {
+  const pvp = readFileSync("client/src/pages/PvpBattlePage.tsx", "utf8");
+  const raid = readFileSync("client/src/pages/RaidBattlePage.tsx", "utf8");
+  const petCare = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  const clearing = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
+
+  assert.match(pvp, /getStagePortalTarget\(\)/);
+  assert.match(raid, /clientToStagePortal\(draggingPotion\.screenX, draggingPotion\.screenY\)/);
+  assert.match(raid, /getStagePortalTarget\(\)/);
+  assert.match(petCare, /dragPositionRef\.current = clientToStagePortal\(x, y\)/);
+  assert.match(petCare, /getStagePortalTarget\(\)/);
+  assert.match(clearing, /const stageScale = getStageScale\(\)/);
+  assert.match(clearing, /\(e\.clientX - rect\.left\) \/ stageScale/);
+});
