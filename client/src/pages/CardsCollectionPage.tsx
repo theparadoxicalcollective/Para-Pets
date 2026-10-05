@@ -333,6 +333,7 @@ export default function CardsCollectionPage() {
                 style={{
                   position: "relative",
                   width: "min(100%, 320px)",
+                  transform: "translateY(clamp(14px, 2vh, 20px))",
                   padding: "24px 18px 22px",
                   border: "1px solid rgba(211,175,92,.43)",
                   borderRadius: "min(30vw, 112px) min(30vw, 112px) 22px 22px",

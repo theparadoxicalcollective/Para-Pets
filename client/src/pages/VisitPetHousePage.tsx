@@ -942,6 +942,7 @@ export default function VisitPetHousePage() {
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
+            sunlightStrength={outdoorLighting.daylightStrength}
             zIndex={21}
           />
           <HomeInteriorEffectsLayer

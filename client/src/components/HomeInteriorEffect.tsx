@@ -499,8 +499,9 @@ export function HomeInteriorDarknessLayer({
   const safeSunlight = Math.max(0, Math.min(1, Number.isFinite(sunlightStrength) ? sunlightStrength : 1));
   const rawId = useId();
   const maskId = `home-darkness-mask-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  if (safeDarkness <= 0) return null;
 
+  // Keep the transparent darkness surface mounted at 0 so transitions to and
+  // from daylight can animate instead of popping when the layer mounts/unmounts.
   const useImageSpace = Number.isFinite(panX) && Number.isFinite(imgWidth) && Number.isFinite(sceneHeight)
     && (imgWidth ?? 0) > 0 && (sceneHeight ?? 0) > 0;
   const activeLights = effects?.filter(effect =>

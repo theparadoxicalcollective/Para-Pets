@@ -40,6 +40,8 @@ test("Pet Home tutorial follows the requested six-step guide and blocks the scen
   assert.match(overlay, /event\.preventDefault\(\)/);
   assert.match(overlay, /event\.stopPropagation\(\)/);
   assert.match(overlay, /pointerEvents: "auto"/);
+  assert.match(overlay, /step === "mailbox" \|\| step === "building"/);
+  assert.match(overlay, /revealHomeScene \? "rgba\(0,0,0,0\)" : "rgba\(0,0,0,0\.62\)"/);
 });
 
 test("Pet Home starts the guide only after the scene is ready and exposes stable targets", () => {
@@ -53,6 +55,9 @@ test("Pet Home starts the guide only after the scene is ready and exposes stable
   assert.match(page, /data-home-tutorial-building=\{isTutorialPrimary \? "primary" : undefined\}/);
   assert.doesNotMatch(page, /containerWidth \/ 2 - \(building\.posX \/ 100\) \* imgWidth/);
   assert.match(page, /<PetHomeTutorialOverlay/);
+  assert.match(page, /const tutorialSceneRevealActive = petHomeTutorialStep === "mailbox" \|\| petHomeTutorialStep === "building"/);
+  assert.match(page, /darkness=\{tutorialSceneRevealActive \? 0 : outdoorLighting\.darkness\}/);
+  assert.match(page, /nightStrength=\{tutorialSceneRevealActive \? 0 : outdoorLighting\.nightStrength\}/);
 });
 
 

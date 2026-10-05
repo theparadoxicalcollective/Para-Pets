@@ -12,6 +12,10 @@ test("inventory portraits fit visible pet artwork and retain owner equipment and
   assert.match(profile, /costumeAccess="public"[\s\S]*?mode="static"[\s\S]*?fillContainer[\s\S]*?fitVisible/);
   assert.match(inventory, /<PetAnimator petTemplateId=\{petTemplateId\} petInventoryId=\{petInventoryId\} mode="static" size=\{140\} fillContainer fitVisible/);
   assert.match(inventory, /<MiniPetRenderer petInventoryId=\{petInventoryId\} animated=\{false\}/);
+  assert.match(inventory, /data-testid="inventory-mini-pet-layer"/);
+  assert.match(inventory, /zIndex: 10/);
+  assert.match(inventory, /isolation: "isolate"/);
+  assert.match(inventory, /<PetAnimator[\s\S]*?zIndex: 1/);
   assert.match(inventory, /IntersectionObserver/);
 });
 

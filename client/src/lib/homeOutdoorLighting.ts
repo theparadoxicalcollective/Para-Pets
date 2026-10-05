@@ -9,6 +9,9 @@ export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
 export const HOME_OUTDOOR_AUTO_TRANSITION_MS = 30_000;
 export const HOME_OUTDOOR_OVERRIDE_TRANSITION_MS = 280;
+// Short transition used when a mobile/browser page wakes from the background.
+// It avoids a stale 30-second catch-up fade while still preventing a hard flash.
+export const HOME_OUTDOOR_RESUME_TRANSITION_MS = 420;
 
 
 export function cycleHomeOutdoorLightingMode(mode: HomeOutdoorLightingMode): HomeOutdoorLightingMode {

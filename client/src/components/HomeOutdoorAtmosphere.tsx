@@ -7,24 +7,65 @@ import {
   getHomeOutdoorNightStrength,
   HOME_OUTDOOR_AUTO_TRANSITION_MS,
   HOME_OUTDOOR_OVERRIDE_TRANSITION_MS,
+  HOME_OUTDOOR_RESUME_TRANSITION_MS,
   type HomeOutdoorLightingMode,
 } from "@/lib/homeOutdoorLighting";
 
 export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
   const [now, setNow] = useState(() => new Date());
+  const [autoTransitionMs, setAutoTransitionMs] = useState(HOME_OUTDOOR_RESUME_TRANSITION_MS);
 
   useEffect(() => {
-    setNow(new Date());
-    if (mode !== "auto") return;
-    const timer = window.setInterval(() => setNow(new Date()), 30_000);
-    return () => window.clearInterval(timer);
+    if (mode !== "auto") {
+      setNow(new Date());
+      setAutoTransitionMs(HOME_OUTDOOR_OVERRIDE_TRANSITION_MS);
+      return;
+    }
+
+    let timer: number | null = null;
+    const clearTimer = () => {
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    };
+    const syncNow = (transitionMs: number) => {
+      setAutoTransitionMs(transitionMs);
+      setNow(new Date());
+    };
+    const startTimer = () => {
+      clearTimer();
+      if (document.visibilityState === "hidden") return;
+      timer = window.setInterval(() => {
+        syncNow(HOME_OUTDOOR_AUTO_TRANSITION_MS);
+      }, 30_000);
+    };
+    const syncFromLifecycle = () => {
+      if (document.visibilityState === "hidden") {
+        clearTimer();
+        return;
+      }
+      syncNow(HOME_OUTDOOR_RESUME_TRANSITION_MS);
+      startTimer();
+    };
+
+    syncNow(HOME_OUTDOOR_RESUME_TRANSITION_MS);
+    startTimer();
+    document.addEventListener("visibilitychange", syncFromLifecycle);
+    window.addEventListener("pageshow", syncFromLifecycle);
+
+    return () => {
+      clearTimer();
+      document.removeEventListener("visibilitychange", syncFromLifecycle);
+      window.removeEventListener("pageshow", syncFromLifecycle);
+    };
   }, [mode]);
 
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
 
   const transitionMs = mode === "auto"
-    ? HOME_OUTDOOR_AUTO_TRANSITION_MS
+    ? autoTransitionMs
     : HOME_OUTDOOR_OVERRIDE_TRANSITION_MS;
 
   return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs };
@@ -173,6 +214,7 @@ export function HomeOutdoorAtmosphereLayer({
         panX={panX}
         imgWidth={imgWidth}
         sceneHeight={sceneHeight}
+        sunlightStrength={1 - safeNight}
         transitionMs={transitionMs}
         zIndex={zIndex}
       />

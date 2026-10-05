@@ -303,6 +303,7 @@ test("card collection keeps the cleaner open layout and text heading", () => {
 
 test("empty collection has a decorative card display without an image dependency", () => {
   assert.match(collection, /data-testid="card-collection-empty-panel"/);
+  assert.match(collection, /transform: "translateY\(clamp\(14px, 2vh, 20px\)\)"/);
   assert.match(collection, /data-testid="card-collection-placeholder-1"/);
   assert.match(collection, /role="progressbar"/);
   assert.match(collection, /View all cards/);
