@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientToStage, clientToStagePortal, getDesignW, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientRectPointToStage, clientToStage, clientToStagePortal, getDesignW, getStageLogicalCenter, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -1129,10 +1129,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
-      const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
-      const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
+      const textPoint = box ? clientRectPointToStage(box, 0.5, 0.3) : getStageLogicalCenter();
       const added = data?.loyaltyAdded ?? 0;
-      setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${added} Loyalty` }]);
+      setFloatTexts((arr) => [...arr, { id, x: textPoint.x, y: textPoint.y, text: `+${added} Loyalty` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
       if (box) {
         const bx = box.left + box.width / 2;
@@ -1155,22 +1154,23 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       const box = petBoxRef.current?.getBoundingClientRect();
-      const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
-      const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
+      const textPoint = box ? clientRectPointToStage(box, 0.5, 0.3) : getStageLogicalCenter();
       const coinsText = data?.coinsAwarded ? `+${data.coinsAwarded} Coins!` : "Reward Claimed!";
       const id1 = ++floatIdRef.current;
-      setFloatTexts((arr) => [...arr, { id: id1, x: cx, y: cy - 20, text: coinsText }]);
+      setFloatTexts((arr) => [...arr, { id: id1, x: textPoint.x, y: textPoint.y - 20, text: coinsText }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id1)), 1800);
       if (data?.xpBoostPct > 0) {
         const id2 = ++floatIdRef.current;
-        setFloatTexts((arr) => [...arr, { id: id2, x: cx, y: cy + 20, text: `+${data.xpBoostPct}% XP for 1 hr!` }]);
+        setFloatTexts((arr) => [...arr, { id: id2, x: textPoint.x, y: textPoint.y + 20, text: `+${data.xpBoostPct}% XP for 1 hr!` }]);
         scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id2)), 2400);
         setBoostActivated(true);
         scheduleTimeout(() => setBoostActivated(false), 3200);
       }
       if (box) {
-        burstHearts(cx, cy + 30, 14);
-        burstSparkles(cx, cy, 20);
+        const bx = box.left + box.width / 2;
+        const by = box.top + box.height / 2;
+        burstHearts(bx, by + 30, 14);
+        burstSparkles(bx, by, 20);
       }
       onUserUpdate({ ...(user ?? {}), coins: data?.userCoins ?? (user?.coins ?? 0) });
       setDisplayCoins(data?.userCoins ?? (user?.coins ?? 0));
@@ -1213,9 +1213,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const amount = Number(data?.totalFeedPoints) || (fed?.statBoostAmount ?? 5) * qty;
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
-      const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
-      const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
-      setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
+      const textPoint = box ? clientRectPointToStage(box, 0.5, 0.3) : getStageLogicalCenter();
+      setFloatTexts((arr) => [...arr, { id, x: textPoint.x, y: textPoint.y, text: `+${amount} Feed pts` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
       if (box) {
         const bx = box.left + box.width / 2;
