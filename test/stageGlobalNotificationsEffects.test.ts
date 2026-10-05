@@ -17,7 +17,7 @@ test("gameplay toast viewport stays inside GameStage and keeps the phone placeme
   assert.match(toast, /fixed left-1\/2 top-0/);
   assert.match(toast, /max-w-\[390px\]/);
   assert.match(toast, /-translate-x-1\/2/);
-  assert.doesNotMatch(toast, /sm:bottom-0|sm:right-0|sm:top-auto|sm:flex-col/);
+  assert.doesNotMatch(toast, /sm:bottom-0|sm:right-0|sm:top-auto|sm:flex-col|sm:slide-in-from-bottom-full/);
 });
 
 test("click sparkles portal through the authoritative stage coordinate contract", () => {
