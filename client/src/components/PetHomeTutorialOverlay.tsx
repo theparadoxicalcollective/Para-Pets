@@ -198,6 +198,10 @@ export default function PetHomeTutorialOverlay({
   const copy = STEP_COPY[step];
   const stepNumber = STEP_ORDER.indexOf(step) + 1;
   const firstTarget = layout.targets[0] ?? null;
+  // The mailbox and home-building steps need the scene itself to stay readable.
+  // Keep interaction blocking in place, but remove nearly all tutorial dimming
+  // so players can actually see the objects the arrows are introducing.
+  const revealHomeScene = step === "mailbox" || step === "building";
 
   const cardPosition = useMemo(() => {
     const viewport = layout.viewport;
@@ -268,7 +272,7 @@ export default function PetHomeTutorialOverlay({
         top: layout.stage.top,
         width: layout.stage.width,
         maxWidth: 768,
-        background: "rgba(0,0,0,0.62)",
+        background: revealHomeScene ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.62)",
         pointerEvents: "auto",
         overflow: "hidden",
       }}
