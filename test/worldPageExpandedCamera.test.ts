@@ -126,9 +126,10 @@ test("world camera controller measures the actual portal surface and keeps share
   assert.match(source, /const height = el\.clientHeight \|\| DESIGN_H/);
   assert.match(source, /new ResizeObserver\(measure\)/);
   assert.match(source, /expandedCamera && !getStageSurface\(\)\.viewportOwned/);
-  assert.match(source, /const stageScale = getStageScale\(\)/);
-  assert.match(source, /event\.clientX - mapPanStartRef\.current\.x\) \/ stageScale/);
-  assert.match(source, /event\.clientY - mapPanStartRef\.current\.y\) \/ stageScale/);
+  assert.match(source, /clientDeltaToStage\(/);
+  assert.match(source, /event\.clientX - mapPanStartRef\.current\.x/);
+  assert.match(source, /event\.clientY - mapPanStartRef\.current\.y/);
+  assert.doesNotMatch(source, /const stageScale = getStageScale\(\)/);
 });
 
 test("expanded WorldPage reuses the merged viewport-scene contract instead of creating a second camera root", () => {
