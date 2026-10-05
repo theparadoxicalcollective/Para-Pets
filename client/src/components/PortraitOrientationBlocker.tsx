@@ -42,7 +42,6 @@ export default function PortraitOrientationBlocker({ visible }: { visible: boole
         touchAction: "none",
         userSelect: "none",
         WebkitUserSelect: "none",
-        WebkitTouchCallout: "none",
         overscrollBehavior: "none",
       }}
     >
