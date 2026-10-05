@@ -14,7 +14,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { calculateViewportHudRect, getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
+import { calculateViewportHudRect, calculateViewportSurfaceRect, getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
@@ -780,6 +780,7 @@ function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const layout = useStageViewportLayout();
   const hudRect = calculateViewportHudRect(layout);
+  const sceneRect = calculateViewportSurfaceRect(layout);
 
   // Gameplay stays inside the stable 390x844 portrait stage. The public Hub is
   // the one document-style route: on tablet/desktop it owns the real browser
@@ -868,6 +869,19 @@ function GameStage({ children }: { children: ReactNode }) {
         >
           {children}
         </div>
+        <div
+          id="game-viewport-scene"
+          data-testid="game-viewport-scene"
+          style={{
+            position: "absolute",
+            left: sceneRect.left,
+            top: sceneRect.top,
+            width: sceneRect.width,
+            height: sceneRect.height,
+            pointerEvents: "none",
+            overflow: "hidden",
+          }}
+        />
         <div
           id="game-viewport-hud"
           data-testid="game-viewport-hud"
