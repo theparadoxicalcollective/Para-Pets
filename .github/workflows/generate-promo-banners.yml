@@ -1,0 +1,51 @@
+name: Generate ParaPets Promo Banners
+
+on:
+  push:
+    branches:
+      - chatgpt/promo-banners-20261005
+    paths:
+      - scripts/generate-home-promo-banners.mjs
+      - .github/workflows/generate-promo-banners.yml
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate banners
+        run: node scripts/generate-home-promo-banners.mjs
+
+      - name: Verify dimensions
+        run: |
+          node - <<'NODE'
+          import sharp from "sharp";
+          import fs from "node:fs/promises";
+          const files=(await fs.readdir("promo_output")).filter(f=>f.endsWith(".png"));
+          if(files.length!==3) throw new Error("Expected 3 PNGs, found "+files.length);
+          for(const file of files){
+            const m=await sharp("promo_output/"+file).metadata();
+            console.log(file,m.width+"x"+m.height);
+            if(m.width!==991 || m.height!==1233) throw new Error(file+" has wrong dimensions");
+          }
+          NODE
+
+      - name: Upload promo banners
+        uses: actions/upload-artifact@v4
+        with:
+          name: parapets-promo-banners
+          path: promo_output/*.png
+          if-no-files-found: error
+          retention-days: 7
