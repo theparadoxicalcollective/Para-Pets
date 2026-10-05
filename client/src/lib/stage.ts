@@ -207,6 +207,24 @@ export function shouldFitPortraitReference(
   return true;
 }
 
+/**
+ * Para Pets has one supported touch-device gameplay orientation: portrait.
+ *
+ * A software keyboard can make a portrait viewport temporarily shorter than
+ * it is wide, so never treat that keyboard-owned viewport as a rotation.
+ * Non-touch desktop remains free to use a wide browser window around the
+ * centered portrait game stage.
+ */
+export function shouldBlockTouchLandscape(
+  viewportWidth: number,
+  viewportHeight: number,
+  touchFirst: boolean,
+  keyboardReduced = false,
+): boolean {
+  if (!touchFirst || keyboardReduced) return false;
+  return viewportWidth > viewportHeight;
+}
+
 export function getDesignW(): number {
   if (typeof document !== "undefined") {
     const stage = document.getElementById("game-stage");
