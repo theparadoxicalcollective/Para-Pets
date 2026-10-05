@@ -2184,24 +2184,49 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     return <LoadingScreen label="Loading your home..." />;
   }
 
+  const homeOutdoorCameraBlocked = Boolean(
+    openInterior
+    || openInventory
+    || pendingActivate
+    || openGiftModal
+    || showNoMailPopup
+    || petHomeTutorialStep
+  );
+
   return (
     <div
-      ref={containerRef}
-      data-testid="pet-home-stage"
       className="relative w-full h-screen-frame"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab" }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onLostPointerCapture={handlePointerUp}
-      onContextMenu={e => e.preventDefault()}
+      style={{ maxWidth: "768px", margin: "0 auto", overflow: "hidden" }}
     >
+      <ViewportScenePortal enabled={!homeOutdoorCameraBlocked}>
+        <div
+          ref={containerRef}
+          data-testid="pet-home-stage"
+          data-testid-camera="pet-home-outdoor-expanded"
+          className="absolute inset-0 overflow-hidden"
+          style={{ ...HOME_TOUCH_SURFACE_STYLE, cursor: "grab" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
+          onContextMenu={e => e.preventDefault()}
+        >
       {/* ── CRITICAL MEMORY FIX ──────────────────────────────────────────────
           Background image is REMOVED from the DOM when the interior is open.
           This frees its GPU texture memory so the interior image can load safely.
           The interior is full-screen anyway, so the background isn't visible. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {!openInterior && (
+          <div
+            data-testid="pet-home-camera-extension-darkness"
+            className="absolute inset-0"
+            style={{
+              background: `rgba(0,0,0,${(tutorialSceneRevealActive ? 0 : outdoorLighting.darkness) / 100})`,
+              pointerEvents: "none",
+            }}
+          />
+        )}
         {bgUrl && !openInterior ? (
           <img
             src={bgUrl}
@@ -2500,6 +2525,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           />
         </>
       )}
+
+        </div>
+      </ViewportScenePortal>
 
       {/* Bottom inventory bar — left-aligned to avoid FloatingNav (bottom-right) */}
       <div
