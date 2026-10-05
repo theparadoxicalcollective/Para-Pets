@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import {
   calculateStageLayout,
   getVisibleViewport,
+  isTouchFirstDevice,
+  shouldFitPortraitReference,
   type StageLayout,
 } from "@/lib/stage";
 
@@ -13,11 +15,18 @@ import {
  */
 export function readStageViewportLayout(): StageLayout {
   const viewport = getVisibleViewport();
+  const fitPortraitReference = shouldFitPortraitReference(
+    viewport.width,
+    viewport.height,
+    isTouchFirstDevice(),
+    viewport.keyboardReduced,
+  );
   return calculateStageLayout(
     viewport.width,
     viewport.height,
     viewport.top,
     viewport.left,
+    { fitPortraitReference },
   );
 }
 
