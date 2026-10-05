@@ -65,7 +65,7 @@ test("Pet Home tutorial follows the live Home stage across Safari Chrome Android
   assert.match(page, /data-testid="pet-home-stage"/);
   assert.match(overlay, /document\.querySelector\('\[data-testid="pet-home-stage"\]'\)/);
   assert.match(overlay, /getBoundingClientRect\(\)/);
-  assert.match(overlay, /layout\.stage\.left \+ layout\.stage\.width \/ 2/);
+  assert.match(overlay, /const centerX = stage\.left \+ stage\.width \/ 2/);
   assert.match(overlay, /left: layout\.stage\.left/);
   assert.match(overlay, /width: layout\.stage\.width/);
   assert.match(overlay, /maxWidth: 768/);
