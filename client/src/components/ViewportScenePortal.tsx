@@ -1,0 +1,38 @@
+import { useLayoutEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+const VIEWPORT_SCENE_ID = "game-viewport-scene";
+
+/**
+ * Opt-in scene portal for environments that may use the full visible device
+ * camera on stage-owned tablet/desktop layouts.
+ *
+ * Native iPhone-12-style viewport ownership has no expanded scene target, so
+ * the children render inline and retain the exact existing DOM/layout path.
+ */
+export default function ViewportScenePortal({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLElement | null>(() =>
+    typeof document === "undefined" ? null : document.getElementById(VIEWPORT_SCENE_ID),
+  );
+
+  useLayoutEffect(() => {
+    setTarget(document.getElementById(VIEWPORT_SCENE_ID));
+  }, []);
+
+  if (!target) return <>{children}</>;
+
+  return createPortal(
+    <div
+      data-testid="viewport-scene-portal"
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        pointerEvents: "auto",
+      }}
+    >
+      {children}
+    </div>,
+    target,
+  );
+}
