@@ -25,8 +25,8 @@ function esc(s){return String(s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;
 function svg(body,w=W,h=H){return Buffer.from('<svg width="'+w+'" height="'+h+'" xmlns="http://www.w3.org/2000/svg">'+body+'</svg>');}
 function titleLayer(eyebrow,title,sub,titleSize=56){
   return svg(
-    '<defs><linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#030706" stop-opacity=".94"/><stop offset="1" stop-color="#030706" stop-opacity="0"/></linearGradient><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#020604" stop-opacity="0"/><stop offset="1" stop-color="#020604" stop-opacity=".94"/></linearGradient></defs>'+
-    '<rect width="991" height="260" fill="url(#t)"/><rect y="900" width="991" height="333" fill="url(#b)"/>'+
+    '<defs><linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#030706" stop-opacity=".94"/><stop offset="1" stop-color="#030706" stop-opacity="0"/></linearGradient></defs>'+
+    '<rect width="991" height="260" fill="url(#t)"/>'+
     '<rect x="28" y="28" width="935" height="1177" rx="38" fill="none" stroke="#cfa83f" stroke-width="3" stroke-opacity=".80"/>'+
     '<rect x="41" y="41" width="909" height="1151" rx="31" fill="none" stroke="#7fbfb0" stroke-width="1" stroke-opacity=".28"/>'+
     '<text x="496" y="86" text-anchor="middle" fill="#d8c47a" font-family="serif" font-size="25" letter-spacing="8">'+esc(eyebrow)+'</text>'+
