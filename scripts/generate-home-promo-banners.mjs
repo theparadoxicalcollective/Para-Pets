@@ -23,14 +23,14 @@ const F={
 
 function esc(s){return String(s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&apos;"}[c]));}
 function svg(body,w=W,h=H){return Buffer.from('<svg width="'+w+'" height="'+h+'" xmlns="http://www.w3.org/2000/svg">'+body+'</svg>');}
-function titleLayer(eyebrow,title,sub){
+function titleLayer(eyebrow,title,sub,titleSize=56){
   return svg(
     '<defs><linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#030706" stop-opacity=".94"/><stop offset="1" stop-color="#030706" stop-opacity="0"/></linearGradient><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#020604" stop-opacity="0"/><stop offset="1" stop-color="#020604" stop-opacity=".94"/></linearGradient></defs>'+
     '<rect width="991" height="260" fill="url(#t)"/><rect y="900" width="991" height="333" fill="url(#b)"/>'+
     '<rect x="28" y="28" width="935" height="1177" rx="38" fill="none" stroke="#cfa83f" stroke-width="3" stroke-opacity=".80"/>'+
     '<rect x="41" y="41" width="909" height="1151" rx="31" fill="none" stroke="#7fbfb0" stroke-width="1" stroke-opacity=".28"/>'+
     '<text x="496" y="86" text-anchor="middle" fill="#d8c47a" font-family="serif" font-size="25" letter-spacing="8">'+esc(eyebrow)+'</text>'+
-    '<text x="496" y="160" text-anchor="middle" fill="#fff4cb" font-family="serif" font-size="56" font-weight="700" letter-spacing="3">'+esc(title)+'</text>'+
+    '<text x="496" y="160" text-anchor="middle" fill="#fff4cb" font-family="serif" font-size="'+titleSize+'" font-weight="700" letter-spacing="3">'+esc(title)+'</text>'+
     '<text x="496" y="207" text-anchor="middle" fill="#d6eee5" font-family="sans-serif" font-size="22" letter-spacing="1">'+esc(sub)+'</text>'
   );
 }
@@ -75,12 +75,12 @@ async function socialBanner(){
     '<text x="722" y="710" text-anchor="middle" fill="#d8eee5" font-family="sans-serif" font-size="20">Add &amp; visit friends</text>'+
     '<text x="722" y="750" text-anchor="middle" fill="#d8eee5" font-family="sans-serif" font-size="20">Buy &amp; sell in the player market</text>'+
     '<line x1="578" y1="794" x2="866" y2="794" stroke="#7fbfb0" stroke-opacity=".35"/>'+
-    '<text x="722" y="945" text-anchor="middle" fill="#9bcfc0" font-family="sans-serif" font-size="16" letter-spacing="2">YOUR PET • YOUR SPACE • YOUR COMMUNITY</text>'
+    '<text x="722" y="910" text-anchor="middle" fill="#9bcfc0" font-family="sans-serif" font-size="16" letter-spacing="2">YOUR PET • YOUR SPACE</text><text x="722" y="942" text-anchor="middle" fill="#9bcfc0" font-family="sans-serif" font-size="16" letter-spacing="2">YOUR COMMUNITY</text>'
   );
   await sharp(bg).composite([
     {input:svg('<rect width="991" height="1233" fill="#03120a" fill-opacity=".28"/>')},
     {input:pet,left:70,top:267},{input:market,left:560,top:285},{input:friends,left:632,top:800},
-    {input:card},{input:titleLayer("PLAY TOGETHER","BUILD • CONNECT • TRADE","Homes, friends and a player-driven marketplace")}
+    {input:card},{input:titleLayer("PLAY TOGETHER","BUILD • CONNECT • TRADE","Homes, friends and a player-driven marketplace",46)}
   ]).png({compressionLevel:9}).toFile(path.join(OUT,"parapets-promo-social-market-home.png"));
 }
 
