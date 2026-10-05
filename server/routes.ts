@@ -29,7 +29,7 @@ import { StripePurchaseError } from "./payments/errors";
 import { claimPurchaseMilestone } from "./milestones/claimPurchaseMilestone";
 import { PurchaseMilestoneError } from "./milestones/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
-import { isDedicatedQaTester } from "./qaTester";
+import { isConfiguredQaIdentity, isDedicatedQaTester } from "./qaTester";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 import { tryConsumeOneFromInventory } from "./inventoryConsumption";
 import { registerAccountRoutes } from "./routes/account.routes";
@@ -1722,7 +1722,11 @@ export async function registerRoutes(
   app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
-      const safeUsers = allUsers.map(publicAccount);
+      const safeUsers = allUsers.map(user => ({
+        ...publicAccount(user),
+        isSpecialMember: isConfiguredQaIdentity(user),
+        specialMemberRole: isConfiguredQaIdentity(user) ? "QA Tester" : null,
+      }));
       return res.json(safeUsers);
     } catch (err) {
       console.error("Get users error:", err);
