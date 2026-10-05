@@ -1759,7 +1759,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       } catch {}
     };
     return observeHomeViewport(container, recalc);
-  }, [bgAspect]);
+  }, [
+    bgAspect,
+    openInterior,
+    openInventory,
+    pendingActivate,
+    openGiftModal,
+    showNoMailPopup,
+    petHomeTutorialStep,
+  ]);
 
   // ── Main canvas pointer handlers ───────────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
