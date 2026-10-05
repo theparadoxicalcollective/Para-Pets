@@ -325,7 +325,11 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-page-root relative h-screen-frame w-full overflow-hidden flex flex-col items-center">
+    <div
+      className="auth-page-root relative h-screen-frame w-full overflow-hidden flex flex-col items-center"
+      style={{ "--auth-background-image": `url(${signInPageBg})` } as CSSProperties}
+    >
+      <div className="auth-page-wide-background absolute inset-0" aria-hidden="true" />
       <img
         src={signInPageBg}
         alt=""
@@ -400,7 +404,7 @@ export default function AuthPage() {
 
         ) : (
           /* ══════════════════ FORM SCREENS ══════════════════ */
-          <div className="flex flex-col items-center justify-center w-full min-h-full px-5 py-6 overflow-y-auto">
+          <div className="auth-form-screen flex flex-col items-center justify-center w-full min-h-full px-5 py-6 overflow-y-auto">
 
             {/* Shared artwork header keeps every auth mode visually connected. */}
             <div className="auth-form-brand">
@@ -411,7 +415,7 @@ export default function AuthPage() {
           {/* ── LOGIN / REGISTER PANEL ── */}
           {(mode === "login" || mode === "register") && (
             <div
-              className="w-full max-w-sm animate-slide-up"
+              className="auth-form-panel w-full animate-slide-up"
               style={{
                 background: "linear-gradient(160deg, rgba(6,18,10,0.95) 0%, rgba(4,12,8,0.97) 100%)",
                 border: "1px solid rgba(175,135,35,0.45)",
@@ -722,7 +726,7 @@ export default function AuthPage() {
           {/* ── FORGOT PASSWORD PANEL ── */}
           {mode === "forgot" && (
             <div
-              className="w-full max-w-sm animate-slide-up"
+              className="auth-form-panel w-full animate-slide-up"
               style={{
                 background: "linear-gradient(160deg, rgba(6,18,10,0.95) 0%, rgba(4,12,8,0.97) 100%)",
                 border: "1px solid rgba(175,135,35,0.45)",
@@ -827,7 +831,7 @@ export default function AuthPage() {
           {/* ── CONTACT SUPPORT PANEL ── */}
           {mode === "support" && (
             <div
-              className="w-full max-w-sm animate-slide-up"
+              className="auth-form-panel w-full animate-slide-up"
               style={{
                 background: "linear-gradient(160deg, rgba(6,18,10,0.95) 0%, rgba(4,12,8,0.97) 100%)",
                 border: "1px solid rgba(175,135,35,0.45)",
