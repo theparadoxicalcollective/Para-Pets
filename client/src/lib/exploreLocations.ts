@@ -58,6 +58,12 @@ export interface WalkAroundLocationConfig {
   worldSize?: { width: number; height: number };
   /** Optional scene-local rendering math; ignored by all other locations. */
   aspectLayout?: { imageAspect: number; fit: "height-contain"; colorFill: string; responsivePet: { min: number; preferredVw: number; max: number } };
+  /**
+   * "device-viewport" lets an explicitly opted-in scene use the larger visible
+   * tablet/desktop camera surface while keeping all world positions normalized
+   * to the same authored canvas. Omitted preserves the canonical stage.
+   */
+  cameraMode?: "canonical-stage" | "device-viewport";
   features: ExploreLocationFeatures;
 }
 
