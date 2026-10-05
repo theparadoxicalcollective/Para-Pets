@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { clientDeltaToStage } from "@/lib/stage";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 
@@ -303,7 +304,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
-    const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
+    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    const newPanX = Math.min(0, Math.max(min, drag.startPanX + panDelta));
     setPanX(newPanX);
   }, []);
 
@@ -759,7 +761,8 @@ export default function VisitPetHousePage() {
     const w = container.offsetWidth;
     const imgW = container.offsetHeight * bgAspect;
     if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
-    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + (e.clientX - drag.startX))));
+    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + panDelta)));
   }, [bgAspect]);
 
   const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
