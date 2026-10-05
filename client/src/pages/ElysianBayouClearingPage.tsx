@@ -17,6 +17,7 @@ import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import backgroundUrl from "@assets/uploads/NewClearingBg.png";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 
 // ── Scene configuration ───────────────────────────────────────────────────────
 //
@@ -56,6 +57,7 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   petSize: 96,
   worldSize: { width: 1, height: 1 },
   aspectLayout: { imageAspect: 2 / 3, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 86, preferredVw: 24, max: 108 } },
+  cameraMode: "device-viewport",
 
   features: {
     movement:     true,
@@ -113,8 +115,12 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
     navigate("/world/swamp");
   };
 
-  return (
-    <div className="absolute inset-0 overflow-hidden" style={{ touchAction: "none" }}>
+  const scene = (
+    <div
+      data-testid="elysian-clearing-camera-surface"
+      className="absolute inset-0 overflow-hidden"
+      style={{ touchAction: "none", pointerEvents: "auto" }}
+    >
       <WalkAroundScene
         config={CLEARING_CONFIG}
         petTemplateId={petTemplateId}
@@ -124,5 +130,9 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
       />
     </div>
   );
+
+  return CLEARING_CONFIG.cameraMode === "device-viewport"
+    ? <ViewportScenePortal>{scene}</ViewportScenePortal>
+    : scene;
 }
 
