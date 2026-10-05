@@ -71,10 +71,10 @@ export function useWorldViewportController({
     if (!el) return;
 
     const measure = () => {
-      // Measure only the logical world frame supplied by #game-stage.
-      // Browser chrome, orientation and portrait-device fitting are owned by
-      // the shared stage controller; ResizeObserver fires when that logical
-      // frame actually changes.
+      // Measure the actual logical camera surface. On iPhone 12 this is still
+      // the canonical 390×844 stage. Opted-in tablet/desktop WorldPage maps can
+      // instead use the expanded viewport-scene surface; the authored map
+      // coordinates remain unchanged and only the camera frame gets larger.
       const width = el.clientWidth || getDesignW();
       const height = el.clientHeight || DESIGN_H;
       frameWRef.current = width;
