@@ -9,6 +9,12 @@ This document describes the current production architecture on `main` after the 
 - **Persistence:** `shared/schema.ts` declares Drizzle tables and shared types. `server/db.ts` selects `RAILWAY_DATABASE_URL` first and retains `DATABASE_URL` as a fallback. Railway PostgreSQL is the production source of truth.
 - **Build/deploy:** `script/build.ts` builds the Vite client and bundles the server to `dist/index.cjs`. `railway.toml` starts that bundle and checks `GET /health`.
 
+### Player stage coordinate contract
+
+Player-facing gameplay UI uses the game stage as its coordinate authority. DOM pointer/target measurements begin in viewport/client pixels, then convert through `clientToStage`, `clientToStagePortal`, `clientRectPointToStage`, or `getStageSurface` before being stored/rendered in logical game coordinates. Fixed portals use `getStagePortalTarget()`. Tutorials, drag ghosts, reward/message particles, navigation fan-out, PvP/Raid/Pet Care overlays, and Clearing input must not independently base placement on physical `window.innerWidth/innerHeight` when the element belongs to the gameplay stage.
+
+The current iPhone 12 390×844 composition remains the reference and is intentionally unchanged by this contract. Admin editing surfaces are not part of the cross-device player-layout refactor; authored positions remain the source of truth and player rendering must preserve those positions when the portrait stage is scaled in later PRs.
+
 ## Major game systems
 
 | System | Primary locations |
