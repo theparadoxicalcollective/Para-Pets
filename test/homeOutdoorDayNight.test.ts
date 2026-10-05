@@ -237,3 +237,17 @@ test("full automatic night cannot brighten because of renderer-type swaps", () =
   assert.doesNotMatch(atmosphere, /activeLights\.length === 0/);
   assert.doesNotMatch(atmosphere, /useImageSpace/);
 });
+
+
+test("outdoor lamps locally illuminate night without restoring the unstable full-screen SVG mask", () => {
+  const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
+
+  assert.match(atmosphere, /effects\.filter\(effect => isHouseInteriorLightEffectType\(effect\.type\)\)/);
+  assert.match(atmosphere, /getHouseInteriorLightRadiusRatio\(effect\)/);
+  assert.match(atmosphere, /getHouseInteriorLightCutoutStrength\(effect\.type\)/);
+  assert.match(atmosphere, /home-outdoor-light-reveal-/);
+  assert.match(atmosphere, /mixBlendMode: "screen"/);
+  assert.match(atmosphere, /effect\.type === "warm_glow"[\s\S]*\(1 - safeNight\)/);
+  assert.doesNotMatch(atmosphere, /void effects/);
+  assert.doesNotMatch(atmosphere, /<svg|<mask/);
+});
