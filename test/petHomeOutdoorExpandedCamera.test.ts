@@ -132,3 +132,31 @@ test("iPhone 12 still uses ViewportScenePortal inline fallback and existing 390-
   assert.match(stage, /export const DESIGN_H = 844/);
   assert.match(stage, /viewportOwned: true/);
 });
+
+
+test("owner outdoor camera observer reattaches after interior and modal portal transitions", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+
+  assert.match(
+    owner,
+    /return observeHomeViewport\(container, recalc\);\s*\}, \[\s*bgAspect,\s*openInterior,\s*openInventory,\s*pendingActivate,\s*openGiftModal,\s*showNoMailPopup,\s*petHomeTutorialStep,?\s*\]\);/,
+  );
+});
+
+test("owner outdoor scene layers unmount inside buildings and remount outside", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+
+  assert.match(owner, /!openInterior && imgWidth > 0 && activeBundle\?\.buildings/);
+  assert.match(owner, /!openInterior && imgWidth > 0 && outdoorPets\.map/);
+  assert.match(owner, /!openInterior && outdoorPopupPet &&/);
+  assert.match(owner, /!openInterior && imgWidth > 0 && placedDecor\.map/);
+});
+
+test("visited Home camera also remeasures when returning from an interior", () => {
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.match(
+    visitor,
+    /return observeHomeViewport\(container, recalc\);\s*\}, \[bgAspect, openInterior, showGiftModal, selectedPet\]\);/,
+  );
+});
