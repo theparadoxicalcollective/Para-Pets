@@ -268,7 +268,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
             >Close</button>
           </div>
         </div>,
-        document.body,
+        getStagePortalTarget(),
       )}
 
       {bingoOpen && createPortal(

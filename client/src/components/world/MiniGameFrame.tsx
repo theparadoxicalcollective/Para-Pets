@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 import volcanicWorld from "@assets/bg_volcanic_map_v4.webp";
 import hauntedWorld from "@assets/bg_haunted_woods_v2.webp";
 import swampWorld from "@assets/bg_bayous_heart.webp";
@@ -11,13 +12,13 @@ const worldBackgrounds: Record<string, string> = {
 };
 
 /**
- * Mini-game pages now inherit the authoritative gameplay stage.
+ * Shared locked-page wrapper for world mini-games.
  *
- * Before the portrait-stage work this component independently measured its own
- * frame and scaled another 390×844 page inside it. Once the outer game stage is
- * already the 390×844 logical composition, doing that again can double-scale
- * controls on portrait phones/tablets. Keep the world artwork as the fill
- * around the mini-game, but let the page itself occupy the stage exactly once.
+ * The game content never owns a second scale transform. Native iPhone-12-style
+ * viewport ownership still renders inline at the canonical stage size, while
+ * stage-owned tablets/desktop can use the shared ViewportScenePortal to occupy
+ * the larger device camera. World artwork fills any newly revealed area with
+ * aspect-ratio-preserving cover rather than stretching gameplay coordinates.
  */
 export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   children: ReactNode;
@@ -28,29 +29,33 @@ export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   useStageSurroundings({ imageUrl: artwork, backgroundPosition: "center", overlayAlpha: 0.32, priority: 20 });
 
   return (
-    <div
-      data-testid="mini-game-frame"
-      className="absolute inset-0 overflow-hidden"
-      style={{
-        backgroundImage: artwork
-          ? `linear-gradient(rgba(0,0,0,.4),rgba(0,0,0,.6)),url(${artwork})`
-          : "linear-gradient(#15101e,#080510)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        overscrollBehavior: "none",
-      }}
-    >
+    <ViewportScenePortal>
       <div
-        data-testid="mini-game-locked-page"
+        data-testid="mini-game-frame"
+        data-camera-mode="device-viewport"
         className="absolute inset-0 overflow-hidden"
         style={{
-          width: "100%",
-          height: "100%",
-          background: "#09050d",
+          backgroundImage: artwork
+            ? `linear-gradient(rgba(0,0,0,.4),rgba(0,0,0,.6)),url(${artwork})`
+            : "linear-gradient(#15101e,#080510)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          overscrollBehavior: "none",
+          pointerEvents: "auto",
         }}
       >
-        {children}
+        <div
+          data-testid="mini-game-locked-page"
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            width: "100%",
+            height: "100%",
+            background: artwork ? "transparent" : "#09050d",
+          }}
+        >
+          {children}
+        </div>
       </div>
-    </div>
+    </ViewportScenePortal>
   );
 }

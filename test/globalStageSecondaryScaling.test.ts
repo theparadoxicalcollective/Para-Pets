@@ -11,6 +11,8 @@ test("mini games inherit the authoritative game stage without a second scaler", 
   assert.doesNotMatch(frame, /calculateMiniGamePage/);
   assert.doesNotMatch(frame, /calculateMiniGameScale/);
   assert.doesNotMatch(frame, /scale\(\$\{page\.scale\}\)/);
+  assert.match(frame, /<ViewportScenePortal>/);
+  assert.match(frame, /data-camera-mode="device-viewport"/);
   assert.match(frame, /data-testid="mini-game-locked-page"/);
   assert.match(frame, /className="absolute inset-0 overflow-hidden"/);
   assert.match(frame, /width: "100%"/);
