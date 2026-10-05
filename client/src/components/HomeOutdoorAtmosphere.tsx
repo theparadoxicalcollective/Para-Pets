@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
-import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import type { HouseInteriorEffect } from "@shared/housing";
 import {
   getHomeOutdoorDarkness,
@@ -195,6 +194,25 @@ export function HomeOutdoorAtmosphereLayer({
   transitionMs?: number;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
+  const numericDarkness = Number(darkness);
+  const safeDarkness = Number.isFinite(numericDarkness)
+    ? Math.max(0, Math.min(100, numericDarkness))
+    : 0;
+  const hasSceneBox = Number.isFinite(imgWidth) && Number.isFinite(sceneHeight)
+    && imgWidth > 0 && sceneHeight > 0;
+
+  // Outdoor night previously reused the interior SVG-mask renderer. On iOS
+  // Safari/WebKit that meant the full-yard darkness surface could switch from
+  // a DIV to a large animated SVG mask as Home dimensions/effects finished
+  // loading. At full night the clock value is stable, so any bright/dark flash
+  // came from that renderer swap rather than the automatic clock itself.
+  //
+  // Keep one lightweight CSS darkness surface mounted for the entire visit.
+  // Saved outdoor light/fire effects still render above this layer in
+  // HomeInteriorEffectsLayer, but the outdoor scene no longer allocates or
+  // animates a full-screen SVG mask on every night-time Home render.
+  void effects;
+
   return (
     <>
       <div
@@ -206,17 +224,26 @@ export function HomeOutdoorAtmosphereLayer({
           opacity: safeNight * .30,
           background: "radial-gradient(circle at 52% 12%, rgba(43,69,120,.38), transparent 42%), linear-gradient(180deg, rgba(7,18,45,.5), rgba(1,5,15,.78))",
           transition: `opacity ${transitionMs}ms linear`,
+          contain: "paint",
         }}
       />
-      <HomeInteriorDarknessLayer
-        darkness={darkness}
-        effects={effects}
-        panX={panX}
-        imgWidth={imgWidth}
-        sceneHeight={sceneHeight}
-        sunlightStrength={1 - safeNight}
-        transitionMs={transitionMs}
-        zIndex={zIndex}
+      <div
+        data-testid="home-outdoor-darkness-layer"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          ...(hasSceneBox ? {
+            left: panX,
+            top: 0,
+            width: imgWidth,
+            height: sceneHeight,
+          } : { inset: 0 }),
+          zIndex,
+          pointerEvents: "none",
+          backgroundColor: `rgba(0,0,0,${safeDarkness / 100})`,
+          transition: `background-color ${transitionMs}ms linear`,
+          contain: "paint",
+        }}
       />
     </>
   );
