@@ -61,36 +61,26 @@ test("Pet Home starts the guide only after the scene is ready and exposes stable
 });
 
 
-test("Pet Home tutorial follows the live Home stage across Safari Chrome Android tablet and desktop viewports", () => {
+test("Pet Home tutorial follows the logical game stage across scaled portrait devices", () => {
   const overlay = fs.readFileSync("client/src/components/PetHomeTutorialOverlay.tsx", "utf8");
   const page = fs.readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
 
-  // The guide measures the same rendered controls used by the iPhone/mobile
-  // Home layout instead of maintaining device-specific duplicate coordinates.
   assert.match(page, /data-testid="pet-home-stage"/);
-  assert.match(overlay, /document\.querySelector\('\[data-testid="pet-home-stage"\]'\)/);
-  assert.match(overlay, /getBoundingClientRect\(\)/);
-  assert.match(overlay, /const centerX = stage\.left \+ stage\.width \/ 2/);
-  assert.match(overlay, /left: layout\.stage\.left/);
-  assert.match(overlay, /width: layout\.stage\.width/);
-  assert.match(overlay, /maxWidth: 768/);
-
-  // Safari/iOS browser chrome changes the VisualViewport independently of the
-  // layout viewport; Android Chrome and desktop/tablet resizing use the same path.
-  assert.match(overlay, /window\.visualViewport/);
-  assert.match(overlay, /visualViewport\?\.offsetTop/);
-  assert.match(overlay, /visualViewport\?\.height/);
+  assert.match(overlay, /clientRectToStageRect\(element\.getBoundingClientRect\(\)\)/);
+  assert.match(overlay, /const surface = getStageSurface\(\)/);
+  assert.match(overlay, /width: surface\.logicalWidth/);
+  assert.match(overlay, /height: surface\.logicalHeight/);
+  assert.match(overlay, /left: 0/);
+  assert.match(overlay, /top: 0/);
+  assert.match(overlay, /maxWidth: Math\.max\(0, layout\.stage\.width - 28\)/);
+  assert.doesNotMatch(overlay, /currentVisualViewport|window\.visualViewport|window\.innerWidth|window\.innerHeight/);
+  assert.match(overlay, /ResizeObserver/);
   assert.match(overlay, /window\.addEventListener\("resize"/);
   assert.match(overlay, /window\.addEventListener\("orientationchange"/);
-  assert.match(overlay, /visualViewport\?\.addEventListener\("resize"/);
-  assert.match(overlay, /visualViewport\?\.addEventListener\("scroll"/);
-  assert.match(overlay, /ResizeObserver/);
   assert.match(overlay, /HOME_FIXED_VIEWPORT_STYLE/);
   assert.match(overlay, /HOME_TOUCH_SURFACE_STYLE/);
   assert.match(overlay, /maxHeight: "calc\(var\(--home-visual-height, 100dvh\) - 28px\)"/);
 
-  // PC keyboard users cannot tab out of the modal and mobile keeps a full-size
-  // Continue touch target while the underlying Home remains blocked.
   assert.match(overlay, /event\.key === "Tab" \|\| event\.key === "Escape"/);
   assert.match(overlay, /button-pet-home-tutorial-continue/);
   assert.match(overlay, /minHeight: 44/);
