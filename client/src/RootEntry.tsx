@@ -11,6 +11,7 @@ import LonelleQuestOverlay from "@/components/LonelleQuestOverlay";
 import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
 import { getStageTransform } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
+import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
 
 function RootStage({ children }: { children: ReactNode }) {
   const layout = useStageViewportLayout();
@@ -36,6 +37,7 @@ function RootStage({ children }: { children: ReactNode }) {
           transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
+          visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
           "--fh": `${layout.designHeight}px`,
           "--vh": `${layout.designHeight * 0.01}px`,
           "--vw": `${layout.designWidth * 0.01}px`,
@@ -43,6 +45,7 @@ function RootStage({ children }: { children: ReactNode }) {
       >
         {children}
       </div>
+      <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>
   );
 }
