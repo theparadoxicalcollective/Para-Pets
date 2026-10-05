@@ -26,6 +26,7 @@ import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
 import { getStageSurface } from "@/lib/stage";
+import ViewportHudPortal from "@/components/ViewportHudPortal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 interface NavUser {
@@ -304,6 +305,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   return (
     <>
+      <ViewportHudPortal>
       {/* ── Login quest hint arrow ────────────────────────────────────────── */}
       {showLoginHint && (
         <>
@@ -355,6 +357,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       {isOpen && (
         <div
           className="absolute inset-0 z-[90]"
+          style={{ pointerEvents: "auto" }}
           onClick={closeAll}
         />
       )}
@@ -368,6 +371,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           width: BUTTON_SIZE,
           height: BUTTON_SIZE,
           zIndex: isOpen ? 9999 : (anyPanelOpen ? panelZ + 1 : 95),
+          pointerEvents: "auto",
         }}
       >
         {/* LEFT items – fan out to the left */}
@@ -475,6 +479,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           )}
         </button>
       </div>
+      </ViewportHudPortal>
 
       {/* ── Quest scroll overlay ─────────────────────────────────────────── */}
       {showQuest && (

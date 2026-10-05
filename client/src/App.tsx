@@ -14,7 +14,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
+import { calculateViewportHudRect, getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
@@ -779,6 +779,7 @@ function DesktopNotice() {
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const layout = useStageViewportLayout();
+  const hudRect = calculateViewportHudRect(layout);
 
   // Gameplay stays inside the stable 390x844 portrait stage. The public Hub is
   // the one document-style route: on tablet/desktop it owns the real browser
@@ -810,6 +811,11 @@ function GameStage({ children }: { children: ReactNode }) {
           } as CSSProperties}
         >
           {children}
+          <div
+            id="game-viewport-hud"
+            data-testid="game-viewport-hud"
+            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+          />
         </div>
         <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
       </div>
@@ -839,7 +845,7 @@ function GameStage({ children }: { children: ReactNode }) {
           height: layout.designHeight,
           transform: getStageTransform(layout),
           transformOrigin: "top left",
-          overflow: "hidden",
+          overflow: "visible",
           isolation: "isolate",
           visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
           // Frame-relative viewport units remain logical pixels while the
@@ -849,7 +855,32 @@ function GameStage({ children }: { children: ReactNode }) {
           "--vw": `${layout.designWidth * 0.01}px`,
         } as CSSProperties}
       >
-        {children}
+        <div
+          id="game-stage-content"
+          data-testid="game-stage-content"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: layout.designWidth,
+            height: layout.designHeight,
+            overflow: "hidden",
+          }}
+        >
+          {children}
+        </div>
+        <div
+          id="game-viewport-hud"
+          data-testid="game-viewport-hud"
+          style={{
+            position: "absolute",
+            left: hudRect.left,
+            top: hudRect.top,
+            width: hudRect.width,
+            height: hudRect.height,
+            pointerEvents: "none",
+            overflow: "visible",
+          }}
+        />
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>

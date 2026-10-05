@@ -380,6 +380,30 @@ export function renderedToLogical(layout: StageLayout, x: number, y: number) {
   return { x: (x - layout.left) / layout.scale, y: (y - layout.top) / layout.scale };
 }
 
+export type ViewportHudRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * Logical rectangle that maps back onto the entire visible device viewport
+ * while retaining the same uniform scale as the canonical game stage.
+ *
+ * This lets persistent HUD controls reach real device edges without changing
+ * gameplay/world coordinates or stretching the iPhone-12-based composition.
+ */
+export function calculateViewportHudRect(layout: StageLayout): ViewportHudRect {
+  const scale = Math.max(layout.scale, 0.0001);
+  return {
+    left: layout.left === 0 ? 0 : -layout.left / scale,
+    top: layout.top === 0 ? 0 : -layout.top / scale,
+    width: layout.viewportWidth / scale,
+    height: layout.viewportHeight / scale,
+  };
+}
+
 export function clientToPortalPoint(layout: StageLayout, clientX: number, clientY: number) {
   return layout.coordinateOwner === "viewport"
     ? { x: clientX, y: clientY }
@@ -403,10 +427,11 @@ export function getStageTransform(layout: StageLayout): string | undefined {
  */
 export function getStagePortalTarget(): HTMLElement {
   const stage = document.getElementById("game-stage");
-  if (stage?.dataset.coordinateOwner === "stage") return stage;
+  const content = document.getElementById("game-stage-content");
+  if (stage?.dataset.coordinateOwner === "stage") return content ?? stage;
   if (stage?.dataset.coordinateOwner === "viewport") return document.body;
   // Compatibility fallback while an older root shell is still mounting.
-  if (!isNarrowLayout(getVisibleViewport().width)) return stage ?? document.body;
+  if (!isNarrowLayout(getVisibleViewport().width)) return content ?? stage ?? document.body;
   return document.body;
 }
 
