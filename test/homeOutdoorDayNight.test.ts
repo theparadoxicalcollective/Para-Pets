@@ -103,7 +103,7 @@ test("owner and visitor Home yards use the owner's current day-night setting dur
   assert.match(atmosphere, /HOME_OUTDOOR_OVERRIDE_TRANSITION_MS/);
   assert.match(atmosphere, /transitionMs = mode === "auto"/);
   assert.match(atmosphere, /transition: `opacity \$\{transitionMs\}ms linear`/);
-  assert.match(atmosphere, /transitionMs=\{transitionMs\}/);
+  assert.match(atmosphere, /transition: `background-color \$\{transitionMs\}ms linear`/);
   assert.match(atmosphere, /<Sun /);
   assert.match(atmosphere, /<Moon /);
   assert.doesNotMatch(atmosphere, /function AutoLightingIcon/);
