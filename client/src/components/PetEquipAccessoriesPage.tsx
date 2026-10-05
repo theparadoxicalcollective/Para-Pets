@@ -8,6 +8,9 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
+import { clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
+import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import MiniPetRenderer, { type EquippedMiniPet } from "@/components/MiniPetRenderer";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
@@ -75,6 +78,12 @@ const TOTAL_SLOTS = 5;
 
 export default function PetEquipAccessoriesPage({ petInventoryId, petName, petImage, petTemplateId, rarity, onClose }: Props) {
   const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
+  useStageSurroundings({
+    imageUrl: closetBackground,
+    backgroundPosition: "center center",
+    overlayAlpha: 0.28,
+    priority: 30,
+  });
   const [unequipConfirm, setUnequipConfirm] = useState<EquippedAccessory | null>(null);
   const [unlockConfirm, setUnlockConfirm] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
@@ -266,17 +275,21 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       image.style.cssText = "width:48px;height:48px;object-fit:contain;";
       ghost.appendChild(image);
     }
-    ghost.style.left = `${touch.clientX}px`;
-    ghost.style.top = `${touch.clientY}px`;
-    document.body.appendChild(ghost);
+    const ghostTarget = getStagePortalTarget();
+    ghost.style.position = ghostTarget === document.body ? "fixed" : "absolute";
+    const startPoint = clientToStagePortal(touch.clientX, touch.clientY);
+    ghost.style.left = `${startPoint.x}px`;
+    ghost.style.top = `${startPoint.y}px`;
+    ghostTarget.appendChild(ghost);
     ghostRef.current = ghost;
 
     const onMove = (moveEvent: TouchEvent) => {
       moveEvent.preventDefault();
       const point = moveEvent.touches[0];
       if (ghostRef.current) {
-        ghostRef.current.style.left = `${point.clientX}px`;
-        ghostRef.current.style.top = `${point.clientY}px`;
+        const ghostPoint = clientToStagePortal(point.clientX, point.clientY);
+        ghostRef.current.style.left = `${ghostPoint.x}px`;
+        ghostRef.current.style.top = `${ghostPoint.y}px`;
       }
       const target = document.elementFromPoint(point.clientX, point.clientY)?.closest("[data-slot-index]") as HTMLElement | null;
       setDragOverSlot(target?.dataset.slotIndex === undefined ? null : Number(target.dataset.slotIndex));
@@ -307,7 +320,26 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   }
 
   return (
-    <div className="fixed inset-0 z-[200] overflow-hidden" style={{ maxWidth: 768, margin: "0 auto", background: "#020503" }}>
+    <>
+      <ViewportScenePortal interactive={false}>
+        <div
+          data-testid="closet-viewport-environment"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: "#020503",
+            backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.42)), url(${closetBackground})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      </ViewportScenePortal>
+
+      <div
+        data-testid="closet-authored-template"
+        className="fixed inset-0 z-[200] overflow-hidden"
+        style={{ maxWidth: 768, margin: "0 auto", background: "#020503" }}
+      >
       <img src={closetBackground} alt="" aria-hidden className="absolute inset-0 h-full w-full" style={{ objectFit: "fill", pointerEvents: "none", userSelect: "none" }} />
 
       <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.4%", width: "64%" }}>
@@ -488,7 +520,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       )}
 
       {equipMutation.isPending && <div className="absolute inset-0 z-[30] grid place-items-center" style={{ background: "rgba(2,5,3,.62)" }}><p className="animate-pulse font-fantasy text-sm" style={{ color: rc }}>Equipping…</p></div>}
-    </div>
+      </div>
+    </>
   );
 }
 
