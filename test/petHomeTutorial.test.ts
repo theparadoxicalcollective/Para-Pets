@@ -41,7 +41,7 @@ test("Pet Home tutorial follows the requested six-step guide and blocks the scen
   assert.match(overlay, /event\.stopPropagation\(\)/);
   assert.match(overlay, /pointerEvents: "auto"/);
   assert.match(overlay, /step === "mailbox" \|\| step === "building"/);
-  assert.match(overlay, /revealHomeScene \? "rgba\(0,0,0,0\.08\)" : "rgba\(0,0,0,0\.62\)"/);
+  assert.match(overlay, /revealHomeScene \? "rgba\(0,0,0,0\)" : "rgba\(0,0,0,0\.62\)"/);
 });
 
 test("Pet Home starts the guide only after the scene is ready and exposes stable targets", () => {
