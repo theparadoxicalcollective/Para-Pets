@@ -90,6 +90,7 @@ test("only explicitly opted-in scenes use the device viewport scene portal", () 
 test("GameStage provides a scene surface only on the stage-owned presentation path", () => {
   const app = read("client/src/App.tsx");
 
+  assert.match(app, /layout\.coordinateOwner === "stage" && \(/);
   assert.match(app, /id="game-viewport-scene"/);
   assert.match(app, /left: sceneRect\.left/);
   assert.match(app, /top: sceneRect\.top/);
@@ -97,10 +98,10 @@ test("GameStage provides a scene surface only on the stage-owned presentation pa
   assert.match(app, /height: sceneRect\.height/);
   assert.match(app, /pointerEvents: "none"/);
 
-  const viewportOwnedBranch = app.slice(
-    app.indexOf("if (useDocumentViewport)"),
-    app.indexOf("return (", app.indexOf("if (useDocumentViewport)") + 30),
-  );
+  const documentBranchStart = app.indexOf("if (shouldUseDocumentLayout");
+  const documentBranchEnd = app.indexOf("\n  return (", documentBranchStart);
+  const viewportOwnedBranch = app.slice(documentBranchStart, documentBranchEnd);
+  assert.ok(documentBranchStart >= 0 && documentBranchEnd > documentBranchStart);
   assert.doesNotMatch(viewportOwnedBranch, /game-viewport-scene/);
 });
 
