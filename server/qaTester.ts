@@ -7,10 +7,10 @@ export interface QaTesterIdentity {
 
 const ENABLED_VALUE = "true";
 const COMPANION_DEFAULTS = [
-  { username: "TessaVale", email: "tessavale@qa.parapets.invalid" },
-  { username: "RowanMoss", email: "rowanmoss@qa.parapets.invalid" },
-  { username: "MiloAsh", email: "miloash@qa.parapets.invalid" },
-  { username: "JadeWren", email: "jadewren@qa.parapets.invalid" },
+  { username: "maddyrae13", email: "maddyrae13@qa.parapets.invalid" },
+  { username: "RhettM87", email: "rhettm87@qa.parapets.invalid" },
+  { username: "pixelpaws", email: "pixelpaws@qa.parapets.invalid" },
+  { username: "jaybird_7", email: "jaybird7@qa.parapets.invalid" },
 ] as const;
 
 function normalize(value: unknown): string {
