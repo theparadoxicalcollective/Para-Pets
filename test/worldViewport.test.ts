@@ -32,3 +32,30 @@ test("invalid dimensions fall back safely", () => {
   assert.equal(calculateWorldFitScale(0, 844, 1440, false), 1);
   assert.ok(calculateWorldFitScale(390, 844, 0, false) > 0);
 });
+
+
+test("expanded camera preserves the iPhone 12 world zoom while revealing more map on tablets", () => {
+  const mapH = 1440;
+  const phoneScale = calculateWorldFitScale(390, 844, mapH, true);
+  assert.equal(phoneScale, 844 / mapH);
+
+  const tabletScale = calculateWorldFitScale(683, 911, mapH, true);
+  const tabletContain = Math.min(683 / WORLD_MAP_WIDTH, 911 / mapH);
+  assert.equal(tabletScale, tabletContain);
+  assert.ok(tabletScale >= phoneScale);
+
+  const tabletBounds = clampWorldMapOffset(0, 0, tabletScale, 683, 911, mapH);
+  assert.equal(tabletBounds.x, (683 - WORLD_MAP_WIDTH * tabletScale) / 2);
+  assert.equal(tabletBounds.y, (911 - mapH * tabletScale) / 2);
+});
+
+test("expanded desktop camera never zooms a world below the iPhone 12 reference scale", () => {
+  const mapH = 1440;
+  const referenceScale = 844 / mapH;
+  const desktopScale = calculateWorldFitScale(1500, 844, mapH, true);
+  assert.equal(desktopScale, referenceScale);
+
+  const centered = clampWorldMapOffset(0, 0, desktopScale, 1500, 844, mapH);
+  assert.equal(centered.x, (1500 - WORLD_MAP_WIDTH * referenceScale) / 2);
+  assert.equal(centered.y, 0);
+});
