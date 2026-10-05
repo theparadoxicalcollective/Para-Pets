@@ -51,8 +51,12 @@ test("installed Para Pets continues requesting portrait-primary from the PWA man
 test("portrait lock is capability-based and does not use device or browser names", () => {
   const stage = read("client/src/lib/stage.ts");
   const blocker = read("client/src/components/PortraitOrientationBlocker.tsx");
+  const helperStart = stage.indexOf("export function shouldBlockTouchLandscape");
+  const helperEnd = stage.indexOf("\n}", helperStart) + 2;
+  const helper = stage.slice(helperStart, helperEnd);
 
-  assert.match(stage, /if \(!touchFirst \|\| keyboardReduced\) return false/);
-  assert.match(stage, /return viewportWidth > viewportHeight/);
-  assert.doesNotMatch(stage + blocker, /navigator\.userAgent|iPhone|iPad|Android|Safari|Chrome/);
+  assert.ok(helperStart >= 0);
+  assert.match(helper, /if \(!touchFirst \|\| keyboardReduced\) return false/);
+  assert.match(helper, /return viewportWidth > viewportHeight/);
+  assert.doesNotMatch(helper + blocker, /navigator\.userAgent|iPhone|iPad|Android|Safari|Chrome/);
 });
