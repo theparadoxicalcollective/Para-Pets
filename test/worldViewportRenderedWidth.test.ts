@@ -128,9 +128,10 @@ test("production build width flows through WorldPage into the shared viewport co
   );
 
   const fitCalls = controller.match(
-    /calculateWorldFitScale\([\s\S]*?mapHRef\.current,[\s\S]*?fitFullComposition,[\s\S]*?mapWidth/g,
+    /calculateWorldFitScale\([\s\S]*?mapHRef\.current,[\s\S]*?false,[\s\S]*?mapWidth/g,
   ) ?? [];
   assert.equal(fitCalls.length, 2);
+  assert.doesNotMatch(controller, /fitFullComposition|visualViewport|window\.innerWidth|window\.innerHeight/);
 });
 
 test("viewport helpers keep backward-compatible defaults for non-WorldPage callers", () => {

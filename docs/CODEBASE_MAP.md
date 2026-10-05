@@ -23,6 +23,12 @@ The runtime detects touch-first devices conservatively (touch points plus coarse
 
 Pet Home owner/visitor panning, player decor/pet movement, inventory drag ghosts, and drop placement convert client movement into logical stage coordinates before changing saved percentages. This preserves Admin- and player-authored positions when the outer portrait stage is scaled.
 
+### Stage-owned World and mini-game sizing
+
+World and mini-game player screens inherit the authoritative game stage instead of measuring the physical browser and applying a second device-level 390×844 scale. `MiniGameFrame` is now only a locked stage-filling page/background boundary. The World viewport measures its logical element with `ResizeObserver`; browser chrome/orientation/device fitting remains owned by `stageViewport.ts`.
+
+The World's internal authored-map transform is intentionally separate from device scaling: it still covers the logical viewport and allows panning to every authored edge, while NPC, decor, object, and hotspot coordinates remain attached to the same Admin-authored map. Body-level World effects that need client pixels derive them from the rendered stage instead of the physical window.
+
 ## Major game systems
 
 | System | Primary locations |

@@ -14,25 +14,6 @@ import {
 export const WORLD_MAP_PAN_THRESHOLD_PX = 4;
 export const WORLD_MAP_POST_PAN_CLICK_MS = 80;
 
-function isStandaloneDisplay(): boolean {
-  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
-  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
-  return (
-    navigatorWithStandalone.standalone === true
-    || window.matchMedia("(display-mode: standalone)").matches
-  );
-}
-
-export function shouldFitFullWorldComposition(): boolean {
-  if (typeof window === "undefined") return false;
-  const viewport = window.visualViewport;
-  return (
-    (viewport?.width ?? window.innerWidth) < 768
-    && !isStandaloneDisplay()
-    && (viewport?.height ?? window.innerHeight) < DESIGN_H
-  );
-}
-
 interface UseWorldViewportControllerOptions {
   worldId: string;
   mapWidth: number;
@@ -58,10 +39,6 @@ export function useWorldViewportController({
   const frameHRef = useRef(initialFrameHeight);
   const [frameW, setFrameW] = useState(initialFrameWidth);
   const [frameH, setFrameH] = useState(initialFrameHeight);
-  const [fitFullComposition, setFitFullComposition] = useState(
-    () => typeof window !== "undefined" && shouldFitFullWorldComposition(),
-  );
-
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
   const [mapX, setMapX] = useState(0);
   const [mapY, setMapY] = useState(0);
@@ -92,9 +69,12 @@ export function useWorldViewportController({
     if (!el) return;
 
     const measure = () => {
+      // Measure only the logical world frame supplied by #game-stage.
+      // Browser chrome, orientation and portrait-device fitting are owned by
+      // the shared stage controller; ResizeObserver fires when that logical
+      // frame actually changes.
       const width = el.clientWidth || getDesignW();
       const height = el.clientHeight || DESIGN_H;
-      setFitFullComposition(shouldFitFullWorldComposition());
       frameWRef.current = width;
       frameHRef.current = height;
       setFrameW((previous) => (previous !== width ? width : previous));
@@ -104,11 +84,9 @@ export function useWorldViewportController({
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
-    window.addEventListener("orientationchange", measure);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("orientationchange", measure);
     };
   }, []);
 
@@ -139,7 +117,7 @@ export function useWorldViewportController({
       frameWRef.current,
       frameHRef.current,
       mapHRef.current,
-      fitFullComposition,
+      false,
       mapWidth,
     );
     const { x: clampedX, y: clampedY } = clampTransform(x, y, fitScale);
@@ -147,14 +125,14 @@ export function useWorldViewportController({
     setMapX(clampedX);
     setMapY(clampedY);
     setMapScale(fitScale);
-  }, [clampTransform, fitFullComposition, mapWidth]);
+  }, [clampTransform, mapWidth]);
 
   useEffect(() => {
     const fitScale = calculateWorldFitScale(
       frameWRef.current,
       frameHRef.current,
       mapHRef.current,
-      fitFullComposition,
+      false,
       mapWidth,
     );
     const initialX = (frameWRef.current - mapWidth * fitScale) / 2;
@@ -163,7 +141,7 @@ export function useWorldViewportController({
     setMapX(initialX);
     setMapY(initialY);
     setMapScale(fitScale);
-  }, [fitFullComposition, frameH, frameW, mapH, mapWidth, worldId]);
+  }, [frameH, frameW, mapH, mapWidth, worldId]);
 
   const handleVpPointerDown = useCallback((event: ReactPointerEvent) => {
     // Preserve the stale-drag recovery used by the shared admin location

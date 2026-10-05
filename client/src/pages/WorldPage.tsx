@@ -3,6 +3,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "@/lib/worldViewport";
+import { getStageRenderedCenter } from "@/lib/stage";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -646,7 +647,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setCurrentUser(prev => ({ ...prev, coins: data.newBalance }));
       setSellSelected({});
       setShowSellPanel(false);
-      burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2, 6);
+      const stageCenter = getStageRenderedCenter();
+      burstGoldenOrbs(stageCenter.x, stageCenter.y, 6);
       toast({ title: `+${data.coinsEarned} coins!`, description: "Items sold successfully" });
     },
     onError: () => {
