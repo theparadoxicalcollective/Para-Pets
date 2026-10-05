@@ -335,6 +335,35 @@ export function clientRectPointToStage(
   );
 }
 
+export type StageLocalRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+};
+
+/** Convert a viewport/client DOMRect into the logical coordinate space of #game-stage. */
+export function clientRectToStageRect(
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+): StageLocalRect {
+  const surface = getStageSurface();
+  const scale = surface.scale > 0 ? surface.scale : 1;
+  const left = (rect.left - surface.left) / scale;
+  const top = (rect.top - surface.top) / scale;
+  const width = rect.width / scale;
+  const height = rect.height / scale;
+  return {
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+  };
+}
+
 /** Stable fallback for stage-local particles/messages when a target is absent. */
 export function getStageLogicalCenter(): { x: number; y: number } {
   const surface = getStageSurface();
