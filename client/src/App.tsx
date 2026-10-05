@@ -14,7 +14,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
+import { calculateViewportHudRect, getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
@@ -779,6 +779,7 @@ function DesktopNotice() {
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const layout = useStageViewportLayout();
+  const hudRect = calculateViewportHudRect(layout);
 
   // Gameplay stays inside the stable 390x844 portrait stage. The public Hub is
   // the one document-style route: on tablet/desktop it owns the real browser
@@ -872,10 +873,10 @@ function GameStage({ children }: { children: ReactNode }) {
           data-testid="game-viewport-hud"
           style={{
             position: "absolute",
-            left: -layout.left / Math.max(layout.scale, 0.0001),
-            top: -layout.top / Math.max(layout.scale, 0.0001),
-            width: layout.viewportWidth / Math.max(layout.scale, 0.0001),
-            height: layout.viewportHeight / Math.max(layout.scale, 0.0001),
+            left: hudRect.left,
+            top: hudRect.top,
+            width: hudRect.width,
+            height: hudRect.height,
             pointerEvents: "none",
             overflow: "visible",
           }}
