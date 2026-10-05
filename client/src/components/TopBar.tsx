@@ -412,9 +412,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               data-testid="topbar-resource-cluster"
               style={{
                 display: "grid",
-                gridTemplateColumns: "auto 54px",
+                gridTemplateColumns: "auto 44px",
                 gridTemplateRows: "30px 30px",
-                columnGap: 5,
+                columnGap: 4,
                 rowGap: 2,
                 alignItems: "center",
                 flexShrink: 0,
@@ -493,8 +493,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 style={{
                   gridColumn: 2,
                   gridRow: "1 / span 2",
-                  width: 54,
-                  height: 54,
+                  width: 44,
+                  height: 44,
                   alignSelf: "center",
                   justifySelf: "center",
                   display: "grid",
@@ -502,8 +502,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   position: "relative",
                   background: "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
                   border: "1.5px solid rgba(240,192,64,0.72)",
-                  borderRadius: 16,
-                  boxShadow: "0 4px 14px rgba(0,0,0,0.48), 0 0 13px rgba(240,192,64,0.32), inset 0 0 9px rgba(255,223,125,0.12)",
+                  borderRadius: 13,
+                  boxShadow: "0 3px 10px rgba(0,0,0,0.46), 0 0 9px rgba(240,192,64,0.28), inset 0 0 7px rgba(255,223,125,0.10)",
                   padding: 0,
                   cursor: "pointer",
                   flexShrink: 0,
@@ -513,10 +513,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   src={coinBagIconImg}
                   alt="Buy Coins"
                   style={{
-                    width: 47,
-                    height: 47,
+                    width: 38,
+                    height: 38,
                     objectFit: "contain",
-                    filter: "brightness(1.08) drop-shadow(0 0 9px rgba(240,192,64,0.68)) drop-shadow(0 3px 5px rgba(0,0,0,0.65))",
+                    filter: "brightness(1.06) drop-shadow(0 0 7px rgba(240,192,64,0.58)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
                   }}
                 />
                 <span
@@ -524,17 +524,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   className="font-fantasy"
                   style={{
                     position: "absolute",
-                    top: -4,
-                    right: -4,
-                    width: 18,
-                    height: 18,
+                    top: -3,
+                    right: -3,
+                    width: 15,
+                    height: 15,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 999,
                     background: "linear-gradient(145deg, #ffe9a8 0%, #d4a017 58%, #8b5d0b 100%)",
                     border: "1px solid rgba(255,245,190,0.9)",
                     color: "#201204",
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: 900,
                     lineHeight: 1,
                     boxShadow: "0 0 8px rgba(240,192,64,0.7)",
