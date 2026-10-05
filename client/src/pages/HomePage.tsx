@@ -1941,69 +1941,86 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </div>
       )}
 
-      {/* Chat + Support buttons — top-right corner */}
+      {/* Veridian Watcher + Support — device-edge upper-right HUD */}
       {!showProfile && !showActionMenu && !activePetModal && (
-        <>
-          {/* World Chat toggle button */}
-          <button
-            data-testid="button-open-world-chat"
-            onClick={() => { setShowWorldChat(v => !v); setChatHasNewMsg(false); }}
-            className="absolute z-[50] transition-transform active:scale-90"
+        <ViewportHudPortal>
+          <div
+            data-testid="viewport-hud-corner-actions"
             style={{
-              top: "58px",
-              right: "54px",
-              width: "44px",
-              height: "44px",
-              borderRadius: "50%",
-              overflow: "hidden",
-              cursor: "pointer",
-              padding: 0,
-              background: "rgba(10,40,34,0.85)",
-              border: showWorldChat
-                ? "2px solid rgba(94,234,212,0.8)"
-                : chatHasNewMsg
-                  ? "2px solid rgba(94,234,212,0.65)"
-                  : "2px solid rgba(94,234,212,0.3)",
-              boxShadow: showWorldChat
-                ? "0 0 14px rgba(94,234,212,0.45), 0 4px 16px rgba(0,0,0,0.9)"
-                : chatHasNewMsg
-                  ? "0 0 16px rgba(94,234,212,0.6)"
-                  : "0 4px 16px rgba(0,0,0,0.9)",
+              position: "absolute",
+              top: 58,
+              right: 12,
+              zIndex: 50,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 6,
+              pointerEvents: "auto",
             }}
           >
-            <img
-              src={worldChatIconImg}
-              alt="The Veridian Watcher"
+            {/* World Chat toggle button. Group geometry preserves the original
+                iPhone 12 position: right 54 / top 58. */}
+            <button
+              data-testid="button-open-world-chat"
+              onClick={() => { setShowWorldChat(v => !v); setChatHasNewMsg(false); }}
+              className="relative transition-transform active:scale-90"
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-                filter: showWorldChat
-                  ? "brightness(1.15)"
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                overflow: "hidden",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+                background: "rgba(10,40,34,0.85)",
+                border: showWorldChat
+                  ? "2px solid rgba(94,234,212,0.8)"
                   : chatHasNewMsg
-                    ? "brightness(1.2)"
-                    : "brightness(0.95)",
+                    ? "2px solid rgba(94,234,212,0.65)"
+                    : "2px solid rgba(94,234,212,0.3)",
+                boxShadow: showWorldChat
+                  ? "0 0 14px rgba(94,234,212,0.45), 0 4px 16px rgba(0,0,0,0.9)"
+                  : chatHasNewMsg
+                    ? "0 0 16px rgba(94,234,212,0.6)"
+                    : "0 4px 16px rgba(0,0,0,0.9)",
               }}
-            />
-          </button>
-          {/* Support message button */}
-          <button
-            data-testid="button-open-support"
-            onClick={() => { setShowSupportModal(true); setSupportSent(false); setSupportSubject(""); setSupportMessage(""); }}
-            className="absolute z-[50] transition-transform active:scale-90"
-            style={{
-              top: "66px",
-              right: "12px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            <img src={supportIconImg} alt="Support" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }} />
-          </button>
-        </>
+            >
+              <img
+                src={worldChatIconImg}
+                alt="The Veridian Watcher"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  filter: showWorldChat
+                    ? "brightness(1.15)"
+                    : chatHasNewMsg
+                      ? "brightness(1.2)"
+                      : "brightness(0.95)",
+                }}
+              />
+            </button>
+
+            {/* Support keeps the original iPhone 12 right 12 / top 66 position. */}
+            <button
+              data-testid="button-open-support"
+              onClick={() => { setShowSupportModal(true); setSupportSent(false); setSupportSubject(""); setSupportMessage(""); }}
+              className="relative transition-transform active:scale-90"
+              style={{
+                marginTop: 8,
+                width: 36,
+                height: 36,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <img src={supportIconImg} alt="Support" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }} />
+            </button>
+          </div>
+        </ViewportHudPortal>
       )}
 
       {/* World Chat Panel */}
