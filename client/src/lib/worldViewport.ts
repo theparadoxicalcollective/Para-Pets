@@ -23,10 +23,11 @@ export function calculateWorldFitScale(
 /**
  * Larger-device WorldPage camera policy.
  *
- * Never zooms the authored map below the full iPhone 12 reference composition,
- * but otherwise prefers the largest uniform scale that reveals the complete map
- * inside the expanded camera. Any remaining device area is supplied by the
- * context-aware surroundings layer rather than by stretching the world.
+ * The real authored map must fill the visible camera. Larger tablets should
+ * feel like a camera looking across the world, not a contained/movable card
+ * floating over a second background. Preserve uniform scaling and the iPhone
+ * 12 reference minimum, then cover the full camera; clampWorldMapOffset owns
+ * any remaining horizontal/vertical panning across the real map.
  */
 export function calculateExpandedWorldCameraScale(
   frameWidth: number,
@@ -38,8 +39,8 @@ export function calculateExpandedWorldCameraScale(
   const safeMapWidth = Number.isFinite(mapWidth) && mapWidth > 0 ? mapWidth : WORLD_MAP_WIDTH;
   const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
   const referenceScale = Math.max(390 / safeMapWidth, 844 / safeMapHeight);
-  const containScale = Math.min(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
-  return Math.max(referenceScale, containScale);
+  const coverScale = Math.max(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
+  return Math.max(referenceScale, coverScale);
 }
 
 /** Keep an oversized world draggable to every edge without showing empty space. */
