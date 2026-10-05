@@ -7,7 +7,10 @@ export const HOME_OUTDOOR_DAWN_START_MINUTE = 5 * 60 + 30;
 export const HOME_OUTDOOR_DAY_START_MINUTE = 7 * 60 + 30;
 export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
-export const HOME_OUTDOOR_AUTO_TRANSITION_MS = 30_000;
+// Automatic samples still update every 30 seconds, but the rendered fade is
+// intentionally short. Keeping a full-screen Home layer in a continuous
+// 30-second CSS transition was unnecessarily expensive on iOS WebKit.
+export const HOME_OUTDOOR_AUTO_TRANSITION_MS = 1_200;
 export const HOME_OUTDOOR_OVERRIDE_TRANSITION_MS = 280;
 // Short transition used when a mobile/browser page wakes from the background.
 // It avoids a stale 30-second catch-up fade while still preventing a hard flash.
