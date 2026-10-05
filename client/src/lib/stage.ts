@@ -403,10 +403,11 @@ export function getStageTransform(layout: StageLayout): string | undefined {
  */
 export function getStagePortalTarget(): HTMLElement {
   const stage = document.getElementById("game-stage");
-  if (stage?.dataset.coordinateOwner === "stage") return stage;
+  const content = document.getElementById("game-stage-content");
+  if (stage?.dataset.coordinateOwner === "stage") return content ?? stage;
   if (stage?.dataset.coordinateOwner === "viewport") return document.body;
   // Compatibility fallback while an older root shell is still mounting.
-  if (!isNarrowLayout(getVisibleViewport().width)) return stage ?? document.body;
+  if (!isNarrowLayout(getVisibleViewport().width)) return content ?? stage ?? document.body;
   return document.body;
 }
 
