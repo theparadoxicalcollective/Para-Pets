@@ -23,8 +23,9 @@ test("AuthPage keeps the original phone presentation while exposing a separate w
 
 test("tablet and desktop auth use the full device instead of a narrow phone panel", () => {
   const css = read("client/src/pages/authPage.css");
-  const tabletStart = css.indexOf("@media (min-width: 768px)");
+  const tabletStart = css.indexOf("@media (min-width: 768px) and (min-height: 700px)");
   assert.ok(tabletStart >= 0);
+  assert.match(css, /@media \(min-width: 768px\) and \(min-height: 700px\)/);
   const tablet = css.slice(tabletStart);
 
   assert.match(tablet, /\.auth-page-wide-background\s*\{[\s\S]*?display: block/);
