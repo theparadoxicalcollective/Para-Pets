@@ -34,28 +34,36 @@ test("invalid dimensions fall back safely", () => {
 });
 
 
-test("expanded camera preserves the iPhone 12 world zoom while revealing more map on tablets", () => {
+test("expanded tablet camera fills the viewport with the real map and pans only across overflow", () => {
   const mapH = 1440;
   const phoneScale = calculateExpandedWorldCameraScale(390, 844, mapH);
   assert.equal(phoneScale, 844 / mapH);
 
   const tabletScale = calculateExpandedWorldCameraScale(683, 911, mapH);
-  const tabletContain = Math.min(683 / WORLD_MAP_WIDTH, 911 / mapH);
-  assert.equal(tabletScale, tabletContain);
+  const tabletCover = Math.max(683 / WORLD_MAP_WIDTH, 911 / mapH);
+  assert.equal(tabletScale, tabletCover);
   assert.ok(tabletScale >= phoneScale);
+  assert.ok(WORLD_MAP_WIDTH * tabletScale >= 683);
+  assert.ok(mapH * tabletScale >= 911);
 
-  const tabletBounds = clampWorldMapOffset(0, 0, tabletScale, 683, 911, mapH);
-  assert.equal(tabletBounds.x, (683 - WORLD_MAP_WIDTH * tabletScale) / 2);
-  assert.equal(tabletBounds.y, (911 - mapH * tabletScale) / 2);
+  const first = clampWorldMapOffset(9999, 9999, tabletScale, 683, 911, mapH);
+  const last = clampWorldMapOffset(-9999, -9999, tabletScale, 683, 911, mapH);
+  assert.equal(first.x, 0);
+  assert.equal(first.y, 0);
+  assert.ok(Math.abs(last.x + WORLD_MAP_WIDTH * tabletScale - 683) < 1e-9);
+  assert.ok(Math.abs(last.y + mapH * tabletScale - 911) < 1e-9);
 });
 
-test("expanded desktop camera never zooms a world below the iPhone 12 reference scale", () => {
+test("expanded desktop camera fills width and keeps the remaining real map vertically pannable", () => {
   const mapH = 1440;
   const referenceScale = 844 / mapH;
   const desktopScale = calculateExpandedWorldCameraScale(1500, 844, mapH);
-  assert.equal(desktopScale, referenceScale);
+  assert.equal(desktopScale, 1500 / WORLD_MAP_WIDTH);
+  assert.ok(desktopScale >= referenceScale);
 
-  const centered = clampWorldMapOffset(0, 0, desktopScale, 1500, 844, mapH);
-  assert.equal(centered.x, (1500 - WORLD_MAP_WIDTH * referenceScale) / 2);
-  assert.equal(centered.y, 0);
+  const top = clampWorldMapOffset(0, 9999, desktopScale, 1500, 844, mapH);
+  const bottom = clampWorldMapOffset(0, -9999, desktopScale, 1500, 844, mapH);
+  assert.equal(top.x, 0);
+  assert.equal(top.y, 0);
+  assert.ok(Math.abs(bottom.y + mapH * desktopScale - 844) < 1e-9);
 });
