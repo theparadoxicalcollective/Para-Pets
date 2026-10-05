@@ -6,7 +6,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientDeltaToStage, clientPointInStageElement, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -607,7 +607,8 @@ function InteriorViewer({
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
-    const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
+    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    const newPanX = Math.min(0, Math.max(min, drag.startPanX + panDelta));
     setPanX(newPanX);
     panStateRef.current = { panX: newPanX, imgWidth: imgWidthRef.current, containerH: containerHRef.current };
   }, [panStateRef]);
@@ -641,8 +642,10 @@ function InteriorViewer({
   const onItemMove = useCallback((e: React.PointerEvent) => {
     const drag = itemDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
-    const dx = e.clientX - drag.startPointerX;
-    const dy = e.clientY - drag.startPointerY;
+    const { x: dx, y: dy } = clientDeltaToStage(
+      e.clientX - drag.startPointerX,
+      e.clientY - drag.startPointerY,
+    );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
       if (drag.canMove) {
@@ -712,8 +715,8 @@ function InteriorViewer({
     // Unselected Decor/Objects do not move. Double tap first to enter edit mode.
     if (!drag.canMove) return;
 
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidthRef.current));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerHRef.current));
     setTopItemId(drag.id);
     onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
   }, [onUpdateItem, placedItems]);
@@ -740,8 +743,10 @@ function InteriorViewer({
   const onPetMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
-    const dx = e.clientX - drag.startPointerX;
-    const dy = e.clientY - drag.startPointerY;
+    const { x: dx, y: dy } = clientDeltaToStage(
+      e.clientX - drag.startPointerX,
+      e.clientY - drag.startPointerY,
+    );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
       playGrab();
@@ -780,8 +785,8 @@ function InteriorViewer({
     }
 
     const maxY = maxYForHeight(containerHRef.current);
-    const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
-    const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
+    const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidthRef.current));
+    const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerHRef.current));
     const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * clampPetHousePlayerScale(drag.scalePct) / 100;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       roomSleepEffects,
@@ -1762,7 +1767,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const w = container.offsetWidth;
     const h = container.offsetHeight;
     const imgW = h * bgAspect;
-    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + (e.clientX - drag.startX))));
+    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + panDelta)));
   }, [bgAspect]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -1790,9 +1796,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const interior = interiorPanRef.current;
         const container = containerRef.current;
         if (container) {
-          const rect = container.getBoundingClientRect();
-          const localX = e.clientX - rect.left;
-          const localY = e.clientY - rect.top;
+          const localPoint = clientPointInStageElement(container, e.clientX, e.clientY);
+          const localX = localPoint.x;
+          const localY = localPoint.y;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxPets = getHouseBuildingPetLimit(building);
@@ -1853,9 +1859,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const interior = interiorPanRef.current;
         const container = containerRef.current;
         if (container) {
-          const rect = container.getBoundingClientRect();
-          const localX = e.clientX - rect.left;
-          const localY = e.clientY - rect.top;
+          const localPoint = clientPointInStageElement(container, e.clientX, e.clientY);
+          const localX = localPoint.x;
+          const localY = localPoint.y;
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxItems = getHouseBuildingDecorLimit(building);
@@ -1910,8 +1916,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
     const drag = placedDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
-    const dx = e.clientX - drag.startPointerX;
-    const dy = e.clientY - drag.startPointerY;
+    const { x: dx, y: dy } = clientDeltaToStage(
+      e.clientX - drag.startPointerX,
+      e.clientY - drag.startPointerY,
+    );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
       if (drag.canMove) {
@@ -1976,8 +1984,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
     if (!drag.canMove) return;
 
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidth));
+    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerH));
     setTopOutdoorDecorId(drag.id);
     updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
   }, [imgWidth, containerH, placedDecorRaw, updateDecorMutation]);
@@ -2002,8 +2010,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePetDragMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
-    const dx = e.clientX - drag.startPointerX;
-    const dy = e.clientY - drag.startPointerY;
+    const { x: dx, y: dy } = clientDeltaToStage(
+      e.clientX - drag.startPointerX,
+      e.clientY - drag.startPointerY,
+    );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
       playGrab();
@@ -2044,8 +2054,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return;
     }
     const maxYPct = maxYForHeight(containerH);
-    const rawXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth));
-    const rawYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH));
+    const rawXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidth));
+    const rawYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerH));
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       outdoorSleepDecorEffects,
       rawXPct,
@@ -2130,7 +2140,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     // Apply manual scroll if tracking
     const scrollTrack = petScrollTrackerRef.current;
     if (scrollTrack && scrollTrack.pid === e.pointerId && petScrollRef.current) {
-      petScrollRef.current.scrollLeft = scrollTrack.scrollLeft - (e.clientX - scrollTrack.startX);
+      petScrollRef.current.scrollLeft = scrollTrack.scrollLeft - clientDeltaToStage(e.clientX - scrollTrack.startX, 0).x;
     }
     // Update ghost position once drag is active
     const drag = petInvDragRef.current;
@@ -2811,7 +2821,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Decor drag ghost */}
       {inventoryDragState && (
-        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: inventoryDragState.ghostX - 65, top: inventoryDragState.ghostY - 65, width: 130, height: 130, opacity: 0.88 }}>
+        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: clientToStage(inventoryDragState.ghostX, inventoryDragState.ghostY).x - 65, top: clientToStage(inventoryDragState.ghostX, inventoryDragState.ghostY).y - 65, width: 130, height: 130, opacity: 0.88 }}>
           {inventoryDragState.imageUrl ? (
             <img src={inventoryDragState.imageUrl} className="w-full h-full object-contain" draggable={false} style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.7))" }} />
           ) : (
@@ -2824,7 +2834,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Pet drag ghost */}
       {petInvDragState && (
-        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: petInvDragState.ghostX - 60, top: petInvDragState.ghostY - 60, width: 120, height: 120, opacity: 0.88 }}>
+        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: clientToStage(petInvDragState.ghostX, petInvDragState.ghostY).x - 60, top: clientToStage(petInvDragState.ghostX, petInvDragState.ghostY).y - 60, width: 120, height: 120, opacity: 0.88 }}>
           <img
             src={petInvDragState.pet.hatchedImageUrl ?? petInvDragState.pet.imageUrl ?? ""}
             className="w-full h-full object-contain"

@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { getStageSurface } from "@/lib/stage";
 
 export type HomeTouchStyle = CSSProperties & {
   WebkitTouchCallout?: "none";
@@ -41,9 +42,13 @@ export function observeHomeViewport(
 
   const syncAndRecalc = () => {
     if (typeof window !== "undefined" && container instanceof HTMLElement) {
+      const surface = getStageSurface();
       const visualHeight = window.visualViewport?.height;
-      if (visualHeight && Number.isFinite(visualHeight)) {
-        container.style.setProperty("--home-visual-height", `${Math.round(visualHeight)}px`);
+      const homeHeight = surface.viewportOwned
+        ? (visualHeight && Number.isFinite(visualHeight) ? visualHeight : null)
+        : surface.logicalHeight;
+      if (homeHeight && Number.isFinite(homeHeight)) {
+        container.style.setProperty("--home-visual-height", `${Math.round(homeHeight)}px`);
       } else {
         container.style.removeProperty("--home-visual-height");
       }

@@ -24,6 +24,8 @@ export function calculateMiniGamePage(width: number, height: number) {
   return { width: DESIGN_W, height: DESIGN_H, scale: calculateMiniGameScale(width, height), native: false };
 }
 
+export type StageCoordinateOwner = "viewport" | "stage";
+
 export type StageLayout = {
   designWidth: number;
   designHeight: number;
@@ -34,6 +36,17 @@ export type StageLayout = {
   renderedHeight: number;
   left: number;
   top: number;
+  coordinateOwner: StageCoordinateOwner;
+  referencePortrait: boolean;
+};
+
+export type StageLayoutOptions = {
+  /**
+   * Fit the canonical 390×844 composition into the available portrait surface.
+   * Runtime detection is kept outside this pure geometry function so device
+   * classification remains independently testable.
+   */
+  fitPortraitReference?: boolean;
 };
 
 export function isNarrowLayout(viewportWidth: number): boolean {
@@ -74,20 +87,26 @@ export function calculateStageLayout(
   visibleHeight: number,
   offsetTop = 0,
   offsetLeft = 0,
+  options: StageLayoutOptions = {},
 ): StageLayout {
   const viewportWidth = Math.max(1, visibleWidth);
   const viewportHeight = Math.max(1, visibleHeight);
-  const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
-  // Phones own the real viewport and are never transformed into a fixed canvas.
-  // Tablets/desktops keep the same 390x844 layout and scale the whole stage as
-  // one unit, so internal UI positions never change between device classes.
-  const designHeight = narrow ? viewportHeight : DESIGN_H;
-  const scale = narrow
-    ? 1
-    : Math.min(viewportWidth / designWidth, viewportHeight / designHeight, MAX_STAGE_SCALE);
+  const referencePortrait = options.fitPortraitReference === true;
+
+  // PR #574/#576 made the stage and all important player interactions share one
+  // coordinate contract. Portrait touch devices can therefore use the exact
+  // 390×844 reference composition as one uniformly scaled unit. Other layouts
+  // retain their existing ownership until their own focused follow-up.
+  const coordinateOwner: StageCoordinateOwner = referencePortrait || !narrow ? "stage" : "viewport";
+  const designWidth = referencePortrait ? DESIGN_W : getDesignWidth(viewportWidth);
+  const designHeight = coordinateOwner === "stage" ? DESIGN_H : viewportHeight;
+  const scale = coordinateOwner === "stage"
+    ? Math.min(viewportWidth / designWidth, viewportHeight / designHeight, MAX_STAGE_SCALE)
+    : 1;
   const renderedWidth = designWidth * scale;
   const renderedHeight = designHeight * scale;
+
   return {
     designWidth,
     designHeight,
@@ -97,7 +116,11 @@ export function calculateStageLayout(
     renderedWidth,
     renderedHeight,
     left: offsetLeft + Math.max(0, (viewportWidth - renderedWidth) / 2),
-    top: narrow ? offsetTop : offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
+    top: coordinateOwner === "viewport"
+      ? offsetTop
+      : offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
+    coordinateOwner,
+    referencePortrait,
   };
 }
 
@@ -108,42 +131,88 @@ function isStandaloneWebApp(): boolean {
     || window.matchMedia?.("(display-mode: standalone)").matches === true;
 }
 
-export function getVisibleViewport(): { width: number; height: number; left: number; top: number } {
-  if (typeof window === "undefined") return { width: DESIGN_W, height: DESIGN_H, left: 0, top: 0 };
+export type VisibleViewport = {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  keyboardReduced: boolean;
+};
+
+export function getVisibleViewport(): VisibleViewport {
+  if (typeof window === "undefined") {
+    return { width: DESIGN_W, height: DESIGN_H, left: 0, top: 0, keyboardReduced: false };
+  }
 
   const viewport = window.visualViewport;
   const layoutWidth = Math.max(1, window.innerWidth);
   const layoutHeight = Math.max(1, window.innerHeight);
-  if (!viewport) return { width: layoutWidth, height: layoutHeight, left: 0, top: 0 };
+  if (!viewport) {
+    return { width: layoutWidth, height: layoutHeight, left: 0, top: 0, keyboardReduced: false };
+  }
 
   const standalone = isStandaloneWebApp();
   const narrow = isNarrowLayout(layoutWidth);
+  const visualHeight = Math.max(1, viewport.height);
+  const resolvedHeight = resolveMobileBrowserHeight(layoutHeight, visualHeight);
+  const keyboardReduced = resolvedHeight === visualHeight && visualHeight < layoutHeight;
 
   // Installed web apps already have the desired full-screen behavior, so keep
   // their visualViewport contract exactly as-is. Normal phone browsers instead
   // use innerHeight for ordinary toolbar changes, falling back to visualViewport
   // only when the much larger keyboard reduction is present.
   if (narrow && !standalone) {
-    const visualHeight = Math.max(1, viewport.height);
-    const resolvedHeight = resolveMobileBrowserHeight(layoutHeight, visualHeight);
-    const keyboardOwnsViewport = resolvedHeight === visualHeight && visualHeight < layoutHeight;
     return {
       width: layoutWidth,
       height: resolvedHeight,
-      left: keyboardOwnsViewport ? Math.max(0, viewport.offsetLeft) : 0,
-      top: keyboardOwnsViewport ? Math.max(0, viewport.offsetTop) : 0,
+      left: keyboardReduced ? Math.max(0, viewport.offsetLeft) : 0,
+      top: keyboardReduced ? Math.max(0, viewport.offsetTop) : 0,
+      keyboardReduced,
     };
   }
 
   return {
     width: Math.max(1, viewport.width || layoutWidth),
-    height: Math.max(1, viewport.height || layoutHeight),
+    height: visualHeight,
     left: Math.max(0, viewport.offsetLeft || 0),
     top: Math.max(0, viewport.offsetTop || 0),
+    keyboardReduced,
   };
 }
 
+/**
+ * Touch-first is intentionally stricter than "has any touch point" so a
+ * touchscreen laptop with a mouse/trackpad is not treated like a phone/tablet.
+ */
+export function isTouchFirstDevice(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const points = Number(navigator.maxTouchPoints || 0);
+  if (points <= 0) return false;
+  const coarse = window.matchMedia?.("(pointer: coarse)").matches === true;
+  const noHover = window.matchMedia?.("(hover: none)").matches === true;
+  return coarse || noHover;
+}
+
+export function shouldFitPortraitReference(
+  viewportWidth: number,
+  viewportHeight: number,
+  touchFirst: boolean,
+  keyboardReduced = false,
+): boolean {
+  if (!touchFirst || keyboardReduced) return false;
+  if (viewportHeight < viewportWidth) return false;
+  // Preserve the proven iPhone 12 / 390 CSS-pixel layout exactly, including
+  // Safari/PWA browser-bar height changes and keyboard behavior.
+  if (Math.round(viewportWidth) === DESIGN_W) return false;
+  return true;
+}
+
 export function getDesignW(): number {
+  if (typeof document !== "undefined") {
+    const stage = document.getElementById("game-stage");
+    const logicalWidth = Number(stage?.dataset.designWidth);
+    if (logicalWidth > 0) return logicalWidth;
+  }
   return getDesignWidth(getVisibleViewport().width);
 }
 
@@ -166,6 +235,26 @@ export function clientToStage(clientX: number, clientY: number): { x: number; y:
   const rect = stage.getBoundingClientRect();
   const scale = getStageScale();
   return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale };
+}
+
+/** Convert a client-pixel movement into logical stage-pixel movement. */
+export function clientDeltaToStage(deltaX: number, deltaY: number): { x: number; y: number } {
+  const scale = getStageScale();
+  return { x: deltaX / scale, y: deltaY / scale };
+}
+
+/** Convert a client point into logical coordinates local to an element in the stage. */
+export function clientPointInStageElement(
+  element: Element,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } {
+  const rect = element.getBoundingClientRect();
+  const scale = getStageScale();
+  return {
+    x: (clientX - rect.left) / scale,
+    y: (clientY - rect.top) / scale,
+  };
 }
 
 export type StageSurface = {
@@ -265,7 +354,7 @@ export function renderedToLogical(layout: StageLayout, x: number, y: number) {
 }
 
 export function clientToPortalPoint(layout: StageLayout, clientX: number, clientY: number) {
-  return isNarrowLayout(layout.viewportWidth)
+  return layout.coordinateOwner === "viewport"
     ? { x: clientX, y: clientY }
     : renderedToLogical(layout, clientX, clientY);
 }
@@ -280,18 +369,24 @@ export function getStageTransform(layout: StageLayout): string | undefined {
 }
 
 /**
- * Preserve viewport-owned fixed overlays on phones. On larger screens the
- * transformed portrait stage owns them so they do not spill into the gutters.
+ * Fixed overlays follow the rendered stage ownership rather than guessing from
+ * browser width. This lets portrait phones become stage-owned without breaking
+ * PvP/Raid/Pet Care portals, while the preserved 390px reference phone remains
+ * viewport-owned.
  */
 export function getStagePortalTarget(): HTMLElement {
-  if (isNarrowLayout(getVisibleViewport().width)) return document.body;
-  return document.getElementById("game-stage") ?? document.body;
+  const stage = document.getElementById("game-stage");
+  if (stage?.dataset.coordinateOwner === "stage") return stage;
+  if (stage?.dataset.coordinateOwner === "viewport") return document.body;
+  // Compatibility fallback while an older root shell is still mounting.
+  if (!isNarrowLayout(getVisibleViewport().width)) return stage ?? document.body;
+  return document.body;
 }
 
 /** Match coordinates to the adaptive portal target above. */
 export function clientToStagePortal(clientX: number, clientY: number): { x: number; y: number } {
-  if (typeof window === "undefined" || isNarrowLayout(getVisibleViewport().width)) {
-    return { x: clientX, y: clientY };
-  }
-  return clientToStage(clientX, clientY);
+  if (typeof document === "undefined") return { x: clientX, y: clientY };
+  return getStagePortalTarget() === document.body
+    ? { x: clientX, y: clientY }
+    : clientToStage(clientX, clientY);
 }

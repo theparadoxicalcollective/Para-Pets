@@ -15,6 +15,14 @@ Player-facing gameplay UI uses the game stage as its coordinate authority. DOM p
 
 The current iPhone 12 390×844 composition remains the reference and is intentionally unchanged by this contract. Admin editing surfaces are not part of the cross-device player-layout refactor; authored positions remain the source of truth and player rendering must preserve those positions when the portrait stage is scaled in later PRs.
 
+### Portrait player stage policy
+
+Portrait touch-first devices now fit the canonical 390×844 player composition as one uniformly scaled stage, except the proven 390 CSS-pixel iPhone reference which remains native and untransformed. Smaller phones scale the composition down, larger phones scale it up, and portrait tablets retain the same logical coordinates. Touch-device landscape is intentionally unchanged in this step, and non-touch desktop keeps its existing centered presentation.
+
+The runtime detects touch-first devices conservatively (touch points plus coarse/no-hover primary input) so touchscreen laptops are not automatically forced into the mobile policy. Software-keyboard viewport reductions temporarily use the usable native viewport rather than shrinking the entire 390×844 composition behind the keyboard.
+
+Pet Home owner/visitor panning, player decor/pet movement, inventory drag ghosts, and drop placement convert client movement into logical stage coordinates before changing saved percentages. This preserves Admin- and player-authored positions when the outer portrait stage is scaled.
+
 ## Major game systems
 
 | System | Primary locations |
