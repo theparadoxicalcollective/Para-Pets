@@ -1,38 +1,69 @@
 export interface QaTesterIdentity {
+  slot: number;
   username: string;
   email: string;
+  password: string;
 }
 
 const ENABLED_VALUE = "true";
+const COMPANION_DEFAULTS = [
+  { username: "TessaVale", email: "tessavale@qa.parapets.invalid" },
+  { username: "RowanMoss", email: "rowanmoss@qa.parapets.invalid" },
+  { username: "MiloAsh", email: "miloash@qa.parapets.invalid" },
+  { username: "JadeWren", email: "jadewren@qa.parapets.invalid" },
+] as const;
 
 function normalize(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+export function getQaTesterIdentities(): QaTesterIdentity[] {
+  if (normalize(process.env.QA_MOD_ACCOUNT_ENABLED) !== ENABLED_VALUE) return [];
+
+  const primaryUsername = process.env.QA_MOD_USERNAME?.trim();
+  const primaryEmail = process.env.QA_MOD_EMAIL?.trim().toLowerCase();
+  const sharedPassword = process.env.QA_MOD_PASSWORD ?? "";
+  if (!primaryUsername || !primaryEmail || sharedPassword.length < 6) return [];
+
+  const identities: QaTesterIdentity[] = [{
+    slot: 1,
+    username: primaryUsername,
+    email: primaryEmail,
+    password: sharedPassword,
+  }];
+
+  COMPANION_DEFAULTS.forEach((fallback, index) => {
+    const slot = index + 2;
+    const username = process.env[`QA_MOD_USERNAME_${slot}`]?.trim() || fallback.username;
+    const email = process.env[`QA_MOD_EMAIL_${slot}`]?.trim().toLowerCase() || fallback.email;
+    const password = process.env[`QA_MOD_PASSWORD_${slot}`] || sharedPassword;
+    identities.push({ slot, username, email, password });
+  });
+
+  return identities;
+}
+
 export function getQaTesterIdentity(): QaTesterIdentity | null {
-  if (normalize(process.env.QA_MOD_ACCOUNT_ENABLED) !== ENABLED_VALUE) return null;
+  return getQaTesterIdentities()[0] ?? null;
+}
 
-  const username = process.env.QA_MOD_USERNAME?.trim();
-  const email = process.env.QA_MOD_EMAIL?.trim().toLowerCase();
-  if (!username || !email) return null;
-
-  return { username, email };
+export function isConfiguredQaIdentity(user: any): boolean {
+  if (!user) return false;
+  return getQaTesterIdentities().some(identity =>
+    normalize(user.username) === normalize(identity.username)
+    && normalize(user.email) === normalize(identity.email)
+  );
 }
 
 /**
- * The dedicated QA account intentionally keeps the normal moderator badge so it
- * looks like a real player/mod account in-game, but this check is narrower than
- * generic moderator authorization: both reserved Railway identifiers must match,
- * the account must be verified, and it must never be an admin or bot.
+ * QA accounts intentionally keep a normal moderator badge so they look like
+ * real player/mod accounts in-game. Their QA-only powers are still narrower
+ * than moderator access and require an exact reserved username/email match.
  */
 export function isDedicatedQaTester(user: any): boolean {
-  const identity = getQaTesterIdentity();
-  if (!identity || !user) return false;
-
-  return user.isAdmin !== true
-    && user.isModerator === true
-    && user.isBot !== true
-    && user.emailVerified === true
-    && normalize(user.username) === normalize(identity.username)
-    && normalize(user.email) === normalize(identity.email);
+  return isConfiguredQaIdentity(user)
+    && user?.isAdmin !== true
+    && user?.isModerator === true
+    && user?.isBot !== true
+    && user?.emailVerified === true;
 }
