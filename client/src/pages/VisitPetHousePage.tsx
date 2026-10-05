@@ -16,11 +16,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
-import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { clientDeltaToStage } from "@/lib/stage";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -748,7 +749,7 @@ export default function VisitPetHousePage() {
         const imgW = h * bgAspect;
         setContainerH(h);
         setImgWidth(imgW);
-        setPanX(Math.max(Math.min(0, w - imgW), -(imgW - w) / 2));
+        setPanX(centeredHomeCameraPanX(w, imgW));
       } catch {}
     };
     return observeHomeViewport(container, recalc);
@@ -768,7 +769,7 @@ export default function VisitPetHousePage() {
     const imgW = container.offsetHeight * bgAspect;
     if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
     const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
-    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + panDelta)));
+    setPanX(clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW));
   }, [bgAspect]);
 
   const handlePointerUp = useCallback(() => { panStartRef.current = null; }, []);
