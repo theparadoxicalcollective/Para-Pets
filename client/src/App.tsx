@@ -810,6 +810,12 @@ function GameStage({ children }: { children: ReactNode }) {
           } as CSSProperties}
         >
           {children}
+          <div
+            id="game-viewport-hud"
+            data-testid="game-viewport-hud"
+            aria-hidden="true"
+            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+          />
         </div>
         <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
       </div>
@@ -839,7 +845,7 @@ function GameStage({ children }: { children: ReactNode }) {
           height: layout.designHeight,
           transform: getStageTransform(layout),
           transformOrigin: "top left",
-          overflow: "hidden",
+          overflow: "visible",
           isolation: "isolate",
           visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
           // Frame-relative viewport units remain logical pixels while the
@@ -849,7 +855,33 @@ function GameStage({ children }: { children: ReactNode }) {
           "--vw": `${layout.designWidth * 0.01}px`,
         } as CSSProperties}
       >
-        {children}
+        <div
+          id="game-stage-content"
+          data-testid="game-stage-content"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: layout.designWidth,
+            height: layout.designHeight,
+            overflow: "hidden",
+          }}
+        >
+          {children}
+        </div>
+        <div
+          id="game-viewport-hud"
+          data-testid="game-viewport-hud"
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: -layout.left / Math.max(layout.scale, 0.0001),
+            top: -layout.top / Math.max(layout.scale, 0.0001),
+            width: layout.viewportWidth / Math.max(layout.scale, 0.0001),
+            height: layout.viewportHeight / Math.max(layout.scale, 0.0001),
+            pointerEvents: "none",
+            overflow: "visible",
+          }}
+        />
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>
