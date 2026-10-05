@@ -1263,6 +1263,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   const currentOutdoorLightingMode = activeBundle?.playerLighting?.outdoorMode ?? "auto";
   const outdoorLighting = useHomeOutdoorLighting(currentOutdoorLightingMode);
+  const tutorialSceneRevealActive = petHomeTutorialStep === "mailbox" || petHomeTutorialStep === "building";
 
   // Keep the latest mode available to the departure cleanup. Bundle identity is
   // changed only by the session effect below so a newly activated bundle can
@@ -2435,13 +2436,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {!openInterior && (
         <>
           <HomeOutdoorAtmosphereLayer
-            darkness={outdoorLighting.darkness}
-            nightStrength={outdoorLighting.nightStrength}
+            darkness={tutorialSceneRevealActive ? 0 : outdoorLighting.darkness}
+            nightStrength={tutorialSceneRevealActive ? 0 : outdoorLighting.nightStrength}
             effects={outdoorLightEffects}
             panX={panX}
             imgWidth={imgWidth}
             sceneHeight={containerH}
-            transitionMs={outdoorLighting.transitionMs}
+            transitionMs={tutorialSceneRevealActive ? 180 : outdoorLighting.transitionMs}
             zIndex={20}
           />
           <HomeInteriorEffectsLayer
