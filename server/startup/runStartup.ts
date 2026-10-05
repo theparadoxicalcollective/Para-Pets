@@ -80,7 +80,13 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   try {
     const qaAccount = await ensureQaModeratorAccount();
     if (qaAccount.enabled) {
-      console.log(`[qa] QA tester account ${qaAccount.created ? "created" : "ready"}: ${qaAccount.username}`);
+      for (const account of qaAccount.accounts) {
+        if (account.error) {
+          console.error(`[qa] tester slot ${account.slot} skipped (${account.username}): ${account.error}`);
+        } else {
+          console.log(`[qa] tester slot ${account.slot} ${account.created ? "created" : "ready"}: ${account.username}`);
+        }
+      }
     }
   } catch (error) {
     console.error("[qa] moderator account provisioning skipped:", error instanceof Error ? error.message : error);
