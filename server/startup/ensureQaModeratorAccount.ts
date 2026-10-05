@@ -3,36 +3,24 @@ import { and, eq, sql } from "drizzle-orm";
 import { users } from "@shared/schema";
 import { db } from "../db";
 import { storage } from "../storage";
-
-const ENABLED_VALUE = "true";
+import { getQaTesterIdentities } from "../qaTester";
 
 export type QaModeratorAccountStatus =
   | { enabled: false }
-  | { enabled: true; created: boolean; username: string; userId: string };
+  | {
+      enabled: true;
+      accounts: Array<{
+        slot: number;
+        created: boolean;
+        username: string;
+        userId: string;
+        error?: string;
+      }>;
+    };
 
-/**
- * Provision one dedicated player-facing QA account without weakening normal
- * registration or email verification.
- *
- * This is intentionally opt-in through Railway environment variables. The
- * account is moderator-only (never admin), email-verified at the database
- * boundary, and uses the normal password login flow. Existing real accounts
- * are never repurposed: username/email collisions fail closed.
- */
-export async function ensureQaModeratorAccount(): Promise<QaModeratorAccountStatus> {
-  if ((process.env.QA_MOD_ACCOUNT_ENABLED ?? "").toLowerCase() !== ENABLED_VALUE) {
-    return { enabled: false };
-  }
+async function provisionOneQaAccount(identity: ReturnType<typeof getQaTesterIdentities>[number]) {
+  const { slot, username, email, password } = identity;
 
-  const username = process.env.QA_MOD_USERNAME?.trim();
-  const email = process.env.QA_MOD_EMAIL?.trim().toLowerCase();
-  const password = process.env.QA_MOD_PASSWORD ?? "";
-
-  if (!username || !email || password.length < 6) {
-    throw new Error("QA moderator account is enabled but QA_MOD_USERNAME, QA_MOD_EMAIL, or QA_MOD_PASSWORD is missing/invalid");
-  }
-
-  // Serialize provisioning across multiple app replicas/restarts.
   await db.execute(sql`SELECT pg_advisory_lock(7107, hashtext(${username.toLowerCase()}))`);
   try {
     const [byName, byEmail] = await Promise.all([
@@ -41,7 +29,7 @@ export async function ensureQaModeratorAccount(): Promise<QaModeratorAccountStat
     ]);
 
     if ((byName && byEmail && byName.id !== byEmail.id) || (byName && !byEmail) || (!byName && byEmail)) {
-      throw new Error("QA moderator username/email collides with an existing account; refusing to repurpose it");
+      throw new Error("QA username/email collides with an existing account; refusing to repurpose it");
     }
 
     let user = byName ?? byEmail;
@@ -76,10 +64,10 @@ export async function ensureQaModeratorAccount(): Promise<QaModeratorAccountStat
       .where(and(eq(users.id, user.id), eq(users.username, user.username)))
       .returning({ id: users.id, username: users.username });
 
-    if (!updated) throw new Error("QA moderator account disappeared during provisioning");
+    if (!updated) throw new Error("QA account disappeared during provisioning");
 
     return {
-      enabled: true,
+      slot,
       created,
       username: updated.username,
       userId: updated.id,
@@ -87,4 +75,37 @@ export async function ensureQaModeratorAccount(): Promise<QaModeratorAccountStat
   } finally {
     await db.execute(sql`SELECT pg_advisory_unlock(7107, hashtext(${username.toLowerCase()}))`);
   }
+}
+
+/**
+ * Provision five dedicated player-facing QA accounts without weakening normal
+ * registration or email verification.
+ *
+ * Slot 1 keeps the original Railway-configured account. Slots 2-5 use realistic
+ * player-style defaults and the same QA password unless Railway override
+ * variables are supplied for their username/email/password.
+ */
+export async function ensureQaModeratorAccount(): Promise<QaModeratorAccountStatus> {
+  const identities = getQaTesterIdentities();
+  if (!identities.length) return { enabled: false };
+
+  const accounts: Extract<QaModeratorAccountStatus, { enabled: true }>["accounts"] = [];
+
+  // Provision independently so one accidental name/email collision cannot stop
+  // the other reserved QA players from becoming available.
+  for (const identity of identities) {
+    try {
+      accounts.push(await provisionOneQaAccount(identity));
+    } catch (error) {
+      accounts.push({
+        slot: identity.slot,
+        created: false,
+        username: identity.username,
+        userId: "",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { enabled: true, accounts };
 }
