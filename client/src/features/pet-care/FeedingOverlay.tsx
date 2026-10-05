@@ -510,7 +510,6 @@ function PetCareAssetMeter({
       <img className="pet-care-meter__frame" src={frame} alt="" draggable={false} aria-hidden="true" />
       {children}
     </div>
-    </>
   );
 }
 
@@ -2323,5 +2322,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         </div>
       )}
     </div>
+    </>
   );
 }
