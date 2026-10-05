@@ -165,7 +165,7 @@ test("manual Day/Night overrides reset to Auto whenever the owner leaves the Pet
   assert.match(owner, /keepalive: true/);
   assert.match(owner, /session\.touched = false/);
   assert.match(owner, /outdoorLightingSessionRef\.current\.touched = true/);
-  assert.match(owner, /persistedMode === "auto" \|\| session\.touched/);
+  assert.match(owner, /session\.touched \|\| persistedMode === "auto"/);
   assert.match(owner, /persistPlayerLightingPatch\(activeBundle\.id, \{ outdoorMode: "auto" \}\)/);
   assert.match(owner, /body: JSON\.stringify\(\{ outdoorMode: "auto" \}\)/);
   assert.match(owner, /lightingSaveQueueRef\.current = lightingSaveQueueRef\.current/);
