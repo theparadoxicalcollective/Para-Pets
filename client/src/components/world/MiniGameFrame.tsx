@@ -12,13 +12,13 @@ const worldBackgrounds: Record<string, string> = {
 };
 
 /**
- * Mini-game pages now inherit the authoritative gameplay stage.
+ * Shared locked-page wrapper for world mini-games.
  *
- * Before the portrait-stage work this component independently measured its own
- * frame and scaled another 390×844 page inside it. Once the outer game stage is
- * already the 390×844 logical composition, doing that again can double-scale
- * controls on portrait phones/tablets. Keep the world artwork as the fill
- * around the mini-game, but let the page itself occupy the stage exactly once.
+ * The game content never owns a second scale transform. Native iPhone-12-style
+ * viewport ownership still renders inline at the canonical stage size, while
+ * stage-owned tablets/desktop can use the shared ViewportScenePortal to occupy
+ * the larger device camera. World artwork fills any newly revealed area with
+ * aspect-ratio-preserving cover rather than stretching gameplay coordinates.
  */
 export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   children: ReactNode;
