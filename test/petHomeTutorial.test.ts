@@ -61,33 +61,37 @@ test("Pet Home starts the guide only after the scene is ready and exposes stable
 });
 
 
-test("Pet Home tutorial follows the live Home stage across Safari Chrome Android tablet and desktop viewports", () => {
+test("Pet Home tutorial follows the authoritative game stage across phones tablets and desktop", () => {
   const overlay = fs.readFileSync("client/src/components/PetHomeTutorialOverlay.tsx", "utf8");
   const page = fs.readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
 
-  // The guide measures the same rendered controls used by the iPhone/mobile
-  // Home layout instead of maintaining device-specific duplicate coordinates.
+  // Targets are still measured from the live rendered controls, then converted
+  // from client pixels into the same logical stage used by gameplay input.
   assert.match(page, /data-testid="pet-home-stage"/);
-  assert.match(overlay, /document\.querySelector\('\[data-testid="pet-home-stage"\]'\)/);
+  assert.match(overlay, /getStageSurface/);
   assert.match(overlay, /getBoundingClientRect\(\)/);
-  assert.match(overlay, /const centerX = stage\.left \+ stage\.width \/ 2/);
-  assert.match(overlay, /left: layout\.stage\.left/);
-  assert.match(overlay, /width: layout\.stage\.width/);
-  assert.match(overlay, /maxWidth: 768/);
+  assert.match(overlay, /\(rect\.left - surface\.left\) \/ surface\.scale/);
+  assert.match(overlay, /rect\.width \/ surface\.scale/);
+  assert.match(overlay, /width: surface\.logicalWidth/);
+  assert.match(overlay, /height: surface\.logicalHeight/);
 
-  // Safari/iOS browser chrome changes the VisualViewport independently of the
-  // layout viewport; Android Chrome and desktop/tablet resizing use the same path.
-  assert.match(overlay, /window\.visualViewport/);
-  assert.match(overlay, /visualViewport\?\.offsetTop/);
-  assert.match(overlay, /visualViewport\?\.height/);
+  // The guide no longer owns a second browser/device sizing policy. Safari,
+  // Android, tablets, and desktop all inherit the shared stage controller.
+  assert.doesNotMatch(overlay, /window\.visualViewport/);
+  assert.doesNotMatch(overlay, /window\.innerWidth|window\.innerHeight/);
+  assert.doesNotMatch(overlay, /HOME_FIXED_VIEWPORT_STYLE/);
   assert.match(overlay, /window\.addEventListener\("resize"/);
   assert.match(overlay, /window\.addEventListener\("orientationchange"/);
-  assert.match(overlay, /visualViewport\?\.addEventListener\("resize"/);
-  assert.match(overlay, /visualViewport\?\.addEventListener\("scroll"/);
   assert.match(overlay, /ResizeObserver/);
-  assert.match(overlay, /HOME_FIXED_VIEWPORT_STYLE/);
   assert.match(overlay, /HOME_TOUCH_SURFACE_STYLE/);
-  assert.match(overlay, /maxHeight: "calc\(var\(--home-visual-height, 100dvh\) - 28px\)"/);
+
+  // Scaled portrait devices use logical stage coordinates. The iPhone 12
+  // remains scale 1, so these same values preserve its existing composition.
+  assert.match(overlay, /left: 0/);
+  assert.match(overlay, /top: 0/);
+  assert.match(overlay, /width: layout\.width/);
+  assert.match(overlay, /height: layout\.height/);
+  assert.match(overlay, /maxHeight: Math\.max\(160, layout\.height - 28\)/);
 
   // PC keyboard users cannot tab out of the modal and mobile keeps a full-size
   // Continue touch target while the underlying Home remains blocked.
@@ -95,4 +99,10 @@ test("Pet Home tutorial follows the live Home stage across Safari Chrome Android
   assert.match(overlay, /button-pet-home-tutorial-continue/);
   assert.match(overlay, /minHeight: 44/);
   assert.doesNotMatch(overlay, /navigator\.userAgent|Android|iPhone|iPad|Chrome|Safari/);
+});
+
+test("Pet Care menu sparkle origins convert rendered client pixels into logical stage coordinates", () => {
+  const page = fs.readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  assert.match(page, /const center = clientToStage\(r\.left \+ r\.width \/ 2, r\.top \+ r\.height \/ 2\)/);
+  assert.match(page, /burst\(center\.x, center\.y, colors, 16\)/);
 });
