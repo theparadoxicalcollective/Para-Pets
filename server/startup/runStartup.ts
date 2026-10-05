@@ -22,6 +22,7 @@ import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
 import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
 import { withStartupAdvisoryLock } from "./advisoryLock";
 import { preserveDynamicWorldLocationsDuringLegacyStartup } from "./preserveDynamicWorldLocations";
+import { ensureQaModeratorAccount } from "./ensureQaModeratorAccount";
 
 interface StartupDependencies {
   app: Express;
@@ -71,6 +72,18 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   // stacked accessory rows and duplicate equipment references, so repair and
   // constrain that state synchronously before registering routes.
   await repairAccessoryEquipmentIntegrity();
+
+  // Dedicated player QA account. This is opt-in through Railway variables and
+  // deliberately non-fatal so a testing-account problem can never block normal
+  // players from the production realm.
+  try {
+    const qaAccount = await ensureQaModeratorAccount();
+    if (qaAccount.enabled) {
+      console.log(`[qa] moderator account ${qaAccount.created ? "created" : "ready"}: ${qaAccount.username}`);
+    }
+  } catch (error) {
+    console.error("[qa] moderator account provisioning skipped:", error instanceof Error ? error.message : error);
+  }
 
   // Register focused infrastructure routes before the legacy route monolith.
   // Diagnostics must exist in production even if the failing feature is owned
