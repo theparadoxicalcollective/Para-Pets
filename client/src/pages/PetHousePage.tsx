@@ -34,7 +34,7 @@ import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { cycleHomeOutdoorLightingMode, type HomeOutdoorLightingMode } from "@/lib/homeOutdoorLighting";
 import PetSleepZzz from "@/components/PetSleepZzz";
 import PetFireReaction from "@/components/PetFireReaction";
-import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import PetHomeTutorialOverlay, { type PetHomeTutorialStep } from "@/components/PetHomeTutorialOverlay";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
 import hungerMeterFrame from "@assets/ui/pet-care/hunger-meter-frame.png";
@@ -142,6 +142,11 @@ const BUILDING_REF_H = 900;
 // Space (in CSS px) reserved at the bottom of the scene so pets & decor
 // cannot be dragged behind the bottom inventory toolbar.
 const BOTTOM_TOOLBAR_RESERVE_PX = 140;
+
+function isMailboxBuilding(building: ActiveBundle["buildings"][number]): boolean {
+  return building.buildingType === "mailbox"
+    || (!building.buildingType && building.name.toLowerCase().includes("mailbox"));
+}
 
 // Clamp helper for Y drag limits — reserves the bottom toolbar area.
 // ── Care wreath popup ────────────────────────────────────────────────────────
@@ -1085,6 +1090,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
+  const { data: petHomeTutorialStatus, isSuccess: petHomeTutorialStatusReady } = useQuery<{
+    completed: boolean;
+    tutorialVersion: number;
+    currentVersion: number;
+  }>({
+    queryKey: ["/api/pet-home/tutorial"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/pet-home/tutorial");
+      return res.json();
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  const [petHomeTutorialStep, setPetHomeTutorialStep] = useState<PetHomeTutorialStep | null>(null);
+  const completePetHomeTutorialMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/pet-home/tutorial/complete", {});
+      return res.json();
+    },
+    onSuccess: (result: { completed: boolean; tutorialVersion: number; currentVersion: number }) => {
+      qc.setQueryData(["/api/pet-home/tutorial"], result);
+      setPetHomeTutorialStep(null);
+    },
+    onError: () => {
+      toast({
+        title: "Tutorial progress not saved",
+        description: "Please tap Continue again so your Pet Home guide does not repeat next visit.",
+        variant: "destructive",
+      });
+    },
+  });
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
@@ -1150,6 +1186,80 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
     staleTime: 30000,
   });
+
+  const tutorialMailboxBuilding = useMemo(
+    () => activeBundle?.buildings.find(isMailboxBuilding) ?? null,
+    [activeBundle?.buildings],
+  );
+  const tutorialPrimaryBuilding = useMemo(
+    () => activeBundle?.buildings.find(building => !isMailboxBuilding(building)) ?? null,
+    [activeBundle?.buildings],
+  );
+
+  useEffect(() => {
+    if (!petHomeTutorialStatusReady
+      || petHomeTutorialStatus?.completed
+      || petHomeTutorialStep
+      || bundleLoading
+      || !activeBundle
+      || imgWidth <= 0
+    ) return;
+
+    // The guide starts only once the actual Home scene has measurable targets.
+    // Close incidental UI so every arrow points at the same clean first-visit layout.
+    setOpenInventory(null);
+    setOpenGiftModal(false);
+    setShowNoMailPopup(false);
+    setPendingActivate(null);
+    setPetHomeTutorialStep("welcome");
+  }, [
+    activeBundle,
+    bundleLoading,
+    imgWidth,
+    petHomeTutorialStatus?.completed,
+    petHomeTutorialStatusReady,
+    petHomeTutorialStep,
+  ]);
+
+  const continuePetHomeTutorial = useCallback(() => {
+    if (!petHomeTutorialStep || completePetHomeTutorialMutation.isPending) return;
+
+    switch (petHomeTutorialStep) {
+      case "welcome":
+        setPetHomeTutorialStep("lighting");
+        return;
+      case "lighting":
+        setPetHomeTutorialStep("inventory");
+        return;
+      case "inventory":
+        setPetHomeTutorialStep("home");
+        return;
+      case "home":
+        if (tutorialMailboxBuilding) {
+          setPetHomeTutorialStep("mailbox");
+        } else if (tutorialPrimaryBuilding) {
+          setPetHomeTutorialStep("building");
+        } else {
+          completePetHomeTutorialMutation.mutate();
+        }
+        return;
+      case "mailbox":
+        if (tutorialPrimaryBuilding) {
+          setPetHomeTutorialStep("building");
+        } else {
+          completePetHomeTutorialMutation.mutate();
+        }
+        return;
+      case "building":
+        completePetHomeTutorialMutation.mutate();
+        return;
+    }
+  }, [
+    completePetHomeTutorialMutation,
+    petHomeTutorialStep,
+    tutorialMailboxBuilding,
+    tutorialPrimaryBuilding,
+  ]);
 
   const currentOutdoorLightingMode = activeBundle?.playerLighting?.outdoorMode ?? "auto";
   const outdoorLighting = useHomeOutdoorLighting(currentOutdoorLightingMode);
@@ -2049,6 +2159,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   return (
     <div
       ref={containerRef}
+      data-testid="pet-home-stage"
       className="relative w-full h-screen-frame"
       style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab" }}
       onPointerDown={handlePointerDown}
@@ -2094,7 +2205,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
-            const isMailbox = b.buildingType === "mailbox" || (!b.buildingType && b.name.toLowerCase().includes("mailbox"));
+            const isMailbox = isMailboxBuilding(b);
+            const isTutorialPrimary = tutorialPrimaryBuilding?.id === b.id;
             const isClickable = hasInterior || isMailbox;
             const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
             return (
@@ -2110,6 +2222,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                 }}
                 role={isClickable ? "button" : undefined}
                 data-testid={isClickable ? `tile-building-${b.id}` : undefined}
+                data-home-building-kind={isMailbox ? "mailbox" : "building"}
+                data-home-tutorial-building={isTutorialPrimary ? "primary" : undefined}
                 onClick={() => {
                   if (hasInterior) {
                     setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06, interiorEffects: b.interiorEffects ?? [], interiorDarkness: b.interiorDarkness ?? 0 });
@@ -2707,6 +2821,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.7))" }}
           />
         </div>
+      )}
+
+      {petHomeTutorialStep && (
+        <PetHomeTutorialOverlay
+          step={petHomeTutorialStep}
+          onContinue={continuePetHomeTutorial}
+          completing={completePetHomeTutorialMutation.isPending}
+        />
       )}
 
       {/* Bundle activation modal */}

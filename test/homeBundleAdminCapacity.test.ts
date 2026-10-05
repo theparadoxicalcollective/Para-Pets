@@ -38,9 +38,10 @@ test("player and visitor homes use explicit mailbox metadata while retaining leg
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
-  assert.match(owner, /b\.buildingType === "mailbox"/);
+  assert.match(owner, /building\.buildingType === "mailbox"/);
+  assert.match(owner, /!building\.buildingType && building\.name\.toLowerCase\(\)\.includes\("mailbox"\)/);
+  assert.match(owner, /const isMailbox = isMailboxBuilding\(b\)/);
   assert.match(visitor, /b\.buildingType === "mailbox"/);
-  assert.match(owner, /!b\.buildingType && b\.name\.toLowerCase\(\)\.includes\("mailbox"\)/);
   assert.match(visitor, /!b\.buildingType/);
 });
 

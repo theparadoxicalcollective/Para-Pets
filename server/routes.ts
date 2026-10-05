@@ -60,6 +60,7 @@ import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerHouseBundleRoutes } from "./routes/houseBundle.routes";
 import { registerPetHouseVisitorRoutes } from "./routes/petHouseVisitor.routes";
+import { registerPetHomeTutorialRoutes } from "./routes/petHomeTutorial.routes";
 import { registerFounderRoutes } from "./routes/founder.routes";
 import { registerVeridianWatcherQuoteRoutes } from "./routes/veridianWatcherQuote.routes";
 import { registerWatcherShoutoutPreferenceRoutes } from "./routes/watcherShoutoutPreference.routes";
@@ -1233,6 +1234,7 @@ export async function registerRoutes(
   registerPlayerBadgeRoutes(app, { storage, db, isAuthenticated, processWorldImage });
 
   registerPetHouseVisitorRoutes(app, { storage, isAuthenticated });
+  registerPetHomeTutorialRoutes(app, { db, isAuthenticated });
 
   registerPetHousePositionRoutes(app, { storage, isAuthenticated });
 
