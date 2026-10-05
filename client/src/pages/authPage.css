@@ -4,6 +4,14 @@
   background: #020806;
 }
 
+.auth-page-wide-background {
+  display: none;
+}
+
+.auth-form-panel {
+  max-width: 24rem;
+}
+
 .auth-page-background {
   z-index: -2;
   transform: scale(1.025);
@@ -302,6 +310,110 @@
       translate(calc(-50% + var(--spark-x)), calc(-50% + var(--spark-y)))
       rotate(150deg)
       scale(0.05);
+  }
+}
+
+
+@media (min-width: 768px) {
+  .auth-page-root {
+    background: #03100b;
+  }
+
+  /*
+   * The source sign-in artwork contains the narrow phone-frame composition.
+   * On tablets/desktop, reuse the same forest art as a presentation-only
+   * full-device environment and crop the embedded phone framing outside the
+   * viewport instead of stretching the phone panel wider.
+   */
+  .auth-page-wide-background {
+    display: block;
+    z-index: -3;
+    inset: -12%;
+    background-image: var(--auth-background-image);
+    background-size: cover;
+    background-position: 50% 46%;
+    background-repeat: no-repeat;
+    transform: scale(1.58);
+    filter: saturate(0.96) brightness(0.82);
+  }
+
+  .auth-page-background {
+    display: none;
+  }
+
+  .auth-page-vignette {
+    background:
+      radial-gradient(circle at 50% 28%, rgba(42, 132, 93, 0.05) 0%, rgba(1, 8, 5, 0.12) 58%, rgba(1, 5, 3, 0.58) 100%),
+      linear-gradient(180deg, rgba(1, 7, 5, 0.03) 0%, rgba(1, 7, 5, 0.08) 55%, rgba(1, 5, 3, 0.48) 100%);
+  }
+
+  .auth-landing {
+    width: min(100%, 900px);
+    margin: 0 auto;
+    padding: clamp(38px, calc(4.2 * var(--vh)), 58px) 64px 78px;
+  }
+
+  .auth-age-badge {
+    padding: 7px 18px;
+    font-size: 13px;
+  }
+
+  .auth-brand-block {
+    margin-top: clamp(30px, calc(3.6 * var(--vh)), 48px);
+  }
+
+  .auth-title-logo {
+    width: min(72vw, 520px);
+    max-height: 230px;
+  }
+
+  .auth-decor-divider {
+    width: min(48vw, 360px);
+    max-height: 54px;
+  }
+
+  .auth-tagline {
+    margin-top: 12px;
+    padding: 10px 24px;
+    font-size: 16px;
+  }
+
+  .auth-landing-actions {
+    gap: 9px;
+    margin-top: clamp(28px, calc(3.4 * var(--vh)), 44px);
+  }
+
+  .auth-primary-art-button {
+    width: min(44vw, 360px);
+  }
+
+  .auth-hub-art-button {
+    width: min(36vw, 300px);
+    margin-top: 14px;
+  }
+
+  .auth-form-screen {
+    padding: 40px 48px 76px;
+  }
+
+  .auth-form-panel {
+    max-width: 560px;
+  }
+
+  .auth-form-logo {
+    width: min(54vw, 380px);
+    max-height: 150px;
+  }
+
+  .auth-form-divider {
+    width: min(38vw, 280px);
+    max-height: 42px;
+  }
+
+  .auth-paw-footer {
+    width: min(58%, 520px);
+    max-height: 78px;
+    bottom: 20px;
   }
 }
 
