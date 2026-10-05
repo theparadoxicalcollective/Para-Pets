@@ -1,6 +1,12 @@
+import { clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
+
 const ORB_COLORS = ["#ffd700", "#fbbf24", "#f59e0b", "#fde68a", "#fff3a0", "#ffe066"];
 
 export function burstGoldenOrbs(x: number, y: number, count = 12) {
+  const target = getStagePortalTarget();
+  const point = clientToStagePortal(x, y);
+  const position = target === document.body ? "fixed" : "absolute";
+
   for (let i = 0; i < count; i++) {
     const orb = document.createElement("div");
     const size = 4 + Math.random() * 6;
@@ -11,9 +17,9 @@ export function burstGoldenOrbs(x: number, y: number, count = 12) {
     const delay = Math.random() * 80;
 
     orb.style.cssText = `
-      position: fixed;
-      left: ${x}px;
-      top: ${y}px;
+      position: ${position};
+      left: ${point.x}px;
+      top: ${point.y}px;
       width: ${size}px;
       height: ${size}px;
       border-radius: 50%;
@@ -26,7 +32,7 @@ export function burstGoldenOrbs(x: number, y: number, count = 12) {
       will-change: transform, opacity;
     `;
 
-    document.body.appendChild(orb);
+    target.appendChild(orb);
 
     const dx = Math.cos(angle) * distance;
     const dy = Math.sin(angle) * distance;

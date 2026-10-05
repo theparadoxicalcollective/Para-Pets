@@ -1,3 +1,5 @@
+import { clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
+
 const PARTICLE_COUNT = 6;
 const CLEANUP_DELAY_MS = 700;
 
@@ -13,11 +15,14 @@ function prefersReducedMotion(): boolean {
 export function showClickSparkles(clientX: number, clientY: number): void {
   if (prefersReducedMotion() || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
 
+  const target = getStagePortalTarget();
+  const point = clientToStagePortal(clientX, clientY);
   const burst = document.createElement("span");
   burst.className = "game-click-sparkles";
   burst.setAttribute("aria-hidden", "true");
-  burst.style.left = `${clientX}px`;
-  burst.style.top = `${clientY}px`;
+  burst.style.position = target === document.body ? "fixed" : "absolute";
+  burst.style.left = `${point.x}px`;
+  burst.style.top = `${point.y}px`;
 
   for (let index = 0; index < PARTICLE_COUNT; index += 1) {
     const angle = (Math.PI * 2 * index) / PARTICLE_COUNT - Math.PI / 2;
@@ -29,6 +34,6 @@ export function showClickSparkles(clientX: number, clientY: number): void {
     burst.appendChild(particle);
   }
 
-  document.body.appendChild(burst);
+  target.appendChild(burst);
   window.setTimeout(() => burst.remove(), CLEANUP_DELAY_MS);
 }
