@@ -57,14 +57,14 @@ test("expanded map scale preserves the iPhone 12 reference zoom", () => {
   }
 });
 
-test("expanded tablet camera can reveal more authored map without zooming below phone scale", () => {
+test("expanded tablet camera fills the visible world page instead of containing the map as an overlay", () => {
   const mapHeight = 1440;
   const phoneScale = calculateExpandedWorldCameraScale(390, 844, mapHeight);
   const tabletScale = calculateExpandedWorldCameraScale(683, 911, mapHeight);
 
   assert.ok(tabletScale >= phoneScale);
-  assert.ok(WORLD_MAP_WIDTH * tabletScale <= 683 + 1e-9);
-  assert.ok(mapHeight * tabletScale <= 911 + 1e-9);
+  assert.ok(WORLD_MAP_WIDTH * tabletScale >= 683 - 1e-9);
+  assert.ok(mapHeight * tabletScale >= 911 - 1e-9);
 });
 
 test("world locations and decor remain percentage-positioned inside the transformed authored map", () => {
@@ -138,4 +138,12 @@ test("expanded WorldPage reuses the merged viewport-scene contract instead of cr
   assert.match(app, /id="game-viewport-scene"/);
   assert.match(portal, /const VIEWPORT_SCENE_ID = "game-viewport-scene"/);
   assert.match(portal, /stage\.dataset\.viewportSceneActive = "true"/);
+});
+
+
+test("expanded camera policy uses cover semantics so tablet gutters never become draggable world surroundings", () => {
+  const viewport = read("client/src/lib/worldViewport.ts");
+  assert.match(viewport, /const coverScale = Math\.max\(frameWidth \/ safeMapWidth, frameHeight \/ safeMapHeight\)/);
+  assert.match(viewport, /return Math\.max\(referenceScale, coverScale\)/);
+  assert.doesNotMatch(viewport, /const containScale = Math\.min/);
 });
