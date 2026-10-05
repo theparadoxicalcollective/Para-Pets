@@ -132,3 +132,36 @@ test("iPhone 12 still uses ViewportScenePortal inline fallback and existing 390-
   assert.match(stage, /export const DESIGN_H = 844/);
   assert.match(stage, /viewportOwned: true/);
 });
+
+
+test("outdoor Home measurement rebinds after interior and modal portal transitions", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  const helper = read("client/src/lib/homeCrossDevice.ts");
+
+  assert.match(
+    owner,
+    /observeHomeViewport\(container, recalc\);\s*\}, \[\s*bgAspect,\s*openInterior,\s*openInventory,\s*pendingActivate,\s*openGiftModal,\s*showNoMailPopup,\s*petHomeTutorialStep,\s*\]\)/,
+  );
+  assert.match(
+    visitor,
+    /observeHomeViewport\(container, recalc\);\s*\}, \[bgAspect, openInterior, showGiftModal, selectedPet\]\)/,
+  );
+
+  // A freshly bound observer immediately restores the geometry used by
+  // buildings, pets and decor; it does not wait for a later resize event.
+  assert.match(helper, /syncAndRecalc\(\);\s*\n\s*let resizeObserver/);
+});
+
+test("outdoor scene objects still depend on restored image geometry after returning from an interior", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  assert.match(owner, /imgWidth > 0 && activeBundle\?\.buildings/);
+  assert.match(owner, /imgWidth > 0 && outdoorPets\.map/);
+  assert.match(owner, /imgWidth > 0 && placedDecor\.map/);
+
+  assert.match(visitor, /!openInterior && imgWidth > 0 && activeBundle\?\.buildings/);
+  assert.match(visitor, /!openInterior && imgWidth > 0 && outdoorPets\.map/);
+  assert.match(visitor, /!openInterior && imgWidth > 0 && outdoorDecor\.map/);
+});
