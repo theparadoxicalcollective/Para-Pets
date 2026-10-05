@@ -16,7 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
-import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { clientDeltaToStage } from "@/lib/stage";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
@@ -339,13 +339,13 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         src={url}
         draggable={false}
         data-testid="visit-pet-home-interior-camera-extension"
-        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none" style={{ zIndex: 0 }}
       />
       <div
         aria-hidden
         data-testid="visit-pet-home-interior-extension-darkness"
         className="absolute inset-0 pointer-events-none"
-        style={{ background: `rgba(0,0,0,${Math.max(0, Math.min(100, darkness)) / 100})`, zIndex: 1 }}
+        style={{ background: `rgba(0,0,0,${Math.max(0, Math.min(100, darkness)) / 100})`, zIndex: 0 }}
       />
       <img
         src={url}
@@ -359,7 +359,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
             setAspect(a);
           }
         }}
-        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+        style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", zIndex: 1, userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
       />
 
       <HomeCapacityIndicator
@@ -833,7 +833,7 @@ export default function VisitPetHousePage() {
               const img = e.currentTarget;
               if (img.naturalHeight > 0) setBgAspect(img.naturalWidth / img.naturalHeight);
             }}
-            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
+            style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", zIndex: 1, userSelect: "none", WebkitUserSelect: "none", pointerEvents: "none" }}
           />
         ) : !bgUrl ? (
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #0a1a0a 0%, #0d2210 60%, #081408 100%)" }} />
