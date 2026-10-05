@@ -2838,6 +2838,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       )}
 
+      {petHomeTutorialStep && (
+        <PetHomeTutorialOverlay
+          step={petHomeTutorialStep}
+          onContinue={continuePetHomeTutorial}
+          completing={completePetHomeTutorialMutation.isPending}
+        />
+      )}
+
       {/* Bundle activation modal */}
       {pendingActivate && (
         <div
