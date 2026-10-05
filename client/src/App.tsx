@@ -793,6 +793,8 @@ function GameStage({ children }: { children: ReactNode }) {
           id="game-stage"
           data-design-width={layout.viewportWidth}
           data-design-height={layout.viewportHeight}
+          data-coordinate-owner="viewport"
+          data-reference-portrait="false"
           style={{
             position: "absolute",
             inset: 0,
@@ -824,6 +826,8 @@ function GameStage({ children }: { children: ReactNode }) {
         id="game-stage"
         data-design-width={layout.designWidth}
         data-design-height={layout.designHeight}
+        data-coordinate-owner={layout.coordinateOwner}
+        data-reference-portrait={layout.referencePortrait ? "true" : "false"}
         style={{
           position: "absolute",
           left: layout.left,
