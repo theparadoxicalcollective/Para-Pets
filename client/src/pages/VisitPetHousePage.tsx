@@ -768,7 +768,7 @@ export default function VisitPetHousePage() {
       } catch {}
     };
     return observeHomeViewport(container, recalc);
-  }, [bgAspect]);
+  }, [bgAspect, openInterior, showGiftModal, selectedPet]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     safeSetPointerCapture(e.currentTarget, e.pointerId);

@@ -1759,7 +1759,15 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       } catch {}
     };
     return observeHomeViewport(container, recalc);
-  }, [bgAspect]);
+  }, [
+    bgAspect,
+    openInterior,
+    openInventory,
+    pendingActivate,
+    openGiftModal,
+    showNoMailPopup,
+    petHomeTutorialStep,
+  ]);
 
   // ── Main canvas pointer handlers ───────────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -2276,7 +2284,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       )}
 
       {/* Buildings layer */}
-      {imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
+      {!openInterior && imgWidth > 0 && activeBundle?.buildings && activeBundle.buildings.length > 0 && (
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
@@ -2360,7 +2368,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       )}
 
       {/* Outdoor pets layer */}
-      {imgWidth > 0 && outdoorPets.map((pet, i) => {
+      {!openInterior && imgWidth > 0 && outdoorPets.map((pet, i) => {
         const cfg = randomGroundConfig(i);
         const savedX = parsePetPct(pet.posLeft);
         const savedY = parsePetPct(pet.posTop);
@@ -2423,7 +2431,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       })}
 
       {/* Owner-only pet edit controls, always above scene items. */}
-      {outdoorPopupPet && (
+      {!openInterior && outdoorPopupPet && (
         <HousePetControlPanel
           left={Math.max(120, Math.min((containerRef.current?.clientWidth ?? 390) - 120, panX + (outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
           top={Math.max(118, (() => {
@@ -2471,7 +2479,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       )}
 
       {/* Outdoor placed decor layer */}
-      {imgWidth > 0 && placedDecor.map((item) => {
+      {!openInterior && imgWidth > 0 && placedDecor.map((item) => {
         const isSelected = selectedPlacedId === item.id;
         const left = panX + item.xPct * imgWidth;
         const top = item.yPct * containerH;
