@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { usePrimaryQuestGuideActive } from "@/lib/questGuideOwnership";
+import { getQuestGuideSurface, guideBoundsInSurface, guideDialogMaxHeight } from "@/lib/questGuideViewport";
 
 const GINNY_WORLD_ID = "haunted_woods";
 const GUIDE_STORAGE_KEY = "para:ginny-mini-pet-guide";
@@ -139,24 +140,29 @@ function GuideHighlight({ target }: { target: GuideTarget | null }) {
   }, [target]);
 
   if (!target || !rect) return null;
-  const pad = Math.max(8, Math.min(16, Math.min(rect.width, rect.height) * 0.16));
-  const left = Math.max(6, rect.left - pad);
-  const top = Math.max(6, rect.top - pad);
-  const width = Math.min(window.innerWidth - left - 6, rect.width + pad * 2);
-  const height = rect.height + pad * 2;
-  const tooltipWidth = Math.min(260, Math.max(190, window.innerWidth - 24));
+  const surface = getQuestGuideSurface();
+  const guideRect = guideBoundsInSurface(rect, surface);
+  const position = surface.inStage ? "absolute" : "fixed";
+  const rectWidth = Math.max(0, guideRect.right - guideRect.left);
+  const rectHeight = Math.max(0, guideRect.bottom - guideRect.top);
+  const pad = Math.max(8, Math.min(16, Math.min(rectWidth, rectHeight) * 0.16));
+  const left = Math.max(6, guideRect.left - pad);
+  const top = Math.max(6, guideRect.top - pad);
+  const width = Math.min(surface.width - left - 6, rectWidth + pad * 2);
+  const height = rectHeight + pad * 2;
+  const tooltipWidth = Math.min(260, Math.max(190, surface.width - 24));
   const preferAbove = top > 126;
   const tooltipTop = preferAbove
     ? Math.max(8, top - 84)
-    : Math.min(window.innerHeight - 82, top + height + 12);
-  const tooltipLeft = Math.max(12, Math.min(window.innerWidth - tooltipWidth - 12, left + width / 2 - tooltipWidth / 2));
+    : Math.min(surface.height - 82, top + height + 12);
+  const tooltipLeft = Math.max(12, Math.min(surface.width - tooltipWidth - 12, left + width / 2 - tooltipWidth / 2));
 
-  return (
+  return createPortal(
     <div className="ginny-guide-layer" aria-live="polite">
       <div
         data-testid="ginny-guide-highlight"
         style={{
-          position: "fixed", left, top, width, height, borderRadius: Math.min(28, Math.max(14, height * 0.28)),
+          position, left, top, width, height, borderRadius: Math.min(28, Math.max(14, height * 0.28)),
           border: "3px solid rgba(255,220,105,.98)",
           boxShadow: "0 0 0 5px rgba(255,209,74,.18),0 0 24px rgba(255,201,60,.86),inset 0 0 18px rgba(255,226,130,.18)",
           pointerEvents: "none", zIndex: 2147483000,
@@ -165,7 +171,7 @@ function GuideHighlight({ target }: { target: GuideTarget | null }) {
       <div
         data-testid="ginny-guide-copy"
         style={{
-          position: "fixed", left: tooltipLeft, top: tooltipTop, width: tooltipWidth,
+          position, left: tooltipLeft, top: tooltipTop, width: tooltipWidth,
           borderRadius: 14, padding: "9px 12px", textAlign: "center",
           background: "rgba(12,8,18,.96)", border: "1px solid rgba(255,213,92,.72)",
           boxShadow: "0 10px 30px rgba(0,0,0,.72),0 0 16px rgba(245,190,60,.2)",
@@ -177,7 +183,8 @@ function GuideHighlight({ target }: { target: GuideTarget | null }) {
         <span style={{ display: "block", marginTop: 3, fontSize: 10, lineHeight: 1.35, color: "rgba(255,244,218,.78)" }}>{target.detail}</span>
         <span className="ginny-guide-arrow" aria-hidden style={{ display: "block", fontSize: 22, lineHeight: .85, marginTop: 3 }}>↓</span>
       </div>
-    </div>
+    </div>,
+    surface.target,
   );
 }
 
@@ -398,6 +405,11 @@ export default function GinnyQuestOverlay() {
 
   if (!user || !state) return null;
 
+  const surface = getQuestGuideSurface();
+  const overlayPosition = surface.inStage ? "absolute" : "fixed";
+  const dialogWidth = Math.min(430, Math.max(280, surface.width - 24));
+  const dialogMaxHeight = Math.min(720, guideDialogMaxHeight(surface.height, 48));
+
   const marker = ginnyMount && state.status !== "claimed" ? createPortal(
     <button
       type="button"
@@ -466,27 +478,29 @@ export default function GinnyQuestOverlay() {
       {questCard}
       <GuideHighlight target={!primaryGuideActive && guideActive && state.canEquipNow ? guideTarget : null} />
 
-      {!primaryGuideActive && guideActive && state.status === "accepted" && !state.canEquipNow && (
-        <div data-testid="ginny-guide-needs-active-pet" style={{ position: "fixed", left: 12, right: 12, bottom: "max(18px,env(safe-area-inset-bottom))", margin: "0 auto", maxWidth: 420, zIndex: 2147483002, padding: "11px 14px", borderRadius: 14, background: "rgba(12,8,18,.97)", border: "1px solid rgba(255,213,92,.65)", color: "#fff0c1", font: "11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72)" }}>
+      {!primaryGuideActive && guideActive && state.status === "accepted" && !state.canEquipNow && createPortal(
+        <div data-testid="ginny-guide-needs-active-pet" style={{ position: overlayPosition, left: 12, right: 12, bottom: surface.inStage ? 18 : "max(18px,env(safe-area-inset-bottom))", margin: "0 auto", maxWidth: 420, zIndex: 2147483002, padding: "11px 14px", borderRadius: 14, background: "rgba(12,8,18,.97)", border: "1px solid rgba(255,213,92,.65)", color: "#fff0c1", font: "11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72)" }}>
           Set a hatched pet as your active pet first, then return to Ginny's guide. Your Mini Pet choice is safely saved.
-        </div>
+        </div>,
+        surface.target,
       )}
 
-      {completeNotice && (
-        <div data-testid="ginny-quest-complete-notice" role="status" style={{ position: "fixed", left: 12, right: 12, top: "max(16px,env(safe-area-inset-top))", margin: "0 auto", maxWidth: 390, zIndex: 2147483003, padding: "12px 15px", borderRadius: 15, background: "rgba(18,68,36,.97)", border: "1px solid rgba(171,255,187,.62)", color: "#e9ffec", font: "700 11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72),0 0 20px rgba(68,220,116,.22)" }}>
+      {completeNotice && createPortal(
+        <div data-testid="ginny-quest-complete-notice" role="status" style={{ position: overlayPosition, left: 12, right: 12, top: surface.inStage ? 16 : "max(16px,env(safe-area-inset-top))", margin: "0 auto", maxWidth: 390, zIndex: 2147483003, padding: "12px 15px", borderRadius: 15, background: "rgba(18,68,36,.97)", border: "1px solid rgba(171,255,187,.62)", color: "#e9ffec", font: "700 11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72),0 0 20px rgba(68,220,116,.22)" }}>
           Quest complete! Claim your 500 coins from Ginny or your Quest page.
-        </div>
+        </div>,
+        surface.target,
       )}
 
-      {dialogOpen && (
-        <div className="fixed inset-0 z-[2147482000] flex items-center justify-center p-3" style={{ background: "rgba(2,2,5,.78)", backdropFilter: "blur(5px)" }} onClick={() => setDialogOpen(false)}>
+      {dialogOpen && createPortal(
+        <div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,2,5,.78)", backdropFilter: "blur(5px)" }} onClick={() => setDialogOpen(false)}>
           <section
             data-testid="ginny-quest-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="ginny-quest-title"
             onClick={event => event.stopPropagation()}
-            style={{ width: "min(94vw,430px)", maxHeight: "min(86vh,720px)", overflowY: "auto", borderRadius: 20, padding: "16px 16px 18px", background: "linear-gradient(180deg,rgba(29,19,38,.99),rgba(8,10,16,.99))", border: "1px solid rgba(230,188,93,.55)", boxShadow: "0 22px 60px rgba(0,0,0,.78),0 0 30px rgba(132,83,160,.18)", color: "#f8ead0", fontFamily: "Lora,serif" }}
+            style={{ width: dialogWidth, maxHeight: dialogMaxHeight, overflowY: "auto", borderRadius: 20, padding: "16px 16px 18px", background: "linear-gradient(180deg,rgba(29,19,38,.99),rgba(8,10,16,.99))", border: "1px solid rgba(230,188,93,.55)", boxShadow: "0 22px 60px rgba(0,0,0,.78),0 0 30px rgba(132,83,160,.18)", color: "#f8ead0", fontFamily: "Lora,serif" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 82, height: 82, flexShrink: 0, borderRadius: 16, display: "grid", placeItems: "center", background: "radial-gradient(circle,rgba(130,83,155,.2),rgba(0,0,0,.2))", border: "1px solid rgba(226,190,107,.25)" }}>
@@ -541,7 +555,8 @@ export default function GinnyQuestOverlay() {
 
             {message && <p role="status" style={{ margin: "10px 2px 0", fontSize: 10, lineHeight: 1.4, color: "#ffcf9b" }}>{message}</p>}
           </section>
-        </div>
+        </div>,
+        surface.target,
       )}
     </>
   );
