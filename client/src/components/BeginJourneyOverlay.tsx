@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { bjGetStep, bjSetStep, bjRestart, bjGetStarterInventoryId, bjSetStarterInventoryId, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
 import { isHatchedThreeStarPet } from "@/lib/tutorialHatch";
 import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
+import { getQuestGuideSurface, guideBoundsInSurface } from "@/lib/questGuideViewport";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -492,13 +493,22 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const label    = step5TapMode
     ? "Your egg is ready — tap it to hatch!"
     : STEP_LABELS[stepNum];
+  const surface = getQuestGuideSurface();
+  const targetGuideRect = targetRect ? guideBoundsInSurface(targetRect, surface) : null;
+  const potionGuideRect = potionRect ? guideBoundsInSurface(potionRect, surface) : null;
+  const eggGuideRect = eggOnHomeRect ? guideBoundsInSurface(eggOnHomeRect, surface) : null;
+  const dragPreviewPoint = dragPotionPreview ? {
+    x: (dragPotionPreview.x - surface.left) / surface.scale,
+    y: (dragPotionPreview.y - surface.top) / surface.scale,
+  } : null;
 
-  // Padded rect for circle spotlight
-  const pr = targetRect ? {
-    top:    Math.max(0, targetRect.top    - PAD),
-    left:   Math.max(0, targetRect.left   - PAD),
-    right:  Math.min(window.innerWidth,  targetRect.right  + PAD),
-    bottom: Math.min(window.innerHeight, targetRect.bottom + PAD),
+  // Padded rect for circle spotlight, expressed in the same logical game-stage
+  // coordinates as the overlay portal.
+  const pr = targetGuideRect ? {
+    top:    Math.max(0, targetGuideRect.top    - PAD),
+    left:   Math.max(0, targetGuideRect.left   - PAD),
+    right:  Math.min(surface.width,  targetGuideRect.right  + PAD),
+    bottom: Math.min(surface.height, targetGuideRect.bottom + PAD),
     get width()  { return this.right - this.left; },
     get height() { return this.bottom - this.top; },
   } : null;
@@ -552,10 +562,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
       ))}
 
       {/* Step-5 tap mode: spotlight egg + bouncing arrow so player knows to tap it */}
-      {stepNum === 5 && step5TapMode && eggOnHomeRect && (() => {
-        const epx = eggOnHomeRect.left + eggOnHomeRect.width / 2;
-        const epy = eggOnHomeRect.top  + eggOnHomeRect.height / 2;
-        const eRad = Math.max(eggOnHomeRect.width, eggOnHomeRect.height) / 2 + 28;
+      {stepNum === 5 && step5TapMode && eggGuideRect && (() => {
+        const epx = eggGuideRect.left + eggGuideRect.width / 2;
+        const epy = eggGuideRect.top  + eggGuideRect.height / 2;
+        const eRad = Math.max(eggGuideRect.width, eggGuideRect.height) / 2 + 28;
         return (
           <>
             <div style={{
@@ -568,7 +578,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
               alt=""
               style={{
                 position: "fixed",
-                top:  Math.max(8, eggOnHomeRect.top - 82),
+                top:  Math.max(8, eggGuideRect.top - 82),
                 left: epx - 28,
                 width: 56, height: 70,
                 zIndex: 99002, pointerEvents: "none",
@@ -635,10 +645,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
         );
         if (!tutorialPotion) return null;
 
-        const fromCx = potionRect.left + potionRect.width / 2;
-        const fromCy = potionRect.top + Math.min(52, potionRect.height / 2);
-        const dx = (eggOnHomeRect.left + eggOnHomeRect.width / 2) - fromCx;
-        const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
+        const fromCx = potionGuideRect.left + potionGuideRect.width / 2;
+        const fromCy = potionGuideRect.top + Math.min(52, potionGuideRect.height / 2);
+        const dx = (eggGuideRect.left + eggGuideRect.width / 2) - fromCx;
+        const dy = (eggGuideRect.top + eggGuideRect.height / 2) - fromCy;
         return (
           <div
             data-testid="tutorial-potion-drag-demo"
@@ -818,8 +828,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
           aria-hidden="true"
           style={{
             position: "fixed",
-            left: dragPotionPreview.x,
-            top: dragPotionPreview.y,
+            left: dragPreviewPoint?.x ?? dragPotionPreview.x,
+            top: dragPreviewPoint?.y ?? dragPotionPreview.y,
             width: 72,
             height: 72,
             transform: "translate(-50%, -50%) scale(1.08)",
@@ -875,7 +885,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
             <p style={{ fontFamily: "Lora, Georgia, serif", color: "rgba(200,220,180,0.8)", fontSize: 12, lineHeight: 1.45, marginBottom: 14 }}>
               Pick any available 3-star companion. Your choice is yours to keep!
             </p>
-            <div style={{ maxHeight: "46vh", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+            <div style={{ maxHeight: Math.max(180, surface.height * 0.46), overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
               {starterPetsLoading && <p style={{ gridColumn: "1 / -1", color: "#d8c58a", fontSize: 12 }}>Loading companions…</p>}
               {starterPetsError && <p style={{ gridColumn: "1 / -1", color: "#e7a0a0", fontSize: 12 }}>Companions could not load. Tap outside and try again.</p>}
               {!starterPetsLoading && !starterPetsError && starterPets.length === 0 && (
@@ -909,6 +919,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
       )}
 
     </>,
-    document.body,
+    surface.target,
   );
 }
