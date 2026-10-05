@@ -21,6 +21,7 @@ interface UseWorldViewportControllerOptions {
   isLocationDragActive: () => boolean;
   clearStaleLocationDrag: () => void;
   isObjectDragActive: () => boolean;
+  fitFullComposition?: boolean;
 }
 
 export function useWorldViewportController({
@@ -30,6 +31,7 @@ export function useWorldViewportController({
   isLocationDragActive,
   clearStaleLocationDrag,
   isObjectDragActive,
+  fitFullComposition = false,
 }: UseWorldViewportControllerOptions) {
   const vpRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +119,7 @@ export function useWorldViewportController({
       frameWRef.current,
       frameHRef.current,
       mapHRef.current,
-      false,
+      fitFullComposition,
       mapWidth,
     );
     const { x: clampedX, y: clampedY } = clampTransform(x, y, fitScale);
@@ -125,14 +127,14 @@ export function useWorldViewportController({
     setMapX(clampedX);
     setMapY(clampedY);
     setMapScale(fitScale);
-  }, [clampTransform, mapWidth]);
+  }, [clampTransform, fitFullComposition, mapWidth]);
 
   useEffect(() => {
     const fitScale = calculateWorldFitScale(
       frameWRef.current,
       frameHRef.current,
       mapHRef.current,
-      false,
+      fitFullComposition,
       mapWidth,
     );
     const initialX = (frameWRef.current - mapWidth * fitScale) / 2;
@@ -141,7 +143,7 @@ export function useWorldViewportController({
     setMapX(initialX);
     setMapY(initialY);
     setMapScale(fitScale);
-  }, [frameH, frameW, mapH, mapWidth, worldId]);
+  }, [fitFullComposition, frameH, frameW, mapH, mapWidth, worldId]);
 
   const handleVpPointerDown = useCallback((event: ReactPointerEvent) => {
     // Preserve the stale-drag recovery used by the shared admin location
