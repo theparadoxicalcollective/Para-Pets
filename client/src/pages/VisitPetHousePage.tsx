@@ -268,7 +268,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         const w = container.offsetWidth;
         const h = container.offsetHeight;
         const imgW = h * aspectRef.current;
-        const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
+        const newPanX = centeredHomeCameraPanX(w, imgW);
         setPanX(newPanX);
         setImgWidth(imgW);
         setContainerH(h);
@@ -304,10 +304,9 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const w = container.offsetWidth;
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
-    const min = Math.min(0, w - imgW);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
-    const newPanX = Math.min(0, Math.max(min, drag.startPanX + panDelta));
+    const newPanX = clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW);
     setPanX(newPanX);
   }, []);
 
@@ -322,17 +321,32 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
   }, [effects, onToggleLightEffect]);
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      onLostPointerCapture={onUp}
-      onContextMenu={e => e.preventDefault()}
-    >
+    <ViewportScenePortal>
+      <div
+        ref={containerRef}
+        data-testid="visit-pet-home-interior-camera"
+        className="absolute inset-0"
+        style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onLostPointerCapture={onUp}
+        onContextMenu={e => e.preventDefault()}
+      >
+      <img
+        aria-hidden
+        src={url}
+        draggable={false}
+        data-testid="visit-pet-home-interior-camera-extension"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+      />
+      <div
+        aria-hidden
+        data-testid="visit-pet-home-interior-extension-darkness"
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: `rgba(0,0,0,${Math.max(0, Math.min(100, darkness)) / 100})`, zIndex: 1 }}
+      />
       <img
         src={url}
         alt="Building interior"
@@ -519,7 +533,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
       >
         <HomeInteriorExitSparkle />
       </button>
-    </div>
+      </div>
+    </ViewportScenePortal>
   );
 }
 
