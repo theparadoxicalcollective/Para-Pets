@@ -40,6 +40,7 @@ import MiniGameFrame from "@/components/world/MiniGameFrame";
 import SellFishPage from "@/pages/SellFishPage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 
 const recipeBookClosed = "/recipe-book-closed.png";
 const mixingTreeTitle = "/mixing-tree-title.png";
@@ -1112,6 +1113,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     isLocationDragActive,
     clearStaleLocationDrag,
     isObjectDragActive,
+    fitFullComposition: true,
   });
 
   const flipMutation = useMutation({
@@ -1428,8 +1430,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     >
       <style>{`.world-scroll::-webkit-scrollbar-thumb{background:${accent}40;border-radius:4px;}.world-scroll::-webkit-scrollbar-thumb:hover{background:${accent}70;}`}</style>
 
+      <ViewportScenePortal>
       <div
         ref={vpRef}
+        data-testid="world-expanded-camera"
         data-quest-guide-pan-surface
         className="absolute inset-0 overflow-hidden"
         style={{ touchAction: "none" }}
@@ -1822,6 +1826,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               })()}
             </div>
         </div>
+      </ViewportScenePortal>
 
       <button
         data-testid="button-back-to-map"
