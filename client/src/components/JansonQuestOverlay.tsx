@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { chooseNpcMessage, npcNamesMatch, parseNpcMetadata } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
+import { getQuestGuideSurface } from "@/lib/questGuideViewport";
 
 type QuestStatus = "locked" | "available" | "accepted" | "completed" | "claimed";
 interface Quest {
@@ -141,6 +142,9 @@ export default function JansonQuestOverlay() {
   });
 
   if (!user || !state) return null;
+  const surface = getQuestGuideSurface();
+  const overlayPosition = surface.inStage ? "absolute" : "fixed";
+  const dialogWidth = Math.min(410, Math.max(280, surface.width - 24));
   const firstTime = state.quests.find(quest => quest.status !== "claimed" && quest.status !== "locked");
   const repeatable = state.marketUnlocked ? state.dailyQuest : null;
   const current = firstTime ?? (repeatable?.status !== "locked" && repeatable?.status !== "claimed" ? repeatable : null);
@@ -234,9 +238,9 @@ export default function JansonQuestOverlay() {
            style={{ ...actionStyle, display: "block", margin: "6px auto 0" }}>Open Fish Market</button>
        </div>}</>, npcMount)}
     {questListMount && logQuest && createPortal(<QuestCard quest={logQuest} busy={claim.isPending} onGo={() => onQuestGo(logQuest)} onClaim={() => claim.mutate(logQuest.questKey)} />, questListMount)}
-    {dialogOpen && inBayou && <div className="fixed inset-0 z-[2147482000] flex items-center justify-center p-3" style={{ background: "rgba(2,10,7,.82)" }} onClick={() => setDialogOpen(false)}>
+    {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,10,7,.82)" }} onClick={() => setDialogOpen(false)}>
       <section role="dialog" aria-modal="true" aria-label="Janson's fishing quests" data-testid="janson-quest-dialog" onClick={event => event.stopPropagation()}
-        style={{ width: "min(94vw,410px)", padding: 18, borderRadius: 18, border: "1px solid rgba(184,219,142,.65)", background: "linear-gradient(#163528,#081b16)", boxShadow: "0 16px 45px #000a", color: "#f5ead0", fontFamily: "Lora,serif" }}>
+        style={{ width: dialogWidth, padding: 18, borderRadius: 18, border: "1px solid rgba(184,219,142,.65)", background: "linear-gradient(#163528,#081b16)", boxShadow: "0 16px 45px #000a", color: "#f5ead0", fontFamily: "Lora,serif" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {janson?.iconUrl && <img src={janson.iconUrl} alt="" style={{ width: 66, height: 66, objectFit: "contain" }} />}
           <div style={{ flex: 1 }}><strong style={{ color: "#f3d88b", fontSize: 18 }}>Janson</strong>
@@ -261,6 +265,6 @@ export default function JansonQuestOverlay() {
         {current?.status === "completed" && <button type="button" data-testid={`button-claim-janson-at-npc-${current.questKey}`} disabled={claim.isPending} onClick={() => claim.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{claim.isPending ? "CLAIMING…" : `CLAIM ${current.title.toUpperCase()} REWARD`}</button>}
         {message && <p role="status" style={{ color: "#ffcb9a", fontSize: 11 }}>{message}</p>}
       </section>
-    </div>}
+    </div>, surface.target)}
   </>;
 }
