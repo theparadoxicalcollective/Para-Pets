@@ -143,6 +143,11 @@ const BUILDING_REF_H = 900;
 // cannot be dragged behind the bottom inventory toolbar.
 const BOTTOM_TOOLBAR_RESERVE_PX = 140;
 
+function isMailboxBuilding(building: ActiveBundle["buildings"][number]): boolean {
+  return building.buildingType === "mailbox"
+    || (!building.buildingType && building.name.toLowerCase().includes("mailbox"));
+}
+
 // Clamp helper for Y drag limits — reserves the bottom toolbar area.
 // ── Care wreath popup ────────────────────────────────────────────────────────
 // Replaces the old "Feed / Cancel / Return to Inventory" pet popup with a
