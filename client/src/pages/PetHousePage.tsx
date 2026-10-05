@@ -192,7 +192,8 @@ function CarePopup({
   ) => {
     e.stopPropagation();
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    burst(r.left + r.width / 2, r.top + r.height / 2, colors, 16);
+    const center = clientToStage(r.left + r.width / 2, r.top + r.height / 2);
+    burst(center.x, center.y, colors, 16);
     setTimeout(action, 280);
   };
 
