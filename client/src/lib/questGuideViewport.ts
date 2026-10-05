@@ -1,4 +1,4 @@
-import { getStagePortalTarget, getStageScale } from "./stage";
+import { getStageSurface } from "./stage";
 
 type Bounds = Pick<DOMRect, "left" | "right" | "top" | "bottom">;
 
@@ -12,12 +12,18 @@ export interface QuestGuideSurface {
   scale: number;
 }
 
-/** Desktop guides share the portrait game stage; phones retain viewport ownership. */
+/** Quest guides use the same player coordinate surface as drag ghosts and overlays. */
 export function getQuestGuideSurface(): QuestGuideSurface {
-  const target = getStagePortalTarget();
-  if (target === document.body) return { target, inStage: false, left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, scale: 1 };
-  const rect = target.getBoundingClientRect();
-  return { target, inStage: true, left: rect.left, top: rect.top, width: target.clientWidth, height: target.clientHeight, scale: getStageScale() };
+  const surface = getStageSurface();
+  return {
+    target: surface.target,
+    inStage: !surface.viewportOwned,
+    left: surface.left,
+    top: surface.top,
+    width: surface.logicalWidth,
+    height: surface.logicalHeight,
+    scale: surface.scale,
+  };
 }
 
 export function guideBoundsInSurface(bounds: Bounds, surface: Pick<QuestGuideSurface, "left" | "top" | "scale">): Bounds {
