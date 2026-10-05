@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
+import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
 
 test("a narrow phone fills its height while the authored sides remain pannable", () => {
   const frameW = 390;
@@ -36,10 +36,10 @@ test("invalid dimensions fall back safely", () => {
 
 test("expanded camera preserves the iPhone 12 world zoom while revealing more map on tablets", () => {
   const mapH = 1440;
-  const phoneScale = calculateWorldFitScale(390, 844, mapH, true);
+  const phoneScale = calculateExpandedWorldCameraScale(390, 844, mapH);
   assert.equal(phoneScale, 844 / mapH);
 
-  const tabletScale = calculateWorldFitScale(683, 911, mapH, true);
+  const tabletScale = calculateExpandedWorldCameraScale(683, 911, mapH);
   const tabletContain = Math.min(683 / WORLD_MAP_WIDTH, 911 / mapH);
   assert.equal(tabletScale, tabletContain);
   assert.ok(tabletScale >= phoneScale);
@@ -52,7 +52,7 @@ test("expanded camera preserves the iPhone 12 world zoom while revealing more ma
 test("expanded desktop camera never zooms a world below the iPhone 12 reference scale", () => {
   const mapH = 1440;
   const referenceScale = 844 / mapH;
-  const desktopScale = calculateWorldFitScale(1500, 844, mapH, true);
+  const desktopScale = calculateExpandedWorldCameraScale(1500, 844, mapH);
   assert.equal(desktopScale, referenceScale);
 
   const centered = clampWorldMapOffset(0, 0, desktopScale, 1500, 844, mapH);
