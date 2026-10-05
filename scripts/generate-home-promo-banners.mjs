@@ -49,11 +49,11 @@ async function exploreBanner(){
   const t2=await round(await crop(F.sky,245,166),245,166,22);
   const t3=await round(await crop(F.volcanic,245,166),245,166,22);
   const labels=svg(
-    '<rect x="58" y="921" width="875" height="230" rx="34" fill="#03110b" fill-opacity=".76"/>'+
+    '<rect x="58" y="921" width="875" height="250" rx="34" fill="#03110b" fill-opacity=".76"/>'+
     '<text x="190" y="1120" text-anchor="middle" fill="#f1d36f" font-family="serif" font-size="18" letter-spacing="2">HAUNTED</text>'+
     '<text x="496" y="1120" text-anchor="middle" fill="#f1d36f" font-family="serif" font-size="18" letter-spacing="2">SKY REALM</text>'+
     '<text x="802" y="1120" text-anchor="middle" fill="#f1d36f" font-family="serif" font-size="18" letter-spacing="2">VOLCANIC</text>'+
-    '<text x="496" y="1162" text-anchor="middle" fill="#b9dbd0" font-family="sans-serif" font-size="19" letter-spacing="3">WORLDS • QUESTS • BATTLES • FISHING</text>'
+    '<text x="496" y="1154" text-anchor="middle" fill="#d6eee5" font-family="sans-serif" font-size="19" letter-spacing="3">WORLDS • QUESTS • BATTLES • FISHING</text>'
   );
   await sharp(bg).composite([
     {input:svg('<rect width="991" height="1233" fill="#00150c" fill-opacity=".18"/>')},
@@ -92,9 +92,9 @@ async function limitedBanner(){
   const glow=svg(
     '<defs><radialGradient id="g"><stop offset="0" stop-color="#b154ff" stop-opacity=".76"/><stop offset=".46" stop-color="#8f35ff" stop-opacity=".24"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient><radialGradient id="c"><stop offset="0" stop-color="#f6cf5a" stop-opacity=".66"/><stop offset=".6" stop-color="#f6cf5a" stop-opacity=".16"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>'+
     '<ellipse cx="496" cy="590" rx="365" ry="330" fill="url(#g)"/><ellipse cx="220" cy="905" rx="220" ry="205" fill="url(#c)"/><ellipse cx="790" cy="905" rx="220" ry="205" fill="url(#c)"/>'+
-    '<rect x="105" y="1000" width="781" height="124" rx="28" fill="#090612" fill-opacity=".84" stroke="#d0a53c" stroke-opacity=".62" stroke-width="2"/>'+
-    '<text x="496" y="1052" text-anchor="middle" fill="#f4dc83" font-family="serif" font-size="27" font-weight="700" letter-spacing="3">SEASONAL EGGS • COIN BUNDLES</text>'+
-    '<text x="496" y="1093" text-anchor="middle" fill="#e4d9f6" font-family="sans-serif" font-size="20" letter-spacing="1">Limited-time drops and special shop offers</text>'
+    '<rect x="105" y="1045" width="781" height="130" rx="28" fill="#090612" fill-opacity=".88" stroke="#d0a53c" stroke-opacity=".68" stroke-width="2"/>'+
+    '<text x="496" y="1100" text-anchor="middle" fill="#ffe395" font-family="serif" font-size="27" font-weight="700" letter-spacing="3">SEASONAL EGGS • COIN BUNDLES</text>'+
+    '<text x="496" y="1142" text-anchor="middle" fill="#f1e9ff" font-family="sans-serif" font-size="20" letter-spacing="1">Limited-time drops and special shop offers</text>'
   );
   await sharp(bg).composite([
     {input:svg('<rect width="991" height="1233" fill="#08010f" fill-opacity=".48"/>')},{input:glow},
