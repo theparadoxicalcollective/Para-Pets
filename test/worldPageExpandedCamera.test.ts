@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  calculateExpandedWorldCameraScale,
   calculateWorldFitScale,
   WORLD_MAP_WIDTH,
 } from "../client/src/lib/worldViewport";
@@ -12,7 +13,7 @@ test("WorldPage opts only the map camera into the expanded viewport scene", () =
   const source = read("client/src/pages/WorldPage.tsx");
 
   assert.match(source, /import ViewportScenePortal from "@\/components\/ViewportScenePortal"/);
-  assert.match(source, /fitFullComposition: true/);
+  assert.match(source, /expandedCamera: true/);
   assert.match(source, /<ViewportScenePortal enabled=\{!worldMapCameraBlocked\}>/);
   assert.match(source, /data-testid="world-expanded-camera"/);
 
@@ -51,15 +52,15 @@ test("world map height continues to come from the real background aspect ratio",
 test("expanded map scale preserves the iPhone 12 reference zoom", () => {
   for (const mapHeight of [1440, 1600, 1920, 2160]) {
     const legacyPhoneScale = calculateWorldFitScale(390, 844, mapHeight, false);
-    const expandedPolicyPhoneScale = calculateWorldFitScale(390, 844, mapHeight, true);
+    const expandedPolicyPhoneScale = calculateExpandedWorldCameraScale(390, 844, mapHeight);
     assert.equal(expandedPolicyPhoneScale, legacyPhoneScale);
   }
 });
 
 test("expanded tablet camera can reveal more authored map without zooming below phone scale", () => {
   const mapHeight = 1440;
-  const phoneScale = calculateWorldFitScale(390, 844, mapHeight, true);
-  const tabletScale = calculateWorldFitScale(683, 911, mapHeight, true);
+  const phoneScale = calculateExpandedWorldCameraScale(390, 844, mapHeight);
+  const tabletScale = calculateExpandedWorldCameraScale(683, 911, mapHeight);
 
   assert.ok(tabletScale >= phoneScale);
   assert.ok(WORLD_MAP_WIDTH * tabletScale <= 683 + 1e-9);
@@ -124,6 +125,7 @@ test("world camera controller measures the actual portal surface and keeps share
   assert.match(source, /const width = el\.clientWidth \|\| getDesignW\(\)/);
   assert.match(source, /const height = el\.clientHeight \|\| DESIGN_H/);
   assert.match(source, /new ResizeObserver\(measure\)/);
+  assert.match(source, /expandedCamera && !getStageSurface\(\)\.viewportOwned/);
   assert.match(source, /const stageScale = getStageScale\(\)/);
   assert.match(source, /event\.clientX - mapPanStartRef\.current\.x\) \/ stageScale/);
   assert.match(source, /event\.clientY - mapPanStartRef\.current\.y\) \/ stageScale/);
