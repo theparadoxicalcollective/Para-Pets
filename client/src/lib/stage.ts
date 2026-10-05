@@ -362,13 +362,21 @@ export function getStageLogicalCenter(): { x: number; y: number } {
   };
 }
 
-/** Client-pixel center for effects that intentionally portal to document.body. */
-export function getStageRenderedCenter(): { x: number; y: number } {
+/** Client-pixel point inside the rendered stage for effects seeded from browser events. */
+export function getStageRenderedPoint(
+  xRatio = 0.5,
+  yRatio = 0.5,
+): { x: number; y: number } {
   const surface = getStageSurface();
   return {
-    x: surface.left + (surface.logicalWidth * surface.scale) / 2,
-    y: surface.top + (surface.logicalHeight * surface.scale) / 2,
+    x: surface.left + surface.logicalWidth * surface.scale * xRatio,
+    y: surface.top + surface.logicalHeight * surface.scale * yRatio,
   };
+}
+
+/** Client-pixel center for effects that intentionally portal through the stage contract. */
+export function getStageRenderedCenter(): { x: number; y: number } {
+  return getStageRenderedPoint();
 }
 
 /** Pure inverse helpers make hit-testing independently regression-testable. */
