@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { clientToStage } from "@/lib/stage";
 import aquariumBg from "@assets/bg_aquarium.png";
 import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_1783394294636.png";
 import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_1783402475912.png";
@@ -1022,10 +1023,12 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
       )}
 
       {/* Dragging ghost */}
-      {dragging && (
+      {dragging && (() => {
+        const ghostPoint = clientToStage(dragging.gx, dragging.gy);
+        return (
         <div className="fixed pointer-events-none" style={{
           zIndex: 9999,
-          left: dragging.gx - 27, top: dragging.gy - 27,
+          left: ghostPoint.x - 27, top: ghostPoint.y - 27,
           width: 54, height: 54,
           background: "rgba(1,12,30,0.92)",
           border: "2px solid rgba(94,234,212,0.7)",
@@ -1037,7 +1040,8 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
             ? <img src={dragging.fish.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} draggable={false} />
             : <img src={fishInvIconPH} alt="" style={{ width: 40, height: 40, objectFit: "contain", opacity: 0.7 }} draggable={false} />}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
