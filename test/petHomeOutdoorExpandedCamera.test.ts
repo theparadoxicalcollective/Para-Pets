@@ -38,12 +38,15 @@ test("outdoor camera measurement uses the expanded scene element without changin
   assert.match(visitor, /top: item\.yPct \* containerH/);
 });
 
-test("owner drag/drop still converts client input through the actual scene element", () => {
+test("owner drag/drop converts client input through the active Home scene element", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
 
-  assert.match(owner, /clientPointInStageElement\(container, e\.clientX, e\.clientY\)/);
+  assert.match(owner, /const dropElement = interior\?\.element \?\? container/);
+  assert.match(owner, /clientPointInStageElement\(dropElement, e\.clientX, e\.clientY\)/);
   assert.match(owner, /\(localX - panX\) \/ imgWidth/);
   assert.match(owner, /localY \/ containerH/);
+  assert.match(owner, /\(localX - interior\.panX\) \/ interior\.imgWidth/);
+  assert.match(owner, /localY \/ interior\.containerH/);
   assert.match(owner, /drag\.startXPct \+ clientDeltaToStage\(e\.clientX - drag\.startPointerX, 0\)\.x \/ imgWidth/);
   assert.match(owner, /drag\.startYPct \+ clientDeltaToStage\(0, e\.clientY - drag\.startPointerY\)\.y \/ containerH/);
 });
