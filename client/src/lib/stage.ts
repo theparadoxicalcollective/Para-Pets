@@ -168,6 +168,93 @@ export function clientToStage(clientX: number, clientY: number): { x: number; y:
   return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale };
 }
 
+export type StageSurface = {
+  target: HTMLElement;
+  viewportOwned: boolean;
+  left: number;
+  top: number;
+  logicalWidth: number;
+  logicalHeight: number;
+  scale: number;
+};
+
+/**
+ * Canonical player-facing coordinate surface.
+ *
+ * Every fixed overlay, tutorial spotlight, drag ghost, reward/message effect,
+ * and other player interaction that must follow the game should choose one of
+ * two coordinate spaces:
+ * - viewport-owned: current native phone behavior (scale 1)
+ * - stage-owned: logical game-stage pixels inside #game-stage
+ *
+ * PRs that later change which devices are stage-owned only need to update the
+ * portal policy; consumers using this helper continue to line up automatically.
+ */
+export function getStageSurface(): StageSurface {
+  if (typeof document === "undefined") {
+    return {
+      target: {} as HTMLElement,
+      viewportOwned: true,
+      left: 0,
+      top: 0,
+      logicalWidth: DESIGN_W,
+      logicalHeight: DESIGN_H,
+      scale: 1,
+    };
+  }
+
+  const target = getStagePortalTarget();
+  const visible = getVisibleViewport();
+  if (target === document.body) {
+    return {
+      target,
+      viewportOwned: true,
+      left: 0,
+      top: 0,
+      logicalWidth: visible.width,
+      logicalHeight: visible.height,
+      scale: 1,
+    };
+  }
+
+  const stage = document.getElementById("game-stage") ?? target;
+  const rect = stage.getBoundingClientRect();
+  const logicalWidth = Number(stage.dataset.designWidth) || stage.clientWidth || DESIGN_W;
+  const logicalHeight = Number(stage.dataset.designHeight) || stage.clientHeight || DESIGN_H;
+  const scale = logicalWidth > 0 && rect.width > 0 ? rect.width / logicalWidth : getStageScale();
+
+  return {
+    target,
+    viewportOwned: false,
+    left: rect.left,
+    top: rect.top,
+    logicalWidth,
+    logicalHeight,
+    scale: scale > 0 ? scale : 1,
+  };
+}
+
+/** Convert a point inside a viewport DOMRect into logical stage coordinates. */
+export function clientRectPointToStage(
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  xRatio = 0.5,
+  yRatio = 0.5,
+): { x: number; y: number } {
+  return clientToStage(
+    rect.left + rect.width * xRatio,
+    rect.top + rect.height * yRatio,
+  );
+}
+
+/** Stable fallback for stage-local particles/messages when a target is absent. */
+export function getStageLogicalCenter(): { x: number; y: number } {
+  const surface = getStageSurface();
+  return {
+    x: surface.logicalWidth / 2,
+    y: surface.logicalHeight / 2,
+  };
+}
+
 /** Pure inverse helpers make hit-testing independently regression-testable. */
 export function logicalToRendered(layout: StageLayout, x: number, y: number) {
   return { x: layout.left + x * layout.scale, y: layout.top + y * layout.scale };
