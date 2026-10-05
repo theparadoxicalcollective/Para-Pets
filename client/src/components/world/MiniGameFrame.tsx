@@ -25,7 +25,7 @@ export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   backgroundUrl?: string | null;
 }) {
   const artwork = backgroundUrl || worldBackgrounds[worldId];
-  useStageSurroundings({ imageUrl: artwork, backgroundPosition: "center", overlayAlpha: 0.32 });
+  useStageSurroundings({ imageUrl: artwork, backgroundPosition: "center", overlayAlpha: 0.32, priority: 20 });
 
   return (
     <div
