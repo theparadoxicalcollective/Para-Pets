@@ -563,9 +563,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Step-5 tap mode: spotlight egg + bouncing arrow so player knows to tap it */}
       {stepNum === 5 && step5TapMode && eggGuideRect && (() => {
-        const epx = eggGuideRect.left + eggGuideRect.width / 2;
-        const epy = eggGuideRect.top  + eggGuideRect.height / 2;
-        const eRad = Math.max(eggGuideRect.width, eggGuideRect.height) / 2 + 28;
+        const epx = eggGuideRect.left + (eggGuideRect.right - eggGuideRect.left) / 2;
+        const epy = eggGuideRect.top  + (eggGuideRect.bottom - eggGuideRect.top) / 2;
+        const eRad = Math.max((eggGuideRect.right - eggGuideRect.left), (eggGuideRect.bottom - eggGuideRect.top)) / 2 + 28;
         return (
           <>
             <div style={{
@@ -645,10 +645,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
         );
         if (!tutorialPotion) return null;
 
-        const fromCx = potionGuideRect.left + potionGuideRect.width / 2;
-        const fromCy = potionGuideRect.top + Math.min(52, potionGuideRect.height / 2);
-        const dx = (eggGuideRect.left + eggGuideRect.width / 2) - fromCx;
-        const dy = (eggGuideRect.top + eggGuideRect.height / 2) - fromCy;
+        const fromCx = potionGuideRect.left + (potionGuideRect.right - potionGuideRect.left) / 2;
+        const fromCy = potionGuideRect.top + Math.min(52, (potionGuideRect.bottom - potionGuideRect.top) / 2);
+        const dx = (eggGuideRect.left + (eggGuideRect.right - eggGuideRect.left) / 2) - fromCx;
+        const dy = (eggGuideRect.top + (eggGuideRect.bottom - eggGuideRect.top) / 2) - fromCy;
         return (
           <div
             data-testid="tutorial-potion-drag-demo"
