@@ -13,9 +13,11 @@ const VIEWPORT_SCENE_ID = "game-viewport-scene";
 export default function ViewportScenePortal({
   children,
   enabled = true,
+  interactive = true,
 }: {
   children: ReactNode;
   enabled?: boolean;
+  interactive?: boolean;
 }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
     typeof document === "undefined" ? null : document.getElementById(VIEWPORT_SCENE_ID),
@@ -46,7 +48,7 @@ export default function ViewportScenePortal({
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        pointerEvents: "auto",
+        pointerEvents: interactive ? "auto" : "none",
       }}
     >
       {children}
