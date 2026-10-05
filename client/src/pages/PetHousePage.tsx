@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
-import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientDeltaToStage, clientPointInStageElement, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
@@ -54,6 +54,7 @@ import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/pe
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
@@ -1734,7 +1735,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const imgW = h * bgAspect;
         setContainerH(h);
         setImgWidth(imgW);
-        setPanX(Math.max(Math.min(0, w - imgW), -(imgW - w) / 2));
+        setPanX(centeredHomeCameraPanX(w, imgW));
       } catch {}
     };
     return observeHomeViewport(container, recalc);
@@ -1775,7 +1776,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const h = container.offsetHeight;
     const imgW = h * bgAspect;
     const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
-    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + panDelta)));
+    setPanX(clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW));
   }, [bgAspect]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -2183,24 +2184,49 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     return <LoadingScreen label="Loading your home..." />;
   }
 
+  const homeOutdoorCameraBlocked = Boolean(
+    openInterior
+    || openInventory
+    || pendingActivate
+    || openGiftModal
+    || showNoMailPopup
+    || petHomeTutorialStep
+  );
+
   return (
     <div
-      ref={containerRef}
-      data-testid="pet-home-stage"
       className="relative w-full h-screen-frame"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab" }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onLostPointerCapture={handlePointerUp}
-      onContextMenu={e => e.preventDefault()}
+      style={{ maxWidth: "768px", margin: "0 auto", overflow: "hidden" }}
     >
+      <ViewportScenePortal enabled={!homeOutdoorCameraBlocked}>
+        <div
+          ref={containerRef}
+          data-testid="pet-home-stage"
+          data-testid-camera="pet-home-outdoor-expanded"
+          className="absolute inset-0 overflow-hidden"
+          style={{ ...HOME_TOUCH_SURFACE_STYLE, cursor: "grab" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
+          onContextMenu={e => e.preventDefault()}
+        >
       {/* ── CRITICAL MEMORY FIX ──────────────────────────────────────────────
           Background image is REMOVED from the DOM when the interior is open.
           This frees its GPU texture memory so the interior image can load safely.
           The interior is full-screen anyway, so the background isn't visible. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {!openInterior && (
+          <div
+            data-testid="pet-home-camera-extension-darkness"
+            className="absolute inset-0"
+            style={{
+              background: `rgba(0,0,0,${(tutorialSceneRevealActive ? 0 : outdoorLighting.darkness) / 100})`,
+              pointerEvents: "none",
+            }}
+          />
+        )}
         {bgUrl && !openInterior ? (
           <img
             src={bgUrl}
@@ -2499,6 +2525,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           />
         </>
       )}
+
+        </div>
+      </ViewportScenePortal>
 
       {/* Bottom inventory bar — left-aligned to avoid FloatingNav (bottom-right) */}
       <div
