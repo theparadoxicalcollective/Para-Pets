@@ -8,7 +8,8 @@ test("shared world viewport controller owns frame measurement and pan lifecycle"
   const source = read("client/src/worlds/useWorldViewportController.ts");
 
   assert.match(source, /new ResizeObserver\(measure\)/);
-  assert.match(source, /window\.addEventListener\("orientationchange", measure\)/);
+  assert.doesNotMatch(source, /window\.addEventListener\("orientationchange", measure\)/);
+  assert.doesNotMatch(source, /visualViewport|window\.innerWidth|window\.innerHeight|display-mode: standalone/);
   assert.match(source, /getStageScale\(\)/);
   assert.match(source, /WORLD_MAP_PAN_THRESHOLD_PX = 4/);
   assert.match(source, /WORLD_MAP_POST_PAN_CLICK_MS = 80/);
@@ -22,7 +23,7 @@ test("viewport controller preserves no-blank-space fit and clamp ownership", () 
 
   assert.match(source, /calculateWorldFitScale\(/);
   assert.match(source, /clampWorldMapOffset\(/);
-  assert.match(source, /mapHRef\.current,[\s\S]*?mapWidth/);
+  assert.match(source, /mapHRef\.current,[\s\S]*?false,[\s\S]*?mapWidth/);
   assert.match(source, /const initialX = \(frameWRef\.current - mapWidth \* fitScale\) \/ 2/);
   assert.match(source, /const initialY = \(frameHRef\.current - mapHRef\.current \* fitScale\) \/ 2/);
 });
