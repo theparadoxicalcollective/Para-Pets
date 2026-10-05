@@ -467,7 +467,7 @@ function InteriorViewer({
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: HousePet[];
-  panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number } | null>;
+  panStateRef: React.MutableRefObject<{ panX: number; imgWidth: number; containerH: number; element: HTMLDivElement | null } | null>;
   effects?: HouseInteriorEffect[];
   darkness?: number;
   sunlightStrength?: number;
@@ -568,13 +568,13 @@ function InteriorViewer({
         const w = container.offsetWidth;
         const h = container.offsetHeight;
         const imgW = h * aspectRef.current;
-        const newPanX = Math.max(Math.min(0, w - imgW), (w - imgW) / 2);
+        const newPanX = centeredHomeCameraPanX(w, imgW);
         setPanX(newPanX);
         setImgWidth(imgW);
         setContainerH(h);
         imgWidthRef.current = imgW;
         containerHRef.current = h;
-        panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h };
+        panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h, element: container };
       } catch {}
     };
     return observeHomeViewport(container, recalc);
@@ -608,12 +608,16 @@ function InteriorViewer({
     const w = container.offsetWidth;
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
-    const min = Math.min(0, w - imgW);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
     const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
-    const newPanX = Math.min(0, Math.max(min, drag.startPanX + panDelta));
+    const newPanX = clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW);
     setPanX(newPanX);
-    panStateRef.current = { panX: newPanX, imgWidth: imgWidthRef.current, containerH: containerHRef.current };
+    panStateRef.current = {
+      panX: newPanX,
+      imgWidth: imgWidthRef.current,
+      containerH: containerHRef.current,
+      element: container,
+    };
   }, [panStateRef]);
 
   const onContainerUp = useCallback((e: React.PointerEvent) => {
@@ -818,18 +822,33 @@ function InteriorViewer({
   }, [roomSleepEffects, onMovePet]);
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0"
-      style={{ ...HOME_TOUCH_SURFACE_STYLE, ...HOME_FIXED_VIEWPORT_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
-      onPointerDown={onContainerDown}
-      onPointerMove={onContainerMove}
-      onPointerUp={onContainerUp}
-      onPointerCancel={onContainerUp}
-      onLostPointerCapture={onContainerUp}
-      onContextMenu={e => e.preventDefault()}
-    >
-      {/* Interior background image — single decode only */}
+    <ViewportScenePortal>
+      <div
+        ref={containerRef}
+        data-testid="pet-home-interior-camera"
+        className="absolute inset-0"
+        style={{ ...HOME_TOUCH_SURFACE_STYLE, zIndex: 60, background: "#000", overflow: "hidden" }}
+        onPointerDown={onContainerDown}
+        onPointerMove={onContainerMove}
+        onPointerUp={onContainerUp}
+        onPointerCancel={onContainerUp}
+        onLostPointerCapture={onContainerUp}
+        onContextMenu={e => e.preventDefault()}
+      >
+      <img
+        aria-hidden
+        src={url}
+        draggable={false}
+        data-testid="pet-home-interior-camera-extension"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+      />
+      <div
+        aria-hidden
+        data-testid="pet-home-interior-extension-darkness"
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: `rgba(0,0,0,${Math.max(0, Math.min(100, darkness)) / 100})`, zIndex: 1 }}
+      />
+      {/* Interior background image — single authored coordinate canvas */}
       <img
         src={url}
         alt="Building interior"
@@ -1076,7 +1095,8 @@ function InteriorViewer({
       >
         <HomeInteriorExitSparkle />
       </button>
-    </div>
+      </div>
+    </ViewportScenePortal>
   );
 }
 
@@ -1131,7 +1151,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
   });
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number; interiorEffects: HouseInteriorEffect[]; interiorDarkness: number } | null>(null);
-  const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
+  const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number; element: HTMLDivElement | null } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   // Hide the global FloatingNav while an inventory drawer is open so its
   // fan-out arc doesn't collide with the Pets/Home/Decor/Friends bar.
@@ -1804,7 +1824,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const interior = interiorPanRef.current;
         const container = containerRef.current;
         if (container) {
-          const localPoint = clientPointInStageElement(container, e.clientX, e.clientY);
+          const dropElement = interior?.element ?? container;
+          const localPoint = clientPointInStageElement(dropElement, e.clientX, e.clientY);
           const localX = localPoint.x;
           const localY = localPoint.y;
           if (interior && interior.imgWidth > 0 && openInterior) {
@@ -1867,7 +1888,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const interior = interiorPanRef.current;
         const container = containerRef.current;
         if (container) {
-          const localPoint = clientPointInStageElement(container, e.clientX, e.clientY);
+          const dropElement = interior?.element ?? container;
+          const localPoint = clientPointInStageElement(dropElement, e.clientX, e.clientY);
           const localX = localPoint.x;
           const localY = localPoint.y;
           if (interior && interior.imgWidth > 0 && openInterior) {
