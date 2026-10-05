@@ -19,6 +19,10 @@ function handler(method: "get" | "patch", path: string, dependencies: Record<str
     app: { [method]: (_path: string, _auth: unknown, fn: typeof route) => { route = fn; } },
     isAuthenticated: () => {}, console: { error: () => {} },
     AccountConflictError, publicAccount, updateUsernameSchema,
+    // Legacy route snippets can reference the reserved QA guard. Tests in this
+    // file exercise ordinary-player behavior, so default that dependency to
+    // false unless a specific case overrides it.
+    isDedicatedQaTester: () => false,
     ...dependencies,
   });
   return async (request: any) => {
