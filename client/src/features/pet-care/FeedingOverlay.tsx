@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientRectPointToStage, clientToStage, clientToStagePortal, getDesignW, getStageLogicalCenter, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientDeltaToStage, clientPointInStageElement, clientRectPointToStage, clientToStage, clientToStagePortal, getDesignW, getStageLogicalCenter, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -195,7 +195,7 @@ function PetCareItemShelf({
   } | null>(null);
 
   const paintBodies = useCallback(() => {
-    const height = jarContentsRef.current?.getBoundingClientRect().height ?? 1;
+    const height = jarContentsRef.current?.clientHeight ?? 1;
     for (const body of bodiesRef.current) {
       const element = itemElementsRef.current.get(body.key);
       if (!element) continue;
@@ -216,10 +216,9 @@ function PetCareItemShelf({
         animationFrameRef.current = null;
         return;
       }
-      const rect = boundsElement.getBoundingClientRect();
       const moving = stepPetCareJarPhysics(
         bodiesRef.current,
-        { width: rect.width, height: rect.height },
+        { width: boundsElement.clientWidth || 1, height: boundsElement.clientHeight || 1 },
         (now - lastTime) / 1000,
         heldKeyRef.current,
       );
@@ -237,9 +236,13 @@ function PetCareItemShelf({
 
   useEffect(() => {
     const initializeFrame = window.requestAnimationFrame(() => {
-      const rect = jarContentsRef.current?.getBoundingClientRect();
-      if (!rect?.width || !rect?.height) return;
-      bodiesRef.current = reconcilePetCareJarBodies(bodiesRef.current, visuals, { width: rect.width, height: rect.height });
+      const jar = jarContentsRef.current;
+      if (!jar?.clientWidth || !jar?.clientHeight) return;
+      bodiesRef.current = reconcilePetCareJarBodies(
+        bodiesRef.current,
+        visuals,
+        { width: jar.clientWidth, height: jar.clientHeight },
+      );
       paintBodies();
       if (dragEnabled && !safeMode) startPhysics();
     });
@@ -272,18 +275,23 @@ function PetCareItemShelf({
 
   const moveJarItem = (event: React.PointerEvent<HTMLDivElement>) => {
     const active = localDragRef.current;
-    const rect = jarContentsRef.current?.getBoundingClientRect();
+    const jar = jarContentsRef.current;
     const body = bodiesRef.current.find((candidate) => candidate.key === active?.key);
-    if (!active || active.pointerId !== event.pointerId || !rect?.width || !rect?.height || !body) return;
+    if (!active || active.pointerId !== event.pointerId || !jar?.clientWidth || !jar?.clientHeight || !body) return;
     const now = performance.now();
     const elapsed = Math.max(0.008, (now - active.lastTime) / 1000);
+    const localPoint = clientPointInStageElement(jar, event.clientX, event.clientY);
+    const localVelocity = clientDeltaToStage(
+      event.clientX - active.lastX,
+      event.clientY - active.lastY,
+    );
     movePetCareJarBody(
       body,
-      { width: rect.width, height: rect.height },
-      event.clientX - rect.left,
-      event.clientY - rect.top,
-      (event.clientX - active.lastX) / elapsed,
-      (event.clientY - active.lastY) / elapsed,
+      { width: jar.clientWidth, height: jar.clientHeight },
+      localPoint.x,
+      localPoint.y,
+      localVelocity.x / elapsed,
+      localVelocity.y / elapsed,
     );
     active.lastX = event.clientX;
     active.lastY = event.clientY;

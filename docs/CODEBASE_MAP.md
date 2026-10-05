@@ -29,6 +29,12 @@ World and mini-game player screens inherit the authoritative game stage instead 
 
 The World's internal authored-map transform is intentionally separate from device scaling: it still covers the logical viewport and allows panning to every authored edge, while NPC, decor, object, and hotspot coordinates remain attached to the same Admin-authored map. Body-level World effects that need client pixels derive them from the rendered stage instead of the physical window.
 
+### Player overlay and editable-scene edge cases
+
+Pet Home tutorial targets are measured in client pixels and converted into logical stage rectangles before arrows, spotlights, and message cards are positioned. Pet Care jar physics uses logical element dimensions and converts pointer movement/velocity into stage-local pixels so inventory items do not jump or accelerate differently on scaled portrait devices. Aquarium drag ghosts likewise convert their client pointer position back into the logical stage before rendering.
+
+These conversions deliberately preserve the native 390px iPhone reference path (scale 1), while allowing Android phones/tablets to scale the outer composition without changing Admin- or player-authored positions. Future Aquarium decor placement should use the same stage-local conversion contract rather than raw client coordinates.
+
 ## Major game systems
 
 | System | Primary locations |
