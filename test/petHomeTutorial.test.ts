@@ -51,6 +51,6 @@ test("Pet Home starts the guide only after the scene is ready and exposes stable
   assert.match(page, /setPetHomeTutorialStep\("welcome"\)/);
   assert.match(page, /data-home-building-kind=\{isMailbox \? "mailbox" : "building"\}/);
   assert.match(page, /data-home-tutorial-building=\{isTutorialPrimary \? "primary" : undefined\}/);
-  assert.match(page, /containerWidth \/ 2 - \(building\.posX \/ 100\) \* imgWidth/);
+  assert.doesNotMatch(page, /containerWidth \/ 2 - \(building\.posX \/ 100\) \* imgWidth/);
   assert.match(page, /<PetHomeTutorialOverlay/);
 });
