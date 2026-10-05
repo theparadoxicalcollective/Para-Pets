@@ -98,7 +98,8 @@ test("WorldPage delegates viewport state and pointer handlers to the shared cont
   assert.match(worldPage, /onPointerDown=\{handleVpPointerDown\}/);
   assert.match(worldPage, /onPointerMove=\{handleVpPointerMove\}/);
   assert.match(worldPage, /onPointerUp=\{handleVpPointerUp\}/);
-  assert.match(worldPage, /onPointerCancel=\{handleVpPointerUp\}/);
+  assert.match(worldPage, /onPointerCancel=\{handleVpPointerCancel\}/);
+  assert.match(worldPage, /onLostPointerCapture=\{handleVpPointerCancel\}/);
 
   assert.doesNotMatch(worldPage, /const mapPanPointersRef/);
   assert.doesNotMatch(worldPage, /const handleVpPointerDown = useCallback/);
