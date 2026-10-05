@@ -406,15 +406,36 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             </div>
           </div>}
 
-          {/* Coins + Essence — stacked vertically */}
-          {!hideCoins && <div className="flex flex-col gap-0 flex-shrink-0">
-            {/* Row 1: Coin bar + coin bag */}
-            <div className="flex flex-row items-center gap-1">
+          {/* Coins + Essence + coin bundles — one compact HUD cluster */}
+          {!hideCoins && (
+            <div
+              data-testid="topbar-resource-cluster"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "auto 54px",
+                gridTemplateRows: "30px 30px",
+                columnGap: 5,
+                rowGap: 2,
+                alignItems: "center",
+                flexShrink: 0,
+              }}
+            >
               <button
                 data-testid="button-coin-shop"
                 onClick={() => navigate("/coins")}
                 className="transition-transform active:scale-95"
-                style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
+                style={{
+                  gridColumn: 1,
+                  gridRow: 1,
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
               >
                 <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain" }} />
                 <span
@@ -433,20 +454,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   {user.coins.toLocaleString()}
                 </span>
               </button>
-              <button
-                data-testid="button-coin-bag"
-                onClick={() => navigate("/coins")}
-                className="transition-transform active:scale-90"
-                style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
-              >
-                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 42, height: 42, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(212,160,23,0.55))" }} />
-              </button>
-            </div>
-            {/* Row 2: Essence bar + essence icon */}
-            <div className="flex flex-row items-center gap-1">
+
               <div
                 data-testid="display-essence"
-                style={{ flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
+                style={{
+                  gridColumn: 1,
+                  gridRow: 2,
+                  flexShrink: 0,
+                  position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
               >
                 <img src={essenceBarImg} alt="Essence" style={{ height: 30, width: "auto", objectFit: "contain" }} />
                 <span
@@ -465,8 +483,68 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   {(user.essence ?? 0).toLocaleString()}
                 </span>
               </div>
+
+              <button
+                data-testid="button-coin-bag"
+                aria-label="Open coin bundles"
+                title="Coin Bundles"
+                onClick={() => navigate("/coins")}
+                className="transition-transform active:scale-90"
+                style={{
+                  gridColumn: 2,
+                  gridRow: "1 / span 2",
+                  width: 54,
+                  height: 54,
+                  alignSelf: "center",
+                  justifySelf: "center",
+                  display: "grid",
+                  placeItems: "center",
+                  position: "relative",
+                  background: "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
+                  border: "1.5px solid rgba(240,192,64,0.72)",
+                  borderRadius: 16,
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.48), 0 0 13px rgba(240,192,64,0.32), inset 0 0 9px rgba(255,223,125,0.12)",
+                  padding: 0,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={coinBagIconImg}
+                  alt="Buy Coins"
+                  style={{
+                    width: 47,
+                    height: 47,
+                    objectFit: "contain",
+                    filter: "brightness(1.08) drop-shadow(0 0 9px rgba(240,192,64,0.68)) drop-shadow(0 3px 5px rgba(0,0,0,0.65))",
+                  }}
+                />
+                <span
+                  aria-hidden="true"
+                  className="font-fantasy"
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -4,
+                    width: 18,
+                    height: 18,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 999,
+                    background: "linear-gradient(145deg, #ffe9a8 0%, #d4a017 58%, #8b5d0b 100%)",
+                    border: "1px solid rgba(255,245,190,0.9)",
+                    color: "#201204",
+                    fontSize: 13,
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    boxShadow: "0 0 8px rgba(240,192,64,0.7)",
+                  }}
+                >
+                  +
+                </span>
+              </button>
             </div>
-          </div>}
+          )}
           </div>
         </div>
 
