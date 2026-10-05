@@ -237,6 +237,26 @@ export function clientToStage(clientX: number, clientY: number): { x: number; y:
   return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale };
 }
 
+/** Convert a client-pixel movement into logical stage-pixel movement. */
+export function clientDeltaToStage(deltaX: number, deltaY: number): { x: number; y: number } {
+  const scale = getStageScale();
+  return { x: deltaX / scale, y: deltaY / scale };
+}
+
+/** Convert a client point into logical coordinates local to an element in the stage. */
+export function clientPointInStageElement(
+  element: Element,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } {
+  const rect = element.getBoundingClientRect();
+  const scale = getStageScale();
+  return {
+    x: (clientX - rect.left) / scale,
+    y: (clientY - rect.top) / scale,
+  };
+}
+
 export type StageSurface = {
   target: HTMLElement;
   viewportOwned: boolean;
