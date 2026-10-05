@@ -55,6 +55,10 @@ test("Pet Home starts the guide only after the scene is ready and exposes stable
   assert.match(page, /data-home-tutorial-building=\{isTutorialPrimary \? "primary" : undefined\}/);
   assert.doesNotMatch(page, /containerWidth \/ 2 - \(building\.posX \/ 100\) \* imgWidth/);
   assert.match(page, /<PetHomeTutorialOverlay/);
+  assert.match(page, /const tutorialSceneRevealActive = petHomeTutorialStep === "mailbox" \|\| petHomeTutorialStep === "building"/);
+  assert.match(page, /darkness=\{tutorialSceneRevealActive \? 0 : outdoorLighting\.darkness\}/);
+  assert.match(page, /nightStrength=\{tutorialSceneRevealActive \? 0 : outdoorLighting\.nightStrength\}/);
+  assert.match(overlay, /background: revealHomeScene \? "rgba\(0,0,0,0\)" : "rgba\(0,0,0,0\.62\)"/);
 });
 
 
