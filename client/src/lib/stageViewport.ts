@@ -3,6 +3,7 @@ import {
   calculateStageLayout,
   getVisibleViewport,
   isTouchFirstDevice,
+  shouldBlockTouchLandscape,
   shouldFitPortraitReference,
   type StageLayout,
 } from "@/lib/stage";
@@ -13,21 +14,35 @@ import {
  * source of truth, while this module owns browser lifecycle observation and
  * publishing the resulting CSS variables.
  */
-export function readStageViewportLayout(): StageLayout {
+export type StageViewportLayout = StageLayout & {
+  touchPortraitBlocked: boolean;
+};
+
+export function readStageViewportLayout(): StageViewportLayout {
   const viewport = getVisibleViewport();
+  const touchFirst = isTouchFirstDevice();
   const fitPortraitReference = shouldFitPortraitReference(
     viewport.width,
     viewport.height,
-    isTouchFirstDevice(),
+    touchFirst,
     viewport.keyboardReduced,
   );
-  return calculateStageLayout(
+  const touchPortraitBlocked = shouldBlockTouchLandscape(
     viewport.width,
     viewport.height,
-    viewport.top,
-    viewport.left,
-    { fitPortraitReference },
+    touchFirst,
+    viewport.keyboardReduced,
   );
+  return {
+    ...calculateStageLayout(
+      viewport.width,
+      viewport.height,
+      viewport.top,
+      viewport.left,
+      { fitPortraitReference },
+    ),
+    touchPortraitBlocked,
+  };
 }
 
 /**
@@ -49,7 +64,7 @@ export function publishStageViewportCss(layout: StageLayout): void {
   root.setProperty("--stage-logical-height", `${layout.designHeight}px`);
 }
 
-type StageViewportListener = (layout: StageLayout) => void;
+type StageViewportListener = (layout: StageViewportLayout) => void;
 
 /**
  * Subscribe to all browser lifecycle events that can change the usable game
@@ -99,8 +114,8 @@ export function observeStageViewport(listener: StageViewportListener): () => voi
  * unauthenticated/root loading shell. Only one of those stage surfaces is
  * mounted at a time, but they now consume exactly the same viewport observer.
  */
-export function useStageViewportLayout(): StageLayout {
-  const [layout, setLayout] = useState<StageLayout>(() => readStageViewportLayout());
+export function useStageViewportLayout(): StageViewportLayout {
+  const [layout, setLayout] = useState<StageViewportLayout>(() => readStageViewportLayout());
 
   useEffect(() => observeStageViewport(setLayout), []);
 
