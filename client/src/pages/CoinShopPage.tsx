@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
+import { getStageRenderedPoint } from "@/lib/stage";
 import { playShopBell } from "@/lib/sounds";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -236,9 +237,16 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             }, 1800);
           }
           try { playShopBell(); } catch {}
-          try { burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2); } catch {}
-          const t1 = setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
-          const t2 = setTimeout(() => { try { burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3); } catch {} }, 500);
+          const celebrationCenter = getStageRenderedPoint();
+          const celebrationUpperLeft = getStageRenderedPoint(1 / 3, 1 / 3);
+          const celebrationUpperRight = getStageRenderedPoint(2 / 3, 1 / 3);
+          try { burstGoldenOrbs(celebrationCenter.x, celebrationCenter.y); } catch {}
+          const t1 = setTimeout(() => {
+            try { burstGoldenOrbs(celebrationUpperLeft.x, celebrationUpperLeft.y); } catch {}
+          }, 300);
+          const t2 = setTimeout(() => {
+            try { burstGoldenOrbs(celebrationUpperRight.x, celebrationUpperRight.y); } catch {}
+          }, 500);
           orbTimersRef.current = [t1, t2];
         }
         setVerifying(false);

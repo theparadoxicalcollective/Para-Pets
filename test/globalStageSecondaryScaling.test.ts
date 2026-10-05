@@ -53,7 +53,9 @@ test("World body-level reward effects use the rendered game-stage center", () =>
   assert.match(world, /burstGoldenOrbs\(stageCenter\.x, stageCenter\.y, 6\)/);
   assert.doesNotMatch(world, /burstGoldenOrbs\(window\.innerWidth \/ 2, window\.innerHeight \/ 2, 6\)/);
 
+  assert.match(stage, /export function getStageRenderedPoint/);
+  assert.match(stage, /surface\.left \+ surface\.logicalWidth \* surface\.scale \* xRatio/);
+  assert.match(stage, /surface\.top \+ surface\.logicalHeight \* surface\.scale \* yRatio/);
   assert.match(stage, /export function getStageRenderedCenter/);
-  assert.match(stage, /surface\.left \+ \(surface\.logicalWidth \* surface\.scale\) \/ 2/);
-  assert.match(stage, /surface\.top \+ \(surface\.logicalHeight \* surface\.scale\) \/ 2/);
+  assert.match(stage, /return getStageRenderedPoint\(\)/);
 });
