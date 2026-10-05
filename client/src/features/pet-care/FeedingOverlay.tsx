@@ -18,6 +18,8 @@ import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
+import { useStageSurroundings } from "@/lib/stageSurroundings";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { QuillBadge } from "@/components/QuillBadge";
 import moodFaceHappy from "@assets/mood_face_happy.png";
@@ -597,6 +599,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const recoveredPhase = useMemo(() => readRecoverablePetCarePhase(window.localStorage), []);
   const { reducedVisualMode: safeMode, dragEnabled, emergencyInteractionFallback } = getPetCareRuntimeDecisions(runtime, window.location.search, !!recoveredPhase);
   const feedbackProfile = useMemo(() => getPetCareFeedbackProfile(safeMode), [safeMode]);
+  useStageSurroundings({
+    imageUrl: feedingPageBg,
+    backgroundPosition: "center center",
+    overlayAlpha: 0.18,
+    priority: 25,
+  });
   const interactionRef = useRef<{ id: string; itemType?: "edibles" | "gift" }>({ id: "mount" });
   const recordPhase = useCallback((phase: PetCarePhase, itemType = interactionRef.current.itemType) => {
     const record: PetCarePhaseRecord = {
@@ -1497,7 +1505,21 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   }, [cleanupItemGesture, feedMutation, inventory, pet?.inventoryId, recordPhase, toast]);
 
   return (
-    <div
+    <>
+      <ViewportScenePortal interactive={false}>
+        <div
+          data-testid="pet-care-viewport-environment"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: "#0c1a10",
+            backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.04) 58%, rgba(0,0,0,0.38) 100%), url(${feedingPageBg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      </ViewportScenePortal>
+      <div
       ref={overlayRef}
       className={`fixed inset-0 pet-care-overlay${dragEnabled && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
       style={{
@@ -2300,5 +2322,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         </div>
       )}
     </div>
+    </>
   );
 }

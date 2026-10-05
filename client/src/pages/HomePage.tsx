@@ -1942,7 +1942,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Veridian Watcher + Support — device-edge upper-right HUD */}
-      {!showProfile && !showActionMenu && !activePetModal && (
+      {!showProfile && !showActionMenu && !activePetModal && !showWorldChat && !showSupportModal && (
         <ViewportHudPortal>
           <div
             data-testid="viewport-hud-corner-actions"
@@ -2023,25 +2023,32 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </ViewportHudPortal>
       )}
 
-      {/* World Chat Panel */}
+      {/* World Chat Panel — render on the same device HUD as its launcher so
+          it sits above the profile/resources instead of behind them. */}
       {showWorldChat && (
-        <>
-          {/* Transparent backdrop — tap anywhere outside the panel to close */}
+        <ViewportHudPortal>
           <div
+            data-testid="viewport-hud-world-chat-layer"
             className="absolute inset-0"
-            style={{ zIndex: 10000 }}
-            onClick={() => setShowWorldChat(false)}
-          />
-          <WorldChatPanel
-            currentUserId={currentUser.id}
-            onClose={() => setShowWorldChat(false)}
-            onNewMessage={() => setChatHasNewMsg(true)}
-          />
-        </>
+            style={{ zIndex: 10000, pointerEvents: "auto" }}
+          >
+            {/* Transparent backdrop — tap anywhere outside the panel to close */}
+            <div
+              className="absolute inset-0"
+              onClick={() => setShowWorldChat(false)}
+            />
+            <WorldChatPanel
+              currentUserId={currentUser.id}
+              onClose={() => setShowWorldChat(false)}
+              onNewMessage={() => setChatHasNewMsg(true)}
+            />
+          </div>
+        </ViewportHudPortal>
       )}
 
       {/* Support message modal */}
       {showSupportModal && (
+        <ViewportHudPortal>
         <div
           className="absolute inset-0 z-[60] flex items-center justify-center px-5"
           style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
@@ -2149,6 +2156,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             )}
           </div>
         </div>
+        </ViewportHudPortal>
       )}
 
       <PowerUpOverlay
