@@ -24,6 +24,7 @@ import { bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart 
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
+import ViewportHudPortal from "@/components/ViewportHudPortal";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ActivePetPlacement from "@/components/ActivePetPlacement";
 import PetAnimator from "@/components/PetAnimator";
@@ -834,11 +835,24 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </div>
 
       <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
-        <div style={{ position: "absolute", top: 18, left: 0, right: 0, zIndex: 40, pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "auto" }}>
-            <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+        <ViewportHudPortal>
+          <div
+            data-testid="viewport-hud-topbar"
+            style={{
+              position: "absolute",
+              top: 18,
+              left: 0,
+              right: 0,
+              zIndex: 40,
+              pointerEvents: "none",
+              visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible",
+            }}
+          >
+            <div style={{ pointerEvents: "auto" }}>
+              <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+            </div>
           </div>
-        </div>
+        </ViewportHudPortal>
 
         {activePet && (
           <div
