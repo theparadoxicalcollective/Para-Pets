@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,6 +26,113 @@ interface TopBarProps {
   onUserUpdate?: (user: any) => void;
   hideProfile?: boolean;
   hideCoins?: boolean;
+}
+
+function RewardChestArt({ size }: { size: number }) {
+  const filterId = `reward-chest-glow-${useId().replace(/:/g, "")}`;
+
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      style={{ display: "block", overflow: "visible", pointerEvents: "none" }}
+    >
+      <defs>
+        <filter
+          id={filterId}
+          x="-55%"
+          y="-55%"
+          width="210%"
+          height="210%"
+          colorInterpolationFilters="sRGB"
+        >
+          {/* Build the glow from solid chest pixels only. This intentionally
+              ignores faint transparent-canvas pixels that can become a square
+              halo with CSS drop-shadow on mobile Safari/WebKit. */}
+          <feComponentTransfer in="SourceAlpha" result="chestAlpha">
+            <feFuncA type="table" tableValues="0 0 1 1" />
+          </feComponentTransfer>
+          <feGaussianBlur in="chestAlpha" stdDeviation="2.2" result="tightBlur" />
+          <feFlood floodColor="#a7f3d0" floodOpacity="0.9" result="tightColor" />
+          <feComposite in="tightColor" in2="tightBlur" operator="in" result="tightGlow" />
+          <feGaussianBlur in="chestAlpha" stdDeviation="5.2" result="wideBlur" />
+          <feFlood floodColor="#22c55e" floodOpacity="0.58" result="wideColor" />
+          <feComposite in="wideColor" in2="wideBlur" operator="in" result="wideGlow" />
+          <feMerge>
+            <feMergeNode in="wideGlow" />
+            <feMergeNode in="tightGlow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <image
+        href={giftIconImg}
+        x="0"
+        y="0"
+        width="100"
+        height="100"
+        preserveAspectRatio="xMidYMid meet"
+        filter={`url(#${filterId})`}
+      />
+    </svg>
+  );
+}
+
+function RewardCountGem({ count, compact = false }: { count: number; compact?: boolean }) {
+  const size = compact ? 18 : 23;
+  const fontSize = count > 99 ? (compact ? 6 : 7) : count > 9 ? (compact ? 7 : 8) : (compact ? 8 : 9);
+
+  return (
+    <span
+      data-testid="reward-count-gem"
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        top: compact ? -2 : -4,
+        right: compact ? -2 : -4,
+        width: size,
+        height: size,
+        transform: "rotate(45deg)",
+        borderRadius: compact ? 4 : 5,
+        background: "linear-gradient(145deg, rgba(209,250,229,0.98) 0%, rgba(34,197,94,0.96) 38%, rgba(6,95,70,0.98) 100%)",
+        border: "1.5px solid rgba(244,211,105,0.95)",
+        boxShadow: "0 0 0 1px rgba(6,78,59,0.72), 0 0 9px rgba(74,222,128,0.78), inset 0 0 5px rgba(255,255,255,0.3)",
+        pointerEvents: "none",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 2,
+          left: 3,
+          width: compact ? 3 : 4,
+          height: 2,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.8)",
+          boxShadow: "0 0 4px rgba(255,255,255,0.65)",
+        }}
+      />
+      <span
+        className="font-fantasy"
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "grid",
+          placeItems: "center",
+          transform: "rotate(-45deg)",
+          color: "#f2ffe9",
+          fontWeight: 900,
+          fontSize,
+          lineHeight: 1,
+          textShadow: "0 1px 2px rgba(1,35,20,0.9), 0 0 3px rgba(5,80,45,0.8)",
+        }}
+      >
+        {count}
+      </span>
+    </span>
+  );
 }
 
 export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins }: TopBarProps) {
@@ -368,32 +475,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           {hasRewards && location !== "/" && (
             <button
               data-testid="button-gift-rewards"
+              aria-label={`Open ${pendingRewards.length} pending reward${pendingRewards.length === 1 ? "" : "s"}`}
               onClick={() => setShowRewards(true)}
               className="relative flex-shrink-0 transition-transform active:scale-90 animate-bounce"
-              style={{ background: "none", border: "none", cursor: "pointer", animationDuration: "2s" }}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", animationDuration: "2s" }}
             >
-              <img
-                src={giftIconImg}
-                alt="Gifts"
-                className="w-12 h-12 object-contain"
-                style={{
-                  WebkitMaskImage:
-                    "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
-                  maskImage:
-                    "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
-                  filter: "drop-shadow(0 0 6px rgba(134,239,172,0.95)) drop-shadow(0 0 14px rgba(34,197,94,0.78)) drop-shadow(0 0 22px rgba(16,185,129,0.48))",
-                }}
-              />
-              <div
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                style={{
-                  background: "radial-gradient(circle at 35% 30%, #bbf7d0 0%, #22c55e 48%, #15803d 100%)",
-                  border: "1.5px solid rgba(220,252,231,0.95)",
-                  boxShadow: "0 0 7px rgba(74,222,128,0.9), 0 0 14px rgba(34,197,94,0.5)",
-                }}
-              >
-                <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
-              </div>
+              <RewardChestArt size={48} />
+              <RewardCountGem count={pendingRewards.length} compact />
             </button>
           )}
         </div>
@@ -403,39 +491,22 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       {hasRewards && location === "/" && (
         <button
           data-testid="button-gift-rewards-floating"
+          aria-label={`Open ${pendingRewards.length} pending reward${pendingRewards.length === 1 ? "" : "s"}`}
           onClick={() => setShowRewards(true)}
           className="fixed transition-transform active:scale-90"
           style={{
             top: "calc(17*var(--vh))",
-            right: "max(calc((100vw - 768px) / 2 + 14px), 14px)",
+            right: "calc(7 * var(--vw))",
             zIndex: 40,
             background: "none",
             border: "none",
+            padding: 0,
             cursor: "pointer",
             pointerEvents: "auto",
           }}
         >
-          <img
-            src={giftIconImg}
-            alt="Gifts"
-            style={{
-              width: 70,
-              height: 70,
-              objectFit: "contain",
-              filter:
-                "drop-shadow(0 0 5px rgba(187,247,208,0.95)) drop-shadow(0 0 13px rgba(34,197,94,0.9)) drop-shadow(0 0 24px rgba(16,185,129,0.58)) drop-shadow(0 3px 5px rgba(0,0,0,0.78))",
-            }}
-          />
-          <div
-            className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-            style={{
-              background: "radial-gradient(circle at 35% 30%, #bbf7d0 0%, #22c55e 48%, #15803d 100%)",
-              border: "1.5px solid rgba(220,252,231,0.95)",
-              boxShadow: "0 0 8px rgba(74,222,128,0.95), 0 0 16px rgba(34,197,94,0.55)",
-            }}
-          >
-            <span className="font-bold text-[9px] text-emerald-950 leading-none">{pendingRewards.length}</span>
-          </div>
+          <RewardChestArt size={70} />
+          <RewardCountGem count={pendingRewards.length} />
         </button>
       )}
 

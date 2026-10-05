@@ -271,7 +271,7 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /transform: depth3d \? "translateZ\(var\(--card-title-depth, 0px\)\)" : undefined/);
   assert.doesNotMatch(preview, /translateZ\(30px\)/);
   assert.match(detail, /--card-title-depth/);
-  assert.match(detail, /intensity \* 6/);
+  assert.match(detail, /intensity \* 1\.2/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
   assert.match(preview, /TITLE_Y_NUDGE[\s\S]*?2:\s*\.75[\s\S]*?3:\s*\.9/);
   assert.match(preview, /isName && !editable && textSize !== "scaled"/);
@@ -327,6 +327,12 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /animateTurnTo\(gesture\.baseAngle \+ direction \* 180\)/);
   assert.match(detail, /front\.style\.transformStyle = frontAngle >= 70 \? "flat" : "preserve-3d"/);
   assert.match(detail, /front\.style\.visibility = frontAngle >= 90 \? "hidden" : "visible"/);
+  assert.match(detail, /const sideDistance = Math\.abs\(frontAngle - 90\)/);
+  assert.match(detail, /--card-side-title-opacity/);
+  assert.match(detail, /--card-title-counter-turn/);
+  assert.match(detail, /data-testid="card-side-turn-title"/);
+  assert.match(detail, /rotateY\(var\(--card-title-counter-turn, 0deg\)\)/);
+  assert.match(detail, /text=\{card\.name\}/);
   assert.match(detail, /turnAnimatingRef\.current = false/);
 
   assert.match(detail, /data-testid="card-front-face"/);
