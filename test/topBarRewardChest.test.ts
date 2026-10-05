@@ -29,8 +29,8 @@ test("home reward chest is inset from the stage edge using stage-relative units"
   const block = source.slice(start, start + 1200);
   assert.match(block, /right: "calc\\(7 \\* var\\(--vw\\)\\)"/);
   assert.doesNotMatch(block, /100vw/);
-  assert.match(block, /<RewardChestArt size=\\{70\\} \\/>/);
-  assert.match(block, /<RewardCountGem count=\\{pendingRewards\\.length\\} \\/>/);
+  assert.ok(block.includes("<RewardChestArt size={70} />"));
+  assert.ok(block.includes("<RewardCountGem count={pendingRewards.length} />"));
 });
 
 test("reward buttons expose the pending reward count to assistive technology", () => {
