@@ -380,7 +380,7 @@ export function renderedToLogical(layout: StageLayout, x: number, y: number) {
   return { x: (x - layout.left) / layout.scale, y: (y - layout.top) / layout.scale };
 }
 
-export type ViewportHudRect = {
+export type ViewportSurfaceRect = {
   left: number;
   top: number;
   width: number;
@@ -391,10 +391,10 @@ export type ViewportHudRect = {
  * Logical rectangle that maps back onto the entire visible device viewport
  * while retaining the same uniform scale as the canonical game stage.
  *
- * This lets persistent HUD controls reach real device edges without changing
- * gameplay/world coordinates or stretching the iPhone-12-based composition.
+ * HUD controls and opted-in camera/world scenes can share this geometry while
+ * the authoritative 390×844 gameplay coordinate system remains unchanged.
  */
-export function calculateViewportHudRect(layout: StageLayout): ViewportHudRect {
+export function calculateViewportSurfaceRect(layout: StageLayout): ViewportSurfaceRect {
   const scale = Math.max(layout.scale, 0.0001);
   return {
     left: layout.left === 0 ? 0 : -layout.left / scale,
@@ -402,6 +402,12 @@ export function calculateViewportHudRect(layout: StageLayout): ViewportHudRect {
     width: layout.viewportWidth / scale,
     height: layout.viewportHeight / scale,
   };
+}
+
+export type ViewportHudRect = ViewportSurfaceRect;
+
+export function calculateViewportHudRect(layout: StageLayout): ViewportHudRect {
+  return calculateViewportSurfaceRect(layout);
 }
 
 export function clientToPortalPoint(layout: StageLayout, clientX: number, clientY: number) {

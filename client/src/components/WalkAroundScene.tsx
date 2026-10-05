@@ -133,13 +133,21 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       onLostPointerCapture={onJoystickPointerUp}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {config.aspectLayout && (
+        <img
+          aria-hidden
+          src={config.backgroundUrl}
+          draggable={false}
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+        />
+      )}
       <div
         ref={worldRef}
         data-testid="walkaround-world-layer"
         className="absolute left-0 top-0 cursor-pointer"
         style={{width:world.width,height:world.height,transform:`translate3d(${-camera.x}px, ${-camera.y}px, 0)`,willChange:"transform"}}
       >
-        {config.aspectLayout && <img aria-hidden src={config.backgroundUrl} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md" draggable={false}/>}<img
+        <img
           src={config.backgroundUrl}
           alt={config.name}
           draggable={false}
