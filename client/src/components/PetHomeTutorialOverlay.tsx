@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { HOME_FIXED_VIEWPORT_STYLE, HOME_TOUCH_SURFACE_STYLE } from "@/lib/homeCrossDevice";
+import { HOME_TOUCH_SURFACE_STYLE } from "@/lib/homeCrossDevice";
+import { getStageSurface, type StageSurface } from "@/lib/stage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 export type PetHomeTutorialStep =
@@ -19,17 +20,12 @@ type TargetRect = {
   height: number;
 };
 
-type ViewportRect = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
+type TutorialSurface = Pick<StageSurface, "left" | "top" | "logicalWidth" | "logicalHeight" | "scale">;
 
 type TutorialLayout = {
   targets: TargetRect[];
-  viewport: ViewportRect;
-  stage: ViewportRect;
+  width: number;
+  height: number;
 };
 
 const STEP_COPY: Record<PetHomeTutorialStep, { title: string; body: string }> = {
@@ -69,51 +65,38 @@ const TARGETS: Partial<Record<PetHomeTutorialStep, string[]>> = {
   building: ['[data-home-tutorial-building="primary"]'],
 };
 
-function toRect(element: Element): TargetRect {
+function currentTutorialSurface(): TutorialSurface {
+  const surface = getStageSurface();
+  return {
+    left: surface.left,
+    top: surface.top,
+    logicalWidth: surface.logicalWidth,
+    logicalHeight: surface.logicalHeight,
+    scale: surface.scale > 0 ? surface.scale : 1,
+  };
+}
+
+function toSurfaceRect(element: Element, surface: TutorialSurface): TargetRect {
   const rect = element.getBoundingClientRect();
+  const left = (rect.left - surface.left) / surface.scale;
+  const top = (rect.top - surface.top) / surface.scale;
+  const width = rect.width / surface.scale;
+  const height = rect.height / surface.scale;
   return {
-    left: rect.left,
-    top: rect.top,
-    right: rect.right,
-    bottom: rect.bottom,
-    width: rect.width,
-    height: rect.height,
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
   };
-}
-
-function currentVisualViewport(): ViewportRect {
-  if (typeof window === "undefined") {
-    return { left: 0, top: 0, width: 390, height: 844 };
-  }
-  const visualViewport = window.visualViewport;
-  return {
-    left: visualViewport?.offsetLeft ?? 0,
-    top: visualViewport?.offsetTop ?? 0,
-    width: visualViewport?.width ?? window.innerWidth,
-    height: visualViewport?.height ?? window.innerHeight,
-  };
-}
-
-function currentStageRect(viewport: ViewportRect): ViewportRect {
-  if (typeof document === "undefined") return viewport;
-  const stage = document.querySelector('[data-testid="pet-home-stage"]');
-  if (!stage) return viewport;
-  const rect = stage.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return viewport;
-  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
 }
 
 function sameLayout(a: TutorialLayout, b: TutorialLayout): boolean {
   const rounded = (value: number) => Math.round(value);
   if (
-    rounded(a.viewport.left) !== rounded(b.viewport.left)
-    || rounded(a.viewport.top) !== rounded(b.viewport.top)
-    || rounded(a.viewport.width) !== rounded(b.viewport.width)
-    || rounded(a.viewport.height) !== rounded(b.viewport.height)
-    || rounded(a.stage.left) !== rounded(b.stage.left)
-    || rounded(a.stage.top) !== rounded(b.stage.top)
-    || rounded(a.stage.width) !== rounded(b.stage.width)
-    || rounded(a.stage.height) !== rounded(b.stage.height)
+    rounded(a.width) !== rounded(b.width)
+    || rounded(a.height) !== rounded(b.height)
     || a.targets.length !== b.targets.length
   ) return false;
 
@@ -136,11 +119,11 @@ export default function PetHomeTutorialOverlay({
   onContinue: () => void;
   completing?: boolean;
 }) {
-  const initialViewport = currentVisualViewport();
+  const initialSurface = currentTutorialSurface();
   const [layout, setLayout] = useState<TutorialLayout>(() => ({
     targets: [],
-    viewport: initialViewport,
-    stage: currentStageRect(initialViewport),
+    width: initialSurface.logicalWidth,
+    height: initialSurface.logicalHeight,
   }));
 
   useEffect(() => {
@@ -149,16 +132,16 @@ export default function PetHomeTutorialOverlay({
     const settleTimers: number[] = [];
 
     const update = () => {
-      const viewport = currentVisualViewport();
+      const surface = currentTutorialSurface();
       const targets = selectors
         .map(selector => document.querySelector(selector))
         .filter((element): element is Element => !!element)
-        .map(toRect)
+        .map(element => toSurfaceRect(element, surface))
         .filter(rect => rect.width > 0 && rect.height > 0);
       const next: TutorialLayout = {
         targets,
-        viewport,
-        stage: currentStageRect(viewport),
+        width: surface.logicalWidth,
+        height: surface.logicalHeight,
       };
       setLayout(current => sameLayout(current, next) ? current : next);
     };
@@ -182,16 +165,12 @@ export default function PetHomeTutorialOverlay({
 
     window.addEventListener("resize", update, { passive: true });
     window.addEventListener("orientationchange", update, { passive: true });
-    window.visualViewport?.addEventListener("resize", update, { passive: true });
-    window.visualViewport?.addEventListener("scroll", update, { passive: true });
 
     return () => {
       resizeObserver?.disconnect();
       for (const timer of settleTimers) window.clearTimeout(timer);
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
-      window.visualViewport?.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("scroll", update);
     };
   }, [step]);
 
@@ -204,27 +183,25 @@ export default function PetHomeTutorialOverlay({
   const revealHomeScene = step === "mailbox" || step === "building";
 
   const cardPosition = useMemo(() => {
-    const viewport = layout.viewport;
-    const stage = layout.stage;
-    const centerX = stage.left + stage.width / 2;
-    const viewportMiddle = viewport.top + viewport.height / 2;
+    const centerX = layout.width / 2;
+    const middleY = layout.height / 2;
     const preferredY = step === "welcome" || !firstTarget
-      ? viewportMiddle
-      : firstTarget.top + firstTarget.height / 2 < viewportMiddle
-        ? viewport.top + viewport.height * 0.69
-        : viewport.top + viewport.height * 0.27;
+      ? middleY
+      : firstTarget.top + firstTarget.height / 2 < middleY
+        ? layout.height * 0.69
+        : layout.height * 0.27;
 
-    const verticalMargin = Math.min(130, Math.max(82, viewport.height * 0.22));
-    const minY = viewport.top + verticalMargin;
-    const maxY = viewport.top + viewport.height - verticalMargin;
+    const verticalMargin = Math.min(130, Math.max(82, layout.height * 0.22));
+    const minY = verticalMargin;
+    const maxY = layout.height - verticalMargin;
     const centerY = maxY <= minY
-      ? viewportMiddle
+      ? middleY
       : Math.max(minY, Math.min(maxY, preferredY));
 
     return { centerX, centerY };
-  }, [firstTarget, layout.stage, layout.viewport, step]);
+  }, [firstTarget, layout.height, layout.width, step]);
 
-  const cardWidth = Math.min(370, Math.max(250, layout.stage.width - 28));
+  const cardWidth = Math.min(370, Math.max(250, layout.width - 28));
 
   return (
     <div
@@ -266,12 +243,11 @@ export default function PetHomeTutorialOverlay({
       }}
       style={{
         ...HOME_TOUCH_SURFACE_STYLE,
-        ...HOME_FIXED_VIEWPORT_STYLE,
         zIndex: 99000,
-        left: layout.stage.left,
-        top: layout.stage.top,
-        width: layout.stage.width,
-        maxWidth: 768,
+        left: 0,
+        top: 0,
+        width: layout.width,
+        height: layout.height,
         background: revealHomeScene ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.62)",
         pointerEvents: "auto",
         overflow: "hidden",
@@ -279,10 +255,10 @@ export default function PetHomeTutorialOverlay({
     >
       {layout.targets.map((rect, index) => {
         const pad = 8;
-        const arrowAbove = rect.top >= layout.viewport.top + 82;
+        const arrowAbove = rect.top >= 82;
         const arrowTop = arrowAbove ? rect.top - 68 : rect.bottom + 8;
-        const minArrowLeft = layout.stage.left + 8;
-        const maxArrowLeft = layout.stage.left + layout.stage.width - 56;
+        const minArrowLeft = 8;
+        const maxArrowLeft = layout.width - 56;
         const arrowLeft = Math.max(
           minArrowLeft,
           Math.min(maxArrowLeft, rect.left + rect.width / 2 - 24),
@@ -341,8 +317,8 @@ export default function PetHomeTutorialOverlay({
           top: cardPosition.centerY,
           transform: "translate(-50%, -50%)",
           width: cardWidth,
-          maxWidth: "calc(100vw - 28px)",
-          maxHeight: "calc(var(--home-visual-height, 100dvh) - 28px)",
+          maxWidth: Math.max(220, layout.width - 28),
+          maxHeight: Math.max(160, layout.height - 28),
           overflowY: "auto",
           WebkitOverflowScrolling: "touch",
           zIndex: 99004,
