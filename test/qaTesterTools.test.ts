@@ -12,10 +12,11 @@ test("QA tester identity is narrower than generic moderator access", () => {
   assert.match(identity, /QA_MOD_ACCOUNT_ENABLED/);
   assert.match(identity, /QA_MOD_USERNAME/);
   assert.match(identity, /QA_MOD_EMAIL/);
-  assert.match(identity, /user\.isAdmin !== true/);
-  assert.match(identity, /user\.isModerator === true/);
-  assert.match(identity, /user\.isBot !== true/);
-  assert.match(identity, /user\.emailVerified === true/);
+  assert.match(identity, /isConfiguredQaIdentity\(user\)/);
+  assert.match(identity, /user\?\.isAdmin !== true/);
+  assert.match(identity, /user\?\.isModerator === true/);
+  assert.match(identity, /user\?\.isBot !== true/);
+  assert.match(identity, /user\?\.emailVerified === true/);
 });
 
 test("QA tools are self-only and do not accept a target player", () => {
@@ -54,8 +55,14 @@ test("QA self-funding is bounded and does not count as earned progression", () =
   assert.doesNotMatch(qaRoutes, /total_coins_earned = total_coins_earned \+/);
 });
 
-test("QA tester cannot create real-money checkout or edit chat moderation filters", () => {
+test("QA testers cannot create real-money checkout or edit chat moderation filters", () => {
   assert.match(routes, /Real-money checkout is disabled for the QA tester account/);
   assert.match(routes, /isDedicatedQaTester\(user\)/);
   assert.match(chatFilter, /isDedicatedQaTester\(user\)/);
+});
+
+test("reserved QA identities cannot rename, change password, or self-delete", () => {
+  assert.match(routes, /This reserved QA account is managed by the testing configuration/);
+  assert.match(routes, /Reserved QA accounts cannot delete themselves/);
+  assert.match(routes, /Reserved QA usernames are managed by the testing configuration/);
 });
