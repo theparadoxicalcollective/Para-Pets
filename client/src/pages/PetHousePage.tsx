@@ -2159,6 +2159,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   return (
     <div
       ref={containerRef}
+      data-testid="pet-home-stage"
       className="relative w-full h-screen-frame"
       style={{ ...HOME_TOUCH_SURFACE_STYLE, maxWidth: "768px", margin: "0 auto", cursor: "grab" }}
       onPointerDown={handlePointerDown}
