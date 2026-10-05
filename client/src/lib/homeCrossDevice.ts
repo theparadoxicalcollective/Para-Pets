@@ -20,6 +20,31 @@ export const HOME_FIXED_VIEWPORT_STYLE: CSSProperties = {
   height: "var(--home-visual-height, 100dvh)",
 };
 
+/**
+ * Clamp horizontal camera motion against the real authored Home artwork.
+ * Wider cameras center a smaller scene instead of creating fake world space.
+ */
+export function clampHomeCameraPanX(
+  requestedPanX: number,
+  cameraWidth: number,
+  imageWidth: number,
+): number {
+  if (
+    !Number.isFinite(requestedPanX)
+    || !Number.isFinite(cameraWidth)
+    || !Number.isFinite(imageWidth)
+    || cameraWidth <= 0
+    || imageWidth <= 0
+  ) return 0;
+
+  if (imageWidth <= cameraWidth) return (cameraWidth - imageWidth) / 2;
+  return Math.max(cameraWidth - imageWidth, Math.min(0, requestedPanX));
+}
+
+export function centeredHomeCameraPanX(cameraWidth: number, imageWidth: number): number {
+  return clampHomeCameraPanX((cameraWidth - imageWidth) / 2, cameraWidth, imageWidth);
+}
+
 export function safeSetPointerCapture(target: EventTarget | null, pointerId: number): boolean {
   const element = target as (Element & { setPointerCapture?: (id: number) => void }) | null;
   if (!element || typeof element.setPointerCapture !== "function") return false;
