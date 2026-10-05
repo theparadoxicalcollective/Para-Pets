@@ -19,7 +19,7 @@ import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
-import { clientToStage, getDesignW } from "@/lib/stage";
+import { clientToStage, getDesignW, getStageSurface } from "@/lib/stage";
 import { bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -130,14 +130,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number }[]
   >([]);
   const ringSparkIdRef = useRef(0);
-  const burstRingSparkles = useCallback((cx: number, cy: number, color: string, count = 14) => {
+  const burstRingSparkles = useCallback((clientX: number, clientY: number, color: string, count = 14) => {
+    const origin = clientToStage(clientX, clientY);
     const newOnes = Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
       const dist = 40 + Math.random() * 70;
       return {
         id: ++ringSparkIdRef.current,
-        x: cx,
-        y: cy,
+        x: origin.x,
+        y: origin.y,
         dx: Math.cos(angle) * dist,
         dy: Math.sin(angle) * dist,
         color,
@@ -708,9 +709,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         if (ev.pointerId !== pid) return;
         const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
         if (dist > 6) {
-          setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
-          // Light up "over egg" glow when pointer drifts into the upper region
-          setHomeDragOver(ev.clientY < window.innerHeight * 0.65);
+          const stagePoint = clientToStage(ev.clientX, ev.clientY);
+          setHomeDragging({ item, x: stagePoint.x, y: stagePoint.y });
+          // Light up the tutorial egg region in logical stage coordinates so
+          // scaled tablets/desktop use the same 65% threshold as iPhone 12.
+          setHomeDragOver(stagePoint.y < getStageSurface().logicalHeight * 0.65);
         }
       };
 
@@ -755,10 +758,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 6 && !dragActive) {
         dragActive = true;
-        setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+        const stagePoint = clientToStage(ev.clientX, ev.clientY);
+        setHomeDragging({ item, x: stagePoint.x, y: stagePoint.y });
       }
       if (dragActive) {
-        setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        const stagePoint = clientToStage(ev.clientX, ev.clientY);
+        setHomeDragging(prev => prev ? { ...prev, x: stagePoint.x, y: stagePoint.y } : null);
         const dropRect = homeEggDropRef.current?.getBoundingClientRect();
         if (dropRect) {
           const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
