@@ -1113,7 +1113,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     isLocationDragActive,
     clearStaleLocationDrag,
     isObjectDragActive,
-    fitFullComposition: true,
+    expandedCamera: true,
   });
 
   const flipMutation = useMutation({
