@@ -869,19 +869,21 @@ function GameStage({ children }: { children: ReactNode }) {
         >
           {children}
         </div>
-        <div
-          id="game-viewport-scene"
-          data-testid="game-viewport-scene"
-          style={{
-            position: "absolute",
-            left: sceneRect.left,
-            top: sceneRect.top,
-            width: sceneRect.width,
-            height: sceneRect.height,
-            pointerEvents: "none",
-            overflow: "hidden",
-          }}
-        />
+        {layout.coordinateOwner === "stage" && (
+          <div
+            id="game-viewport-scene"
+            data-testid="game-viewport-scene"
+            style={{
+              position: "absolute",
+              left: sceneRect.left,
+              top: sceneRect.top,
+              width: sceneRect.width,
+              height: sceneRect.height,
+              pointerEvents: "none",
+              overflow: "hidden",
+            }}
+          />
+        )}
         <div
           id="game-viewport-hud"
           data-testid="game-viewport-hud"
