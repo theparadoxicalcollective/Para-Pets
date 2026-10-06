@@ -22,6 +22,7 @@ import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import basicPotionImg from "@assets/potion_health.png";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import { playClick, playTick } from "@/lib/sounds";
 
 // Ticket Shop bundles. Mirrors the server-authoritative price map in
@@ -737,21 +738,24 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      data-testid="pvp-arena-page"
       className="fixed inset-0 z-50 flex flex-col overflow-hidden"
       style={{ fontFamily: "Lora, serif" }}
     >
-      {/* Forest background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `url(${forestBgImg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          filter: "brightness(0.7) saturate(1.05)",
-        }}
-      />
-      {/* Subtle vignette only — keep the ruins battlefield clearly visible. */}
-      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,8,15,0.25) 0%, rgba(5,8,15,0.15) 45%, rgba(5,8,15,0.55) 100%)" }} />
+      <ViewportBackdropPortal>
+        <div data-testid="pvp-arena-viewport-backdrop" className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url(${forestBgImg})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center center",
+              filter: "brightness(0.7) saturate(1.05)",
+            }}
+          />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,8,15,0.25) 0%, rgba(5,8,15,0.15) 45%, rgba(5,8,15,0.55) 100%)" }} />
+        </div>
+      </ViewportBackdropPortal>
 
       {/* ── Simplified Header ───────────────────────────────────────
            Layout (left → right):
