@@ -1,1 +1,32 @@
-import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";\nimport test from "node:test";\n\nconst map = readFileSync("client/src/pages/MapPage.tsx", "utf8");\nconst portal = readFileSync("client/src/components/ViewportModalPortal.tsx", "utf8");\n\ntest("map admin blocking dialogs use the shared viewport modal layer", () => {\n  assert.match(map, /import ViewportModalPortal from "@\/components\/ViewportModalPortal"/);\n  assert.equal((map.match(/<ViewportModalPortal>/g) ?? []).length, 3);\n  assert.equal((map.match(/<\/ViewportModalPortal>/g) ?? []).length, 3);\n  assert.match(map, /data-testid="map-add-world-viewport-modal"/);\n  assert.match(map, /data-testid="map-edit-world-viewport-modal"/);\n  assert.match(map, /data-testid="map-background-viewport-modal"/);\n  assert.doesNotMatch(map, /fixed inset-0 z-50 flex items-center justify-center" style=\{\{ maxWidth: "768px"/);\n});\n\ntest("map admin dialog controls and mutations stay intact", () => {\n  assert.match(map, /data-testid="modal-add-world"/);\n  assert.match(map, /data-testid="button-close-add-world"/);\n  assert.match(map, /createWorldMutation\.mutate/);\n  assert.match(map, /data-testid="modal-edit-world"/);\n  assert.match(map, /data-testid="button-close-edit-world"/);\n  assert.match(map, /editWorldMutation\.mutate/);\n  assert.match(map, /data-testid="modal-edit-map-bg"/);\n  assert.match(map, /data-testid="button-close-map-bg"/);\n});\n\ntest("shared modal portal retains native fallback and viewport HUD ownership", () => {\n  assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);\n  assert.match(portal, /VIEWPORT_HUD_ID/);\n});\n
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const map = readFileSync("client/src/pages/MapPage.tsx", "utf8");
+const portal = readFileSync("client/src/components/ViewportModalPortal.tsx", "utf8");
+
+test("map admin blocking dialogs use the shared viewport modal layer", () => {
+  assert.match(map, /import ViewportModalPortal from "@\/components\/ViewportModalPortal"/);
+  assert.equal((map.match(/<ViewportModalPortal>/g) ?? []).length, 3);
+  assert.equal((map.match(/<\/ViewportModalPortal>/g) ?? []).length, 3);
+  assert.match(map, /data-testid="map-add-world-viewport-modal"/);
+  assert.match(map, /data-testid="map-edit-world-viewport-modal"/);
+  assert.match(map, /data-testid="map-background-viewport-modal"/);
+  assert.doesNotMatch(map, /fixed inset-0 z-50 flex items-center justify-center" style=\{\{ maxWidth: "768px"/);
+});
+
+test("map admin dialog controls and mutations stay intact", () => {
+  assert.match(map, /data-testid="modal-add-world"/);
+  assert.match(map, /data-testid="button-close-add-world"/);
+  assert.match(map, /createWorldMutation\.mutate/);
+  assert.match(map, /data-testid="modal-edit-world"/);
+  assert.match(map, /data-testid="button-close-edit-world"/);
+  assert.match(map, /editWorldMutation\.mutate/);
+  assert.match(map, /data-testid="modal-edit-map-bg"/);
+  assert.match(map, /data-testid="button-close-map-bg"/);
+});
+
+test("shared modal portal retains native fallback and viewport HUD ownership", () => {
+  assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
+  assert.match(portal, /VIEWPORT_HUD_ID/);
+});
