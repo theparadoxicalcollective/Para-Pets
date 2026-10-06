@@ -13,6 +13,8 @@ test("Bag and Pet Inventory dedicated routes share the same page-mode component"
 
 test("page-mode inventory owns the canonical stage and its expanded backdrop", () => {
   assert.match(inventory, /data-stage-coordinate-space=\{pageMode \? "canonical" : undefined\}/);
+  assert.match(inventory, /data-viewport-visual-owner=\{pageMode \? "backdrop" : undefined\}/);
+  assert.match(inventory, /data-canonical-visual-layer=\{pageMode \? "duplicate-backdrop" : undefined\}/);
   assert.match(inventory, /style=\{pageMode \? undefined : \{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 \}\}/);
   assert.match(inventory, /pageMode && \([\s\S]*?<ViewportBackdropPortal>/);
   assert.match(inventory, /data-testid="inventory-viewport-backdrop"/);
