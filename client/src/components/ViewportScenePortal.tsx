@@ -30,11 +30,16 @@ export default function ViewportScenePortal({
   useLayoutEffect(() => {
     if (!enabled || !target) return;
     const stage = document.getElementById("game-stage");
+    const shell = stage?.closest(".game-stage-shell") as HTMLElement | null;
     if (!stage) return;
     stage.dataset.viewportSceneActive = "true";
+    if (shell) shell.dataset.viewportSceneActive = "true";
     return () => {
       if (stage.dataset.viewportSceneActive === "true") {
         delete stage.dataset.viewportSceneActive;
+      }
+      if (shell?.dataset.viewportSceneActive === "true") {
+        delete shell.dataset.viewportSceneActive;
       }
     };
   }, [enabled, target]);

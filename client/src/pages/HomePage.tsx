@@ -25,6 +25,7 @@ import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ActivePetPlacement from "@/components/ActivePetPlacement";
 import PetAnimator from "@/components/PetAnimator";
@@ -829,28 +830,34 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
   return (
     <div
+      data-testid="active-pet-page"
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
-      style={{
-        backgroundImage: `url(${bgImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center top",
-        backgroundRepeat: "no-repeat",
-        caretColor: "transparent",
-      }}
+      style={{ caretColor: "transparent" }}
     >
-      <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
-
-
-      <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
-        <div className="absolute" style={{ left: "12%", top: "25%", width: "8px", height: "8px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.8) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 18px rgba(127,255,212,0.35)", animation: "orbFloat1 8s ease-in-out infinite", willChange: "transform" }} />
-        <div className="absolute" style={{ right: "15%", top: "20%", width: "6px", height: "6px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.8) 0%, rgba(200,230,255,0) 70%)", boxShadow: "0 0 14px rgba(200,230,255,0.3)", animation: "orbFloat2 10s ease-in-out infinite 1s", willChange: "transform" }} />
-        <div className="absolute" style={{ left: "25%", top: "55%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(180,255,200,0.7) 0%, rgba(180,255,200,0) 70%)", boxShadow: "0 0 12px rgba(180,255,200,0.3)", animation: "orbFloat3 9s ease-in-out infinite 2s", willChange: "transform" }} />
-        <div className="absolute" style={{ right: "20%", top: "45%", width: "7px", height: "7px", borderRadius: "50%", background: "radial-gradient(circle, rgba(240,220,130,0.7) 0%, rgba(240,220,130,0) 70%)", boxShadow: "0 0 16px rgba(240,220,130,0.3)", animation: "orbFloat1 11s ease-in-out infinite 3s", willChange: "transform" }} />
-        <div className="absolute" style={{ left: "8%", top: "40%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.6) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 8px rgba(127,255,212,0.25)", animation: "orbFloat2 7s ease-in-out infinite 4s", willChange: "transform" }} />
-        <div className="absolute" style={{ right: "10%", top: "65%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(160,200,255,0.6) 0%, rgba(160,200,255,0) 70%)", boxShadow: "0 0 10px rgba(160,200,255,0.25)", animation: "orbFloat3 12s ease-in-out infinite 1.5s", willChange: "transform" }} />
-        <div className="absolute" style={{ left: "45%", top: "15%", width: "10px", height: "10px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,255,220,0.4) 0%, rgba(200,255,220,0) 70%)", boxShadow: "0 0 18px rgba(200,255,220,0.15)", animation: "orbPulse 5s ease-in-out infinite", willChange: "transform, opacity" }} />
-        <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s", willChange: "transform" }} />
-      </div>
+      <ViewportBackdropPortal>
+        <div
+          data-testid="active-pet-viewport-backdrop"
+          className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
+          style={{
+            backgroundImage: `url(${bgImg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute" style={{ left: "12%", top: "25%", width: "8px", height: "8px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.8) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 18px rgba(127,255,212,0.35)", animation: "orbFloat1 8s ease-in-out infinite", willChange: "transform" }} />
+            <div className="absolute" style={{ right: "15%", top: "20%", width: "6px", height: "6px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.8) 0%, rgba(200,230,255,0) 70%)", boxShadow: "0 0 14px rgba(200,230,255,0.3)", animation: "orbFloat2 10s ease-in-out infinite 1s", willChange: "transform" }} />
+            <div className="absolute" style={{ left: "25%", top: "55%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(180,255,200,0.7) 0%, rgba(180,255,200,0) 70%)", boxShadow: "0 0 12px rgba(180,255,200,0.3)", animation: "orbFloat3 9s ease-in-out infinite 2s", willChange: "transform" }} />
+            <div className="absolute" style={{ right: "20%", top: "45%", width: "7px", height: "7px", borderRadius: "50%", background: "radial-gradient(circle, rgba(240,220,130,0.7) 0%, rgba(240,220,130,0) 70%)", boxShadow: "0 0 16px rgba(240,220,130,0.3)", animation: "orbFloat1 11s ease-in-out infinite 3s", willChange: "transform" }} />
+            <div className="absolute" style={{ left: "8%", top: "40%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.6) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 8px rgba(127,255,212,0.25)", animation: "orbFloat2 7s ease-in-out infinite 4s", willChange: "transform" }} />
+            <div className="absolute" style={{ right: "10%", top: "65%", width: "5px", height: "5px", borderRadius: "50%", background: "radial-gradient(circle, rgba(160,200,255,0.6) 0%, rgba(160,200,255,0) 70%)", boxShadow: "0 0 10px rgba(160,200,255,0.25)", animation: "orbFloat3 12s ease-in-out infinite 1.5s", willChange: "transform" }} />
+            <div className="absolute" style={{ left: "45%", top: "15%", width: "10px", height: "10px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,255,220,0.4) 0%, rgba(200,255,220,0) 70%)", boxShadow: "0 0 18px rgba(200,255,220,0.15)", animation: "orbPulse 5s ease-in-out infinite", willChange: "transform, opacity" }} />
+            <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s", willChange: "transform" }} />
+          </div>
+        </div>
+      </ViewportBackdropPortal>
 
       <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
         <ViewportHudPortal>

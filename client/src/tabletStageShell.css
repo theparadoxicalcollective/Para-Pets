@@ -33,10 +33,21 @@
       0 24px 60px rgba(0, 0, 0, 0.55);
   }
 
-  #game-stage[data-viewport-scene-active="true"] {
+  .game-stage-shell[data-viewport-scene-active="true"],
+  .game-stage-shell[data-viewport-backdrop-active="true"] {
+    background-image: none !important;
+    background-color: #050c08 !important;
+  }
+
+  #game-stage[data-viewport-scene-active="true"],
+  #game-stage[data-viewport-backdrop-active="true"] {
     outline: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  #game-stage[data-coordinate-owner="stage"] .active-pet-viewport-backdrop {
+    background-position: center center !important;
   }
 }
 
@@ -78,9 +89,20 @@
       0 24px 60px rgba(0, 0, 0, 0.55);
   }
 
-  #game-stage[data-viewport-scene-active="true"] {
+  .game-stage-shell[data-viewport-scene-active="true"],
+  .game-stage-shell[data-viewport-backdrop-active="true"] {
+    background-image: none !important;
+    background-color: #050c08 !important;
+  }
+
+  #game-stage[data-viewport-scene-active="true"],
+  #game-stage[data-viewport-backdrop-active="true"] {
     outline: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  #game-stage[data-coordinate-owner="stage"] .active-pet-viewport-backdrop {
+    background-position: center center !important;
   }
 }
