@@ -113,10 +113,11 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const npcElement = atWorld && npcSelector ? document.querySelector<HTMLElement>(npcSelector) : null;
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
   const mapIsOpen = navMap && getComputedStyle(navMap).pointerEvents !== "none";
-  const surface = getQuestGuideSurface();
   const selector = atWorld && current ? `[data-testid="location-${current.id}"]`
     : atMap ? `[data-testid="button-location-${current?.worldId}"]`
     : mapIsOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
+  const targetElement = document.querySelector<HTMLElement>(selector);
+  const surface = getQuestGuideSurface(targetElement);
   const rect = targetRect?.selector === selector ? targetRect.rect : null;
   const guideRect = rect ? guideBoundsInSurface(rect, surface) : null;
   const targetOnScreen = guideTargetOnScreen(guideRect, surface.width, surface.height);
