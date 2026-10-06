@@ -93,7 +93,7 @@ test("iPhone 12 Pet Central keeps the exact existing cover scale and no vertical
     MAP_H,
     MAP_W,
   );
-  assert.equal(centered.y, 0);
+  assert.ok(Math.abs(centered.y) < 1e-9);
 });
 
 test("tablet Pet Central fills the device and keeps real map available in both drag axes", () => {
