@@ -146,7 +146,7 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
     return (
       <ViewportModalPortal>
         <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} />
-        <div data-testid="send-gift-success" role="dialog" aria-modal="true" className="absolute flex flex-col items-center" style={{ ...modalStyle, padding: "28px 20px 24px" }}>
+        <div data-testid="send-gift-success" data-global-hud-blocker="true" role="dialog" aria-modal="true" className="absolute flex flex-col items-center" style={{ ...modalStyle, padding: "28px 20px 24px" }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%",
             background: "rgba(74,222,128,0.12)",
@@ -204,7 +204,7 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
     return (
       <ViewportModalPortal>
         <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStep("compose")} />
-        <div data-testid="send-gift-confirm" role="dialog" aria-modal="true" className="absolute flex flex-col" style={{ ...modalStyle }}>
+        <div data-testid="send-gift-confirm" data-global-hud-blocker="true" role="dialog" aria-modal="true" className="absolute flex flex-col" style={{ ...modalStyle }}>
           <button
             onClick={() => setStep("compose")}
             style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", cursor: "pointer", color: "rgba(127,255,212,0.4)", fontSize: 20 }}
@@ -311,6 +311,7 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
       <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose} />
       <div
         data-testid="send-gift-modal"
+        data-global-hud-blocker="true"
         role="dialog"
         aria-modal="true"
         className="absolute flex flex-col"
