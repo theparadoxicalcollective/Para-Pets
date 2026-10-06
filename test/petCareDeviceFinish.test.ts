@@ -12,8 +12,10 @@ test("Pet Care expands only its environment while keeping interaction coordinate
   assert.match(source, /backgroundSize: "cover"/);
   assert.match(source, /useStageSurroundings\(\{/);
   assert.match(source, /imageUrl: feedingPageBg/);
-  assert.match(source, /className=\{`fixed inset-0 pet-care-overlay/);
-  assert.match(source, /maxWidth: "768px", margin: "0 auto", left: 0, right: 0/);
+  assert.match(source, /className=\{`absolute inset-0 h-full w-full pet-care-overlay/);
+  assert.match(source, /data-stage-coordinate-space="canonical"/);
+  assert.doesNotMatch(source, /className=\{`fixed inset-0 pet-care-overlay/);
+  assert.doesNotMatch(source, /maxWidth: "768px", margin: "0 auto", left: 0, right: 0/);
 });
 
 test("Pet Care item drag and reward effects retain shared stage conversions", () => {
