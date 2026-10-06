@@ -197,7 +197,6 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
         data-testid="power-up-viewport-backdrop"
         className="absolute inset-0 pointer-events-none"
         style={{
-          zIndex: -4,
           backgroundImage: `linear-gradient(180deg,rgba(0,6,9,.08),rgba(0,7,9,.03) 62%,rgba(0,4,7,.58)), url(${pupBackground})`,
           backgroundSize: "cover",
           backgroundPosition: "center top",
