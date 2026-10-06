@@ -2053,7 +2053,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               <img src={supportIconImg} alt="Support" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }} />
             </button>
           </div>
-        </ViewportModalPortal>
+        </ViewportHudPortal>
       )}
 
       {/* World Chat Panel — render on the same device HUD as its launcher so
@@ -2189,7 +2189,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             )}
           </div>
         </div>
-        </ViewportHudPortal>
+        </ViewportModalPortal>
       )}
 
       <PowerUpOverlay
