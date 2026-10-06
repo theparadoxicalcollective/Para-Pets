@@ -21,8 +21,11 @@ test("Active Pet speed-up sheet uses the viewport modal layer without changing B
 });
 
 test("Active Pet hatch reveal can cover the real viewport without changing reveal content", () => {
-  const start = home.indexOf("hatchRevealing &&");
-  const end = home.indexOf("Veridian Watcher + Support", start);
+  const marker = 'data-testid="active-pet-hatch-reveal-viewport-modal"';
+  const markerIndex = home.indexOf(marker);
+  assert.ok(markerIndex >= 0);
+  const start = home.lastIndexOf("hatchRevealing &&", markerIndex);
+  const end = home.indexOf("Veridian Watcher + Support", markerIndex);
   const section = home.slice(start, end);
 
   assert.match(section, /<ViewportModalPortal>/);
@@ -45,5 +48,5 @@ test("Pet World pet detail backdrop uses the shared viewport modal layer", () =>
 });
 
 test("shared viewport modal portal retains native phone fallback", () => {
-  assert.match(modalPortal, /if \(!enabled \|\| !target\) return children/);
+  assert.match(modalPortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
 });
