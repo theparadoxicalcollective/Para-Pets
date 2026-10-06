@@ -10,6 +10,21 @@
  * mobile layout and are never opted into this presentation by width.
  */
 
+/*
+ * When a stage-owned page supplies a full-device backdrop, its canonical
+ * 390×844 surface remains the coordinate owner but must not repaint an opaque
+ * page background over that backdrop. Phones use coordinate-owner="viewport"
+ * and therefore keep their existing inline presentation unchanged.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-viewport-visual-owner="backdrop"] {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-canonical-visual-layer="duplicate-backdrop"] {
+  display: none !important;
+}
+
 /* Shared desktop/tablet presentation. */
 @media (min-width: 768px) {
   .game-stage-shell {
