@@ -92,3 +92,18 @@ test("all fishing worlds reuse the single FishingPage implementation", () => {
   assert.match(worldSource, /<FishingPage/);
   assert.doesNotMatch(worldSource, /BayouFishingPage|VolcanicFishingPage/);
 });
+
+
+test("Fishing Pond Stock admin uses the shared viewport modal without changing stocking actions", () => {
+  assert.match(fishingSource, /import ViewportModalPortal from "@\/components\/ViewportModalPortal"/);
+  assert.match(fishingSource, /function PondAdminPanel[\s\S]*?<ViewportModalPortal>/);
+  assert.match(fishingSource, /data-testid="fishing-pond-admin-viewport-modal"/);
+  assert.doesNotMatch(
+    fishingSource,
+    /function PondAdminPanel[\s\S]*?maxWidth: "768px"/,
+  );
+  assert.match(fishingSource, /data-testid=\{\`button-add-pond-fish-\$\{fi\.id\}\`\}/);
+  assert.match(fishingSource, /data-testid=\{\`button-remove-pond-fish-\$\{pf\.shopItemId\}\`\}/);
+  assert.match(fishingSource, /onAdd=\{\(shopItemId\) => addPondFishMutation\.mutate\(shopItemId\)\}/);
+  assert.match(fishingSource, /onRemove=\{\(shopItemId\) => removePondFishMutation\.mutate\(shopItemId\)\}/);
+});
