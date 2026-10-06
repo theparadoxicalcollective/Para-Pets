@@ -1034,7 +1034,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             })()}
 
             <div
-              className="w-full rounded-xl flex flex-col items-center justify-center"
+              data-testid="active-pet-canonical-ambient"
+              className="active-pet-canonical-ambient w-full rounded-xl flex flex-col items-center justify-center"
               style={{
                 background: "radial-gradient(ellipse at center, rgba(45,122,79,0.15) 0%, transparent 70%)",
                 border: activePet ? "none" : "1px dashed rgba(127,191,176,0.2)",
