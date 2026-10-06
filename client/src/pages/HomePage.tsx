@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ActivePetPlacement from "@/components/ActivePetPlacement";
 import PetAnimator from "@/components/PetAnimator";
@@ -36,7 +37,6 @@ import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import { useStageSurroundings } from "@/lib/stageSurroundings";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 
 interface HomePageProps {
@@ -89,7 +89,6 @@ interface InventoryItem {
 }
 
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
-  useStageSurroundings({ imageUrl: bgImg, backgroundPosition: "center top", overlayAlpha: 0.18 });
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [lowMemoryPetRenderer] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
@@ -2054,7 +2053,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               <img src={supportIconImg} alt="Support" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }} />
             </button>
           </div>
-        </ViewportHudPortal>
+        </ViewportModalPortal>
       )}
 
       {/* World Chat Panel — render on the same device HUD as its launcher so
@@ -2082,7 +2081,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* Support message modal */}
       {showSupportModal && (
-        <ViewportHudPortal>
+        <ViewportModalPortal>
         <div
           className="absolute inset-0 z-[60] flex items-center justify-center px-5"
           style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
