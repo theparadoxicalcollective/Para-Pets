@@ -22,7 +22,7 @@ test("stage-owned wide devices can separate scenery from canonical coordinates",
 
   // Native phone ownership has no backdrop target, so the same visual children
   // still render inline and preserve the existing iPhone path.
-  assert.match(backdropPortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>>;/);
+  assert.match(backdropPortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>;/);
 });
 
 test("Active Pet keeps authored coordinates while the viewport owns its scenery", () => {
@@ -31,7 +31,7 @@ test("Active Pet keeps authored coordinates while the viewport owns its scenery"
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
 
   // The pet's authored stage placement is intentionally unchanged.
-  assert.match(home, /className="home-active-pet-stage"/);
+  assert.match(home, /ref=\{petContainerRef\}/);
   assert.match(home, /top: "calc\(72\*var\(--vh\)\)"/);
 });
 
