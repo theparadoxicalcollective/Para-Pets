@@ -338,10 +338,18 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       <div
         data-testid="closet-authored-template"
         data-stage-coordinate-space="canonical"
+        data-viewport-visual-owner="scene"
         className="absolute inset-0 z-[200] h-full w-full overflow-hidden"
         style={{ background: "#020503" }}
       >
-      <img src={closetBackground} alt="" aria-hidden className="absolute inset-0 h-full w-full" style={{ objectFit: "fill", pointerEvents: "none", userSelect: "none" }} />
+      <img
+        src={closetBackground}
+        alt=""
+        aria-hidden
+        data-canonical-visual-layer="duplicate-backdrop"
+        className="absolute inset-0 h-full w-full"
+        style={{ objectFit: "fill", pointerEvents: "none", userSelect: "none" }}
+      />
 
       <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.4%", width: "64%" }}>
         <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.14em]" style={{ color: "#d4a94c", fontSize: "clamp(15px, 4.8vw, 23px)", textShadow: "0 2px 3px #000, 0 0 12px rgba(29,225,170,.28)" }}>{petName}</h1>
