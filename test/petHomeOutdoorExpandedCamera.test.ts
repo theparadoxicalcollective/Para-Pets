@@ -45,6 +45,16 @@ test("persistent Pet Home controls use the device HUD above the expanded scene o
   assert.match(visitor, /data-testid="button-back-visit"/);
 });
 
+test("Pet Home local inventory HUD yields to blocking bundle/gift/mail popups", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const hudStart = owner.indexOf('data-testid="pet-home-inventory-hud"');
+  const hudBlock = owner.slice(hudStart, hudStart + 1400);
+
+  assert.ok(hudStart >= 0);
+  assert.match(hudBlock, /pointerEvents: pendingActivate \|\| openGiftModal \|\| showNoMailPopup \? "none" : "auto"/);
+  assert.match(hudBlock, /opacity: pendingActivate \|\| openGiftModal \|\| showNoMailPopup \? 0 : 1/);
+});
+
 test("outdoor camera measurement uses the expanded scene element without changing image-space placement", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
