@@ -830,6 +830,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   return (
     <div
       data-testid="active-pet-page"
+      data-viewport-visual-owner="backdrop"
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{ caretColor: "transparent" }}
     >
