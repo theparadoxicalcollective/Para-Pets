@@ -18,7 +18,9 @@ test("Active Pet page and startup preload use the new GitHub background asset", 
 
   assert.match(home, /import bgImg from "@assets\/uploads\/ActivePetMainPageNew\.jpg"/);
   assert.match(app, /import homeBg from "@assets\/uploads\/ActivePetMainPageNew\.jpg"/);
-  assert.match(home, /useStageSurroundings\(\{ imageUrl: bgImg, backgroundPosition: "center top"/);
+  assert.match(home, /<ViewportBackdropPortal>/);
+  assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
+  assert.doesNotMatch(home, /useStageSurroundings\(/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
 
   assert.doesNotMatch(home, /ActivePetMainPageNew\.png/);
