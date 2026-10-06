@@ -35,6 +35,9 @@ import {
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
+import { clientToStage } from "@/lib/stage";
 
 function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }: {
   petInventoryId: string;
@@ -175,6 +178,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const [sheetDragOver, setSheetDragOver] = useState(false);
+  const toDragPoint = (clientX: number, clientY: number) =>
+    pageMode ? clientToStage(clientX, clientY) : { x: clientX, y: clientY };
   const eggDropRef = useRef<HTMLDivElement>(null);
   const pointerGestureAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
@@ -297,10 +302,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 6 && !dragActive) {
         dragActive = true;
-        setDragging({ item, x: ev.clientX, y: ev.clientY });
+        setDragging({ item, ...toDragPoint(ev.clientX, ev.clientY) });
       }
       if (dragActive) {
-        setDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        setDragging(prev => prev ? { ...prev, ...toDragPoint(ev.clientX, ev.clientY) } : null);
         // Check if hovering over egg drop zone
         const dropRect = eggDropRef.current?.getBoundingClientRect();
         if (dropRect) {
@@ -350,11 +355,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 10 && !dragActive) {
         dragActive = true;
-        setDragging({ item, x: ev.clientX, y: ev.clientY });
+        setDragging({ item, ...toDragPoint(ev.clientX, ev.clientY) });
         setShowBag(false);
       }
       if (dragActive) {
-        setDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        setDragging(prev => prev ? { ...prev, ...toDragPoint(ev.clientX, ev.clientY) } : null);
       }
     };
     const onUp = (ev: PointerEvent) => {
@@ -404,7 +409,19 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
   return (
     <>
-      <div className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"} style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div
+        data-stage-coordinate-space={pageMode ? "canonical" : undefined}
+        className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"}
+        style={pageMode ? undefined : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      >
+        {pageMode && (
+          <ViewportBackdropPortal>
+            <div data-testid="inventory-viewport-backdrop" className="absolute inset-0 pointer-events-none">
+              <img src={petInvForestBg} alt="" className="h-full w-full object-cover" style={{ objectPosition: "center top" }} />
+              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.38)" }} />
+            </div>
+          </ViewportBackdropPortal>
+        )}
         {/* Background */}
         <div className="absolute inset-0" onClick={pageMode ? undefined : onClose}>
           <img
@@ -531,7 +548,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} userId={user.id} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
+              <BagView items={bagItems} userId={user.id} pageMode={!!pageMode} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
@@ -573,7 +590,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
       {/* Egg detail sheet — egg at top as drop zone, items below to tap or drag */}
       {speedUpTargetId && speedUpTargetPet && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal enabled={!!pageMode}>
+        <div
+          className={pageMode ? "absolute inset-0 z-[80] flex items-end justify-center" : "fixed inset-0 z-[80] flex items-end justify-center"}
+          style={pageMode ? undefined : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
           <div className="absolute inset-0 bg-black/60" onClick={() => { setSpeedUpTargetId(null); setDragging(null); setSheetDragOver(false); }} />
           <div
             className="relative w-full rounded-t-2xl"
@@ -583,6 +604,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
               borderBottom: "none",
               boxShadow: "0 -10px 50px rgba(0,0,0,0.7)",
               maxHeight: "calc(82*var(--vh))",
+              maxWidth: pageMode ? 430 : undefined,
               overflowY: "auto",
             }}
           >
@@ -684,12 +706,14 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Drag ghost image */}
       {dragging && (
+        <ViewportModalPortal enabled={!!pageMode}>
         <div
-          className="fixed z-[90] pointer-events-none select-none"
+          className={pageMode ? "absolute z-[90] pointer-events-none select-none" : "fixed z-[90] pointer-events-none select-none"}
           style={{
             left: dragging.x - 32,
             top: dragging.y - 32,
@@ -711,6 +735,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             <span style={{ fontSize: 28 }}>⏩</span>
           )}
         </div>
+        </ViewportModalPortal>
       )}
 
     </>
@@ -1254,10 +1279,12 @@ const BAG_CATEGORY_ICONS: Record<GameItemCategoryKey, string> = {
 function BagView({
   items,
   userId,
+  pageMode,
   onItemPointerDown,
 }: {
   items: InventoryItem[];
   userId: string;
+  pageMode: boolean;
   onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -1554,8 +1581,9 @@ function BagView({
       </div>
 
       {selectedHomeAsset && (
+        <ViewportModalPortal enabled={!!pageMode}>
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center"
+          className={pageMode ? "absolute inset-0 z-[100] flex items-center justify-center" : "fixed inset-0 z-[100] flex items-center justify-center"}
           style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)" }}
           onClick={() => setSelectedHomeAsset(null)}
         >
@@ -1597,11 +1625,13 @@ function BagView({
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {selectedItem && (
+        <ViewportModalPortal enabled={!!pageMode}>
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center"
+          className={pageMode ? "absolute inset-0 z-[100] flex items-center justify-center" : "fixed inset-0 z-[100] flex items-center justify-center"}
           style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
           onClick={() => { setSelectedItem(null); setConfirmDelete(false); }}
         >
@@ -1771,6 +1801,7 @@ function BagView({
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
     </>
   );
