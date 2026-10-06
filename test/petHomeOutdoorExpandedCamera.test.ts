@@ -134,7 +134,7 @@ test("owner outdoor camera suspends for canonical inventory tutorial modal and i
   assert.ok(interior > portalEnd);
 });
 
-test("visitor outdoor camera suspends behind selected pet gift and interior UI while HUD stays canonical", () => {
+test("visitor outdoor camera suspends behind selected pet gift and interior UI while HUD stays above the scene", () => {
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
   assert.match(visitor, /const visitorOutdoorCameraBlocked = Boolean\(/);
@@ -143,11 +143,14 @@ test("visitor outdoor camera suspends behind selected pet gift and interior UI w
   assert.match(visitor, /selectedPet/);
 
   const portalEnd = visitor.indexOf("</ViewportScenePortal>");
-  const hud = visitor.indexOf("{/* HUD */}", portalEnd);
+  const hudPortal = visitor.indexOf("<ViewportHudPortal>", portalEnd);
+  const hud = visitor.indexOf('data-testid="visit-pet-home-hud"', hudPortal);
+  const hudPortalEnd = visitor.indexOf("</ViewportHudPortal>", hudPortal);
   const interior = visitor.indexOf("<InteriorViewerVisit", portalEnd);
   const selected = visitor.indexOf("<PetStatPopup", portalEnd);
   assert.ok(portalEnd >= 0);
-  assert.ok(hud > portalEnd);
+  assert.ok(hudPortal > portalEnd);
+  assert.ok(hud > hudPortal && hud < hudPortalEnd);
   assert.ok(interior > portalEnd);
   assert.ok(selected > portalEnd);
 });
