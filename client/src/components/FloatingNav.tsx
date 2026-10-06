@@ -366,7 +366,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       <div
         className="absolute"
         style={{
-          bottom: 16,
+          bottom: "calc(16px + var(--hud-safe-bottom, 0px))",
           right: 12,
           width: BUTTON_SIZE,
           height: BUTTON_SIZE,
