@@ -111,9 +111,11 @@ test("extra Home camera area follows current night darkness without changing the
 
 
 
-test("owner outdoor Home uses a blurred camera extension instead of a hard tablet seam", () => {
+test("owner and visitor outdoor Homes use a blurred camera extension instead of a hard tablet seam", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   assert.match(owner, /data-testid="pet-home-outdoor-camera-extension"/);
+  assert.match(visitor, /data-testid="visit-pet-home-outdoor-camera-extension"/);
   assert.match(owner, /scale-110 object-cover opacity-45 blur-md/);
   assert.match(owner, /src=\{bgUrl\}/);
   assert.match(owner, /style=\{\{ zIndex: 0 \}\}/);
