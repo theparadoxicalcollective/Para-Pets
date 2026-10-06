@@ -35,6 +35,9 @@ import {
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
+import { clientToStage } from "@/lib/stage";
 
 function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }: {
   petInventoryId: string;
@@ -175,6 +178,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const [sheetDragOver, setSheetDragOver] = useState(false);
+  const toDragPoint = (clientX: number, clientY: number) =>
+    pageMode ? clientToStage(clientX, clientY) : { x: clientX, y: clientY };
   const eggDropRef = useRef<HTMLDivElement>(null);
   const pointerGestureAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
@@ -297,10 +302,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 6 && !dragActive) {
         dragActive = true;
-        setDragging({ item, x: ev.clientX, y: ev.clientY });
+        setDragging({ item, ...toDragPoint(ev.clientX, ev.clientY) });
       }
       if (dragActive) {
-        setDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        setDragging(prev => prev ? { ...prev, ...toDragPoint(ev.clientX, ev.clientY) } : null);
         // Check if hovering over egg drop zone
         const dropRect = eggDropRef.current?.getBoundingClientRect();
         if (dropRect) {
@@ -350,11 +355,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 10 && !dragActive) {
         dragActive = true;
-        setDragging({ item, x: ev.clientX, y: ev.clientY });
+        setDragging({ item, ...toDragPoint(ev.clientX, ev.clientY) });
         setShowBag(false);
       }
       if (dragActive) {
-        setDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        setDragging(prev => prev ? { ...prev, ...toDragPoint(ev.clientX, ev.clientY) } : null);
       }
     };
     const onUp = (ev: PointerEvent) => {
@@ -404,7 +409,19 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
   return (
     <>
-      <div className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"} style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div
+        data-stage-coordinate-space={pageMode ? "canonical" : undefined}
+        className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"}
+        style={pageMode ? undefined : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      >
+        {pageMode && (
+          <ViewportBackdropPortal>
+            <div data-testid="inventory-viewport-backdrop" className="absolute inset-0 pointer-events-none">
+              <img src={petInvForestBg} alt="" className="h-full w-full object-cover" style={{ objectPosition: "center top" }} />
+              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.38)" }} />
+            </div>
+          </ViewportBackdropPortal>
+        )}
         {/* Background */}
         <div className="absolute inset-0" onClick={pageMode ? undefined : onClose}>
           <img
