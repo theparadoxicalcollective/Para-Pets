@@ -1,11 +1,12 @@
-// Mobile keeps the original, native viewport layout. The logical/scaled frame
-// is an additive presentation used only at the tablet breakpoint and above.
+// Mobile keeps the original native viewport layout. Larger devices retain the
+// canonical logical stage as a coordinate reference while full-device visual
+// surfaces can extend beyond it.
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
 export const WIDE_BREAKPOINT = 768;
-// Tablets and desktops render the exact phone composition as one uniformly
-// scaled portrait stage. The cap keeps very large monitors from making the
-// phone window enormous while allowing tablets to use much more of the screen.
+// Tablets and desktops keep the exact authored 390×844 composition as one
+// uniformly scaled logical stage. The cap limits coordinate-plane scaling on
+// very large monitors; it is not a visible phone-window treatment.
 export const MAX_STAGE_SCALE = 1.5;
 export const MOBILE_KEYBOARD_MIN_DELTA = 180;
 
