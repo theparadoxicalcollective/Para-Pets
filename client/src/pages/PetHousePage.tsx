@@ -1743,6 +1743,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     openInterior
     || petHomeTutorialStep
   );
+  const petHomeBlockingDialogOpen = Boolean(
+    pendingActivate
+    || openGiftModal
+    || showNoMailPopup
+    || petHomeTutorialStep
+  );
 
   // ── Background layout ──────────────────────────────────────────────────────
   const bgUrl = activeBundle?.bgImageUrl ?? null;
@@ -2220,6 +2226,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   return (
     <div
+      data-global-hud-blocker={homeOutdoorCameraBlocked ? "true" : undefined}
       className="relative w-full h-screen-frame"
       style={{ maxWidth: "768px", margin: "0 auto", overflow: "hidden" }}
     >
@@ -2566,7 +2573,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       </ViewportScenePortal>
 
-      {/* Bottom inventory bar — persistent device HUD, left-aligned to avoid FloatingNav (bottom-right) */}
+      {/* Bottom inventory bar yields completely while a blocking dialog owns the screen. */}
+      {!petHomeBlockingDialogOpen && (
       <ViewportHudPortal>
       <div
         data-testid="pet-home-inventory-hud"
@@ -2610,11 +2618,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         })}
       </div>
       </ViewportHudPortal>
+      )}
 
       {/* Inventory overlay panel lives in the device HUD so it cannot fall behind viewport controls. */}
       {openInventory && (
         <ViewportHudPortal>
         <div
+          data-global-hud-blocker="true"
           className="absolute inset-0 flex flex-col justify-end"
           style={{ zIndex: openInterior ? 70 : 250, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
@@ -2937,6 +2947,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           role="dialog"
           aria-modal="true"
           data-testid="bundle-activation-modal"
+          data-global-hud-blocker="true"
           className="absolute inset-0 flex items-end justify-center"
           style={{ zIndex: 400, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
           onPointerDown={() => setPendingActivate(null)}
@@ -3028,6 +3039,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           role="dialog"
           aria-modal="true"
           data-testid="no-mail-modal"
+          data-global-hud-blocker="true"
           className="absolute inset-0 flex items-center justify-center"
           style={{ zIndex: 9000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
           onClick={() => setShowNoMailPopup(false)}
