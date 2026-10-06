@@ -548,7 +548,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} userId={user.id} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
+              <BagView items={bagItems} userId={user.id} pageMode={!!pageMode} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
@@ -1279,10 +1279,12 @@ const BAG_CATEGORY_ICONS: Record<GameItemCategoryKey, string> = {
 function BagView({
   items,
   userId,
+  pageMode,
   onItemPointerDown,
 }: {
   items: InventoryItem[];
   userId: string;
+  pageMode: boolean;
   onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
