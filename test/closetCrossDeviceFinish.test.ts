@@ -13,7 +13,10 @@ test("Closet expands only its environment while preserving the authored template
   assert.match(source, /data-testid="closet-viewport-environment"/);
   assert.match(source, /backgroundSize: "cover"/);
   assert.match(source, /data-testid="closet-authored-template"/);
-  assert.match(source, /maxWidth: 768/);
+  assert.match(source, /data-stage-coordinate-space="canonical"/);
+  assert.match(source, /className="absolute inset-0 z-\[200\] h-full w-full overflow-hidden"/);
+  assert.doesNotMatch(source, /data-testid="closet-authored-template"[\s\S]{0,220}maxWidth: 768/);
+  assert.doesNotMatch(source, /data-testid="closet-authored-template"[\s\S]{0,180}className="fixed inset-0/);
 });
 
 test("Closet template background keeps the existing placement geometry instead of being redesigned for tablets", () => {
