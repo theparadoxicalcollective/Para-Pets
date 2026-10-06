@@ -53,9 +53,9 @@ import {
 import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/petCareInventory";
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
-import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
@@ -1740,11 +1740,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   // ── Background layout ──────────────────────────────────────────────────────
   const bgUrl = activeBundle?.bgImageUrl ?? null;
-  useStageSurroundings({
-    imageUrl: openInterior?.url ?? bgUrl,
-    backgroundPosition: "center center",
-    overlayAlpha: openInterior ? 0.38 : 0.22,
-  });
+  // The Home scene itself owns tablet/desktop artwork through ViewportScenePortal.
+  // Painting a second shell copy creates visible seams at the canonical stage edge.
 
   useEffect(() => {
     const container = containerRef.current;
@@ -2565,7 +2562,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       <div
         data-testid="pet-home-inventory-hud"
         className="absolute bottom-0 left-0 flex gap-3 pb-5 pt-3 pl-3"
-        style={{ zIndex: openInterior ? 65 : 40, pointerEvents: "auto", right: 80, background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        style={{ zIndex: openInterior ? 65 : 40, pointerEvents: pendingActivate || openGiftModal || showNoMailPopup ? "none" : "auto", opacity: pendingActivate || openGiftModal || showNoMailPopup ? 0.28 : 1, right: 80, background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {[
@@ -2924,9 +2921,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Bundle activation modal */}
       {pendingActivate && (
+        <ViewportModalPortal>
         <div
-          className="fixed inset-0 flex items-end justify-center"
-          style={{ zIndex: 400, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+          className="absolute inset-0 flex items-end justify-center"
+          style={{ zIndex: 400, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", pointerEvents: "auto" }}
           onPointerDown={() => setPendingActivate(null)}
         >
           <div
@@ -2963,6 +2961,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Building interior viewer */}
@@ -3006,13 +3005,18 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       )}
 
       {openGiftModal && (
-        <GiftClaimModal onClose={() => setOpenGiftModal(false)} />
+        <ViewportModalPortal>
+          <div className="absolute inset-0" style={{ pointerEvents: "auto" }}>
+            <GiftClaimModal onClose={() => setOpenGiftModal(false)} />
+          </div>
+        </ViewportModalPortal>
       )}
 
       {showNoMailPopup && (
+        <ViewportModalPortal>
         <div
           className="absolute inset-0 flex items-center justify-center"
-          style={{ zIndex: 9000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
+          style={{ zIndex: 9000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)", pointerEvents: "auto" }}
           onClick={() => setShowNoMailPopup(false)}
         >
           <div
@@ -3052,6 +3056,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             </button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
 
