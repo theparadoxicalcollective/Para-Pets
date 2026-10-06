@@ -36,7 +36,6 @@ import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import { useStageSurroundings } from "@/lib/stageSurroundings";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 
 interface HomePageProps {
@@ -89,7 +88,6 @@ interface InventoryItem {
 }
 
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
-  useStageSurroundings({ imageUrl: bgImg, backgroundPosition: "center top", overlayAlpha: 0.18 });
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [lowMemoryPetRenderer] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
