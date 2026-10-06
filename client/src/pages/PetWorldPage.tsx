@@ -17,6 +17,7 @@ import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset } from "@/lib/worldViewport";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.webp";
@@ -3165,7 +3166,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           descLines.push(item.description);
         }
         return (
-          <div className="fixed inset-0 flex items-center justify-center overflow-hidden" style={{ zIndex: 200, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <ViewportModalPortal>
+          <div
+            data-testid="pet-world-door-buy-viewport-modal"
+            className="absolute inset-0 flex items-center justify-center overflow-hidden"
+            style={{ zIndex: 200 }}
+          >
             <div className="absolute inset-0 bg-black/70" onClick={() => { setSelectedDoorShopItem(null); setDoorBuyStep(0); setDoorBuyError(null); setDoorBuyQty(1); }} />
             <div className="relative z-10 flex flex-col items-center" style={{ gap: 14 }}>
               {/* Price tag */}
@@ -3255,6 +3261,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               )}
             </div>
           </div>
+          </ViewportModalPortal>
         );
       })()}
 
@@ -3270,8 +3277,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           return si.type === doorPickerFilter;
         });
         return (
-          <div className="fixed inset-0 z-[10001] flex items-center justify-center"
-            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <ViewportModalPortal>
+          <div
+            data-testid="pet-world-door-picker-viewport-modal"
+            className="absolute inset-0 z-[10001] flex items-center justify-center"
+          >
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDoorItemPicker(false)} />
             <div
               className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[calc(82*var(--vh))] flex flex-col"
@@ -3509,6 +3519,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               </div>
             </div>
           </div>
+          </ViewportModalPortal>
         );
       })()}
 
