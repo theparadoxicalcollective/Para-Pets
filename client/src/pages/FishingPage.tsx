@@ -18,6 +18,7 @@ import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
 import { fishingCompletionOutcome, type FishingCompletionResponse } from "@/lib/fishingAttemptResult";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 interface FishingPageProps {
   locationId: string;
@@ -1899,7 +1900,12 @@ function PondAdminPanel({
   const availableToAdd = allFishItems.filter(fi => !stockedIds.has(fi.id));
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 70, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+    <ViewportModalPortal>
+      <div
+        data-testid="fishing-pond-admin-viewport-modal"
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ zIndex: 70 }}
+      >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-[90%] max-w-sm rounded-xl overflow-hidden" style={{
         background: "linear-gradient(135deg, rgba(8,25,18,0.98), rgba(5,15,10,0.98))",
@@ -1913,7 +1919,7 @@ function PondAdminPanel({
               Applies to every fishing spot in this world
             </p>
           </div>
-          <button onClick={onClose} style={{ color: `${accent}80`, cursor: "pointer" }}>
+          <button data-testid="button-close-fishing-pond-admin" onClick={onClose} style={{ color: `${accent}80`, cursor: "pointer" }}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1980,7 +1986,8 @@ function PondAdminPanel({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </ViewportModalPortal>
   );
 }
 
