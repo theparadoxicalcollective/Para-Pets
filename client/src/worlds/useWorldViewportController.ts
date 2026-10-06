@@ -332,12 +332,12 @@ export function useWorldViewportController({
   }, []);
 
   useEffect(() => {
-    const el = vpRef.current;
+    const el = viewportElement;
     if (!el) return;
 
     el.addEventListener("wheel", handleVpWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleVpWheel);
-  }, [handleVpWheel]);
+  }, [handleVpWheel, viewportElement]);
 
   return {
     vpRef,
