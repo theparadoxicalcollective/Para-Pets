@@ -18,7 +18,7 @@ import { calculateViewportHudRect, calculateViewportSurfaceRect, getStageTransfo
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import homeBg from "@assets/bg_home_v2.png";
+import homeBg from "@assets/uploads/ActivePetMainPageNew.png";
 import mainGameBg from "@assets/uploads/MainGameBG.png";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
