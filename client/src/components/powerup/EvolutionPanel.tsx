@@ -23,7 +23,7 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
     <style>{`
       .pup-evolution-skin { position:absolute; inset:0; z-index:8; pointer-events:none; }
       .pup-evolution-skin > .pupevo-orbit { inset:0 auto !important; left:50% !important; width:min(100%,455px) !important; transform:translateX(-50%); }
-      .pup-evolution-skin .pupevo-slot { width:clamp(52px,14vw,76px) !important; height:clamp(52px,14vw,76px) !important; pointer-events:auto !important; cursor:pointer; }
+      .pup-evolution-skin .pupevo-slot { width:clamp(52px,calc(14 * var(--vw)),76px) !important; height:clamp(52px,calc(14 * var(--vw)),76px) !important; pointer-events:auto !important; cursor:pointer; }
       /* Slot 1 starts at bottom-left, then progression travels clockwise. */
       .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:35% !important;top:63% !important}
       .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:20% !important;top:37% !important}
