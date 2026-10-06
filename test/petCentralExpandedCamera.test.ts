@@ -30,6 +30,16 @@ test("Pet Central keeps its locked authored coordinate canvas", () => {
   assert.match(source, /top: `\$\{door\.posY\}%`/);
 });
 
+test("Pet Central page root no longer creates a fixed stacking context above the expanded scene", () => {
+  const source = read("client/src/pages/PetWorldPage.tsx");
+  const rootStart = source.indexOf('data-testid="pet-central-page"');
+  const rootBlock = source.slice(rootStart, rootStart + 260);
+
+  assert.ok(rootStart >= 0);
+  assert.match(rootBlock, /className="relative w-full h-screen-frame overflow-hidden"/);
+  assert.doesNotMatch(rootBlock, /fixed inset-0 z-50/);
+});
+
 test("Pet Central uses the expanded scene portal while persistent controls use the device HUD", () => {
   const source = read("client/src/pages/PetWorldPage.tsx");
 
