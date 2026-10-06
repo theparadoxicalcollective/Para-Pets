@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.webp";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 const mixingTreeCauldronImg = "/mixing-tree-cauldron.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
@@ -319,7 +320,8 @@ export function CauldronPanel({
 
       {/* Brew error popups — Incorrect Recipe / Find Recipe */}
       {brewError && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal>
+        <div data-testid="mixing-tree-brew-error-modal" className="absolute inset-0 flex items-center justify-center pointer-events-auto">
           <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClearBrewError} />
           <div className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-8 py-7 pointer-events-auto text-center"
             style={{ background: "linear-gradient(160deg,rgba(28,12,12,.98) 0%,rgba(40,8,8,.98) 100%)", border: `1.5px solid ${brewError === "locked" ? "rgba(250,200,60,.55)" : "rgba(248,80,80,.45)"}`, boxShadow: "0 0 60px rgba(0,0,0,.85)", minWidth: 220, animation: "brewPop .4s cubic-bezier(.34,1.56,.64,1) both" }}
@@ -341,11 +343,13 @@ export function CauldronPanel({
             </button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Brew result popup */}
       {brewResult && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal>
+        <div data-testid="mixing-tree-brew-result-modal" className="absolute inset-0 flex items-center justify-center pointer-events-auto">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClearBrewResult} />
           <div className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-8 py-7 pointer-events-auto"
             style={{ background: "linear-gradient(160deg,rgba(12,28,22,.98) 0%,rgba(8,40,32,.98) 100%)", border: "1.5px solid rgba(94,234,212,.45)", boxShadow: "0 0 60px rgba(0,0,0,.85),0 0 40px rgba(45,212,191,.18)", minWidth: 220, animation: "brewPop .4s cubic-bezier(.34,1.56,.64,1) both" }}
@@ -363,6 +367,7 @@ export function CauldronPanel({
             </button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Compact floating items bar — no backdrop, world stays visible */}
