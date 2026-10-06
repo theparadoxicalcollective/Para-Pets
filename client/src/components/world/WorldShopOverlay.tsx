@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Package, Plus, X } from "lucide-react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playTick } from "@/lib/sounds";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import coinIconImg from "@assets/icon_coin.webp";
 import bgShopMystical from "@assets/bg_shop_mystical.webp";
 import bgShopBayou from "@assets/bg_shop_bayou.png";
@@ -56,6 +57,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
     catch (err: any) { let msg = "Could not purchase item"; try { const parsed = JSON.parse(err.message.split(": ").slice(1).join(": ")); msg = parsed.message || msg; } catch {} setBuyError(msg); }
   };
   return (<>
+    <ViewportModalPortal>
       {(() => {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         const shopName = activeLoc?.name || world.name;
@@ -80,7 +82,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
             ? (activeLoc?.id === "a1b2c3d4-0010-4000-8000-000000000010" ? bgShopFoodSwamp : bgShopBayou)
             : bgShopMystical;
         return (
-        <div data-global-hud-blocker="true" className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: isCentralMarket ? "#08060a" : (isVolcanicFishing || isVolcanicShop) ? "#0d0502" : "#080510", overflow: "hidden" }}>
+        <div data-global-hud-blocker="true" data-testid="world-shop-viewport-modal" className="absolute inset-0 flex flex-col" style={{ background: isCentralMarket ? "#08060a" : (isVolcanicFishing || isVolcanicShop) ? "#0d0502" : "#080510", overflow: "hidden" }}>
           {/* Themed background image — fixed, not admin-uploaded */}
           <img src={shopBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ zIndex: 0, opacity: (isVolcanicFishing || isVolcanicShop) ? 0.45 : 0.55 }} />
           {/* Dark overlay for readability */}
@@ -605,6 +607,6 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
           </div>
         );
       })()}
-
+    </ViewportModalPortal>
   </>);
 }
