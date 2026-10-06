@@ -31,12 +31,12 @@ test("surrounding hook only mutates shell presentation and restores nested paren
   assert.doesNotMatch(source, /game-stage-content|data-design-width|data-design-height|transform:/);
 });
 
-test("Active Pet uses its existing Home artwork only for the outer surroundings", () => {
+test("Active Pet full-device backdrop is the only large-device background owner", () => {
   const source = read("client/src/pages/HomePage.tsx");
 
-  assert.match(source, /useStageSurroundings/);
-  assert.match(source, /imageUrl: bgImg/);
-  assert.match(source, /backgroundPosition: "center top"/);
+  assert.doesNotMatch(source, /useStageSurroundings/);
+  assert.match(source, /ViewportBackdropPortal/);
+  assert.match(source, /data-testid="active-pet-viewport-backdrop"/);
   assert.match(source, /backgroundImage: `url\(\$\{bgImg\}\)`/);
 });
 
@@ -52,15 +52,14 @@ test("World surroundings follow the current world and opened location background
   assert.match(source, /backgroundSize: "100% 100%"/);
 });
 
-test("owner and visitor Pet Homes mirror the current outdoor or interior scene without moving objects", () => {
+test("owner and visitor Pet Homes use their expanded scene as the only large-device artwork owner", () => {
   for (const path of [
     "client/src/pages/PetHousePage.tsx",
     "client/src/pages/VisitPetHousePage.tsx",
   ]) {
     const source = read(path);
-    assert.match(source, /useStageSurroundings/);
-    assert.match(source, /imageUrl: openInterior\?\.url \?\? bgUrl/);
-    assert.match(source, /overlayAlpha: openInterior \? 0\.38 : 0\.22/);
+    assert.doesNotMatch(source, /useStageSurroundings/);
+    assert.match(source, /ViewportScenePortal/);
   }
 
   const owner = read("client/src/pages/PetHousePage.tsx");
