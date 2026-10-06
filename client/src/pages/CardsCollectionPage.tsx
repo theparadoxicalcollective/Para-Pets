@@ -8,6 +8,7 @@ import CardDetailDialog from "@/components/CardDetailDialog";
 import CardRewardCoin from "@/components/CardRewardCoin";
 import { getCardBorderLayout, type CardCollection } from "@/lib/cardCatalog";
 import { setNavHidden } from "@/lib/navVisibility";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 
 import decorDivider from "@assets/uploads/DecorDivider.png";
 import closeButton from "@assets/uploads/ClosetCloseButton.png";
@@ -67,6 +68,7 @@ export default function CardsCollectionPage() {
   return (
     <main
       data-testid="page-cards-collection"
+      data-stage-coordinate-space="canonical"
       style={{
         position: "absolute",
         inset: 0,
@@ -77,6 +79,27 @@ export default function CardsCollectionPage() {
         fontFamily: "'Cinzel', 'Palatino Linotype', serif",
       }}
     >
+      <ViewportBackdropPortal>
+        <div
+          data-testid="cards-viewport-backdrop"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at 50% 11%, rgba(67,139,80,.25), transparent 31%), radial-gradient(circle at 18% 30%, rgba(58,115,73,.12), transparent 24%), radial-gradient(circle at 82% 66%, rgba(58,115,73,.1), transparent 24%), linear-gradient(180deg, #06150d 0%, #0a2117 48%, #06120d 100%)",
+          }}
+        >
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              opacity: 0.6,
+              backgroundImage:
+                "radial-gradient(circle at 18% 16%, rgba(255,225,128,.45) 0 1px, transparent 1.7px), radial-gradient(circle at 78% 22%, rgba(255,225,128,.28) 0 1px, transparent 1.6px), radial-gradient(circle at 31% 68%, rgba(255,225,128,.22) 0 1px, transparent 1.5px), radial-gradient(circle at 86% 76%, rgba(255,225,128,.35) 0 1px, transparent 1.5px)",
+              backgroundSize: "150px 170px, 190px 210px, 220px 240px, 175px 195px",
+            }}
+          />
+        </div>
+      </ViewportBackdropPortal>
       <div
         aria-hidden="true"
         style={{
@@ -107,6 +130,7 @@ export default function CardsCollectionPage() {
         <button
           type="button"
           data-testid="button-close-cards"
+          data-ios-edge-control="true"
           aria-label="Close cards collection"
           onClick={() => navigate("/")}
           style={{
@@ -121,6 +145,8 @@ export default function CardsCollectionPage() {
             padding: 0,
             background: "transparent",
             cursor: "pointer",
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
             filter: "drop-shadow(0 5px 9px rgba(0,0,0,.52))",
           }}
         >
