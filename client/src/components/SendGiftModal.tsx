@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.webp";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { playShopBell } from "@/lib/sounds";
 
 interface SendGiftModalProps {
@@ -143,9 +144,9 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
 
   if (step === "success") {
     return (
-      <>
-        <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.6)" }} />
-        <div data-testid="send-gift-success" className="fixed z-[99998] flex flex-col items-center" style={{ ...modalStyle, padding: "28px 20px 24px" }}>
+      <ViewportModalPortal>
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} />
+        <div data-testid="send-gift-success" role="dialog" aria-modal="true" className="absolute flex flex-col items-center" style={{ ...modalStyle, padding: "28px 20px 24px" }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%",
             background: "rgba(74,222,128,0.12)",
@@ -195,15 +196,15 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
             OK
           </button>
         </div>
-      </>
+      </ViewportModalPortal>
     );
   }
 
   if (step === "confirm") {
     return (
-      <>
-        <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStep("compose")} />
-        <div data-testid="send-gift-confirm" className="fixed z-[99998] flex flex-col" style={{ ...modalStyle }}>
+      <ViewportModalPortal>
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setStep("compose")} />
+        <div data-testid="send-gift-confirm" role="dialog" aria-modal="true" className="absolute flex flex-col" style={{ ...modalStyle }}>
           <button
             onClick={() => setStep("compose")}
             style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", cursor: "pointer", color: "rgba(127,255,212,0.4)", fontSize: 20 }}
@@ -301,16 +302,18 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
             </button>
           </div>
         </div>
-      </>
+      </ViewportModalPortal>
     );
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose} />
+    <ViewportModalPortal>
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose} />
       <div
         data-testid="send-gift-modal"
-        className="fixed z-[99998] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        className="absolute flex flex-col"
         style={modalStyle}
       >
         <button
@@ -494,6 +497,6 @@ export default function SendGiftModal({ friendId, friendUsername, senderCoins, o
           Review Gift
         </button>
       </div>
-    </>
+    </ViewportModalPortal>
   );
 }
