@@ -282,6 +282,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   return (
     <div
       data-testid="overlay-player-detail"
+      data-global-hud-blocker="true"
       className="fixed inset-0 flex items-end justify-center"
       style={{ background: "rgba(0,0,0,0.72)", zIndex }}
       onClick={onClose}
