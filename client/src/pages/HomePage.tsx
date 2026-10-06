@@ -1534,6 +1534,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Drag ghost for home page speed-up sheet */}
@@ -1561,7 +1562,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             <span style={{ fontSize: 28 }}>⏩</span>
           )}
         </div>
-        </ViewportModalPortal>
       )}
 
       {/* ── Active pet action menu (mystical ring) ── */}
