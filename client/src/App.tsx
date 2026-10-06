@@ -647,8 +647,7 @@ function AppRouter() {
         )}
       </Suspense>
 
-      {/* FloatingNav stays above normal page content, but the shared
-          navVisibility contract removes it while a blocking modal owns input. */}
+      {/* FloatingNav sits above all overlays */}
       {!shouldHideNav(location) && !petStatsOpen && !navOverlayOpen && (
         <FloatingNav
           user={user}
@@ -913,6 +912,21 @@ function GameStage({ children }: { children: ReactNode }) {
             overflow: "visible",
           }}
         />
+        {layout.coordinateOwner === "stage" && (
+          <div
+            id="game-viewport-modal"
+            data-testid="game-viewport-modal"
+            style={{
+              position: "absolute",
+              left: hudRect.left,
+              top: hudRect.top,
+              width: hudRect.width,
+              height: hudRect.height,
+              pointerEvents: "none",
+              overflow: "visible",
+            }}
+          />
+        )}
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>
