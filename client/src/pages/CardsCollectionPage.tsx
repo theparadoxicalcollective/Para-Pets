@@ -69,6 +69,7 @@ export default function CardsCollectionPage() {
     <main
       data-testid="page-cards-collection"
       data-stage-coordinate-space="canonical"
+      data-viewport-visual-owner="backdrop"
       style={{
         position: "absolute",
         inset: 0,
@@ -102,6 +103,7 @@ export default function CardsCollectionPage() {
       </ViewportBackdropPortal>
       <div
         aria-hidden="true"
+        data-canonical-visual-layer="duplicate-backdrop"
         style={{
           position: "absolute",
           inset: 0,
