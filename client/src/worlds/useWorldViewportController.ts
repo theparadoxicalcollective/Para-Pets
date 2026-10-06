@@ -62,6 +62,9 @@ export function useWorldViewportController({
   const [mapScale, setMapScale] = useState(1);
   const [mapH, setMapH] = useState(defaultMapHeight);
   const mapHRef = useRef(defaultMapHeight);
+  const cameraInitializedRef = useRef(false);
+  const cameraFrameRef = useRef({ width: initialFrameWidth, height: initialFrameHeight });
+  const cameraWorldRef = useRef({ worldId, mapH: defaultMapHeight });
 
   const mapPanPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const mapPanStartRef = useRef<{
@@ -168,13 +171,54 @@ export function useWorldViewportController({
           false,
           mapWidth,
         );
-    const initialX = (frameWRef.current - mapWidth * fitScale) / 2;
-    const initialY = (frameHRef.current - mapHRef.current * fitScale) / 2;
-    mapTransformRef.current = { x: initialX, y: initialY, scale: fitScale };
-    setMapX(initialX);
-    setMapY(initialY);
+
+    const previousFrame = cameraFrameRef.current;
+    const previousWorld = cameraWorldRef.current;
+    const resetForWorld =
+      !cameraInitializedRef.current
+      || previousWorld.worldId !== worldId
+      || previousWorld.mapH !== mapHRef.current;
+
+    let nextX: number;
+    let nextY: number;
+
+    if (resetForWorld) {
+      nextX = (frameWRef.current - mapWidth * fitScale) / 2;
+      nextY = (frameHRef.current - mapHRef.current * fitScale) / 2;
+    } else {
+      // Browser chrome can resize visualViewport while a touch drag is active.
+      // Preserve the authored-map point under the camera center instead of
+      // recentering the whole World and making the gesture appear to do nothing.
+      const previous = mapTransformRef.current;
+      const previousScale = Math.max(previous.scale, 0.0001);
+      const focusX = (previousFrame.width / 2 - previous.x) / (mapWidth * previousScale);
+      const focusY = (previousFrame.height / 2 - previous.y) / (mapHRef.current * previousScale);
+      nextX = frameWRef.current / 2 - focusX * mapWidth * fitScale;
+      nextY = frameHRef.current / 2 - focusY * mapHRef.current * fitScale;
+    }
+
+    const clamped = clampTransform(nextX, nextY, fitScale);
+    mapTransformRef.current = { x: clamped.x, y: clamped.y, scale: fitScale };
+    setMapX(clamped.x);
+    setMapY(clamped.y);
     setMapScale(fitScale);
-  }, [expandedCamera, frameH, frameW, mapH, mapWidth, worldId]);
+
+    cameraInitializedRef.current = true;
+    cameraFrameRef.current = { width: frameWRef.current, height: frameHRef.current };
+    cameraWorldRef.current = { worldId, mapH: mapHRef.current };
+
+    // If iOS browser chrome resized the camera mid-drag, rebase the gesture at
+    // the current pointer so the next move continues smoothly from this camera.
+    if (mapPanStartRef.current && mapPanPointersRef.current.size === 1) {
+      const [pointer] = Array.from(mapPanPointersRef.current.values());
+      mapPanStartRef.current = {
+        x: pointer.x,
+        y: pointer.y,
+        mapX: clamped.x,
+        mapY: clamped.y,
+      };
+    }
+  }, [clampTransform, expandedCamera, frameH, frameW, mapH, mapWidth, worldId]);
 
   const handleVpPointerDown = useCallback((event: ReactPointerEvent) => {
     // Preserve the stale-drag recovery used by the shared admin location
