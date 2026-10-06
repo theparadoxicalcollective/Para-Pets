@@ -2134,18 +2134,19 @@
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
- * Cross-device game frame
+ * Cross-device gameplay stage
  *
- * The game is authored at a fixed 390×844 "phone" design size (#game-stage) and
- * uniformly scaled with transform:scale() to fit any device. Leftover space is
- * filled by a themed backdrop + gold border, so the game looks IDENTICAL on
- * every screen. iPhone 12 == 390×844 → scale 1 → pixel-faithful, no border.
+ * Gameplay is authored against the canonical 390×844 #game-stage coordinate
+ * system. iPhone 12 remains the pixel-faithful scale-1 reference. Stage-owned
+ * tablets/desktops can uniformly scale that logical coordinate plane while
+ * full-device backdrop, scene, HUD, and modal surfaces provide a seamless
+ * larger-screen presentation around it.
  *
- * Viewport units inside the frame must be FRAME-relative, not window-relative,
- * or they'd reference the (possibly huge) real window. We map them onto custom
- * properties: at :root they fall back to real vw/vh (so fluid marketing pages
- * are unchanged); inside #game-stage they become fixed design pixels that scale
- * with the transform. Source vw/vh/svh/dvh usages are rewritten to
+ * Viewport units inside the stage must remain STAGE-relative, not
+ * window-relative, or authored placements would shift with the outer browser
+ * size. At :root the custom properties still describe the real viewport;
+ * inside #game-stage they become logical stage pixels that scale with the
+ * transform. Source vw/vh/svh/dvh usages are rewritten to
  * calc(N * var(--vw|--vh)).
  * ─────────────────────────────────────────────────────────────────────────── */
 :root {
