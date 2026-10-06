@@ -912,6 +912,21 @@ function GameStage({ children }: { children: ReactNode }) {
             overflow: "visible",
           }}
         />
+        {layout.coordinateOwner === "stage" && (
+          <div
+            id="game-viewport-modal"
+            data-testid="game-viewport-modal"
+            style={{
+              position: "absolute",
+              left: hudRect.left,
+              top: hudRect.top,
+              width: hudRect.width,
+              height: hudRect.height,
+              pointerEvents: "none",
+              overflow: "visible",
+            }}
+          />
+        )}
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>
