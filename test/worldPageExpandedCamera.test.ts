@@ -9,22 +9,31 @@ import {
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("WorldPage opts only the map camera into the expanded viewport scene", () => {
+test("WorldPage keeps persistent controls in the viewport HUD above the expanded map camera", () => {
   const source = read("client/src/pages/WorldPage.tsx");
 
   assert.match(source, /import ViewportScenePortal from "@\/components\/ViewportScenePortal"/);
+  assert.match(source, /import ViewportHudPortal from "@\/components\/ViewportHudPortal"/);
   assert.match(source, /expandedCamera: true/);
   assert.match(source, /<ViewportScenePortal enabled=\{!worldMapCameraBlocked\}>/);
   assert.match(source, /data-testid="world-expanded-camera"/);
 
   const portalStart = source.indexOf("<ViewportScenePortal enabled={!worldMapCameraBlocked}>");
   const portalEnd = source.indexOf("</ViewportScenePortal>", portalStart);
-  const backButton = source.indexOf('data-testid="button-back-to-map"', portalEnd);
+  const hudStart = source.indexOf("<ViewportHudPortal>", portalEnd);
+  const hud = source.indexOf('data-testid="world-persistent-hud"', hudStart);
+  const backButton = source.indexOf('data-testid="button-back-to-map"', hud);
+  const decorButton = source.indexOf('data-testid="button-world-decor"', hud);
+  const hudEnd = source.indexOf("</ViewportHudPortal>", hudStart);
   const shopPanel = source.indexOf("{showShop && (", portalEnd);
 
   assert.ok(portalStart >= 0 && portalEnd > portalStart);
-  assert.ok(backButton > portalEnd, "map/back UI stays on canonical stage");
+  assert.ok(hudStart > portalEnd);
+  assert.ok(hud > hudStart && hud < hudEnd);
+  assert.ok(backButton > hud && backButton < hudEnd);
+  assert.ok(decorButton > hud && decorButton < hudEnd);
   assert.ok(shopPanel > portalEnd, "shop panel must not move into expanded map camera");
+  assert.doesNotMatch(source.slice(hudStart, hudEnd), /className="fixed/);
 });
 
 test("all WorldPage worlds keep the same authored 1080-wide coordinate canvas", () => {
