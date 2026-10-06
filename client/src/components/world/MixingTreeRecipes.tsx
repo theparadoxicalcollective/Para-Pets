@@ -1,7 +1,22 @@
+import { type ReactNode } from "react";
 import { X } from "lucide-react";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 const recipeBookOpen = "/recipe-book-open.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
+
+function MixingTreeModalSurface({ children }: { children: ReactNode }) {
+  return (
+    <ViewportModalPortal>
+      <div
+        data-testid="mixing-tree-viewport-modal"
+        className="absolute inset-0 flex items-center justify-center pointer-events-auto"
+      >
+        {children}
+      </div>
+    </ViewportModalPortal>
+  );
+}
 
 export interface MixingTreeRecipe {
   id: string;
@@ -31,10 +46,7 @@ export function RecipeAlreadyRecordedModal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-auto"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
-    >
+    <MixingTreeModalSurface>
       <div className="absolute inset-0" onClick={onClose} />
       <div
         className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-7 py-6"
@@ -75,7 +87,7 @@ export function RecipeAlreadyRecordedModal({
           ✕ Close
         </button>
       </div>
-    </div>
+    </MixingTreeModalSurface>
   );
 }
 
@@ -95,10 +107,7 @@ export function RecipeBookModal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-auto"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
-    >
+    <MixingTreeModalSurface>
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
@@ -265,7 +274,7 @@ export function RecipeBookModal({
           )}
         </div>
       </div>
-    </div>
+    </MixingTreeModalSurface>
   );
 }
 
@@ -279,11 +288,7 @@ export function RecipeDetailModal({
   if (!recipe) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
-      onClick={onClose}
-    >
+    <MixingTreeModalSurface>
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
       <div
         className="relative z-10 w-[85%] max-w-[300px] rounded-2xl overflow-hidden p-6 flex flex-col items-center gap-4"
@@ -438,6 +443,6 @@ export function RecipeDetailModal({
           </div>
         </div>
       </div>
-    </div>
+    </MixingTreeModalSurface>
   );
 }
