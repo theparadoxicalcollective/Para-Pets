@@ -41,6 +41,7 @@ import SellFishPage from "@/pages/SellFishPage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
+import ViewportHudPortal from "@/components/ViewportHudPortal";
 
 const recipeBookClosed = "/recipe-book-closed.png";
 const mixingTreeTitle = "/mixing-tree-title.png";
@@ -1861,44 +1862,54 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         </div>
       </ViewportScenePortal>
 
-      <button
-        data-testid="button-back-to-map"
-        onClick={() => navigate("/map")}
-        className="fixed z-30 font-fantasy text-sm tracking-[0.15em] transition-transform active:scale-95 px-4 py-2 rounded-lg"
-        style={{
-          bottom: "24px",
-          left: 16,
-          background: `linear-gradient(135deg, rgba(10,5,15,0.92) 0%, rgba(25,15,35,0.92) 50%, rgba(10,5,15,0.92) 100%)`,
-          border: `1.5px solid ${accent}70`,
-          color: accent,
-          cursor: "pointer",
-          boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 20px ${accent}20, inset 0 1px 0 ${accent}15`,
-          textShadow: `0 0 12px ${accent}50, 0 0 25px ${accent}25`,
-        }}
-      >
-        ← Map
-      </button>
-
-      {currentUser.isAdmin && (
-        <div className="fixed z-30 flex items-center gap-2"
-          style={{ bottom: "82px", right: 16 }}
+      <ViewportHudPortal>
+        <div
+          data-testid="world-persistent-hud"
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 30 }}
         >
           <button
-            data-testid="button-world-decor"
-            onClick={() => { setShowDecorPanel(true); }}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+            data-testid="button-back-to-map"
+            onClick={() => navigate("/map")}
+            className="absolute font-fantasy text-sm tracking-[0.15em] transition-transform active:scale-95 px-4 py-2 rounded-lg"
             style={{
-              background: "linear-gradient(135deg, #9b5de5cc 0%, #9b5de588 100%)",
-              border: "2px solid #9b5de5",
-              boxShadow: "0 4px 20px #9b5de560, 0 0 30px #9b5de535",
+              bottom: 24,
+              left: 16,
+              pointerEvents: "auto",
+              background: `linear-gradient(135deg, rgba(10,5,15,0.92) 0%, rgba(25,15,35,0.92) 50%, rgba(10,5,15,0.92) 100%)`,
+              border: `1.5px solid ${accent}70`,
+              color: accent,
               cursor: "pointer",
+              boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 20px ${accent}20, inset 0 1px 0 ${accent}15`,
+              textShadow: `0 0 12px ${accent}50, 0 0 25px ${accent}25`,
             }}
-            title="World Decor"
           >
-            <Palette className="w-4 h-4 text-white" />
+            ← Map
           </button>
+
+          {currentUser.isAdmin && (
+            <div
+              className="absolute flex items-center gap-2"
+              style={{ bottom: 82, right: 16, pointerEvents: "auto" }}
+            >
+              <button
+                data-testid="button-world-decor"
+                onClick={() => { setShowDecorPanel(true); }}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                style={{
+                  background: "linear-gradient(135deg, #9b5de5cc 0%, #9b5de588 100%)",
+                  border: "2px solid #9b5de5",
+                  boxShadow: "0 4px 20px #9b5de560, 0 0 30px #9b5de535",
+                  cursor: "pointer",
+                }}
+                title="World Decor"
+              >
+                <Palette className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </ViewportHudPortal>
 
       {showAddLocation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
