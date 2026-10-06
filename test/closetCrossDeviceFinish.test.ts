@@ -22,7 +22,7 @@ test("Closet expands only its environment while preserving the authored template
 test("Closet template background keeps the existing placement geometry instead of being redesigned for tablets", () => {
   const source = read("client/src/components/PetEquipAccessoriesPage.tsx");
 
-  assert.match(source, /<img src=\{closetBackground\}[\s\S]*?objectFit: "fill"/);
+  assert.match(source, /<img[\s\S]*?src=\{closetBackground\}[\s\S]*?data-canonical-visual-layer="duplicate-backdrop"[\s\S]*?objectFit: "fill"/);
   assert.match(source, /data-testid="closet-pet-preview"[\s\S]*?left: "19%"[\s\S]*?top: "21\.2%"[\s\S]*?width: "56%"[\s\S]*?height: "39\.5%"/);
   assert.match(source, /data-testid="button-open-mini-pets"[\s\S]*?left: "7\.5%"[\s\S]*?top: "43\.5%"[\s\S]*?width: "15\.5%"/);
   assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "5\.5%"[\s\S]*?top: "60\.1%"[\s\S]*?width: "89%"[\s\S]*?height: "12\.2%"/);
