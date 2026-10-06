@@ -1,0 +1,63 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { calculateStageLayout, clientRectPointToStage, logicalToRendered, renderedToLogical } from "../client/src/lib/stage";
+
+const read = (path: string) => readFileSync(path, "utf8");
+
+test("Level Up keeps its authored UI on the canonical stage without restoring HomePage", () => {
+  const level = read("client/src/components/PetLevelUpPage.tsx");
+  const route = read("client/src/pages/PetLevelUpRoute.tsx");
+  const home = read("client/src/pages/HomePage.tsx");
+
+  assert.match(level, /\.lupage\{position:absolute;inset:0;width:100%;height:100%/);
+  assert.match(level, /data-stage-coordinate-space="canonical"/);
+  assert.doesNotMatch(level, /\.lupage\{position:fixed/);
+  assert.doesNotMatch(level, /max-width:768px/);
+  assert.match(route, /data-testid="pet-level-up-route-error"[\s\S]*data-stage-coordinate-space="canonical"/);
+  assert.match(route, /position: "absolute"/);
+  assert.doesNotMatch(home, /<PetLevelUpPage/);
+});
+
+test("Level Up extends only its surroundings while preserving the isolated page", () => {
+  const level = read("client/src/components/PetLevelUpPage.tsx");
+
+  assert.match(level, /useStageSurroundings\(\{/);
+  assert.match(level, /imageUrl: forestBg/);
+  assert.match(level, /backgroundColor: "#060a09"/);
+  assert.match(level, /backgroundPosition: "center center"/);
+  assert.match(level, /<img src=\{forestBg\} alt="" className="lupage-bg" \/>/);
+});
+
+test("Level Up drag ghosts and sparks use logical stage coordinates", () => {
+  const level = read("client/src/components/PetLevelUpPage.tsx");
+
+  assert.match(level, /clientToStage\(event\.clientX, event\.clientY\)/);
+  assert.match(level, /clientRectPointToStage\(r\)/);
+  assert.match(level, /\.lupage-ghost\{position:absolute/);
+  assert.match(level, /\.lupage-spark\{position:absolute/);
+  assert.doesNotMatch(level, /\.lupage-ghost\{position:fixed/);
+  assert.doesNotMatch(level, /\.lupage-spark\{position:fixed/);
+});
+
+test("logical Level Up coordinates round-trip on iPhone, Android, tablet and desktop stage layouts", () => {
+  const viewports = [
+    [390, 844, false],
+    [412, 915, true],
+    [768, 1024, true],
+    [1366, 768, false],
+    [1920, 1080, false],
+  ] as const;
+
+  for (const [width, height, fitPortraitReference] of viewports) {
+    const layout = calculateStageLayout(width, height, 0, 0, { fitPortraitReference });
+    const logical = { x: 195, y: 422 };
+    const rendered = logicalToRendered(layout, logical.x, logical.y);
+    const roundTrip = renderedToLogical(layout, rendered.x, rendered.y);
+
+    assert.ok(Math.abs(roundTrip.x - logical.x) < 1e-9);
+    assert.ok(Math.abs(roundTrip.y - logical.y) < 1e-9);
+  }
+
+  assert.equal(typeof clientRectPointToStage, "function");
+});
