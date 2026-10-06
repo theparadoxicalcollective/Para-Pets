@@ -2226,6 +2226,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   return (
     <div
+      data-global-hud-blocker={homeOutdoorCameraBlocked ? "true" : undefined}
       className="relative w-full h-screen-frame"
       style={{ maxWidth: "768px", margin: "0 auto", overflow: "hidden" }}
     >
