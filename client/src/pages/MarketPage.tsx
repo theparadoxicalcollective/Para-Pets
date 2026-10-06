@@ -5,6 +5,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playChime, playClick, playTick } from "@/lib/sounds";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
@@ -281,7 +283,7 @@ function PetListingConfirmModal({ pet, onConfirm, onCancel, isPending }: { pet: 
     : (pet.eggImageUrl || pet.imageUrl);
 
   return (
-    <div onClick={onCancel} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,.82)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+    <div onClick={onCancel} style={{ position: "absolute", inset: 0, zIndex: 400, background: "rgba(0,0,0,.82)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, padding: "25px 22px", borderRadius: 20, border: "2px solid rgba(211,151,255,.55)", background: "linear-gradient(165deg,#180522,#2d0b49)", boxShadow: "0 0 45px rgba(180,50,255,.25)", textAlign: "center" }}>
         {petImage ? <img src={petImage} alt={petName} style={{ width: 72, height: 72, objectFit: "contain" }} /> : <img src={eggMagicIcon} alt="" style={{ width: 62, height: 62, objectFit: "contain" }} />}
         <h2 style={{ color: purple, fontFamily: "Georgia, serif", fontSize: 18, margin: "8px 0" }}>{isHatched ? "List Hatched Pet" : "List Pet Egg"}</h2>
@@ -304,7 +306,7 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }:
   const d = detailsQuery.data;
   const canAfford = userCoins >= listing.price;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 350, background: "rgba(0,0,0,.84)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 350, background: "rgba(0,0,0,.84)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, minHeight: 450, position: "relative", background: `url(${marketPetCard}) center/100% 100% no-repeat`, padding: "66px 44px 58px", boxSizing: "border-box", textAlign: "center", filter: "drop-shadow(0 12px 28px rgba(0,0,0,.75))" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 24, right: 28, border: 0, background: "rgba(20,0,28,.72)", color: purple, borderRadius: 12, width: 27, height: 27, cursor: "pointer" }}>×</button>
         {detailsQuery.isLoading ? <p style={{ color: purple, marginTop: 130, fontFamily: "Georgia, serif" }}>Loading…</p> : d ? <>
@@ -327,7 +329,7 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
   const d = detailsQuery.data;
   const canAfford = userCoins >= listing.price;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 350, background: "rgba(0,0,0,.84)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 350, background: "rgba(0,0,0,.84)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, minHeight: 450, position: "relative", background: `url(${marketItemCard}) center/100% 100% no-repeat`, padding: "58px 45px 58px", boxSizing: "border-box", textAlign: "center", filter: "drop-shadow(0 12px 28px rgba(0,0,0,.75))" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 24, right: 28, border: 0, background: "rgba(0,22,9,.72)", color: green, borderRadius: 12, width: 27, height: 27, cursor: "pointer" }}>×</button>
         <div style={{ height: 155, display: "flex", alignItems: "center", justifyContent: "center" }}>{listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: 120, maxHeight: 135, objectFit: "contain", filter: "drop-shadow(0 6px 12px rgba(70,255,120,.25))" }} /> : <img src={powerupBagIcon} alt="" style={{ width: 85 }} />}</div>
@@ -455,7 +457,7 @@ function SellItemModal({
   }
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 300, background: "rgba(0,0,0,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: "calc(100% - 8px)", maxWidth: 410, maxHeight: "84vh", overflowY: "auto", borderRadius: 20, padding: 16, boxSizing: "border-box", background: "linear-gradient(160deg,rgba(14,6,27,.98),rgba(20,52,25,.98))", border: "2px solid rgba(214,166,58,.42)", boxShadow: "0 0 40px rgba(0,0,0,.7)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h2 style={{ margin: 0, color: cream, fontFamily: "Georgia, serif", fontSize: 18 }}>List Item for Sale</h2>
@@ -696,7 +698,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   ]), []);
 
   return (
-    <div style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
+    <div data-stage-coordinate-space="canonical" style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
       <style>{`
         @keyframes marketCollectGlow {
           0%, 100% { filter: brightness(1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 5px rgba(246,201,93,.28)); }
@@ -706,10 +708,22 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           [data-market-collect-ready="true"] { animation: none !important; filter: brightness(1.06) drop-shadow(0 0 11px rgba(246,201,93,.72)) !important; }
         }
       `}</style>
+      <ViewportBackdropPortal>
+        <div
+          data-testid="market-viewport-backdrop"
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7)), url(${marketBg})`,
+            backgroundPosition: "center top",
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      </ViewportBackdropPortal>
       <div style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0 }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1 }} />
 
-      <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "max(calc(env(safe-area-inset-top,0px) + 10px),46px) 10px 0", display: "grid", gridTemplateColumns: "43px minmax(0,1fr) minmax(72px,auto)", gap: 6, alignItems: "center" }}>
           <button aria-label="Back" data-testid="button-back-home" onClick={() => navigate("/")} style={{ width: 43, height: 43, padding: 0, border: "1px solid rgba(255,205,90,.46)", borderRadius: 12, background: "linear-gradient(145deg,rgba(20,74,39,.9),rgba(13,35,28,.94))", color: cream, cursor: "pointer", boxShadow: "inset 0 0 0 1px rgba(103,255,148,.12),0 4px 12px rgba(0,0,0,.4),0 0 9px rgba(86,238,129,.16)", fontFamily: "Georgia, serif", fontSize: 27, fontWeight: 700, lineHeight: 1, textShadow: "0 1px 2px #07130b,0 0 7px rgba(255,222,120,.45)" }}>←</button>
           <h1 style={{ margin: 0, minWidth: 0, textAlign: "center", color: cream, fontFamily: "Georgia, serif", fontSize: "clamp(17px,5.4vw,22px)", lineHeight: 1.05, letterSpacing: .4, textShadow: "0 0 14px #b832ff,0 2px 3px #190021" }}>Player Market</h1>
@@ -788,6 +802,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       </div>
 
       {showSellModal && (
+        <ViewportModalPortal>
         <SellItemModal
           inventory={inventoryQuery.data ?? []}
           fishInventory={fishInventoryQuery.data ?? []}
@@ -803,9 +818,18 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           isPending={listMutation.isPending || listFishMutation.isPending || listHomeDecorMutation.isPending || listHomeBundleMutation.isPending}
           isPetPending={listPetMutation.isPending}
         />
+        </ViewportModalPortal>
       )}
-      {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
-      {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
+      {detailTarget?.itemType === "pet_egg" && (
+        <ViewportModalPortal>
+          <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />
+        </ViewportModalPortal>
+      )}
+      {detailTarget && detailTarget.itemType !== "pet_egg" && (
+        <ViewportModalPortal>
+          <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />
+        </ViewportModalPortal>
+      )}
     </div>
   );
 }
