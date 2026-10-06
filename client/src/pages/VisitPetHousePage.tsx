@@ -22,6 +22,7 @@ import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHom
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
+import ViewportHudPortal from "@/components/ViewportHudPortal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface VisitedPet {
@@ -1014,8 +1015,10 @@ export default function VisitPetHousePage() {
         </div>
       </ViewportScenePortal>
 
-      {/* HUD */}
+      {/* Persistent visit HUD stays above the expanded Home camera on every phone size. */}
+      <ViewportHudPortal>
       <div
+        data-testid="visit-pet-home-hud"
         className="absolute z-30 left-0 right-0 flex items-center justify-between px-3"
         style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))", paddingBottom: 8, background: "linear-gradient(180deg, rgba(8,14,5,0.82) 0%, rgba(8,14,5,0.45) 80%, transparent 100%)", pointerEvents: "none" }}
       >
@@ -1034,6 +1037,7 @@ export default function VisitPetHousePage() {
         )}
         <div className="w-9 h-9 flex-shrink-0" aria-hidden="true" />
       </div>
+      </ViewportHudPortal>
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">

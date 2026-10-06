@@ -31,6 +31,24 @@ test("viewport HUD maps to real device edges while gameplay keeps its canonical 
   }
 });
 
+test("iPhone 11-style portrait reference HUD reaches the real device edges", () => {
+  const layout = calculateStageLayout(414, 896, 0, 0, { fitPortraitReference: true });
+  const hud = calculateViewportHudRect(layout);
+
+  const renderedLeft = layout.left + hud.left * layout.scale;
+  const renderedTop = layout.top + hud.top * layout.scale;
+  const renderedRight = layout.left + (hud.left + hud.width) * layout.scale;
+  const renderedBottom = layout.top + (hud.top + hud.height) * layout.scale;
+
+  assert.equal(layout.coordinateOwner, "stage");
+  assert.equal(layout.designWidth, 390);
+  assert.equal(layout.designHeight, 844);
+  assert.ok(Math.abs(renderedLeft) < 1e-9);
+  assert.ok(Math.abs(renderedTop) < 1e-9);
+  assert.ok(Math.abs(renderedRight - 414) < 1e-9);
+  assert.ok(Math.abs(renderedBottom - 896) < 1e-9);
+});
+
 test("iPhone 12 HUD geometry remains exactly the existing viewport", () => {
   const layout = calculateStageLayout(390, 844);
   const hud = calculateViewportHudRect(layout);
