@@ -55,6 +55,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
+import ViewportHudPortal from "@/components/ViewportHudPortal";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
@@ -2559,8 +2560,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       </ViewportScenePortal>
 
-      {/* Bottom inventory bar — left-aligned to avoid FloatingNav (bottom-right) */}
+      {/* Bottom inventory bar — persistent device HUD, left-aligned to avoid FloatingNav (bottom-right) */}
+      <ViewportHudPortal>
       <div
+        data-testid="pet-home-inventory-hud"
         className="absolute bottom-0 left-0 flex gap-3 pb-5 pt-3 pl-3"
         style={{ zIndex: openInterior ? 65 : 40, pointerEvents: "auto", right: 80, background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
         onPointerDown={(e) => e.stopPropagation()}
@@ -2600,6 +2603,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           );
         })}
       </div>
+      </ViewportHudPortal>
 
       {/* Inventory overlay panel — z-250 so it rises above the FloatingNav main button (z-96) */}
       {openInventory && (
