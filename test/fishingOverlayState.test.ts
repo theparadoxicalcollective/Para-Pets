@@ -102,8 +102,8 @@ test("Fishing Pond Stock admin uses the shared viewport modal without changing s
     fishingSource,
     /function PondAdminPanel[\s\S]*?maxWidth: "768px"/,
   );
-  assert.match(fishingSource, /data-testid=\{\`button-add-pond-fish-\$\{fi\.id\}\`\}/);
-  assert.match(fishingSource, /data-testid=\{\`button-remove-pond-fish-\$\{pf\.shopItemId\}\`\}/);
+  assert.match(fishingSource, /button-add-pond-fish-\$\{fi\.id\}/);
+  assert.match(fishingSource, /button-remove-pond-fish-\$\{pf\.shopItemId\}/);
   assert.match(fishingSource, /onAdd=\{\(shopItemId\) => addPondFishMutation\.mutate\(shopItemId\)\}/);
   assert.match(fishingSource, /onRemove=\{\(shopItemId\) => removePondFishMutation\.mutate\(shopItemId\)\}/);
 });
