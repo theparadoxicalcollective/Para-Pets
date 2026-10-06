@@ -895,7 +895,9 @@ function GameStage({ children }: { children: ReactNode }) {
             height: hudRect.height,
             pointerEvents: "none",
             overflow: "visible",
-          }}
+            "--hud-safe-top": layout.referencePortrait ? "env(safe-area-inset-top, 0px)" : "0px",
+            "--hud-safe-bottom": layout.referencePortrait ? "env(safe-area-inset-bottom, 0px)" : "0px",
+          } as CSSProperties}
         />
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
