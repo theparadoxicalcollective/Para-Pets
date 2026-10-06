@@ -8,14 +8,14 @@ test("stage-owned devices expose a full-device backdrop behind canonical content
   const app = read("client/src/App.tsx");
 
   const backdrop = app.indexOf('id="game-viewport-backdrop"');
-  const content = app.indexOf('id="game-stage-content"');
-  const scene = app.indexOf('id="game-viewport-scene"');
-  const hud = app.indexOf('id="game-viewport-hud"');
+  const content = app.indexOf('id="game-stage-content"', backdrop);
+  const scene = app.indexOf('id="game-viewport-scene"', content);
+  const hud = app.indexOf('id="game-viewport-hud"', scene);
 
   assert.ok(backdrop >= 0);
-  assert.ok(backdrop < content);
-  assert.ok(content < scene);
-  assert.ok(scene < hud);
+  assert.ok(content > backdrop);
+  assert.ok(scene > content);
+  assert.ok(hud > scene);
 
   const backdropBlock = app.slice(backdrop, content);
   assert.match(backdropBlock, /left: sceneRect\.left/);
