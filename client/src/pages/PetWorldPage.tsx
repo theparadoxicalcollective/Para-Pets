@@ -1419,7 +1419,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden"
+      data-testid="pet-central-page"
+      className="relative w-full h-screen-frame overflow-hidden"
       style={{ background: "#060e06" }}
     >
       {/* ══ Map canvas — full-device camera on stage-owned devices ════════ */}
