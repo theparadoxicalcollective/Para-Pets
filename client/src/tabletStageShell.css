@@ -1,7 +1,13 @@
 /*
  * Tablet/desktop presentation shell only.
+ *
+ * The canonical 390×844 gameplay stage remains the coordinate reference on
+ * stage-owned larger devices, but it must not be presented as a visible phone
+ * frame. Full-device surroundings/scenes provide the visual canvas while
+ * authored gameplay coordinates remain stable.
+ *
  * Phones (including iPhone/Android standalone web apps) keep their native
- * mobile layout and are never opted into the desktop presentation by width.
+ * mobile layout and are never opted into this presentation by width.
  */
 
 /* Shared desktop/tablet presentation. */
@@ -20,30 +26,10 @@
     background-repeat: no-repeat !important;
   }
 
-  #game-stage {
-    box-sizing: border-box;
-    /* Decorate the frame without subtracting pixels from the phone canvas. */
-    border: 0;
-    outline: 3px solid rgba(222, 178, 62, 0.9);
-    outline-offset: -3px;
-    border-radius: 18px;
-    box-shadow:
-      0 0 0 1px rgba(255, 231, 154, 0.28),
-      0 0 34px rgba(198, 148, 30, 0.28),
-      0 24px 60px rgba(0, 0, 0, 0.55);
-  }
-
   .game-stage-shell[data-viewport-scene-active="true"],
   .game-stage-shell[data-viewport-backdrop-active="true"] {
     background-image: none !important;
     background-color: #050c08 !important;
-  }
-
-  #game-stage[data-viewport-scene-active="true"],
-  #game-stage[data-viewport-backdrop-active="true"] {
-    outline: 0;
-    border-radius: 0;
-    box-shadow: none;
   }
 
   #game-stage[data-coordinate-owner="stage"] .active-pet-viewport-backdrop {
@@ -53,13 +39,9 @@
 
 /*
  * Installed desktop PWAs can report a narrower standalone viewport than the
- * normal browser window. Width alone would therefore drop them out of the
- * desktop presentation even though they are still running on a computer.
- *
- * A fine pointer + hover capability identifies the desktop-style installed app
- * without opting touch-first phone/tablet PWAs into this rule. This gives the
- * installed computer version the same outer artwork and gold frame as the
- * desktop browser even when its window is narrower than 768px.
+ * normal browser window. A fine pointer + hover capability identifies that
+ * desktop-style installed app without opting touch-first phone/tablet PWAs
+ * into the wide-device surroundings.
  */
 @media (display-mode: standalone) and (hover: hover) and (pointer: fine) {
   .game-stage-shell {
@@ -76,30 +58,10 @@
     background-repeat: no-repeat !important;
   }
 
-  #game-stage {
-    box-sizing: border-box;
-    /* Decorate the frame without subtracting pixels from the phone canvas. */
-    border: 0;
-    outline: 3px solid rgba(222, 178, 62, 0.9);
-    outline-offset: -3px;
-    border-radius: 18px;
-    box-shadow:
-      0 0 0 1px rgba(255, 231, 154, 0.28),
-      0 0 34px rgba(198, 148, 30, 0.28),
-      0 24px 60px rgba(0, 0, 0, 0.55);
-  }
-
   .game-stage-shell[data-viewport-scene-active="true"],
   .game-stage-shell[data-viewport-backdrop-active="true"] {
     background-image: none !important;
     background-color: #050c08 !important;
-  }
-
-  #game-stage[data-viewport-scene-active="true"],
-  #game-stage[data-viewport-backdrop-active="true"] {
-    outline: 0;
-    border-radius: 0;
-    box-shadow: none;
   }
 
   #game-stage[data-coordinate-owner="stage"] .active-pet-viewport-backdrop {

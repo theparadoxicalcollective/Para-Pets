@@ -689,76 +689,19 @@ function CrashReporter() {
   );
 }
 
-// ── Desktop-only "game is mobile optimized" notice ────────────────────────────
-function DesktopNotice() {
-  const [location] = useLocation();
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem("para_desktop_notice_v1") === "1"; } catch { return false; }
-  });
-
-  // Only show on large non-touch non-mobile-UA screens
-  const [isDesktop] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 1;
-      const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|Tablet/i.test(navigator.userAgent);
-      return window.innerWidth >= 1024 && !hasTouch && !isMobileUA;
-    } catch { return false; }
-  });
-
-  // The public Hub is a real desktop document, so its visitors should not see
-  // the gameplay-only mobile optimization notice.
-  if (location === "/hub" || !isDesktop || dismissed) return null;
-
-  const dismiss = () => {
-    try { localStorage.setItem("para_desktop_notice_v1", "1"); } catch {}
-    setDismissed(true);
-  };
-
-  return (
-    <div
-      style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 99997,
-        background: "linear-gradient(90deg, rgba(8,5,1,0.97) 0%, rgba(18,11,3,0.97) 50%, rgba(8,5,1,0.97) 100%)",
-        borderBottom: "1.5px solid rgba(212,160,23,0.35)",
-        padding: "10px 20px",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-        boxShadow: "0 4px 28px rgba(0,0,0,0.75)",
-      }}
-    >
-      <span style={{ fontSize: 20, flexShrink: 0 }}>📱</span>
-      <p style={{
-        fontFamily: "Lora, serif", fontSize: 12, color: "#c9952a",
-        letterSpacing: "0.06em", margin: 0, lineHeight: 1.5,
-      }}>
-        Para Pets is optimized for mobile. For the best experience, open it on your phone!
-      </p>
-      <button
-        onClick={dismiss}
-        style={{
-          fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.1em",
-          color: "rgba(212,160,23,0.75)", background: "transparent",
-          border: "1px solid rgba(212,160,23,0.3)", borderRadius: 6,
-          padding: "5px 14px", cursor: "pointer", flexShrink: 0,
-          transition: "all 0.15s",
-        }}
-      >
-        Got it
-      </button>
-    </div>
-  );
-}
-
+// Wide devices keep the canonical gameplay coordinates without presenting
+// that coordinate plane as a visible phone frame.
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const layout = useStageViewportLayout();
   const hudRect = calculateViewportHudRect(layout);
   const sceneRect = calculateViewportSurfaceRect(layout);
 
-  // Gameplay stays inside the stable 390x844 portrait stage. The public Hub is
-  // the one document-style route: on tablet/desktop it owns the real browser
-  // viewport so it reads like a website instead of a scaled phone preview.
-  // Narrow screens deliberately keep the original native phone rendering.
+  // Gameplay coordinates stay inside the stable 390x844 reference stage.
+  // Larger devices can use full-device backdrop/scene/HUD/modal surfaces around
+  // that reference plane, so the coordinate system remains stable without
+  // presenting it as a visible phone frame. The public Hub is the one true
+  // document-style route. Narrow screens keep the native phone rendering.
   if (shouldUseDocumentLayout(location, layout.viewportWidth)) {
     return (
       <div
@@ -1011,8 +954,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <CrashReporter />
-        <DesktopNotice />
-        {/* Fixed phone-frame stage, uniformly scaled to fit any device. */}
+        {/* Canonical gameplay stage with seamless wide-device presentation surfaces. */}
         <GameStage>
           <RouterErrorBoundary>
             <AppRouter />

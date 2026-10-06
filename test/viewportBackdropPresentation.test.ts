@@ -59,7 +59,7 @@ test("native phone fallback keeps backdrop children inline", () => {
   assert.match(portal, /shell\.dataset\.viewportBackdropActive = "true"/);
 });
 
-test("expanded scene and backdrop ownership suppress duplicate tablet shell artwork", () => {
+test("expanded scene and backdrop ownership suppress duplicate shell artwork without phone-frame chrome", () => {
   const scenePortal = read("client/src/components/ViewportScenePortal.tsx");
   const css = read("client/src/tabletStageShell.css");
 
@@ -68,9 +68,10 @@ test("expanded scene and backdrop ownership suppress duplicate tablet shell artw
   assert.match(css, /\.game-stage-shell\[data-viewport-backdrop-active="true"\]/);
   assert.match(css, /background-image: none !important/);
 
-  assert.match(css, /#game-stage\[data-viewport-scene-active="true"\]/);
-  assert.match(css, /#game-stage\[data-viewport-backdrop-active="true"\]/);
-  assert.match(css, /outline: 0/);
+  assert.doesNotMatch(css, /outline:/);
+  assert.doesNotMatch(css, /border-radius:/);
+  assert.doesNotMatch(css, /box-shadow:/);
+  assert.doesNotMatch(css, /#game-stage\[data-viewport-(?:scene|backdrop)-active/);
 });
 
 test("tablet Active Pet backdrop uses one continuous cover composition instead of a framed phone copy", () => {
