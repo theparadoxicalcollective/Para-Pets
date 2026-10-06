@@ -144,6 +144,7 @@ export default function PvpMatchmakingOverlay({
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden"
       style={{ fontFamily: "Lora, serif" }}
       data-testid="pvp-matchmaking-overlay"
+      data-global-hud-blocker="true"
     >
       {/* Deep-forest backdrop so the arena aesthetic stays consistent. */}
       <div
