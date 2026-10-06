@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
+import { calculateExpandedWorldCameraPanMargin, calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
 
 test("a narrow phone fills its height while the authored sides remain pannable", () => {
   const frameW = 390;
@@ -34,36 +34,62 @@ test("invalid dimensions fall back safely", () => {
 });
 
 
-test("expanded tablet camera fills the viewport with the real map and pans only across overflow", () => {
+test("expanded tablet camera preserves a meaningful draggable margin around the real map", () => {
   const mapH = 1440;
   const phoneScale = calculateExpandedWorldCameraScale(390, 844, mapH);
   assert.equal(phoneScale, 844 / mapH);
 
-  const tabletScale = calculateExpandedWorldCameraScale(683, 911, mapH);
-  const tabletCover = Math.max(683 / WORLD_MAP_WIDTH, 911 / mapH);
-  assert.equal(tabletScale, tabletCover);
-  assert.ok(tabletScale >= phoneScale);
-  assert.ok(WORLD_MAP_WIDTH * tabletScale >= 683);
-  assert.ok(mapH * tabletScale >= 911);
+  const frameW = 683;
+  const frameH = 911;
+  const margin = calculateExpandedWorldCameraPanMargin(frameW, frameH);
+  const tabletScale = calculateExpandedWorldCameraScale(frameW, frameH, mapH);
 
-  const first = clampWorldMapOffset(9999, 9999, tabletScale, 683, 911, mapH);
-  const last = clampWorldMapOffset(-9999, -9999, tabletScale, 683, 911, mapH);
+  assert.equal(margin, Math.min(72, Math.min(frameW, frameH) * 0.06));
+  assert.ok(tabletScale >= phoneScale);
+  assert.ok(WORLD_MAP_WIDTH * tabletScale >= frameW + margin * 2 - 1e-9);
+  assert.ok(mapH * tabletScale >= frameH + margin * 2 - 1e-9);
+
+  const first = clampWorldMapOffset(9999, 9999, tabletScale, frameW, frameH, mapH);
+  const last = clampWorldMapOffset(-9999, -9999, tabletScale, frameW, frameH, mapH);
   assert.equal(first.x, 0);
   assert.equal(first.y, 0);
-  assert.ok(Math.abs(last.x + WORLD_MAP_WIDTH * tabletScale - 683) < 1e-9);
-  assert.ok(Math.abs(last.y + mapH * tabletScale - 911) < 1e-9);
+  assert.ok(Math.abs(last.x + WORLD_MAP_WIDTH * tabletScale - frameW) < 1e-9);
+  assert.ok(Math.abs(last.y + mapH * tabletScale - frameH) < 1e-9);
+  assert.ok(-last.x >= margin * 2 - 1e-9);
+  assert.ok(-last.y >= margin * 2 - 1e-9);
 });
 
-test("expanded desktop camera fills width and keeps the remaining real map vertically pannable", () => {
+test("expanded desktop camera keeps real map beyond the horizontal edges while preserving vertical exploration", () => {
   const mapH = 1440;
+  const frameW = 1500;
+  const frameH = 844;
   const referenceScale = 844 / mapH;
-  const desktopScale = calculateExpandedWorldCameraScale(1500, 844, mapH);
-  assert.equal(desktopScale, 1500 / WORLD_MAP_WIDTH);
-  assert.ok(desktopScale >= referenceScale);
+  const margin = calculateExpandedWorldCameraPanMargin(frameW, frameH);
+  const desktopScale = calculateExpandedWorldCameraScale(frameW, frameH, mapH);
 
-  const top = clampWorldMapOffset(0, 9999, desktopScale, 1500, 844, mapH);
-  const bottom = clampWorldMapOffset(0, -9999, desktopScale, 1500, 844, mapH);
-  assert.equal(top.x, 0);
-  assert.equal(top.y, 0);
-  assert.ok(Math.abs(bottom.y + mapH * desktopScale - 844) < 1e-9);
+  assert.ok(desktopScale >= referenceScale);
+  assert.ok(WORLD_MAP_WIDTH * desktopScale >= frameW + margin * 2 - 1e-9);
+  assert.ok(mapH * desktopScale >= frameH + margin * 2 - 1e-9);
+
+  const topLeft = clampWorldMapOffset(9999, 9999, desktopScale, frameW, frameH, mapH);
+  const bottomRight = clampWorldMapOffset(-9999, -9999, desktopScale, frameW, frameH, mapH);
+  assert.equal(topLeft.x, 0);
+  assert.equal(topLeft.y, 0);
+  assert.ok(Math.abs(bottomRight.x + WORLD_MAP_WIDTH * desktopScale - frameW) < 1e-9);
+  assert.ok(Math.abs(bottomRight.y + mapH * desktopScale - frameH) < 1e-9);
+});
+
+
+test("reference-sized cameras keep the exact iPhone 12 World composition", () => {
+  for (const mapH of [1440, 1600, 1920, 2160]) {
+    assert.equal(
+      calculateExpandedWorldCameraScale(390, 844, mapH),
+      calculateWorldFitScale(390, 844, mapH, false),
+    );
+  }
+});
+
+test("expanded camera pan margin is bounded on very large displays", () => {
+  assert.equal(calculateExpandedWorldCameraPanMargin(3000, 2000), 72);
+  assert.equal(calculateExpandedWorldCameraPanMargin(0, 844), 0);
 });
