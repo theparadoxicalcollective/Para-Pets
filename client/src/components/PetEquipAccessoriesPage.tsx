@@ -337,8 +337,9 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
       <div
         data-testid="closet-authored-template"
-        className="fixed inset-0 z-[200] overflow-hidden"
-        style={{ maxWidth: 768, margin: "0 auto", background: "#020503" }}
+        data-stage-coordinate-space="canonical"
+        className="absolute inset-0 z-[200] h-full w-full overflow-hidden"
+        style={{ background: "#020503" }}
       >
       <img src={closetBackground} alt="" aria-hidden className="absolute inset-0 h-full w-full" style={{ objectFit: "fill", pointerEvents: "none", userSelect: "none" }} />
 
