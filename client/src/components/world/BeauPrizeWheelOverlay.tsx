@@ -771,6 +771,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       aria-modal="true"
       aria-label="Beau's Prize Wheel"
       data-testid="beau-prize-wheel-overlay"
+      data-global-hud-blocker="true"
       style={{ overscrollBehavior: "contain" }}
     >
       <style>{`

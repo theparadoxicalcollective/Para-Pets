@@ -68,6 +68,7 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
       {/* Modal */}
       <div
         data-testid="friend-profile-modal"
+        data-global-hud-blocker="true"
         className="fixed z-[99996] flex flex-col"
         style={{
           top: "50%",
