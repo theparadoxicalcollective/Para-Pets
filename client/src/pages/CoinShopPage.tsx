@@ -9,6 +9,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { pendingPurchaseSession, clearPendingPurchase, PURCHASE_QUERY_KEYS, PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { useToast } from "@/hooks/use-toast";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 import coinPack100 from "@assets/Photoroom_20260629_101811_PM_1782789946363.png";
 import coinPack500 from "@assets/Photoroom_20260629_102009_PM_1782789946363.png";
@@ -384,7 +386,16 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const dailyRemaining = user && packsData ? packsData.dailyLimit - packsData.dailySpent : Number.POSITIVE_INFINITY;
 
   return (
-    <div style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div data-stage-coordinate-space="canonical" style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      <ViewportBackdropPortal>
+        <div
+          data-testid="coin-shop-viewport-backdrop"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)",
+          }}
+        />
+      </ViewportBackdropPortal>
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
         background: "radial-gradient(ellipse at 30% 20%, rgba(74,222,128,0.06) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(127,255,212,0.04) 0%, transparent 50%)"
@@ -645,7 +656,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 </span>
               </div>
 
-              {/* ── Admin item picker — rendered as fixed overlay so it works on any slot ── */}
+              {/* ── Admin item picker — rendered in the shared viewport modal layer ── */}
 
               {/* ── Milestone reward popup ── */}
               {milestonePopup !== null && (() => {
@@ -654,8 +665,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 const popupIsDone = claimed.includes(milestonePopup);
                 const popupIsReachable = pts >= milestonePopup && !popupIsDone;
                 return (
+                  <ViewportModalPortal>
                   <div
-                    style={{ position: "fixed", inset: 0, zIndex: 9980, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    style={{ position: "absolute", inset: 0, zIndex: 9980, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center" }}
                     onClick={() => { if (!claimMilestoneMutation.isPending) { setMilestonePopup(null); setMilestoneClaimSuccess(false); } }}
                   >
                     <div
@@ -741,13 +753,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       )}
                     </div>
                   </div>
+                  </ViewportModalPortal>
                 );
               })()}
             </div>
           );
         })()}
 
-        {/* ── Admin milestone reward picker — fixed overlay modal ── */}
+        {/* ── Admin milestone reward picker — shared viewport modal ── */}
         {currentUser?.isAdmin && adminPickerMs !== null && (() => {
           const msLabel = [
             { end: 2500, label: "Bronze" }, { end: 5000, label: "Silver" },
@@ -762,8 +775,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             return matchesTab && matchesSearch;
           });
           return (
+            <ViewportModalPortal>
             <div
-              style={{ position: "fixed", inset: 0, zIndex: 9990, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
+              style={{ position: "absolute", inset: 0, zIndex: 9990, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
               onClick={() => { setAdminPickerMs(null); setPickerSearch(""); setPickerTab("all"); }}
             >
               <div
@@ -774,7 +788,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   borderRadius: 16, padding: "18px 16px 16px",
                   boxShadow: "0 0 40px rgba(251,146,60,0.15)",
                   display: "flex", flexDirection: "column", gap: 8,
-                  maxHeight: "80vh",
+                  maxHeight: "calc(80*var(--vh))",
                 }}
                 onClick={e => e.stopPropagation()}
               >
@@ -868,6 +882,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 </div>
               </div>
             </div>
+            </ViewportModalPortal>
           );
         })()}
 
@@ -1097,9 +1112,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
       {/* Contact Support Modal */}
       {showSupport && (
+        <ViewportModalPortal>
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 9990,
+            position: "absolute", inset: 0, zIndex: 9990,
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "rgba(2,8,3,0.88)",
           }}
@@ -1181,13 +1197,15 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             )}
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Verification overlay — shown immediately on return from Stripe, before coins are credited */}
       {verifying && successCoins === null && (
+        <ViewportModalPortal>
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 9998,
+            position: "absolute", inset: 0, zIndex: 9998,
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             background: "rgba(2,8,3,0.985)",
             animation: "overlayFadeIn 0.15s ease-out",
@@ -1197,6 +1215,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           {/* Escape hatch — always tappable even if the API call hangs */}
           <button
             data-testid="button-skip-verify"
+            data-ios-edge-control="true"
             onClick={() => setVerifying(false)}
             style={{
               position: "absolute", top: 20, right: 20,
@@ -1238,13 +1257,15 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             ))}
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {successCoins !== null && (
+        <ViewportModalPortal>
         <div
           data-testid="modal-purchase-success"
           style={{
-            position: "fixed", inset: 0, zIndex: 9999,
+            position: "absolute", inset: 0, zIndex: 9999,
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "rgba(0,8,2,0.88)",
             animation: "overlayFadeIn 0.25s ease-out",
@@ -1377,6 +1398,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             </button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
     </div>
   );
