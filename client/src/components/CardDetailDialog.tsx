@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import CardFittedText from "@/components/CardFittedText";
 import CardPreview from "@/components/CardPreview";
 import CardRewardCoin from "@/components/CardRewardCoin";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
   CARD_BACK_SURFACE_COLORS,
   CARD_BORDER_ASSETS,
@@ -186,17 +187,18 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
   };
 
   return <Dialog.Root open onOpenChange={open => { if (!open) onClose(); }}>
-    <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-[100000] bg-black/90" />
+    <ViewportModalPortal>
+      <Dialog.Overlay className="absolute inset-0 z-[100000] bg-black/90" />
       <Dialog.Content
         aria-describedby={undefined}
-        className="fixed inset-0 z-[100001] flex flex-col items-center overflow-y-auto bg-[#06150d] px-4 pb-6 text-[#f6df9e]"
+        data-stage-coordinate-space="viewport-modal"
+        className="absolute inset-0 z-[100001] flex flex-col items-center overflow-y-auto bg-[#06150d] px-4 pb-6 text-[#f6df9e]"
         style={{ paddingTop: "max(56px, calc(env(safe-area-inset-top) + 44px))", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
       >
         {card.artworkUrl && (
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0"
+            className="pointer-events-none absolute inset-0"
             style={{
               backgroundImage: `linear-gradient(rgba(3,13,8,.70), rgba(3,13,8,.82)), url("${card.artworkUrl.replace(/["\\]/g, "")}")`,
               backgroundSize: "cover",
@@ -207,8 +209,9 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
         <Dialog.Title className="sr-only">{card.name}</Dialog.Title>
         <Dialog.Close
           aria-label="Close card viewer"
+          data-ios-edge-control="true"
           className="absolute right-4 z-10 grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-black/50"
-          style={{ top: "max(8px, env(safe-area-inset-top))" }}
+          style={{ top: "max(8px, env(safe-area-inset-top))", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
         >
           <X />
         </Dialog.Close>
@@ -431,6 +434,6 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
           <p className="mt-3 text-center text-sm">Owned: ×{card.quantity}</p>
         </div>
       </Dialog.Content>
-    </Dialog.Portal>
+    </ViewportModalPortal>
   </Dialog.Root>;
 }
