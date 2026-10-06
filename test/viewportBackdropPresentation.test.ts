@@ -34,6 +34,7 @@ test("Active Pet background uses the backdrop portal while presentation stays on
   assert.match(home, /className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
   assert.match(home, /backgroundPosition: "center top"/);
+  assert.doesNotMatch(home, /useStageSurroundings/);
 
   const pageStart = home.indexOf('data-testid="active-pet-page"');
   const backdropStart = home.indexOf("<ViewportBackdropPortal>", pageStart);

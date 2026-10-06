@@ -31,13 +31,13 @@ test("surrounding hook only mutates shell presentation and restores nested paren
   assert.doesNotMatch(source, /game-stage-content|data-design-width|data-design-height|transform:/);
 });
 
-test("Active Pet uses its existing Home artwork only for the outer surroundings", () => {
+test("Active Pet uses one full-device backdrop instead of a second shell-surroundings copy", () => {
   const source = read("client/src/pages/HomePage.tsx");
 
-  assert.match(source, /useStageSurroundings/);
-  assert.match(source, /imageUrl: bgImg/);
-  assert.match(source, /backgroundPosition: "center top"/);
+  assert.match(source, /ViewportBackdropPortal/);
+  assert.match(source, /data-testid="active-pet-viewport-backdrop"/);
   assert.match(source, /backgroundImage: `url\(\$\{bgImg\}\)`/);
+  assert.doesNotMatch(source, /useStageSurroundings/);
 });
 
 test("World surroundings follow the current world and opened location background", () => {

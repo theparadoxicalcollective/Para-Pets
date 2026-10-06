@@ -5,6 +5,7 @@ import coinIconImg from "@assets/icon_coin.webp";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playChime } from "@/lib/sounds";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 interface PendingGift {
   id: string;
@@ -50,12 +51,14 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
   });
 
   return (
-    <>
-      <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.65)" }} onClick={onClose} />
+    <ViewportModalPortal>
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.65)" }} onClick={onClose} />
       <div
         data-testid="gift-claim-modal"
         data-global-hud-blocker="true"
-        className="fixed z-[99998] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        className="absolute flex flex-col"
         style={{
           top: "50%", left: "50%",
           transform: "translate(-50%, -50%)",
@@ -170,6 +173,6 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
           </div>
         )}
       </div>
-    </>
+    </ViewportModalPortal>
   );
 }

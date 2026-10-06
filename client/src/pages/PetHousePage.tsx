@@ -56,6 +56,7 @@ import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
@@ -1738,12 +1739,24 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onError: () => toast({ title: "Error", description: "Could not store pets.", variant: "destructive" }),
   });
 
+  const homeOutdoorCameraBlocked = Boolean(
+    openInterior
+    || petHomeTutorialStep
+  );
+  const petHomeBlockingDialogOpen = Boolean(
+    pendingActivate
+    || openGiftModal
+    || showNoMailPopup
+    || petHomeTutorialStep
+  );
+
   // ── Background layout ──────────────────────────────────────────────────────
   const bgUrl = activeBundle?.bgImageUrl ?? null;
   useStageSurroundings({
     imageUrl: openInterior?.url ?? bgUrl,
     backgroundPosition: "center center",
     overlayAlpha: openInterior ? 0.38 : 0.22,
+    enabled: homeOutdoorCameraBlocked,
   });
 
   useEffect(() => {
@@ -1763,10 +1776,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [
     bgAspect,
     openInterior,
-    openInventory,
-    pendingActivate,
-    openGiftModal,
-    showNoMailPopup,
     petHomeTutorialStep,
   ]);
 
@@ -2215,15 +2224,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     return <LoadingScreen label="Loading your home..." />;
   }
 
-  const homeOutdoorCameraBlocked = Boolean(
-    openInterior
-    || openInventory
-    || pendingActivate
-    || openGiftModal
-    || showNoMailPopup
-    || petHomeTutorialStep
-  );
-
   return (
     <div
       data-global-hud-blocker={homeOutdoorCameraBlocked ? "true" : undefined}
@@ -2249,6 +2249,17 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           This frees its GPU texture memory so the interior image can load safely.
           The interior is full-screen anyway, so the background isn't visible. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {bgUrl && !openInterior && (
+          <img
+            src={bgUrl}
+            alt=""
+            aria-hidden="true"
+            data-testid="pet-home-outdoor-camera-extension"
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+            style={{ zIndex: 0 }}
+            draggable={false}
+          />
+        )}
         {!openInterior && (
           <div
             data-testid="pet-home-camera-extension-darkness"
@@ -2256,6 +2267,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             style={{
               background: `rgba(0,0,0,${(tutorialSceneRevealActive ? 0 : outdoorLighting.darkness) / 100})`,
               pointerEvents: "none",
+              zIndex: 0,
             }}
           />
         )}
@@ -2561,7 +2573,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       </ViewportScenePortal>
 
-      {/* Bottom inventory bar — persistent device HUD, left-aligned to avoid FloatingNav (bottom-right) */}
+      {/* Bottom inventory bar yields completely while a blocking dialog owns the screen. */}
+      {!petHomeBlockingDialogOpen && (
       <ViewportHudPortal>
       <div
         data-testid="pet-home-inventory-hud"
@@ -2605,10 +2618,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         })}
       </div>
       </ViewportHudPortal>
+      )}
 
-      {/* Inventory overlay panel — z-250 so it rises above the FloatingNav main button (z-96) */}
+      {/* Inventory overlay panel lives in the device HUD so it cannot fall behind viewport controls. */}
       {openInventory && (
+        <ViewportHudPortal>
         <div
+          data-global-hud-blocker="true"
           className="absolute inset-0 flex flex-col justify-end"
           style={{ zIndex: openInterior ? 70 : 250, pointerEvents: "none", visibility: (isDraggingDecor || isDraggingPet) ? "hidden" : "visible" }}
         >
@@ -2888,6 +2904,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             })()}
           </div>
         </div>
+        </ViewportHudPortal>
       )}
 
       {/* Decor drag ghost */}
@@ -2925,8 +2942,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Bundle activation modal */}
       {pendingActivate && (
+        <ViewportModalPortal>
         <div
-          className="fixed inset-0 flex items-end justify-center"
+          role="dialog"
+          aria-modal="true"
+          data-testid="bundle-activation-modal"
+          data-global-hud-blocker="true"
+          className="absolute inset-0 flex items-end justify-center"
           style={{ zIndex: 400, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
           onPointerDown={() => setPendingActivate(null)}
         >
@@ -2964,6 +2986,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Building interior viewer */}
@@ -3011,7 +3034,12 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       )}
 
       {showNoMailPopup && (
+        <ViewportModalPortal>
         <div
+          role="dialog"
+          aria-modal="true"
+          data-testid="no-mail-modal"
+          data-global-hud-blocker="true"
           className="absolute inset-0 flex items-center justify-center"
           style={{ zIndex: 9000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
           onClick={() => setShowNoMailPopup(false)}
@@ -3053,6 +3081,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             </button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
 

@@ -38,12 +38,13 @@ test("upper-right button group preserves the original iPhone 12 geometry", () =>
   assert.equal(supportTop, 66);
 });
 
-test("chat and support overlays share the device HUD so they render above persistent controls", () => {
+test("chat uses the device HUD while support uses the topmost modal layer", () => {
   const home = read("client/src/pages/HomePage.tsx");
 
   assert.match(home, /data-testid="viewport-hud-world-chat-layer"/);
   assert.match(home, /<ViewportHudPortal>[\s\S]*?<WorldChatPanel/);
-  assert.match(home, /\{showSupportModal && \([\s\S]*?<ViewportHudPortal>/);
+  assert.match(home, /\{showSupportModal && \([\s\S]*?<ViewportModalPortal>/);
+  assert.match(home, /aria-modal="true"/);
   assert.match(home, /!showWorldChat && !showSupportModal/);
 });
 

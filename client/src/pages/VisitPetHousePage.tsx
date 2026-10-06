@@ -815,6 +815,17 @@ export default function VisitPetHousePage() {
           onContextMenu={e => e.preventDefault()}
         >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {bgUrl && !openInterior && (
+          <img
+            src={bgUrl}
+            alt=""
+            aria-hidden="true"
+            data-testid="visit-pet-home-outdoor-camera-extension"
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md pointer-events-none"
+            style={{ zIndex: 0 }}
+            draggable={false}
+          />
+        )}
         {!openInterior && (
           <div
             data-testid="visit-pet-home-camera-extension-darkness"
@@ -822,6 +833,7 @@ export default function VisitPetHousePage() {
             style={{
               background: `rgba(0,0,0,${outdoorLighting.darkness / 100})`,
               pointerEvents: "none",
+              zIndex: 0,
             }}
           />
         )}

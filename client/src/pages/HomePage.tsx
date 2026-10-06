@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ActivePetPlacement from "@/components/ActivePetPlacement";
 import PetAnimator from "@/components/PetAnimator";
@@ -36,7 +37,6 @@ import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import { useStageSurroundings } from "@/lib/stageSurroundings";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 
 interface HomePageProps {
@@ -89,7 +89,6 @@ interface InventoryItem {
 }
 
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
-  useStageSurroundings({ imageUrl: bgImg, backgroundPosition: "center top", overlayAlpha: 0.18 });
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [lowMemoryPetRenderer] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
@@ -2082,9 +2081,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* Support message modal */}
       {showSupportModal && (
-        <ViewportHudPortal>
+        <ViewportModalPortal>
         <div
-          className="absolute inset-0 z-[60] flex items-center justify-center px-5"
+          role="dialog"
+          aria-modal="true"
+          className="absolute inset-0 flex items-center justify-center px-5"
           style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
           onClick={e => { if (e.target === e.currentTarget) setShowSupportModal(false); }}
         >
@@ -2190,7 +2191,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             )}
           </div>
         </div>
-        </ViewportHudPortal>
+        </ViewportModalPortal>
       )}
 
       <PowerUpOverlay
