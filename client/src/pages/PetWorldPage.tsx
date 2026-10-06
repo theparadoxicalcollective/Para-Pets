@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
-import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
+import { DESIGN_H, clientDeltaToStage, getDesignW, getStageSurface } from "@/lib/stage";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -15,6 +15,9 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import { AquariumPage } from "@/pages/AquariumPage";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
+import ViewportHudPortal from "@/components/ViewportHudPortal";
+import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset } from "@/lib/worldViewport";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.webp";
 import cardStarImg from "@assets/uploads/CardStar.png";
@@ -114,10 +117,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [mapH, setMapH]         = useState(MAP_H_DEFAULT);
   const mapHRef                 = useRef(MAP_H_DEFAULT);
 
-  // Frame dimensions are the fixed phone-frame design size (#game-stage in
-  // App.tsx scales the whole frame uniformly to fit the device). The map must
-  // be laid out in this design space, NOT the real window, so it fills the
-  // frame identically on every device.
+  // iPhone 12 still begins from the canonical 390×844 reference camera.
+  // Stage-owned phones/tablets can portal this scene into the real device
+  // camera without changing the locked 1080×691 Pet Central map coordinates.
   const FRAME_W = getDesignW();
   const FRAME_H = DESIGN_H;
   const frameWRef = useRef(FRAME_W);
@@ -624,12 +626,15 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       const init = { x: Math.max(5, Math.min(92, stored.x)), y: Math.max(15, Math.min(90, stored.y)) };
       localPetPosRef.current = init;
       setLocalPetPos(init);
-      // Pan the camera so the pet is horizontally centered in the frame on entry
-      const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
-      const scaledMapW = MAP_W * coverSc;
-      const petScreenX = (init.x / 100) * scaledMapW;
-      const targetMapX = frameWRef.current / 2 - petScreenX;
-      applyMapTransform(targetMapX, 0, coverSc);
+      // Center the camera on the pet wherever the current device has real map overflow.
+      const sc = mapTransformRef.current.scale;
+      const petMapX = (init.x / 100) * MAP_W * sc;
+      const petMapY = (init.y / 100) * mapHRef.current * sc;
+      applyMapTransform(
+        frameWRef.current / 2 - petMapX,
+        frameHRef.current / 2 - petMapY,
+        sc,
+      );
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownPet, petDefaultPositions]);
@@ -669,17 +674,26 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           }
         }
 
-        // ── Camera follow: keep pet centered, clamped at map edges ──────────
+        // ── Camera follow: keep pet centered across whichever axes can pan ──
         const { x: curMapX, y: curMapY, scale: sc } = mapTransformRef.current;
-        const scaledMapW = MAP_W * sc;
-        if (scaledMapW > frameWRef.current) {
-          const petMapX = (nx / 100) * scaledMapW;
-          const targetX = Math.max(frameWRef.current - scaledMapW, Math.min(0, frameWRef.current / 2 - petMapX));
-          if (Math.abs(targetX - curMapX) > 0.5) {
-            const newMapX = curMapX + (targetX - curMapX) * Math.min(1, dt * 8);
-            mapTransformRef.current = { x: newMapX, y: curMapY, scale: sc };
-            setMapX(newMapX);
-          }
+        const petMapX = (nx / 100) * MAP_W * sc;
+        const petMapY = (ny / 100) * mapHRef.current * sc;
+        const target = clampWorldMapOffset(
+          frameWRef.current / 2 - petMapX,
+          frameHRef.current / 2 - petMapY,
+          sc,
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          MAP_W,
+        );
+        const follow = Math.min(1, dt * 8);
+        const newMapX = curMapX + (target.x - curMapX) * follow;
+        const newMapY = curMapY + (target.y - curMapY) * follow;
+        if (Math.abs(newMapX - curMapX) > 0.5 || Math.abs(newMapY - curMapY) > 0.5) {
+          mapTransformRef.current = { x: newMapX, y: newMapY, scale: sc };
+          setMapX(newMapX);
+          setMapY(newMapY);
         }
 
         if (ownPet && now - lastSaveRef.current > 2000) {
@@ -1078,35 +1092,64 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setMapH(KC_MAP_H);
   }, []);
 
-  // ── initial centering on mount / mapH change ───────────────────────────────
-  useEffect(() => {
-    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
-    // Start at cover scale so the world fills the frame
-    const initSc  = coverSc;
-    const ix = (frameWRef.current - MAP_W * initSc) / 2;
-    const iy = (frameHRef.current - mapHRef.current * initSc) / 2;
-    mapTransformRef.current = { x: ix, y: iy, scale: initSc };
-    setMapX(ix); setMapY(iy); setMapScale(initSc);
-  }, [mapH, frameW, frameH]);
-
-  // ── clamp + apply (horizontal pan only, no zoom) ───────────────────────────
-  const applyMapTransform = useCallback((x: number, _y: number, _sc: number) => {
-    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
-    const mw = MAP_W * coverSc;
-    const mh = mapHRef.current * coverSc;
-    // Lock scale to cover; lock Y to vertical center; only X scrolls
-    const cx = mw <= frameWRef.current ? (frameWRef.current - mw) / 2 : Math.max(frameWRef.current - mw, Math.min(0, x));
-    const cy = (frameHRef.current - mh) / 2;
-    mapTransformRef.current = { x: cx, y: cy, scale: coverSc };
-    setMapX(cx); setMapY(cy); setMapScale(coverSc);
+  const getPetCentralCameraScale = useCallback(() => {
+    const expandedCamera = !getStageSurface().viewportOwned;
+    return expandedCamera
+      ? calculateExpandedWorldCameraScale(
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          MAP_W,
+        )
+      : calculateWorldFitScale(
+          frameWRef.current,
+          frameHRef.current,
+          mapHRef.current,
+          false,
+          MAP_W,
+        );
   }, []);
 
-  // ── horizontal pan only (no zoom, no vertical scroll) ─────────────────────
+  // ── initial centering on mount / mapH / camera-size change ─────────────────
+  useEffect(() => {
+    const initSc = getPetCentralCameraScale();
+    const ix = (frameWRef.current - MAP_W * initSc) / 2;
+    const iy = (frameHRef.current - mapHRef.current * initSc) / 2;
+    const initial = clampWorldMapOffset(
+      ix,
+      iy,
+      initSc,
+      frameWRef.current,
+      frameHRef.current,
+      mapHRef.current,
+      MAP_W,
+    );
+    mapTransformRef.current = { x: initial.x, y: initial.y, scale: initSc };
+    setMapX(initial.x); setMapY(initial.y); setMapScale(initSc);
+  }, [frameH, frameW, getPetCentralCameraScale, mapH]);
+
+  // ── clamp + apply — expanded devices can pan across real overflow in X/Y ───
+  const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
+    const fitSc = getPetCentralCameraScale();
+    const clamped = clampWorldMapOffset(
+      x,
+      y,
+      fitSc,
+      frameWRef.current,
+      frameHRef.current,
+      mapHRef.current,
+      MAP_W,
+    );
+    mapTransformRef.current = { x: clamped.x, y: clamped.y, scale: fitSc };
+    setMapX(clamped.x); setMapY(clamped.y); setMapScale(fitSc);
+  }, [getPetCentralCameraScale]);
+
+  // ── pan only across axes that have real authored-map overflow ──────────────
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     if (decorDragRef.current) return;
     // Only track the first finger; ignore any additional fingers
     if (mapPanPointersRef.current.size > 0) return;
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* best-effort on Safari/WebView */ }
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     mapPanStartRef.current = { x: e.clientX, y: e.clientY, mapX: mapTransformRef.current.x, mapY: mapTransformRef.current.y };
     mapPanningRef.current = false;
@@ -1118,26 +1161,55 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleVpPointerMove = useCallback((e: React.PointerEvent) => {
     if (!mapPanStartRef.current || !mapPanPointersRef.current.has(e.pointerId)) return;
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    // Horizontal drag only — ignore vertical delta
-    const dx = (e.clientX - mapPanStartRef.current.x) / getStageScale();
-    if (!mapPanningRef.current && Math.abs(dx) > 4) mapPanningRef.current = true;
-    if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, 0, 1);
+
+    const { x: dx, y: dy } = clientDeltaToStage(
+      e.clientX - mapPanStartRef.current.x,
+      e.clientY - mapPanStartRef.current.y,
+    );
+    const sc = mapTransformRef.current.scale;
+    const canPanX = MAP_W * sc > frameWRef.current + 0.5;
+    const canPanY = mapHRef.current * sc > frameHRef.current + 0.5;
+    const crossedThreshold =
+      (canPanX && Math.abs(dx) > 4)
+      || (canPanY && Math.abs(dy) > 4);
+
+    if (!mapPanningRef.current && crossedThreshold) mapPanningRef.current = true;
+    if (mapPanningRef.current) {
+      e.preventDefault();
+      applyMapTransform(
+        mapPanStartRef.current.mapX + (canPanX ? dx : 0),
+        mapPanStartRef.current.mapY + (canPanY ? dy : 0),
+        sc,
+      );
+    }
   }, [applyMapTransform]);
 
-  const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
+  const finishVpPointer = useCallback((e: React.PointerEvent, cancelled: boolean) => {
     mapPanPointersRef.current.delete(e.pointerId);
     const wasPan = mapPanningRef.current;
-    if (wasPan) { mapJustPannedRef.current = true; setTimeout(() => { mapJustPannedRef.current = false; }, 80); }
+    if (wasPan && !cancelled) {
+      mapJustPannedRef.current = true;
+      setTimeout(() => { mapJustPannedRef.current = false; }, 80);
+    }
     mapPanStartRef.current = null;
     mapPanningRef.current = false;
-    // If the pointer went down and up on a pet without dragging, open their profile
-    if (!wasPan && petTapRef.current) {
+
+    // Only a genuine tap/release may open another player's pet.
+    if (!cancelled && !wasPan && petTapRef.current) {
       const userId = petTapRef.current;
       const pet = onlinePetsRef.current.find(p => p.userId === userId);
       if (pet) setSelectedPet(pet);
     }
     petTapRef.current = null;
   }, []);
+
+  const handleVpPointerUp = useCallback((e: React.PointerEvent) => {
+    finishVpPointer(e, false);
+  }, [finishVpPointer]);
+
+  const handleVpPointerCancel = useCallback((e: React.PointerEvent) => {
+    finishVpPointer(e, true);
+  }, [finishVpPointer]);
 
   // ── decor drag on map ──────────────────────────────────────────────────────
   const handleDecorPointerDown = useCallback((e: React.PointerEvent, p: { id: string; posX: number; posY: number }) => {
@@ -1327,21 +1399,49 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     return () => { document.removeEventListener("pointermove", onMove); document.removeEventListener("pointerup", onUp); };
   }, [!!panelDragGhost]);
 
+  const petCentralCameraBlocked = Boolean(
+    showProfile
+    || showFriendsPanel
+    || acceptedNotifMessages.length > 0
+    || showDecorPanel
+    || showAddDecorForm
+    || showPlacesPanel
+    || showAddLocForm
+    || showLocShop
+    || showDoorsPanel
+    || activeDoorId
+    || selectedPet
+    || selectedPlayerId
+    || showDoorItemPicker
+    || (selectedDoorShopItem && doorBuyStep > 0)
+  );
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 overflow-hidden"
       style={{ background: "#060e06" }}
     >
-      {/* ══ Map canvas — single background, full pan + zoom ════════════════ */}
+      {/* ══ Map canvas — full-device camera on stage-owned devices ════════ */}
+      <ViewportScenePortal enabled={!petCentralCameraBlocked}>
       <div
         ref={vpRef}
+        data-testid="pet-central-expanded-camera"
         className="absolute inset-0 overflow-hidden"
-        style={{ touchAction: "none", userSelect: "none", zIndex: 3 }}
+        style={{
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+          overscrollBehavior: "none",
+          zIndex: 3,
+        }}
         onPointerDown={handleVpPointerDown}
         onPointerMove={handleVpPointerMove}
         onPointerUp={handleVpPointerUp}
-        onPointerCancel={handleVpPointerUp}
+        onPointerCancel={handleVpPointerCancel}
+        onLostPointerCapture={handleVpPointerCancel}
+        onContextMenu={e => e.preventDefault()}
       >
         <div
           ref={areaRef}
@@ -1816,9 +1916,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           })}
         </div>
       </div>
+      </ViewportScenePortal>
 
-      {/* ── HUD overlay ─────────────────────────────────────────────────── */}
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
+      {/* ── Persistent device HUD stays above the expanded Pet Central scene ── */}
+      <ViewportHudPortal>
+      <div data-testid="pet-central-persistent-hud" className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
 
         {/* ── TopBar-style strip ── */}
         <div
@@ -1961,6 +2063,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         </div>
 
       </div>
+      </ViewportHudPortal>
 
       {/* ── Friend Accepted Notification Modal ────────────────────────────── */}
       {acceptedNotifMessages.length > 0 && (
@@ -3431,8 +3534,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
            shows but its movement loop is a harmless no-op (startRaf and
            handleJoystickChange both guard ownPet before saving / moving),
            which keeps the on-screen affordance consistent for everyone. ─── */}
-      {!activeDoorId && (
-        <Joystick onChange={handleJoystickChange} />
+      {!petCentralCameraBlocked && (
+        <ViewportHudPortal>
+          <div data-testid="pet-central-joystick-hud" className="absolute inset-0 pointer-events-none" style={{ zIndex: 60 }}>
+            <Joystick onChange={handleJoystickChange} />
+          </div>
+        </ViewportHudPortal>
       )}
 
       {/* ── Pet detail modal ─────────────────────────────────────────────── */}
@@ -4019,9 +4126,10 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
       onPointerUp={e => release(e.pointerId)}
       onPointerCancel={e => release(e.pointerId)}
       style={{
-        position: "fixed",
+        position: "absolute",
         bottom: 108,
         right: 20,
+        pointerEvents: "auto",
         width: BASE_R * 2,
         height: BASE_R * 2,
         touchAction: "none",
