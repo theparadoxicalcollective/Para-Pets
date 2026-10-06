@@ -16,6 +16,35 @@ test("owner and visitor outdoor Homes opt into the shared viewport-scene camera"
   assert.match(visitor, /data-testid="visit-pet-home-stage"/);
 });
 
+
+test("persistent Pet Home controls use the device HUD above the expanded scene on non-390 phones", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+
+  for (const source of [owner, visitor]) {
+    assert.match(source, /import ViewportHudPortal from "@\/components\/ViewportHudPortal"/);
+  }
+
+  const ownerSceneEnd = owner.indexOf("</ViewportScenePortal>");
+  const ownerHudStart = owner.indexOf("<ViewportHudPortal>", ownerSceneEnd);
+  const ownerInventory = owner.indexOf('data-testid="pet-home-inventory-hud"', ownerHudStart);
+  const ownerHudEnd = owner.indexOf("</ViewportHudPortal>", ownerHudStart);
+  assert.ok(ownerSceneEnd >= 0);
+  assert.ok(ownerHudStart > ownerSceneEnd);
+  assert.ok(ownerInventory > ownerHudStart && ownerInventory < ownerHudEnd);
+
+  const visitorSceneEnd = visitor.indexOf("</ViewportScenePortal>");
+  const visitorHudStart = visitor.indexOf("<ViewportHudPortal>", visitorSceneEnd);
+  const visitorHud = visitor.indexOf('data-testid="visit-pet-home-hud"', visitorHudStart);
+  const visitorHudEnd = visitor.indexOf("</ViewportHudPortal>", visitorHudStart);
+  assert.ok(visitorSceneEnd >= 0);
+  assert.ok(visitorHudStart > visitorSceneEnd);
+  assert.ok(visitorHud > visitorHudStart && visitorHud < visitorHudEnd);
+
+  assert.match(owner, /data-testid=\{\`button-\$\{key\}-inventory\`\}/);
+  assert.match(visitor, /data-testid="button-back-visit"/);
+});
+
 test("outdoor camera measurement uses the expanded scene element without changing image-space placement", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
