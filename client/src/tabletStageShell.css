@@ -25,6 +25,18 @@
   display: none !important;
 }
 
+
+/*
+ * Active Pet's old canonical wrapper adds a soft green tint across the full
+ * 390px stage. It is useful on native phones, where the stage is the viewport,
+ * but reads as a phone-sized center panel once the scenery is viewport-owned.
+ * Suppress only that decorative tint on stage-owned larger devices; the pet,
+ * platform, effects and interaction geometry remain in the canonical stage.
+ */
+#game-stage[data-coordinate-owner="stage"] .active-pet-canonical-ambient {
+  background: transparent !important;
+}
+
 /* Shared desktop/tablet presentation. */
 @media (min-width: 768px) {
   .game-stage-shell {
