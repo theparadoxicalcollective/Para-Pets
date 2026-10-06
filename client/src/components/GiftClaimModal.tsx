@@ -54,6 +54,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
       <div className="fixed inset-0 z-[99997]" style={{ background: "rgba(0,0,0,0.65)" }} onClick={onClose} />
       <div
         data-testid="gift-claim-modal"
+        data-global-hud-blocker="true"
         className="fixed z-[99998] flex flex-col"
         style={{
           top: "50%", left: "50%",
