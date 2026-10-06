@@ -8,7 +8,7 @@ import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.p
 import petActionRingImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import bgImg from "@assets/uploads/ActivePetMainPageNew.png";
+import bgImg from "@assets/uploads/ActivePetMainPageNew.jpg";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
