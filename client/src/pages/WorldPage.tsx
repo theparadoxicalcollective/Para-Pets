@@ -1451,6 +1451,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   return (
     <div
+      data-global-hud-blocker={worldMapCameraBlocked ? "true" : undefined}
       className="relative w-full h-screen-frame overflow-hidden"
       style={{ animation: "worldFadeIn 0.35s ease-out" }}
     >
