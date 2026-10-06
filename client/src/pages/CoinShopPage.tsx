@@ -789,7 +789,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   borderRadius: 16, padding: "18px 16px 16px",
                   boxShadow: "0 0 40px rgba(251,146,60,0.15)",
                   display: "flex", flexDirection: "column", gap: 8,
-                  maxHeight: "80vh",
+                  maxHeight: "calc(80*var(--vh))",
                 }}
                 onClick={e => e.stopPropagation()}
               >
@@ -1215,6 +1215,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           {/* Escape hatch — always tappable even if the API call hangs */}
           <button
             data-testid="button-skip-verify"
+            data-ios-edge-control="true"
             onClick={() => setVerifying(false)}
             style={{
               position: "absolute", top: 20, right: 20,
