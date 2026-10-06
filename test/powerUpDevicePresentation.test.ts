@@ -44,3 +44,15 @@ test("Power Up mechanics and pet/evolution ownership stay in their existing comp
   assert.match(source, /<PetAnimator[\s\S]*size=\{350\}[\s\S]*fillContainer/);
   assert.match(source, /setNavHidden\(true\)/);
 });
+
+
+test("Power Up close control stays tappable beside the iOS Safari edge", () => {
+  const power = read("client/src/components/PetPowerUpPage.tsx");
+  const app = read("client/src/App.tsx");
+
+  assert.match(power, /data-ios-edge-control="true" data-testid="button-close-powerup-modal"/);
+  assert.match(power, /pupage-corner\{[^}]*touch-action:manipulation/);
+  assert.match(app, /touchStartedInIosEdgeControl/);
+  assert.match(app, /closest\?\.\('\[data-ios-edge-control="true"\]'\)/);
+  assert.match(app, /touchStartedInPetCareShelf \|\| touchStartedInIosEdgeControl/);
+});
