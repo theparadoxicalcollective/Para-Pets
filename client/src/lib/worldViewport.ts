@@ -20,14 +20,38 @@ export function calculateWorldFitScale(
   return Math.max(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
 }
 
+const WORLD_EXPANDED_CAMERA_PAN_RATIO = 0.06;
+const WORLD_EXPANDED_CAMERA_MAX_PAN_MARGIN = 72;
+const WORLD_REFERENCE_CAMERA_WIDTH = 390;
+const WORLD_REFERENCE_CAMERA_HEIGHT = 844;
+
+/**
+ * Minimum real map kept beyond each edge of an expanded World camera.
+ *
+ * A pure cover fit can make a tablet aspect ratio nearly identical to the
+ * authored map, which leaves no meaningful area to drag even though the scene
+ * technically fills the device. Expanded cameras keep a small overscan margin
+ * so the world always behaves like a camera looking into a larger scene.
+ */
+export function calculateExpandedWorldCameraPanMargin(
+  frameWidth: number,
+  frameHeight: number,
+): number {
+  if (!Number.isFinite(frameWidth) || frameWidth <= 0 || !Number.isFinite(frameHeight) || frameHeight <= 0) return 0;
+  return Math.min(
+    WORLD_EXPANDED_CAMERA_MAX_PAN_MARGIN,
+    Math.min(frameWidth, frameHeight) * WORLD_EXPANDED_CAMERA_PAN_RATIO,
+  );
+}
+
 /**
  * Larger-device WorldPage camera policy.
  *
- * The real authored map must fill the visible camera. Larger tablets should
- * feel like a camera looking across the world, not a contained/movable card
- * floating over a second background. Preserve uniform scaling and the iPhone
- * 12 reference minimum, then cover the full camera; clampWorldMapOffset owns
- * any remaining horizontal/vertical panning across the real map.
+ * The iPhone 12 reference camera keeps its existing composition exactly.
+ * Cameras that are genuinely larger than that reference retain a modest real
+ * map margin beyond every edge. This avoids the tablet "static cover image"
+ * effect while keeping the authored map, NPC/decor percentages, and uniform
+ * scale contract unchanged.
  */
 export function calculateExpandedWorldCameraScale(
   frameWidth: number,
@@ -38,9 +62,22 @@ export function calculateExpandedWorldCameraScale(
   if (!Number.isFinite(frameWidth) || frameWidth <= 0 || !Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
   const safeMapWidth = Number.isFinite(mapWidth) && mapWidth > 0 ? mapWidth : WORLD_MAP_WIDTH;
   const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
-  const referenceScale = Math.max(390 / safeMapWidth, 844 / safeMapHeight);
-  const coverScale = Math.max(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
-  return Math.max(referenceScale, coverScale);
+  const referenceScale = Math.max(
+    WORLD_REFERENCE_CAMERA_WIDTH / safeMapWidth,
+    WORLD_REFERENCE_CAMERA_HEIGHT / safeMapHeight,
+  );
+
+  const referenceSizedCamera =
+    frameWidth <= WORLD_REFERENCE_CAMERA_WIDTH + 0.5
+    && frameHeight <= WORLD_REFERENCE_CAMERA_HEIGHT + 0.5;
+  if (referenceSizedCamera) return referenceScale;
+
+  const panMargin = calculateExpandedWorldCameraPanMargin(frameWidth, frameHeight);
+  const explorableScale = Math.max(
+    (frameWidth + panMargin * 2) / safeMapWidth,
+    (frameHeight + panMargin * 2) / safeMapHeight,
+  );
+  return Math.max(referenceScale, explorableScale);
 }
 
 /** Keep an oversized world draggable to every edge without showing empty space. */
@@ -59,4 +96,9 @@ export function clampWorldMapOffset(
   };
 }
 
-export { WORLD_MAP_WIDTH, WORLD_MAP_HEIGHT };
+export {
+  WORLD_MAP_WIDTH,
+  WORLD_MAP_HEIGHT,
+  WORLD_EXPANDED_CAMERA_PAN_RATIO,
+  WORLD_EXPANDED_CAMERA_MAX_PAN_MARGIN,
+};
