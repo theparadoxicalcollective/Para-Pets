@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  calculateExpandedWorldCameraPanMargin,
   calculateExpandedWorldCameraScale,
   calculateWorldFitScale,
   WORLD_MAP_WIDTH,
@@ -81,14 +82,17 @@ test("expanded map scale preserves the iPhone 12 reference zoom", () => {
   }
 });
 
-test("expanded tablet camera fills the visible world page instead of containing the map as an overlay", () => {
+test("expanded tablet camera fills the device while retaining real draggable map beyond every edge", () => {
   const mapHeight = 1440;
   const phoneScale = calculateExpandedWorldCameraScale(390, 844, mapHeight);
-  const tabletScale = calculateExpandedWorldCameraScale(683, 911, mapHeight);
+  const tabletWidth = 683;
+  const tabletHeight = 911;
+  const tabletScale = calculateExpandedWorldCameraScale(tabletWidth, tabletHeight, mapHeight);
+  const margin = calculateExpandedWorldCameraPanMargin(tabletWidth, tabletHeight);
 
   assert.ok(tabletScale >= phoneScale);
-  assert.ok(WORLD_MAP_WIDTH * tabletScale >= 683 - 1e-9);
-  assert.ok(mapHeight * tabletScale >= 911 - 1e-9);
+  assert.ok(WORLD_MAP_WIDTH * tabletScale >= tabletWidth + margin * 2 - 1e-9);
+  assert.ok(mapHeight * tabletScale >= tabletHeight + margin * 2 - 1e-9);
 });
 
 test("world locations and decor remain percentage-positioned inside the transformed authored map", () => {
@@ -166,9 +170,12 @@ test("expanded WorldPage reuses the merged viewport-scene contract instead of cr
 });
 
 
-test("expanded camera policy uses cover semantics so tablet gutters never become draggable world surroundings", () => {
+test("expanded camera policy keeps an explorable overscan margin instead of stopping at exact cover", () => {
   const viewport = read("client/src/lib/worldViewport.ts");
-  assert.match(viewport, /const coverScale = Math\.max\(frameWidth \/ safeMapWidth, frameHeight \/ safeMapHeight\)/);
-  assert.match(viewport, /return Math\.max\(referenceScale, coverScale\)/);
-  assert.doesNotMatch(viewport, /const containScale = Math\.min/);
+  assert.match(viewport, /WORLD_EXPANDED_CAMERA_PAN_RATIO = 0\.06/);
+  assert.match(viewport, /calculateExpandedWorldCameraPanMargin/);
+  assert.match(viewport, /frameWidth \+ panMargin \* 2/);
+  assert.match(viewport, /frameHeight \+ panMargin \* 2/);
+  assert.match(viewport, /return Math\.max\(referenceScale, explorableScale\)/);
+  assert.doesNotMatch(viewport, /const coverScale =/);
 });
