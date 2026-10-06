@@ -647,7 +647,8 @@ function AppRouter() {
         )}
       </Suspense>
 
-      {/* FloatingNav sits above all overlays */}
+      {/* FloatingNav stays above normal page content, but the shared
+          navVisibility contract removes it while a blocking modal owns input. */}
       {!shouldHideNav(location) && !petStatsOpen && !navOverlayOpen && (
         <FloatingNav
           user={user}
