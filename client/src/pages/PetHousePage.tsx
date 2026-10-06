@@ -1739,6 +1739,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     onError: () => toast({ title: "Error", description: "Could not store pets.", variant: "destructive" }),
   });
 
+  const homeOutdoorCameraBlocked = Boolean(
+    openInterior
+    || petHomeTutorialStep
+  );
+
   // ── Background layout ──────────────────────────────────────────────────────
   const bgUrl = activeBundle?.bgImageUrl ?? null;
   useStageSurroundings({
@@ -2212,11 +2217,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   if (bundleLoading && activeBundle === undefined) {
     return <LoadingScreen label="Loading your home..." />;
   }
-
-  const homeOutdoorCameraBlocked = Boolean(
-    openInterior
-    || petHomeTutorialStep
-  );
 
   return (
     <div
