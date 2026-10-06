@@ -138,7 +138,8 @@ export default function QuestGuideSpotlight({
   const rect = targetRect?.selector === selector ? targetRect.rect : null;
   if (!rect) return null;
 
-  const surface = getQuestGuideSurface();
+  const targetNode = document.querySelector<HTMLElement>(selector);
+  const surface = getQuestGuideSurface(targetNode);
   const bounds = guideBoundsInSurface(rect, surface);
   const targetOnScreen = guideTargetOnScreen(bounds, surface.width, surface.height);
   const spotlight = targetOnScreen ? guideSpotlightCircle(bounds, surface.width, surface.height, focus) : null;
