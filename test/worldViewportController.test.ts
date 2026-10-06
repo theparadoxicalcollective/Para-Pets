@@ -7,7 +7,13 @@ const read = (path: string) => readFileSync(path, "utf8");
 test("shared world viewport controller owns frame measurement and pan lifecycle", () => {
   const source = read("client/src/worlds/useWorldViewportController.ts");
 
+  assert.match(source, /const \[viewportElement, setViewportElement\] = useState<HTMLDivElement \| null>\(null\)/);
+  assert.match(source, /const vpRef = useCallback\(\(element: HTMLDivElement \| null\) => \{[\s\S]*setViewportElement\(element\)/);
+  assert.match(source, /useLayoutEffect\(\(\) => \{[\s\S]*const el = viewportElement/);
   assert.match(source, /new ResizeObserver\(measure\)/);
+  assert.match(source, /observer\.observe\(el\)/);
+  assert.match(source, /\}, \[viewportElement\]\)/);
+  assert.doesNotMatch(source, /const el = vpRef\.current/);
   assert.doesNotMatch(source, /window\.addEventListener\("orientationchange", measure\)/);
   assert.doesNotMatch(source, /visualViewport|window\.innerWidth|window\.innerHeight|display-mode: standalone/);
   assert.match(source, /clientDeltaToStage\(/);
@@ -142,4 +148,16 @@ test("World camera uses Pet Home-style cancellation and lost-capture recovery", 
   assert.match(worldPage, /WebkitTouchCallout: "none"/);
   assert.match(worldPage, /overscrollBehavior: "none"/);
   assert.match(worldPage, /onContextMenu=\{event => event\.preventDefault\(\)\}/);
+});
+
+
+test("the themed World loading screen renders above the expanded scene layer", () => {
+  const app = read("client/src/App.tsx");
+  const gateStart = app.indexOf("function WorldLoadingGate");
+  const gateEnd = app.indexOf("/** Wraps the entire router", gateStart);
+  const gate = app.slice(gateStart, gateEnd);
+
+  assert.ok(gateStart >= 0 && gateEnd > gateStart);
+  assert.match(gate, /!screenDone[\s\S]*<ViewportModalPortal>[\s\S]*<WorldLoadingScreen/);
+  assert.match(gate, /<\/ViewportModalPortal>/);
 });
