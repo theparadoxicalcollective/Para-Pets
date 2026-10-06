@@ -140,7 +140,7 @@ function GuideHighlight({ target }: { target: GuideTarget | null }) {
   }, [target]);
 
   if (!target || !rect) return null;
-  const surface = getQuestGuideSurface();
+  const surface = getQuestGuideSurface(target.element);
   const guideRect = guideBoundsInSurface(rect, surface);
   const position = surface.inStage ? "absolute" : "fixed";
   const rectWidth = Math.max(0, guideRect.right - guideRect.left);
