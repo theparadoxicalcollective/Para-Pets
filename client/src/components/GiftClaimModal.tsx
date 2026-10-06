@@ -55,6 +55,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
       <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.65)" }} onClick={onClose} />
       <div
         data-testid="gift-claim-modal"
+        data-global-hud-blocker="true"
         role="dialog"
         aria-modal="true"
         className="absolute flex flex-col"
