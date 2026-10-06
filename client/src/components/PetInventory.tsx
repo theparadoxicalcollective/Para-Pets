@@ -590,7 +590,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
       {/* Egg detail sheet — egg at top as drop zone, items below to tap or drag */}
       {speedUpTargetId && speedUpTargetPet && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal enabled={!!pageMode}>
+        <div
+          className={pageMode ? "absolute inset-0 z-[80] flex items-end justify-center" : "fixed inset-0 z-[80] flex items-end justify-center"}
+          style={pageMode ? undefined : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
           <div className="absolute inset-0 bg-black/60" onClick={() => { setSpeedUpTargetId(null); setDragging(null); setSheetDragOver(false); }} />
           <div
             className="relative w-full rounded-t-2xl"
@@ -600,6 +604,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
               borderBottom: "none",
               boxShadow: "0 -10px 50px rgba(0,0,0,0.7)",
               maxHeight: "calc(82*var(--vh))",
+              maxWidth: pageMode ? 430 : undefined,
               overflowY: "auto",
             }}
           >
@@ -701,12 +706,14 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Drag ghost image */}
       {dragging && (
+        <ViewportModalPortal enabled={!!pageMode}>
         <div
-          className="fixed z-[90] pointer-events-none select-none"
+          className={pageMode ? "absolute z-[90] pointer-events-none select-none" : "fixed z-[90] pointer-events-none select-none"}
           style={{
             left: dragging.x - 32,
             top: dragging.y - 32,
@@ -728,6 +735,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             <span style={{ fontSize: 28 }}>⏩</span>
           )}
         </div>
+        </ViewportModalPortal>
       )}
 
     </>
@@ -1571,8 +1579,9 @@ function BagView({
       </div>
 
       {selectedHomeAsset && (
+        <ViewportModalPortal enabled={!!pageMode}>
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center"
+          className={pageMode ? "absolute inset-0 z-[100] flex items-center justify-center" : "fixed inset-0 z-[100] flex items-center justify-center"}
           style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)" }}
           onClick={() => setSelectedHomeAsset(null)}
         >
@@ -1614,11 +1623,13 @@ function BagView({
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {selectedItem && (
+        <ViewportModalPortal enabled={!!pageMode}>
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center"
+          className={pageMode ? "absolute inset-0 z-[100] flex items-center justify-center" : "fixed inset-0 z-[100] flex items-center justify-center"}
           style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
           onClick={() => { setSelectedItem(null); setConfirmDelete(false); }}
         >
@@ -1788,6 +1799,7 @@ function BagView({
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
     </>
   );
