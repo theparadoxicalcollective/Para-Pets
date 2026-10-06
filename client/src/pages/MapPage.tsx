@@ -16,6 +16,7 @@ import worldHauntedWoods from "@assets/uploads/NewHauntedWoods.png";
 import worldSwamp from "@assets/uploads/NewBayou.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
@@ -351,6 +352,26 @@ export default function MapPage({ user }: MapPageProps) {
         background: "linear-gradient(180deg, #080812 0%, #0a0d1a 15%, #0d1020 35%, #0a0e1c 55%, #0d1020 75%, #080812 100%)",
       }}
     >
+      <ViewportBackdropPortal>
+        <div data-testid="world-map-viewport-backdrop" className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute inset-[-18px]"
+            style={{
+              backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center center",
+              backgroundRepeat: "no-repeat",
+              filter: "blur(14px) brightness(0.48) saturate(0.85)",
+              transform: "scale(1.04)",
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(180deg, rgba(4,8,18,0.30) 0%, rgba(4,8,18,0.18) 45%, rgba(4,8,18,0.46) 100%)" }}
+          />
+        </div>
+      </ViewportBackdropPortal>
+
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
