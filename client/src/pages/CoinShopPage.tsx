@@ -656,7 +656,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 </span>
               </div>
 
-              {/* ── Admin item picker — rendered as fixed overlay so it works on any slot ── */}
+              {/* ── Admin item picker — rendered in the shared viewport modal layer ── */}
 
               {/* ── Milestone reward popup ── */}
               {milestonePopup !== null && (() => {
@@ -757,11 +757,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 );
               })()}
             </div>
-            </ViewportModalPortal>
           );
         })()}
 
-        {/* ── Admin milestone reward picker — fixed overlay modal ── */}
+        {/* ── Admin milestone reward picker — shared viewport modal ── */}
         {currentUser?.isAdmin && adminPickerMs !== null && (() => {
           const msLabel = [
             { end: 2500, label: "Bronze" }, { end: 5000, label: "Silver" },
@@ -883,6 +882,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 </div>
               </div>
             </div>
+            </ViewportModalPortal>
           );
         })()}
 
