@@ -1566,17 +1566,26 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* ── Active pet action menu (mystical ring) ── */}
       {!isOverlayActive && showActionMenu && activePetForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <>
+          <ViewportHudPortal>
+            <div
+              data-testid="active-pet-action-viewport-backdrop"
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              style={{ zIndex: 49, pointerEvents: "auto" }}
+              onClick={() => setShowActionMenu(false)}
+            />
+          </ViewportHudPortal>
           <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setShowActionMenu(false)}
-            data-testid="backdrop-action-menu"
-          />
+            data-testid="active-pet-action-canonical-ring"
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, pointerEvents: "none" }}
+          >
           {/* Ring image with invisible hotspots over each rune */}
           <div
             className="relative"
             style={{
               width: "min(calc(92*var(--vw)), 520px)",
+              pointerEvents: "auto",
               aspectRatio: "1 / 1",
               backgroundImage: `url(${petActionRingImg})`,
               backgroundSize: "contain",
@@ -1769,6 +1778,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             {/* original menu intentionally hidden */}
           </div>
         </div>
+        </>
       )}
 
       {/* ── Quest guide arrow — Phase 1: ring closed, points at the pet ── */}
