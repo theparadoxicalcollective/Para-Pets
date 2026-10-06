@@ -842,7 +842,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-testid="viewport-hud-topbar"
             style={{
               position: "absolute",
-              top: 18,
+              top: "calc(18px + var(--hud-safe-top, 0px))",
               left: 0,
               right: 0,
               zIndex: 40,
@@ -1948,7 +1948,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-testid="viewport-hud-corner-actions"
             style={{
               position: "absolute",
-              top: 58,
+              top: "calc(58px + var(--hud-safe-top, 0px))",
               right: 12,
               zIndex: 50,
               display: "flex",
