@@ -358,7 +358,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
   return (
     <>
-      <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div data-global-hud-blocker="true" className="fixed inset-0 flex items-end justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         <div
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={onClose}

@@ -73,7 +73,7 @@ export default function WorldCaveOverlay(props: WorldCaveOverlayProps) {
 
   if (props.mode === "battle") {
     return (
-      <div className="absolute inset-0 z-50">
+      <div data-global-hud-blocker="true" className="absolute inset-0 z-50">
         <BattleArena
           locationId={props.locationId}
           locationName={props.locationName}
@@ -94,7 +94,7 @@ export default function WorldCaveOverlay(props: WorldCaveOverlayProps) {
   const completedTiers = progress?.completedTiers ?? [];
   const currentTier = progress?.currentTier ?? 1;
   return (
-    <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "linear-gradient(180deg,#080810 0%,#0f0f1e 100%)" }}>
+    <div data-global-hud-blocker="true" className="absolute inset-0 z-50 flex flex-col" style={{ background: "linear-gradient(180deg,#080810 0%,#0f0f1e 100%)" }}>
       <div className="flex items-center justify-between px-5 pt-8 pb-3 flex-shrink-0">
         <div>
           <div className="font-fantasy text-2xl text-white tracking-wide" style={{ textShadow: "0 0 24px rgba(168,85,247,0.9)" }}>⚔ Murk Cave</div>

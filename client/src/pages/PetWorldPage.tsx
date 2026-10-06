@@ -1420,6 +1420,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   return (
     <div
       data-testid="pet-central-page"
+      data-global-hud-blocker={petCentralCameraBlocked ? "true" : undefined}
       className="relative w-full h-screen-frame overflow-hidden"
       style={{ background: "#060e06" }}
     >

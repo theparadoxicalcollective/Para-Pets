@@ -80,7 +80,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
             ? (activeLoc?.id === "a1b2c3d4-0010-4000-8000-000000000010" ? bgShopFoodSwamp : bgShopBayou)
             : bgShopMystical;
         return (
-        <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: isCentralMarket ? "#08060a" : (isVolcanicFishing || isVolcanicShop) ? "#0d0502" : "#080510", overflow: "hidden" }}>
+        <div data-global-hud-blocker="true" className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: isCentralMarket ? "#08060a" : (isVolcanicFishing || isVolcanicShop) ? "#0d0502" : "#080510", overflow: "hidden" }}>
           {/* Themed background image — fixed, not admin-uploaded */}
           <img src={shopBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ zIndex: 0, opacity: (isVolcanicFishing || isVolcanicShop) ? 0.45 : 0.55 }} />
           {/* Dark overlay for readability */}

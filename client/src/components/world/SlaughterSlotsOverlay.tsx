@@ -342,6 +342,7 @@ export default function SlaughterSlotsOverlay({
     <div
       className="absolute inset-0 z-[96] overflow-hidden bg-[#08040d] text-white"
       data-testid="slaughter-slots-overlay"
+      data-global-hud-blocker="true"
       role="dialog"
       aria-modal="true"
       aria-label="Slaughter Slots"

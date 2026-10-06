@@ -383,6 +383,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
     <div
       className="haunted-bingo-overlay"
       data-testid="haunted-bingo-overlay"
+      data-global-hud-blocker="true"
       role="dialog"
       aria-modal="true"
       aria-label="Haunted Bingo"

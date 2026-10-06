@@ -12,6 +12,7 @@ import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
 import nameplateImg from "@assets/Photoroom_20260709_92122_AM_1783607153082.png";
 import RewardClaimModal from "./RewardClaimModal";
+import { useNavHidden } from "@/lib/navVisibility";
 
 interface TopBarProps {
   user: {
@@ -136,6 +137,7 @@ function RewardCountGem({ count, compact = false }: { count: number; compact?: b
 }
 
 export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins }: TopBarProps) {
+  const globalHudHidden = useNavHidden();
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
   const [showAdminMsgsPopup, setShowAdminMsgsPopup] = useState(false);
@@ -204,7 +206,15 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]">
+      <div
+        data-testid="top-bar-global-chrome"
+        aria-hidden={globalHudHidden ? "true" : undefined}
+        className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]"
+        style={{
+          visibility: globalHudHidden ? "hidden" : "visible",
+          pointerEvents: globalHudHidden ? "none" : "auto",
+        }}
+      >
 
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
@@ -580,7 +590,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             border: "none",
             padding: 0,
             cursor: "pointer",
-            pointerEvents: "auto",
+            visibility: globalHudHidden ? "hidden" : "visible",
+            pointerEvents: globalHudHidden ? "none" : "auto",
           }}
         >
           <RewardChestArt size={70} />

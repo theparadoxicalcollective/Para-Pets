@@ -137,7 +137,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+    <div data-global-hud-blocker="true" className="fixed inset-0 flex items-center justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
         className="relative w-[88%] max-w-sm rounded-lg overflow-hidden animate-slide-up"
