@@ -1523,6 +1523,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       ref={overlayRef}
       className={`absolute inset-0 h-full w-full pet-care-overlay${dragEnabled && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
       data-stage-coordinate-space="canonical"
+      data-viewport-visual-owner="scene"
       style={{
         zIndex: 500,
         backgroundColor: "#0c1a10",

@@ -21,6 +21,12 @@
   background-image: none !important;
 }
 
+
+#game-stage[data-coordinate-owner="stage"] [data-viewport-visual-owner="scene"] {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
 #game-stage[data-coordinate-owner="stage"] [data-canonical-visual-layer="duplicate-backdrop"] {
   display: none !important;
 }
