@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { shouldHideFloatingNav } from "../client/src/lib/playerPagePresentation";
 
 const appSource = readFileSync("client/src/App.tsx", "utf8");
 const pageSource = readFileSync("client/src/pages/ElysianBayouClearingPage.tsx", "utf8");
@@ -8,8 +9,9 @@ const sceneSource = readFileSync("client/src/components/WalkAroundScene.tsx", "u
 const controllerSource = readFileSync("client/src/hooks/usePetWalkController.ts", "utf8");
 
 test("only the Elysian Clearing exploration route joins the existing nav exclusions", () => {
-  assert.match(appSource, /NAV_HIDDEN_PATHS = \[[^\]]*"\/explore\/elysian-bayou-clearing"/);
-  assert.doesNotMatch(appSource, /path\.startsWith\("\/explore\/"\)/);
+  assert.equal(shouldHideFloatingNav("/explore/elysian-bayou-clearing"), true);
+  assert.equal(shouldHideFloatingNav("/explore/some-future-location"), false);
+  assert.match(appSource, /shouldHideFloatingNav\(location\)/);
 });
 
 test("Elysian Clearing uses a compact responsive pet and expanded movement bounds", () => {

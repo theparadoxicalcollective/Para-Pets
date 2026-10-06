@@ -22,6 +22,9 @@ import homeBg from "@assets/uploads/ActivePetMainPageNew.jpg";
 import mainGameBg from "@assets/uploads/MainGameBG.png";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
+import StagePageSurface from "@/components/StagePageSurface";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
+import { isIsolatedPlayerRoute, shouldHideFloatingNav } from "@/lib/playerPagePresentation";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
@@ -147,8 +150,9 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
         <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
       )}
       {screenDone && worldId === "haunted_woods" && showHauntedWelcome && (
+        <ViewportModalPortal>
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center px-5"
+          className="absolute inset-0 flex items-center justify-center px-5"
           data-testid="modal-haunted-world-welcome"
           data-quest-guide-blocker="true"
           role="dialog"
@@ -200,21 +204,10 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
             </button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
     </>
   );
-}
-
-// Paths where FloatingNav should NOT appear
-const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/games/lava-crawl", "/coins", "/bag", "/explore/elysian-bayou-clearing"];
-function shouldHideNav(path: string) {
-  if (NAV_HIDDEN_PATHS.includes(path)) return true;
-  if (path.startsWith("/reset-password/")) return true;
-  if (path.startsWith("/visit/")) return true;
-  if (path.startsWith("/pet-care/")) return true;
-  if (path.startsWith("/equip-accessories/")) return true;
-  if (path.startsWith("/pet-level-up/")) return true;
-  return false;
 }
 
 /** Wraps the entire router in an ErrorBoundary that auto-resets when the URL
@@ -449,7 +442,7 @@ function AppRouter() {
 
   // Block the game until the email is verified. The gate polls every 3 s and
   // dissolves automatically the moment the user clicks the link (any tab).
-  if (user && !user.emailVerified && !shouldHideNav(location)) {
+  if (user && !user.emailVerified && !shouldHideFloatingNav(location)) {
     return <EmailGateScreen email={user.email} />;
   }
 
@@ -461,17 +454,10 @@ function AppRouter() {
     return <WelcomeGiftScreen user={user} onComplete={handleWelcomeComplete} />;
   }
 
-  // Full-screen paths that completely replace the game view (no HomePage base)
-  const isFullScreenPath =
-    location === "/auth" ||
-    location.startsWith("/reset-password/") ||
-    location === "/privacy" ||
-    location === "/hub" ||
-    location === "/forum" ||
-    location === "/founders" ||
-    location === "/admin" ||
-    location.startsWith("/visit/") ||
-    location.startsWith("/pet-level-up/");
+  // Isolated pages intentionally replace the gameplay stage instead of keeping
+  // Home mounted behind them. The route policy is centralized so new screens
+  // cannot silently invent a different device-presentation rule.
+  const isFullScreenPath = isIsolatedPlayerRoute(location);
 
   // An installed app launches at the manifest root. Keep unauthenticated
   // players on that root URL while presenting the same sign-in experience,
@@ -526,130 +512,114 @@ function AppRouter() {
         </div>
       )}
 
-      {/* Game overlays — each fades in quickly to smooth page-to-page transitions.
-          A single <Suspense> wraps every overlay so lazy chunks load without
-          unmounting the persistent HomePage base layer underneath.
-          ── Fallback note ──────────────────────────────────────────────
-          The fallback used to be `null`, which meant that whenever a
-          player tapped a route whose chunk wasn't cached yet (most
-          commonly /pvp on first visit, or after a fresh deploy), the
-          empty Suspense fallback let the persistent <HomePage> base
-          layer underneath show through for the duration of the chunk
-          download. To the player this looked exactly like "the page
-          closed out to the main page before opening back up" — they
-          weren't actually navigating home, they were just seeing the
-          base layer until the lazy chunk arrived. Swapping in
-          <LoadingScreen> (the same fallback we use for /auth, /hub,
-          and admin routes) covers HomePage with the standard loading
-          orb during chunk fetch. Once the chunk is cached, Suspense
-          doesn't re-suspend, so subsequent navigations are instant
-          and never flash the loader. This also incidentally hides any
-          temporary Home-flash on iOS Safari where chunk downloads can
-          take noticeably longer over cellular. */}
+      {/* Stage pages all use the same absolute stage surface. Home itself is
+          mounted only at "/", while other gameplay routes own this surface
+          independently. Suspense stays opaque during first-load chunk fetches
+          so Safari/Android never flash a different route underneath. */}
       <Suspense fallback={<LoadingScreen label="Loading…" />}>
         {location === "/map" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <MapPage user={user} />
-          </div>
+          </StagePageSurface>
         )}
         {location.startsWith("/world/") && (
-          <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface key={location}>
             <WorldLoadingGate location={location} user={user} />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/coins" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <CoinShopPage user={user} />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/pet-house" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <PetHousePage user={user} />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/badges" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <BadgePage user={user} />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/market" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/pvp" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <PvpArenaWrapper />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/pets" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <PetInventoryPage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/bag" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <BagInventoryPage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/cards" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <CardsCollectionPage />
-          </div>
+          </StagePageSurface>
         )}
         {(location === "/equip-accessories" || location.startsWith("/equip-accessories/")) && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <EquipAccessoriesPage
               petInventoryId={location.startsWith("/equip-accessories/") ? location.split("/")[2] : undefined}
               returnPath={location.startsWith("/equip-accessories/") ? "/pet-house" : "/"}
             />
-          </div>
+          </StagePageSurface>
         )}
         {location.startsWith("/pet-care/") && (
-          <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface key={location}>
             <PetCarePage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/games/molten-blocks" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <MiniGameFrame worldId="volcanic"><MoltenBlocksPage /></MiniGameFrame>
-          </div>
+          </StagePageSurface>
         )}
         {location === "/games/lava-crawl" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <MiniGameFrame worldId="volcanic"><LavaCrawlPage /></MiniGameFrame>
-          </div>
+          </StagePageSurface>
         )}
         {location === "/friends" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <FriendsPage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/raid" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <RaidPage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/raid/leaderboard" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <RaidLeaderboardPage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/raid/battle" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <RaidBattlePage />
-          </div>
+          </StagePageSurface>
         )}
         {location === "/explore/elysian-bayou-clearing" && (
-          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+          <StagePageSurface>
             <ElysianBayouClearingPage user={user} />
-          </div>
+          </StagePageSurface>
         )}
       </Suspense>
 
       {/* FloatingNav stays above normal page content, but the shared
           navVisibility contract removes it while a blocking modal owns input. */}
-      {!shouldHideNav(location) && !petStatsOpen && !navOverlayOpen && (
+      {!shouldHideFloatingNav(location) && !petStatsOpen && !navOverlayOpen && (
         <FloatingNav
           user={user}
           onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}

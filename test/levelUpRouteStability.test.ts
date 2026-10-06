@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { isIsolatedPlayerRoute } from "../client/src/lib/playerPagePresentation";
 
 const appSource = readFileSync("client/src/App.tsx", "utf8");
 const homeSource = readFileSync("client/src/pages/HomePage.tsx", "utf8");
@@ -9,7 +10,8 @@ const levelUpSource = readFileSync("client/src/components/PetLevelUpPage.tsx", "
 const animatorSource = readFileSync("client/src/components/PetAnimator.tsx", "utf8");
 
 test("Level Up is a standalone full-screen route instead of a HomePage modal", () => {
-  assert.match(appSource, /location\.startsWith\("\/pet-level-up\/"\)/);
+  assert.equal(isIsolatedPlayerRoute("/pet-level-up/pet-1"), true);
+  assert.match(appSource, /isIsolatedPlayerRoute\(location\)/);
   assert.match(appSource, /<Route path="\/pet-level-up\/:inventoryId">/);
   assert.match(homeSource, /navigate\(`\/pet-level-up\/\$\{encodeURIComponent\(id\)\}`\)/);
   assert.doesNotMatch(homeSource, /<PetLevelUpPage/);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { isIsolatedPlayerRoute } from "../client/src/lib/playerPagePresentation";
 
 const app = readFileSync("client/src/App.tsx", "utf8");
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
@@ -17,7 +18,8 @@ test("Power Up animated pet stays inside its existing pet zone", () => {
 });
 
 test("Level Up is mounted as its own full-screen route", () => {
-  assert.match(app, /location\.startsWith\("\/pet-level-up\/"\)/);
+  assert.equal(isIsolatedPlayerRoute("/pet-level-up/pet-1"), true);
+  assert.match(app, /isIsolatedPlayerRoute\(location\)/);
   assert.match(app, /<Route path="\/pet-level-up\/:inventoryId">/);
   assert.match(levelRoute, /import PetLevelUpPage from "@\/components\/PetLevelUpPage"/);
   assert.match(levelRoute, /<PetLevelUpPage/);
