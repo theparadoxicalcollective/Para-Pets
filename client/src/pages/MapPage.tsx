@@ -15,6 +15,7 @@ import worldEnchantedGrove from "@assets/uploads/NewGrove.png";
 import worldHauntedWoods from "@assets/uploads/NewHauntedWoods.png";
 import worldSwamp from "@assets/uploads/NewBayou.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
@@ -665,7 +666,8 @@ export default function MapPage({ user }: MapPageProps) {
       </div>
 
       {showAddWorld && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal>
+        <div data-testid="map-add-world-viewport-modal" className="absolute inset-0 flex items-center justify-center">
           <div data-testid="overlay-add-world-backdrop" className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddWorld(false)} />
           <div
             data-testid="modal-add-world"
@@ -772,10 +774,12 @@ export default function MapPage({ user }: MapPageProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {editingWorld && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal>
+        <div data-testid="map-edit-world-viewport-modal" className="absolute inset-0 flex items-center justify-center">
           <div data-testid="overlay-edit-world-backdrop" className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingWorld(null)} />
           <div
             data-testid="modal-edit-world"
@@ -888,10 +892,12 @@ export default function MapPage({ user }: MapPageProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {showMapBgEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+        <ViewportModalPortal>
+        <div data-testid="map-background-viewport-modal" className="absolute inset-0 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowMapBgEdit(false)} />
           <div
             data-testid="modal-edit-map-bg"
@@ -986,6 +992,7 @@ export default function MapPage({ user }: MapPageProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {showProfile && (
