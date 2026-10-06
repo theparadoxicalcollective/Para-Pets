@@ -1404,13 +1404,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {/* Speed-up sheet is hidden during tutorial step 5 — the overlay renders its own
           single-potion card at z-99003 so there is no z-index war. */}
       {!isOverlayActive && bjGetStep() !== 5 && showSpeedUp && activePet && !activePet.isHatched && (
+        <ViewportModalPortal>
         <div
           data-bj="speedup-sheet"
-          className="fixed inset-0 flex items-end justify-center"
-          style={{
-            maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-            zIndex: 55,
-          }}
+          data-testid="active-pet-speedup-viewport-modal"
+          className="absolute inset-0 flex items-end justify-center"
+          style={{ zIndex: 55 }}
         >
           <div
             data-bj="speedup-backdrop"
@@ -1535,6 +1534,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Drag ghost for home page speed-up sheet */}
@@ -1876,10 +1876,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         />
       )}
       {!isOverlayActive && hatchRevealing && (
+        <ViewportModalPortal>
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
+          data-testid="active-pet-hatch-reveal-viewport-modal"
+          className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
           style={{
-            maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
             opacity: hatchFadingOut ? 0 : 1,
             transition: hatchFadingOut ? "opacity 0.6s ease-out" : "none",
           }}
@@ -1986,6 +1987,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             HATCHED!
           </span>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* Veridian Watcher + Support — device-edge upper-right HUD */}

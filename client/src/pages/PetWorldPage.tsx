@@ -3645,9 +3645,11 @@ function PetDetailModal({
   }
 
   return (
+    <ViewportModalPortal>
     <div
-      className="fixed inset-0 z-[10001] flex items-center justify-center"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, padding: "0 24px" }}
+      data-testid="pet-world-pet-detail-viewport-modal"
+      className="absolute inset-0 z-[10001] flex items-center justify-center"
+      style={{ padding: "0 24px" }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -3834,6 +3836,7 @@ function PetDetailModal({
         </div>
       </div>
     </div>
+    </ViewportModalPortal>
   );
 }
 
