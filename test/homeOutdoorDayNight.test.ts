@@ -103,24 +103,28 @@ test("owner and visitor Home yards use the owner's current day-night setting dur
   assert.match(atmosphere, /HOME_OUTDOOR_OVERRIDE_TRANSITION_MS/);
   assert.match(atmosphere, /transitionMs = mode === "auto"/);
   assert.match(atmosphere, /transition: `opacity \$\{transitionMs\}ms linear`/);
-  assert.match(atmosphere, /transition: `background-color \$\{transitionMs\}ms linear`/);
+  assert.match(atmosphere, /transition: `fill-opacity \$\{transitionMs\}ms linear`/);
   assert.match(atmosphere, /<Sun /);
   assert.match(atmosphere, /<Moon /);
   assert.doesNotMatch(atmosphere, /function AutoLightingIcon/);
   assert.doesNotMatch(atmosphere, /☀️|🌙/);
 });
 
-test("outdoor night uses stable CSS layers while decorative light effects remain above it", () => {
+
+test("outdoor night keeps one stable masked darkness renderer while decorative light effects remain above it", () => {
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
   assert.match(atmosphere, /data-testid="home-outdoor-night-tint"/);
-  assert.match(atmosphere, /data-testid="home-outdoor-darkness-layer"/);
-  assert.match(atmosphere, /backgroundColor: \`rgba\(0,0,0,\$\{safeDarkness \/ 100\}\)\`/);
+  assert.equal((atmosphere.match(/data-testid="home-outdoor-darkness-layer"/g) ?? []).length, 1);
+  assert.match(atmosphere, /<svg/);
+  assert.match(atmosphere, /<mask/);
+  assert.match(atmosphere, /maskType: "luminance"/);
+  assert.match(atmosphere, /fillOpacity: safeDarkness \/ 100/);
   assert.match(atmosphere, /contain: "paint"/);
   assert.doesNotMatch(atmosphere, /HomeInteriorDarknessLayer/);
-  assert.doesNotMatch(atmosphere, /<svg|<mask|radialGradient/);
+  assert.doesNotMatch(atmosphere, /mixBlendMode: "screen"/);
   for (const source of [owner, visitor]) {
     assert.match(source, /zIndex=\{20\}/);
     assert.match(source, /<HomeInteriorEffectsLayer[\s\S]*zIndex=\{21\}/);
@@ -194,15 +198,15 @@ test("player Home lighting is stored per owned bundle instead of globally in the
   assert.match(owner, /cycleOutdoorLighting/);
 });
 
+
 test("automatic darkness uses short stable fades between clock samples", () => {
   const lighting = read("client/src/lib/homeOutdoorLighting.ts");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
   assert.doesNotMatch(lighting, /Math\.round\(getHomeOutdoorNightStrength/);
   assert.equal(HOME_OUTDOOR_AUTO_TRANSITION_MS, 1_200);
-  assert.match(atmosphere, /transition: \`background-color \$\{transitionMs\}ms linear\`/);
+  assert.match(atmosphere, /transition: \`fill-opacity \$\{transitionMs\}ms linear\`/);
   assert.match(atmosphere, /transition: \`opacity \$\{transitionMs\}ms linear\`/);
-  assert.doesNotMatch(atmosphere, /fill-opacity/);
 });
 
 test("full nighttime uses a darker maximum and stronger tint than the original implementation", () => {
@@ -228,26 +232,30 @@ test("outdoor sunlight visuals follow daylight strength for owners and visitors"
 });
 
 
-test("full automatic night cannot brighten because of renderer-type swaps", () => {
+
+test("full automatic night keeps the same SVG renderer before and after Home dimensions load", () => {
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
   assert.match(atmosphere, /const hasSceneBox =/);
-  assert.match(atmosphere, /\.\.\.\(hasSceneBox \? \{/);
-  assert.match(atmosphere, /\} : \{ inset: 0 \}\)/);
+  assert.match(atmosphere, /const maskWidth = hasSceneBox \? imgWidth : 1/);
+  assert.match(atmosphere, /const maskHeight = hasSceneBox \? sceneHeight : 1/);
   assert.equal((atmosphere.match(/data-testid="home-outdoor-darkness-layer"/g) ?? []).length, 1);
+  assert.equal((atmosphere.match(/<svg/g) ?? []).length, 1);
   assert.doesNotMatch(atmosphere, /activeLights\.length === 0/);
   assert.doesNotMatch(atmosphere, /useImageSpace/);
 });
 
 
-test("outdoor lamps locally illuminate night without restoring the unstable full-screen SVG mask", () => {
+test("outdoor lamps reveal the real night scene through soft darkness cutouts", () => {
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
   assert.match(atmosphere, /effects\.filter\(effect => isHouseInteriorLightEffectType\(effect\.type\)\)/);
   assert.match(atmosphere, /getHouseInteriorLightRadiusRatio\(effect\)/);
   assert.match(atmosphere, /getHouseInteriorLightCutoutStrength\(effect\.type\)/);
-  assert.match(atmosphere, /home-outdoor-light-reveal-/);
-  assert.match(atmosphere, /mixBlendMode: "screen"/);
+  assert.match(atmosphere, /<radialGradient/);
+  assert.match(atmosphere, /<circle/);
+  assert.match(atmosphere, /mask=\{\`url\(#\$\{maskId\}\)\`\}/);
   assert.match(atmosphere, /effect\.type === "warm_glow"[\s\S]*\(1 - safeNight\)/);
-  assert.doesNotMatch(atmosphere, /void effects/);
-  assert.doesNotMatch(atmosphere, /<svg|<mask/);
+  assert.doesNotMatch(atmosphere, /home-outdoor-light-reveal-/);
+  assert.doesNotMatch(atmosphere, /mixBlendMode: "screen"/);
 });
+
