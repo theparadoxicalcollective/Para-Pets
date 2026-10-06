@@ -75,7 +75,7 @@ test("Power Up opens pet stats in a modal instead of rendering them in the main 
 });
 
 test("Evolution begins bottom-left and advances clockwise around the pet", () => {
-  assert.match(evolutionSkinSource, /pupevo-slot \{ width:clamp\(52px,14vw,76px\)/);
+  assert.match(evolutionSkinSource, /pupevo-slot \\{ width:clamp\\(52px,calc\\(14 \\* var\\(--vw\\)\\),76px\\)/);
   assert.match(evolutionSkinSource, /width:min\(100%,455px\) !important/);
   assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:35% !important;top:63% !important\}/);
   assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:20% !important;top:37% !important\}/);
