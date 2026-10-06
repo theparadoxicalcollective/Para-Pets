@@ -411,6 +411,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
     <>
       <div
         data-stage-coordinate-space={pageMode ? "canonical" : undefined}
+        data-viewport-visual-owner={pageMode ? "backdrop" : undefined}
         className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"}
         style={pageMode ? undefined : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       >
@@ -423,7 +424,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           </ViewportBackdropPortal>
         )}
         {/* Background */}
-        <div className="absolute inset-0" onClick={pageMode ? undefined : onClose}>
+        <div
+          data-canonical-visual-layer={pageMode ? "duplicate-backdrop" : undefined}
+          className="absolute inset-0"
+          onClick={pageMode ? undefined : onClose}
+        >
           <img
             src={pageMode ? petInvForestBg : forestBg}
             alt=""
