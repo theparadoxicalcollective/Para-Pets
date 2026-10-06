@@ -53,7 +53,6 @@ import {
 import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/petCareInventory";
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
-import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
@@ -1740,11 +1739,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
   // ── Background layout ──────────────────────────────────────────────────────
   const bgUrl = activeBundle?.bgImageUrl ?? null;
-  useStageSurroundings({
-    imageUrl: openInterior?.url ?? bgUrl,
-    backgroundPosition: "center center",
-    overlayAlpha: openInterior ? 0.38 : 0.22,
-  });
+  // ViewportScenePortal owns the large-device Home artwork. A second shell copy
+  // creates visible seams/crop boundaries on tablets.
 
   useEffect(() => {
     const container = containerRef.current;
@@ -2566,7 +2562,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       <div
         data-testid="pet-home-inventory-hud"
         className="absolute bottom-0 left-0 flex gap-3 pb-5 pt-3 pl-3"
-        style={{ zIndex: openInterior ? 65 : 40, pointerEvents: "auto", right: 80, background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        style={{
+          zIndex: openInterior ? 65 : 40,
+          pointerEvents: pendingActivate || openGiftModal || showNoMailPopup ? "none" : "auto",
+          opacity: pendingActivate || openGiftModal || showNoMailPopup ? 0 : 1,
+          right: 80,
+          background: "linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%)",
+        }}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {[
