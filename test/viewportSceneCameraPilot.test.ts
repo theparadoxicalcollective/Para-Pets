@@ -116,17 +116,21 @@ test("Clearing keeps a non-distorted authored foreground plus a viewport-only en
   assert.ok(blurredExtension >= 0 && blurredExtension < worldLayerStart);
 });
 
-test("full-device Clearing removes only the centered presentation frame, not gameplay coordinates", () => {
+test("full-device Clearing keeps gameplay coordinates without relying on phone-frame chrome", () => {
   const portal = read("client/src/components/ViewportScenePortal.tsx");
   const css = read("client/src/tabletStageShell.css");
+  const stage = read("client/src/lib/stage.ts");
 
   assert.match(portal, /enabled = true/);
   assert.match(portal, /stage\.dataset\.viewportSceneActive = "true"/);
-  assert.match(css, /#game-stage\[data-viewport-scene-active="true"\]/);
-  assert.match(css, /outline: 0/);
-  assert.match(css, /box-shadow: none/);
+  assert.match(portal, /shell\.dataset\.viewportSceneActive = "true"/);
 
-  const stage = read("client/src/lib/stage.ts");
+  assert.match(css, /\.game-stage-shell\[data-viewport-scene-active="true"\]/);
+  assert.match(css, /background-image: none !important/);
+  assert.doesNotMatch(css, /#game-stage\[data-viewport-scene-active="true"\]/);
+  assert.doesNotMatch(css, /outline:/);
+  assert.doesNotMatch(css, /box-shadow:/);
+
   assert.match(stage, /export const DESIGN_W = 390/);
   assert.match(stage, /export const DESIGN_H = 844/);
 });
