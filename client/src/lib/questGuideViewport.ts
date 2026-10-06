@@ -1,4 +1,4 @@
-import { getStageSurface } from "./stage";
+import { getStageScale, getStageSurface } from "./stage";
 
 type Bounds = Pick<DOMRect, "left" | "right" | "top" | "bottom">;
 
@@ -12,8 +12,42 @@ export interface QuestGuideSurface {
   scale: number;
 }
 
-/** Quest guides use the same player coordinate surface as drag ghosts and overlays. */
-export function getQuestGuideSurface(): QuestGuideSurface {
+function getExpandedQuestGuideSurface(anchor: Element | null | undefined): QuestGuideSurface | null {
+  if (typeof document === "undefined" || !anchor) return null;
+
+  const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
+  if (!expandedOwner) return null;
+
+  // Guides for expanded World/Pet Central targets must be measured against the
+  // same full-device logical rectangle as the scene. Render the guide in the
+  // HUD sibling so it stays above the interactive scene without changing the
+  // authored 390×844 gameplay coordinate system.
+  const target = (document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  const scale = Math.max(getStageScale(), 0.0001);
+  const logicalWidth = target.clientWidth || rect.width / scale;
+  const logicalHeight = target.clientHeight || rect.height / scale;
+
+  return {
+    target,
+    inStage: true,
+    left: rect.left,
+    top: rect.top,
+    width: logicalWidth,
+    height: logicalHeight,
+    scale,
+  };
+}
+
+/**
+ * Quest guides normally use the canonical player stage surface. When the thing
+ * being guided lives inside an expanded scene, use that scene's full-device HUD
+ * surface instead so a visibly on-screen NPC is actually considered on-screen.
+ */
+export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface {
+  const expanded = getExpandedQuestGuideSurface(anchor);
+  if (expanded) return expanded;
+
   const surface = getStageSurface();
   return {
     target: surface.target,

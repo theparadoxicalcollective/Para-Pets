@@ -152,16 +152,18 @@ export function getVisibleViewport(): VisibleViewport {
   }
 
   const standalone = isStandaloneWebApp();
-  const narrow = isNarrowLayout(layoutWidth);
+  const touchFirst = isTouchFirstDevice();
   const visualHeight = Math.max(1, viewport.height);
   const resolvedHeight = resolveMobileBrowserHeight(layoutHeight, visualHeight);
   const keyboardReduced = resolvedHeight === visualHeight && visualHeight < layoutHeight;
 
   // Installed web apps already have the desired full-screen behavior, so keep
-  // their visualViewport contract exactly as-is. Normal phone browsers instead
-  // use innerHeight for ordinary toolbar changes, falling back to visualViewport
-  // only when the much larger keyboard reduction is present.
-  if (narrow && !standalone) {
+  // their visualViewport contract exactly as-is. Normal touch-first browsers
+  // (phones AND tablets) use innerHeight for ordinary browser-toolbar changes,
+  // falling back to visualViewport only when the much larger software-keyboard
+  // reduction is present. Without this, iPad/iOS browser chrome can resize the
+  // expanded World camera during a drag and immediately reset its transform.
+  if (touchFirst && !standalone) {
     return {
       width: layoutWidth,
       height: resolvedHeight,

@@ -20,14 +20,18 @@ test("shared world viewport controller owns frame measurement and pan lifecycle"
   assert.match(source, /addEventListener\("wheel", handleVpWheel, \{ passive: false \}\)/);
 });
 
-test("viewport controller preserves no-blank-space fit and clamp ownership", () => {
+test("viewport controller preserves no-blank-space fit and camera focus across browser viewport changes", () => {
   const source = read("client/src/worlds/useWorldViewportController.ts");
 
   assert.match(source, /calculateWorldFitScale\(/);
   assert.match(source, /clampWorldMapOffset\(/);
   assert.match(source, /mapHRef\.current,[\s\S]*?false,[\s\S]*?mapWidth/);
-  assert.match(source, /const initialX = \(frameWRef\.current - mapWidth \* fitScale\) \/ 2/);
-  assert.match(source, /const initialY = \(frameHRef\.current - mapHRef\.current \* fitScale\) \/ 2/);
+  assert.match(source, /nextX = \(frameWRef\.current - mapWidth \* fitScale\) \/ 2/);
+  assert.match(source, /nextY = \(frameHRef\.current - mapHRef\.current \* fitScale\) \/ 2/);
+  assert.match(source, /const focusX = \(previousFrame\.width \/ 2 - previous\.x\) \/ \(mapWidth \* previousScale\)/);
+  assert.match(source, /const focusY = \(previousFrame\.height \/ 2 - previous\.y\) \/ \(mapHRef\.current \* previousScale\)/);
+  assert.match(source, /cameraFrameRef\.current = \{ width: frameWRef\.current, height: frameHRef\.current \}/);
+  assert.match(source, /mapPanStartRef\.current = \{[\s\S]*?mapX: clamped\.x,[\s\S]*?mapY: clamped\.y/);
 });
 
 test("world background loading state remains owned by WorldPage", () => {
