@@ -36,6 +36,21 @@ test("WorldPage keeps persistent controls in the viewport HUD above the expanded
   assert.doesNotMatch(source.slice(hudStart, hudEnd), /className="fixed/);
 });
 
+test("World HUD preserves the existing iPhone 12 control offsets while using device edges elsewhere", () => {
+  const source = read("client/src/pages/WorldPage.tsx");
+  const hudStart = source.indexOf('data-testid="world-persistent-hud"');
+  const hudEnd = source.indexOf("</ViewportHudPortal>", hudStart);
+  const hud = source.slice(hudStart, hudEnd);
+
+  assert.match(hud, /data-testid="button-back-to-map"/);
+  assert.match(hud, /bottom: 24/);
+  assert.match(hud, /left: 16/);
+  assert.match(hud, /data-testid="button-world-decor"/);
+  assert.match(hud, /bottom: 82/);
+  assert.match(hud, /right: 16/);
+  assert.match(hud, /pointerEvents: "auto"/);
+});
+
 test("all WorldPage worlds keep the same authored 1080-wide coordinate canvas", () => {
   const source = read("client/src/pages/WorldPage.tsx");
   const viewport = read("client/src/lib/worldViewport.ts");
