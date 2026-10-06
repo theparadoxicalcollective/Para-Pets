@@ -833,6 +833,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{ caretColor: "transparent" }}
     >
+      {activePetModal !== "power_up" && (
       <ViewportBackdropPortal>
         <div
           data-testid="active-pet-viewport-backdrop"
@@ -857,6 +858,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           </div>
         </div>
       </ViewportBackdropPortal>
+      )}
 
       <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
         <ViewportHudPortal>
