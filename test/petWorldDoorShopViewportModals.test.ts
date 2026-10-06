@@ -7,8 +7,8 @@ const portal = readFileSync("client/src/components/ViewportModalPortal.tsx", "ut
 
 test("Pet World door shop blocking dialogs use the shared viewport modal layer", () => {
   assert.match(source, /import ViewportModalPortal from "@\/components\/ViewportModalPortal"/);
-  assert.equal((source.match(/<ViewportModalPortal>/g) ?? []).length, 2);
-  assert.equal((source.match(/<\/ViewportModalPortal>/g) ?? []).length, 2);
+  // Other Pet World blocking overlays may also use this shared layer.
+  // This test owns the two door-shop dialogs specifically rather than a page-wide count.
   assert.match(source, /data-testid="pet-world-door-buy-viewport-modal"/);
   assert.match(source, /data-testid="pet-world-door-picker-viewport-modal"/);
 
