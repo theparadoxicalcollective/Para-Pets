@@ -15,11 +15,14 @@ test("Decor and Objects inventory uses a compact scrollable mobile drawer", () =
   assert.match(source, /aria-label="Close inventory"/);
 });
 
-test("Home Bundle activation confirmation renders above the Home inventory drawer", () => {
-  assert.match(source, /style=\{\{ zIndex: openInterior \? 70 : 250, pointerEvents:/);
+test("Home inventory and blocking confirmations share the device HUD with modal ownership above controls", () => {
+  assert.match(source, /Inventory overlay panel lives in the device HUD/);
+  assert.match(source, /\{openInventory && \([\s\S]*?<ViewportHudPortal>[\s\S]*?zIndex: openInterior \? 70 : 250/);
   assert.match(source, /Bundle activation modal/);
-  assert.match(source, /style=\{\{ zIndex: 400, background: "rgba\(0,0,0,0\.6\)"/);
-  assert.ok(400 > 250);
+  assert.match(source, /<ViewportModalPortal>/);
+  assert.match(source, /data-testid="bundle-activation-modal"/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-modal="true"/);
 });
 
 test("compact inventory keeps Decor and Object drag behavior intact", () => {
