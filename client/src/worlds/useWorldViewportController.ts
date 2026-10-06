@@ -186,7 +186,7 @@ export function useWorldViewportController({
       nextX = (frameWRef.current - mapWidth * fitScale) / 2;
       nextY = (frameHRef.current - mapHRef.current * fitScale) / 2;
     } else {
-      // Browser chrome can resize visualViewport while a touch drag is active.
+      // Browser chrome can resize the camera surface while a touch drag is active.
       // Preserve the authored-map point under the camera center instead of
       // recentering the whole World and making the gesture appear to do nothing.
       const previous = mapTransformRef.current;
