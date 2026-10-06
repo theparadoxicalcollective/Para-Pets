@@ -8,7 +8,7 @@ import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.p
 import petActionRingImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import bgImg from "@assets/bg_home_v2.png";
+import bgImg from "@assets/uploads/ActivePetMainPageNew.png";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
@@ -36,6 +36,7 @@ import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import { useActivePetAnchor } from "@/lib/petPresentation";
 
 interface HomePageProps {
   user: {
@@ -490,6 +491,21 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
 
+  const activePetAnchorQuery = useActivePetAnchor(true);
+  const activePetChromeOffset = useMemo(() => {
+    if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
+    const logicalPixelPerAnchorPercent = getDesignW() / 100;
+    return {
+      x: activePetAnchorQuery.anchor.x * logicalPixelPerAnchorPercent,
+      y: activePetAnchorQuery.anchor.y * logicalPixelPerAnchorPercent,
+    };
+  }, [
+    activePet?.isHatched,
+    activePet?.petTemplateId,
+    activePetAnchorQuery.anchor.x,
+    activePetAnchorQuery.anchor.y,
+  ]);
+
   const ownsAnyPet = inventory.some((item) => item.type === "pet");
   const canBeginJourney = !inventoryLoading
     && !ownsAnyPet
@@ -865,6 +881,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               zIndex: 30,
               paddingTop: "155px",
               marginBottom: "-52px",
+              transform: `translate(${activePetChromeOffset.x}px, ${activePetChromeOffset.y}px)`,
             }}
           >
             <div style={{
@@ -1316,7 +1333,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </div>
 
         {activePet && (
-          <div className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4" style={{ position: "fixed", bottom: "calc(11*var(--vh))", left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
+          <div
+            data-testid="active-pet-name-level-anchor"
+            className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4"
+            style={{
+              position: "fixed",
+              bottom: "calc(11*var(--vh))",
+              left: "50%",
+              transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
+              zIndex: 20,
+            }}
+          >
             <div
               className="px-5 py-1.5 rounded-lg"
               style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(212,160,23,0.4)", backdropFilter: "blur(6px)", boxShadow: "0 2px 12px rgba(0,0,0,0.4)" }}
