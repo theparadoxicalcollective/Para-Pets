@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -48,7 +49,10 @@ export function useWorldViewportController({
   isObjectDragActive,
   expandedCamera = false,
 }: UseWorldViewportControllerOptions) {
-  const vpRef = useRef<HTMLDivElement>(null);
+  const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null);
+  const vpRef = useCallback((element: HTMLDivElement | null) => {
+    setViewportElement(element);
+  }, []);
 
   const initialFrameWidth = getDesignW();
   const initialFrameHeight = DESIGN_H;
@@ -84,15 +88,15 @@ export function useWorldViewportController({
   const mapPanningRef = useRef(false);
   const mapJustPannedRef = useRef(false);
 
-  useEffect(() => {
-    const el = vpRef.current;
+  useLayoutEffect(() => {
+    const el = viewportElement;
     if (!el) return;
 
     const measure = () => {
-      // Measure the actual logical camera surface. On iPhone 12 this is still
-      // the canonical 390×844 stage. Opted-in tablet/desktop WorldPage maps can
-      // instead use the expanded viewport-scene surface; the authored map
-      // coordinates remain unchanged and only the camera frame gets larger.
+      // Measure whichever DOM node currently owns the camera. ViewportScenePortal
+      // can reparent this surface from the inline 390×844 stage into the larger
+      // tablet/desktop scene layer after mount, so the observer must follow the
+      // live element rather than staying attached to the first inline node.
       const width = el.clientWidth || getDesignW();
       const height = el.clientHeight || DESIGN_H;
       frameWRef.current = width;
@@ -108,7 +112,7 @@ export function useWorldViewportController({
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [viewportElement]);
 
   useEffect(() => {
     mapHRef.current = defaultMapHeight;
@@ -328,12 +332,12 @@ export function useWorldViewportController({
   }, []);
 
   useEffect(() => {
-    const el = vpRef.current;
+    const el = viewportElement;
     if (!el) return;
 
     el.addEventListener("wheel", handleVpWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleVpWheel);
-  }, [handleVpWheel]);
+  }, [handleVpWheel, viewportElement]);
 
   return {
     vpRef,

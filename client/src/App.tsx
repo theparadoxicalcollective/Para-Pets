@@ -147,7 +147,9 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
         <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />
       </div>
       {!screenDone && (
-        <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
+        <ViewportModalPortal>
+          <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
+        </ViewportModalPortal>
       )}
       {screenDone && worldId === "haunted_woods" && showHauntedWelcome && (
         <ViewportModalPortal>
