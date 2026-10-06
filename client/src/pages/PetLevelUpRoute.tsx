@@ -50,8 +50,9 @@ function RouteError({ message, onRetry, onClose }: { message: string; onRetry?: 
     <main
       role="alert"
       data-testid="pet-level-up-route-error"
+      data-stage-coordinate-space="canonical"
       style={{
-        position: "fixed", inset: 0, display: "grid", placeItems: "center",
+        position: "absolute", inset: 0, display: "grid", placeItems: "center",
         padding: 24, background: "#060a09", color: "#fff8d9", textAlign: "center",
       }}
     >
