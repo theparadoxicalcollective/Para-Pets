@@ -109,20 +109,26 @@ test("extra Home camera area follows current night darkness without changing the
   }
 });
 
-test("owner outdoor camera suspends for canonical inventory tutorial modal and interior UI", () => {
+
+
+test("owner outdoor Home uses a blurred camera extension instead of a hard tablet seam", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  assert.match(owner, /data-testid="pet-home-outdoor-camera-extension"/);
+  assert.match(owner, /scale-110 object-cover opacity-45 blur-md/);
+  assert.match(owner, /src=\{bgUrl\}/);
+  assert.match(owner, /style=\{\{ zIndex: 0 \}\}/);
+});
+
+test("owner outdoor camera stays expanded for HUD inventory and modal UI", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
 
-  assert.match(owner, /const homeOutdoorCameraBlocked = Boolean\(/);
-  for (const state of [
-    "openInterior",
-    "openInventory",
-    "pendingActivate",
-    "openGiftModal",
-    "showNoMailPopup",
-    "petHomeTutorialStep",
-  ]) {
-    assert.match(owner, new RegExp(state));
-  }
+  const blockedStart = owner.indexOf("const homeOutdoorCameraBlocked = Boolean(");
+  const blockedEnd = owner.indexOf(");", blockedStart);
+  const blocked = owner.slice(blockedStart, blockedEnd + 2);
+
+  assert.match(blocked, /openInterior/);
+  assert.match(blocked, /petHomeTutorialStep/);
+  assert.doesNotMatch(blocked, /openInventory|pendingActivate|openGiftModal|showNoMailPopup/);
 
   const portalEnd = owner.indexOf("</ViewportScenePortal>");
   const inventory = owner.indexOf("Bottom inventory bar", portalEnd);
@@ -166,12 +172,12 @@ test("iPhone 12 still uses ViewportScenePortal inline fallback and existing 390-
 });
 
 
-test("owner outdoor camera observer reattaches after interior and modal portal transitions", () => {
+test("HUD-only Pet Home UI does not reset the expanded camera measurement", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
 
   assert.match(
     owner,
-    /return observeHomeViewport\(container, recalc\);\s*\}, \[\s*bgAspect,\s*openInterior,\s*openInventory,\s*pendingActivate,\s*openGiftModal,\s*showNoMailPopup,\s*petHomeTutorialStep,?\s*\]\);/,
+    /return observeHomeViewport\(container, recalc\);\s*\}, \[\s*bgAspect,\s*openInterior,\s*petHomeTutorialStep,?\s*\]\);/,
   );
 });
 
