@@ -192,9 +192,31 @@ test("visual viewport offsets are included in rendered coordinates", () => {
 });
 
 
-test("tablet and installed desktop frame decoration preserves all phone canvas pixels", () => {
+test("wide-device shell is visually seamless while canonical coordinates remain unchanged", () => {
   const css = readFileSync("client/src/tabletStageShell.css", "utf8");
-  assert.doesNotMatch(css, /border:\s*[1-9]\d*px/);
-  assert.equal((css.match(/outline: 3px solid/g) ?? []).length, 2);
-  assert.equal((css.match(/outline-offset: -3px/g) ?? []).length, 2);
+  const app = readFileSync("client/src/App.tsx", "utf8");
+
+  assert.doesNotMatch(css, /outline:\s*[1-9]/);
+  assert.doesNotMatch(css, /border-radius:/);
+  assert.doesNotMatch(css, /box-shadow:/);
+  assert.doesNotMatch(app, /DesktopNotice/);
+  assert.doesNotMatch(app, /Para Pets is optimized for mobile/);
+
+  for (const [width, height] of [
+    [768, 1024],
+    [834, 1194],
+    [1366, 768],
+    [1440, 900],
+    [1920, 1080],
+  ] as const) {
+    const layout = calculateStageLayout(width, height);
+    assert.equal(layout.designWidth, DESIGN_W);
+    assert.equal(layout.designHeight, DESIGN_H);
+
+    const logical = { x: 195, y: 422 };
+    const rendered = logicalToRendered(layout, logical.x, logical.y);
+    const roundTrip = renderedToLogical(layout, rendered.x, rendered.y);
+    assert.ok(Math.abs(roundTrip.x - logical.x) < 1e-9);
+    assert.ok(Math.abs(roundTrip.y - logical.y) < 1e-9);
+  }
 });
