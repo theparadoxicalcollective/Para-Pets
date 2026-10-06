@@ -20,7 +20,6 @@ import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_TOUCH_SURFACE_STYLE, 
 import { clientDeltaToStage } from "@/lib/stage";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
-import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 
@@ -749,11 +748,7 @@ export default function VisitPetHousePage() {
   const outdoorDecorCount = outdoorDecor.filter(item => homeSceneItemCountsTowardDecorLimit(item.item.type)).length;
 
   const bgUrl = activeBundle?.bgImageUrl ?? null;
-  useStageSurroundings({
-    imageUrl: openInterior?.url ?? bgUrl,
-    backgroundPosition: "center center",
-    overlayAlpha: openInterior ? 0.38 : 0.22,
-  });
+  // Expanded visitor Home scene owns the tablet/desktop artwork directly.
 
   useEffect(() => {
     const container = containerRef.current;
