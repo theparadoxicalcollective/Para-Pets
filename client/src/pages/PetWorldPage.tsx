@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
-import { DESIGN_H, clientDeltaToStage, getDesignW, getStageSurface } from "@/lib/stage";
+import { DESIGN_H, clientDeltaToStage, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
