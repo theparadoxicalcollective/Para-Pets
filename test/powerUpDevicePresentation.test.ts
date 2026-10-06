@@ -44,3 +44,24 @@ test("Power Up mechanics and pet/evolution ownership stay in their existing comp
   assert.match(source, /<PetAnimator[\s\S]*size=\{350\}[\s\S]*fillContainer/);
   assert.match(source, /setNavHidden\(true\)/);
 });
+
+
+test("Power Up sizing is based on the logical stage instead of the outer tablet viewport", () => {
+  const power = read("client/src/components/PetPowerUpPage.tsx");
+  const evolution = read("client/src/components/powerup/EvolutionPanel.tsx");
+
+  assert.doesNotMatch(power, /\d+(?:\.\d+)?vw/);
+  assert.doesNotMatch(evolution, /\d+(?:\.\d+)?vw/);
+  assert.match(power, /calc\(62 \* var\(--vw\)\)/);
+  assert.match(evolution, /calc\(14 \* var\(--vw\)\)/);
+  assert.match(power, /#game-stage\[data-coordinate-owner="stage"\] \.pupage-stage\{height:clamp\(325px,calc\(89 \* var\(--vw\)\),380px\)/);
+  assert.match(power, /#game-stage\[data-coordinate-owner="stage"\] \.pupage-pet-zone\{width:min\(calc\(62 \* var\(--vw\)\),260px\)/);
+});
+
+test("wide-device Power Up uses one full-device background instead of a second inner page rectangle", () => {
+  const power = read("client/src/components/PetPowerUpPage.tsx");
+
+  assert.match(power, /#game-stage\[data-coordinate-owner="stage"\] \.pupage\{background:transparent\}/);
+  assert.match(power, /#game-stage\[data-coordinate-owner="stage"\] \.pupage-bg,[\s\S]*\.pupage-vignette\{display:none\}/);
+  assert.match(power, /data-testid="power-up-viewport-backdrop"/);
+});
