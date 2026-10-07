@@ -39,14 +39,20 @@ test("door shop admin assignment controls remain unchanged", () => {
   assert.match(source, /button-door-assign-decor-\$\{decor\.id\}/);
 });
 
-test("Pet World interactive door interior stays on its existing camera surface", () => {
+test("Pet World interactive door interior uses the full viewport scene camera without changing interaction ownership", () => {
   const interiorStart = source.indexOf("Door Interior Overlay");
   const buyStart = source.indexOf("Price-tag buy modal for door shop items");
   const interior = source.slice(interiorStart, buyStart);
-  assert.match(interior, /className="fixed inset-0 z-50 overflow-hidden"/);
-  assert.match(interior, /maxWidth: "768px"/);
+  assert.match(interior, /<ViewportScenePortal>/);
+  assert.match(interior, /data-testid="pet-world-door-interior-viewport-camera"/);
+  assert.match(interior, /className="absolute inset-0 z-50 overflow-hidden"/);
+  assert.doesNotMatch(interior, /maxWidth: "768px"|className="fixed inset-0/);
+  assert.match(interior, /ref=\{interiorRef\}/);
   assert.match(interior, /onPointerDown=\{handleInteriorPointerDown\}/);
   assert.match(interior, /onPointerMove=\{handleDoorDecorPointerMove\}/);
+  assert.match(interior, /onPointerUp=\{handleDoorDecorPointerUp\}/);
+  assert.match(interior, /width: bgRenderedW > 0 \? bgRenderedW : "100%"/);
+  assert.match(interior, /transform: `translateX\(-\$\{bgPanX\}px\)`/);
 });
 
 test("shared viewport modal keeps native fallback behavior", () => {
