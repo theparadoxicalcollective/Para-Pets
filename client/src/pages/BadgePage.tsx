@@ -7,6 +7,7 @@ import TopBar from "@/components/TopBar";
 import { useState, useEffect, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 
 interface BadgePageProps {
   user: {
@@ -429,6 +430,9 @@ export default function BadgePage({ user }: BadgePageProps) {
 
   return (
     <div
+      data-testid="badges-page"
+      data-stage-coordinate-space="canonical"
+      data-viewport-visual-owner="backdrop"
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${bgImg})`,
@@ -437,7 +441,22 @@ export default function BadgePage({ user }: BadgePageProps) {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85 z-0 pointer-events-none" />
+      <ViewportBackdropPortal>
+        <div
+          data-testid="badges-viewport-backdrop"
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            backgroundImage: `url(${bgImg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85 pointer-events-none" />
+        </div>
+      </ViewportBackdropPortal>
+
+      <div data-canonical-visual-layer="duplicate-backdrop" className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85 z-0 pointer-events-none" />
 
       <div
         className="relative z-10 flex flex-col h-full"
