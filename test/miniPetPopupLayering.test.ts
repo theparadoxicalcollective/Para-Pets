@@ -22,7 +22,7 @@ test("active Mini Pet stays below the global popup stack", () => {
 
   assert.ok(miniPetZ < firstPopupZ, `Mini Pet z-index ${miniPetZ} must stay below popup z-index ${firstPopupZ}`);
 
-  const actionMenuZ = Number(home.match(/fixed inset-0 z-(\d+) flex items-center justify-center/)?.[1] ?? 0);
+  const actionMenuZ = Number(home.match(/data-testid="active-pet-action-canonical-ring"[\s\S]*?zIndex:\s*(\d+)/)?.[1] ?? 0);
   assert.ok(actionMenuZ > 0, "expected Active Pet action menu z-index");
   assert.ok(miniPetZ < actionMenuZ, `Mini Pet z-index ${miniPetZ} must stay below Active Pet popup z-index ${actionMenuZ}`);
 });
