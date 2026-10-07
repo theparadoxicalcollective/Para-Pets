@@ -19,6 +19,7 @@ import { fishingCompletionOutcome, type FishingCompletionResponse } from "@/lib/
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 
 interface FishingPageProps {
   locationId: string;
@@ -595,6 +596,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       className="absolute inset-0 z-40 flex flex-col"
       style={{ userSelect: "none", WebkitUserSelect: "none" }}
       data-testid="fishing-page"
+      data-stage-coordinate-space="canonical"
+      data-viewport-visual-owner="backdrop"
     >
       {/* Full-screen tap layer — active only during nibble so player can tap anywhere */}
       {phase === "nibble" && (
@@ -605,16 +608,33 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
         />
       )}
 
-      <img
-        src={effectiveBg}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        onLoad={() => setBgLoaded(true)}
-        onError={() => { setBgError(true); setBgLoaded(true); }}
-      />
-      <div className="absolute inset-0" style={{
-        background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
-      }} />
+      <ViewportBackdropPortal>
+        <div data-testid="fishing-viewport-backdrop" className="absolute inset-0 overflow-hidden">
+          <img
+            src={effectiveBg}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            onLoad={() => setBgLoaded(true)}
+            onError={() => { setBgError(true); setBgLoaded(true); }}
+          />
+          <div className="absolute inset-0" style={{
+            background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
+          }} />
+        </div>
+      </ViewportBackdropPortal>
+
+      <div data-canonical-visual-layer="duplicate-backdrop" className="absolute inset-0">
+        <img
+          src={effectiveBg}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          onLoad={() => setBgLoaded(true)}
+          onError={() => { setBgError(true); setBgLoaded(true); }}
+        />
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.7) 100%)",
+        }} />
+      </div>
 
       {/* Magical pond surface — clickable cast zone */}
       <div
