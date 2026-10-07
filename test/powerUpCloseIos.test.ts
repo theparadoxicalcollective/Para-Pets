@@ -13,7 +13,7 @@ test("iOS swipe suppression leaves explicit edge controls alone", () => {
 
 test("Power Up close control uses the top modal surface and a direct pointer path", () => {
   assert.match(power, /import ViewportModalPortal from "@\/components\/ViewportModalPortal"/);
-  assert.match(power, /<ViewportModalPortal>[\s\S]*data-testid="button-close-powerup-modal"[\s\S]*<\/ViewportModalPortal>/);
+  assert.match(power, /<ViewportModalPortal blocking=\{false\}>[\s\S]*data-testid="button-close-powerup-modal"[\s\S]*<\/ViewportModalPortal>/);
   assert.match(power, /data-ios-edge-control="true"/);
   assert.match(power, /onPointerDown=\{\(event\) => \{ event\.stopPropagation\(\); \}\}/);
   assert.match(power, /onPointerUp=\{\(event\) => \{ event\.preventDefault\(\); event\.stopPropagation\(\); onClose\(\); \}\}/);

@@ -13,9 +13,11 @@ const VIEWPORT_HUD_ID = "game-viewport-hud";
 export default function ViewportModalPortal({
   children,
   enabled = true,
+  blocking = true,
 }: {
   children: ReactNode;
   enabled?: boolean;
+  blocking?: boolean;
 }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
     typeof document === "undefined" ? null : document.getElementById(VIEWPORT_HUD_ID),
@@ -34,7 +36,7 @@ export default function ViewportModalPortal({
         position: "absolute",
         inset: 0,
         zIndex: 20000,
-        pointerEvents: "auto",
+        pointerEvents: blocking ? "auto" : "none",
       }}
     >
       {children}
