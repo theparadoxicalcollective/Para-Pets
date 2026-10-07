@@ -20,9 +20,11 @@ test("stage-owned wide devices can separate scenery from canonical coordinates",
     /#game-stage\[data-coordinate-owner="stage"\] \[data-canonical-visual-layer="duplicate-backdrop"\][\s\S]*display: none !important;/,
   );
 
-  // Native phone ownership has no backdrop target, so the same visual children
-  // still render inline and preserve the existing iPhone path.
-  assert.match(backdropPortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>;/);
+  // Native phone ownership still renders inline, while stage-owned larger
+  // devices must never paint the fallback scenery into the canonical plane.
+  assert.match(backdropPortal, /stageOwned: stage\?\.dataset\.coordinateOwner === "stage"/);
+  assert.match(backdropPortal, /if \(!enabled\) return <>\{children\}<\/>;/);
+  assert.match(backdropPortal, /if \(!target\) return stageOwned \? null : <>\{children\}<\/>;/);
 });
 
 test("Active Pet keeps authored coordinates while the viewport owns its scenery", () => {

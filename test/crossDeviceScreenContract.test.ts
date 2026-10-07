@@ -58,10 +58,11 @@ test("GameStage exposes separate backdrop scene HUD and modal ownership without 
   assert.match(modalPortal, /zIndex: VIEWPORT_LAYER_Z\.modal/);
 });
 
-test("scene and backdrop portals preserve native-phone inline content while HUD/modal keep their established HUD ownership", () => {
-  for (const source of [scenePortal, backdropPortal]) {
-    assert.match(source, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
-  }
+test("scene and backdrop portals preserve native-phone content without allowing stage-owned scenery to fall back into the phone plane", () => {
+  assert.match(scenePortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
+  assert.match(backdropPortal, /stageOwned: stage\?\.dataset\.coordinateOwner === "stage"/);
+  assert.match(backdropPortal, /if \(!enabled\) return <>\{children\}<\/>/);
+  assert.match(backdropPortal, /if \(!target\) return stageOwned \? null : <>\{children\}<\/>/);
   assert.match(hudPortal, /const HUD_TARGET_ID = "game-viewport-hud"/);
   assert.match(hudPortal, /return target \? createPortal\(children, target\) : null/);
   assert.match(modalPortal, /const VIEWPORT_HUD_ID = "game-viewport-hud"/);

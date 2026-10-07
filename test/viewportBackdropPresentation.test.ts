@@ -54,7 +54,9 @@ test("native phone fallback keeps backdrop children inline", () => {
   const portal = read("client/src/components/ViewportBackdropPortal.tsx");
 
   assert.match(portal, /const VIEWPORT_BACKDROP_ID = "game-viewport-backdrop"/);
-  assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
+  assert.match(portal, /stageOwned: stage\?\.dataset\.coordinateOwner === "stage"/);
+  assert.match(portal, /if \(!enabled\) return <>\{children\}<\/>/);
+  assert.match(portal, /if \(!target\) return stageOwned \? null : <>\{children\}<\/>/);
   assert.match(portal, /stage\.dataset\.viewportBackdropActive = "true"/);
   assert.match(portal, /shell\.dataset\.viewportBackdropActive = "true"/);
 });
