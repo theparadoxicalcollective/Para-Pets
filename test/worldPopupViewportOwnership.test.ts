@@ -50,5 +50,5 @@ test("cauldron result dialogs use the viewport while drag UI stays stage-aligned
 test("viewport modal portal keeps native phone fallback and wide-device HUD ownership", () => {
   assert.match(portal, /document\.getElementById\(VIEWPORT_HUD_ID\)/);
   assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>;/);
-  assert.match(portal, /zIndex: 20000/);
+  assert.match(portal, /zIndex: VIEWPORT_LAYER_Z\.modal/);
 });

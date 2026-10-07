@@ -55,7 +55,7 @@ test("GameStage exposes separate backdrop scene HUD and modal ownership without 
   assert.match(app, /id="game-viewport-scene"/);
   assert.match(app, /id="game-viewport-hud"/);
   assert.match(modalPortal, /const VIEWPORT_HUD_ID = "game-viewport-hud"/);
-  assert.match(modalPortal, /zIndex: 20000/);
+  assert.match(modalPortal, /zIndex: VIEWPORT_LAYER_Z\.modal/);
 });
 
 test("scene and backdrop portals preserve native-phone inline content while HUD/modal keep their established HUD ownership", () => {

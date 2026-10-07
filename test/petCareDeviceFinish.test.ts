@@ -33,7 +33,7 @@ test("presentation-only viewport scene does not intercept Pet Care input", () =>
 
   assert.match(portal, /interactive = true/);
   assert.match(portal, /interactive\?: boolean/);
-  assert.match(portal, /pointerEvents: interactive \? "auto" : "none"/);
+  assert.match(portal, /pointerEvents: viewportPointerEvents\(interactive \? "interactive" : "decorative"\)/);
 });
 
 test("Pet Care keeps the same original background in both the canonical scene and device extension", () => {
