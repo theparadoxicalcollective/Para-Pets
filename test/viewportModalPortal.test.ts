@@ -13,7 +13,7 @@ test("viewport modal portal renders above persistent HUD chrome", () => {
   assert.match(portal, /inset: 0/);
   assert.match(portal, /zIndex: 20000/);
   assert.match(portal, /blocking = true/);
-  assert.match(portal, /pointerEvents: blocking \\? "auto" : "none"/);
+  assert.match(portal, /pointerEvents: blocking \? "auto" : "none"/);
   assert.match(portal, /createPortal/);
 });
 
