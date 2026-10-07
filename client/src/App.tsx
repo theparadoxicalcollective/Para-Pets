@@ -509,9 +509,9 @@ function AppRouter() {
   return (
     <>
       {location === "/" && (
-        <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
+        <StagePageSurface>
           <HomePage user={user} isOverlayActive={false} />
-        </div>
+        </StagePageSurface>
       )}
 
       {/* Stage pages all use the same absolute stage surface. Home itself is
