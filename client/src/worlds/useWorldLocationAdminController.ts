@@ -7,19 +7,17 @@ import {
   type RefObject,
 } from "react";
 import type { WorldLocationData } from "@/components/world/WorldLocations";
+import { WORLD_PLACEMENT_BOUNDS, clampWorldPlacementPercent, dragWorldPlacementPercent } from "@/worlds/worldAuthoredPlacement";
 
 export const WORLD_LOCATION_DRAG_THRESHOLD_PX = 3;
-export const WORLD_LOCATION_MIN_PERCENT = -10;
-export const WORLD_LOCATION_MAX_PERCENT = 110;
+export const WORLD_LOCATION_MIN_PERCENT = WORLD_PLACEMENT_BOUNDS.location.min;
+export const WORLD_LOCATION_MAX_PERCENT = WORLD_PLACEMENT_BOUNDS.location.max;
 export const WORLD_LOCATION_POST_DRAG_CLICK_MS = 350;
 export const WORLD_LOCATION_ADMIN_SECOND_TAP_MS = 400;
 export const WORLD_LOCATION_DRAG_RESET_MS = 300;
 
 export function clampWorldLocationAdminPercent(value: number): number {
-  return Math.max(
-    WORLD_LOCATION_MIN_PERCENT,
-    Math.min(WORLD_LOCATION_MAX_PERCENT, value),
-  );
+  return clampWorldPlacementPercent(value, WORLD_PLACEMENT_BOUNDS.location);
 }
 
 export function shouldSuppressWorldLocationClick(
@@ -132,14 +130,16 @@ export function useWorldLocationAdminController({
       didDragRef.current = true;
     }
 
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = clampWorldLocationAdminPercent(
-      dragRef.current.origPosX + dx / pxPerPercX,
+    const next = dragWorldPlacementPercent(
+      { x: dragRef.current.origPosX, y: dragRef.current.origPosY },
+      dx,
+      dy,
+      rect.width,
+      rect.height,
+      WORLD_PLACEMENT_BOUNDS.location,
     );
-    const newY = clampWorldLocationAdminPercent(
-      dragRef.current.origPosY + dy / pxPerPercY,
-    );
+    const newX = next.x;
+    const newY = next.y;
 
     setDragPosition({
       id: dragRef.current.locId,
