@@ -40,7 +40,10 @@ test("all GameStage overlay routes use one canonical stage-page root", () => {
   assert.doesNotMatch(app, /className="page-overlay" style=\{\{ position: "absolute", inset: 0 \}\}/);
   assert.ok((app.match(/<StagePageSurface/g) ?? []).length >= 10);
 
-  assert.match(surface, /data-page-presentation="stage"/);
+  assert.match(surface, /data-page-presentation=\{target \? "viewport" : "stage"\}/);
+  assert.match(surface, /const VIEWPORT_PAGE_ID = "game-viewport-page"/);
+  assert.match(surface, /data-stage-reference-plane="true"/);
+  assert.match(surface, /return target \? createPortal\(content, target\) : content/);
   assert.match(surface, /position: "absolute"/);
   assert.match(surface, /inset: 0/);
   assert.match(surface, /width: "100%"/);
