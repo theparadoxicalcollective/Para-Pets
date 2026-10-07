@@ -56,10 +56,14 @@ test("GameStage exposes separate backdrop scene HUD and modal ownership without 
   assert.match(modalPortal, /zIndex: 20000/);
 });
 
-test("all viewport portals preserve the native-phone inline path", () => {
-  for (const source of [scenePortal, backdropPortal, hudPortal, modalPortal]) {
+test("scene and backdrop portals preserve native-phone inline content while HUD/modal keep their established HUD ownership", () => {
+  for (const source of [scenePortal, backdropPortal]) {
     assert.match(source, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
   }
+  assert.match(hudPortal, /const HUD_TARGET_ID = "game-viewport-hud"/);
+  assert.match(hudPortal, /return target \? createPortal\(children, target\) : null/);
+  assert.match(modalPortal, /const VIEWPORT_HUD_ID = "game-viewport-hud"/);
+  assert.match(modalPortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
 });
 
 test("Active Pet keeps authored pet and action-ring geometry while scenery and blocking backdrop can expand", () => {
@@ -84,8 +88,9 @@ test("Aquarium remains a canonical swim coordinate plane until a dedicated camer
   assert.match(aquarium, /<ViewportBackdropPortal>/);
   assert.doesNotMatch(aquarium, /<ViewportScenePortal>/);
   assert.match(aquarium, /left: `\$\{f\.x\}%`, top: `\$\{f\.y\}%`/);
-  assert.match(aquarium, /const px = \(\(e\.clientX - rect\.left\) \/ rect\.width\) \* 100/);
+  assert.match(aquarium, /left: `\$\{f\.x\}%`, top: `\$\{f\.y\}%`/);
   assert.match(aquarium, /const py = \(\(e\.clientY - rect\.top\) \/ rect\.height\) \* 100/);
+  assert.match(aquarium, /if \(py < 78\) addFish\(d\.fish\)/);
 });
 
 test("guided quests retain explicit target-only pan and tour interaction modes across camera types", () => {
