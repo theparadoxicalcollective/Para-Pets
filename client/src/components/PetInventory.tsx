@@ -438,7 +438,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           <div className="absolute inset-0" style={{ background: pageMode ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.78)" }} />
         </div>
 
-        <div className="relative z-10 flex flex-col h-full overflow-hidden">
+        <div data-testid={pageMode ? "inventory-canonical-content" : undefined} className="relative z-10 flex flex-col h-full overflow-hidden">
 
           {/* Header */}
           <div className="px-4 pb-0" style={{ paddingTop: pageMode && !showBag ? 8 : 56 }}>
@@ -569,7 +569,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
           {/* Bottom back button — page mode only */}
           {pageMode && (
-            <div className="flex-shrink-0 px-5 pb-6 pt-3">
+            <div data-testid="inventory-page-back-row" className="flex-shrink-0 px-5 pb-6 pt-3">
               <button
                 data-testid="button-close-inventory"
                 onClick={onClose}
