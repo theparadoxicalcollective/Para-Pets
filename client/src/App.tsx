@@ -1,4 +1,5 @@
 import EmailGateScreen from "@/components/EmailGateScreen";
+import { VIEWPORT_LAYER_Z } from "@/lib/viewportOwnership";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
 import { fetchStartupInventory } from "./lib/startupInventory";
@@ -784,7 +785,7 @@ function GameStage({ children }: { children: ReactNode }) {
               height: sceneRect.height,
               pointerEvents: "auto",
               overflow: "hidden",
-              zIndex: 20,
+              zIndex: VIEWPORT_LAYER_Z.page,
               "--stage-reference-left": `${-sceneRect.left}px`,
               "--stage-reference-top": `${-sceneRect.top}px`,
               "--stage-reference-width": `${layout.designWidth}px`,
@@ -804,7 +805,7 @@ function GameStage({ children }: { children: ReactNode }) {
               height: sceneRect.height,
               pointerEvents: "none",
               overflow: "hidden",
-              zIndex: 10,
+              zIndex: VIEWPORT_LAYER_Z.backdrop,
             }}
           />
         )}
@@ -817,7 +818,7 @@ function GameStage({ children }: { children: ReactNode }) {
             width: layout.designWidth,
             height: layout.designHeight,
             overflow: "hidden",
-            zIndex: 15,
+            zIndex: VIEWPORT_LAYER_Z.legacyStage,
           }}
         >
           {children}
@@ -834,7 +835,7 @@ function GameStage({ children }: { children: ReactNode }) {
               height: sceneRect.height,
               pointerEvents: "none",
               overflow: "hidden",
-              zIndex: 30,
+              zIndex: VIEWPORT_LAYER_Z.scene,
             }}
           />
         )}
@@ -849,7 +850,7 @@ function GameStage({ children }: { children: ReactNode }) {
             height: hudRect.height,
             pointerEvents: "none",
             overflow: "visible",
-            zIndex: 40,
+            zIndex: VIEWPORT_LAYER_Z.hud,
           }}
         />
       </div>
