@@ -11,8 +11,8 @@ test("Pet Care keeps its gameplay composition canonical while its environment ow
   assert.match(care, /data-stage-coordinate-space="canonical"/);
   assert.match(care, /data-viewport-visual-owner="scene"/);
   assert.match(care, /data-testid="drop-zone-feed-pet"/);
-  assert.match(care, /data-testid="pet-care-edibles-shelf"/);
-  assert.match(care, /data-testid="pet-care-gifts-shelf"/);
+  assert.match(care, /data-testid={`pet-care-${kind}-shelf`}/);
+  assert.match(care, /kind: "edibles" \| "gifts"/);
 });
 
 test("stage-owned tablets and desktop move only Pet Care edge controls to the physical camera", () => {
