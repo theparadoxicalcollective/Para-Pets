@@ -20,7 +20,6 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { clientRectPointToStage, clientToStage } from "@/lib/stage";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
-import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 const ITEMS_PER_PAGE = 5;
 type StatFilter = "atk" | "def" | "health" | null;
@@ -55,7 +54,6 @@ const CSS = String.raw`
 #game-stage[data-coordinate-owner="stage"] .pupage-special-box{right:1%;top:0;width:54px}
 #game-stage[data-coordinate-owner="stage"] .pupage-arrow{width:32px;height:41px}
 #game-stage[data-coordinate-owner="stage"] .pupage-stats-close{width:32px;height:32px}
-#game-viewport-hud .pupage-close{top:max(env(safe-area-inset-top),10px);right:max(env(safe-area-inset-right),10px);width:38px;height:38px;pointer-events:auto}
 @media(max-height:720px){.pupage-scroll{padding-top:max(env(safe-area-inset-top),4px);padding-bottom:max(env(safe-area-inset-bottom),5px)}.pupage-head{min-height:78px}.pupage-logo{width:min(calc(78 * var(--vw)),470px)}.pupage-capacity{padding-top:4px;padding-bottom:4px}.pupage-enhance{width:min(48%,255px)}.pupage-stage{height:clamp(270px,calc(78 * var(--vw)),330px);margin-top:-5px}.pupage-pet-zone{width:min(calc(56 * var(--vw)),235px);height:min(calc(56 * var(--vw)),235px)}.pupage-nameplate{width:min(70%,375px)}.pupage-inventory{width:94%;margin-top:-23px}.pupage-bottom-spacer{height:2px}}
 @media(max-height:640px){.pupage-head{min-height:68px}.pupage-stage{height:clamp(245px,calc(70 * var(--vw)),295px)}.pupage-inventory{width:88%;margin-top:-19px}.pupage-enhance{width:min(46%,235px)}}
 `;
@@ -229,18 +227,16 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">
         <img src={pupLogo} alt="Power Up" className="pupage-logo" />
-        <ViewportModalPortal>
-          <button
-            type="button"
-            className="pupage-corner pupage-close"
-            data-ios-edge-control="true"
-            data-testid="button-close-powerup-modal"
-            aria-label="Close Power Up"
-            onPointerDown={(event) => { event.stopPropagation(); }}
-            onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
-            onClick={(event) => { if (event.detail === 0) onClose(); }}
-          ><img src={pupCloseButton} alt="" /></button>
-        </ViewportModalPortal>
+        <button
+          type="button"
+          className="pupage-corner pupage-close"
+          data-ios-edge-control="true"
+          data-testid="button-close-powerup-modal"
+          aria-label="Close Power Up"
+          onPointerDown={(event) => { event.stopPropagation(); }}
+          onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
+          onClick={(event) => { if (event.detail === 0) onClose(); }}
+        ><img src={pupCloseButton} alt="" /></button>
       </header>
 
       <section className="pupage-capacity" data-testid="section-powerup-progress" aria-label={`${petName} Power Up capacity: ${used} used of ${capacity} total`}><div className="pupage-cap-track" data-testid="bar-powerup-capacity"><i style={{ width: `${capacityPercent}%` }} /></div><div className="pupage-cap-ticks"><span>{used} used</span><span>{capacity} total</span></div></section>
