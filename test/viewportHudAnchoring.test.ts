@@ -68,10 +68,12 @@ test("GameStage clips gameplay separately while allowing the HUD to reach device
   assert.match(app, /data-testid="game-viewport-hud"/);
   assert.match(app, /overflow: "visible"/);
   assert.match(app, /id="game-stage-content"[\s\S]*?overflow: "hidden"/);
-  assert.match(app, /left: hudRect\.left/);
-  assert.match(app, /top: hudRect\.top/);
-  assert.match(app, /width: hudRect\.width/);
-  assert.match(app, /height: hudRect\.height/);
+  const hudStart = app.indexOf('id="game-viewport-hud"');
+  const hudBlock = app.slice(hudStart, hudStart + 1000);
+  assert.match(hudBlock, /left: 0/);
+  assert.match(hudBlock, /top: 0/);
+  assert.match(hudBlock, /width: expandedStage \? "100%" : hudRect\.width/);
+  assert.match(hudBlock, /height: expandedStage \? "100%" : hudRect\.height/);
 
   // Existing gameplay portals remain clipped to the canonical stage instead
   // of accidentally using the expanded HUD as a world/modal surface.
