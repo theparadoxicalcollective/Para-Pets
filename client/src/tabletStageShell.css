@@ -159,3 +159,13 @@
 #game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] {
   overflow: visible !important;
 }
+
+/*
+ * The Active Pet background is already owned by the full-device backdrop
+ * portal. On stage-owned tablets the canonical page must not paint another
+ * opaque phone-width surface above it. Keep all pet/admin coordinates intact.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-testid="active-pet-page"] {
+  background: transparent !important;
+  background-image: none !important;
+}
