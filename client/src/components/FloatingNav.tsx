@@ -759,6 +759,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* ── PvP notice overlay ───────────────────────────────────────────── */}
@@ -890,7 +891,6 @@ function NavButton({
         >
           <Lock size={ICON_SIZE * 0.4} color="#f0c040" strokeWidth={2.5} />
         </div>
-        </ViewportModalPortal>
       )}
 
       {/* Badge indicator on individual icon (visible when nav is open) */}
