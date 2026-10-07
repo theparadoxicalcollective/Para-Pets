@@ -7,7 +7,7 @@ const power = readFileSync("client/src/components/PetPowerUpPage.tsx", "utf8");
 
 test("viewport modal portal can host edge controls without blocking the page below", () => {
   assert.match(portal, /blocking = true/);
-  assert.match(portal, /pointerEvents: blocking \? "auto" : "none"/);
+  assert.match(portal, /pointerEvents: viewportPointerEvents\(blocking \? "blocking" : "decorative"\)/);
 });
 
 test("Power Up close control uses a nonblocking viewport wrapper", () => {
