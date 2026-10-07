@@ -154,3 +154,20 @@
     background-position: center center !important;
   }
 }
+
+
+/*
+ * Pet Care already paints its environment through the viewport scene portal.
+ * On stage-owned larger devices, let the lightweight help/close header reach
+ * the physical device edge while the pet, meters, jars, drop target, particles,
+ * and all interaction math remain in the authored 390×844 care coordinate
+ * plane. Native phones do not match this selector and remain pixel-identical.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-testid="overlay-feeding"] {
+  overflow: visible !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="overlay-feeding"] .pet-care-header {
+  left: var(--viewport-surface-left, 0px) !important;
+  right: var(--viewport-surface-right, 0px) !important;
+}
