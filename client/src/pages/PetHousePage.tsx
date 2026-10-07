@@ -61,6 +61,7 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
+import { HOME_DECOR_PLACEMENT_BOUNDS, HOME_INVENTORY_DROP_BOUNDS, dragHomePlacement, homeClientPointToPlacement } from "@/lib/homeAuthoredPlacement";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgFlip() {
@@ -666,8 +667,14 @@ function InteriorViewer({
     if (!drag.moved || !drag.canMove) return;
     setItemDragLive({
       id: drag.id,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + dy / containerHRef.current)),
+      ...dragHomePlacement(
+        { xPct: drag.startXPct, yPct: drag.startYPct },
+        dx,
+        dy,
+        imgWidthRef.current,
+        containerHRef.current,
+        HOME_DECOR_PLACEMENT_BOUNDS,
+      ),
     });
   }, []);
 
@@ -724,8 +731,16 @@ function InteriorViewer({
     // Unselected Decor/Objects do not move. Double tap first to enter edit mode.
     if (!drag.canMove) return;
 
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidthRef.current));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerHRef.current));
+    const final = dragHomePlacement(
+      { xPct: drag.startXPct, yPct: drag.startYPct },
+      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
+      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      imgWidthRef.current,
+      containerHRef.current,
+      HOME_DECOR_PLACEMENT_BOUNDS,
+    );
+    const newXPct = final.xPct;
+    const newYPct = final.yPct;
     setTopItemId(drag.id);
     onUpdateItem(drag.id, { xPct: newXPct, yPct: newYPct });
   }, [onUpdateItem, placedItems]);
@@ -1979,8 +1994,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     if (!drag.moved || !drag.canMove) return;
     setPlacedDragLive({
       id: drag.id,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidth)),
-      yPct: Math.max(0.02, Math.min(0.98, drag.startYPct + dy / containerH)),
+      ...dragHomePlacement(
+        { xPct: drag.startXPct, yPct: drag.startYPct },
+        dx,
+        dy,
+        imgWidth,
+        containerH,
+        HOME_DECOR_PLACEMENT_BOUNDS,
+      ),
     });
   }, [imgWidth, containerH]);
 
@@ -2032,8 +2053,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
     if (!drag.canMove) return;
 
-    const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidth));
-    const newYPct = Math.max(0.02, Math.min(0.98, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerH));
+    const final = dragHomePlacement(
+      { xPct: drag.startXPct, yPct: drag.startYPct },
+      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
+      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      imgWidth,
+      containerH,
+      HOME_DECOR_PLACEMENT_BOUNDS,
+    );
+    const newXPct = final.xPct;
+    const newYPct = final.yPct;
     setTopOutdoorDecorId(drag.id);
     updateDecorMutation.mutate({ id: drag.id, xPct: newXPct, yPct: newYPct });
   }, [imgWidth, containerH, placedDecorRaw, updateDecorMutation]);
