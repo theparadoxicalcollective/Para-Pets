@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { getViewportHost } from "@/lib/viewportOwnership";
 
-const VIEWPORT_BACKDROP_ID = "game-viewport-backdrop";
 
 /**
  * Full-device visual layer that sits behind the canonical gameplay stage.
@@ -17,11 +17,11 @@ export default function ViewportBackdropPortal({
   enabled?: boolean;
 }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
-    typeof document === "undefined" ? null : document.getElementById(VIEWPORT_BACKDROP_ID),
+    typeof document === "undefined" ? null : getViewportHost("backdrop"),
   );
 
   useLayoutEffect(() => {
-    setTarget(document.getElementById(VIEWPORT_BACKDROP_ID));
+    setTarget(getViewportHost("backdrop"));
   }, []);
 
   useLayoutEffect(() => {
