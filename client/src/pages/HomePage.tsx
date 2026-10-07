@@ -1575,10 +1575,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               onClick={() => setShowActionMenu(false)}
             />
           </ViewportHudPortal>
+          <ViewportHudPortal>
           <div
             data-testid="active-pet-action-canonical-ring"
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, pointerEvents: "none" }}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ zIndex: 50, pointerEvents: "none" }}
           >
           {/* Ring image with invisible hotspots over each rune */}
           <div
@@ -1778,6 +1779,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             {/* original menu intentionally hidden */}
           </div>
         </div>
+          </ViewportHudPortal>
         </>
       )}
 
