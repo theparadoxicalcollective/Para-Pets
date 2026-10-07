@@ -1,8 +1,10 @@
+import { createPortal } from "react-dom";
 import loadingOrb from "../assets/loading_orb.webp";
 
 export default function LoadingScreen({ label = "Entering the world…" }: { label?: string }) {
-  return (
+  const screen = (
     <div
+      data-testid="global-loading-screen"
       style={{
         position: "fixed",
         inset: 0,
@@ -174,4 +176,6 @@ export default function LoadingScreen({ label = "Entering the world…" }: { lab
       />
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(screen, document.body) : screen;
 }
