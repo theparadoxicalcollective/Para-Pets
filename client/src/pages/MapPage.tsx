@@ -16,7 +16,6 @@ import worldHauntedWoods from "@assets/uploads/NewHauntedWoods.png";
 import worldSwamp from "@assets/uploads/NewBayou.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
-import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
@@ -353,83 +352,8 @@ export default function MapPage({ user }: MapPageProps) {
         background: "linear-gradient(180deg, #080812 0%, #0a0d1a 15%, #0d1020 35%, #0a0e1c 55%, #0d1020 75%, #080812 100%)",
       }}
     >
-      <ViewportBackdropPortal>
-        <div data-testid="world-map-viewport-backdrop" className="absolute inset-0 overflow-hidden">
-          <div
-            className="absolute inset-[-18px]"
-            style={{
-              backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center center",
-              backgroundRepeat: "no-repeat",
-              filter: "blur(14px) brightness(0.48) saturate(0.85)",
-              transform: "scale(1.04)",
-            }}
-          />
-          <div
-            className="absolute inset-0"
-            style={{ background: "linear-gradient(180deg, rgba(4,8,18,0.30) 0%, rgba(4,8,18,0.18) 45%, rgba(4,8,18,0.46) 100%)" }}
-          />
-        </div>
-      </ViewportBackdropPortal>
-
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 15%, rgba(80,120,200,0.1) 0%, transparent 50%), " +
-            "radial-gradient(ellipse at 20% 45%, rgba(120,60,200,0.07) 0%, transparent 40%), " +
-            "radial-gradient(ellipse at 80% 35%, rgba(160,80,240,0.06) 0%, transparent 40%), " +
-            "radial-gradient(ellipse at 50% 75%, rgba(60,100,200,0.08) 0%, transparent 45%), " +
-            "radial-gradient(ellipse at 30% 90%, rgba(100,60,220,0.05) 0%, transparent 35%), " +
-            "radial-gradient(ellipse at 70% 60%, rgba(180,100,255,0.05) 0%, transparent 35%)",
-        }}
-      />
-
-      <div
-        className="absolute inset-0 z-0 pointer-events-none opacity-[0.04]"
-        style={{
-          backgroundImage: `
-            radial-gradient(1px 1px at 15% 20%, rgba(200,220,255,0.8), transparent),
-            radial-gradient(1px 1px at 45% 12%, rgba(200,255,220,0.6), transparent),
-            radial-gradient(1px 1px at 72% 28%, rgba(220,200,255,0.7), transparent),
-            radial-gradient(1px 1px at 88% 42%, rgba(200,230,255,0.5), transparent),
-            radial-gradient(1px 1px at 25% 55%, rgba(180,255,220,0.6), transparent),
-            radial-gradient(1px 1px at 60% 48%, rgba(200,200,255,0.5), transparent),
-            radial-gradient(1px 1px at 35% 72%, rgba(200,240,255,0.7), transparent),
-            radial-gradient(1px 1px at 82% 65%, rgba(180,220,255,0.6), transparent),
-            radial-gradient(1px 1px at 50% 85%, rgba(200,255,240,0.5), transparent),
-            radial-gradient(1px 1px at 10% 78%, rgba(220,220,255,0.4), transparent),
-            radial-gradient(1.5px 1.5px at 55% 30%, rgba(200,240,255,0.9), transparent),
-            radial-gradient(1.5px 1.5px at 30% 42%, rgba(180,255,200,0.7), transparent)
-          `,
-        }}
-      />
-
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[5%] left-[15%] w-40 h-24 rounded-[50%]" style={{ background: "rgba(60,80,180,0.06)", filter: "blur(40px)" }} />
-        <div className="absolute top-[30%] right-[8%] w-48 h-20 rounded-[50%]" style={{ background: "rgba(140,60,220,0.05)", filter: "blur(45px)" }} />
-        <div className="absolute top-[55%] left-[10%] w-36 h-28 rounded-[50%]" style={{ background: "rgba(80,60,200,0.06)", filter: "blur(40px)" }} />
-        <div className="absolute top-[75%] right-[20%] w-44 h-18 rounded-[50%]" style={{ background: "rgba(100,80,240,0.04)", filter: "blur(50px)" }} />
-      </div>
-
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{
-          boxShadow: "inset 0 0 100px rgba(0,10,30,0.6), inset 0 0 250px rgba(0,5,15,0.3)",
-        }}
-      />
-
-      <div
-        className="absolute inset-0 z-[1] pointer-events-none"
-        style={{
-          backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
-
+      {/* One camera-owned map backdrop. The map artwork and authored nodes
+          share the expanded scene rather than rendering at different scales. */}
       <style>{`
         .world-node { transition: filter 0.2s ease; touch-action: none; }
         .world-node:active { filter: brightness(1.1); }
@@ -446,6 +370,10 @@ export default function MapPage({ user }: MapPageProps) {
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
         }}
       >
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
