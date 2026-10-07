@@ -1,10 +1,11 @@
 /*
  * Tablet/desktop presentation shell only.
  *
- * The canonical 390×844 gameplay stage remains the coordinate reference on
- * stage-owned larger devices, but it must not be presented as a visible phone
- * frame. Full-device surroundings/scenes provide the visual canvas while
- * authored gameplay coordinates remain stable.
+ * The canonical 390×844 gameplay stage remains the authored coordinate
+ * reference, but normal gameplay routes now mount on a separate full-device
+ * page surface on stage-owned larger devices. The reference plane is centered
+ * inside that surface, so saved/admin coordinates remain stable without making
+ * the route itself a phone-sized overlay.
  *
  * Phones (including iPhone/Android standalone web apps) keep their native
  * mobile layout and are never opted into this presentation by width.
@@ -182,4 +183,19 @@
 #game-stage[data-coordinate-owner="stage"] [data-testid="inventory-page-back-row"] {
   margin-left: var(--viewport-surface-left, 0px);
   margin-right: var(--viewport-surface-right, 0px);
+}
+
+
+/*
+ * Full-device route ownership. The page surface is the real tablet/desktop
+ * camera; the nested reference plane is only the authored coordinate system.
+ * Do not style the reference plane as a card/frame.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-page-presentation="viewport"] {
+  overflow: hidden;
+  background: transparent;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-stage-reference-plane="true"] {
+  isolation: isolate;
 }
