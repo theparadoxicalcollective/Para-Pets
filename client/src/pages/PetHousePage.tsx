@@ -6,7 +6,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientDeltaToStage, clientPointInStageElement, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientDeltaToStage, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -781,8 +781,14 @@ function InteriorViewer({
     const maxY = maxYForHeight(containerHRef.current);
     setPetDragLive({
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + dy / containerHRef.current)),
+      ...dragHomePlacement(
+        { xPct: drag.startXPct, yPct: drag.startYPct },
+        dx,
+        dy,
+        imgWidthRef.current,
+        containerHRef.current,
+        { minX: 0.02, maxX: 0.98, minY: 0.02, maxY },
+      ),
     });
   }, []);
 
@@ -809,8 +815,16 @@ function InteriorViewer({
     }
 
     const maxY = maxYForHeight(containerHRef.current);
-    const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidthRef.current));
-    const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerHRef.current));
+    const rawPosition = dragHomePlacement(
+      { xPct: drag.startXPct, yPct: drag.startYPct },
+      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
+      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      imgWidthRef.current,
+      containerHRef.current,
+      { minX: 0.02, maxX: 0.98, minY: 0.02, maxY },
+    );
+    const rawXPct = rawPosition.xPct;
+    const rawYPct = rawPosition.yPct;
     const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * clampPetHousePlayerScale(drag.scalePct) / 100;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       roomSleepEffects,
@@ -1858,9 +1872,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const container = containerRef.current;
         if (container) {
           const dropElement = interior?.element ?? container;
-          const localPoint = clientPointInStageElement(dropElement, e.clientX, e.clientY);
-          const localX = localPoint.x;
-          const localY = localPoint.y;
+          const dropRect = dropElement.getBoundingClientRect();
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxPets = getHouseBuildingPetLimit(building);
@@ -1868,8 +1880,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (currentCount >= maxPets) {
               toast({ title: "Pet Limit", description: `This home can only hold ${maxPets} pets.` });
             } else {
-              const rawXPct = Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth));
-              const rawYPct = Math.max(0.03, Math.min(0.97, localY / interior.containerH));
+              const dropPosition = homeClientPointToPlacement(
+                e.clientX,
+                e.clientY,
+                dropRect,
+                interior.panX,
+                interior.imgWidth,
+                interior.containerH,
+                clientToStage,
+                HOME_INVENTORY_DROP_BOUNDS,
+              );
+              if (!dropPosition) return;
+              const rawXPct = dropPosition.xPct;
+              const rawYPct = dropPosition.yPct;
               const droppedScale = clampPetHousePlayerScale(petDrag.pet.homeScalePct ?? 100);
               const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * droppedScale / 100;
               const sleepSnap = getHouseInteriorSleepSnapPosition(
@@ -1899,10 +1922,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               toast({ title: "Pet Limit", description: `This home can only hold ${maxOutdoor} pets.` });
             } else {
               const maxYPct = maxYForHeight(containerH);
+              const dropPosition = homeClientPointToPlacement(
+                e.clientX,
+                e.clientY,
+                dropRect,
+                panX,
+                imgWidth,
+                containerH,
+                clientToStage,
+                { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
+              );
+              if (!dropPosition) return;
               placePetMutation.mutate({
                 inventoryId: petDrag.pet.inventoryId,
-                xPct: Math.max(0.05, Math.min(0.95, (localX - panX) / imgWidth)),
-                yPct: Math.max(0.05, Math.min(maxYPct, localY / containerH)),
+                xPct: dropPosition.xPct,
+                yPct: dropPosition.yPct,
                 location: "outside",
               });
             }
@@ -1922,9 +1956,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const container = containerRef.current;
         if (container) {
           const dropElement = interior?.element ?? container;
-          const localPoint = clientPointInStageElement(dropElement, e.clientX, e.clientY);
-          const localX = localPoint.x;
-          const localY = localPoint.y;
+          const dropRect = dropElement.getBoundingClientRect();
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxItems = getHouseBuildingDecorLimit(building);
@@ -1932,10 +1964,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxItems) {
               toast({ title: "Decor Limit", description: `This home can only hold ${maxItems} decor items.` });
             } else {
+              const dropPosition = homeClientPointToPlacement(
+                e.clientX,
+                e.clientY,
+                dropRect,
+                interior.panX,
+                interior.imgWidth,
+                interior.containerH,
+                clientToStage,
+                HOME_INVENTORY_DROP_BOUNDS,
+              );
+              if (!dropPosition) return;
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, flipped: false,
-                xPct: Math.max(0.03, Math.min(0.97, (localX - interior.panX) / interior.imgWidth)),
-                yPct: Math.max(0.03, Math.min(0.97, localY / interior.containerH)),
+                xPct: dropPosition.xPct,
+                yPct: dropPosition.yPct,
                 location: openInterior.buildingId,
               });
             }
@@ -1945,10 +1988,21 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxOutdoorDecor) {
               toast({ title: "Decor Limit", description: `This home can only hold ${maxOutdoorDecor} decor items.` });
             } else {
+              const dropPosition = homeClientPointToPlacement(
+                e.clientX,
+                e.clientY,
+                dropRect,
+                panX,
+                imgWidth,
+                containerH,
+                clientToStage,
+                HOME_INVENTORY_DROP_BOUNDS,
+              );
+              if (!dropPosition) return;
               placeDecorMutation.mutate({
                 decorItemId: decorDrag.decorItemId, flipped: false,
-                xPct: Math.max(0.03, Math.min(0.97, (localX - panX) / imgWidth)),
-                yPct: Math.max(0.03, Math.min(0.97, localY / containerH)),
+                xPct: dropPosition.xPct,
+                yPct: dropPosition.yPct,
                 location: "outside",
               });
             }
@@ -2101,8 +2155,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const maxYPct = maxYForHeight(containerH);
     setPetDragLive({
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + dx / imgWidth)),
-      yPct: Math.max(0.05, Math.min(maxYPct, drag.startYPct + dy / containerH)),
+      ...dragHomePlacement(
+        { xPct: drag.startXPct, yPct: drag.startYPct },
+        dx,
+        dy,
+        imgWidth,
+        containerH,
+        { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
+      ),
     });
   }, [imgWidth, containerH]);
 
@@ -2131,8 +2191,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return;
     }
     const maxYPct = maxYForHeight(containerH);
-    const rawXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidth));
-    const rawYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerH));
+    const rawPosition = dragHomePlacement(
+      { xPct: drag.startXPct, yPct: drag.startYPct },
+      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
+      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      imgWidth,
+      containerH,
+      { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
+    );
+    const rawXPct = rawPosition.xPct;
+    const rawYPct = rawPosition.yPct;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       outdoorSleepDecorEffects,
       rawXPct,

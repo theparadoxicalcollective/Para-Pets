@@ -73,9 +73,10 @@ test("owner interior drag/drop stores percentages from the live expanded interio
   assert.match(owner, /panStateRef: React\.MutableRefObject<\{ panX: number; imgWidth: number; containerH: number; element: HTMLDivElement \| null \} \| null>/);
   assert.match(owner, /panStateRef\.current = \{ panX: newPanX, imgWidth: imgW, containerH: h, element: container \}/);
   assert.match(owner, /const dropElement = interior\?\.element \?\? container/);
-  assert.match(owner, /clientPointInStageElement\(dropElement, e\.clientX, e\.clientY\)/);
-  assert.match(owner, /\(localX - interior\.panX\) \/ interior\.imgWidth/);
-  assert.match(owner, /localY \/ interior\.containerH/);
+  assert.match(owner, /const dropRect = dropElement\.getBoundingClientRect\(\)/);
+  assert.match(owner, /homeClientPointToPlacement\([\s\S]*?interior\.panX,[\s\S]*?interior\.imgWidth,[\s\S]*?interior\.containerH,[\s\S]*?clientToStage/);
+  assert.match(owner, /HOME_INVENTORY_DROP_BOUNDS/);
+  assert.doesNotMatch(owner, /clientPointInStageElement/);
 });
 
 test("sleep and fire snap math remains normalized to the real room image", () => {

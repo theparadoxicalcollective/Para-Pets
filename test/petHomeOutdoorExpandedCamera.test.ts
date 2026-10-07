@@ -71,13 +71,11 @@ test("owner drag/drop converts client input through the active Home scene elemen
   const owner = read("client/src/pages/PetHousePage.tsx");
 
   assert.match(owner, /const dropElement = interior\?\.element \?\? container/);
-  assert.match(owner, /clientPointInStageElement\(dropElement, e\.clientX, e\.clientY\)/);
-  assert.match(owner, /\(localX - panX\) \/ imgWidth/);
-  assert.match(owner, /localY \/ containerH/);
-  assert.match(owner, /\(localX - interior\.panX\) \/ interior\.imgWidth/);
-  assert.match(owner, /localY \/ interior\.containerH/);
-  assert.match(owner, /drag\.startXPct \+ clientDeltaToStage\(e\.clientX - drag\.startPointerX, 0\)\.x \/ imgWidth/);
-  assert.match(owner, /drag\.startYPct \+ clientDeltaToStage\(0, e\.clientY - drag\.startPointerY\)\.y \/ containerH/);
+  assert.match(owner, /const dropRect = dropElement\.getBoundingClientRect\(\)/);
+  assert.match(owner, /homeClientPointToPlacement\([\s\S]*?panX,[\s\S]*?imgWidth,[\s\S]*?containerH,[\s\S]*?clientToStage/);
+  assert.match(owner, /homeClientPointToPlacement\([\s\S]*?interior\.panX,[\s\S]*?interior\.imgWidth,[\s\S]*?interior\.containerH,[\s\S]*?clientToStage/);
+  assert.match(owner, /dragHomePlacement\([\s\S]*?clientDeltaToStage\(e\.clientX - drag\.startPointerX, 0\)\.x,[\s\S]*?clientDeltaToStage\(0, e\.clientY - drag\.startPointerY\)\.y,[\s\S]*?imgWidth,[\s\S]*?containerH/);
+  assert.doesNotMatch(owner, /clientPointInStageElement/);
 });
 
 test("Home bundle buildings remain authored percentages inside the real background image", () => {
