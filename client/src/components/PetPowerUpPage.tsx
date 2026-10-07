@@ -211,7 +211,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   ];
   const filterLabel = statFilter === "health" ? "HP" : statFilter?.toUpperCase();
 
-  return <div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
+  return <div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-viewport-visual-owner="backdrop" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
     <style>{CSS}</style>
     <ViewportBackdropPortal>
       <div
@@ -225,7 +225,8 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
         }}
       />
     </ViewportBackdropPortal>
-    <img src={pupBackground} alt="" className="pupage-bg" /><div className="pupage-vignette" />
+    <img src={pupBackground} alt="" className="pupage-bg" data-canonical-visual-layer="duplicate-backdrop" />
+    <div className="pupage-vignette" data-canonical-visual-layer="duplicate-backdrop" />
     <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">
         <img src={pupLogo} alt="Power Up" className="pupage-logo" />
