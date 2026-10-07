@@ -2814,9 +2814,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         const door = kcDoors.find(d => d.id === activeDoorId);
         if (!door) return null;
         return (
+          <ViewportScenePortal>
           <div
-            className="fixed inset-0 z-50 overflow-hidden"
-            style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, animation: "doorFadeIn 0.35s ease-out both" }}
+            data-testid="pet-world-door-interior-viewport-camera"
+            className="absolute inset-0 z-50 overflow-hidden"
+            style={{ animation: "doorFadeIn 0.35s ease-out both" }}
           >
             {/* Background */}
             <div
@@ -3148,6 +3150,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               )}
             </div>
           </div>
+          </ViewportScenePortal>
         );
       })()}
 
