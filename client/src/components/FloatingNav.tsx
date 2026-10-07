@@ -764,7 +764,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── PvP notice overlay ───────────────────────────────────────────── */}
       {showPvpNote && (
-        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: panelZ }}>
+        <ViewportModalPortal>
+        <div data-testid="pvp-note-viewport-overlay" className="absolute inset-0 flex items-center justify-center" style={{ zIndex: panelZ, pointerEvents: "auto" }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowPvpNote(false)} />
           <div className="relative w-[80%] max-w-xs rounded-lg p-5 animate-slide-up" style={{ background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)", border: "1px solid rgba(212,160,23,0.5)", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}>
             <button onClick={() => setShowPvpNote(false)} className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)", border: "2px solid rgba(212,160,23,0.6)", color: "#f0c040", cursor: "pointer", fontSize: 14, fontWeight: "bold" }}>×</button>
@@ -780,20 +781,25 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* ── Aquarium overlay ─────────────────────────────────────────────── */}
       {showAquarium && (
-        <div className="absolute inset-0" style={{ zIndex: panelZ }}>
-          <AquariumPage onClose={() => setShowAquarium(false)} userId={user.id} />
-        </div>
+        <ViewportModalPortal>
+          <div data-testid="aquarium-nav-viewport-overlay" className="absolute inset-0" style={{ zIndex: panelZ, pointerEvents: "auto" }}>
+            <AquariumPage onClose={() => setShowAquarium(false)} userId={user.id} />
+          </div>
+        </ViewportModalPortal>
       )}
 
       {/* ── Keeper's Central overlay ─────────────────────────────────────── */}
       {showKeepers && (
-        <div className="absolute inset-0" style={{ zIndex: panelZ }}>
-          <PetWorldPage user={user} onClose={() => setShowKeepers(false)} />
-        </div>
+        <ViewportModalPortal>
+          <div data-testid="keepers-nav-viewport-overlay" className="absolute inset-0" style={{ zIndex: panelZ, pointerEvents: "auto" }}>
+            <PetWorldPage user={user} onClose={() => setShowKeepers(false)} />
+          </div>
+        </ViewportModalPortal>
       )}
     </>
   );
