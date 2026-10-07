@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   calculateStageLayout,
+  calculateViewportSurfaceRect,
   getVisibleViewport,
   isTouchFirstDevice,
   shouldBlockTouchLandscape,
@@ -50,10 +51,18 @@ export function readStageViewportLayout(): StageViewportLayout {
  * This deliberately preserves their current meanings:
  * - root --fh/--vh/--vw describe the visible viewport
  * - #game-stage overrides those variables with logical stage dimensions
+ *
+ * The viewport-surface offsets describe the real device camera in logical
+ * stage pixels. They let presentation-only UI reach device edges without
+ * widening or rewriting the authored gameplay coordinate plane.
  */
 export function publishStageViewportCss(layout: StageLayout): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement.style;
+  const surface = calculateViewportSurfaceRect(layout);
+  const surfaceRight = layout.designWidth - (surface.left + surface.width);
+  const surfaceBottom = layout.designHeight - (surface.top + surface.height);
+
   root.setProperty("--stage-scale", String(layout.scale));
   root.setProperty("--viewport-height", `${layout.viewportHeight}px`);
   root.setProperty("--viewport-width", `${layout.viewportWidth}px`);
@@ -62,6 +71,12 @@ export function publishStageViewportCss(layout: StageLayout): void {
   root.setProperty("--vw", `${layout.viewportWidth * 0.01}px`);
   root.setProperty("--stage-logical-width", `${layout.designWidth}px`);
   root.setProperty("--stage-logical-height", `${layout.designHeight}px`);
+  root.setProperty("--viewport-surface-left", `${surface.left}px`);
+  root.setProperty("--viewport-surface-top", `${surface.top}px`);
+  root.setProperty("--viewport-surface-right", `${surfaceRight}px`);
+  root.setProperty("--viewport-surface-bottom", `${surfaceBottom}px`);
+  root.setProperty("--viewport-surface-width", `${surface.width}px`);
+  root.setProperty("--viewport-surface-height", `${surface.height}px`);
 }
 
 type StageViewportListener = (layout: StageViewportLayout) => void;
