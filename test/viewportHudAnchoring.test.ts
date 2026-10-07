@@ -71,10 +71,11 @@ test("GameStage clips gameplay separately while allowing the HUD to reach device
   // Native iPhone keeps its existing inset HUD; the stage-owned branch expands
   // the HUD to the physical stage without changing the canonical reference plane.
   assert.match(app, /id="game-viewport-hud"[\s\S]{0,180}inset: 0/);
-  assert.match(app, /left: expandedStage \? 0 : hudRect\.left/);
-  assert.match(app, /top: expandedStage \? 0 : hudRect\.top/);
-  assert.match(app, /width: expandedStage \? "100%" : hudRect\.width/);
-  assert.match(app, /height: expandedStage \? "100%" : hudRect\.height/);
+  const stageHud = app.slice(app.lastIndexOf('id="game-viewport-hud"'));
+  assert.match(stageHud, /left: 0/);
+  assert.match(stageHud, /top: 0/);
+  assert.match(stageHud, /width: expandedStage \? "100%" : hudRect\.width/);
+  assert.match(stageHud, /height: expandedStage \? "100%" : hudRect\.height/);
 
   // Existing gameplay portals remain clipped to the canonical stage instead
   // of accidentally using the expanded HUD as a world/modal surface.
