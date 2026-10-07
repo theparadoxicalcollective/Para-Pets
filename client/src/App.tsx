@@ -784,6 +784,7 @@ function GameStage({ children }: { children: ReactNode }) {
               height: sceneRect.height,
               pointerEvents: "auto",
               overflow: "hidden",
+              zIndex: 20,
               "--stage-reference-left": `${-sceneRect.left}px`,
               "--stage-reference-top": `${-sceneRect.top}px`,
               "--stage-reference-width": `${layout.designWidth}px`,
@@ -803,6 +804,7 @@ function GameStage({ children }: { children: ReactNode }) {
               height: sceneRect.height,
               pointerEvents: "none",
               overflow: "hidden",
+              zIndex: 10,
             }}
           />
         )}
@@ -815,6 +817,7 @@ function GameStage({ children }: { children: ReactNode }) {
             width: layout.designWidth,
             height: layout.designHeight,
             overflow: "hidden",
+            zIndex: 15,
           }}
         >
           {children}
@@ -831,6 +834,7 @@ function GameStage({ children }: { children: ReactNode }) {
               height: sceneRect.height,
               pointerEvents: "none",
               overflow: "hidden",
+              zIndex: 30,
             }}
           />
         )}
@@ -845,6 +849,7 @@ function GameStage({ children }: { children: ReactNode }) {
             height: hudRect.height,
             pointerEvents: "none",
             overflow: "visible",
+            zIndex: 40,
           }}
         />
       </div>
