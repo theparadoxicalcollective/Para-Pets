@@ -52,7 +52,8 @@ test("GameStage exposes separate backdrop scene HUD and modal ownership without 
   assert.match(app, /id="game-viewport-backdrop"/);
   assert.match(app, /id="game-viewport-scene"/);
   assert.match(app, /id="game-viewport-hud"/);
-  assert.match(app, /id="game-viewport-modal"/);
+  assert.match(modalPortal, /const VIEWPORT_HUD_ID = "game-viewport-hud"/);
+  assert.match(modalPortal, /zIndex: 20000/);
 });
 
 test("all viewport portals preserve the native-phone inline path", () => {
