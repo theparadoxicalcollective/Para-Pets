@@ -67,18 +67,9 @@ test("decor panel drag still creates a placement only when released inside the a
 
   assert.match(source, /document\.addEventListener\("pointermove", onMove\)/);
   assert.match(source, /document\.addEventListener\("pointerup", onUp\)/);
-  assert.match(
-    source,
-    /event\.clientX >= rect\.left[\s\S]*?event\.clientX <= rect\.right[\s\S]*?event\.clientY >= rect\.top[\s\S]*?event\.clientY <= rect\.bottom/,
-  );
-  assert.match(
-    source,
-    /posX: \(\(event\.clientX - rect\.left\) \/ rect\.width\) \* 100/,
-  );
-  assert.match(
-    source,
-    /posY: \(\(event\.clientY - rect\.top\) \/ rect\.height\) \* 100/,
-  );
+  assert.match(source, /pointInWorldPlacementSurface\(event\.clientX, event\.clientY, rect\)/);
+  assert.match(source, /clientPointToWorldPlacementPercent\([\s\S]*?event\.clientX,[\s\S]*?event\.clientY,[\s\S]*?rect,[\s\S]*?WORLD_PLACEMENT_BOUNDS\.decor/);
+  assert.match(source, /onCreatePlacement\(\{ item, posX: point\.x, posY: point\.y \}\)/);
 });
 
 test("WorldPage delegates decor admin gesture state to the shared controller", () => {

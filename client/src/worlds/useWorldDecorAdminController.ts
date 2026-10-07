@@ -6,16 +6,14 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
+import { WORLD_PLACEMENT_BOUNDS, clampWorldPlacementPercent, clientPointToWorldPlacementPercent, dragWorldPlacementPercent, pointInWorldPlacementSurface } from "@/worlds/worldAuthoredPlacement";
 
 export const WORLD_DECOR_DRAG_THRESHOLD_PX = 3;
-export const WORLD_DECOR_MIN_PERCENT = 0;
-export const WORLD_DECOR_MAX_PERCENT = 100;
+export const WORLD_DECOR_MIN_PERCENT = WORLD_PLACEMENT_BOUNDS.decor.min;
+export const WORLD_DECOR_MAX_PERCENT = WORLD_PLACEMENT_BOUNDS.decor.max;
 
 export function clampWorldDecorAdminPercent(value: number): number {
-  return Math.max(
-    WORLD_DECOR_MIN_PERCENT,
-    Math.min(WORLD_DECOR_MAX_PERCENT, value),
-  );
+  return clampWorldPlacementPercent(value, WORLD_PLACEMENT_BOUNDS.decor);
 }
 
 export interface WorldDecorAdminItem {
@@ -97,19 +95,16 @@ export function useWorldDecorAdminController({
       if (!area) return;
 
       const rect = area.getBoundingClientRect();
-      const inside =
-        event.clientX >= rect.left
-        && event.clientX <= rect.right
-        && event.clientY >= rect.top
-        && event.clientY <= rect.bottom;
+      if (!pointInWorldPlacementSurface(event.clientX, event.clientY, rect)) return;
+      const point = clientPointToWorldPlacementPercent(
+        event.clientX,
+        event.clientY,
+        rect,
+        WORLD_PLACEMENT_BOUNDS.decor,
+      );
+      if (!point) return;
 
-      if (!inside) return;
-
-      onCreatePlacement({
-        item,
-        posX: ((event.clientX - rect.left) / rect.width) * 100,
-        posY: ((event.clientY - rect.top) / rect.height) * 100,
-      });
+      onCreatePlacement({ item, posX: point.x, posY: point.y });
     };
 
     document.addEventListener("pointermove", onMove);
@@ -171,18 +166,16 @@ export function useWorldDecorAdminController({
       didDragRef.current = true;
     }
 
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
+    const next = dragWorldPlacementPercent(
+      { x: dragRef.current.origPosX, y: dragRef.current.origPosY },
+      dx,
+      dy,
+      rect.width,
+      rect.height,
+      WORLD_PLACEMENT_BOUNDS.decor,
+    );
 
-    setDragPosition({
-      id: dragRef.current.placementId,
-      x: clampWorldDecorAdminPercent(
-        dragRef.current.origPosX + dx / pxPerPercX,
-      ),
-      y: clampWorldDecorAdminPercent(
-        dragRef.current.origPosY + dy / pxPerPercY,
-      ),
-    });
+    setDragPosition({ id: dragRef.current.placementId, x: next.x, y: next.y });
   }, [areaRef]);
 
   const handlePointerUp = useCallback(() => {

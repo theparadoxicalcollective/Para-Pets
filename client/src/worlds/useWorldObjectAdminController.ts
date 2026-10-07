@@ -5,16 +5,14 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
+import { WORLD_PLACEMENT_BOUNDS, clampWorldPlacementPercent, dragWorldPlacementPercent } from "@/worlds/worldAuthoredPlacement";
 
 export const WORLD_OBJECT_DRAG_THRESHOLD_PX = 3;
-export const WORLD_OBJECT_MIN_PERCENT = -10;
-export const WORLD_OBJECT_MAX_PERCENT = 110;
+export const WORLD_OBJECT_MIN_PERCENT = WORLD_PLACEMENT_BOUNDS.object.min;
+export const WORLD_OBJECT_MAX_PERCENT = WORLD_PLACEMENT_BOUNDS.object.max;
 
 export function clampWorldObjectAdminPercent(value: number): number {
-  return Math.max(
-    WORLD_OBJECT_MIN_PERCENT,
-    Math.min(WORLD_OBJECT_MAX_PERCENT, value),
-  );
+  return clampWorldPlacementPercent(value, WORLD_PLACEMENT_BOUNDS.object);
 }
 
 export interface WorldObjectAdminData {
@@ -92,14 +90,16 @@ export function useWorldObjectAdminController({
       didDragRef.current = true;
     }
 
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = clampWorldObjectAdminPercent(
-      dragRef.current.origPosX + dx / pxPerPercX,
+    const next = dragWorldPlacementPercent(
+      { x: dragRef.current.origPosX, y: dragRef.current.origPosY },
+      dx,
+      dy,
+      rect.width,
+      rect.height,
+      WORLD_PLACEMENT_BOUNDS.object,
     );
-    const newY = clampWorldObjectAdminPercent(
-      dragRef.current.origPosY + dy / pxPerPercY,
-    );
+    const newX = next.x;
+    const newY = next.y;
 
     setDragPosition({
       id: dragRef.current.objId,
