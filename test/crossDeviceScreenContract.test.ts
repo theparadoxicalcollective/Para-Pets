@@ -76,6 +76,13 @@ test("Active Pet keeps authored pet and action-ring geometry while scenery and b
   assert.match(home, /<ViewportHudPortal>[\s\S]*data-testid="active-pet-action-viewport-backdrop"/);
 });
 
+test("Active Pet canonical page does not obscure its full-device backdrop on tablets", () => {
+  assert.ok(shell.includes('#game-stage[data-coordinate-owner="stage"] [data-testid="active-pet-page"]'));
+  assert.match(shell, /background: transparent !important/);
+  assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
+  assert.ok(home.includes("ref={petContainerRef}"));
+});
+
 test("World Map expands as one scene but saved worlds remain percentage-owned by the map", () => {
   assert.match(map, /<ViewportScenePortal>/);
   assert.match(map, /data-testid="world-map-viewport-camera"/);
