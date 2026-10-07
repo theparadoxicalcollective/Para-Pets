@@ -229,7 +229,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">
         <img src={pupLogo} alt="Power Up" className="pupage-logo" />
-        <ViewportModalPortal>
+        <ViewportModalPortal blocking={false}>
           <button
             type="button"
             className="pupage-corner pupage-close"
