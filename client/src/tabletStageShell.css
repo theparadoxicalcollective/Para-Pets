@@ -43,6 +43,55 @@
   background: transparent !important;
 }
 
+/*
+ * Aquarium owns the visible device while open, but its fish must keep swimming
+ * in the same canonical percentage plane used on the iPhone 12 reference.
+ *
+ * The full-device aquarium artwork already lives in ViewportBackdropPortal.
+ * Hide the page that launched the Aquarium so that backdrop can be seen through
+ * the transparent canonical tank instead of showing Pet World/Home in the
+ * middle of a tablet. The Aquarium descendant explicitly restores visibility.
+ *
+ * Keep the tank itself at the authored stage size. Only edge controls and
+ * blocking backdrops are allowed to reach the real device camera.
+ */
+#game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) {
+  overflow: visible !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) > * {
+  visibility: hidden;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] {
+  visibility: visible !important;
+  overflow: visible !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-close-aquarium"] {
+  right: calc(var(--viewport-surface-right, 0px) + 8px) !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-aquarium-set-default"] {
+  left: calc(var(--viewport-surface-left, 0px) + 10px) !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-aquarium-prev"] {
+  left: calc(var(--viewport-surface-left, 0px) + 4px) !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-aquarium-next"] {
+  right: calc(var(--viewport-surface-right, 0px) + 4px) !important;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] > .absolute.inset-0.z-20,
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] > .absolute.inset-0.z-50 {
+  left: var(--viewport-surface-left, 0px) !important;
+  top: var(--viewport-surface-top, 0px) !important;
+  right: var(--viewport-surface-right, 0px) !important;
+  bottom: var(--viewport-surface-bottom, 0px) !important;
+}
+
 /* Shared desktop/tablet presentation. */
 @media (min-width: 768px) {
   .game-stage-shell {
