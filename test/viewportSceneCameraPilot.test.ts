@@ -92,10 +92,13 @@ test("GameStage provides a scene surface only on the stage-owned presentation pa
 
   assert.match(app, /layout\.coordinateOwner === "stage" && \(/);
   assert.match(app, /id="game-viewport-scene"/);
-  assert.match(app, /left: sceneRect\.left/);
-  assert.match(app, /top: sceneRect\.top/);
-  assert.match(app, /width: sceneRect\.width/);
-  assert.match(app, /height: sceneRect\.height/);
+  assert.match(app, /id="game-viewport-scene"/);
+  const sceneStart = app.indexOf('id="game-viewport-scene"');
+  const sceneBlock = app.slice(sceneStart, sceneStart + 900);
+  assert.match(sceneBlock, /left: 0/);
+  assert.match(sceneBlock, /top: 0/);
+  assert.match(sceneBlock, /width: "100%"/);
+  assert.match(sceneBlock, /height: "100%"/);
   assert.match(app, /pointerEvents: "none"/);
 
   const documentBranchStart = app.indexOf("if (shouldUseDocumentLayout");
