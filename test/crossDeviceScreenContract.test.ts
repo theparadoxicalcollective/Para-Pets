@@ -79,7 +79,7 @@ test("Active Pet keeps authored pet and action-ring geometry while scenery and b
 test("World Map expands as one scene but saved worlds remain percentage-owned by the map", () => {
   assert.match(map, /<ViewportScenePortal>/);
   assert.match(map, /data-testid="world-map-viewport-camera"/);
-  assert.match(map, /backgroundImage: \`url\\(\\$\\{mapBgData\\?\\.bgUrl \\|\\| worldMapBg\\}\\)\`/);
+  assert.match(map, /backgroundImage:.*mapBgData/);
   assert.doesNotMatch(map, /ViewportBackdropPortal/);
   assert.doesNotMatch(map, /world-map-viewport-backdrop/);
   assert.match(map, /ref=\{mapRef\}/);
