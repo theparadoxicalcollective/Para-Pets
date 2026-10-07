@@ -199,3 +199,26 @@
 #game-stage[data-coordinate-owner="stage"] [data-stage-reference-plane="true"] {
   isolation: isolate;
 }
+
+
+/*
+ * The route now owns the physical device. When a legacy page still paints its
+ * background on the centered reference plane, mirror that visual treatment
+ * outward so the reference plane no longer reads as a phone overlay.
+ *
+ * This layer is presentation-only and never receives input; gameplay and admin
+ * placement remain on the canonical 390×844 reference plane.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-page-presentation="viewport"] [data-stage-page-viewport-visual="true"] {
+  background: var(--stage-surrounding-color, #050c08);
+  background-image:
+    linear-gradient(180deg, rgba(2, 8, 5, 0.04), rgba(2, 8, 5, 0.14)),
+    var(--stage-surrounding-image, var(--desktop-stage-background-image));
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+#game-stage[data-coordinate-owner="stage"] [data-page-presentation="viewport"] [data-stage-reference-plane="true"] {
+  background-color: transparent !important;
+}
