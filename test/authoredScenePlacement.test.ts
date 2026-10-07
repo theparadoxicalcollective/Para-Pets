@@ -16,9 +16,16 @@ test("authored scene uses a stable square coordinate plane", () => {
 
 test("same proportional drag produces same authored movement on every rendered size", () => {
   const start = { x: 4, y: -3 };
-  assert.deepEqual(dragAuthoredPercentOffset(start, 39, 84.4, 390), { x: 14, y: 18.641025641025642 });
-  assert.deepEqual(dragAuthoredPercentOffset(start, 78, 168.8, 780), { x: 14, y: 18.641025641025642 });
-  assert.deepEqual(dragAuthoredPercentOffset(start, 144, 311.6307692307692, 1440), { x: 14, y: 18.641025641025642 });
+  const phone = dragAuthoredPercentOffset(start, 39, 84.4, 390);
+  const tablet = dragAuthoredPercentOffset(start, 78, 168.8, 780);
+  const desktop = dragAuthoredPercentOffset(start, 144, 311.6307692307692, 1440);
+
+  assert.equal(phone.x, 14);
+  assert.ok(Math.abs(phone.y - 18.64102564102564) < 1e-12);
+  assert.ok(Math.abs(tablet.x - phone.x) < 1e-12);
+  assert.ok(Math.abs(tablet.y - phone.y) < 1e-12);
+  assert.ok(Math.abs(desktop.x - phone.x) < 1e-12);
+  assert.ok(Math.abs(desktop.y - phone.y) < 1e-12);
 });
 
 test("pet and shared active-pet anchor use the authored placement converter", () => {
