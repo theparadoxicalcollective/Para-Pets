@@ -92,7 +92,9 @@ test("Aquarium owns the larger-device presentation without widening its fish swi
   assert.match(aquarium, /data-testid="aquarium-viewport-backdrop"/);
   assert.doesNotMatch(aquarium, /<ViewportScenePortal>/);
   assert.match(aquarium, /left: `\$\{f\.x\}%`, top: `\$\{f\.y\}%`/);
-  assert.match(aquarium, /const py = \(\(e\.clientY - rect\.top\) \/ rect\.height\) \* 100/);
+  assert.match(aquarium, /clientPointInStageElement\(container, e\.clientX, e\.clientY\)/);
+  assert.match(aquarium, /const py = \(y \/ container\.offsetHeight\) \* 100/);
+  assert.doesNotMatch(aquarium, /\(e\.clientY - rect\.top\) \/ rect\.height/);
   assert.match(aquarium, /if \(py < 78\) addFish\(d\.fish\)/);
 
   assert.match(stageViewport, /calculateViewportSurfaceRect\(layout\)/);

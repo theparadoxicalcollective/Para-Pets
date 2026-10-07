@@ -55,7 +55,9 @@ test("Aquarium scenery fills the viewport while fish stay in canonical percent c
 
   // Swim and interaction geometry remains stage-relative.
   assert.match(aquarium, /left: `\$\{f\.x\}%`, top: `\$\{f\.y\}%`/);
-  assert.match(aquarium, /const py = \(\(e\.clientY - rect\.top\) \/ rect\.height\) \* 100/);
+  assert.match(aquarium, /clientPointInStageElement\(container, e\.clientX, e\.clientY\)/);
+  assert.match(aquarium, /const py = \(y \/ container\.offsetHeight\) \* 100/);
+  assert.doesNotMatch(aquarium, /\(e\.clientY - rect\.top\) \/ rect\.height/);
   assert.match(aquarium, /apiRequest\("POST", "\/api\/fishing\/aquarium\/add"/);
   assert.match(aquarium, /apiRequest\("POST", "\/api\/fishing\/aquarium\/remove"/);
   assert.match(aquarium, /apiRequest\("POST", "\/api\/aquarium\/unlock", \{ aquariumId \}\)/);
