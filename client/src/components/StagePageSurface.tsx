@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { getViewportHost } from "@/lib/viewportOwnership";
 
-const VIEWPORT_PAGE_ID = "game-viewport-page";
 
 /**
  * Shared presentation root for authenticated gameplay routes.
@@ -17,11 +17,11 @@ const VIEWPORT_PAGE_ID = "game-viewport-page";
  */
 export default function StagePageSurface({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
-    typeof document === "undefined" ? null : document.getElementById(VIEWPORT_PAGE_ID),
+    typeof document === "undefined" ? null : getViewportHost("page"),
   );
 
   useLayoutEffect(() => {
-    setTarget(document.getElementById(VIEWPORT_PAGE_ID));
+    setTarget(getViewportHost("page"));
   }, []);
 
   const content = (
