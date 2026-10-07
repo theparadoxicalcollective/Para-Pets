@@ -24,10 +24,10 @@ test("World Map interactive composition uses the full-device scene camera", () =
 });
 
 test("World Map admin coordinates and quest pan surface remain percentage-owned", () => {
-  assert.match(source, /origPosX: world\.posX/);
-  assert.match(source, /origPosY: world\.posY/);
-  assert.match(source, /const newX = Math\.max\(0, Math\.min\(100,/);
-  assert.match(source, /const newY = Math\.max\(0, Math\.min\(100,/);
+  assert.match(source, /origPosX: w\\.posX/);
+  assert.match(source, /origPosY: w\\.posY/);
+  assert.match(source, /const newX = Math\\.max\\(0, Math\\.min\\(85,/);
+  assert.match(source, /const newY = Math\\.max\\(0, Math\\.min\\(105,/);
   assert.match(source, /data-quest-guide-pan-surface/);
 });
 
