@@ -582,6 +582,11 @@ function AppRouter() {
             <PetCarePage />
           </StagePageSurface>
         )}
+        {location.startsWith("/pet-level-up/") && (
+          <StagePageSurface key={location}>
+            <PetLevelUpRoute />
+          </StagePageSurface>
+        )}
         {location === "/games/molten-blocks" && (
           <StagePageSurface>
             <MiniGameFrame worldId="volcanic"><MoltenBlocksPage /></MiniGameFrame>
