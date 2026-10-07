@@ -44,58 +44,6 @@
   background: transparent !important;
 }
 
-/*
- * Aquarium owns the visible device while open, but its fish must keep swimming
- * in the same canonical percentage plane used on the iPhone 12 reference.
- *
- * The full-device aquarium artwork already lives in ViewportBackdropPortal.
- * Hide the page that launched the Aquarium so that backdrop can be seen through
- * the transparent canonical tank instead of showing Pet World/Home in the
- * middle of a tablet. The Aquarium descendant explicitly restores visibility.
- *
- * Keep the tank itself at the authored stage size. Only edge controls and
- * blocking backdrops are allowed to reach the real device camera.
- */
-#game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) {
-  overflow: visible !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) *:has([data-testid="aquarium-page"]) {
-  overflow: visible !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) > * {
-  visibility: hidden;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] {
-  visibility: visible !important;
-  overflow: visible !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-close-aquarium"] {
-  right: calc(var(--viewport-surface-right, 0px) + 8px) !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-aquarium-set-default"] {
-  left: calc(var(--viewport-surface-left, 0px) + 10px) !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-aquarium-prev"] {
-  left: calc(var(--viewport-surface-left, 0px) + 4px) !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] [data-testid="button-aquarium-next"] {
-  right: calc(var(--viewport-surface-right, 0px) + 4px) !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] > .absolute.inset-0.z-20,
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] > .absolute.inset-0.z-50 {
-  left: var(--viewport-surface-left, 0px) !important;
-  top: var(--viewport-surface-top, 0px) !important;
-  right: var(--viewport-surface-right, 0px) !important;
-  bottom: var(--viewport-surface-bottom, 0px) !important;
-}
 
 /* Shared desktop/tablet presentation. */
 @media (min-width: 768px) {
@@ -201,24 +149,13 @@
 }
 
 
-/*
- * The route now owns the physical device. When a legacy page still paints its
- * background on the centered reference plane, mirror that visual treatment
- * outward so the reference plane no longer reads as a phone overlay.
- *
- * This layer is presentation-only and never receives input; gameplay and admin
- * placement remain on the canonical 390×844 reference plane.
- */
-#game-stage[data-coordinate-owner="stage"] [data-page-presentation="viewport"] [data-stage-page-viewport-visual="true"] {
-  background: var(--stage-surrounding-color, #050c08);
-  background-image:
-    linear-gradient(180deg, rgba(2, 8, 5, 0.04), rgba(2, 8, 5, 0.14)),
-    var(--stage-surrounding-image, var(--desktop-stage-background-image));
-  background-position: center center;
-  background-size: cover;
-  background-repeat: no-repeat;
-}
 
-#game-stage[data-coordinate-owner="stage"] [data-page-presentation="viewport"] [data-stage-reference-plane="true"] {
-  background-color: transparent !important;
+
+/*
+ * Layer ownership is structural now. Do not use :has() visibility hacks to
+ * hide previously-opened screens; full-screen modal/page owners sit above
+ * prior content by the GameStage host z-order.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] {
+  overflow: visible !important;
 }

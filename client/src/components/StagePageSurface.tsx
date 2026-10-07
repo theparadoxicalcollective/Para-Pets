@@ -31,13 +31,6 @@ export default function StagePageSurface({ children }: { children: ReactNode }) 
       data-testid="stage-page-surface"
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
     >
-      {target && (
-        <div
-          data-testid="stage-page-viewport-visual"
-          data-stage-page-viewport-visual="true"
-          style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}
-        />
-      )}
       <div
         data-stage-reference-plane="true"
         data-testid="stage-page-reference-plane"

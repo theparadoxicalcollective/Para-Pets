@@ -87,7 +87,8 @@ test("World Map expands as one scene but saved worlds remain percentage-owned by
 });
 
 test("Aquarium owns the larger-device presentation without widening its fish swim plane", () => {
-  assert.match(aquarium, /<ViewportBackdropPortal>/);
+  assert.doesNotMatch(aquarium, /ViewportBackdropPortal/);
+  assert.match(aquarium, /data-testid="aquarium-viewport-backdrop"/);
   assert.doesNotMatch(aquarium, /<ViewportScenePortal>/);
   assert.match(aquarium, /left: `\$\{f\.x\}%`, top: `\$\{f\.y\}%`/);
   assert.match(aquarium, /const py = \(\(e\.clientY - rect\.top\) \/ rect\.height\) \* 100/);
@@ -99,11 +100,8 @@ test("Aquarium owns the larger-device presentation without widening its fish swi
   assert.match(stageViewport, /--viewport-surface-top/);
   assert.match(stageViewport, /--viewport-surface-bottom/);
 
-  assert.match(shell, /#game-stage\[data-coordinate-owner="stage"\] #game-stage-content:has\(\[data-testid="aquarium-page"\]\)/);
+  assert.doesNotMatch(shell, /#game-stage\[data-coordinate-owner="stage"\] #game-stage-content:has\(\[data-testid="aquarium-page"\]\)/);
   assert.match(shell, /#game-stage\[data-coordinate-owner="stage"\] \[data-testid="aquarium-page"\][\s\S]*overflow: visible !important/);
-  assert.match(shell, /button-close-aquarium/);
-  assert.match(shell, /button-aquarium-prev/);
-  assert.match(shell, /button-aquarium-next/);
 });
 
 test("guided quests retain explicit target-only pan and tour interaction modes across camera types", () => {

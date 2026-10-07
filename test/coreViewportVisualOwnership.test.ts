@@ -46,9 +46,9 @@ test("Cards uses one wide-device scenery owner without widening collection coord
 });
 
 test("Aquarium scenery fills the viewport while fish stay in canonical percent coordinates", () => {
-  assert.match(aquarium, /import ViewportBackdropPortal from "@\/components\/ViewportBackdropPortal"/);
-  assert.match(aquarium, /data-testid="aquarium-page"[\s\S]*data-viewport-visual-owner="backdrop"/);
-  assert.match(aquarium, /<ViewportBackdropPortal>[\s\S]*data-testid="aquarium-viewport-backdrop"/);
+  assert.doesNotMatch(aquarium, /ViewportBackdropPortal/);
+  assert.match(aquarium, /data-testid="aquarium-page"/);
+  assert.match(aquarium, /data-testid="aquarium-viewport-backdrop"/);
   assert.match(aquarium, /\["main", aquariumBg\][\s\S]*\["bayou", bayouAquariumBg\][\s\S]*\["volcanic", volcanicAquariumBg\]/);
 
   // Swim and interaction geometry remains stage-relative.
