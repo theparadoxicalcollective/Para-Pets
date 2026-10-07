@@ -59,6 +59,10 @@
   overflow: visible !important;
 }
 
+#game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) *:has([data-testid="aquarium-page"]) {
+  overflow: visible !important;
+}
+
 #game-stage[data-coordinate-owner="stage"] #game-stage-content:has([data-testid="aquarium-page"]) > * {
   visibility: hidden;
 }
