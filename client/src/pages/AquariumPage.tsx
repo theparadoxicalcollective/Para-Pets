@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { clientPointInStageElement } from "@/lib/stage";
 import aquariumBg from "@assets/bg_aquarium.png";
 import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_1783394294636.png";
 import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_1783402475912.png";
@@ -543,9 +544,10 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
   const onContainerPointerUp = useCallback((e: React.PointerEvent) => {
     const d = draggingRef.current;
     if (!d) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect && dragMovedRef.current) {
-      const py = ((e.clientY - rect.top) / rect.height) * 100;
+    const container = containerRef.current;
+    if (container && dragMovedRef.current) {
+      const { y } = clientPointInStageElement(container, e.clientX, e.clientY);
+      const py = (y / container.offsetHeight) * 100;
       if (py < 78) addFish(d.fish);
     }
     dragMovedRef.current = false;
