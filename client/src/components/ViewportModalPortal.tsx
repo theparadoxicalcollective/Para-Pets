@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { VIEWPORT_LAYER_Z, viewportPointerEvents } from "@/lib/viewportLayers";
 
 const VIEWPORT_HUD_ID = "game-viewport-hud";
 
@@ -35,8 +36,8 @@ export default function ViewportModalPortal({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 20000,
-        pointerEvents: blocking ? "auto" : "none",
+        zIndex: VIEWPORT_LAYER_Z.modal,
+        pointerEvents: viewportPointerEvents(blocking ? "blocking" : "decorative"),
       }}
     >
       {children}
