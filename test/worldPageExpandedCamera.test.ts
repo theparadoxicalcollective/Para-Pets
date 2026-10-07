@@ -109,16 +109,11 @@ test("Admin drag math continues deriving percentages from the live transformed m
   const decor = read("client/src/worlds/useWorldDecorAdminController.ts");
 
   assert.match(locations, /const rect = areaRef\.current\.getBoundingClientRect\(\)/);
-  assert.match(locations, /const pxPerPercX = rect\.width \/ 100/);
-  assert.match(locations, /const pxPerPercY = rect\.height \/ 100/);
-  assert.match(locations, /origPosX \+ dx \/ pxPerPercX/);
-  assert.match(locations, /origPosY \+ dy \/ pxPerPercY/);
+  assert.match(locations, /dragWorldPlacementPercent\([\s\S]*?rect\.width,[\s\S]*?rect\.height,[\s\S]*?WORLD_PLACEMENT_BOUNDS\.location/);
 
   assert.match(decor, /const rect = areaRef\.current\.getBoundingClientRect\(\)/);
-  assert.match(decor, /posX: \(\(event\.clientX - rect\.left\) \/ rect\.width\) \* 100/);
-  assert.match(decor, /posY: \(\(event\.clientY - rect\.top\) \/ rect\.height\) \* 100/);
-  assert.match(decor, /const pxPerPercX = rect\.width \/ 100/);
-  assert.match(decor, /const pxPerPercY = rect\.height \/ 100/);
+  assert.match(decor, /clientPointToWorldPlacementPercent\([\s\S]*?rect,[\s\S]*?WORLD_PLACEMENT_BOUNDS\.decor/);
+  assert.match(decor, /dragWorldPlacementPercent\([\s\S]*?rect\.width,[\s\S]*?rect\.height,[\s\S]*?WORLD_PLACEMENT_BOUNDS\.decor/);
 });
 
 test("expanded WorldPage camera suspends behind modal and location UI", () => {
