@@ -32,10 +32,11 @@ test("PvP owns a full-device forest backdrop without moving its lobby controls",
 });
 
 test("World Map owns tablet surroundings but keeps the authored map canvas and placement math", () => {
-  assert.match(map, /import ViewportBackdropPortal from "@\/components\/ViewportBackdropPortal"/);
-  assert.match(map, /<ViewportBackdropPortal>[\s\S]*data-testid="world-map-viewport-backdrop"/);
-  assert.match(map, /filter: "blur\(14px\) brightness\(0\.48\) saturate\(0\.85\)"/);
-  assert.ok((map.match(/backgroundImage: `url\(\$\{mapBgData\?\.bgUrl \|\| worldMapBg\}\)`/g) ?? []).length >= 2);
+  assert.match(map, /<ViewportScenePortal>/);
+  assert.match(map, /data-testid="world-map-viewport-camera"/);
+  assert.match(map, /backgroundImage:.*mapBgData/);
+  assert.doesNotMatch(map, /ViewportBackdropPortal/);
+  assert.doesNotMatch(map, /world-map-viewport-backdrop/);
   assert.match(map, /ref=\{mapRef\}/);
   assert.match(map, /dx \/ \(rect\.width \/ 100\)/);
   assert.match(map, /dy \/ \(rect\.height \/ 100\)/);
