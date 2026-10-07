@@ -781,8 +781,14 @@ function InteriorViewer({
     const maxY = maxYForHeight(containerHRef.current);
     setPetDragLive({
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.02, Math.min(0.98, drag.startXPct + dx / imgWidthRef.current)),
-      yPct: Math.max(0.02, Math.min(maxY, drag.startYPct + dy / containerHRef.current)),
+      ...dragHomePlacement(
+        { xPct: drag.startXPct, yPct: drag.startYPct },
+        dx,
+        dy,
+        imgWidthRef.current,
+        containerHRef.current,
+        { minX: 0.02, maxX: 0.98, minY: 0.02, maxY },
+      ),
     });
   }, []);
 
@@ -809,8 +815,16 @@ function InteriorViewer({
     }
 
     const maxY = maxYForHeight(containerHRef.current);
-    const rawXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidthRef.current));
-    const rawYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerHRef.current));
+    const rawPosition = dragHomePlacement(
+      { xPct: drag.startXPct, yPct: drag.startYPct },
+      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
+      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      imgWidthRef.current,
+      containerHRef.current,
+      { minX: 0.02, maxX: 0.98, minY: 0.02, maxY },
+    );
+    const rawXPct = rawPosition.xPct;
+    const rawYPct = rawPosition.yPct;
     const visiblePetSize = PET_HOUSE_INTERIOR_PET_BASE_SIZE * clampPetHousePlayerScale(drag.scalePct) / 100;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       roomSleepEffects,
@@ -2101,8 +2115,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const maxYPct = maxYForHeight(containerH);
     setPetDragLive({
       inventoryId: drag.inventoryId,
-      xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + dx / imgWidth)),
-      yPct: Math.max(0.05, Math.min(maxYPct, drag.startYPct + dy / containerH)),
+      ...dragHomePlacement(
+        { xPct: drag.startXPct, yPct: drag.startYPct },
+        dx,
+        dy,
+        imgWidth,
+        containerH,
+        { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
+      ),
     });
   }, [imgWidth, containerH]);
 
@@ -2131,8 +2151,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return;
     }
     const maxYPct = maxYForHeight(containerH);
-    const rawXPct = Math.max(0.05, Math.min(0.95, drag.startXPct + clientDeltaToStage(e.clientX - drag.startPointerX, 0).x / imgWidth));
-    const rawYPct = Math.max(0.05, Math.min(maxYPct, drag.startYPct + clientDeltaToStage(0, e.clientY - drag.startPointerY).y / containerH));
+    const rawPosition = dragHomePlacement(
+      { xPct: drag.startXPct, yPct: drag.startYPct },
+      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
+      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      imgWidth,
+      containerH,
+      { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
+    );
+    const rawXPct = rawPosition.xPct;
+    const rawYPct = rawPosition.yPct;
     const sleepSnap = getHouseInteriorSleepSnapPosition(
       outdoorSleepDecorEffects,
       rawXPct,
