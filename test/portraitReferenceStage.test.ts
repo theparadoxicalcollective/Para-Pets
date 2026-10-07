@@ -125,7 +125,9 @@ test("Pet Home keeps authored and player-edited placement in logical stage coord
   const homeViewport = read("client/src/lib/homeCrossDevice.ts");
 
   assert.match(owner, /clientDeltaToStage/);
-  assert.match(owner, /clientPointInStageElement/);
+  assert.match(owner, /homeClientPointToPlacement/);
+  assert.match(owner, /HOME_INVENTORY_DROP_BOUNDS/);
+  assert.doesNotMatch(owner, /clientPointInStageElement/);
   assert.match(owner, /clientToStage\(inventoryDragState\.ghostX, inventoryDragState\.ghostY\)/);
   assert.match(owner, /clientToStage\(petInvDragState\.ghostX, petInvDragState\.ghostY\)/);
   assert.match(visitor, /clientDeltaToStage/);
