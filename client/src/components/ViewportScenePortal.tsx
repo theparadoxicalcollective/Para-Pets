@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { getViewportHost } from "@/lib/viewportOwnership";
 
-const VIEWPORT_SCENE_ID = "game-viewport-scene";
 
 /**
  * Opt-in scene portal for environments that may use the full visible device
@@ -20,11 +20,11 @@ export default function ViewportScenePortal({
   interactive?: boolean;
 }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
-    typeof document === "undefined" ? null : document.getElementById(VIEWPORT_SCENE_ID),
+    typeof document === "undefined" ? null : getViewportHost("scene"),
   );
 
   useLayoutEffect(() => {
-    setTarget(document.getElementById(VIEWPORT_SCENE_ID));
+    setTarget(getViewportHost("scene"));
   }, []);
 
   useLayoutEffect(() => {
