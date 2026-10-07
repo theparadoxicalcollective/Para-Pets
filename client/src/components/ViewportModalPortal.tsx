@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { getViewportHost, VIEWPORT_LAYER_Z } from "@/lib/viewportOwnership";
 
-const VIEWPORT_HUD_ID = "game-viewport-hud";
 
 /**
  * Blocking modal layer that always renders above persistent HUD chrome.
@@ -18,11 +18,11 @@ export default function ViewportModalPortal({
   enabled?: boolean;
 }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
-    typeof document === "undefined" ? null : document.getElementById(VIEWPORT_HUD_ID),
+    typeof document === "undefined" ? null : getViewportHost("hud"),
   );
 
   useLayoutEffect(() => {
-    setTarget(document.getElementById(VIEWPORT_HUD_ID));
+    setTarget(getViewportHost("hud"));
   }, []);
 
   if (!enabled || !target) return <>{children}</>;
@@ -33,7 +33,7 @@ export default function ViewportModalPortal({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 20000,
+        zIndex: VIEWPORT_LAYER_Z.modal,
         pointerEvents: "auto",
       }}
     >
