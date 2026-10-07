@@ -14,8 +14,9 @@ test("Molten Blocks scenery owns the full larger-device viewport", () => {
 });
 
 test("Molten Blocks gameplay stays in its authored playfield", () => {
-  assert.match(molten, /data-testid="text-score"/);
-  assert.match(molten, /data-testid="text-level"/);
+  assert.match(molten, /<Stat label="SCORE" value=\{score\} testId="text-score" \/>/);
+  assert.match(molten, /<Stat label="LVL" value=\{level\} testId="text-level" \/>/);
+  assert.match(molten, /data-testid=\{testId\}/);
   assert.match(molten, /data-testid="text-lives"/);
   assert.match(molten, /data-testid="button-pause"/);
   assert.match(molten, /tryMove\(-1, 0\)/);
