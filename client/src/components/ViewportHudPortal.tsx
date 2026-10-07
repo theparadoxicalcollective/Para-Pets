@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { getViewportHost } from "@/lib/viewportOwnership";
 
-const HUD_TARGET_ID = "game-viewport-hud";
 
 /**
  * Persistent controls can live on the visible-device HUD while gameplay keeps
@@ -13,7 +13,7 @@ export default function ViewportHudPortal({ children }: { children: ReactNode })
   const [target, setTarget] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    setTarget(document.getElementById(HUD_TARGET_ID));
+    setTarget(getViewportHost("hud"));
   }, []);
 
   return target ? createPortal(children, target) : null;
