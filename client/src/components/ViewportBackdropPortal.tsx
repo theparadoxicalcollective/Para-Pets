@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { viewportPointerEvents } from "@/lib/viewportLayers";
 
 const VIEWPORT_BACKDROP_ID = "game-viewport-backdrop";
 
@@ -50,7 +51,7 @@ export default function ViewportBackdropPortal({
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        pointerEvents: "none",
+        pointerEvents: viewportPointerEvents("decorative"),
       }}
     >
       {children}
