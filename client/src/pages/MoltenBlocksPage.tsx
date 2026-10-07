@@ -16,6 +16,7 @@ import bgMolten from "@assets/shop_volcanic.png";
 import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
 import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
 import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -1196,6 +1197,8 @@ export default function MoltenBlocksPage() {
   return (
     <div
       data-testid="page-molten-blocks"
+      data-stage-coordinate-space="canonical"
+      data-viewport-visual-owner="backdrop"
       style={{
         position: "absolute", inset: 0,
         backgroundImage: `url(${bgMolten})`,
@@ -1207,8 +1210,23 @@ export default function MoltenBlocksPage() {
         fontFamily: "Lora, serif", color: "#f5d589",
       }}
     >
-      {/* Translucent black overlay so foreground game UI stays legible */}
-      <div style={{
+      <ViewportBackdropPortal>
+        <div
+          data-testid="molten-blocks-viewport-backdrop"
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            backgroundImage: `url(${bgMolten})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.62)" }} />
+        </div>
+      </ViewportBackdropPortal>
+
+      {/* Native-phone copy; hidden by the shared shell only when the backdrop owns a larger viewport. */}
+      <div data-canonical-visual-layer="duplicate-backdrop" style={{
         position: "absolute", inset: 0, background: "rgba(0,0,0,0.62)",
         pointerEvents: "none", zIndex: 0,
       }} />
