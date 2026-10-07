@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { viewportPointerEvents } from "@/lib/viewportLayers";
 
 const VIEWPORT_SCENE_ID = "game-viewport-scene";
 
@@ -53,7 +54,7 @@ export default function ViewportScenePortal({
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        pointerEvents: interactive ? "auto" : "none",
+        pointerEvents: viewportPointerEvents(interactive ? "interactive" : "decorative"),
       }}
     >
       {children}
