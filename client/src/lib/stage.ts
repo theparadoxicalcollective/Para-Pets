@@ -242,7 +242,9 @@ export function getStageScale(): number {
   const stage = document.getElementById("game-stage");
   if (stage) {
     const logicalWidth = Number(stage.dataset.designWidth) || stage.offsetWidth;
-    const renderedWidth = stage.getBoundingClientRect().width;
+    const reference = document.getElementById("game-stage-content")
+      ?? stage.querySelector<HTMLElement>('[data-testid="root-stage-reference-plane"]');
+    const renderedWidth = (reference ?? stage).getBoundingClientRect().width;
     if (logicalWidth > 0 && renderedWidth > 0) return renderedWidth / logicalWidth;
   }
   const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stage-scale"));
@@ -255,7 +257,10 @@ export function clientToStage(clientX: number, clientY: number): { x: number; y:
   if (!stage) return { x: clientX, y: clientY };
   const rect = stage.getBoundingClientRect();
   const scale = getStageScale();
-  return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale };
+  const reference = document.getElementById("game-stage-content")
+    ?? stage.querySelector<HTMLElement>('[data-testid="root-stage-reference-plane"]');
+  const referenceRect = reference?.getBoundingClientRect() ?? rect;
+  return { x: (clientX - referenceRect.left) / scale, y: (clientY - referenceRect.top) / scale };
 }
 
 /** Convert a client-pixel movement into logical stage-pixel movement. */
