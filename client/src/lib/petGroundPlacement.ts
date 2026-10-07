@@ -1,5 +1,6 @@
 import type { ActivePetAnchor, PetPresentation } from "@shared/petPresentation";
 import type { AlphaBounds } from "./alphaBounds";
+import { AUTHORED_SCENE_WIDTH, dragAuthoredPercentOffset } from "./authoredScenePlacement";
 
 export interface GroundPart { partType: string; posX: number; posY: number; width: number; height: number; imageUrl: string; rotation?: number; pivotX?: number; pivotY?: number }
 
@@ -32,22 +33,16 @@ export function getStablePetGroundPoint(parts: readonly GroundPart[]) {
 }
 
 /** Both axes use the same square artwork coordinates, even inside a scaled phone stage. */
-function dragPlacementOffset<T extends { x: number; y: number }>(value: T, dx: number, dy: number, renderedWidth: number): T {
-  if (renderedWidth <= 0) return value;
-  const clamp = (n: number) => Math.max(-100, Math.min(100, n));
-  return { ...value, x: clamp(value.x + dx / renderedWidth * 100), y: clamp(value.y + dy / renderedWidth * 100) };
-}
-
 export function dragPetPlacement(value: PetPresentation, dx: number, dy: number, renderedWidth: number): PetPresentation {
-  return dragPlacementOffset(value, dx, dy, renderedWidth);
+  return dragAuthoredPercentOffset(value, dx, dy, renderedWidth);
 }
 
 export function dragActivePetAnchor(value: ActivePetAnchor, dx: number, dy: number, renderedWidth: number): ActivePetAnchor {
-  return dragPlacementOffset(value, dx, dy, renderedWidth);
+  return dragAuthoredPercentOffset(value, dx, dy, renderedWidth);
 }
 
 // A screen-space spot, independent of artwork bounds and pet size.
-export const PET_SPOT = { x: 500, y: 900, widthPercent: 45 } as const;
+export const PET_SPOT = { x: AUTHORED_SCENE_WIDTH / 2, y: 900, widthPercent: 45 } as const;
 
 export function getPetSpotPosition(anchor: ActivePetAnchor = { x: 0, y: 0 }) {
   return { x: PET_SPOT.x / 10 + anchor.x, y: PET_SPOT.y / 10 + anchor.y };
