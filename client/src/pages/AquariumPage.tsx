@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import aquariumBg from "@assets/bg_aquarium.png";
 import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_1783394294636.png";
 import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_1783402475912.png";
@@ -580,8 +579,7 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
       onPointerMove={onContainerPointerMove}
       onPointerUp={onContainerPointerUp}
     >
-      <ViewportBackdropPortal>
-        <div data-testid="aquarium-viewport-backdrop" className="absolute inset-0 overflow-hidden" style={{ background: "#010810" }}>
+      <div data-testid="aquarium-viewport-backdrop" className="absolute inset-0 overflow-hidden" style={{ background: "#010810" }}>
           {/* Backgrounds — all three stacked, cross-fade via opacity so there's no flash on switch */}
           {([["main", aquariumBg], ["bayou", bayouAquariumBg], ["volcanic", volcanicAquariumBg]] as const).map(([slot, src]) => (
             <img
@@ -602,8 +600,7 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
           <div className="absolute inset-0 pointer-events-none" style={{
             background: "linear-gradient(180deg,rgba(1,8,16,0.55) 0%,transparent 25%,transparent 72%,rgba(1,8,16,0.65) 100%)",
           }}/>
-        </div>
-      </ViewportBackdropPortal>
+      </div>
 
       {/* Rising bubbles (hidden when locked) */}
       {!isLocked && (
