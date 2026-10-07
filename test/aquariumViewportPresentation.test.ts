@@ -20,8 +20,10 @@ test("Aquarium tablet presentation owns one top viewport while the canonical tan
 
 test("Aquarium fish positions and add/drop boundary remain canonical percentages", () => {
   assert.match(aquarium, /left: `\$\{f\.x\}%`, top: `\$\{f\.y\}%`/);
-  assert.match(aquarium, /const py = \(\(e\.clientY - rect\.top\) \/ rect\.height\) \* 100/);
+  assert.match(aquarium, /clientPointInStageElement\(container, e\.clientX, e\.clientY\)/);
+  assert.match(aquarium, /const py = \(y \/ container\.offsetHeight\) \* 100/);
   assert.match(aquarium, /if \(py < 78\) addFish\(d\.fish\)/);
+  assert.doesNotMatch(aquarium, /\(e\.clientY - rect\.top\) \/ rect\.height/);
   assert.match(aquarium, /const AQ_MAX = 30/);
 });
 
@@ -30,4 +32,13 @@ test("Aquarium blocking overlays remain inside the top Aquarium owner", () => {
   assert.match(aquarium, /data-testid="button-buy-aquarium"/);
   assert.match(aquarium, /data-testid="button-confirm-buy-aquarium"/);
   assert.match(aquarium, /data-testid="aquarium-page"/);
+});
+
+
+test("Aquarium keeps fish simulation in canonical tank percentages", () => {
+  assert.match(aquarium, /if \(x < 5\)/);
+  assert.match(aquarium, /if \(x > 91\)/);
+  assert.match(aquarium, /const yMin = isBottom \? BOTTOM_HARD_MIN : 22/);
+  assert.match(aquarium, /const yMax = isBottom \? BOTTOM_HARD_MAX : 71/);
+  assert.doesNotMatch(aquarium, /clientWidth|clientHeight/);
 });
