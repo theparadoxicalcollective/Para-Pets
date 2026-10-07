@@ -27,6 +27,7 @@ import { AquariumPage } from "@/pages/AquariumPage";
 import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
 import { getStageSurface } from "@/lib/stage";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 interface NavUser {
@@ -483,12 +484,22 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── Quest scroll overlay ─────────────────────────────────────────── */}
       {showQuest && (
-        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: panelZ }}>
+        <ViewportModalPortal>
+        <div
+          data-testid="quest-log-viewport-overlay"
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ zIndex: panelZ, pointerEvents: "auto" }}
+        >
           <div
+            data-testid="quest-log-viewport-backdrop"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setShowQuest(false)}
           />
-          <div className="relative w-[92%] max-w-[400px] scroll-unroll" style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}>
+          <div
+            data-testid="quest-log-canonical-scroll"
+            className="relative w-[92%] max-w-[400px] scroll-unroll"
+            style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}
+          >
             {/* Close button */}
             <button
               onClick={() => setShowQuest(false)}
@@ -748,6 +759,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             </div>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* ── PvP notice overlay ───────────────────────────────────────────── */}
