@@ -774,6 +774,25 @@ function GameStage({ children }: { children: ReactNode }) {
       >
         {layout.coordinateOwner === "stage" && (
           <div
+            id="game-viewport-page"
+            data-testid="game-viewport-page"
+            style={{
+              position: "absolute",
+              left: sceneRect.left,
+              top: sceneRect.top,
+              width: sceneRect.width,
+              height: sceneRect.height,
+              pointerEvents: "auto",
+              overflow: "hidden",
+              "--stage-reference-left": `${-sceneRect.left}px`,
+              "--stage-reference-top": `${-sceneRect.top}px`,
+              "--stage-reference-width": `${layout.designWidth}px`,
+              "--stage-reference-height": `${layout.designHeight}px`,
+            } as CSSProperties}
+          />
+        )}
+        {layout.coordinateOwner === "stage" && (
+          <div
             id="game-viewport-backdrop"
             data-testid="game-viewport-backdrop"
             style={{
