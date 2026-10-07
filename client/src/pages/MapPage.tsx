@@ -17,6 +17,7 @@ import worldSwamp from "@assets/uploads/NewBayou.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
@@ -438,8 +439,10 @@ export default function MapPage({ user }: MapPageProps) {
         .map-scroll::-webkit-scrollbar-thumb:hover { background: rgba(240,192,64,0.6); }
       `}</style>
 
+      <ViewportScenePortal>
       <div
-        className="relative z-10 flex flex-col h-full"
+        data-testid="world-map-viewport-camera"
+        className="absolute inset-0 z-10 flex flex-col"
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -685,6 +688,7 @@ export default function MapPage({ user }: MapPageProps) {
 
 
       </div>
+      </ViewportScenePortal>
 
       {showAddWorld && (
         <ViewportModalPortal>
