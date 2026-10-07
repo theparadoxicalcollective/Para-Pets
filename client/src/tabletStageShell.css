@@ -171,3 +171,15 @@
   left: var(--viewport-surface-left, 0px) !important;
   right: var(--viewport-surface-right, 0px) !important;
 }
+
+
+/*
+ * Inventory pages already own their full-device forest backdrop. On stage-owned
+ * larger devices, keep cards/grids in the authored 390×844 plane but let the
+ * page-level back control reach the physical device width. Native phones remain
+ * outside this override.
+ */
+#game-stage[data-coordinate-owner="stage"] [data-testid="inventory-page-back-row"] {
+  margin-left: var(--viewport-surface-left, 0px);
+  margin-right: var(--viewport-surface-right, 0px);
+}
