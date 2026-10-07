@@ -7,13 +7,14 @@ const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8
 const stage = readFileSync("client/src/lib/stage.ts", "utf8");
 
 test("stage-owned larger devices expose a physical viewport page surface", () => {
-  assert.match(app, /id="game-viewport-page"/);
-  assert.match(app, /left: sceneRect\.left/);
-  assert.match(app, /top: sceneRect\.top/);
-  assert.match(app, /width: sceneRect\.width/);
-  assert.match(app, /height: sceneRect\.height/);
-  assert.match(app, /"--stage-reference-left": \`\$\{-sceneRect\.left\}px\`/);
-  assert.match(app, /"--stage-reference-top": \`\$\{-sceneRect\.top\}px\`/);
+  assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
+  assert.match(app, /left: expandedStage \? 0 : layout\.left/);
+  assert.match(app, /top: expandedStage \? 0 : layout\.top/);
+  assert.match(app, /width: expandedStage \? sceneRect\.width : layout\.designWidth/);
+  assert.match(app, /height: expandedStage \? sceneRect\.height : layout\.designHeight/);
+  assert.match(app, /id="game-viewport-page"[\s\S]{0,700}left: 0[\s\S]{0,200}top: 0[\s\S]{0,200}width: "100%"[\s\S]{0,200}height: "100%"/);
+  assert.match(app, /"--stage-reference-left": `\$\{referenceLeft\}px`/);
+  assert.match(app, /"--stage-reference-top": `\$\{referenceTop\}px`/);
 });
 
 test("normal stage pages portal to that viewport while retaining a canonical reference plane", () => {

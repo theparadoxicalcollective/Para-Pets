@@ -18,10 +18,10 @@ test("stage-owned devices expose a full-device backdrop behind canonical content
   assert.ok(hud > scene);
 
   const backdropBlock = app.slice(backdrop, content);
-  assert.match(backdropBlock, /left: sceneRect\.left/);
-  assert.match(backdropBlock, /top: sceneRect\.top/);
-  assert.match(backdropBlock, /width: sceneRect\.width/);
-  assert.match(backdropBlock, /height: sceneRect\.height/);
+  assert.match(backdropBlock, /left: 0/);
+  assert.match(backdropBlock, /top: 0/);
+  assert.match(backdropBlock, /width: "100%"/);
+  assert.match(backdropBlock, /height: "100%"/);
   assert.match(backdropBlock, /pointerEvents: "none"/);
 });
 

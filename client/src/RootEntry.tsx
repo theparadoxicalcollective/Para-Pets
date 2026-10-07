@@ -9,12 +9,14 @@ import GinnyQuestOverlay from "@/components/GinnyQuestOverlay";
 import JansonQuestOverlay from "@/components/JansonQuestOverlay";
 import LonelleQuestOverlay from "@/components/LonelleQuestOverlay";
 import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
-import { getStageTransform } from "@/lib/stage";
+import { calculateViewportSurfaceRect, getStageTransform } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
 
 function RootStage({ children }: { children: ReactNode }) {
   const layout = useStageViewportLayout();
+  const surface = calculateViewportSurfaceRect(layout);
+  const expandedStage = layout.coordinateOwner === "stage";
 
   return (
     <div
@@ -29,11 +31,11 @@ function RootStage({ children }: { children: ReactNode }) {
         data-reference-portrait={layout.referencePortrait ? "true" : "false"}
         style={{
           position: "absolute",
-          left: layout.left,
-          top: layout.top,
-          width: layout.designWidth,
-          height: layout.designHeight,
-          transform: getStageTransform(layout),
+          left: expandedStage ? 0 : layout.left,
+          top: expandedStage ? 0 : layout.top,
+          width: expandedStage ? surface.width : layout.designWidth,
+          height: expandedStage ? surface.height : layout.designHeight,
+          transform: expandedStage ? `scale(${layout.scale})` : getStageTransform(layout),
           transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
@@ -43,7 +45,21 @@ function RootStage({ children }: { children: ReactNode }) {
           "--vw": `${layout.designWidth * 0.01}px`,
         } as CSSProperties}
       >
-        {children}
+        {expandedStage ? (
+          <div
+            data-testid="root-stage-reference-plane"
+            style={{
+              position: "absolute",
+              left: -surface.left,
+              top: -surface.top,
+              width: layout.designWidth,
+              height: layout.designHeight,
+              overflow: "hidden",
+            }}
+          >
+            {children}
+          </div>
+        ) : children}
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>

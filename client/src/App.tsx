@@ -696,6 +696,9 @@ function GameStage({ children }: { children: ReactNode }) {
   const layout = useStageViewportLayout();
   const hudRect = calculateViewportHudRect(layout);
   const sceneRect = calculateViewportSurfaceRect(layout);
+  const expandedStage = layout.coordinateOwner === "stage";
+  const referenceLeft = expandedStage ? -sceneRect.left : 0;
+  const referenceTop = expandedStage ? -sceneRect.top : 0;
 
   // Gameplay coordinates stay inside the stable 390x844 reference stage.
   // Larger devices can use full-device backdrop/scene/HUD/modal surfaces around
@@ -756,11 +759,11 @@ function GameStage({ children }: { children: ReactNode }) {
         data-reference-portrait={layout.referencePortrait ? "true" : "false"}
         style={{
           position: "absolute",
-          left: layout.left,
-          top: layout.top,
-          width: layout.designWidth,
-          height: layout.designHeight,
-          transform: getStageTransform(layout),
+          left: expandedStage ? 0 : layout.left,
+          top: expandedStage ? 0 : layout.top,
+          width: expandedStage ? sceneRect.width : layout.designWidth,
+          height: expandedStage ? sceneRect.height : layout.designHeight,
+          transform: expandedStage ? `scale(${layout.scale})` : getStageTransform(layout),
           transformOrigin: "top left",
           overflow: "visible",
           isolation: "isolate",
@@ -778,15 +781,15 @@ function GameStage({ children }: { children: ReactNode }) {
             data-testid="game-viewport-page"
             style={{
               position: "absolute",
-              left: sceneRect.left,
-              top: sceneRect.top,
-              width: sceneRect.width,
-              height: sceneRect.height,
+              left: 0,
+              top: 0,
+              width: "100%",
+              height: "100%",
               pointerEvents: "auto",
               overflow: "hidden",
               zIndex: 20,
-              "--stage-reference-left": `${-sceneRect.left}px`,
-              "--stage-reference-top": `${-sceneRect.top}px`,
+              "--stage-reference-left": `${referenceLeft}px`,
+              "--stage-reference-top": `${referenceTop}px`,
               "--stage-reference-width": `${layout.designWidth}px`,
               "--stage-reference-height": `${layout.designHeight}px`,
             } as CSSProperties}
@@ -798,10 +801,10 @@ function GameStage({ children }: { children: ReactNode }) {
             data-testid="game-viewport-backdrop"
             style={{
               position: "absolute",
-              left: sceneRect.left,
-              top: sceneRect.top,
-              width: sceneRect.width,
-              height: sceneRect.height,
+              left: 0,
+              top: 0,
+              width: "100%",
+              height: "100%",
               pointerEvents: "none",
               overflow: "hidden",
               zIndex: 10,
@@ -813,7 +816,8 @@ function GameStage({ children }: { children: ReactNode }) {
           data-testid="game-stage-content"
           style={{
             position: "absolute",
-            inset: 0,
+            left: referenceLeft,
+            top: referenceTop,
             width: layout.designWidth,
             height: layout.designHeight,
             overflow: "hidden",
@@ -828,10 +832,10 @@ function GameStage({ children }: { children: ReactNode }) {
             data-testid="game-viewport-scene"
             style={{
               position: "absolute",
-              left: sceneRect.left,
-              top: sceneRect.top,
-              width: sceneRect.width,
-              height: sceneRect.height,
+              left: 0,
+              top: 0,
+              width: "100%",
+              height: "100%",
               pointerEvents: "none",
               overflow: "hidden",
               zIndex: 30,
@@ -843,10 +847,10 @@ function GameStage({ children }: { children: ReactNode }) {
           data-testid="game-viewport-hud"
           style={{
             position: "absolute",
-            left: hudRect.left,
-            top: hudRect.top,
-            width: hudRect.width,
-            height: hudRect.height,
+            left: 0,
+            top: 0,
+            width: expandedStage ? "100%" : hudRect.width,
+            height: expandedStage ? "100%" : hudRect.height,
             pointerEvents: "none",
             overflow: "visible",
             zIndex: 40,
