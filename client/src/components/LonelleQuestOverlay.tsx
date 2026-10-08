@@ -59,8 +59,8 @@ export default function LonelleQuestOverlay() {
   const [showReturnHome, setShowReturnHome] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   useEffect(() => {
-    // The radial menu is owned by HomePage, so its opening does not otherwise
-    // rerender this quest overlay. Follow its actual DOM state immediately.
+    // The left-side Pet Menu is owned by HomePage, so opening its rollout does
+    // not otherwise rerender this quest overlay. Follow its actual DOM state.
     const update = () => setActionMenuOpen(Boolean(document.querySelector('[data-testid="button-action-equip-accessories"]')));
     update();
     const observer = new MutationObserver(update);
@@ -143,9 +143,9 @@ export default function LonelleQuestOverlay() {
     target = inBayou ? lonelle ? '[data-testid="button-talk-lonelle"]' : null : pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
     instruction = inBayou ? "Ask Lonelle to recover her scarf" : "Return to Lonelle for the quest scarf";
   } else if (guiding && state.status === "taken" && pathname === "/" && !state.scarfEquipped) {
-    target = actionMenuOpen ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-actions"]';
-    instruction = actionMenuOpen ? "Open your pet's Closet" : "Tap your pet";
-    focus = actionMenuOpen ? "control" : "pet";
+    target = actionMenuOpen ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-menu"]';
+    instruction = actionMenuOpen ? "Open your pet's Closet" : "Open the Pet Menu";
+    focus = "control";
   } else if (guiding && state.status === "taken" && pathname === "/equip-accessories") {
     if (state.scarfEquipped) { target = '[data-testid="button-close-equip-accessories"]'; instruction = "Close the Closet"; }
     else if (visible(document.querySelector<HTMLElement>('[data-testid="button-confirm-unequip-adornment"]'))) {
