@@ -1,3 +1,5 @@
+import { dragScenePercentage } from "@/lib/coordinateContracts";
+
 export interface WorldPlacementBounds {
   min: number;
   max: number;
@@ -40,10 +42,12 @@ export function dragWorldPlacementPercent(
     return origin;
   }
 
-  return {
-    x: clampWorldPlacementPercent(origin.x + (dx / surfaceWidth) * 100, bounds),
-    y: clampWorldPlacementPercent(origin.y + (dy / surfaceHeight) * 100, bounds),
-  };
+  return dragScenePercentage(
+    origin,
+    { x: dx, y: dy },
+    { width: surfaceWidth, height: surfaceHeight },
+    { minX: bounds.min, maxX: bounds.max, minY: bounds.min, maxY: bounds.max },
+  );
 }
 
 export function pointInWorldPlacementSurface(
