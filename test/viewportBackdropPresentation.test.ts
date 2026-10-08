@@ -29,7 +29,7 @@ test("Active Pet background uses the backdrop portal while presentation stays on
   const home = read("client/src/pages/HomePage.tsx");
 
   assert.match(home, /import ViewportBackdropPortal from "@\/components\/ViewportBackdropPortal"/);
-  assert.match(home, /<ViewportBackdropPortal>/);
+  assert.match(home, /<ViewportBackdropPortal(?:\\s+targetId="game-viewport-page")?>/);
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
   assert.match(home, /className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
