@@ -11,7 +11,7 @@ import petPlaceholder from "@assets/generated_images/icon_pet_placeholder.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { normalizePetParts, shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import { clientRectPointToStage, clientToStage } from "@/lib/stage";
+
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 
 const CSS = String.raw`
@@ -136,6 +136,13 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     priority: 35,
   });
   const zoneRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const suppressNextClickRef = useRef(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const localPoint = useCallback((clientX: number, clientY: number) => {
+    const rect = pageRef.current?.getBoundingClientRect();
+    return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+  }, []);
   const dragRef = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [over, setOver] = useState(false);
@@ -172,7 +179,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     if (disabled(item)) return;
     const r = zoneRef.current?.getBoundingClientRect();
     if (r) {
-      const { x, y } = clientRectPointToStage(r);
+      const { x, y } = localPoint(r.left + r.width / 2, r.top + r.height / 2);
       const count = lowMemory ? 6 : 14;
       setSparks(Array.from({ length: count }, (_, i) => {
         const angle = (i / count) * Math.PI * 2;
@@ -184,29 +191,31 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     scheduleTransient(() => setPetAnim("flash"), 260);
     scheduleTransient(() => setPetAnim(""), 850);
     onUseItem(item);
-  }, [disabled, lowMemory, onUseItem, scheduleTransient]);
+  }, [disabled, lowMemory, onUseItem, scheduleTransient, localPoint]);
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, item: PowerUpItem) => {
     if (disabled(item)) return;
     event.preventDefault();
     event.stopPropagation();
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
-    const logical = clientToStage(event.clientX, event.clientY);
+    suppressNextClickRef.current = false;
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    const logical = localPoint(event.clientX, event.clientY);
     const next = { item, x: logical.x, y: logical.y };
     dragRef.current = next;
     setDrag(next);
-  }, [disabled]);
+  }, [disabled, localPoint]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!dragRef.current) return;
     event.preventDefault();
     event.stopPropagation();
-    const logical = clientToStage(event.clientX, event.clientY);
+    const logical = localPoint(event.clientX, event.clientY);
     const next = { ...dragRef.current, x: logical.x, y: logical.y };
     dragRef.current = next;
     setDrag(next);
     setOver(pointInZone(event.clientX, event.clientY));
-  }, [pointInZone]);
+  }, [pointInZone, localPoint]);
 
   const clearDrag = useCallback(() => { dragRef.current = null; setDrag(null); setOver(false); }, []);
   const onPointerUp = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -215,7 +224,12 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     event.preventDefault();
     event.stopPropagation();
     try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
-    if (pointInZone(event.clientX, event.clientY)) useItem(current.item);
+    const start = dragStartRef.current;
+    const moved = !!start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 8;
+    const dropped = moved && pointInZone(event.clientX, event.clientY);
+    suppressNextClickRef.current = true;
+    dragStartRef.current = null;
+    if (!moved || dropped) useItem(current.item);
     clearDrag();
   }, [clearDrag, pointInZone, useItem]);
 
@@ -244,7 +258,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
     <ViewportBackdropPortal>
       <div
@@ -286,10 +300,15 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
           onPointerDown={(event) => onPointerDown(event, item)}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={clearDrag}
+          onPointerCancel={() => { dragStartRef.current = null; suppressNextClickRef.current = true; clearDrag(); }}
+          onClick={(event) => {
+            if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
+            // Keyboard activation has no pointer-up; preserve accessible use.
+            if (event.detail === 0 && !dragRef.current) useItem(item);
+          }}
           disabled={disabled(item)}
         ><span className="lupage-caption">{labelFor(item)}</span>{item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}{item.quantity > 1 && <span className="lupage-qty">{item.quantity}</span>}</button>)}</div> : <div className="lupage-empty">No Level Up items in your bag.</div>}
-        <div className="lupage-hint">Drag onto {petName} to level up</div>
+        <div className="lupage-hint">Tap an item or drag it onto {petName} to level up</div>
         {showBuyButton && <button className="lupage-buy" onClick={() => { window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004"; }}>Find Level Up Items</button>}
       </section>
     </div>

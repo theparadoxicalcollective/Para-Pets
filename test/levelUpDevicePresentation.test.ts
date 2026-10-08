@@ -33,11 +33,11 @@ test("Level Up extends only its surroundings while preserving the isolated page"
   assert.ok(level.includes('#game-stage[data-coordinate-owner="stage"] .lupage{background:transparent}'));
 });
 
-test("Level Up drag ghosts and sparks use logical stage coordinates", () => {
+test("Level Up drag ghosts and sparks use coordinates local to the isolated page", () => {
   const level = read("client/src/components/PetLevelUpPage.tsx");
 
-  assert.match(level, /clientToStage\(event\.clientX, event\.clientY\)/);
-  assert.match(level, /clientRectPointToStage\(r\)/);
+  assert.match(level, /localPoint\(event\.clientX, event\.clientY\)/);
+  assert.match(level, /localPoint\(r\.left \+ r\.width \/ 2, r\.top \+ r\.height \/ 2\)/);
   assert.match(level, /\.lupage-ghost\{position:absolute/);
   assert.match(level, /\.lupage-spark\{position:absolute/);
   assert.doesNotMatch(level, /\.lupage-ghost\{position:fixed/);
