@@ -1793,7 +1793,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Veridian Watcher + Support — device-edge upper-right HUD */}
-      {!showProfile && !showActionMenu && !activePetModal && !showWorldChat && !showSupportModal && (
+      {!showProfile && !activePetModal && !showWorldChat && !showSupportModal && (
         <ViewportHudPortal>
           <div
             data-testid="viewport-hud-corner-actions"
