@@ -844,7 +844,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       style={{ caretColor: "transparent" }}
     >
       {activePetModal !== "power_up" && (
-      <ViewportBackdropPortal>
+      <ViewportBackdropPortal targetId="game-viewport-page">
         <div
           data-testid="active-pet-viewport-backdrop"
           className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
