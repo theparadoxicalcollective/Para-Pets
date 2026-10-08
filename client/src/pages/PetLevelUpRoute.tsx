@@ -140,6 +140,10 @@ export default function PetLevelUpRoute() {
     .map(toLevelUpItem);
 
   return (
+    <div
+      data-testid="pet-level-up-isolated-surface"
+      style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 1000, pointerEvents: "auto", touchAction: "pan-y" }}
+    >
     <ErrorBoundary
       context="PetLevelUpRoute"
       resetKey={inventoryId}
@@ -165,5 +169,6 @@ export default function PetLevelUpRoute() {
         onClose={close}
       />
     </ErrorBoundary>
+    </div>
   );
 }

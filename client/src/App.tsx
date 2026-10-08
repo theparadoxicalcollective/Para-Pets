@@ -812,7 +812,10 @@ function GameStage({ children }: { children: ReactNode }) {
               height: "100%",
               pointerEvents: "none",
               overflow: "hidden",
-              zIndex: 10,
+              // Above the legacy 390x844 stage-content layer (z15), which
+              // can otherwise show stale phone-width scenery through transparent
+              // viewport pages; below the interactive page plane (z20).
+              zIndex: 17,
             }}
           />
         )}

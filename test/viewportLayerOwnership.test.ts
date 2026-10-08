@@ -16,7 +16,9 @@ test("GameStage has one explicit back-to-front viewport ownership stack", () => 
   const hud = app.indexOf('id="game-viewport-hud"', page);
   assert.ok(backdrop >= 0 && content >= 0 && page >= 0 && scene >= 0 && hud >= 0);
   assert.match(app.slice(page, page + 900), /zIndex: 20/);
-  assert.match(app.slice(backdrop, backdrop + 500), /zIndex: 10/);
+  // The full-device backdrop must cover stale canonical-stage scenery without intercepting page input.
+  assert.match(app.slice(backdrop, backdrop + 700), /zIndex: 17/);
+  assert.match(app.slice(backdrop, backdrop + 700), /pointerEvents: "none"/);
   assert.match(app.slice(content, content + 500), /zIndex: 15/);
   assert.match(app.slice(scene, scene + 500), /zIndex: 30/);
   assert.match(app.slice(hud, hud + 600), /zIndex: 40/);
