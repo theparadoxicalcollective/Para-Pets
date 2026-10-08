@@ -169,3 +169,23 @@
   background: transparent !important;
   background-image: none !important;
 }
+
+/*
+ * StagePageSurface portals tablet pages into #game-viewport-page, a sibling
+ * of #game-stage. Earlier #game-stage descendant rules cannot match those
+ * pages, leaving a second 390px-wide backdrop painted over the viewport.
+ * Scope these overrides to the actual viewport page host. Native phones do
+ * not have this host and retain their authored presentation.
+ */
+#game-viewport-page [data-page-presentation="viewport"] [data-viewport-visual-owner="backdrop"] {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+#game-viewport-page [data-page-presentation="viewport"] [data-canonical-visual-layer="duplicate-backdrop"] {
+  display: none !important;
+}
+
+#game-viewport-page [data-page-presentation="viewport"] .active-pet-canonical-ambient {
+  background: transparent !important;
+}
