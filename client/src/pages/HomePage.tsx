@@ -33,7 +33,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
-import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
@@ -119,6 +119,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [hatchTimerDone, setHatchTimerDone] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  useEffect(() => {
+    const closeForMainNav = () => setShowActionMenu(false);
+    window.addEventListener("para-pets:main-nav-open", closeForMainNav);
+    return () => window.removeEventListener("para-pets:main-nav-open", closeForMainNav);
+  }, []);
   // Tracks when the action menu was last opened so hotspot buttons can
   // ignore ghost clicks that Android fires ~300ms after a touch lifts.
   const menuOpenedAtRef = useRef<number>(0);
@@ -235,10 +240,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, [searchString]);
 
   // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
-  // Tap = open the action menu (legacy behaviour). A circular swipe over the
-  // pet calls the petting-reward endpoint and shows hearts. We only switch a
-  // tap into a pet-gesture once the pointer has accumulated meaningful
-  // angular travel, so taps still open the menu reliably.
+  // Pet taps do not open navigation. A circular swipe over the pet calls
+  // the petting-reward endpoint and shows hearts.
   const activePetIdRef = useRef<string | null>(null);
   const petGestureStateRef = useRef<{
     pid: number;
@@ -1568,37 +1571,32 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {/* Screen-relative Pet Menu: independent of tapping or petting the pet. */}
       {!isOverlayActive && activePetForModal && (
         <ViewportHudPortal>
-          <div data-testid="active-pet-side-menu" className="absolute left-2 flex items-center gap-2" style={{ top: "50%", transform: "translateY(-50%)", zIndex: 50, pointerEvents: "auto" }}>
-            <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => setShowActionMenu(value => !value)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#e6c46d] bg-[#1a3027]/95 text-[#ffe5a1] shadow-[0_0_15px_rgba(227,188,98,.4)]" style={{ touchAction: "manipulation" }}><PawPrint size={23} /></button>
-            {showActionMenu && <div data-testid="pet-menu-options" className="flex flex-col gap-2 rounded-2xl border border-[#c9a85a] bg-[#132a24]/95 p-2 shadow-2xl">
-              <button type="button" data-testid="button-action-power-up" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left text-[#ffe5a1] hover:bg-white/10" onClick={() => { if (questGuideMode === "powerup") setPowerUpFromQuest(true); setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); }}><Zap size={18} />Power-Up</button>
-              <button type="button" data-testid="button-action-level-up" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left text-[#ffe5a1] hover:bg-white/10" onClick={() => { setShowActionMenu(false); const id = activePetForModal.inventoryId; if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`); }}><ArrowUpCircle size={18} />Level Up</button>
-              <button type="button" data-testid="button-action-equip-accessories" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left text-[#ffe5a1] hover:bg-white/10" onClick={() => { setShowActionMenu(false); navigate("/equip-accessories"); }}><Shirt size={18} />Closet</button>
-              <button type="button" data-testid="button-action-care-feed" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left text-[#ffe5a1] hover:bg-white/10" onClick={() => { setShowActionMenu(false); setQuestGuideMode(null); const id = activePetForModal.inventoryId; navigate(id ? "/pet-care/" + encodeURIComponent(id) : "/pet-house"); }}><Heart size={18} />Pet Care</button>
+          <div data-testid="active-pet-side-menu" className="absolute flex items-center gap-2" style={{ left: 12, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 150, pointerEvents: "auto" }}>
+            <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => { if (!showActionMenu) window.dispatchEvent(new Event("para-pets:pet-menu-open")); setShowActionMenu(value => !value); }} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[#e6c46d] bg-[#1a3027]/95 text-[#ffe5a1] shadow-[0_0_15px_rgba(227,188,98,.4)]" style={{ touchAction: "manipulation" }}><PawPrint size={25} /></button>
+            {showActionMenu && <div data-testid="pet-menu-options" className="flex items-center gap-2" role="group" aria-label="Pet actions">
+                <button type="button" data-testid="button-action-power-up" aria-label="Power-Up" title="Power-Up" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#c9a85a] bg-[#173a2c] text-[#ffe5a1] shadow-[0_0_12px_rgba(227,188,98,.25)] transition-transform active:scale-90" onClick={() => { if (questGuideMode === "powerup") setPowerUpFromQuest(true); setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); }}><Zap size={21} /></button>
+                <button type="button" data-testid="button-action-level-up" aria-label="Level Up" title="Level Up" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#c9a85a] bg-[#173a2c] text-[#ffe5a1] shadow-[0_0_12px_rgba(227,188,98,.25)] transition-transform active:scale-90" onClick={() => { setShowActionMenu(false); const id = activePetForModal.inventoryId; if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`); }}><ArrowUpCircle size={21} /></button>
+                <button type="button" data-testid="button-action-equip-accessories" aria-label="Closet" title="Closet" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#c9a85a] bg-[#173a2c] text-[#ffe5a1] shadow-[0_0_12px_rgba(227,188,98,.25)] transition-transform active:scale-90" onClick={() => { setShowActionMenu(false); navigate("/equip-accessories"); }}><Shirt size={21} /></button>
+                <button type="button" data-testid="button-action-care-feed" aria-label="Pet Care" title="Pet Care" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#c9a85a] bg-[#173a2c] text-[#ffe5a1] shadow-[0_0_12px_rgba(227,188,98,.25)] transition-transform active:scale-90" onClick={() => { setShowActionMenu(false); setQuestGuideMode(null); const id = activePetForModal.inventoryId; navigate(id ? "/pet-care/" + encodeURIComponent(id) : "/pet-house"); }}><Heart size={21} /></button>
             </div>}
           </div>
         </ViewportHudPortal>
       )}
 
-      {/* ── Quest guide arrow — Phase 1: ring closed, points at the pet ── */}
-      {questGuideMode && !showActionMenu && (
-        <>
-          <img
-            src={questArrowImg}
-            alt=""
-            style={{
-              position: "fixed",
-              bottom: "44%",
-              left: "50%",
-              width: 48,
-              height: 60,
-              pointerEvents: "none",
-              zIndex: 600,
-              animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-              filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-            }}
-          />
-        </>
+      {/* Daily quest hints follow the actual left-side Pet Menu controls. */}
+      {questGuideMode && !isOverlayActive && activePetForModal && (
+        <QuestGuideSpotlight
+          selector={showActionMenu
+            ? questGuideMode === "powerup"
+              ? '[data-testid="button-action-power-up"]'
+              : '[data-testid="button-action-care-feed"]'
+            : '[data-testid="button-open-pet-menu"]'}
+          label={showActionMenu
+            ? questGuideMode === "powerup" ? "Choose Power-Up" : "Choose Pet Care"
+            : "Open the Pet Menu"}
+          focus="control"
+          testId="pet-daily-quest-menu-guide"
+        />
       )}
 
       {/* ── Pet stats page (opened from the ring's left button) ── */}

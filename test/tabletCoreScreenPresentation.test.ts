@@ -8,13 +8,14 @@ const map = readFileSync("client/src/pages/MapPage.tsx", "utf8");
 
 test("Active Pet independent Pet Menu owns full-device HUD", () => {
   const start = home.indexOf("Screen-relative Pet Menu");
-  const end = home.indexOf("Quest guide arrow — Phase 1", start);
+  const end = home.indexOf("Daily quest hints follow", start);
   const section = home.slice(start, end);
   assert.ok(start >= 0 && end > start);
   assert.match(section, /<ViewportHudPortal>/);
   assert.match(section, /data-testid="active-pet-side-menu"/);
   assert.match(section, /data-testid="button-open-pet-menu"/);
-  assert.match(section, /left-2/);
+  assert.match(section, /left: 12/);
+  assert.match(section, /safe-area-inset-bottom/);
   for (const selector of ["button-action-power-up", "button-action-level-up", "button-action-equip-accessories", "button-action-care-feed"]) {
     assert.equal(section.includes(selector), true, selector);
   }
