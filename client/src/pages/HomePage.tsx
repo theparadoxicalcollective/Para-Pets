@@ -1574,7 +1574,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Screen-relative Pet Menu: independent of tapping or petting the pet. */}
-      {!isOverlayActive && activePetForModal && (
+      {!isOverlayActive && activePetModal === null && activePetForModal && (
         <ViewportHudPortal>
           <div data-testid="active-pet-side-menu" className="absolute flex items-center gap-2" style={{ left: 12, bottom: "calc(26px + env(safe-area-inset-bottom, 0px))", zIndex: 150, pointerEvents: "auto" }}>
             <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => { if (!showActionMenu) window.dispatchEvent(new Event("para-pets:pet-menu-open")); setShowActionMenu(value => !value); }} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[#e6c46d] bg-[#1a3027]/95 text-[#ffe5a1] shadow-[0_0_15px_rgba(227,188,98,.4)]" style={{ touchAction: "manipulation" }}><img src={petMenuIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
