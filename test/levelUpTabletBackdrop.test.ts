@@ -13,8 +13,9 @@ test("Level Up paints one continuous backdrop on stage-owned tablet layouts", ()
 });
 
 test("Level Up keeps canonical phone visuals and pet drop interaction", () => {
-  assert.match(levelUp, /className="lupage-bg"/);
-  assert.match(levelUp, /className="lupage-shade"/);
+  assert.doesNotMatch(levelUp, /className="lupage-bg"/);
+  assert.doesNotMatch(levelUp, /className="lupage-shade"/);
+  assert.match(levelUp, /@assets\/uploads\/NewActivePetBG\.png/);
   assert.match(levelUp, /ref=\{zoneRef\}/);
   assert.match(levelUp, /data-testid="zone-levelup-pet-drop"/);
 });

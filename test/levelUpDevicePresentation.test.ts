@@ -28,8 +28,9 @@ test("Level Up extends only its surroundings while preserving the isolated page"
   assert.match(level, /backgroundPosition: "center center"/);
   assert.match(level, /<ViewportBackdropPortal>/);
   assert.match(level, /data-testid="level-up-viewport-backdrop"/);
-  assert.match(level, /data-canonical-visual-layer="duplicate-backdrop"/);
-  assert.ok(level.includes('className="lupage-bg"'));
+  assert.doesNotMatch(level, /data-canonical-visual-layer="duplicate-backdrop"/);
+  assert.doesNotMatch(level, /className="lupage-bg"/);
+  assert.match(level, /@assets\/uploads\/NewActivePetBG\.png/);
   assert.ok(level.includes('#game-stage[data-coordinate-owner="stage"] .lupage{background:transparent}'));
 });
 

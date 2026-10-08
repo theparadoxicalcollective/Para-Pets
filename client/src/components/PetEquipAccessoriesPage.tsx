@@ -14,7 +14,7 @@ import ViewportScenePortal from "@/components/ViewportScenePortal";
 import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import MiniPetRenderer, { type EquippedMiniPet } from "@/components/MiniPetRenderer";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
-import closetBackground from "@assets/uploads/ClosetBG.png";
+import closetBackground from "@assets/uploads/NewActivePetBG.png";
 import closetCloseButton from "@assets/uploads/ClosetCloseButton.png";
 
 interface EquippedAccessory {
@@ -327,7 +327,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
           className="absolute inset-0 pointer-events-none"
           style={{
             backgroundColor: "#020503",
-            backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.42)), url(${closetBackground})`,
+            backgroundImage: `url(${closetBackground})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -340,16 +340,9 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         data-stage-coordinate-space="canonical"
         data-viewport-visual-owner="scene"
         className="absolute inset-0 z-[200] h-full w-full overflow-hidden"
-        style={{ background: "#020503" }}
+        style={{ background: "transparent" }}
       >
-      <img
-        src={closetBackground}
-        alt=""
-        aria-hidden
-        data-canonical-visual-layer="duplicate-backdrop"
-        className="absolute inset-0 h-full w-full"
-        style={{ objectFit: "fill", pointerEvents: "none", userSelect: "none" }}
-      />
+
 
       <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.4%", width: "64%" }}>
         <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.14em]" style={{ color: "#d4a94c", fontSize: "clamp(15px, 4.8vw, 23px)", textShadow: "0 2px 3px #000, 0 0 12px rgba(29,225,170,.28)" }}>{petName}</h1>

@@ -8,7 +8,9 @@ const shell = readFileSync("client/src/tabletStageShell.css", "utf8");
 test("Closet viewport owns wide-device scenery while authored template keeps coordinates", () => {
   assert.match(closet, /<ViewportScenePortal interactive=\{false\}>[\s\S]*data-testid="closet-viewport-environment"/);
   assert.match(closet, /data-testid="closet-authored-template"[\s\S]*data-stage-coordinate-space="canonical"[\s\S]*data-viewport-visual-owner="scene"/);
-  assert.match(closet, /data-canonical-visual-layer="duplicate-backdrop"/);
+  assert.doesNotMatch(closet, /data-canonical-visual-layer="duplicate-backdrop"/);
+  assert.match(closet, /@assets\/uploads\/NewActivePetBG\.png/);
+  assert.match(closet, /background: "transparent"/);
   assert.match(shell, /#game-stage\[data-coordinate-owner="stage"\] \[data-viewport-visual-owner="scene"\]/);
   assert.match(shell, /#game-stage\[data-coordinate-owner="stage"\] \[data-canonical-visual-layer="duplicate-backdrop"\]/);
 });
