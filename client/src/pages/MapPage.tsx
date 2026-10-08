@@ -408,7 +408,13 @@ export default function MapPage({ user }: MapPageProps) {
               data-quest-guide-pan-surface
               className="relative w-full"
               style={{
-                // Preserve the complete portrait map as one scrollable scene.\n                // The old 115%-of-width scene was shorter than the map artwork,\n                // cropping its lower worlds on wide tablet screens.\n                aspectRatio: "1 / 2.05",\n                minHeight: "100%",\n                touchAction: "pan-y",\n                backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
+                // Preserve the complete portrait map as one scrollable scene.
+                // The old 115%-of-width scene was shorter than the map artwork,
+                // cropping its lower worlds on wide tablet screens.
+                aspectRatio: "1 / 2.05",
+                minHeight: "100%",
+                touchAction: "pan-y",
+                backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
                 backgroundSize: "100% 100%",
                 backgroundPosition: "center top",
                 backgroundRepeat: "no-repeat",
