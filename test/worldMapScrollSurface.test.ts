@@ -6,7 +6,7 @@ const source = readFileSync("client/src/pages/MapPage.tsx", "utf8");
 
 test("world map background scrolls with its admin-authored nodes", () => {
   const camera = source.indexOf('data-testid="world-map-viewport-camera"');
-  const scroll = source.indexOf('overflow-y-auto overflow-x-hidden map-scroll', camera);
+  const scroll = source.indexOf('overflow-auto map-scroll', camera);
   const surface = source.indexOf('ref={mapRef}', scroll);
   const artwork = source.indexOf('backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`', surface);
   const nodes = source.indexOf('className="absolute inset-0"', surface);
@@ -17,7 +17,7 @@ test("world map background scrolls with its admin-authored nodes", () => {
   assert.match(source.slice(surface, nodes), /aspectRatio: "1 \/ 2\.05"/);
   assert.match(source.slice(surface, nodes), /minHeight: "100%"/);
   assert.doesNotMatch(source.slice(surface, nodes), /paddingBottom: "115%"/);
-  assert.match(source.slice(scroll, surface), /touchAction: "pan-y"/);
+  assert.match(source.slice(scroll, surface), /touchAction: "pan-x pan-y"/);
 });
 
 test("admin placements and scene-relative dragging remain unchanged", () => {
