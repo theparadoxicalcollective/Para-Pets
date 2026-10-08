@@ -33,7 +33,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
-import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
@@ -235,10 +235,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, [searchString]);
 
   // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
-  // Tap = open the action menu (legacy behaviour). A circular swipe over the
-  // pet calls the petting-reward endpoint and shows hearts. We only switch a
-  // tap into a pet-gesture once the pointer has accumulated meaningful
-  // angular travel, so taps still open the menu reliably.
+  // Pet taps do not open navigation. A circular swipe over the pet calls
+  // the petting-reward endpoint and shows hearts.
   const activePetIdRef = useRef<string | null>(null);
   const petGestureStateRef = useRef<{
     pid: number;
@@ -1580,25 +1578,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </ViewportHudPortal>
       )}
 
-      {/* ── Quest guide arrow — Phase 1: ring closed, points at the pet ── */}
-      {questGuideMode && !showActionMenu && (
-        <>
-          <img
-            src={questArrowImg}
-            alt=""
-            style={{
-              position: "fixed",
-              bottom: "44%",
-              left: "50%",
-              width: 48,
-              height: 60,
-              pointerEvents: "none",
-              zIndex: 600,
-              animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-              filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-            }}
-          />
-        </>
+      {/* Daily quest hints follow the actual left-side Pet Menu controls. */}
+      {questGuideMode && !isOverlayActive && activePetForModal && (
+        <QuestGuideSpotlight
+          selector={showActionMenu
+            ? questGuideMode === "powerup"
+              ? '[data-testid="button-action-power-up"]'
+              : '[data-testid="button-action-care-feed"]'
+            : '[data-testid="button-open-pet-menu"]'}
+          label={showActionMenu
+            ? questGuideMode === "powerup" ? "Choose Power-Up" : "Choose Pet Care"
+            : "Open the Pet Menu"}
+          focus="control"
+          testId="pet-daily-quest-menu-guide"
+        />
       )}
 
       {/* ── Pet stats page (opened from the ring's left button) ── */}
