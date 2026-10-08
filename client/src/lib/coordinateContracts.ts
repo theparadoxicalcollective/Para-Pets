@@ -57,3 +57,23 @@ export function popupMaxSize(viewport: CoordinateRect, insets: SafeAreaInsets, m
     height: Math.max(0, viewport.height - insets.top - insets.bottom - 2 * margin),
   };
 }
+
+/**
+ * Apply a screen-pointer drag to an authored percentage position.
+ * Use the actual rendered background plane (not viewport width/height).
+ * Limits are in the existing saved 0..100 percentage units; some maps
+ * intentionally allow vertical placements beyond 100%.
+ */
+export function dragScenePercentage(
+  origin: { x: number; y: number },
+  pointerDelta: CoordinatePoint,
+  scene: Pick<CoordinateRect, "width" | "height">,
+  limits: { minX: number; maxX: number; minY: number; maxY: number },
+): { x: number; y: number } {
+  if (!Number.isFinite(scene.width) || !Number.isFinite(scene.height)
+    || scene.width <= 0 || scene.height <= 0) return origin;
+  return {
+    x: Math.max(limits.minX, Math.min(limits.maxX, origin.x + pointerDelta.x * 100 / scene.width)),
+    y: Math.max(limits.minY, Math.min(limits.maxY, origin.y + pointerDelta.y * 100 / scene.height)),
+  };
+}
