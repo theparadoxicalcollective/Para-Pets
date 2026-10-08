@@ -69,11 +69,11 @@ test("scene and backdrop portals preserve native-phone content without allowing 
   assert.match(modalPortal, /if \(!enabled \|\| !target\) return <>\{children\}<\/>/);
 });
 
-test("Active Pet keeps authored pet and action-ring geometry while scenery and blocking backdrop can expand", () => {
+test("Active Pet keeps authored pet geometry while independent HUD menu and scenery can expand", () => {
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
   assert.match(home, /ref=\{petContainerRef\}/);
-  assert.match(home, /data-testid="active-pet-action-canonical-ring"/);
-  assert.match(home, /<ViewportHudPortal>[\s\S]*data-testid="active-pet-action-viewport-backdrop"/);
+  assert.match(home, /data-testid="active-pet-side-menu"/);
+  assert.match(home, /<ViewportHudPortal>[\s\S]*data-testid="button-open-pet-menu"/);
 });
 
 test("Active Pet canonical page does not obscure its full-device backdrop on tablets", () => {

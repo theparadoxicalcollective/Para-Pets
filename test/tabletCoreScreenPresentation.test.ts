@@ -6,19 +6,19 @@ const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const pvp = readFileSync("client/src/pages/PvpArenaPage.tsx", "utf8");
 const map = readFileSync("client/src/pages/MapPage.tsx", "utf8");
 
-test("Active Pet action wheel and controls own the full-device HUD", () => {
-  const start = home.indexOf("Active pet action menu (mystical ring)");
+test("Active Pet independent Pet Menu owns full-device HUD", () => {
+  const start = home.indexOf("Screen-relative Pet Menu");
   const end = home.indexOf("Quest guide arrow — Phase 1", start);
   const section = home.slice(start, end);
-  assert.match(section, /<ViewportHudPortal>[\s\S]*data-testid="active-pet-action-viewport-backdrop"/);
-  assert.match(section, /data-testid="active-pet-action-canonical-ring"/);
-  assert.match(section, /<ViewportHudPortal>[\s\S]*data-testid="active-pet-action-canonical-ring"/);
-  assert.match(section, /style=\{\{ zIndex: 50, pointerEvents: "none" \}\}/);
-  assert.match(section, /pointerEvents: "none"/);
-  assert.match(section, /width: "min\(calc\(92\*var\(--vw\)\), 520px\)"/);
-  for (const selector of ["button-action-power-up", "button-action-pet-stats", "button-action-level-up", "button-action-equip-accessories", "button-action-care-feed"]) {
+  assert.ok(start >= 0 && end > start);
+  assert.match(section, /<ViewportHudPortal>/);
+  assert.match(section, /data-testid="active-pet-side-menu"/);
+  assert.match(section, /data-testid="button-open-pet-menu"/);
+  assert.match(section, /left-2/);
+  for (const selector of ["button-action-power-up", "button-action-level-up", "button-action-equip-accessories", "button-action-care-feed"]) {
     assert.equal(section.includes(selector), true, selector);
   }
+  assert.equal(section.includes("button-action-pet-stats"), false);
 });
 
 test("PvP owns a full-device forest backdrop without moving its lobby controls", () => {

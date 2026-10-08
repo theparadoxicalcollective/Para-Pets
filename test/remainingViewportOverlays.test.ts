@@ -8,7 +8,7 @@ const modalPortal = readFileSync("client/src/components/ViewportModalPortal.tsx"
 
 test("Active Pet speed-up sheet uses the viewport modal layer without changing Begin Journey gating", () => {
   const start = home.indexOf("Speed-up sheet is hidden during tutorial step 5");
-  const end = home.indexOf("Active pet action menu", start);
+  const end = home.indexOf("Screen-relative Pet Menu", start);
   const section = home.slice(start, end);
 
   assert.match(section, /bjGetStep\(\) !== 5/);
