@@ -5,13 +5,15 @@ import { readFileSync } from "node:fs";
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
 
-test("Pet Menu is anchored to the opposite lower corner with circular rightward options", () => {
+test("Pet Menu is anchored to the opposite lower corner with circular upward options with labels", () => {
   assert.match(home, /data-testid="active-pet-side-menu"/);
   assert.match(home, /left: 12, bottom: "calc\(26px \+ env\(safe-area-inset-bottom, 0px\)\)"/);
-  assert.match(home, /data-testid="pet-menu-options" className="flex items-center gap-2"/);
+  assert.match(home, /data-testid="pet-menu-options" className="flex flex-col-reverse items-center gap-3 pb-2"/);
   for (const id of ["power-up", "level-up", "equip-accessories", "care-feed"]) {
     assert.match(home, new RegExp(`data-testid="button-action-${id}"[^\\n]*rounded-full`));
   }
+  assert.match(home, /className="absolute flex flex-col-reverse items-center gap-3"/);
+  for (const label of ["Power-Up", "Level Up", "Closet", "Pet Care"]) assert.ok(home.includes(`>${label}</span>`));
   assert.match(nav, /bottom: 16/);
   assert.match(nav, /right: 12/);
 });
