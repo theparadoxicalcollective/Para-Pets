@@ -435,7 +435,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       petGestureStateRef.current = null;
       // Treat as a tap (open the action menu) only when the gesture didn't
       // turn into a circular pet AND the finger barely moved.
-      if (!wasPet && !movedFar) { menuOpenedAtRef.current = Date.now(); setShowActionMenu(true); }
+      if (!wasPet && !movedFar) { /* Pet taps remain available for petting; the left Pet Menu owns navigation. */ }
     },
     onPointerCancel: () => { stopCircleEffects(); petGestureStateRef.current = null; },
   }), [homePettingRewardMutation, startCircleEffects, stopCircleEffects]);
@@ -1564,244 +1564,32 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </div>
       )}
 
-      {/* ── Active pet action menu (mystical ring) ── */}
-      {!isOverlayActive && showActionMenu && activePetForModal && (
-        <>
-          <ViewportHudPortal>
-            <div
-              data-testid="active-pet-action-viewport-backdrop"
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-              style={{ zIndex: 49, pointerEvents: "auto" }}
-              onClick={() => setShowActionMenu(false)}
-            />
-          </ViewportHudPortal>
-          <ViewportHudPortal>
-          <div
-            data-testid="active-pet-action-canonical-ring"
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ zIndex: 50, pointerEvents: "none" }}
-          >
-          {/* Ring image with invisible hotspots over each rune */}
-          <div
-            className="relative"
-            style={{
-              width: "min(calc(92*var(--vw)), 520px)",
-              pointerEvents: "auto",
-              aspectRatio: "1 / 1",
-              backgroundImage: `url(${petActionRingImg})`,
-              backgroundSize: "contain",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
-              filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.6))",
-            }}
-          >
-            {/* Helper: build a hotspot button */}
-            {(() => {
-              const makeBtn = (
-                key: string,
-                testId: string,
-                pos: { left: string; top: string; width: string; height: string },
-                color: string,
-                onActivate: () => void,
-              ) => (
-                <button
-                  key={key}
-                  data-testid={testId}
-                  onClick={(e) => {
-                    // Swallow ghost clicks on Android: the OS fires a synthetic
-                    // click ~300ms after touchend at the same screen coordinates.
-                    // If the menu JUST opened (< 400ms ago) this is almost
-                    // certainly that ghost click, not a deliberate tap.
-                    if (Date.now() - menuOpenedAtRef.current < 400) return;
-                    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    burstRingSparkles(r.left + r.width / 2, r.top + r.height / 2, color, 16);
-                    setTimeout(onActivate, 280);
-                  }}
-                  aria-label={key}
-                  className="absolute rounded-full"
-                  style={{
-                    ...pos,
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                />
-              );
-              return (
-                <>
-                  {makeBtn(
-                    "Power Up",
-                    "button-action-power-up",
-                    { left: "36%", top: "1%", width: "26%", height: "23%" },
-                    "#4ade80",
-                    () => {
-                      if (questGuideMode === "powerup") setPowerUpFromQuest(true);
-                      setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null);
-                    },
-                  )}
-                  {makeBtn(
-                    "Pet Stats",
-                    "button-action-pet-stats",
-                    { left: "0%", top: "36%", width: "22%", height: "22%" },
-                    "#67e8f9",
-                    () => { setShowActionMenu(false); setShowPetStats(true); },
-                  )}
-                  {makeBtn(
-                    "Level Up",
-                    "button-action-level-up",
-                    { left: "78%", top: "36%", width: "22%", height: "22%" },
-                    "#fcd34d",
-                    () => {
-                      setShowActionMenu(false);
-                      const id = activePetForModal?.inventoryId;
-                      if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`);
-                    },
-                  )}
-                  {makeBtn(
-                    "The Closet",
-                    "button-action-equip-accessories",
-                    { left: "36%", top: "73%", width: "26%", height: "21%" },
-                    "#c084fc",
-                    () => { setShowActionMenu(false); navigate("/equip-accessories"); },
-                  )}
-                  {/* Center hotspot — paw print — opens Care / Feed page */}
-                  {makeBtn(
-                    "Care / Feed",
-                    "button-action-care-feed",
-                    { left: "29%", top: "31%", width: "42%", height: "40%" },
-                    "#f472b6",
-                    () => {
-                      setShowActionMenu(false);
-                      setQuestGuideMode(null);
-                      const id = activePetForModal?.inventoryId;
-                      navigate(id ? `/pet-care/${encodeURIComponent(id)}` : "/pet-house");
-                    },
-                  )}
-                  {/* Quest guide sparkles + glow — Phase 2: highlight the target button */}
-                  {questGuideMode === "powerup" && (
-                    <>
-                      {/* Pulsing glow ring on Power Up button — round to match the rune button */}
-                      <div style={{
-                        position: "absolute",
-                        left: "36%", top: "1%", width: "26%", height: "23%",
-                        borderRadius: "50%",
-                        pointerEvents: "none",
-                        zIndex: 298,
-                        animation: "quest-btn-pulse 1.5s ease-in-out infinite",
-                      }}>
-                        {[0,1,2,3,4,5,6].map(i => (
-                          <span key={i} style={{
-                            position: "absolute",
-                            left: `${8 + i * 13}%`,
-                            bottom: "10%",
-                            width: 7,
-                            height: 7,
-                            borderRadius: "50%",
-                            background: i % 2 === 0 ? "#4ade80" : "#86efac",
-                            animation: `quest-sparkle-rise 1.1s ${i * 0.16}s ease-out infinite`,
-                            opacity: 0,
-                            pointerEvents: "none",
-                          }} />
-                        ))}
-                      </div>
-                      {/* Bouncing arrow — centered above the Power Up button top-center */}
-                      <img
-                        src={questArrowImg}
-                        alt=""
-                        style={{
-                          position: "absolute",
-                          left: "49%",
-                          top: "-18%",
-                          transform: "translateX(-50%)",
-                          width: 40,
-                          height: 52,
-                          pointerEvents: "none",
-                          zIndex: 300,
-                          animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-                          filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-                        }}
-                      />
-                    </>
-                  )}
-                  {questGuideMode === "feed" && (
-                    <>
-                      {/* Pulsing glow border on Care/Feed button */}
-                      <div style={{
-                        position: "absolute",
-                        left: "29%", top: "31%", width: "42%", height: "40%",
-                        borderRadius: "50%",
-                        pointerEvents: "none",
-                        zIndex: 298,
-                        animation: "quest-btn-pulse 1.5s ease-in-out infinite",
-                      }}>
-                        {[0,1,2,3,4,5,6,7].map(i => (
-                          <span key={i} style={{
-                            position: "absolute",
-                            left: `${5 + i * 12}%`,
-                            bottom: "15%",
-                            width: 7,
-                            height: 7,
-                            borderRadius: "50%",
-                            background: i % 2 === 0 ? "#4ade80" : "#86efac",
-                            animation: `quest-sparkle-rise 1.1s ${i * 0.14}s ease-out infinite`,
-                            opacity: 0,
-                            pointerEvents: "none",
-                          }} />
-                        ))}
-                      </div>
-                      {/* Bouncing arrow */}
-                      <img
-                        src={questArrowImg}
-                        alt=""
-                        style={{
-                          position: "absolute",
-                          left: "46%",
-                          top: "22%",
-                          transform: "translateX(-50%)",
-                          width: 40,
-                          height: 52,
-                          pointerEvents: "none",
-                          zIndex: 300,
-                          animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-                          filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-                        }}
-                      />
-                    </>
-                  )}
-                </>
-              );
-            })()}
+      {/* ── Screen-relative left Pet Menu, independent of the authored pet scene ── */}
+      {!isOverlayActive && activePetForModal && (
+        <ViewportHudPortal>
+          <div data-testid="active-pet-rollout-menu" className="absolute left-2 flex items-start gap-2"
+            style={{ top: "38%", zIndex: 55, pointerEvents: "auto" }}>
+            <button type="button" data-testid="button-toggle-pet-menu"
+              aria-label="Pet Menu" aria-expanded={showActionMenu}
+              onClick={() => { menuOpenedAtRef.current = Date.now(); setShowActionMenu(open => !open); }}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#e8c46e] bg-[#203a2d]/95 text-[#ffe6a0] shadow-[0_0_16px_rgba(225,177,71,.5)]"
+            ><span className="text-xl" aria-hidden="true">🐾</span></button>
+            {showActionMenu && <div className="flex max-w-[min(68vw,240px)] flex-col gap-2 rounded-2xl border border-[#b99450]/70 bg-[#15291f]/95 p-2 shadow-2xl" data-testid="pet-menu-options">
+              <button type="button" data-testid="button-action-power-up" className="rounded-xl border border-[#b99450]/50 px-4 py-2 text-left text-sm font-bold text-[#ffe6a0]"
+                onClick={() => { if (questGuideMode === "powerup") setPowerUpFromQuest(true); setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); }}>Power-Up</button>
+              <button type="button" data-testid="button-action-level-up" className="rounded-xl border border-[#b99450]/50 px-4 py-2 text-left text-sm font-bold text-[#ffe6a0]"
+                onClick={() => { setShowActionMenu(false); const id = activePetForModal.inventoryId; if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`); }}>Level Up</button>
+              <button type="button" data-testid="button-action-equip-accessories" className="rounded-xl border border-[#b99450]/50 px-4 py-2 text-left text-sm font-bold text-[#ffe6a0]"
+                onClick={() => { setShowActionMenu(false); navigate("/equip-accessories"); }}>Closet</button>
+              <button type="button" data-testid="button-action-care-feed" className="rounded-xl border border-[#b99450]/50 px-4 py-2 text-left text-sm font-bold text-[#ffe6a0]"
+                onClick={() => { setShowActionMenu(false); setQuestGuideMode(null); const id = activePetForModal.inventoryId; navigate(id ? `/pet-care/${encodeURIComponent(id)}` : "/pet-house"); }}>Pet Care</button>
+            </div>}
           </div>
-
-          {/* Hidden legacy panel keeps the original flow working but is never rendered */}
-          <div style={{ display: "none" }}>
-            {/* original menu intentionally hidden */}
-          </div>
-        </div>
-          </ViewportHudPortal>
-        </>
+        </ViewportHudPortal>
       )}
-
-      {/* ── Quest guide arrow — Phase 1: ring closed, points at the pet ── */}
       {questGuideMode && !showActionMenu && (
-        <>
-          <img
-            src={questArrowImg}
-            alt=""
-            style={{
-              position: "fixed",
-              bottom: "44%",
-              left: "50%",
-              width: 48,
-              height: 60,
-              pointerEvents: "none",
-              zIndex: 600,
-              animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-              filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-            }}
-          />
-        </>
+        <img src={questArrowImg} alt="" aria-hidden="true" className="fixed pointer-events-none h-[60px] w-12 animate-bounce"
+          style={{ left: 14, top: "calc(38% - 65px)", zIndex: 600, filter: "drop-shadow(0 0 12px #e9c55e)" }} />
       )}
 
       {/* ── Pet stats page (opened from the ring's left button) ── */}
