@@ -9,7 +9,8 @@ test("quest guides distinguish visible targets from panned-off targets on phone 
     assert.equal(guideTargetOnScreen({ left: width / 2 - 40, right: width / 2 + 40, top: height - 180, bottom: height - 80 }, width, height), true);
     assert.equal(guideTargetOnScreen({ left: width / 2 - 40, right: width / 2 + 40, top: height + 5, bottom: height + 105 }, width, height), false);
     assert.equal(guideTargetOnScreen({ left: width + 5, right: width + 105, top: 100, bottom: 200 }, width, height), false);
-    assert.equal(guideTargetOnScreen({ left: 100, right: 200, top: height - 40, bottom: height + 80 }, width, height), false);
+    // Partially visible targets remain guided even when their center is below the viewport.
+    assert.equal(guideTargetOnScreen({ left: 100, right: 200, top: height - 40, bottom: height + 80 }, width, height), true);
   }
 });
 
