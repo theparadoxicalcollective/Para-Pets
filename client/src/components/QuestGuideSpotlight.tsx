@@ -121,6 +121,13 @@ export default function QuestGuideSpotlight({
     };
     const onClick = (event: MouseEvent) => {
       if (!targetReady() || insideAllowed(event)) return;
+      if (mode === "pan") {
+        const element = event.target instanceof Element ? event.target : null;
+        // Let empty world/map surfaces receive their normal gesture-ending click.
+        // Other interactive targets remain blocked until the quest advances.
+        if (element?.closest("[data-quest-guide-pan-surface]")
+          && !element.closest(INTERACTIVE_SELECTOR)) return;
+      }
       swallow(event);
     };
 
