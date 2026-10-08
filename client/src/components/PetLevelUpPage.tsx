@@ -4,6 +4,7 @@ import type { CSSProperties, ErrorInfo, PointerEvent as ReactPointerEvent, React
 import { Star, X } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
 import PetAnimator from "@/components/PetAnimator";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import type { PetUpgradeModalProps, PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import bagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPlaceholder from "@assets/generated_images/icon_pet_placeholder.png";
@@ -14,7 +15,7 @@ import { clientRectPointToStage, clientToStage } from "@/lib/stage";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 
 const CSS = String.raw`
-.lupage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#060a09;color:#fff8d9;isolation:isolate;font-family:Georgia,serif;touch-action:pan-y}.lupage *{box-sizing:border-box}.lupage-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3;filter:saturate(.92) brightness(.68)}.lupage-shade{position:absolute;inset:0;z-index:-2;background:linear-gradient(rgba(4,10,8,.25),rgba(4,8,7,.08) 42%,rgba(3,6,5,.72));pointer-events:none}.lupage-scroll{height:100%;overflow-y:auto;overflow-x:hidden;padding:max(env(safe-area-inset-top),10px) 12px max(env(safe-area-inset-bottom),18px);scrollbar-width:none;-webkit-overflow-scrolling:touch}.lupage-scroll::-webkit-scrollbar,.lupage-items::-webkit-scrollbar{display:none}
+.lupage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#060a09;color:#fff8d9;isolation:isolate;font-family:Georgia,serif;touch-action:pan-y}#game-stage[data-coordinate-owner="stage"] .lupage{background:transparent}#game-stage[data-coordinate-owner="stage"] .lupage-bg,#game-stage[data-coordinate-owner="stage"] .lupage-shade{display:none}.lupage *{box-sizing:border-box}.lupage-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3;filter:saturate(.92) brightness(.68)}.lupage-shade{position:absolute;inset:0;z-index:-2;background:linear-gradient(rgba(4,10,8,.25),rgba(4,8,7,.08) 42%,rgba(3,6,5,.72));pointer-events:none}.lupage-scroll{height:100%;overflow-y:auto;overflow-x:hidden;padding:max(env(safe-area-inset-top),10px) 12px max(env(safe-area-inset-bottom),18px);scrollbar-width:none;-webkit-overflow-scrolling:touch}.lupage-scroll::-webkit-scrollbar,.lupage-items::-webkit-scrollbar{display:none}
 .lupage-head{position:relative;min-height:108px;text-align:center;padding:8px 58px 0}.lupage-title{margin:5px 0 5px;color:#f6d66d;font-size:clamp(34px,10vw,58px);line-height:1;font-weight:800;letter-spacing:.07em;text-shadow:0 2px 2px #261900,0 0 18px rgba(248,211,94,.35)}.lupage-sub{max-width:440px;margin:0 auto;color:#f7e9b6;font-size:clamp(13px,3.5vw,18px);line-height:1.25}.lupage-close{position:absolute;right:2px;top:2px;width:50px;height:50px;border:1px solid #c9a344;border-radius:50%;display:grid;place-items:center;background:#172017e8;color:#ffe386;box-shadow:0 4px 13px #0008}.lupage-rule{width:min(90%,470px);margin:0 auto 8px;padding:8px 14px;border:1px solid #a9873d;border-radius:999px;background:#171910df;color:#ffe58a;text-align:center;font-weight:700}
 .lupage-stage{width:100%;max-width:500px;margin:0 auto 8px;display:grid;place-items:center}.lupage-pet-zone{width:min(74vw,350px);height:min(74vw,350px);display:grid;place-items:center;touch-action:pan-y;transition:filter .18s,transform .18s}.lupage-pet-zone.over{filter:drop-shadow(0 0 19px #ffd95f);transform:scale(1.025)}.lupage-pet{width:100%;height:100%;display:grid;place-items:center;pointer-events:none;filter:drop-shadow(0 12px 10px #0009)}.lupage-pet>img{width:100%;height:100%;object-fit:contain}.lupage-pet.bounce{animation:lupageBounce .72s ease-out}.lupage-pet.flash{animation:lupageFlash .58s ease-out}.lupage-placeholder{width:72%!important;height:72%!important;opacity:.7}.lupage-stars{margin:-16px 0 5px;color:#ffd950;font-size:28px;letter-spacing:.12em;text-shadow:0 0 9px rgba(255,217,80,.35)}.lupage-nameplate{width:min(92%,500px);display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 14px;border-top:1px solid #b99747;border-bottom:1px solid #b99747;background:linear-gradient(90deg,transparent,#141a12df 15% 85%,transparent);color:#f7d97b;font-size:clamp(20px,5vw,28px)}.lupage-level{font:700 .64em/1 system-ui,sans-serif;padding:6px 10px;border:1px solid #c9a344;border-radius:999px;color:#ffe58a;background:#201c0c}
 .lupage-stats{width:100%;max-width:540px;margin:0 auto 10px;padding:12px 13px;border:1px solid #907336;border-radius:18px;background:linear-gradient(135deg,rgba(24,26,16,.94),rgba(10,12,8,.96));box-shadow:inset 0 0 18px rgba(199,158,61,.1),0 7px 18px #0007}.lupage-stat{display:grid;grid-template-columns:54px minmax(0,1fr) 55px;align-items:center;gap:9px;margin:8px 0;font-family:system-ui,sans-serif}.lupage-stat b{letter-spacing:.04em}.lupage-stat.atk b,.lupage-stat.atk .lupage-value{color:#ff7979}.lupage-stat.def b,.lupage-stat.def .lupage-value{color:#72adff}.lupage-stat.hp b,.lupage-stat.hp .lupage-value{color:#58e891}.lupage-track{height:11px;border:1px solid #5d604b;border-radius:999px;background:#0b0e09;overflow:hidden}.lupage-fill{height:100%;border-radius:inherit}.atk .lupage-fill{background:#ef6464}.def .lupage-fill{background:#5798f2}.hp .lupage-fill{background:#42d77d}.lupage-value{text-align:right;font-size:18px}
@@ -243,10 +244,22 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div className="lupage" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
-    <img src={forestBg} alt="" className="lupage-bg" />
-    <div className="lupage-shade" />
+    <ViewportBackdropPortal>
+      <div
+        data-testid="level-up-viewport-backdrop"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `linear-gradient(rgba(4,10,8,.25),rgba(4,8,7,.08) 42%,rgba(3,6,5,.72)), url(${forestBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+    </ViewportBackdropPortal>
+    <img src={forestBg} alt="" className="lupage-bg" data-canonical-visual-layer="duplicate-backdrop" />
+    <div className="lupage-shade" data-canonical-visual-layer="duplicate-backdrop" />
     <div className="lupage-scroll">
       <header className="lupage-head">
         <h2 className="lupage-title">LEVEL UP</h2>

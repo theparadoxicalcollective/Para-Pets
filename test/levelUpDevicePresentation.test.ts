@@ -26,7 +26,11 @@ test("Level Up extends only its surroundings while preserving the isolated page"
   assert.match(level, /imageUrl: forestBg/);
   assert.match(level, /backgroundColor: "#060a09"/);
   assert.match(level, /backgroundPosition: "center center"/);
-  assert.match(level, /<img src=\{forestBg\} alt="" className="lupage-bg" \/>/);
+  assert.match(level, /<ViewportBackdropPortal>/);
+  assert.match(level, /data-testid="level-up-viewport-backdrop"/);
+  assert.match(level, /data-canonical-visual-layer="duplicate-backdrop"/);
+  assert.ok(level.includes('className="lupage-bg"'));
+  assert.ok(level.includes('#game-stage[data-coordinate-owner="stage"] .lupage{background:transparent}'));
 });
 
 test("Level Up drag ghosts and sparks use logical stage coordinates", () => {
