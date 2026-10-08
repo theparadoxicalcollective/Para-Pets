@@ -698,7 +698,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   ]), []);
 
   return (
-    <div data-stage-coordinate-space="canonical" style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
+    <div data-stage-coordinate-space="canonical" data-viewport-visual-owner="backdrop" data-testid="market-canonical-page" style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
       <style>{`
         @keyframes marketCollectGlow {
           0%, 100% { filter: brightness(1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 5px rgba(246,201,93,.28)); }
@@ -720,8 +720,8 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           }}
         />
       </ViewportBackdropPortal>
-      <div style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0 }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1 }} />
+      <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0 }} />
+      <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1 }} />
 
       <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "max(calc(env(safe-area-inset-top,0px) + 10px),46px) 10px 0", display: "grid", gridTemplateColumns: "43px minmax(0,1fr) minmax(72px,auto)", gap: 6, alignItems: "center" }}>
