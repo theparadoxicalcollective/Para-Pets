@@ -380,7 +380,7 @@ export default function MapPage({ user }: MapPageProps) {
           // belongs to the same scroll content as admin-authored world nodes.
         }}
       >
-        <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
+        <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden map-scroll" style={{ WebkitOverflowScrolling: "touch", overscrollBehaviorY: "contain", touchAction: "pan-y" }}>
           <div
             className="flex items-center justify-center pt-2 pb-1 relative z-10"
             data-testid="text-map-title"
@@ -408,8 +408,7 @@ export default function MapPage({ user }: MapPageProps) {
               data-quest-guide-pan-surface
               className="relative w-full"
               style={{
-                paddingBottom: "115%",
-                backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
+                // Preserve the complete portrait map as one scrollable scene.\n                // The old 115%-of-width scene was shorter than the map artwork,\n                // cropping its lower worlds on wide tablet screens.\n                aspectRatio: "1 / 2.05",\n                minHeight: "100%",\n                touchAction: "pan-y",\n                backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
                 backgroundSize: "100% 100%",
                 backgroundPosition: "center top",
                 backgroundRepeat: "no-repeat",
