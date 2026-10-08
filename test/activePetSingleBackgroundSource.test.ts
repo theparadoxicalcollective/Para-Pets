@@ -9,10 +9,10 @@ const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 test("stage-owned Active Pet paints one device-wide artwork, not the phone inset", () => {
   assert.match(app, /data-active-pet-route=\{location === "\/" \? "true" : undefined\}/);
   assert.match(app, /data-stage-coordinate-owner=\{layout\.coordinateOwner\}/);
-  assert.match(app, /"--active-pet-background-image": `url\(\$\{homeBg\}\)`/);
+  assert.doesNotMatch(app, /--active-pet-background-image/);
   assert.match(css, /\.game-stage-shell\[data-active-pet-route="true"\]\[data-stage-coordinate-owner="stage"\]/);
-  assert.match(css, /background-image: var\(--active-pet-background-image\) !important/);
-  assert.match(css, /\[data-testid="active-pet-viewport-backdrop"\] \{\s*display: none !important/);
+  assert.match(css, /background-image: none !important/);
+  assert.match(css, /#game-viewport-page > \[data-testid="viewport-backdrop-portal"\] \{\s*display: block !important/);
 });
 
 test("native phone keeps original inline background and pet placement", () => {
