@@ -19,5 +19,6 @@ test("stage page surface keeps native phone inline and portals only when viewpor
 test("active pet interaction remains attached to the authored pet hit target", () => {
   assert.match(home, /data-testid="button-open-pet-actions"/);
   assert.match(home, /\.\.\.activePetTouchHandlers/);
-  assert.match(home, /setShowActionMenu\(true\)/);
+  assert.doesNotMatch(home, /setShowActionMenu\(true\)/);
+  assert.match(home, /data-testid="button-open-pet-menu"/);
 });
