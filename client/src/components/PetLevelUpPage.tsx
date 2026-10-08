@@ -227,9 +227,9 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     const start = dragStartRef.current;
     const moved = !!start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 8;
     const dropped = moved && pointInZone(event.clientX, event.clientY);
-    suppressNextClickRef.current = moved;
+    suppressNextClickRef.current = true;
     dragStartRef.current = null;
-    if (dropped) useItem(current.item);
+    if (!moved || dropped) useItem(current.item);
     clearDrag();
   }, [clearDrag, pointInZone, useItem]);
 
@@ -300,14 +300,15 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
           onPointerDown={(event) => onPointerDown(event, item)}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={clearDrag}
-          onClick={() => {
+          onPointerCancel={() => { dragStartRef.current = null; suppressNextClickRef.current = true; clearDrag(); }}
+          onClick={(event) => {
             if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
-            if (!dragRef.current) useItem(item);
+            // Keyboard activation has no pointer-up; preserve accessible use.
+            if (event.detail === 0 && !dragRef.current) useItem(item);
           }}
           disabled={disabled(item)}
         ><span className="lupage-caption">{labelFor(item)}</span>{item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}{item.quantity > 1 && <span className="lupage-qty">{item.quantity}</span>}</button>)}</div> : <div className="lupage-empty">No Level Up items in your bag.</div>}
-        <div className="lupage-hint">Drag onto {petName} to level up</div>
+        <div className="lupage-hint">Tap an item or drag it onto {petName} to level up</div>
         {showBuyButton && <button className="lupage-buy" onClick={() => { window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004"; }}>Find Level Up Items</button>}
       </section>
     </div>
