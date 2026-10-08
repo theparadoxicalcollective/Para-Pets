@@ -380,23 +380,7 @@ export default function MapPage({ user }: MapPageProps) {
           // belongs to the same scroll content as admin-authored world nodes.
         }}
       >
-        <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden map-scroll" style={{ WebkitOverflowScrolling: "touch", overscrollBehaviorY: "contain", touchAction: "pan-y" }}>
-          <div
-            className="flex items-center justify-center pt-2 pb-1 relative z-10"
-            data-testid="text-map-title"
-          >
-            <img
-              src={mapTitleImg}
-              alt="The World of Veridia"
-              className="block h-auto object-contain"
-              draggable={false}
-              style={{
-                width: "min(88%, 460px)",
-                maxHeight: "clamp(62px, calc(18 * var(--vw)), 112px)",
-                filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.72))",
-              }}
-            />
-          </div>
+        <div className="flex-1 min-h-0 relative overflow-auto map-scroll" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-x pan-y" }}>
 
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
@@ -412,8 +396,11 @@ export default function MapPage({ user }: MapPageProps) {
                 // The old 115%-of-width scene was shorter than the map artwork,
                 // cropping its lower worlds on wide tablet screens.
                 aspectRatio: "1 / 2.05",
+                // Expand the single authored scene to cover narrow and wide cameras.
+                // Its children use percentages of this same artwork, not viewport pixels.
+                width: "max(100%, calc(100dvh / 2.05))",
                 minHeight: "100%",
-                touchAction: "pan-y",
+                touchAction: "pan-x pan-y",
                 backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
                 backgroundSize: "100% 100%",
                 backgroundPosition: "center top",
@@ -422,6 +409,23 @@ export default function MapPage({ user }: MapPageProps) {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
+          <div
+            className="absolute top-0 left-0 right-0 flex items-center justify-center pt-2 pb-1 z-30 pointer-events-none"
+            data-testid="text-map-title"
+          >
+            <img
+              src={mapTitleImg}
+              alt="The World of Veridia"
+              className="block h-auto object-contain"
+              draggable={false}
+              style={{
+                width: "min(88%, 460px)",
+                maxHeight: "clamp(62px, calc(18 * var(--vw)), 112px)",
+                filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.72))",
+              }}
+            />
+          </div>
+
               <div className="absolute inset-0">
 
                 {/* ── Raid icon — draggable by admin, clickable by all ── */}
