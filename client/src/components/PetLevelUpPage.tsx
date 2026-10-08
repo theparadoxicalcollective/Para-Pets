@@ -8,7 +8,7 @@ import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import type { PetUpgradeModalProps, PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import bagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPlaceholder from "@assets/generated_images/icon_pet_placeholder.png";
-import forestBg from "@assets/generated_images/powerup_forest_bg.png";
+import forestBg from "@assets/uploads/NewActivePetBG.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { normalizePetParts, shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 
@@ -258,22 +258,22 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
     <ViewportBackdropPortal>
       <div
         data-testid="level-up-viewport-backdrop"
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(rgba(4,10,8,.25),rgba(4,8,7,.08) 42%,rgba(3,6,5,.72)), url(${forestBg})`,
+          backgroundImage: `url(${forestBg})`,
           backgroundSize: "cover",
           backgroundPosition: "center center",
           backgroundRepeat: "no-repeat",
         }}
       />
     </ViewportBackdropPortal>
-    <img src={forestBg} alt="" className="lupage-bg" data-canonical-visual-layer="duplicate-backdrop" />
-    <div className="lupage-shade" data-canonical-visual-layer="duplicate-backdrop" />
+
+
     <div className="lupage-scroll">
       <header className="lupage-head">
         <h2 className="lupage-title">LEVEL UP</h2>
