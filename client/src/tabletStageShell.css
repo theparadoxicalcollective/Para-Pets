@@ -198,6 +198,7 @@
 }
 #game-viewport-page > [data-testid="viewport-backdrop-portal"] {
   z-index: 0;
+  pointer-events: none;
 }
 
 /* The Active Pet page owns a single full-device backdrop in the viewport page
