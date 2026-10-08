@@ -14,7 +14,7 @@ const adminEditor = readFileSync("client/src/components/PetDatabasePanel.tsx", "
 const costumeFeature = readFileSync("shared/costumeFeature.ts", "utf8");
 
 test("The Closet uses the supplied artwork and keeps accessory and costume controls together", () => {
-  assert.match(accessoryPage, /ClosetBG\.png/);
+  assert.match(accessoryPage, /NewActivePetBG\.png/);
   assert.match(accessoryPage, /ClosetCloseButton\.png/);
   assert.doesNotMatch(accessoryPage, />THE CLOSET</);
   assert.match(accessoryPage, /data-testid="closet-pet-name"/);
