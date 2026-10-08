@@ -7,6 +7,7 @@ import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpe
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
 import { DESIGN_H, clientDeltaToStage, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
+import { dragScenePercentage } from "@/lib/coordinateContracts";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -511,8 +512,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dx = e.clientX - locDragRef.current.startX;
     const dy = e.clientY - locDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) locDidDrag.current = true;
-    const newX = Math.max(-10, Math.min(110, locDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(-10, Math.min(110, locDragRef.current.origPosY + dy / (rect.height / 100)));
+    const { x: newX, y: newY } = dragScenePercentage(
+      { x: locDragRef.current.origPosX, y: locDragRef.current.origPosY },
+      { x: dx, y: dy }, rect,
+      { minX: -10, maxX: 110, minY: -10, maxY: 110 },
+    );
     setLocDragPos({ id: locDragRef.current.locId, x: newX, y: newY });
   }, []);
 
@@ -1230,8 +1234,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dx = e.clientX - decorDragRef.current.startX;
     const dy = e.clientY - decorDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) decorDidDrag.current = true;
-    const newX = Math.max(0, Math.min(100, decorDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(0, Math.min(100, decorDragRef.current.origPosY + dy / (rect.height / 100)));
+    const { x: newX, y: newY } = dragScenePercentage(
+      { x: decorDragRef.current.origPosX, y: decorDragRef.current.origPosY },
+      { x: dx, y: dy }, rect,
+      { minX: 0, maxX: 100, minY: 0, maxY: 100 },
+    );
     setDecorDragPos({ id: decorDragRef.current.placementId, x: newX, y: newY });
   }, []);
 
@@ -1262,8 +1269,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dx = e.clientX - doorDragRef.current.startX;
     const dy = e.clientY - doorDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDidDrag.current = true;
-    const newX = Math.max(2, Math.min(98, doorDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(2, Math.min(98, doorDragRef.current.origPosY + dy / (rect.height / 100)));
+    const { x: newX, y: newY } = dragScenePercentage(
+      { x: doorDragRef.current.origPosX, y: doorDragRef.current.origPosY },
+      { x: dx, y: dy }, rect,
+      { minX: 2, maxX: 98, minY: 2, maxY: 98 },
+    );
     doorDragLivePosRef.current = { x: newX, y: newY };
     setDoorDragPos({ id: doorDragRef.current.doorId, x: newX, y: newY });
   }, []);
