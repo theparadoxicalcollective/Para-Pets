@@ -135,10 +135,18 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
       setTargetRect(bounds && bounds.width && bounds.height ? { selector, rect: bounds } : null);
     };
     update();
-    const interval = window.setInterval(() => {
-      update();
-    }, 250);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(update, 250);
+    // Keep the tour's on-screen test and guide card in sync with the shared
+    // spotlight when device orientation, browser chrome or visual viewport changes.
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
   }, [eligible, current?.id, selector, location]);
 
   // The NPC is a live world control. During this read-only tour, even a tap on
