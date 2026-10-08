@@ -1161,10 +1161,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                               : "scale(1.12) translateY(8%)",
                           transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
-                          // Sit above heart/sparkle bursts and surrounding chrome
-                          // so the float animation never appears clipped.
+                          // The pet and its petting particles share this local stacking context.
+                          // A high pet z-index covered the hearts even though each
+                          // heart had a larger z-index inside the sibling layer.
+                          // Keep the pet below those particles; the parent stage
+                          // still controls its position relative to page chrome.
                           position: "relative",
-                          zIndex: 520,
+                          zIndex: 1,
                         }}
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
