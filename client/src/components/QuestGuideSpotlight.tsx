@@ -169,6 +169,14 @@ export default function QuestGuideSpotlight({
   const panDestination = worldDestination ?? mapDestination;
   const panNodePrefix = worldDestination ? "location-" : mapDestination ? "button-location-" : null;
   const tourInteractive = blockingGuide && mode === "tour";
+  // Tour taps should only advance when they land on the highlighted NPC,
+  // never on unrelated world scenery or navigation.
+  const tourHit = (x: number, y: number) => {
+    const current = document.querySelector<HTMLElement>(selector);
+    if (!visible(current)) return false;
+    const bounds = current.getBoundingClientRect();
+    return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+  };
 
   return createPortal(<>
     {blockingGuide && panDestination && panNodePrefix && <style>{`[data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}), [data-quest-guide-pan-surface] [data-testid^="${panNodePrefix}"]:not(${panDestination}) * { pointer-events: none !important; }`}</style>}
@@ -183,7 +191,7 @@ export default function QuestGuideSpotlight({
       onClick={tourInteractive ? event => {
         event.preventDefault();
         event.stopPropagation();
-        onTourAdvance?.({ x: event.clientX, y: event.clientY });
+        if (tourHit(event.clientX, event.clientY)) onTourAdvance?.({ x: event.clientX, y: event.clientY });
       } : undefined}
       onKeyDown={tourInteractive ? event => {
         if (event.key === "Enter" || event.key === " ") {
