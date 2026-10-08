@@ -750,6 +750,7 @@ function GameStage({ children }: { children: ReactNode }) {
   return (
     <div
       className="game-stage-shell"
+      data-active-pet-route={location === "/" ? "true" : undefined}
       style={{
         position: "fixed", inset: 0,
         background: "#050c08",
