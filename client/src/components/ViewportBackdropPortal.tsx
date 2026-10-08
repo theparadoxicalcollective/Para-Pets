@@ -13,9 +13,11 @@ const VIEWPORT_BACKDROP_ID = "game-viewport-backdrop";
 export default function ViewportBackdropPortal({
   children,
   enabled = true,
+  targetId = VIEWPORT_BACKDROP_ID,
 }: {
   children: ReactNode;
   enabled?: boolean;
+  targetId?: string;
 }) {
   const resolvePortalState = () => {
     if (typeof document === "undefined") {
@@ -23,7 +25,7 @@ export default function ViewportBackdropPortal({
     }
     const stage = document.getElementById("game-stage");
     return {
-      target: document.getElementById(VIEWPORT_BACKDROP_ID),
+      target: document.getElementById(targetId),
       stageOwned: stage?.dataset.coordinateOwner === "stage",
     };
   };
@@ -38,7 +40,7 @@ export default function ViewportBackdropPortal({
     // on the canonical inline fallback just because the host appeared later.
     const frame = window.requestAnimationFrame(resolve);
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [targetId]);
 
   useLayoutEffect(() => {
     if (!enabled || !target) return;
@@ -67,6 +69,7 @@ export default function ViewportBackdropPortal({
         position: "absolute",
         inset: 0,
         overflow: "hidden",
+        zIndex: targetId === "game-viewport-page" ? 0 : undefined,
         pointerEvents: viewportPointerEvents("decorative"),
       }}
     >
