@@ -18,7 +18,7 @@ test("Power Up keeps close and pointer drag interactions on its owned surface", 
   assert.match(page, /onPointerDown=\{\(event\) => onPointerDown\(event, item\)\}/);
   assert.match(page, /onPointerMove=\{onPointerMove\}/);
   assert.match(page, /onPointerUp=\{onPointerUp\}/);
-  assert.match(page, /onPointerCancel=\{clearDrag\}/);
+  assert.match(page, /onPointerCancel=\{\(\) => \{ dragStartRef\.current = null; suppressNextClickRef\.current = true; clearDrag\(\); \}\}/);
 });
 
 test("isolated Level Up uses page-local pointer positions rather than stage conversion", () => {
