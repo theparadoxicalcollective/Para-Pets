@@ -29,7 +29,7 @@ test("Active Pet background uses the backdrop portal while presentation stays on
   const home = read("client/src/pages/HomePage.tsx");
 
   assert.match(home, /import ViewportBackdropPortal from "@\/components\/ViewportBackdropPortal"/);
-  assert.match(home, /<ViewportBackdropPortal(?:\\s+targetId="game-viewport-page")?>/);
+  assert.match(home, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
   assert.match(home, /className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
@@ -37,7 +37,7 @@ test("Active Pet background uses the backdrop portal while presentation stays on
   assert.doesNotMatch(home, /useStageSurroundings/);
 
   const pageStart = home.indexOf('data-testid="active-pet-page"');
-  const backdropStart = home.indexOf("<ViewportBackdropPortal>", pageStart);
+  const backdropStart = home.indexOf('<ViewportBackdropPortal targetId="game-viewport-page">', pageStart);
   const backdropEnd = home.indexOf("</ViewportBackdropPortal>", backdropStart);
   const stars = home.indexOf('data-testid="display-pet-rarity-stars"', backdropEnd);
   const pet = home.indexOf('data-testid="display-active-pet"', backdropEnd);
