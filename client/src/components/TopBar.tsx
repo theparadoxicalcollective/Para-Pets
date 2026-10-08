@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 
 import coinBarImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
-import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
+import coinBagIconImg from "@assets/uploads/CoinBundleIcon.png";
 import essenceBarImg from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
