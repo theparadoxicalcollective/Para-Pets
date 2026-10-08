@@ -18,10 +18,10 @@ test("Power Up temporarily owns the expanded device backdrop", () => {
   const power = read("client/src/components/PetPowerUpPage.tsx");
   const home = read("client/src/pages/HomePage.tsx");
 
-  assert.match(power, /<ViewportBackdropPortal(?:\\s+targetId="game-viewport-page")?>/);
+  assert.match(power, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);
   assert.match(power, /data-testid="power-up-viewport-backdrop"/);
   assert.match(power, /url\(\$\{pupBackground\}\)/);
-  assert.match(home, /activePetModal !== "power_up"[\s\S]*<ViewportBackdropPortal>/);
+  assert.match(home, /activePetModal !== "power_up"[\s\S]*<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
 });
 
