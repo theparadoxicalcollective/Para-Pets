@@ -4,12 +4,12 @@ import test from "node:test";
 
 const source = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-test("Active Pet action-ring sparkles convert browser pixels into logical stage coordinates", () => {
+test("Active Pet legacy sparkle helper converts browser pixels into logical stage coordinates", () => {
   assert.match(source, /const burstRingSparkles = useCallback\(\(clientX: number, clientY: number/);
   assert.match(source, /const origin = clientToStage\(clientX, clientY\)/);
   assert.match(source, /x: origin\.x/);
   assert.match(source, /y: origin\.y/);
-  assert.match(source, /burstRingSparkles\(r\.left \+ r\.width \/ 2, r\.top \+ r\.height \/ 2/);
+  assert.match(source, /data-testid="active-pet-side-menu"/);
 });
 
 test("Home speed-up drag ghost stores stage-local points while hit testing stays in client pixels", () => {
