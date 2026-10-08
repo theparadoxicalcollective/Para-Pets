@@ -189,3 +189,13 @@
 #game-viewport-page [data-page-presentation="viewport"] .active-pet-canonical-ambient {
   background: transparent !important;
 }
+
+/* Active Pet backdrop and its canonical pet reference now share the same
+ * viewport-page stacking context. Keep the artwork below the pet and controls
+ * without letting the old phone-sized stage show through between layers. */
+#game-viewport-page > [data-testid="stage-page-surface"] {
+  z-index: 1;
+}
+#game-viewport-page > [data-testid="viewport-backdrop-portal"] {
+  z-index: 0;
+}
