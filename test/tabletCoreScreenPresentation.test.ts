@@ -38,8 +38,8 @@ test("World Map owns tablet surroundings but keeps the authored map canvas and p
   assert.doesNotMatch(map, /ViewportBackdropPortal/);
   assert.doesNotMatch(map, /world-map-viewport-backdrop/);
   assert.match(map, /ref=\{mapRef\}/);
-  assert.match(map, /dx \/ \(rect\.width \/ 100\)/);
-  assert.match(map, /dy \/ \(rect\.height \/ 100\)/);
+  assert.match(map, /dragScenePercentage\(/);
+  assert.match(map, /setRaidDragPos\(dragScenePercentage\(/);
   assert.match(map, /positionMutation\.mutate\(\{ worldId: d\.worldId, posX: Math\.round\(dragPos\.x\), posY: Math\.round\(dragPos\.y\) \}\)/);
   assert.match(map, /raidIconPosMutation\.mutate\(\{ posX: Math\.round\(pos\.x\), posY: Math\.round\(pos\.y\) \}\)/);
 });
