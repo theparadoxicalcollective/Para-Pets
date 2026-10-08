@@ -1366,8 +1366,12 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const dx = e.clientX - doorDecorDragRef.current.startX;
     const dy = e.clientY - doorDecorDragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDecorDidDrag.current = true;
-    const newX = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosX + dx / (bgW / 100)));
-    const newY = Math.max(0, Math.min(100, doorDecorDragRef.current.origPosY + dy / (rect.height / 100)));
+    const { x: newX, y: newY } = dragScenePercentage(
+      { x: doorDecorDragRef.current.origPosX, y: doorDecorDragRef.current.origPosY },
+      { x: dx, y: dy },
+      { width: bgW, height: rect.height },
+      { minX: 0, maxX: 100, minY: 0, maxY: 100 },
+    );
     doorDecorDragLivePosRef.current = { x: newX, y: newY };
     setDoorDecorDragPos({ id: doorDecorDragRef.current.placementId, x: newX, y: newY });
   }, []);
