@@ -756,7 +756,6 @@ function GameStage({ children }: { children: ReactNode }) {
         position: "fixed", inset: 0,
         background: "#050c08",
         "--desktop-stage-background-image": `url(${mainGameBg})`,
-        "--active-pet-background-image": `url(${homeBg})`,
       } as CSSProperties}
     >
       <div
