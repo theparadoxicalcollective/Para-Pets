@@ -76,9 +76,14 @@ export function guideTargetOnScreen(bounds: Bounds | null, width: number, height
   const overlapHeight = Math.min(bounds.bottom, height) - Math.max(bounds.top, 0);
   const centerX = (bounds.left + bounds.right) / 2;
   const centerY = (bounds.top + bounds.bottom) / 2;
+  // A partially visible NPC remains actionable while the player pans.
+  // Require a visible overlap rather than demanding its full center be inside
+  // the viewport (large NPC tap wrappers may extend past tablet/phone edges).
   return overlapWidth >= 20 && overlapHeight >= 20
-    && centerX >= 12 && centerX <= width - 12
-    && centerY >= 20 && centerY <= height - 20;
+    && centerX >= -Math.max(0, bounds.right - bounds.left) / 2
+    && centerX <= width + Math.max(0, bounds.right - bounds.left) / 2
+    && centerY >= -Math.max(0, bounds.bottom - bounds.top) / 2
+    && centerY <= height + Math.max(0, bounds.bottom - bounds.top) / 2;
 }
 
 export function guideCardShouldMoveUp(bounds: Bounds | null, height: number, cardHeight: number): boolean {
