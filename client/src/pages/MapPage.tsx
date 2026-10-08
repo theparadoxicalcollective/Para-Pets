@@ -376,10 +376,8 @@ export default function MapPage({ user }: MapPageProps) {
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
-          backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
+          // The viewport camera owns scrolling, not the artwork. The map image
+          // belongs to the same scroll content as admin-authored world nodes.
         }}
       >
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
@@ -409,7 +407,13 @@ export default function MapPage({ user }: MapPageProps) {
               ref={mapRef}
               data-quest-guide-pan-surface
               className="relative w-full"
-              style={{ paddingBottom: "115%" }}
+              style={{
+                paddingBottom: "115%",
+                backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
+                backgroundSize: "100% 100%",
+                backgroundPosition: "center top",
+                backgroundRepeat: "no-repeat",
+              }}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
