@@ -12,7 +12,7 @@ import powerUpIconImg from "@assets/uploads/PowerUpIcon.png";
 import levelUpIconImg from "@assets/uploads/LevelUpIcon.png";
 import petCareIconImg from "@assets/uploads/PetCareIcon.png";
 import closetIconImg from "@assets/uploads/ClosetIcon.png";
-import bgImg from "@assets/uploads/ActivePetMainPageNew.jpg";
+import bgImg from "@assets/uploads/NewActivePetBG.png";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";

@@ -4,11 +4,9 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Active Pet background extension matches its real JPEG bytes", () => {
-  const bytes = readFileSync("attached_assets/uploads/ActivePetMainPageNew.jpg");
-  assert.equal(bytes[0], 0xff);
-  assert.equal(bytes[1], 0xd8);
-  assert.equal(bytes[2], 0xff);
+test("New Active Pet artwork is a valid JPEG despite its uploaded .png filename", () => {
+  const bytes = readFileSync("attached_assets/uploads/NewActivePetBG.png");
+  assert.deepEqual(Array.from(bytes.subarray(0, 3)), [255, 216, 255]);
 });
 
 
@@ -16,8 +14,8 @@ test("Active Pet page and startup preload use the new GitHub background asset", 
   const home = read("client/src/pages/HomePage.tsx");
   const app = read("client/src/App.tsx");
 
-  assert.match(home, /import bgImg from "@assets\/uploads\/ActivePetMainPageNew\.jpg"/);
-  assert.match(app, /import homeBg from "@assets\/uploads\/ActivePetMainPageNew\.jpg"/);
+  assert.match(home, /import bgImg from "@assets\/uploads\/NewActivePetBG\.png"/);
+  assert.match(app, /import homeBg from "@assets\/uploads\/NewActivePetBG\.png"/);
   assert.match(home, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
   assert.doesNotMatch(home, /useStageSurroundings\(/);

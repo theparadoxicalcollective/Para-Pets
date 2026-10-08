@@ -18,7 +18,7 @@ import { calculateViewportHudRect, calculateViewportSurfaceRect, getStageTransfo
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import homeBg from "@assets/uploads/ActivePetMainPageNew.jpg";
+import homeBg from "@assets/uploads/NewActivePetBG.png";
 import mainGameBg from "@assets/uploads/MainGameBG.png";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
@@ -756,7 +756,6 @@ function GameStage({ children }: { children: ReactNode }) {
         position: "fixed", inset: 0,
         background: "#050c08",
         "--desktop-stage-background-image": `url(${mainGameBg})`,
-        "--active-pet-background-image": `url(${homeBg})`,
       } as CSSProperties}
     >
       <div
