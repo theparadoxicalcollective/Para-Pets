@@ -10,7 +10,7 @@ const shell = read("client/src/tabletStageShell.css");
 
 test("Active Pet scenery has one viewport backdrop owner on stage-owned devices", () => {
   assert.match(home, /data-testid="active-pet-page"[\s\S]{0,120}data-viewport-visual-owner="backdrop"/);
-  assert.match(home, /<ViewportBackdropPortal>[\s\S]*data-testid="active-pet-viewport-backdrop"/);
+  assert.match(home, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>[\s\S]*data-testid="active-pet-viewport-backdrop"/);
   assert.equal((home.match(/backgroundImage: `url\(\$\{bgImg\}\)`/g) ?? []).length, 1);
   assert.match(backdrop, /if \(!target\) return stageOwned \? null : <>\{children\}<\/>/);
 });

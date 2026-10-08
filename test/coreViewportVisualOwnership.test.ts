@@ -29,7 +29,7 @@ test("stage-owned wide devices can separate scenery from canonical coordinates",
 
 test("Active Pet keeps authored coordinates while the viewport owns its scenery", () => {
   assert.match(home, /data-testid="active-pet-page"[\s\S]*data-viewport-visual-owner="backdrop"/);
-  assert.match(home, /<ViewportBackdropPortal>[\s\S]*data-testid="active-pet-viewport-backdrop"/);
+  assert.match(home, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>[\s\S]*data-testid="active-pet-viewport-backdrop"/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
 
   // The pet's authored stage placement is intentionally unchanged.

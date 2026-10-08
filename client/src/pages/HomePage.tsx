@@ -844,7 +844,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       style={{ caretColor: "transparent" }}
     >
       {activePetModal !== "power_up" && (
-      <ViewportBackdropPortal>
+      <ViewportBackdropPortal targetId="game-viewport-page">
         <div
           data-testid="active-pet-viewport-backdrop"
           className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
@@ -1793,7 +1793,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Veridian Watcher + Support — device-edge upper-right HUD */}
-      {!showProfile && !showActionMenu && !activePetModal && !showWorldChat && !showSupportModal && (
+      {!showProfile && !activePetModal && !showWorldChat && !showSupportModal && (
         <ViewportHudPortal>
           <div
             data-testid="viewport-hud-corner-actions"

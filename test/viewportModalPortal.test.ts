@@ -46,6 +46,6 @@ test("Pet Home blocking dialogs use the modal portal while inventory uses the HU
 
 test("Active Pet no longer registers a second shell-surroundings background", () => {
   const home = read("client/src/pages/HomePage.tsx");
-  assert.match(home, /<ViewportBackdropPortal>/);
+  assert.match(home, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);
   assert.doesNotMatch(home, /useStageSurroundings/);
 });
