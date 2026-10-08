@@ -137,6 +137,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
   const navHidden = useNavHidden();
   const [isOpen, setIsOpen]             = useState(false);
+  useEffect(() => {
+    const closeForPetMenu = () => setIsOpen(false);
+    window.addEventListener("para-pets:pet-menu-open", closeForPetMenu);
+    return () => window.removeEventListener("para-pets:pet-menu-open", closeForPetMenu);
+  }, []);
   const [showQuest, setShowQuest]       = useState(false);
   const [showPvpNote, setShowPvpNote]   = useState(false);
   const [showAquarium, setShowAquarium] = useState(false);
@@ -415,7 +420,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         {/* ── Main circular button ─────────────────────────────────────── */}
         <button
           data-testid="button-floating-nav"
-          onClick={() => setIsOpen(v => !v)}
+          onClick={() => { if (!isOpen) window.dispatchEvent(new Event("para-pets:main-nav-open")); setIsOpen(v => !v); }}
           className="absolute inset-0 rounded-full transition-transform duration-200 active:scale-90 flex items-center justify-center"
           style={{
             zIndex: 99,
