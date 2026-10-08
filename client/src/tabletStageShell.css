@@ -199,3 +199,19 @@
 #game-viewport-page > [data-testid="viewport-backdrop-portal"] {
   z-index: 0;
 }
+
+/* Active Pet has exactly ONE backdrop on stage-owned tablets/desktops.
+ * The game shell paints the full-device artwork; the legacy phone-sized
+ * backdrop portal is suppressed. The centered reference plane still owns
+ * pet geometry and admin-authored placement, not the artwork. */
+.game-stage-shell[data-active-pet-route="true"][data-stage-coordinate-owner="stage"] {
+  background-color: #050c08 !important;
+  background-image: var(--active-pet-background-image) !important;
+  background-position: center center !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+.game-stage-shell[data-active-pet-route="true"][data-stage-coordinate-owner="stage"]
+  [data-testid="active-pet-viewport-backdrop"] {
+  display: none !important;
+}
