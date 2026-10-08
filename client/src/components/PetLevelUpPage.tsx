@@ -137,7 +137,8 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   });
   const zoneRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
-  const lastDragCompletedRef = useRef(false);
+  const suppressNextClickRef = useRef(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const localPoint = useCallback((clientX: number, clientY: number) => {
     const rect = pageRef.current?.getBoundingClientRect();
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
@@ -197,7 +198,8 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     event.preventDefault();
     event.stopPropagation();
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
-    lastDragCompletedRef.current = false;
+    suppressNextClickRef.current = false;
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
     const logical = localPoint(event.clientX, event.clientY);
     const next = { item, x: logical.x, y: logical.y };
     dragRef.current = next;
@@ -222,10 +224,12 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     event.preventDefault();
     event.stopPropagation();
     try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
-    if (pointInZone(event.clientX, event.clientY)) {
-      lastDragCompletedRef.current = true;
-      useItem(current.item);
-    }
+    const start = dragStartRef.current;
+    const moved = !!start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 8;
+    const dropped = moved && pointInZone(event.clientX, event.clientY);
+    suppressNextClickRef.current = moved;
+    dragStartRef.current = null;
+    if (dropped) useItem(current.item);
     clearDrag();
   }, [clearDrag, pointInZone, useItem]);
 
@@ -298,7 +302,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
           onPointerUp={onPointerUp}
           onPointerCancel={clearDrag}
           onClick={() => {
-            if (lastDragCompletedRef.current) { lastDragCompletedRef.current = false; return; }
+            if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
             if (!dragRef.current) useItem(item);
           }}
           disabled={disabled(item)}
