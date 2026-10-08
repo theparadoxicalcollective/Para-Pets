@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { dragScenePercentage } from "@/lib/coordinateContracts";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -287,20 +288,25 @@ export default function MapPage({ user }: MapPageProps) {
       if (Math.abs(dx) > 10 || Math.abs(dy) > 10) didDrag.current = true;
       if (!didDrag.current) return;
       e.preventDefault();
-      const pxPerPercX = rect.width / 100;
-      const pxPerPercY = rect.height / 100;
-      const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
-      const newY = Math.max(0, Math.min(105, dragRef.current.origPosY + dy / pxPerPercY));
-      setDragPos({ id: dragRef.current.worldId, x: newX, y: newY });
+      const position = dragScenePercentage(
+        { x: dragRef.current.origPosX, y: dragRef.current.origPosY },
+        { x: dx, y: dy },
+        rect,
+        { minX: 0, maxX: 85, minY: 0, maxY: 105 },
+      );
+      setDragPos({ id: dragRef.current.worldId, ...position });
     } else if (raidDragRef.current) {
       const dx = e.clientX - raidDragRef.current.startX;
       const dy = e.clientY - raidDragRef.current.startY;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) raidDidDrag.current = true;
       if (!raidDidDrag.current) return;
       e.preventDefault();
-      const newX = Math.max(0, Math.min(85, raidDragRef.current.origPosX + dx / (rect.width / 100)));
-      const newY = Math.max(0, Math.min(105, raidDragRef.current.origPosY + dy / (rect.height / 100)));
-      setRaidDragPos({ x: newX, y: newY });
+      setRaidDragPos(dragScenePercentage(
+        { x: raidDragRef.current.origPosX, y: raidDragRef.current.origPosY },
+        { x: dx, y: dy },
+        rect,
+        { minX: 0, maxX: 85, minY: 0, maxY: 105 },
+      ));
     }
   }, []);
 
