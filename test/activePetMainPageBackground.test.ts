@@ -5,10 +5,8 @@ import test from "node:test";
 const read = (path: string) => readFileSync(path, "utf8");
 
 test("Active Pet background extension matches its real JPEG bytes", () => {
-  const bytes = readFileSync("attached_assets/uploads/ActivePetMainPageNew.jpg");
-  assert.equal(bytes[0], 0xff);
-  assert.equal(bytes[1], 0xd8);
-  assert.equal(bytes[2], 0xff);
+  const bytes = readFileSync("attached_assets/uploads/NewActivePetBG.png");
+  assert.deepEqual(Array.from(bytes.subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10]);
 });
 
 
