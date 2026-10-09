@@ -307,7 +307,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space={pageRef.current?.closest('[data-page-presentation="full-viewport"]') ? "viewport" : "canonical"} data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
     <ViewportBackdropPortal>
       <div
