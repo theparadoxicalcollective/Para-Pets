@@ -339,6 +339,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
       <div
         data-testid="closet-authored-template"
+        data-responsive-closet="true"
         data-stage-coordinate-space="canonical"
         data-viewport-visual-owner="scene"
         className="absolute inset-0 z-[200] h-full w-full overflow-hidden"
@@ -390,7 +391,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       </div>
 
       <button type="button" data-testid="button-open-mini-pets" aria-label="Open Mini Pets inventory" onClick={() => setMiniPetOpen(true)}
-        className="absolute z-[5] grid place-items-center rounded-full transition-transform active:scale-90"
+        className="absolute z-[5] closet-mini-pet-trigger grid place-items-center rounded-full transition-transform active:scale-90"
         style={{ left: "7.5%", top: "55%", width: "13%", aspectRatio: "1", border: "1.5px solid rgba(161,255,209,.86)", background: "radial-gradient(circle,rgba(24,110,79,.86),rgba(3,28,20,.92) 72%)", boxShadow: "0 3px 9px rgba(0,0,0,.7),0 0 9px rgba(74,255,177,.3)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
         {equippedMiniPetData?.equipped ? (
           <MiniPetRenderer petInventoryId={petInventoryId} style={{ width: "88%", height: "88%" }} />
@@ -399,7 +400,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         )}
       </button>
 
-      <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "8%", top: "20%", width: "84%", height: "9.2%", borderRadius: 10, background: "rgba(2,18,13,.63)", border: "1px solid rgba(96,233,160,.43)", padding: 2, boxShadow: "0 3px 9px rgba(0,0,0,.6)" }}>
+      <section className="absolute z-[4] closet-accessory-slots" aria-label="Accessory slots" style={{ left: "8%", top: "20%", width: "84%", height: "9.2%", borderRadius: 10, background: "rgba(2,18,13,.63)", border: "1px solid rgba(96,233,160,.43)", padding: 2, boxShadow: "0 3px 9px rgba(0,0,0,.6)" }}>
         <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "104%", color: "#e8ffef", fontSize: "clamp(9px, 2.2vw, 11px)", textShadow: "0 2px 4px #000", background: "rgba(2,21,14,.85)", border: "1px solid rgba(97,202,144,.45)", borderRadius: 999, padding: "3px 9px", cursor: "pointer", letterSpacing: "0.06em" }}>
           ACCESSORIES · {equippedAccessories.length}/{maxSlots} · OPEN BAG
         </button>
@@ -431,7 +432,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       />
 
       {miniPetOpen && (
-        <aside className="absolute inset-x-[5%] top-[14%] z-[35] flex max-h-[72%] flex-col overflow-hidden rounded-2xl" data-testid="mini-pet-inventory"
+        <aside className="absolute inset-x-[5%] top-[14%] z-[35] closet-mini-pet-panel flex max-h-[72%] flex-col overflow-hidden rounded-2xl" data-testid="mini-pet-inventory"
           style={{ background: "linear-gradient(180deg,rgba(7,30,20,.985),rgba(2,10,7,.99))", border: "1.5px solid rgba(112,240,174,.5)", boxShadow: "0 16px 40px rgba(0,0,0,.82),0 0 24px rgba(50,220,145,.14)" }}>
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "rgba(112,240,174,.18)" }}>
             <div><p className="font-fantasy text-xs tracking-[.14em]" style={{ color: "#a7f3d0" }}>MINI PETS</p><p className="font-fantasy text-[8px]" style={{ color: "rgba(210,235,218,.5)" }}>Choose one companion for {petName}</p></div>
@@ -468,7 +469,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
 
       {bagOpen && (
-        <aside className="absolute bottom-[1.4%] left-[3.5%] right-[3.5%] z-[12] flex h-[26%] flex-col overflow-hidden rounded-2xl" data-testid="accessory-bag-drawer" style={{ background: "linear-gradient(180deg,rgba(7,24,16,.97),rgba(3,12,8,.98))", border: "1.5px solid rgba(202,164,76,.5)", boxShadow: "0 -8px 28px rgba(0,0,0,.7), inset 0 0 24px rgba(0,0,0,.45)" }}>
+        <aside className="absolute bottom-[1.4%] left-[3.5%] right-[3.5%] z-[12] closet-accessory-drawer flex h-[26%] flex-col overflow-hidden rounded-2xl" data-testid="accessory-bag-drawer" style={{ background: "linear-gradient(180deg,rgba(7,24,16,.97),rgba(3,12,8,.98))", border: "1.5px solid rgba(202,164,76,.5)", boxShadow: "0 -8px 28px rgba(0,0,0,.7), inset 0 0 24px rgba(0,0,0,.45)" }}>
           <div className="flex items-center justify-between border-b px-4 py-2" style={{ borderColor: "rgba(202,164,76,.18)" }}>
             <div>
               <p className="font-fantasy tracking-[0.14em]" style={{ color: "#d8ba72", fontSize: "clamp(8px, 2.3vw, 11px)" }}>YOUR ACCESSORIES</p>
