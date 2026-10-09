@@ -62,16 +62,24 @@ export function safeSetPointerCapture(target: EventTarget | null, pointerId: num
 export function observeHomeViewport(
   container: Element,
   recalc: () => void,
+  sizing: "legacy-admin" | "artwork-scene" = "legacy-admin",
 ): () => void {
   let raf = 0;
 
   const syncAndRecalc = () => {
     if (typeof window !== "undefined" && container instanceof HTMLElement) {
-      const surface = getStageSurface();
+      // Player Home scene portals already occupy the real presentation area.
+      // Measure that area directly: never impose the 390x844 stage height on
+      // an artwork-owned Home camera. Admin editors retain their existing
+      // sizing path until their overlays are migrated separately.
+      const sceneHeight = container.getBoundingClientRect().height;
+      const surface = sizing === "legacy-admin" ? getStageSurface() : null;
       const visualHeight = window.visualViewport?.height;
-      const homeHeight = surface.viewportOwned
-        ? (visualHeight && Number.isFinite(visualHeight) ? visualHeight : null)
-        : surface.logicalHeight;
+      const homeHeight = sizing === "artwork-scene"
+        ? (Number.isFinite(sceneHeight) && sceneHeight > 0 ? sceneHeight : null)
+        : surface?.viewportOwned
+          ? (visualHeight && Number.isFinite(visualHeight) ? visualHeight : null)
+          : surface?.logicalHeight;
       if (homeHeight && Number.isFinite(homeHeight)) {
         container.style.setProperty("--home-visual-height", `${Math.round(homeHeight)}px`);
       } else {
