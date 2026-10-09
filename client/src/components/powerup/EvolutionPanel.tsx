@@ -39,7 +39,7 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
       /* Wider tablet orbit: leave the pet in its admin-controlled position. */
       @media(min-width:768px){
         .pup-evolution-skin > .pupevo-orbit { width:min(100%,540px) !important; }
-        .pup-evolution-skin .pupevo-slot { width:clamp(58px,6vw,78px) !important; height:clamp(58px,6vw,78px) !important; }
+        .pup-evolution-skin .pupevo-slot { width:clamp(58px,calc(15 * var(--vw)),78px) !important; height:clamp(58px,calc(15 * var(--vw)),78px) !important; }
         .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:29% !important;top:71% !important}
         .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:12% !important;top:39% !important}
         .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:29% !important;top:7% !important}
