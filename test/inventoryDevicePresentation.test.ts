@@ -33,7 +33,8 @@ test("dedicated inventory dialogs use the shared viewport modal layer without ch
 
 test("inventory drag ghost uses stage coordinates only on dedicated pages", () => {
   assert.match(inventory, /import \{ clientPointInRenderedElement, clientToStage \} from "@\/lib\/stage"/);
-  assert.match(inventory, /return pageMode \? clientToStage\(clientX, clientY\) : \{ x: clientX, y: clientY \}/);\n  assert.match(inventory, /clientPointInRenderedElement\(/);
+  assert.match(inventory, /return pageMode \? clientToStage\(clientX, clientY\) : \{ x: clientX, y: clientY \}/);
+  assert.match(inventory, /clientPointInRenderedElement\(/);
   assert.ok((inventory.match(/toDragPoint\(ev\.clientX, ev\.clientY\)/g) ?? []).length >= 4);
   assert.match(inventory, /className=\{pageMode \? "absolute z-\[90\] pointer-events-none select-none" : "fixed z-\[90\] pointer-events-none select-none"\}/);
 
