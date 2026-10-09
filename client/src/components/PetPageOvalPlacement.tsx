@@ -44,7 +44,7 @@ export default function PetPageOvalPlacement({
     enabled: !!petTemplateId && formReady,
   });
   const view = template?.facing === "back" ||
-    (template?.parts?.length && !template.parts.some(p => p.view === "front")) ? "back" : "front";
+    (template?.parts?.length && !template.parts.some((p: { view?: string }) => p.view === "front")) ? "back" : "front";
   const presentation = usePetPresentation(petTemplateId ?? "", form, view, !!template && formReady);
   const parts = normalizePetParts(template?.parts).filter(p => p.view === view);
   const ground = getStablePetGroundPoint(parts);
