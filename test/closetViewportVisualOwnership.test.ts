@@ -5,8 +5,9 @@ import test from "node:test";
 const closet = readFileSync("client/src/components/PetEquipAccessoriesPage.tsx", "utf8");
 const shell = readFileSync("client/src/tabletStageShell.css", "utf8");
 
-test("Closet viewport owns wide-device scenery while authored template keeps coordinates", () => {
-  assert.match(closet, /<ViewportScenePortal interactive=\{false\}>[\s\S]*data-testid="closet-viewport-environment"/);
+test("Closet background stays behind tablet pet and controls while authored template keeps coordinates", () => {
+  assert.match(closet, /<ViewportBackdropPortal>[\s\S]*data-testid="closet-viewport-environment"/);
+  assert.doesNotMatch(closet, /ViewportScenePortal/);
   assert.match(closet, /data-testid="closet-authored-template"[\s\S]*data-stage-coordinate-space="canonical"[\s\S]*data-viewport-visual-owner="scene"/);
   assert.doesNotMatch(closet, /data-canonical-visual-layer="duplicate-backdrop"/);
   assert.match(closet, /@assets\/uploads\/NewActivePetBG\.png/);
