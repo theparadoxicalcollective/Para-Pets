@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
 import { setNavHidden } from "@/lib/navVisibility";
 import PetAnimator from "@/components/PetAnimator";
+import AdminPetPagePlacement from "@/components/AdminPetPagePlacement";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EvolutionPanel from "@/components/powerup/EvolutionPanel";
 import type { PetUpgradeModalProps, PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
@@ -269,7 +270,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
             {specialQuantity > 1 && <span className="pupage-special-qty">{specialQuantity}</span>}
           </button>
         )}
-        <div ref={zoneRef} className={`pupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-pet-drop" role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={statsOpen} aria-label={`View ${petName} stats`} onClick={openStats} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openStats(); } }}><div className={`pupage-pet ${petAnim}`}>{pet}</div></div>
+        <div ref={zoneRef} className={`pupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-pet-drop" role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={statsOpen} aria-label={`View ${petName} stats`} onClick={openStats} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openStats(); } }}><div className={`pupage-pet ${petAnim}`}><AdminPetPagePlacement page="powerUp" admin={Boolean(props.admin)}>{pet}</AdminPetPagePlacement></div></div>
         <div className="pupage-nameplate"><img src={pupNameLevelBar} alt="" className="pupage-nameplate-art" /><div className="pupage-name">{petName}</div><div className="pupage-level">Lv.{petLevel}</div></div>
       </section>
 
