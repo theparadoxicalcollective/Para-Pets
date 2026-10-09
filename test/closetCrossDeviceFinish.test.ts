@@ -19,14 +19,14 @@ test("Closet expands only its environment while preserving the authored template
   assert.doesNotMatch(source, /data-testid="closet-authored-template"[\s\S]{0,180}className="fixed inset-0/);
 });
 
-test("Closet template background keeps the existing placement geometry instead of being redesigned for tablets", () => {
+test("Closet uses a centered, square pet stage so the authored oval reaches the background platform", () => {
   const source = read("client/src/components/PetEquipAccessoriesPage.tsx");
 
   assert.doesNotMatch(source, /data-canonical-visual-layer="duplicate-backdrop"/);
   assert.match(source, /imageUrl: closetBackground/);
-  assert.match(source, /data-testid="closet-pet-preview"[\s\S]*?left: "19%"[\s\S]*?top: "21\.2%"[\s\S]*?width: "56%"[\s\S]*?height: "39\.5%"/);
+  assert.match(source, /data-testid="closet-pet-preview"[\s\S]*?left: "5%"[\s\S]*?top: "28%"[\s\S]*?width: "90%"[\s\S]*?aspectRatio: "1"/);
   assert.match(source, /data-testid="button-open-mini-pets"[\s\S]*?left: "7\.5%"[\s\S]*?top: "43\.5%"[\s\S]*?width: "15\.5%"/);
-  assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "5\.5%"[\s\S]*?top: "60\.1%"[\s\S]*?width: "89%"[\s\S]*?height: "12\.2%"/);
+  assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "5\.5%"[\s\S]*?top: "67%"[\s\S]*?width: "89%"[\s\S]*?height: "11%"/);
 });
 
 test("Closet touch drag ghost follows shared stage portal coordinates on larger devices", () => {
