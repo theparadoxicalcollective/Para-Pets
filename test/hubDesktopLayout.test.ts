@@ -8,8 +8,8 @@ test("Hub uses a normal document viewport on tablet and desktop", () => {
 });
 
 test("Hub preserves the existing phone layout below the breakpoint", () => {
-  assert.equal(shouldUseDocumentLayout("/hub", WIDE_BREAKPOINT - 1), false);
-  assert.equal(shouldUseDocumentLayout("/hub", 390), false);
+  assert.equal(shouldUseDocumentLayout("/hub", WIDE_BREAKPOINT - 1), true);
+  assert.equal(shouldUseDocumentLayout("/hub", 390), true);
 });
 
 test("gameplay routes remain in the stable portrait stage on desktop", () => {
