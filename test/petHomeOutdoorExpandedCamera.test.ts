@@ -177,7 +177,7 @@ test("HUD-only Pet Home UI does not reset the expanded camera measurement", () =
 
   assert.match(
     owner,
-    /return observeHomeViewport\(container, recalc\);\s*\}, \[\s*bgAspect,\s*openInterior,\s*petHomeTutorialStep,?\s*\]\);/,
+    /return observeHomeViewport\(container, recalc, "artwork-scene"\);\s*\}, \[\s*bgAspect,\s*openInterior,\s*petHomeTutorialStep,?\s*\]\);/,
   );
 });
 
@@ -195,6 +195,6 @@ test("visited Home camera also remeasures when returning from an interior", () =
 
   assert.match(
     visitor,
-    /return observeHomeViewport\(container, recalc\);\s*\}, \[bgAspect, openInterior, showGiftModal, selectedPet\]\);/,
+    /return observeHomeViewport\(container, recalc, "artwork-scene"\);\s*\}, \[bgAspect, openInterior, showGiftModal, selectedPet\]\);/,
   );
 });
