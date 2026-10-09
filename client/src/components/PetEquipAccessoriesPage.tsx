@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { usePetPagePlacement } from "@/lib/petPresentation";
 import { Lock, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -43,6 +44,7 @@ interface InventoryAccessory {
 interface AuthUser {
   id: string;
   coins: number;
+  isAdmin?: boolean;
 }
 
 interface AccessoriesResponse {
@@ -78,6 +80,21 @@ const TOTAL_SLOTS = 5;
 
 export default function PetEquipAccessoriesPage({ petInventoryId, petName, petImage, petTemplateId, rarity, onClose }: Props) {
   const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
+  const closetPlacement = usePetPagePlacement("closet");
+  const [ovalDraft, setOvalDraft] = useState<{ x: number; y: number; scale: number } | null>(null);
+  const ovalDrag = useRef<{ id: number; x: number; y: number; start: { x: number; y: number; scale: number } } | null>(null);
+  const ovalStage = useRef<HTMLDivElement>(null);
+  const oval = ovalDraft ?? closetPlacement.placement;
+  const finishOval = (id: number, cancel = false) => {
+    const start = ovalDrag.current;
+    if (!start || start.id !== id) return;
+    ovalDrag.current = null;
+    if (cancel) { setOvalDraft(null); return; }
+    if (ovalDraft && (ovalDraft.x !== start.start.x || ovalDraft.y !== start.start.y)) {
+      closetPlacement.save.mutate(ovalDraft, { onSuccess: () => setOvalDraft(null) });
+    }
+  };
+
   useStageSurroundings({
     imageUrl: closetBackground,
     backgroundPosition: "center center",
@@ -359,7 +376,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <img src={closetCloseButton} alt="" className="h-full w-full object-contain" style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,.75))" }} />
       </button>
 
-      <div data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "21.2%", width: "56%", height: "39.5%" }}>
+      <div ref={ovalStage} data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "21.2%", width: "56%", height: "39.5%", transform: `translate(${oval.x}%, ${oval.y}%) scale(${oval.scale})`, transformOrigin: "center bottom" }}>
         <div className="relative" style={{ width: "90%", height: "84%" }}>
           {petTemplateId ? (
             <ErrorBoundary
@@ -373,6 +390,19 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             <img src={petImage} alt={petName} className="h-full w-full object-contain" style={PET_PREVIEW_DROPSHADOW_STYLE} />
           ) : null}
         </div>
+        {user?.isAdmin === true && <div data-testid="closet-placement-oval" role="button" tabIndex={0} aria-label="Drag pet placement oval in Closet" title="Drag oval to move pet" onPointerDown={event => {
+          event.stopPropagation();
+          if (closetPlacement.isPending || closetPlacement.isError || closetPlacement.save.isPending) return;
+          ovalDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, start: oval };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }} onPointerMove={event => {
+          const start = ovalDrag.current;
+          if (!start || start.id !== event.pointerId || !ovalStage.current) return;
+          event.stopPropagation();
+          const width = ovalStage.current.getBoundingClientRect().width / oval.scale;
+          if (!width) return;
+          setOvalDraft({ ...start.start, x: Math.max(-100, Math.min(100, +(start.start.x + (event.clientX - start.x) * 100 / width).toFixed(2))), y: Math.max(-100, Math.min(100, +(start.start.y + (event.clientY - start.y) * 100 / width).toFixed(2))) });
+        }} onPointerUp={event => { event.stopPropagation(); finishOval(event.pointerId); }} onPointerCancel={event => finishOval(event.pointerId, true)} onLostPointerCapture={event => finishOval(event.pointerId, true)} style={{ position: "absolute", bottom: 0, left: "50%", transform: "translate(-50%, 50%)", width: "65%", height: 24, borderRadius: "50%", border: "2px dashed #ffe29a", background: "rgba(240,192,64,.18)", boxShadow: "0 0 9px #000", zIndex: 10, cursor: "grab", touchAction: "none", pointerEvents: "auto" }} />}
       </div>
 
       <button type="button" data-testid="button-open-mini-pets" aria-label="Open Mini Pets inventory" onClick={() => setMiniPetOpen(true)}
