@@ -346,6 +346,18 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       >
 
 
+      {/* Draw the authored background under pet/slots in the SAME 390x844
+          coordinate plane. The viewport scene is only scenic bleed on tablets. */}
+      <div data-testid="closet-authored-background" className="absolute inset-0 pointer-events-none" style={{
+        zIndex: 0,
+        backgroundImage: `url(${closetBackground})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        WebkitMaskImage: "linear-gradient(90deg,transparent,black 8%,black 92%,transparent)",
+        maskImage: "linear-gradient(90deg,transparent,black 8%,black 92%,transparent)",
+      }} />
+
       <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.4%", width: "64%" }}>
         <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.14em]" style={{ color: "#d4a94c", fontSize: "clamp(15px, 4.8vw, 23px)", textShadow: "0 2px 3px #000, 0 0 12px rgba(29,225,170,.28)" }}>{petName}</h1>
       </header>
