@@ -7,7 +7,7 @@ const app = readFileSync("client/src/App.tsx", "utf8");
 const stage = readFileSync("client/src/lib/stage.ts", "utf8");
 
 test("full-device route ownership stays separate from authored coordinates", () => {
-  assert.match(surface, /data-page-presentation=\{target \? "viewport" : "stage"\}/);
+  assert.match(surface, /data-page-presentation=\{fullViewport \? "full-viewport" : target \? "viewport" : "stage"\}/);
   assert.match(surface, /data-stage-reference-plane="true"/);
   assert.match(surface, /return target \? createPortal\(content, target\) : content/);
   assert.doesNotMatch(surface, /stage-page-viewport-visual/);

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const VIEWPORT_PAGE_ID = "game-viewport-page";
@@ -15,7 +15,7 @@ const VIEWPORT_PAGE_ID = "game-viewport-page";
  * full-device presentation beside that reference instead of being clipped by
  * #game-stage-content.
  */
-export default function StagePageSurface({ children }: { children: ReactNode }) {
+export default function StagePageSurface({ children, layout = "reference" }: { children: ReactNode; layout?: "reference" | "viewport" }) {
   const [target, setTarget] = useState<HTMLElement | null>(() =>
     typeof document === "undefined" ? null : document.getElementById(VIEWPORT_PAGE_ID),
   );
@@ -24,14 +24,24 @@ export default function StagePageSurface({ children }: { children: ReactNode }) 
     setTarget(document.getElementById(VIEWPORT_PAGE_ID));
   }, []);
 
+  // Opt-in document-sized controls on the existing viewport page. The stage
+  // remains responsible for world and admin artwork coordinates elsewhere.
+  const fullViewport = layout === "viewport" && !!target;
   const content = (
     <div
       className="page-overlay"
-      data-page-presentation={target ? "viewport" : "stage"}
+      data-page-presentation={fullViewport ? "full-viewport" : target ? "viewport" : "stage"}
       data-testid="stage-page-surface"
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+      style={{
+        position: "absolute", inset: 0, width: "100%", height: "100%",
+        ...(fullViewport ? {
+          "--fh": "var(--viewport-surface-height)",
+          "--vh": "calc(var(--viewport-surface-height) / 100)",
+          "--vw": "calc(var(--viewport-surface-width) / 100)",
+        } as CSSProperties : {}),
+      }}
     >
-      <div
+      {fullViewport ? children : <div
         data-stage-reference-plane="true"
         data-testid="stage-page-reference-plane"
         style={{
@@ -44,7 +54,7 @@ export default function StagePageSurface({ children }: { children: ReactNode }) 
         }}
       >
         {children}
-      </div>
+      </div>}
     </div>
   );
 

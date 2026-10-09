@@ -37,7 +37,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
-import { clientToStage } from "@/lib/stage";
+import { clientPointInRenderedElement, clientToStage } from "@/lib/stage";
 
 function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }: {
   petInventoryId: string;
@@ -178,8 +178,20 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const [sheetDragOver, setSheetDragOver] = useState(false);
-  const toDragPoint = (clientX: number, clientY: number) =>
-    pageMode ? clientToStage(clientX, clientY) : { x: clientX, y: clientY };
+  const toDragPoint = (clientX: number, clientY: number) => {
+    // Migrated Bag uses the full viewport HUD for its drag ghost. Coordinates
+    // must be relative to that HUD, not the old centered 390x844 plane.
+    if (pageMode && document.querySelector('[data-page-presentation="full-viewport"]')) {
+      const hud = document.getElementById("game-viewport-hud");
+      if (hud) {
+        return clientPointInRenderedElement(
+          hud.getBoundingClientRect(), clientX, clientY,
+          hud.clientWidth, hud.clientHeight,
+        );
+      }
+    }
+    return pageMode ? clientToStage(clientX, clientY) : { x: clientX, y: clientY };
+  };
   const eggDropRef = useRef<HTMLDivElement>(null);
   const pointerGestureAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
