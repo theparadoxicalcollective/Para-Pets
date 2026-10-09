@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useRef, useState, cloneElement, type ReactElement, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
-import { useActivePetAnchor, usePetPresentation } from "@/lib/petPresentation";
+import { useActivePetAnchor, usePetPagePlacement, usePetPresentation } from "@/lib/petPresentation";
 import { dragActivePetAnchor, dragPetPlacement, PET_SPOT, getPetPlacementTransform, getPetSpotPosition, getStablePetGroundPoint, centerPetPlacement, type GroundPart } from "@/lib/petGroundPlacement";
 import { normalizePetParts } from "@/lib/petRenderSafety";
 import { DEFAULT_ACTIVE_PET_ANCHOR, type ActivePetAnchor, type PetPresentation } from "@shared/petPresentation";
@@ -19,22 +19,28 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
   const resolvedView = view ?? (template?.facing === "back" || (allParts.length && !allParts.some(p => p.view === "front")) ? "back" : "front");
   const query = usePetPresentation(templateId, form, resolvedView, editor || !!template || !!view);
   const anchorQuery = useActivePetAnchor(!editor);
+  const pageQuery = usePetPagePlacement("active", !editor);
   const [localEditing, setEditing] = useState(false);
   const editing = placementEditing ?? localEditing;
   const [draft, setDraft] = useState<PetPresentation | null>(null);
   const [anchorDraft, setAnchorDraft] = useState<ActivePetAnchor | null>(null);
+  const [pageDraft, setPageDraft] = useState<{ x: number; y: number; scale: number } | null>(null);
+  const [pageEditing, setPageEditing] = useState(false);
   const drag = useRef<PlacementDrag | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const visibleParts: GroundPart[] = allParts.filter(p => p.view === resolvedView);
   useEffect(() => {
     setDraft(null);
     setAnchorDraft(null);
+    setPageDraft(null);
+    setPageEditing(false);
     setEditing(false);
     onEditingChange?.(false);
     drag.current = null;
   }, [templateId, form, resolvedView, onEditingChange]);
   const value = draft ?? query.placement;
   const anchor = editor ? DEFAULT_ACTIVE_PET_ANCHOR : (anchorDraft ?? anchorQuery.anchor);
+  const pagePlacement = pageDraft ?? pageQuery.placement;
   // Use one authored-geometry ground point everywhere. The previous editor used
   // alpha bounds while mobile Home used a full-image fallback rectangle, so the
   // same saved pet could shift when rendered on iPhone/Safari.
@@ -101,8 +107,23 @@ export default function ActivePetPlacement({ templateId, form = "base", view, ad
   const guideSpot = getPetSpotPosition(editor ? DEFAULT_ACTIVE_PET_ANCHOR : anchor);
   return <div data-testid={editor ? "pet-placement-in-parts-canvas" : "active-pet-placement-stage"} style={editor ? { position: "absolute", inset: 0, pointerEvents: "none" } : { position: "relative", width: "100%", paddingTop: `${PET_SPOT.y / 10}%` }}>
     <div ref={stage} style={{ position: "absolute", top: 0, left: 0, width: "100%", aspectRatio: "1", overflow: editor && editing ? "clip" : undefined, pointerEvents: editor ? "none" : undefined }}>
-      {cloneElement(children, { style: { ...children.props.style, position: "absolute", inset: 0, width: "100%", height: "100%", ...(applied ? { ...getPetPlacementTransform(ground, value, editor ? DEFAULT_ACTIVE_PET_ANCHOR : anchor), pointerEvents: editing ? "none" : children.props.style?.pointerEvents } : {}) } })}
+      {cloneElement(children, { style: { ...children.props.style, position: "absolute", inset: 0, width: "100%", height: "100%", ...(applied ? { ...getPetPlacementTransform(ground, value, editor ? DEFAULT_ACTIVE_PET_ANCHOR : anchor), pointerEvents: editing ? "none" : children.props.style?.pointerEvents } : {}), ...(!editor && (pagePlacement.x !== 0 || pagePlacement.y !== 0 || pagePlacement.scale !== 1) ? { transform: `${getPetPlacementTransform(ground, value, anchor).transform} translate(${pagePlacement.x}%, ${pagePlacement.y}%) scale(${pagePlacement.scale})` } : {}) } })}
       {editor && editing && <div data-testid="pet-whole-drag-area" style={{ position: "absolute", inset: 0, pointerEvents: "auto", cursor: "grab", touchAction: "none", zIndex: 32000 }} onClick={stop} onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={event => { event.stopPropagation(); finishDrag(event.pointerId); }} onPointerCancel={event => { event.stopPropagation(); finishDrag(event.pointerId, true); }} onLostPointerCapture={event => finishDrag(event.pointerId, true)} />}
+      {admin && !editor && <div data-testid="active-page-placement-controls" onPointerDown={stop} onClick={stop} style={{ position: "absolute", right: 4, bottom: 4, zIndex: 33002, pointerEvents: "auto", background: "rgba(24,20,15,.94)", color: "#ffe29a", padding: 6, borderRadius: 8, fontSize: 12, maxWidth: 220 }}>
+        <button type="button" onClick={() => { setPageEditing(!pageEditing); setPageDraft(null); }} aria-label="Edit Active Pet page placement">{pageEditing ? "Close placement" : "Adjust page placement"}</button>
+        {pageEditing && <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
+          <span /> <button type="button" onClick={() => setPageDraft(p => ({ ...(p ?? pageQuery.placement), y: Math.max(-100, (p ?? pageQuery.placement).y - 1) }))}>↑</button><span />
+          <button type="button" onClick={() => setPageDraft(p => ({ ...(p ?? pageQuery.placement), x: Math.max(-100, (p ?? pageQuery.placement).x - 1) }))}>←</button>
+          <button type="button" onClick={() => setPageDraft(p => ({ ...(p ?? pageQuery.placement), y: Math.min(100, (p ?? pageQuery.placement).y + 1) }))}>↓</button>
+          <button type="button" onClick={() => setPageDraft(p => ({ ...(p ?? pageQuery.placement), x: Math.min(100, (p ?? pageQuery.placement).x + 1) }))}>→</button>
+          <button type="button" onClick={() => setPageDraft(p => ({ ...(p ?? pageQuery.placement), scale: Math.max(.2, +((p ?? pageQuery.placement).scale - .05).toFixed(2)) }))}>− Size</button>
+          <span style={{ textAlign: "center" }}>{Math.round(pagePlacement.scale * 100)}%</span>
+          <button type="button" onClick={() => setPageDraft(p => ({ ...(p ?? pageQuery.placement), scale: Math.min(3, +((p ?? pageQuery.placement).scale + .05).toFixed(2)) }))}>+ Size</button>
+          <button type="button" disabled={pageQuery.save.isPending || pageQuery.isError} onClick={() => pageQuery.save.mutate(pagePlacement, { onSuccess: () => setPageDraft(null) })}>Save</button>
+          <button type="button" onClick={() => setPageDraft(null)}>Discard</button>
+        </div>}
+        {(pageQuery.isError || pageQuery.save.isError) && <div role="alert">Page placement unavailable</div>}
+      </div>}
       {admin && <div role={editor ? undefined : "button"} tabIndex={editor ? undefined : 0} aria-label="Move whole pet on its ground oval" data-testid="active-pet-placement-guide"
         style={{ position: "absolute", left: `${guideSpot.x}%`, top: `${guideSpot.y}%`, width: `${PET_SPOT.widthPercent}%`, aspectRatio: "7 / 1", transform: "translate(-50%, -50%)", borderRadius: "50%", border: "2px dashed #ffe29a", background: "rgba(240,192,64,.18)", boxShadow: "0 0 0 1px #201506, 0 0 12px #000", zIndex: 33000, touchAction: "none", cursor: editor ? "default" : "grab", pointerEvents: editor ? "none" : "auto" }}
         onClick={stop} onKeyDown={event => {
