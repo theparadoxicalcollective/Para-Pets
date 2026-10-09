@@ -277,7 +277,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
         containerHRef.current = h;
       } catch {}
     };
-    return observeHomeViewport(container, recalc);
+    return observeHomeViewport(container, recalc, "artwork-scene");
   }, [aspect]);
 
   const onDown = useCallback((e: React.PointerEvent) => {
@@ -768,7 +768,7 @@ export default function VisitPetHousePage() {
         setPanX(centeredHomeCameraPanX(w, imgW));
       } catch {}
     };
-    return observeHomeViewport(container, recalc);
+    return observeHomeViewport(container, recalc, "artwork-scene");
   }, [bgAspect, openInterior, showGiftModal, selectedPet]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
