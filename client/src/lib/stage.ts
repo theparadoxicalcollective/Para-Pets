@@ -300,6 +300,9 @@ export function clientPointInStageElement(
 ): { x: number; y: number } {
   const rect = element.getBoundingClientRect();
   const scale = getStageScale();
+  // Preserve the existing stage-pixel semantics for canonical elements.
+  // Full-device scenes can call clientPointInRenderedElement with their own
+  // authored extent instead of inheriting the unrelated phone-stage origin.
   return {
     x: (clientX - rect.left) / scale,
     y: (clientY - rect.top) / scale,
