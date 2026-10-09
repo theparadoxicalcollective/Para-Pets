@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { usePetPagePlacement } from "@/lib/petPresentation";
+import PetPageOvalPlacement from "@/components/PetPageOvalPlacement";
 import { Lock, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -80,21 +80,6 @@ const TOTAL_SLOTS = 5;
 
 export default function PetEquipAccessoriesPage({ petInventoryId, petName, petImage, petTemplateId, rarity, onClose }: Props) {
   const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
-  const closetPlacement = usePetPagePlacement("closet");
-  const [ovalDraft, setOvalDraft] = useState<{ x: number; y: number; scale: number } | null>(null);
-  const ovalDrag = useRef<{ id: number; x: number; y: number; start: { x: number; y: number; scale: number } } | null>(null);
-  const ovalStage = useRef<HTMLDivElement>(null);
-  const oval = ovalDraft ?? closetPlacement.placement;
-  const finishOval = (id: number, cancel = false) => {
-    const start = ovalDrag.current;
-    if (!start || start.id !== id) return;
-    ovalDrag.current = null;
-    if (cancel) { setOvalDraft(null); return; }
-    if (ovalDraft && (ovalDraft.x !== start.start.x || ovalDraft.y !== start.start.y)) {
-      closetPlacement.save.mutate(ovalDraft, { onSuccess: () => setOvalDraft(null) });
-    }
-  };
-
   useStageSurroundings({
     imageUrl: closetBackground,
     backgroundPosition: "center center",
@@ -376,47 +361,34 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <img src={closetCloseButton} alt="" className="h-full w-full object-contain" style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,.75))" }} />
       </button>
 
-      <div ref={ovalStage} data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "21.2%", width: "56%", height: "39.5%", transform: `translate(${oval.x}%, ${oval.y}%) scale(${oval.scale})`, transformOrigin: "center bottom" }}>
-        <div className="relative" style={{ width: "90%", height: "84%" }}>
+      <div data-testid="closet-pet-preview" className="absolute z-[2]" style={{ left: "5%", top: "28%", width: "90%", aspectRatio: "1" }}>
+        <PetPageOvalPlacement page="closet" admin={user?.isAdmin === true} petTemplateId={petTemplateId} petInventoryId={petInventoryId}>
           {petTemplateId ? (
             <ErrorBoundary
               context="PetEquipAccessoriesPage.PetAnimator"
               resetKey={`${petInventoryId}:${petTemplateId}`}
               fallback={petImage ? <img src={petImage} alt={petName} className="h-full w-full object-contain" style={PET_PREVIEW_DROPSHADOW_STYLE} /> : null}
             >
-              <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={250} fillContainer lowMemory={lowMemory} style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
+              <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={390} fillContainer lowMemory={lowMemory} className="w-full h-full" style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, width: "100%", height: "100%", pointerEvents: "none" }} />
             </ErrorBoundary>
           ) : petImage ? (
             <img src={petImage} alt={petName} className="h-full w-full object-contain" style={PET_PREVIEW_DROPSHADOW_STYLE} />
           ) : null}
-        </div>
-        {user?.isAdmin === true && <div data-testid="closet-placement-oval" role="button" tabIndex={0} aria-label="Drag pet placement oval in Closet" title="Drag oval to move pet" onPointerDown={event => {
-          event.stopPropagation();
-          if (closetPlacement.isPending || closetPlacement.isError || closetPlacement.save.isPending) return;
-          ovalDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, start: oval };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }} onPointerMove={event => {
-          const start = ovalDrag.current;
-          if (!start || start.id !== event.pointerId || !ovalStage.current) return;
-          event.stopPropagation();
-          const width = ovalStage.current.getBoundingClientRect().width / oval.scale;
-          if (!width) return;
-          setOvalDraft({ ...start.start, x: Math.max(-100, Math.min(100, +(start.start.x + (event.clientX - start.x) * 100 / width).toFixed(2))), y: Math.max(-100, Math.min(100, +(start.start.y + (event.clientY - start.y) * 100 / width).toFixed(2))) });
-        }} onPointerUp={event => { event.stopPropagation(); finishOval(event.pointerId); }} onPointerCancel={event => finishOval(event.pointerId, true)} onLostPointerCapture={event => finishOval(event.pointerId, true)} style={{ position: "absolute", bottom: 0, left: "50%", transform: "translate(-50%, 50%)", width: "65%", height: 24, borderRadius: "50%", border: "2px dashed #ffe29a", background: "rgba(240,192,64,.18)", boxShadow: "0 0 9px #000", zIndex: 10, cursor: "grab", touchAction: "none", pointerEvents: "auto" }} />}
+        </PetPageOvalPlacement>
       </div>
 
       <button type="button" data-testid="button-open-mini-pets" aria-label="Open Mini Pets inventory" onClick={() => setMiniPetOpen(true)}
         className="absolute z-[5] grid place-items-center rounded-full transition-transform active:scale-90"
-        style={{ left: "7.5%", top: "43.5%", width: "15.5%", aspectRatio: "1", border: "1px solid rgba(128,255,202,.48)", background: "radial-gradient(circle,rgba(68,255,174,.22) 0%,rgba(10,55,37,.25) 48%,rgba(0,0,0,.05) 70%)", boxShadow: "0 9px 8px rgba(0,0,0,.5),0 0 13px rgba(74,255,177,.38),inset 0 0 10px rgba(145,255,218,.18)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+        style={{ left: "7.5%", top: "43.5%", width: "15.5%", aspectRatio: "1", border: "2px solid rgba(161,255,209,.92)", background: "radial-gradient(circle,rgba(24,110,79,.94),rgba(3,28,20,.96) 72%)", boxShadow: "0 6px 12px rgba(0,0,0,.8),0 0 16px rgba(74,255,177,.58),inset 0 0 8px rgba(145,255,218,.24)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
         {equippedMiniPetData?.equipped ? (
           <MiniPetRenderer petInventoryId={petInventoryId} style={{ width: "88%", height: "88%" }} />
         ) : (
-          <><span className="font-fantasy text-xl" style={{ color: "#86efac", textShadow: "0 0 10px rgba(74,255,177,.9)" }}>✦</span><span className="absolute -bottom-4 whitespace-nowrap font-fantasy text-[6px] tracking-wider" style={{ color: "rgba(202,241,216,.74)", textShadow: "0 1px 3px #000" }}>MINI PET</span></>
+          <><span className="font-fantasy text-xl" style={{ color: "#86efac", textShadow: "0 0 10px rgba(74,255,177,.9)" }}>✦</span><span className="absolute -bottom-5 whitespace-nowrap rounded-md px-1 font-fantasy text-[9px] tracking-wider" style={{ color: "#eafff0", background: "rgba(1,24,14,.9)", textShadow: "0 1px 3px #000" }}>MINI PET</span></>
         )}
       </button>
 
-      <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "5.5%", top: "60.1%", width: "89%", height: "12.2%" }}>
-        <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "102%", color: "rgba(215,239,213,.78)", fontSize: "clamp(7px, 1.9vw, 10px)", textShadow: "0 2px 4px #000", background: "rgba(2,12,8,.48)", border: "1px solid rgba(97,202,144,.18)", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
+      <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "5.5%", top: "67%", width: "89%", height: "11%", borderRadius: 12, background: "rgba(2,18,13,.72)", border: "1px solid rgba(96,233,160,.5)", padding: 3, boxShadow: "0 4px 15px rgba(0,0,0,.75)" }}>
+        <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "105%", color: "#e8ffef", fontSize: "clamp(9px, 2.3vw, 12px)", textShadow: "0 2px 4px #000", background: "rgba(2,21,14,.93)", border: "1px solid rgba(97,202,144,.7)", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
           ACCESSORIES · {equippedAccessories.length}/{maxSlots} · OPEN BAG
         </button>
         <div className="grid h-full grid-cols-5" style={{ gap: "1.7%" }}>
@@ -583,14 +555,14 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rarityColor, onClic
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl p-1 transition-all active:scale-95"
-      style={{ background: isOver && draggingId && !locked ? "rgba(39,180,117,.22)" : "transparent", border: isOver && draggingId && !locked ? `2px solid ${rarityColor}` : "2px solid transparent", boxShadow: isOver && draggingId && !locked ? `0 0 18px ${rarityColor}88` : "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+      style={{ background: isOver && draggingId && !locked ? "rgba(39,180,117,.7)" : "rgba(2,18,13,.88)", border: isOver && draggingId && !locked ? `2px solid ${rarityColor}` : "1px solid rgba(128,225,173,.65)", boxShadow: isOver && draggingId && !locked ? `0 0 18px ${rarityColor}88` : "inset 0 0 10px rgba(6,40,28,.75),0 2px 4px rgba(0,0,0,.65)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
     >
       {locked ? (
         <><Lock size={18} style={{ color: "rgba(218,181,92,.82)", filter: "drop-shadow(0 2px 3px #000)" }} /><span data-testid={`accessory-slot-price-${slot}`} className="mt-1 inline-flex items-center justify-center gap-[2px] font-fantasy" style={{ color: "#e6c873", fontSize: 7, textShadow: "0 1px 2px #000" }}><img src={currencyAssets.coin} alt="" aria-hidden="true" className="h-[11px] w-[11px] shrink-0 object-contain" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,.8))" }} />{SLOT_COST.toLocaleString()}</span></>
       ) : acc ? (
         <><img src={acc.imageUrl || gemCrystalIcon} alt={acc.name} className="h-[68%] w-[82%] object-contain" style={{ filter: `drop-shadow(0 3px 6px #000) drop-shadow(0 0 6px ${rarityColor}55)` }} /><span className="absolute bottom-[6%] max-w-[88%] truncate rounded px-1 font-fantasy" style={{ color: rarityColor, background: "rgba(0,5,3,.62)", fontSize: 6 }}>{acc.name}</span></>
       ) : (
-        <><span className="font-fantasy" style={{ color: "rgba(93,211,153,.5)", fontSize: 18, textShadow: "0 0 8px rgba(44,220,151,.38)" }}>✦</span><span className="font-fantasy tracking-wider" style={{ color: "rgba(183,225,198,.46)", fontSize: 6 }}>TAP</span></>
+        <><span className="font-fantasy" style={{ color: "#8cf9be", fontSize: 20, textShadow: "0 0 8px rgba(44,220,151,.38)" }}>✦</span><span className="font-fantasy tracking-wider" style={{ color: "#d8ffe8", fontSize: 9 }}>TAP</span></>
       )}
     </button>
   );
