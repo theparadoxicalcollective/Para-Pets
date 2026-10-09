@@ -21,8 +21,8 @@ test("Pet Care expands only its environment while keeping interaction coordinate
 test("Pet Care item drag and reward effects retain shared stage conversions", () => {
   const source = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
-  assert.match(source, /dragPositionRef\.current = clientToStagePortal\(x, y\)/);
-  assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?getStagePortalTarget\(\)/);
+  assert.match(source, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
+  assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?careGhostTarget\(\)/);
   assert.match(source, /clientToStage\(/);
   assert.match(source, /clientRectPointToStage/);
   assert.match(source, /position="fixed"/);
