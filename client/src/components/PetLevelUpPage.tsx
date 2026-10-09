@@ -28,6 +28,26 @@ const CSS = String.raw`
 @media(max-width:430px){.lupage-stage{margin-top:0}.lupage-pet-zone{width:min(90vw,370px);height:min(90vw,370px)}.lupage-stat{grid-template-columns:50px minmax(0,1fr) 48px;gap:7px}.lupage-tray{border-radius:14px}}
 @media(max-height:740px){.lupage-head{min-height:62px}.lupage-rule{padding:3px 8px}.lupage-pet-zone{width:min(62vw,225px);height:min(62vw,225px)}.lupage-nameplate{font-size:17px}.lupage-stats{padding:4px 8px}.lupage-tray{padding:4px 6px}.lupage-item{height:54px}.lupage-hint{font-size:10px}}
 @media(max-height:570px){.lupage-scroll{overflow-y:auto;overscroll-behavior:contain}.lupage-stage{flex:0 0 auto;min-height:220px}}
+/* Stage-owned tablet/desktop: allow the complete UI to be reached instead of
+   clipping inventory/actions below the fixed logical frame. The phone layout
+   and the authored pet oval remain unchanged. */
+@media(min-width:768px){
+  #game-stage[data-coordinate-owner="stage"] .lupage-scroll{
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+    scrollbar-width:thin;
+  }
+  #game-stage[data-coordinate-owner="stage"] .lupage-stage{
+    flex:0 0 auto;
+    min-height:300px;
+  }
+  #game-stage[data-coordinate-owner="stage"] .lupage-pet-zone{
+    flex-shrink:0;
+  }
+}
+
 `;
 
 function labelFor(item: PowerUpItem) {
