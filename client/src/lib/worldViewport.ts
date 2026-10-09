@@ -22,8 +22,6 @@ export function calculateWorldFitScale(
 
 const WORLD_EXPANDED_CAMERA_PAN_RATIO = 0.06;
 const WORLD_EXPANDED_CAMERA_MAX_PAN_MARGIN = 72;
-const WORLD_REFERENCE_CAMERA_WIDTH = 390;
-const WORLD_REFERENCE_CAMERA_HEIGHT = 844;
 
 /**
  * Minimum real map kept beyond each edge of an expanded World camera.
@@ -45,13 +43,12 @@ export function calculateExpandedWorldCameraPanMargin(
 }
 
 /**
- * Larger-device WorldPage camera policy.
+ * Fit the actual camera, not a phone-sized reference plane. The authored map
+ * remains the coordinate owner for backgrounds, NPCs and hotspots.
  *
- * The iPhone 12 reference camera keeps its existing composition exactly.
- * Cameras that are genuinely larger than that reference retain a modest real
- * map margin beyond every edge. This avoids the tablet "static cover image"
- * effect while keeping the authored map, NPC/decor percentages, and uniform
- * scale contract unchanged.
+ * Preserve the natural cover fit for phone-sized cameras; larger cameras keep
+ * the existing modest overscan so tablet/desktop worlds remain pannable.
+ * This choice is based on available map coverage rather than device identity.
  */
 export function calculateExpandedWorldCameraScale(
   frameWidth: number,
@@ -62,22 +59,18 @@ export function calculateExpandedWorldCameraScale(
   if (!Number.isFinite(frameWidth) || frameWidth <= 0 || !Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
   const safeMapWidth = Number.isFinite(mapWidth) && mapWidth > 0 ? mapWidth : WORLD_MAP_WIDTH;
   const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
-  const referenceScale = Math.max(
-    WORLD_REFERENCE_CAMERA_WIDTH / safeMapWidth,
-    WORLD_REFERENCE_CAMERA_HEIGHT / safeMapHeight,
-  );
+  const coverScale = Math.max(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
 
-  const referenceSizedCamera =
-    frameWidth <= WORLD_REFERENCE_CAMERA_WIDTH + 0.5
-    && frameHeight <= WORLD_REFERENCE_CAMERA_HEIGHT + 0.5;
-  if (referenceSizedCamera) return referenceScale;
+  // Compact cameras use the map's natural cover fit. Wider presentation
+  // surfaces retain the existing tablet/desktop exploration margin.
+  // This is a responsive breakpoint, not a 390x844 reference coordinate plane.
+  if (Math.min(frameWidth, frameHeight) < 600) return coverScale;
 
   const panMargin = calculateExpandedWorldCameraPanMargin(frameWidth, frameHeight);
-  const explorableScale = Math.max(
+  return Math.max(
     (frameWidth + panMargin * 2) / safeMapWidth,
     (frameHeight + panMargin * 2) / safeMapHeight,
   );
-  return Math.max(referenceScale, explorableScale);
 }
 
 /** Keep an oversized world draggable to every edge without showing empty space. */
