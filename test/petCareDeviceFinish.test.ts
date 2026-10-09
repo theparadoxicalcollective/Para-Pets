@@ -13,7 +13,7 @@ test("Pet Care expands only its environment while keeping interaction coordinate
   assert.match(source, /useStageSurroundings\(\{/);
   assert.match(source, /imageUrl: feedingPageBg/);
   assert.match(source, /className=\{`absolute inset-0 h-full w-full pet-care-overlay/);
-  assert.match(source, /data-stage-coordinate-space="canonical"/);
+  assert.match(source, /data-stage-coordinate-space=\{viewportCareSurface\(\) \? "viewport" : "canonical"\}/);
   assert.doesNotMatch(source, /className=\{`fixed inset-0 pet-care-overlay/);
   assert.doesNotMatch(source, /maxWidth: "768px", margin: "0 auto", left: 0, right: 0/);
 });
@@ -21,8 +21,8 @@ test("Pet Care expands only its environment while keeping interaction coordinate
 test("Pet Care item drag and reward effects retain shared stage conversions", () => {
   const source = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
-  assert.match(source, /dragPositionRef\.current = clientToStagePortal\(x, y\)/);
-  assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?getStagePortalTarget\(\)/);
+  assert.match(source, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
+  assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?careGhostTarget\(\)/);
   assert.match(source, /clientToStage\(/);
   assert.match(source, /clientRectPointToStage/);
   assert.match(source, /position="fixed"/);

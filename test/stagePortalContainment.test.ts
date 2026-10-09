@@ -13,8 +13,8 @@ test("gameplay portals select body on mobile and the portrait stage on desktop",
 
   assert.match(raid, /const ghost = clientToStagePortal\(draggingPotion\.screenX, draggingPotion\.screenY\)/);
   assert.match(raid, /getStagePortalTarget\(\)/);
-  assert.match(petCare, /dragPositionRef\.current = clientToStagePortal\(x, y\)/);
-  assert.match(petCare, /getStagePortalTarget\(\)/);
+  assert.match(petCare, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
+  assert.match(petCare, /careGhostTarget\(\)/);
 });
 
 test("Clearing ground input converts rendered pointer geometry to logical stage geometry", () => {
@@ -44,7 +44,7 @@ test("player-facing overlays share the stage coordinate contract instead of phys
   assert.match(nav, /getStageSurface\(\)\.logicalWidth/);
   assert.doesNotMatch(nav, /const available = window\.innerWidth/);
 
-  assert.match(petCare, /clientRectPointToStage\(box, 0\.5, 0\.3\)/);
+  assert.match(petCare, /careRectPoint\(box, 0\.5, 0\.3\)/);
   assert.match(petCare, /getStageLogicalCenter\(\)/);
   assert.doesNotMatch(petCare, /const cx = box \? box\.left \+ box\.width \/ 2 : window\.innerWidth \/ 2/);
   assert.doesNotMatch(petCare, /const cy = box \? box\.top \+ box\.height \* 0\.3 : window\.innerHeight \/ 2/);
@@ -59,8 +59,8 @@ test("battle drag ghosts and Clearing input keep using the shared stage conversi
   assert.match(pvp, /getStagePortalTarget\(\)/);
   assert.match(raid, /clientToStagePortal\(draggingPotion\.screenX, draggingPotion\.screenY\)/);
   assert.match(raid, /getStagePortalTarget\(\)/);
-  assert.match(petCare, /dragPositionRef\.current = clientToStagePortal\(x, y\)/);
-  assert.match(petCare, /getStagePortalTarget\(\)/);
+  assert.match(petCare, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
+  assert.match(petCare, /careGhostTarget\(\)/);
   assert.match(clearing, /const stageScale = getStageScale\(\)/);
   assert.match(clearing, /\(e\.clientX - rect\.left\) \/ stageScale/);
 });
