@@ -216,3 +216,60 @@
     bottom: 25%;
   }
 }
+
+/*
+ * Tablet Pet Care presentation. Keep the pet, ornate meter artwork and jars
+ * in the existing scene; position controls from available scene dimensions
+ * rather than letting phone-oriented vw/vh values hide them on tablets.
+ * Phones, including the original iPhone 12 layout, are unchanged.
+ */
+@media (min-width: 768px) {
+  .pet-care-overlay {
+    --pet-care-usable-left: clamp(100px, 13vw, 170px);
+    --pet-care-scene-right: clamp(18px, 4vw, 64px);
+    --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + clamp(82px, 12dvh, 120px));
+    --pet-care-pet-center: clamp(240px, 44dvh, 480px);
+    --pet-care-pet-size: clamp(230px, 35dvh, 390px);
+  }
+
+  .pet-care-overlay .pet-care-header {
+    z-index: 30;
+    pointer-events: auto;
+  }
+
+  .pet-care-overlay .pet-care-header button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .pet-care-overlay .pet-care-loyalty {
+    top: calc(env(safe-area-inset-top, 0px) + 92px);
+    left: clamp(4px, 1vw, 20px);
+    width: clamp(90px, 11vw, 132px);
+    height: clamp(220px, 42dvh, 440px);
+  }
+
+  .pet-care-overlay .pet-care-mood .pet-care-meter {
+    width: min(72%, 440px);
+  }
+
+  .pet-care-overlay .pet-care-inventory-section {
+    z-index: 12;
+    max-height: 42%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
+    width: min(
+      calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
+      420px
+    );
+  }
+
+  .pet-care-overlay .pet-care-inventory-jars {
+    max-width: 780px;
+    margin-inline: auto;
+  }
+}
