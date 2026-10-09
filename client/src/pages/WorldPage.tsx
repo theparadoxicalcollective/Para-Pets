@@ -3,7 +3,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "@/lib/worldViewport";
-import { getStageRenderedCenter } from "@/lib/stage";
+import { clientPointInRenderedElement, getStageRenderedCenter } from "@/lib/stage";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1392,10 +1392,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const isShopItemTransparentClick = useCallback((e: React.MouseEvent<HTMLImageElement>): boolean => {
     const img = e.currentTarget;
     const rect = img.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    const natX = Math.round((clickX / rect.width) * img.naturalWidth);
-    const natY = Math.round((clickY / rect.height) * img.naturalHeight);
+    const point = clientPointInRenderedElement(rect, e.clientX, e.clientY, img.naturalWidth, img.naturalHeight);
+    const natX = Math.round(point.x);
+    const natY = Math.round(point.y);
     try {
       const canvas = document.createElement("canvas");
       canvas.width = img.naturalWidth;
