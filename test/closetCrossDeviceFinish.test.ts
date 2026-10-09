@@ -9,7 +9,8 @@ test("Closet expands only its environment while preserving the authored template
 
   assert.match(source, /useStageSurroundings\(\{/);
   assert.match(source, /imageUrl: closetBackground/);
-  assert.match(source, /<ViewportScenePortal interactive=\{false\}>/);
+  assert.match(source, /<ViewportBackdropPortal>/);
+  assert.doesNotMatch(source, /<ViewportScenePortal interactive=\{false\}>/);
   assert.match(source, /data-testid="closet-viewport-environment"/);
   assert.match(source, /backgroundSize: "cover"/);
   assert.match(source, /data-testid="closet-authored-template"/);
@@ -25,8 +26,8 @@ test("Closet uses a centered, square pet stage so the authored oval reaches the 
   assert.doesNotMatch(source, /data-canonical-visual-layer="duplicate-backdrop"/);
   assert.match(source, /imageUrl: closetBackground/);
   assert.match(source, /data-testid="closet-pet-preview"[\s\S]*?left: "5%"[\s\S]*?top: "28%"[\s\S]*?width: "90%"[\s\S]*?aspectRatio: "1"/);
-  assert.match(source, /data-testid="button-open-mini-pets"[\s\S]*?left: "7\.5%"[\s\S]*?top: "43\.5%"[\s\S]*?width: "15\.5%"/);
-  assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "5\.5%"[\s\S]*?top: "67%"[\s\S]*?width: "89%"[\s\S]*?height: "11%"/);
+  assert.match(source, /data-testid="button-open-mini-pets"[\s\S]*?left: "7\.5%"[\s\S]*?top: "55%"[\s\S]*?width: "13%"/);
+  assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "8%"[\s\S]*?top: "20%"[\s\S]*?width: "84%"[\s\S]*?height: "9\.2%"/);
 });
 
 test("Closet touch drag ghost follows shared stage portal coordinates on larger devices", () => {
