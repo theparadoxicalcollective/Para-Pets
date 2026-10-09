@@ -705,7 +705,7 @@ function GameStage({ children }: { children: ReactNode }) {
   const referenceLeft = expandedStage ? -sceneRect.left : 0;
   const referenceTop = expandedStage ? -sceneRect.top : 0;
 
-  // Gameplay coordinates stay inside the stable 390x844 reference stage.
+  // Public entry and authentication use the real viewport without a reference stage.\n  // Gameplay coordinates stay inside the stable 390x844 reference stage.
   // Larger devices can use full-device backdrop/scene/HUD/modal surfaces around
   // that reference plane, so the coordinate system remains stable without
   // presenting it as a visible phone frame. The public Hub is the one true

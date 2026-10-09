@@ -6,7 +6,7 @@ import { shouldUseDocumentLayout } from "../client/src/lib/stage";
 test("public Hub uses a real viewport at Android widths and keyboard heights", () => {
   for (const width of [320, 360, 375, 390, 393, 412, 430, 600, 800]) {
     assert.equal(shouldUseDocumentLayout("/hub", width), true);
-    assert.equal(shouldUseDocumentLayout("/auth", width), false);
+    assert.equal(shouldUseDocumentLayout("/auth", width), true);
     assert.equal(shouldUseDocumentLayout("/", width), false);
   }
 });
