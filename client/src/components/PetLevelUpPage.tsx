@@ -4,6 +4,7 @@ import type { CSSProperties, ErrorInfo, PointerEvent as ReactPointerEvent, React
 import { Star, X } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
 import PetAnimator from "@/components/PetAnimator";
+import AdminPetPagePlacement from "@/components/AdminPetPagePlacement";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import type { PetUpgradeModalProps, PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import bagIcon from "@assets/generated_images/icon_powerup_bag.png";
@@ -282,7 +283,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
       </header>
       <div className="lupage-rule">{itemsRemaining === Infinity ? "✦ No limit — use as many as you like!" : `✦ ${Math.max(0, itemsRemaining)} uses remaining`}</div>
       <section className="lupage-stage">
-        <div ref={zoneRef} className={`lupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-levelup-pet-drop"><div className={`lupage-pet ${petAnim}`}>{pet}</div></div>
+        <div ref={zoneRef} className={`lupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-levelup-pet-drop"><div className={`lupage-pet ${petAnim}`}><AdminPetPagePlacement page="levelUp" admin={Boolean(props.admin)}>{pet}</AdminPetPagePlacement></div></div>
         <div className="lupage-stars">{"★".repeat(Math.max(1, Math.min(5, rarity)))}</div>
         <div className="lupage-nameplate"><span>{petName}</span><span className="lupage-level">Lv.{petLevel}</span></div>
       </section>
