@@ -4,6 +4,7 @@ import { usePetPagePlacement, usePetPresentation } from "@/lib/petPresentation";
 import { petTemplateQuery } from "@/lib/petTemplateQuery";
 import { getPetPlacementTransform, getPetSpotPosition, getStablePetGroundPoint, PET_SPOT } from "@/lib/petGroundPlacement";
 import { normalizePetParts } from "@/lib/petRenderSafety";
+import { calculateArtworkTransform, dragArtworkPercentOffset } from "@/lib/artworkViewportTransform";
 import type { PetPageKey, PetPagePlacement } from "@shared/petPagePlacement";
 
 /**
@@ -68,11 +69,19 @@ export default function PetPageOvalPlacement({
     const reference = (externallyPositioned && sceneRef?.current) || stage.current;
     const bounds = reference?.getBoundingClientRect();
     if (!bounds?.width || !bounds.height) return;
-    // Use the rendered coordinate plane. Do not use physical device pixels or
-    // scroll positions; the same drag works within the 390x844 authored stage.
-    const x = Math.max(-100, Math.min(100, +(start.start.x + (event.clientX - start.x) * 100 / bounds.width).toFixed(2)));
-    const y = Math.max(-100, Math.min(100, +(start.start.y + (event.clientY - start.y) * 100 / bounds.height).toFixed(2)));
-    const next = { ...start.start, x, y };
+    // The oval is saved in artwork percentages, not device pixels. This
+    // displayed plane uses the same bounds for artwork and viewport today;
+    // the shared converter also supports cropped/letterboxed backgrounds as
+    // each page migrates off the legacy stage.
+    const size = { width: bounds.width, height: bounds.height };
+    const transform = calculateArtworkTransform(size, size);
+    const moved = dragArtworkPercentOffset(
+      start.start,
+      { x: start.x, y: start.y },
+      { x: event.clientX, y: event.clientY },
+      transform,
+    );
+    const next = { ...moved, x: +moved.x.toFixed(2), y: +moved.y.toFixed(2) };
     start.latest = next;
     setDraft(next);
     onPreview?.(next);
