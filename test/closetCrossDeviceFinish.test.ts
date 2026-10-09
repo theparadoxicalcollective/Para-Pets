@@ -9,7 +9,8 @@ test("Closet expands only its environment while preserving the authored template
 
   assert.match(source, /useStageSurroundings\(\{/);
   assert.match(source, /imageUrl: closetBackground/);
-  assert.match(source, /<ViewportScenePortal interactive=\{false\}>/);
+  assert.match(source, /<ViewportBackdropPortal>/);
+  assert.doesNotMatch(source, /<ViewportScenePortal interactive=\{false\}>/);
   assert.match(source, /data-testid="closet-viewport-environment"/);
   assert.match(source, /backgroundSize: "cover"/);
   assert.match(source, /data-testid="closet-authored-template"/);
