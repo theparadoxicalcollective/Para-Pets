@@ -28,14 +28,14 @@ export const petPagePlacementsSchema = z.object({
 });
 export type PetPagePlacements = z.infer<typeof petPagePlacementsSchema>;
 
-/** Missing pages inherit Active Pet size, with independent zero offsets. */
+/** Missing pages use the same neutral oval scale as the original Active Pet view. */
 export function resolvePetPagePlacement(raw: unknown, page: PetPageKey): PetPagePlacement {
   const parsed = petPagePlacementsSchema.safeParse(raw);
   if (!parsed.success) return { ...DEFAULT_PAGE_PLACEMENT };
   const active = parsed.data.active;
   if (page === "active") return active;
   const override = parsed.data[page];
-  return override ?? { x: 0, y: 0, scale: active.scale };
+  return override ?? { ...DEFAULT_PAGE_PLACEMENT };
 }
 
 /**

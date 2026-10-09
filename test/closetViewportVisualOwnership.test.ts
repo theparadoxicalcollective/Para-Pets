@@ -15,8 +15,8 @@ test("Closet viewport owns wide-device scenery while authored template keeps coo
   assert.match(shell, /#game-stage\[data-coordinate-owner="stage"\] \[data-canonical-visual-layer="duplicate-backdrop"\]/);
 });
 
-test("Closet protected authored geometry and tutorial targets remain unchanged", () => {
-  assert.match(closet, /data-testid="closet-pet-preview"[\s\S]*left: "19%"[\s\S]*top: "21\.2%"[\s\S]*width: "56%"[\s\S]*height: "39\.5%"/);
+test("Closet oval stage and protected tutorial targets remain on the canonical template", () => {
+  assert.match(closet, /data-testid="closet-pet-preview"[\s\S]*left: "5%"[\s\S]*top: "28%"[\s\S]*width: "90%"[\s\S]*aspectRatio: "1"/);
   assert.match(closet, /data-testid="button-open-mini-pets"[\s\S]*left: "7\.5%"[\s\S]*top: "43\.5%"[\s\S]*width: "15\.5%"/);
   assert.match(closet, /data-testid=\{`slot-accessory-\$\{slot\}`\}/);
   assert.match(closet, /data-testid="button-close-equip-accessories"/);
