@@ -84,3 +84,24 @@ export function artworkPercentToScreen(placement: ArtworkPoint, transform: Artwo
 export function screenPointToArtworkPercent(point: ArtworkPoint, transform: ArtworkTransform): ArtworkPoint {
   return artworkPointToPercent(screenPointToArtwork(point, transform), transform.artwork);
 }
+
+/**
+ * Convert a pointer movement into a saved artwork-percent offset.
+ * Uses the actual displayed artwork transform, including crop/letterbox
+ * offsets, rather than a hardcoded phone width or height.
+ */
+export function dragArtworkPercentOffset<T extends ArtworkPoint>(
+  saved: T,
+  pointerStart: ArtworkPoint,
+  pointerEnd: ArtworkPoint,
+  transform: ArtworkTransform,
+  clamp = 100,
+): T {
+  const start = screenPointToArtworkPercent(pointerStart, transform);
+  const end = screenPointToArtworkPercent(pointerEnd, transform);
+  return {
+    ...saved,
+    x: Math.max(-clamp, Math.min(clamp, saved.x + end.x - start.x)),
+    y: Math.max(-clamp, Math.min(clamp, saved.y + end.y - start.y)),
+  };
+}
