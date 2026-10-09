@@ -94,8 +94,8 @@ const CSS = String.raw`
   }
   .pupage-pet-zone,
   #game-stage[data-coordinate-owner="stage"] .pupage-pet-zone {
-    width: min(35vw, 300px);
-    height: min(35vw, 300px);
+    width: min(72%, 300px);
+    height: min(72%, 300px);
   }
   .pupage-inventory,
   #game-stage[data-coordinate-owner="stage"] .pupage-inventory {
