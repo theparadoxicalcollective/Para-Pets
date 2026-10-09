@@ -29,8 +29,9 @@ test("every pet subpage grounds pet artwork using the same authored-foot transfo
 
 test("Level Up stays inside the authored page rather than allowing full-page scroll", () => {
   const page = read("client/src/components/PetLevelUpPage.tsx");
-  assert.match(page, /\.lupage-scroll\{height:100%;min-height:0;overflow:hidden/);
+  assert.match(page, /\.lupage-scroll\{position:relative;z-index:1;height:100%;min-height:0;overflow:hidden/);
   assert.match(page, /\.lupage-stage\{flex:1 1 auto;min-height:0/);
+  assert.match(page, /data-testid="level-up-authored-background"/);
   assert.match(page, /PetPageOvalPlacement page="levelUp" admin=\{Boolean\(props.admin\)\} petTemplateId=\{petTemplateId\} petInventoryId=\{petInventoryId\}/);
   assert.doesNotMatch(page, /<AdminPetPagePlacement/);
   assert.match(page, /onPointerUp=\{onPointerUp\}/);
@@ -55,6 +56,7 @@ test("Closet shows the same oval at the feet and preserves equipment interaction
   assert.match(page, /PetPageOvalPlacement page="closet" admin=\{user\?\.isAdmin === true\}/);
   assert.match(page, /rgba\(2,18,13,\.88\)/);
   assert.match(page, /data-testid="button-open-mini-pets"/);
+  assert.match(page, /data-testid="closet-authored-background"/);
   assert.match(page, /aria-label="Accessory slots"/);
   assert.match(adornments, /aria-label="Adornment slots"/);
   assert.match(adornments, /rgba\(22,16,7,\.91\)/);
