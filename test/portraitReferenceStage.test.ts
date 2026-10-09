@@ -131,6 +131,6 @@ test("Pet Home keeps authored placements while player cameras measure actual art
   assert.match(owner, /clientToStage\(inventoryDragState\.ghostX, inventoryDragState\.ghostY\)/);
   assert.match(owner, /clientToStage\(petInvDragState\.ghostX, petInvDragState\.ghostY\)/);
   assert.match(visitor, /clientDeltaToStage/);
-  assert.match(homeViewport, /const surface = getStageSurface\(\)/);
-  assert.match(homeViewport, /surface\.logicalHeight/);
+  assert.match(homeViewport, /const surface = sizing === "legacy-admin" \? getStageSurface\(\) : null/);
+  assert.match(homeViewport, /surface\?\.logicalHeight/);
 });
