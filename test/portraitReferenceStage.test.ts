@@ -119,7 +119,7 @@ test("rendered stages expose coordinate ownership so portals follow scaled portr
   assert.match(stage, /getStagePortalTarget\(\) === document\.body/);
 });
 
-test("Pet Home keeps authored and player-edited placement in logical stage coordinates", () => {
+test("Pet Home keeps authored placements while player cameras measure actual artwork scene", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const homeViewport = read("client/src/lib/homeCrossDevice.ts");
@@ -131,6 +131,6 @@ test("Pet Home keeps authored and player-edited placement in logical stage coord
   assert.match(owner, /clientToStage\(inventoryDragState\.ghostX, inventoryDragState\.ghostY\)/);
   assert.match(owner, /clientToStage\(petInvDragState\.ghostX, petInvDragState\.ghostY\)/);
   assert.match(visitor, /clientDeltaToStage/);
-  assert.match(homeViewport, /const surface = getStageSurface\(\)/);
-  assert.match(homeViewport, /surface\.logicalHeight/);
+  assert.match(homeViewport, /const surface = sizing === "legacy-admin" \? getStageSurface\(\) : null/);
+  assert.match(homeViewport, /surface\?\.logicalHeight/);
 });

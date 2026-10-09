@@ -56,7 +56,7 @@ test("Home canvases react to ResizeObserver, orientation, and mobile VisualViewp
     "client/src/components/HomeBundleSection.tsx",
   ]) {
     const source = read(path);
-    assert.match(source, /observeHomeViewport\(container, recalc\)/);
+    assert.match(source, /observeHomeViewport\(container, recalc(?:, "artwork-scene")?\)/);
     assert.doesNotMatch(source, /new ResizeObserver\(recalc\)/);
   }
 });
@@ -145,4 +145,16 @@ test("expanded Home camera pans real artwork but centers it when the camera is w
   assert.equal(clampHomeCameraPanX(9999, 700, 560), 70);
 
   assert.equal(clampHomeCameraPanX(Number.NaN, 700, 560), 0);
+});
+
+test("player and visitor Home cameras measure artwork viewport instead of phone stage", () => {
+  const helper = read("client/src/lib/homeCrossDevice.ts");
+  assert.match(helper, /container\.getBoundingClientRect\(\)\.height/);
+  assert.match(helper, /sizing === "artwork-scene"/);
+  for (const path of ["client/src/pages/PetHousePage.tsx", "client/src/pages/VisitPetHousePage.tsx"]) {
+    const source = read(path);
+    assert.match(source, /observeHomeViewport\(container, recalc, "artwork-scene"\)/);
+  }
+  const admin = read("client/src/components/HomeBundleSection.tsx");
+  assert.match(admin, /observeHomeViewport\(container, recalc\)/);
 });
