@@ -28,6 +28,30 @@ const CSS = String.raw`
 @media(max-width:430px){.lupage-stage{margin-top:0}.lupage-pet-zone{width:min(90vw,370px);height:min(90vw,370px)}.lupage-stat{grid-template-columns:50px minmax(0,1fr) 48px;gap:7px}.lupage-tray{border-radius:14px}}
 @media(max-height:740px){.lupage-head{min-height:62px}.lupage-rule{padding:3px 8px}.lupage-pet-zone{width:min(62vw,225px);height:min(62vw,225px)}.lupage-nameplate{font-size:17px}.lupage-stats{padding:4px 8px}.lupage-tray{padding:4px 6px}.lupage-item{height:54px}.lupage-hint{font-size:10px}}
 @media(max-height:570px){.lupage-scroll{overflow-y:auto;overscroll-behavior:contain}.lupage-stage{flex:0 0 auto;min-height:220px}}
+/* Device-sized Level Up presentation. Only the opted-in viewport route uses
+   these rules; the inline phone stage and authored oval remain unchanged. */
+[data-page-presentation="full-viewport"] .lupage-scroll{
+  width:100%;height:100%;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;scrollbar-width:thin;
+  padding:max(env(safe-area-inset-top),16px) clamp(12px,2.5vw,36px) max(env(safe-area-inset-bottom),18px);
+}
+[data-page-presentation="full-viewport"] .lupage-stage{
+  flex:1 0 auto;min-height:clamp(310px,44vh,640px);max-width:min(100%,760px);
+}
+[data-page-presentation="full-viewport"] .lupage-pet-zone{
+  width:min(52vw,46vh,460px);height:min(52vw,46vh,460px);min-width:min(75vw,220px);
+  flex-shrink:0;
+}
+[data-page-presentation="full-viewport"] .lupage-tray{
+  flex-shrink:0;width:min(100%,680px);
+}
+[data-page-presentation="full-viewport"] .lupage-title{font-size:clamp(30px,4vw,46px)}
+@media (max-width:600px){
+  [data-page-presentation="full-viewport"] .lupage-stage{min-height:280px}
+  [data-page-presentation="full-viewport"] .lupage-pet-zone{
+    width:min(82vw,38vh,370px);height:min(82vw,38vh,370px);min-width:0;
+  }
+}
 /* Stage-owned tablet/desktop: allow the complete UI to be reached instead of
    clipping inventory/actions below the fixed logical frame. The phone layout
    and the authored pet oval remain unchanged. */
@@ -283,7 +307,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space={pageRef.current?.closest('[data-page-presentation="full-viewport"]') ? "viewport" : "canonical"} data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
     <ViewportBackdropPortal>
       <div
