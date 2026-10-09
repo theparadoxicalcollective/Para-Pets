@@ -36,6 +36,17 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
       .pup-evolution-skin .pupevo-slot.current>img { filter:drop-shadow(0 0 1px #d4ffe8) drop-shadow(0 0 5px rgba(83,255,176,.92)) !important; }
       .pup-evolution-skin .pupevo-slot.locked>img { content:var(--pup-evo-locked) !important; filter:drop-shadow(0 0 1px rgba(152,240,201,.72)) drop-shadow(0 0 3px rgba(54,189,130,.52)) !important; opacity:1 !important; }
       .pup-evolution-skin .pupevo-slot.locked .pupevo-lock-badge { display:none !important; }
+      /* Wider tablet orbit: leave the pet in its admin-controlled position. */
+      @media(min-width:768px){
+        .pup-evolution-skin > .pupevo-orbit { width:min(100%,540px) !important; }
+        .pup-evolution-skin .pupevo-slot { width:clamp(58px,calc(15 * var(--vw)),78px) !important; height:clamp(58px,calc(15 * var(--vw)),78px) !important; }
+        .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:29% !important;top:71% !important}
+        .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:12% !important;top:39% !important}
+        .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:29% !important;top:7% !important}
+        .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:71% !important;top:7% !important}
+        .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:88% !important;top:39% !important}
+        .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:71% !important;top:71% !important}
+      }
       @media(max-width:430px){
         .pup-evolution-skin .pupevo-slot { width:54px !important; height:54px !important; }
       }

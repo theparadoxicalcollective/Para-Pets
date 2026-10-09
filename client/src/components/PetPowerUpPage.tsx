@@ -61,6 +61,50 @@ const CSS = String.raw`
 #game-viewport-hud .pupage-close{top:max(env(safe-area-inset-top),10px);right:max(env(safe-area-inset-right),10px);width:38px;height:38px;pointer-events:auto}
 @media(max-height:720px){.pupage-scroll{padding-top:max(env(safe-area-inset-top),4px);padding-bottom:max(env(safe-area-inset-bottom),5px)}.pupage-head{min-height:78px}.pupage-logo{width:min(calc(78 * var(--vw)),470px)}.pupage-capacity{padding-top:4px;padding-bottom:4px}.pupage-enhance{width:min(48%,255px)}.pupage-stage{height:clamp(270px,calc(78 * var(--vw)),330px);margin-top:-5px}.pupage-pet-zone{width:min(calc(56 * var(--vw)),235px);height:min(calc(56 * var(--vw)),235px)}.pupage-nameplate{width:min(70%,375px)}.pupage-inventory{width:94%;margin-top:-23px}.pupage-bottom-spacer{height:2px}}
 @media(max-height:640px){.pupage-head{min-height:68px}.pupage-stage{height:clamp(245px,calc(70 * var(--vw)),295px)}.pupage-inventory{width:88%;margin-top:-19px}.pupage-enhance{width:min(46%,235px)}}
+/* Tablet Power Up: override the phone-stage compact rules after the
+   short-height queries. Keep the orbit group and its admin placement
+   transform intact; only add room around its existing contents. */
+@media (min-width: 768px) {
+  .pupage-scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pupage-head,
+  #game-stage[data-coordinate-owner="stage"] .pupage-head {
+    min-height: clamp(112px, 13dvh, 160px);
+    padding-inline: 52px;
+  }
+  .pupage-logo,
+  #game-stage[data-coordinate-owner="stage"] .pupage-logo {
+    width: min(65%, 520px);
+  }
+  .pupage-enhance,
+  #game-stage[data-coordinate-owner="stage"] .pupage-enhance {
+    width: min(44%, 270px);
+    margin-top: -4px;
+    margin-bottom: 8px;
+  }
+  .pupage-stage,
+  #game-stage[data-coordinate-owner="stage"] .pupage-stage {
+    height: clamp(400px, 51dvh, 560px);
+    max-width: 700px;
+    margin-top: 14px;
+  }
+  .pupage-pet-zone,
+  #game-stage[data-coordinate-owner="stage"] .pupage-pet-zone {
+    width: min(72%, 300px);
+    height: min(72%, 300px);
+  }
+  .pupage-inventory,
+  #game-stage[data-coordinate-owner="stage"] .pupage-inventory {
+    width: min(92%, 610px);
+    margin-top: 20px;
+  }
+  .pupage-bottom-spacer { height: 48px; }
+}
+
 `;
 
 function usesCapacity(item: PowerUpItem) {
