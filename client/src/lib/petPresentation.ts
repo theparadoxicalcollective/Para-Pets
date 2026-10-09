@@ -61,7 +61,11 @@ export function usePetPagePlacement(page: PetPageKey, enabled = true) {
     onSuccess: value => {
       client.setQueryData([url], value);
       // Other pages may inherit the Active Pet size.
-      if (page === "active") client.invalidateQueries({ queryKey: ["/api/pet-page-placement"] });
+      if (page === "active") {
+        for (const dependent of ["levelUp", "closet"] as const) {
+          client.invalidateQueries({ queryKey: [`/api/pet-page-placement/${dependent}`] });
+        }
+      }
     },
   });
   return { ...query, placement: query.data ?? DEFAULT_PAGE_PLACEMENT, save };
