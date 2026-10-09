@@ -255,7 +255,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
 
       <section className="pupage-capacity" data-testid="section-powerup-progress" aria-label={`${petName} Power Up capacity: ${used} used of ${capacity} total`}><div className="pupage-cap-track" data-testid="bar-powerup-capacity"><i style={{ width: `${capacityPercent}%` }} /></div><div className="pupage-cap-ticks"><span>{used} used</span><span>{capacity} total</span></div></section>
 
-      <section ref={powerUpSceneRef} className="pupage-stage">
+      <section className="pupage-stage" ref={powerUpSceneRef}>
         <div className="pupage-orbit-group" data-testid="power-up-pet-and-node-group" style={{ transform: `translate(${powerUpLocation.x}%, ${powerUpLocation.y}%) scale(${powerUpLocation.scale})`, transformOrigin: "center 70%" }}>
         <img src={pupPlatform} alt="" className="pupage-platform" /><EvolutionPanel enabled fallbackRarity={rarity} layout="orbit" />
         {specialItem && (
