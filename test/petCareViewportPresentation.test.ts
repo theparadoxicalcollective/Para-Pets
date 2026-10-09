@@ -5,10 +5,10 @@ import test from "node:test";
 const care = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
 const shell = readFileSync("client/src/tabletStageShell.css", "utf8");
 
-test("Pet Care keeps its gameplay composition canonical while its environment owns the viewport", () => {
+test("Pet Care switches between viewport and legacy phone coordinate ownership", () => {
   assert.match(care, /<ViewportScenePortal interactive=\{false\}>[\s\S]*data-testid="pet-care-viewport-environment"/);
   assert.match(care, /data-testid="overlay-feeding"/);
-  assert.match(care, /data-stage-coordinate-space="canonical"/);
+  assert.match(care, /data-stage-coordinate-space=\{viewportCareSurface\(\) \? "viewport" : "canonical"\}/);
   assert.match(care, /data-viewport-visual-owner="scene"/);
   assert.match(care, /data-testid="drop-zone-feed-pet"/);
   assert.ok(care.includes('data-testid={\`pet-care-\${kind}-shelf\`}'));
