@@ -119,7 +119,7 @@ test("rendered stages expose coordinate ownership so portals follow scaled portr
   assert.match(stage, /getStagePortalTarget\(\) === document\.body/);
 });
 
-test("Pet Home keeps authored and player-edited placement in logical stage coordinates", () => {
+test("Pet Home keeps authored placements while player cameras measure actual artwork scene", () => {
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const homeViewport = read("client/src/lib/homeCrossDevice.ts");
