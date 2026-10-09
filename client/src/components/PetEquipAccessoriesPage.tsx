@@ -11,7 +11,7 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
-import ViewportScenePortal from "@/components/ViewportScenePortal";
+import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import MiniPetRenderer, { type EquippedMiniPet } from "@/components/MiniPetRenderer";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
@@ -323,7 +323,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
   return (
     <>
-      <ViewportScenePortal interactive={false}>
+      <ViewportBackdropPortal>
         <div
           data-testid="closet-viewport-environment"
           className="absolute inset-0 pointer-events-none"
@@ -335,7 +335,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             backgroundRepeat: "no-repeat",
           }}
         />
-      </ViewportScenePortal>
+      </ViewportBackdropPortal>
 
       <div
         data-testid="closet-authored-template"
