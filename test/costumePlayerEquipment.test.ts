@@ -18,7 +18,7 @@ test("The Closet uses the supplied artwork and keeps accessory and costume contr
   assert.match(accessoryPage, /ClosetCloseButton\.png/);
   assert.doesNotMatch(accessoryPage, />THE CLOSET</);
   assert.match(accessoryPage, /data-testid="closet-pet-name"/);
-  assert.match(accessoryPage, /data-testid="closet-pet-preview"[\s\S]*?left: "19%", top: "21\.2%", width: "56%", height: "39\.5%"/);
+  assert.match(accessoryPage, /data-testid="closet-pet-preview"[\s\S]*?left: "5%", top: "28%", width: "90%", aspectRatio: "1"/);
   assert.match(accessoryPage, /aria-label="Accessory slots"/);
   assert.match(accessoryPage, /data-testid="accessory-bag-drawer"/);
   assert.doesNotMatch(accessoryPage, /data-testid="button-open-accessory-bag"/);
