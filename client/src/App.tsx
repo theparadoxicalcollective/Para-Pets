@@ -560,7 +560,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/bag" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <BagInventoryPage />
           </StagePageSurface>
         )}
