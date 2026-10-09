@@ -7,10 +7,10 @@ test("legacy pages default to neutral offsets and unchanged pet size", () => {
   assert.deepEqual(resolvePetPagePlacement({}, "closet"), { x: 0, y: 0, scale: 1 });
 });
 
-test("Level Up and Closet inherit Active Pet scale unless explicitly overridden", () => {
+test("Level Up and Closet ignore obsolete Active page scale unless overridden", () => {
   const config = { active: { x: 8, y: -4, scale: 1.4 }, powerUp: { x: -5, y: 3, scale: 0.9 } };
-  assert.deepEqual(resolvePetPagePlacement(config, "levelUp"), { x: 0, y: 0, scale: 1.4 });
-  assert.deepEqual(resolvePetPagePlacement(config, "closet"), { x: 0, y: 0, scale: 1.4 });
+  assert.deepEqual(resolvePetPagePlacement(config, "levelUp"), { x: 0, y: 0, scale: 1 });
+  assert.deepEqual(resolvePetPagePlacement(config, "closet"), { x: 0, y: 0, scale: 1 });
   assert.deepEqual(resolvePetPagePlacement(config, "powerUp"), { x: -5, y: 3, scale: 0.9 });
 });
 
