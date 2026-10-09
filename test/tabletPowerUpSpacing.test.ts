@@ -6,7 +6,7 @@ const powerUp = readFileSync("client/src/components/PetPowerUpPage.tsx", "utf8")
 const evolution = readFileSync("client/src/components/powerup/EvolutionPanel.tsx", "utf8");
 
 test("tablet Power Up separates the stage and item bar while retaining phone rules", () => {
-  assert.match(powerUp, /@media\(min-width: 768px\)/);
+  assert.match(powerUp, /@media\(min-width:\s*768px\)/);
   assert.match(powerUp, /\.pupage-scroll \{[\s\S]*?overflow-y: auto/);
   assert.match(powerUp, /\.pupage-stage,[\s\S]*?height: clamp\(400px, 51dvh, 560px\)/);
   assert.match(powerUp, /\.pupage-inventory,[\s\S]*?margin-top: 20px/);
