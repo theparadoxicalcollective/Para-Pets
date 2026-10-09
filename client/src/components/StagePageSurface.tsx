@@ -24,14 +24,24 @@ export default function StagePageSurface({ children, layout = "reference" }: { c
     setTarget(document.getElementById(VIEWPORT_PAGE_ID));
   }, []);
 
-  // Opt-in document-sized controls on the existing viewport page. The stage\n  // remains responsible for world and admin artwork coordinates elsewhere.\n  const fullViewport = layout === "viewport" && !!target;\n  const content = (
+  // Opt-in document-sized controls on the existing viewport page. The stage
+  // remains responsible for world and admin artwork coordinates elsewhere.
+  const fullViewport = layout === "viewport" && !!target;
+  const content = (
     <div
       className="page-overlay"
       data-page-presentation={fullViewport ? "full-viewport" : target ? "viewport" : "stage"}
       data-testid="stage-page-surface"
-      style={{\n        position: "absolute", inset: 0, width: "100%", height: "100%",\n        ...(fullViewport ? {\n          "--fh": "var(--viewport-surface-height)",\n          "--vh": "calc(var(--viewport-surface-height) / 100)",\n          "--vw": "calc(var(--viewport-surface-width) / 100)",\n        } as CSSProperties : {}),\n      }}
+      style={{
+        position: "absolute", inset: 0, width: "100%", height: "100%",
+        ...(fullViewport ? {
+          "--fh": "var(--viewport-surface-height)",
+          "--vh": "calc(var(--viewport-surface-height) / 100)",
+          "--vw": "calc(var(--viewport-surface-width) / 100)",
+        } as CSSProperties : {}),
+      }}
     >
-      <div
+      {fullViewport ? children : <div
         data-stage-reference-plane="true"
         data-testid="stage-page-reference-plane"
         style={{
@@ -44,7 +54,7 @@ export default function StagePageSurface({ children, layout = "reference" }: { c
         }}
       >
         {children}
-      </div>
+      </div>}
     </div>
   );
 
