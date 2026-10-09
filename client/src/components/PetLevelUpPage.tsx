@@ -296,7 +296,6 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
           <div className={`lupage-pet ${petAnim}`}><PetPageOvalPlacement page="levelUp" admin={Boolean(props.admin)} petTemplateId={petTemplateId} petInventoryId={petInventoryId}>{pet}</PetPageOvalPlacement></div>
         </div>
         <div className="lupage-nameplate"><span>{petName}</span><span className="lupage-level">Lv.{petLevel}</span></div>
-      </section>
       {showStats && <div className="lupage-stats-popover" data-testid="levelup-pet-stats-popover" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="lupage-stats-close" onClick={() => setShowStats(false)} aria-label="Close pet stats">Close stats ×</button>
         <section className="lupage-stats" data-testid="section-levelup-pet-stats">
@@ -304,6 +303,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
       </section>
       </div>}
       {!showStats && <div className="lupage-stats-hint">Tap your pet to view ATK · DEF · HP</div>}
+      </section>
       <img src={bagIcon} className="lupage-bag" alt="" />
       <section className="lupage-tray">
         {items.length ? <div className="lupage-items">{items.map((item) => <button
