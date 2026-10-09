@@ -1107,13 +1107,13 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center px-5"
+      className="fixed inset-0 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain px-4 py-5"
       style={{ zIndex: 99999, background: "rgba(4,6,12,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       data-testid="signin-modal-backdrop"
     >
       <div
-        className="w-full max-w-sm rounded-3xl overflow-hidden"
+        className="w-full max-w-sm my-auto rounded-3xl overflow-hidden shrink-0"
         style={{
           background: "linear-gradient(160deg,rgba(8,16,22,0.99) 0%,rgba(5,11,8,0.99) 100%)",
           border: "1px solid rgba(127,191,176,0.22)",
@@ -1389,7 +1389,7 @@ export default function ParaPetsHubPage() {
     <>
       <div
         data-testid="para-pets-hub-page"
-        className="para-pets-hub-scrollbar fixed inset-0 overflow-y-auto"
+        className="para-pets-hub-scrollbar fixed inset-0 overflow-y-auto overscroll-y-contain"
         style={{
           zIndex: 9000,
           background: "#030e05",
