@@ -11,7 +11,7 @@ export function registerPetPresentationRoutes(app: Express) {
   const pagePlacementKey = "pet_page_placements:v1";
   const validPage = (page: string) => (PET_PAGE_KEYS as readonly string[]).includes(page);
   app.get(pagePlacementRoute, requireAuthenticated, async (req, res) => {
-    const page = req.params.page;
+    const page = String(req.params.page);
     if (!validPage(page)) return res.status(400).json({ message: "Invalid pet page" });
     try {
       const raw = await storage.getGameSetting(pagePlacementKey);
@@ -21,7 +21,7 @@ export function registerPetPresentationRoutes(app: Express) {
     } catch { return res.status(500).json({ message: "Could not load pet page placement" }); }
   });
   app.put(pagePlacementRoute, requireAdmin, async (req, res) => {
-    const page = req.params.page;
+    const page = String(req.params.page);
     if (!validPage(page)) return res.status(400).json({ message: "Invalid pet page" });
     try {
       const parsedPage = petPagePlacementsSchema.shape.active.safeParse(req.body);
