@@ -171,6 +171,7 @@ test("expanded camera policy keeps an explorable overscan margin instead of stop
   assert.match(viewport, /calculateExpandedWorldCameraPanMargin/);
   assert.match(viewport, /frameWidth \+ panMargin \* 2/);
   assert.match(viewport, /frameHeight \+ panMargin \* 2/);
-  assert.match(viewport, /return Math\.max\(referenceScale, explorableScale\)/);
-  assert.doesNotMatch(viewport, /const coverScale =/);
+  assert.match(viewport, /const coverScale = Math\.max\(frameWidth \/ safeMapWidth, frameHeight \/ safeMapHeight\)/);
+  assert.match(viewport, /if \(Math\.min\(frameWidth, frameHeight\) < 600\) return coverScale/);
+  assert.doesNotMatch(viewport, /WORLD_REFERENCE_CAMERA_(WIDTH|HEIGHT)/);
 });
