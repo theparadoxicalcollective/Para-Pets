@@ -12,6 +12,8 @@ export interface PowerUpItem {
 }
 
 export interface PetUpgradeModalProps {
+  /** Enables page-only positioning controls for authorized admin callers. */
+  admin?: boolean;
   petName: string;
   petInventoryId: string;
   petImage: string | null;
