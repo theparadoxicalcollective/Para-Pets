@@ -15,5 +15,5 @@ test("tablet-only rules leave compact phone composition intact", () => {
   const source = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
   assert.match(source, /@media\(max-width:430px\)/);
   assert.match(source, /@media\(min-width:768px\)/);
-  assert.doesNotMatch(source, /\.lupage-scroll\{[^}]*overflow-y:auto[^}]*\}/);
+  assert.match(source, /@media\(max-height:570px\)/);
 });
