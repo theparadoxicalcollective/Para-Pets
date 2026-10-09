@@ -263,6 +263,29 @@ export function clientToStage(clientX: number, clientY: number): { x: number; y:
   return { x: (clientX - referenceRect.left) / scale, y: (clientY - referenceRect.top) / scale };
 }
 
+/**
+ * A scene element inside a stage-owned viewport page can be translated away
+ * from the canonical reference plane. Convert through the actual element's
+ * rendered rectangle rather than assuming it starts at the center-stage origin.
+ *
+ * This does not modify saved artwork or admin placement coordinates.
+ */
+export function clientPointInRenderedElement(
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  clientX: number,
+  clientY: number,
+  logicalWidth: number,
+  logicalHeight: number,
+): { x: number; y: number } {
+  if (!Number.isFinite(logicalWidth) || logicalWidth <= 0 || !Number.isFinite(logicalHeight) || logicalHeight <= 0 || rect.width <= 0 || rect.height <= 0) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: (clientX - rect.left) * logicalWidth / rect.width,
+    y: (clientY - rect.top) * logicalHeight / rect.height,
+  };
+}
+
 /** Convert a client-pixel movement into logical stage-pixel movement. */
 export function clientDeltaToStage(deltaX: number, deltaY: number): { x: number; y: number } {
   const scale = getStageScale();
