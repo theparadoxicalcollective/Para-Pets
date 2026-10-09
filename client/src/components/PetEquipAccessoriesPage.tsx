@@ -358,8 +358,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         maskImage: "linear-gradient(90deg,transparent,black 8%,black 92%,transparent)",
       }} />
 
-      <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.4%", width: "64%" }}>
-        <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.14em]" style={{ color: "#d4a94c", fontSize: "clamp(15px, 4.8vw, 23px)", textShadow: "0 2px 3px #000, 0 0 12px rgba(29,225,170,.28)" }}>{petName}</h1>
+      <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "11.2%", width: "76%", maxWidth: 390, pointerEvents: "none" }}>
+        <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.08em]" style={{ display: "inline-block", maxWidth: "100%", color: "#ffe7a4", fontSize: "clamp(15px, 4.2vw, 21px)", lineHeight: 1.35, textShadow: "0 2px 4px #000, 0 0 10px #000", background: "rgba(3,19,14,.76)", border: "1px solid rgba(245,209,123,.48)", borderRadius: 999, padding: "3px 14px", boxShadow: "0 3px 10px rgba(0,0,0,.4)" }}>{petName}</h1>
       </header>
 
       <button
@@ -391,7 +391,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
       <button type="button" data-testid="button-open-mini-pets" aria-label="Open Mini Pets inventory" onClick={() => setMiniPetOpen(true)}
         className="absolute z-[5] grid place-items-center rounded-full transition-transform active:scale-90"
-        style={{ left: "7.5%", top: "43.5%", width: "15.5%", aspectRatio: "1", border: "2px solid rgba(161,255,209,.92)", background: "radial-gradient(circle,rgba(24,110,79,.94),rgba(3,28,20,.96) 72%)", boxShadow: "0 6px 12px rgba(0,0,0,.8),0 0 16px rgba(74,255,177,.58),inset 0 0 8px rgba(145,255,218,.24)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+        style={{ left: "7.5%", top: "55%", width: "13%", aspectRatio: "1", border: "1.5px solid rgba(161,255,209,.86)", background: "radial-gradient(circle,rgba(24,110,79,.86),rgba(3,28,20,.92) 72%)", boxShadow: "0 3px 9px rgba(0,0,0,.7),0 0 9px rgba(74,255,177,.3)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
         {equippedMiniPetData?.equipped ? (
           <MiniPetRenderer petInventoryId={petInventoryId} style={{ width: "88%", height: "88%" }} />
         ) : (
@@ -399,8 +399,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         )}
       </button>
 
-      <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "5.5%", top: "67%", width: "89%", height: "11%", borderRadius: 12, background: "rgba(2,18,13,.72)", border: "1px solid rgba(96,233,160,.5)", padding: 3, boxShadow: "0 4px 15px rgba(0,0,0,.75)" }}>
-        <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "105%", color: "#e8ffef", fontSize: "clamp(9px, 2.3vw, 12px)", textShadow: "0 2px 4px #000", background: "rgba(2,21,14,.93)", border: "1px solid rgba(97,202,144,.7)", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
+      <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "8%", top: "20%", width: "84%", height: "9.2%", borderRadius: 10, background: "rgba(2,18,13,.63)", border: "1px solid rgba(96,233,160,.43)", padding: 2, boxShadow: "0 3px 9px rgba(0,0,0,.6)" }}>
+        <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "104%", color: "#e8ffef", fontSize: "clamp(9px, 2.2vw, 11px)", textShadow: "0 2px 4px #000", background: "rgba(2,21,14,.85)", border: "1px solid rgba(97,202,144,.45)", borderRadius: 999, padding: "3px 9px", cursor: "pointer", letterSpacing: "0.06em" }}>
           ACCESSORIES · {equippedAccessories.length}/{maxSlots} · OPEN BAG
         </button>
         <div className="grid h-full grid-cols-5" style={{ gap: "1.7%" }}>
