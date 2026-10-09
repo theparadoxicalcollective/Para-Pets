@@ -580,7 +580,7 @@ function InteriorViewer({
         panStateRef.current = { panX: newPanX, imgWidth: imgW, containerH: h, element: container };
       } catch {}
     };
-    return observeHomeViewport(container, recalc);
+    return observeHomeViewport(container, recalc, "artwork-scene");
   }, [aspect, panStateRef]);
 
   // Pan handlers
@@ -1801,7 +1801,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         setPanX(centeredHomeCameraPanX(w, imgW));
       } catch {}
     };
-    return observeHomeViewport(container, recalc);
+    return observeHomeViewport(container, recalc, "artwork-scene");
   }, [
     bgAspect,
     openInterior,
