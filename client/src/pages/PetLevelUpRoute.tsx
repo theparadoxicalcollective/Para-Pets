@@ -6,7 +6,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import PetLevelUpPage from "@/components/PetLevelUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchAuthenticatedUser } from "@/lib/queryClient";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 
 interface InventoryItem {
@@ -74,6 +74,12 @@ export default function PetLevelUpRoute() {
   const inventoryId = params?.inventoryId ?? null;
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { data: authenticatedUser } = useQuery<{ isAdmin?: boolean } | null>({
+    queryKey: ["/api/auth/me"],
+    queryFn: ({ signal }) => fetchAuthenticatedUser(signal),
+    staleTime: 20_000,
+    retry: false,
+  });
   const [successEffect, setSuccessEffect] = useState<{ type: "level"; label: string } | null>(null);
 
   const inventoryQuery = useQuery<InventoryItem[]>({
@@ -150,6 +156,7 @@ export default function PetLevelUpRoute() {
       fallback={<RouteError message="The Level Up page hit a display problem. Your pet and items are safe." onClose={close} />}
     >
       <PetLevelUpPage
+        admin={authenticatedUser?.isAdmin === true}
         petName={pet.petNickname || pet.name}
         petInventoryId={pet.inventoryId}
         petImage={pet.hatchedImageUrl || pet.imageUrl}
