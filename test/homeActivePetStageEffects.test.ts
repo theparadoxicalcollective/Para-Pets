@@ -25,7 +25,12 @@ test("Begin Journey potion glow threshold follows logical stage height instead o
   assert.doesNotMatch(source, /window\.innerHeight \* 0\.65/);
 });
 
-test("existing pet heart and sparkle effects remain stage-local", () => {
-  assert.match(source, /const p = clientToStage\(spawnX, spawnY\)/);
-  assert.match(source, /const p = clientToStage\(cx, cy\)/);
+test("petting hearts and sparkles use viewport coordinates outside the scaled stage", () => {
+  assert.match(source, /createPortal\(<div className="fixed inset-0 pointer-events-none"/);
+  assert.match(source, /data-testid="active-pet-viewport-particles"/);
+  assert.match(source, /cx: clampX\(spawnX, size, Math\.abs\(dx\)\)/);
+  assert.match(source, /cx: clampX\(cx, size, Math\.abs\(dx\)\)/);
+  assert.match(source, /const w = window\.innerWidth/);
+  const petting = source.slice(source.indexOf("const burstPetHearts"), source.indexOf("const homePettingRewardMutation"));
+  assert.doesNotMatch(petting, /clientToStage\(/);
 });

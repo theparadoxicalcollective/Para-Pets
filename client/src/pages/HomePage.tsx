@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
+import { createPortal } from "react-dom";
 import { X, Zap, Star, RotateCcw, ShieldPlus, PawPrint, Heart, Shirt, ArrowUpCircle } from "lucide-react";
 import supportIconImg from "@assets/Photoroom_20260708_111738_PM_1783570684580.png";
 import WorldChatPanel from "@/components/WorldChatPanel";
@@ -268,18 +269,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [petSparkles, setPetSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; size: number; delay: number }[]>([]);
   const petHeartIdRef = useRef(0);
   const petSparkleIdRef = useRef(0);
-  // Clamp a viewport x-coord so a particle of `size` px stays fully inside
-  // the visible window even AFTER its CSS animation drifts by ±`drift` px.
-  // Hearts/sparkles use position: fixed, so the visible window — not the
-  // pet container — is the right reference. Without this the bursts visibly
-  // flew off the right edge on iPhone (the touch wrapper centers near 195px
-  // but a ±110 spawn jitter + ±160 CSS drift could push particles past 465px).
-  // Hearts/sparkles are positioned in #game-stage LOCAL design-space (they're
-  // `position: fixed` inside the scaled stage), so clamp to the authored frame
-  // width — NOT window.innerWidth, which is the wrong coordinate space on
-  // tablets/desktop and let particles drift outside the visible frame.
+  // Particles are rendered in a viewport-owned portal, not the scaled
+  // 390px pet stage. Clamp their screen-space travel to the visible viewport.
   const clampX = useCallback((x: number, size: number, drift: number) => {
-    const w = getDesignW();
+    const w = window.innerWidth;
     const half = size / 2;
     const min = half + Math.max(0, drift) + 4;
     const max = w - half - Math.max(0, drift) - 4;
@@ -292,13 +285,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const dx = (Math.random() - 0.5) * 220; // tightened from 320
       const spawnX = cx + (Math.random() - 0.5) * 160; // tightened from 220
       const spawnY = cy + (Math.random() - 0.5) * 80;
-      // cx/cy arrive in viewport coords (from getBoundingClientRect); convert
-      // to stage-local so `fixed` particles land on the pet on every device.
-      const p = clientToStage(spawnX, spawnY);
+      // The viewport portal uses the same client coordinates as the pet bounds.
       return {
         id: ++petHeartIdRef.current,
-        cx: clampX(p.x, size, Math.abs(dx)),
-        cy: p.y,
+        cx: clampX(spawnX, size, Math.abs(dx)),
+        cy: spawnY,
         dx,
         size,
         delay: Math.random() * 0.3,
@@ -312,13 +303,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const newOnes = Array.from({ length: count }, () => {
       const size = 6 + Math.random() * 10;
       const dx = (Math.random() - 0.5) * 90;
-      // Convert the viewport spawn point to stage-local design coords (see
-      // burstPetHearts) so sparkles trace the pet on tablets/desktop too.
-      const p = clientToStage(cx, cy);
+      // Keep the sparkle in viewport coordinates, matching its portal.
       return {
         id: ++petSparkleIdRef.current,
-        cx: clampX(p.x, size, Math.abs(dx)),
-        cy: p.y,
+        cx: clampX(cx, size, Math.abs(dx)),
+        cy,
         dx,
         dy: (Math.random() - 0.5) * 90,
         size,
@@ -1101,6 +1090,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       zIndex: 1,
                     }}
                   >
+                    {createPortal(<div className="fixed inset-0 pointer-events-none" style={{ zIndex: 35 }} data-testid="active-pet-viewport-particles">
                     {petHearts.map((h) => (
                       <div
                         key={h.id}
@@ -1145,6 +1135,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         </svg>
                       </div>
                     ))}
+                    </div>, document.body)}
                     {activePet.isHatched ? (
                       <div
                         {...activePetTouchHandlers}
