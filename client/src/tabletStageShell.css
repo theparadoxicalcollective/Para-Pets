@@ -230,7 +230,6 @@
   #game-viewport-page .closet-accessory-slots {
     min-height: 72px;
     background: rgba(2, 18, 13, .94) !important;
-    box-shadow: 0 5px 18px rgba(0,0,0,.85) !important;
   }
 
   #game-stage[data-coordinate-owner="stage"] .closet-mini-pet-trigger,
