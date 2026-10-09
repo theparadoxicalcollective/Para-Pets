@@ -1639,6 +1639,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {/* ── Power Up modal ── */}
       {activePetModal === "power_up" && activePetForModal && (
         <PetPowerUpPage
+          admin={user.isAdmin}
           petName={activePetForModal.petNickname || activePetForModal.name}
           petInventoryId={activePetForModal.inventoryId}
           petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
