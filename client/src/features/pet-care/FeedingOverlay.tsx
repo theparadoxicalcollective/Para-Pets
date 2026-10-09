@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientRectPointToStage, clientToStage, clientToStagePortal, getDesignW, getStageLogicalCenter, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientPointInRenderedElement, clientRectPointToStage, clientToStage, clientToStagePortal, getDesignW, getStageLogicalCenter, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -595,6 +595,27 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const [, navigate] = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
+  // The Pet Care route can now render directly on the device's page surface.
+  // Resolve effect/gesture coordinates from that surface, not from the old
+  // 390x844 stage. The original inline phone path remains unchanged.
+  const viewportCareSurface = () => overlayRef.current?.closest<HTMLElement>('[data-page-presentation="full-viewport"]') ?? null;
+  const carePoint = (x: number, y: number) => {
+    const surface = viewportCareSurface();
+    return surface
+      ? clientPointInRenderedElement(surface.getBoundingClientRect(), x, y, surface.clientWidth, surface.clientHeight)
+      : clientToStage(x, y);
+  };
+  const careCenter = () => {
+    const surface = viewportCareSurface();
+    return surface ? { x: surface.clientWidth / 2, y: surface.clientHeight / 2 } : getStageLogicalCenter();
+  };
+  const careRectPoint = (rect: DOMRect, x: number, y: number) => {
+    const surface = viewportCareSurface();
+    return surface ? carePoint(rect.left + rect.width * x, rect.top + rect.height * y) : clientRectPointToStage(rect, x, y);
+  };
+  const careGhostTarget = () => viewportCareSurface() ?? getStagePortalTarget();
+  const careGhostPoint = (x: number, y: number) => viewportCareSurface() ? carePoint(x, y) : clientToStagePortal(x, y);
+
   const runtime = useMemo(() => detectRuntimeMode(), []);
   const recoveredPhase = useMemo(() => readRecoverablePetCarePhase(window.localStorage), []);
   const { reducedVisualMode: safeMode, dragEnabled, emergencyInteractionFallback } = getPetCareRuntimeDecisions(runtime, window.location.search, !!recoveredPhase);
@@ -801,11 +822,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   // particles in the wrong coordinate space → they drifted far to the right on
   // tablets/desktop where the stage is centered with a left margin and scaled.
   const clampToFrame = useCallback((x: number, y: number, pad = 24) => {
-    const p = clientToStage(x, y);
-    const w = getDesignW();
+    const p = carePoint(x, y);
+    const w = viewportCareSurface()?.clientWidth ?? getDesignW();
     return {
       x: Math.min(Math.max(p.x, pad), w - pad),
-      y: Math.min(Math.max(p.y, pad), DESIGN_H - pad),
+      y: Math.min(Math.max(p.y, pad), (viewportCareSurface()?.clientHeight ?? DESIGN_H) - pad),
     };
   }, []);
 
@@ -890,7 +911,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         if (box) {
           // floatTexts are `fixed` inside the scaled stage — convert to
           // stage-local so the "+Mood" text appears over the pet on all devices.
-          const fp = clientToStage(box.left + box.width / 2, box.top + box.height * 0.2);
+          const fp = carePoint(box.left + box.width / 2, box.top + box.height * 0.2);
           const cx = fp.x;
           const cy = fp.y;
           const id = ++floatIdRef.current;
@@ -1137,7 +1158,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
-      const textPoint = box ? clientRectPointToStage(box, 0.5, 0.3) : getStageLogicalCenter();
+      const textPoint = box ? careRectPoint(box, 0.5, 0.3) : careCenter();
       const added = data?.loyaltyAdded ?? 0;
       setFloatTexts((arr) => [...arr, { id, x: textPoint.x, y: textPoint.y, text: `+${added} Loyalty` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
@@ -1162,7 +1183,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       const box = petBoxRef.current?.getBoundingClientRect();
-      const textPoint = box ? clientRectPointToStage(box, 0.5, 0.3) : getStageLogicalCenter();
+      const textPoint = box ? careRectPoint(box, 0.5, 0.3) : careCenter();
       const coinsText = data?.coinsAwarded ? `+${data.coinsAwarded} Coins!` : "Reward Claimed!";
       const id1 = ++floatIdRef.current;
       setFloatTexts((arr) => [...arr, { id: id1, x: textPoint.x, y: textPoint.y - 20, text: coinsText }]);
@@ -1221,7 +1242,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const amount = Number(data?.totalFeedPoints) || (fed?.statBoostAmount ?? 5) * qty;
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
-      const textPoint = box ? clientRectPointToStage(box, 0.5, 0.3) : getStageLogicalCenter();
+      const textPoint = box ? careRectPoint(box, 0.5, 0.3) : careCenter();
       setFloatTexts((arr) => [...arr, { id, x: textPoint.x, y: textPoint.y, text: `+${amount} Feed pts` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
       if (box) {
@@ -1242,7 +1263,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const updateDragGhostPosition = useCallback((x: number, y: number) => {
     // Phones retain PR #151's body/client-coordinate drag ownership. Desktop
     // converts only because its ghost lives in the transformed portrait stage.
-    dragPositionRef.current = clientToStagePortal(x, y);
+    dragPositionRef.current = careGhostPoint(x, y);
     if (dragFrameRef.current != null) return;
     dragFrameRef.current = requestAnimationFrame(() => {
       dragFrameRef.current = null;
@@ -1522,7 +1543,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       <div
       ref={overlayRef}
       className={`absolute inset-0 h-full w-full pet-care-overlay${dragEnabled && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
-      data-stage-coordinate-space="canonical"
+      data-stage-coordinate-space={viewportCareSurface() ? "viewport" : "canonical"}
       data-viewport-visual-owner="scene"
       style={{
         zIndex: 500,
@@ -1858,7 +1879,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         // every device.
         const chipBox = coinChipRef.current?.getBoundingClientRect();
         const target = chipBox
-          ? clientToStage(chipBox.left + chipBox.width / 2, chipBox.top + chipBox.height / 2)
+          ? carePoint(chipBox.left + chipBox.width / 2, chipBox.top + chipBox.height / 2)
           : { x: c.cx, y: c.cy - 200 };
         const tx = target.x - c.cx;
         const ty = target.y - c.cy;
@@ -2135,7 +2156,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           {dragGhost.type === "edibles" && dragGhost.statBoostAmount != null && <span className="pet-care-drag-ghost__value">+{dragGhost.statBoostAmount}</span>}
           {dragGhost.type === "gift" && !!dragGhost.giftPoints && <span className="pet-care-drag-ghost__value">+{dragGhost.giftPoints}</span>}
           {dragGhost.displayQuantity > 1 && <span className="pet-care-drag-ghost__quantity">×{dragGhost.displayQuantity}</span>}
-        </div>, getStagePortalTarget(),
+        </div>, careGhostTarget(),
       )}
 
       {/* Feed-stack popup */}
