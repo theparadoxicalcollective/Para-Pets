@@ -30,7 +30,7 @@ test("every pet subpage grounds pet artwork using the same authored-foot transfo
 test("Level Up stays inside the authored page rather than allowing full-page scroll", () => {
   const page = read("client/src/components/PetLevelUpPage.tsx");
   assert.match(page, /\.lupage-scroll\{position:relative;z-index:1;height:100%;min-height:0;overflow:hidden/);
-  assert.match(page, /\.lupage-stage\{flex:1 1 auto;min-height:0/);
+  assert.match(page, /\.lupage-stage\{position:relative;flex:1 1 auto;min-height:0/);
   assert.match(page, /data-testid="level-up-authored-background"/);
   assert.match(page, /PetPageOvalPlacement page="levelUp" admin=\{Boolean\(props.admin\)\} petTemplateId=\{petTemplateId\} petInventoryId=\{petInventoryId\}/);
   assert.doesNotMatch(page, /<AdminPetPagePlacement/);
