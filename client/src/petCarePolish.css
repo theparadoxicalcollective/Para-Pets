@@ -259,7 +259,6 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
   }
 
   .pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
