@@ -61,13 +61,10 @@ export function calculateExpandedWorldCameraScale(
   const safeMapHeight = Number.isFinite(mapHeight) && mapHeight > 0 ? mapHeight : WORLD_MAP_HEIGHT;
   const coverScale = Math.max(frameWidth / safeMapWidth, frameHeight / safeMapHeight);
 
-  // Overscan only when the real viewport can comfortably accommodate it.
-  // A narrow camera already has off-screen authored map space to explore.
-  const mapRenderedWidth = safeMapWidth * coverScale;
-  const mapRenderedHeight = safeMapHeight * coverScale;
-  const hasHorizontalPan = mapRenderedWidth > frameWidth + 1;
-  const hasVerticalPan = mapRenderedHeight > frameHeight + 1;
-  if (hasHorizontalPan && hasVerticalPan) return coverScale;
+  // Compact cameras use the map's natural cover fit. Wider presentation
+  // surfaces retain the existing tablet/desktop exploration margin.
+  // This is a responsive breakpoint, not a 390x844 reference coordinate plane.
+  if (Math.min(frameWidth, frameHeight) < 600) return coverScale;
 
   const panMargin = calculateExpandedWorldCameraPanMargin(frameWidth, frameHeight);
   return Math.max(
