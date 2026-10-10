@@ -570,7 +570,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {(location === "/equip-accessories" || location.startsWith("/equip-accessories/")) && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <EquipAccessoriesPage
               petInventoryId={location.startsWith("/equip-accessories/") ? location.split("/")[2] : undefined}
               returnPath={location.startsWith("/equip-accessories/") ? "/pet-house" : "/"}
