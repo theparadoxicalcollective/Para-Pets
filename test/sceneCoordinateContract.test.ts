@@ -17,7 +17,7 @@ test("scene placements are independent of the admin device viewport", () => {
     { left: 100, top: 40, width: 820, height: 1180 },
     { left: -240, top: -160, width: 1600, height: 2400 },
   ]) {
-    const client = scenePlacementToClient(authored!, rect)!;
+    const client: { x: number; y: number } = scenePlacementToClient(authored!, rect)!;
     assert.deepEqual(clientToScenePlacement(client.x, client.y, rect), authored);
   }
 });
