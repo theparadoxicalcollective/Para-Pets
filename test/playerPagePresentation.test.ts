@@ -11,10 +11,10 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 test("player route presentation keeps Home, stage pages, and isolated pages explicit", () => {
   assert.equal(getPlayerRoutePresentation("/"), "home");
-  for (const path of ["/map", "/world/swamp", "/pet-house", "/equip-accessories", "/pet-care/pet-1", "/coins"]) {
+  for (const path of ["/map", "/world/swamp", "/pet-house", "/equip-accessories", "/pet-care/pet-1", "/pet-level-up/pet-1", "/coins"]) {
     assert.equal(getPlayerRoutePresentation(path), "stage", path);
   }
-  for (const path of ["/auth", "/privacy", "/hub", "/forum", "/founders", "/admin", "/visit/user-1", "/pet-level-up/pet-1", "/reset-password/token"]) {
+  for (const path of ["/auth", "/privacy", "/hub", "/forum", "/founders", "/admin", "/visit/user-1", "/reset-password/token"]) {
     assert.equal(getPlayerRoutePresentation(path), "isolated", path);
     assert.equal(isIsolatedPlayerRoute(path), true, path);
   }

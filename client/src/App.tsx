@@ -491,9 +491,6 @@ function AppRouter() {
           <Route path="/visit/:userId">
             {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
           </Route>
-          <Route path="/pet-level-up/:inventoryId">
-            {user ? <PetLevelUpRoute /> : <Redirect to="/auth" />}
-          </Route>
           <Route><Redirect to={user ? "/" : "/auth"} /></Route>
         </Switch>
       </Suspense>

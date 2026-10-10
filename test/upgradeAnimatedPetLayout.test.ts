@@ -17,10 +17,11 @@ test("Power Up animated pet stays inside its existing pet zone", () => {
   assert.doesNotMatch(power, /<PetAnimator[^>]*size=\{700\}/);
 });
 
-test("Level Up is mounted as its own full-screen route", () => {
-  assert.equal(isIsolatedPlayerRoute("/pet-level-up/pet-1"), true);
+test("Level Up is mounted on the reachable full-viewport stage route", () => {
+  assert.equal(isIsolatedPlayerRoute("/pet-level-up/pet-1"), false);
   assert.match(app, /isIsolatedPlayerRoute\(location\)/);
-  assert.match(app, /<Route path="\/pet-level-up\/:inventoryId">/);
+  assert.match(app, /location\.startsWith\("\/pet-level-up\/"\)[\s\S]*?<StagePageSurface key=\{location\} layout="viewport">[\s\S]*?<PetLevelUpRoute \/>/);
+  assert.doesNotMatch(app, /<Route path="\/pet-level-up\/:inventoryId">/);
   assert.match(levelRoute, /import PetLevelUpPage from "@\/components\/PetLevelUpPage"/);
   assert.match(levelRoute, /<PetLevelUpPage/);
   assert.doesNotMatch(home, /import PetLevelUpPage/);
