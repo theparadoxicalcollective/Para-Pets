@@ -1,3 +1,5 @@
+import { scenePointToPlacement } from "./stage";
+
 export interface HomePlacementPoint {
   xPct: number;
   yPct: number;
@@ -56,9 +58,11 @@ export function dragHomePlacement(
     return origin;
   }
 
+  const delta = scenePointToPlacement({ x: stageDx, y: stageDy }, { width: sceneWidth, height: sceneHeight });
+  if (!delta) return origin;
   return clampHomePlacementPoint({
-    xPct: origin.xPct + stageDx / sceneWidth,
-    yPct: origin.yPct + stageDy / sceneHeight,
+    xPct: origin.xPct + delta.x,
+    yPct: origin.yPct + delta.y,
   }, bounds);
 }
 
@@ -72,11 +76,12 @@ export function homeClientPointToPlacement(
   clientToScene: (clientX: number, clientY: number) => { x: number; y: number },
   bounds: HomePlacementBounds = HOME_INVENTORY_DROP_BOUNDS,
 ): HomePlacementPoint | null {
-  if (sceneWidth <= 0 || sceneHeight <= 0) return null;
   const local = clientToScene(clientX, clientY);
   const origin = clientToScene(rect.left, rect.top);
-  return clampHomePlacementPoint({
-    xPct: (local.x - origin.x - panX) / sceneWidth,
-    yPct: (local.y - origin.y) / sceneHeight,
-  }, bounds);
+  const placement = scenePointToPlacement(
+    { x: local.x - origin.x - panX, y: local.y - origin.y },
+    { width: sceneWidth, height: sceneHeight },
+  );
+  if (!placement) return null;
+  return clampHomePlacementPoint({ xPct: placement.x, yPct: placement.y }, bounds);
 }
