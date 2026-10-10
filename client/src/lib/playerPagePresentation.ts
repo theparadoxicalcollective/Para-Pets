@@ -12,7 +12,6 @@ const ISOLATED_EXACT = new Set([
 const ISOLATED_PREFIXES = [
   "/reset-password/",
   "/visit/",
-  "/pet-level-up/",
 ] as const;
 
 const NAV_HIDDEN_EXACT = new Set([
@@ -44,9 +43,9 @@ function hasPrefix(path: string, prefixes: readonly string[]) {
 /**
  * One routing-level presentation policy for player-facing surfaces.
  *
- * "isolated" is reserved for screens that must not retain the gameplay page
- * behind them (notably Level Up, whose WebKit stability depends on that).
- * Everything else authenticated remains on the shared GameStage.
+ * "isolated" is reserved for routes that render outside the gameplay stage.
+ * Level Up is a stage-owned full-viewport route: the Home page still unmounts
+ * because App renders only the active stage route, avoiding WebKit overlap.
  */
 export function getPlayerRoutePresentation(path: string): PlayerRoutePresentation {
   if (path === "/") return "home";
