@@ -490,3 +490,56 @@ export function clientToStagePortal(clientX: number, clientY: number): { x: numb
     ? { x: clientX, y: clientY }
     : clientToStage(clientX, clientY);
 }
+
+/**
+ * Device-independent placement coordinates for artwork and admin-authored scenes.
+ * These helpers do not alter legacy stage coordinates or migrate saved positions:
+ * callers opt in when an actual scene/artwork rectangle is available.
+ * A placement belongs to the scene, never to the administrator's phone size.
+ */
+export type SceneExtent = { width: number; height: number };
+export type ScenePoint = { x: number; y: number };
+export type ScenePlacement = { x: number; y: number }; // normalized 0..1 scene coordinates
+
+function validSceneExtent(extent: SceneExtent): boolean {
+  return Number.isFinite(extent.width) && extent.width > 0
+    && Number.isFinite(extent.height) && extent.height > 0;
+}
+
+export function scenePointToPlacement(point: ScenePoint, extent: SceneExtent): ScenePlacement | null {
+  if (!validSceneExtent(extent) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  return { x: point.x / extent.width, y: point.y / extent.height };
+}
+
+export function scenePlacementToPoint(placement: ScenePlacement, extent: SceneExtent): ScenePoint | null {
+  if (!validSceneExtent(extent) || !Number.isFinite(placement.x) || !Number.isFinite(placement.y)) return null;
+  return { x: placement.x * extent.width, y: placement.y * extent.height };
+}
+
+/** Map a client pointer directly to an artwork-relative placement, including panned/scaled scenes. */
+export function clientToScenePlacement(
+  clientX: number,
+  clientY: number,
+  renderedScene: Pick<DOMRect, "left" | "top" | "width" | "height">,
+): ScenePlacement | null {
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)
+    || !Number.isFinite(renderedScene.left) || !Number.isFinite(renderedScene.top)
+    || !validSceneExtent(renderedScene)) return null;
+  return {
+    x: (clientX - renderedScene.left) / renderedScene.width,
+    y: (clientY - renderedScene.top) / renderedScene.height,
+  };
+}
+
+export function scenePlacementToClient(
+  placement: ScenePlacement,
+  renderedScene: Pick<DOMRect, "left" | "top" | "width" | "height">,
+): ScenePoint | null {
+  if (!Number.isFinite(placement.x) || !Number.isFinite(placement.y)
+    || !Number.isFinite(renderedScene.left) || !Number.isFinite(renderedScene.top)
+    || !validSceneExtent(renderedScene)) return null;
+  return {
+    x: renderedScene.left + placement.x * renderedScene.width,
+    y: renderedScene.top + placement.y * renderedScene.height,
+  };
+}
