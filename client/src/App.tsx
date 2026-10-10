@@ -583,7 +583,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location.startsWith("/pet-level-up/") && (
-          <StagePageSurface key={location}>
+          <StagePageSurface key={location} layout="viewport">
             <PetLevelUpRoute />
           </StagePageSurface>
         )}

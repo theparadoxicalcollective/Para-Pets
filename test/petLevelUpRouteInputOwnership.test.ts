@@ -8,7 +8,7 @@ const page = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
 test("Power Up route owns the same stage page surface as other player pages", () => {
   assert.match(
     app,
-    /location\.startsWith\("\/pet-level-up\/"\)[\s\S]{0,180}<StagePageSurface key=\{location\}>[\s\S]{0,100}<PetLevelUpRoute \/>/,
+    /location\.startsWith\("\/pet-level-up\/"\)[\s\S]{0,180}<StagePageSurface key=\{location\} layout="viewport">[\s\S]{0,100}<PetLevelUpRoute \/>/,
   );
 });
 
