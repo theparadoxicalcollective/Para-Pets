@@ -2285,7 +2285,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     // Apply manual scroll if tracking
     const scrollTrack = petScrollTrackerRef.current;
     if (scrollTrack && scrollTrack.pid === e.pointerId && petScrollRef.current) {
-      petScrollRef.current.scrollLeft = scrollTrack.scrollLeft - clientDeltaToStage(e.clientX - scrollTrack.startX, 0).x;
+      petScrollRef.current.scrollLeft = scrollTrack.scrollLeft - homeCameraPointerDeltaX(e.clientX - scrollTrack.startX, petScrollRef.current);
     }
     // Update ghost position once drag is active
     const drag = petInvDragRef.current;

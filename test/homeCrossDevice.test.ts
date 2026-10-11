@@ -184,3 +184,10 @@ test("Home camera pan preserves client-to-scene distances across device scale", 
   assert.equal(homeCameraPointerDeltaX(60, null), 0);
   assert.equal(homeCameraPointerDeltaX(60, camera(600, 0)), 0);
 });
+
+
+test("Home pet inventory horizontal scrolling follows its own rendered surface", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  assert.match(owner, /scrollTrack\.scrollLeft - homeCameraPointerDeltaX\(e\.clientX - scrollTrack\.startX, petScrollRef\.current\)/);
+  assert.doesNotMatch(owner, /scrollTrack\.scrollLeft - clientDeltaToStage/);
+});
