@@ -28,8 +28,10 @@ test("Power Up temporarily owns the expanded device backdrop", () => {
 test("Power Up drag ghosts and spark origins use rendered Power Up local coordinates", () => {
   const source = read("client/src/components/PetPowerUpPage.tsx");
 
-  assert.match(source, /clientToStage\(event\.clientX, event\.clientY\)/);
-  assert.match(source, /clientRectPointToStage\(r\)/);
+  assert.match(source, /pagePoint\\(event\\.clientX, event\\.clientY\\)/);
+  assert.match(source, /pagePoint\\(r\\.left \\+ r\\.width \\/ 2, r\\.top \\+ r\\.height \\/ 2\\)/);
+  assert.match(source, /clientPointInRenderedElement\\(rect, x, y, element\\.clientWidth, element\\.clientHeight\\)/);
+  assert.doesNotMatch(source, /clientToStage|clientRectPointToStage/);
   assert.match(source, /\.pupage-ghost\{position:absolute/);
   assert.match(source, /\.pupage-spark\{position:absolute/);
   assert.doesNotMatch(source, /\.pupage-ghost\{position:fixed/);
