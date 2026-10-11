@@ -281,9 +281,9 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   ];
   const filterLabel = statFilter === "health" ? "HP" : statFilter?.toUpperCase();
 
-  return <ViewportModalPortal><div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="power-up-local" data-viewport-visual-owner="backdrop" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
+  return <ViewportModalPortal><div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="power-up-viewport" data-viewport-visual-owner="backdrop" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
     <style>{CSS}</style>
-    <ViewportBackdropPortal>
+    <ViewportBackdropPortal targetId="game-viewport-page">
       <div
         data-testid="power-up-viewport-backdrop"
         className="absolute inset-0 pointer-events-none"
@@ -300,7 +300,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">
         <img src={pupLogo} alt="Power Up" className="pupage-logo" />
-        <ViewportModalPortal blocking={false}>
+        <>
           <button
             type="button"
             className="pupage-corner pupage-close"
@@ -311,7 +311,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
             onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
             onClick={(event) => { if (event.detail === 0) onClose(); }}
           ><img src={pupCloseButton} alt="" /></button>
-        </ViewportModalPortal>
+        </>
       </header>
 
       <section className="pupage-enhance" aria-label={`${petName} has ${remaining} enhancements remaining`}><img src={pupEnhancementBar} alt="" className="pupage-enhance-art" /><div className="pupage-enhance-copy"><strong className="pupage-enhance-count">{remaining}</strong><span className="pupage-enhance-label">Remaining</span></div></section>
