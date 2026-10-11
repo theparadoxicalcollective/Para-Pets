@@ -549,5 +549,5 @@ export function scenePlacementToClient(
 
 /** Only audited routes may bypass the legacy stage. Expand this as pages migrate. */
 export function usesDeviceGameplaySurface(pathname: string): boolean {
-  return pathname === "/bag";
+  return pathname === "/bag" || pathname === "/pets";
 }
