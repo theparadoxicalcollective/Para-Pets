@@ -41,6 +41,15 @@ export function clampHomeCameraPanX(
   return Math.max(cameraWidth - imageWidth, Math.min(0, requestedPanX));
 }
 
+/** Convert a pointer's client-pixel travel into the rendered Home camera's CSS coordinate space. */
+export function homeCameraPointerDeltaX(clientDeltaX: number, camera: Element | null): number {
+  if (!camera) return 0;
+  const rect = camera.getBoundingClientRect();
+  const logicalWidth = (camera as HTMLElement).clientWidth;
+  if (!rect.width || !logicalWidth) return 0;
+  return clientDeltaX * logicalWidth / rect.width;
+}
+
 export function centeredHomeCameraPanX(cameraWidth: number, imageWidth: number): number {
   return clampHomeCameraPanX((cameraWidth - imageWidth) / 2, cameraWidth, imageWidth);
 }
