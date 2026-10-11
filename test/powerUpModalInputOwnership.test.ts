@@ -10,12 +10,12 @@ test("viewport modal portal can host edge controls without blocking the page bel
   assert.match(portal, /pointerEvents: viewportPointerEvents\(blocking \? "blocking" : "decorative"\)/);
 });
 
-test("Power Up close control uses a nonblocking viewport wrapper", () => {
-  assert.match(power, /<ViewportModalPortal blocking=\{false\}>[\s\S]*data-testid="button-close-powerup-modal"/);
+test("Power Up close control shares the interactive viewport modal", () => {
+  assert.match(power, /<ViewportModalPortal><div className="pupage"[\s\S]*data-testid="button-close-powerup-modal"/);
   assert.match(power, /#game-viewport-hud \.pupage-close\{[^}]*pointer-events:auto/);
 });
 
-test("Power Up gameplay controls remain on the underlying interactive page", () => {
+test("Power Up gameplay controls remain interactive inside the viewport modal", () => {
   assert.match(power, /data-testid="zone-pet-drop"[\s\S]*onClick=\{openStats\}/);
   assert.match(power, /onPointerDown=\{\(event\) => onPointerDown\(event, item\)\}/);
   assert.match(power, /onPointerMove=\{onPointerMove\}/);
