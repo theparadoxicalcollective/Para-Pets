@@ -273,3 +273,27 @@
     margin-inline: auto;
   }
 }
+
+/* Standalone care queries the usable device surface, including keyboard resize. */
+.pet-care-overlay[data-device-pet-care="true"] {
+  container-type: size;
+}
+.pet-care-overlay[data-device-pet-care="true"] .pet-care-header button {
+  min-width: 44px;
+  min-height: 44px;
+}
+@container (max-height: 650px) {
+  [data-device-pet-care="true"] .pet-care-pet {
+    --pet-care-pet-size: clamp(112px, min(32cqh, 50cqw), 218px);
+    top: 43cqh;
+  }
+  [data-device-pet-care="true"] .pet-care-loyalty {
+    height: min(48cqh, 285px);
+  }
+  [data-device-pet-care="true"] .pet-care-inventory-section {
+    max-height: 40cqh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}

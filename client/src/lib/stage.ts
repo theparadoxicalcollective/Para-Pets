@@ -551,5 +551,6 @@ export function scenePlacementToClient(
 export function usesDeviceGameplaySurface(pathname: string): boolean {
   return pathname === "/bag" || pathname === "/pets"
     || /^\/pet-level-up\/[^/]+$/.test(pathname)
+    || /^\/pet-care\/[^/]+$/.test(pathname)
     || pathname === "/equip-accessories" || /^\/equip-accessories\/[^/]+$/.test(pathname);
 }

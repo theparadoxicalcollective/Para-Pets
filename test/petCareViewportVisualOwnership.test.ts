@@ -7,7 +7,7 @@ const shell = readFileSync("client/src/tabletStageShell.css", "utf8");
 
 test("Pet Care lets the viewport scene own wide-device room artwork", () => {
   assert.match(care, /<ViewportScenePortal interactive=\{false\}>[\s\S]*data-testid="pet-care-viewport-environment"/);
-  assert.match(care, /data-stage-coordinate-space=\{viewportCareSurface\(\) \? "viewport" : "canonical"\}[\s\S]*data-viewport-visual-owner="scene"/);
+  assert.match(care, /data-stage-coordinate-space=\{deviceSurface \|\| viewportCareSurface\(\) \? "viewport" : "canonical"\}[\s\S]*data-viewport-visual-owner="scene"/);
   assert.match(shell, /#game-stage\[data-coordinate-owner="stage"\] \[data-viewport-visual-owner="scene"\] \{[\s\S]*background-color: transparent !important;[\s\S]*background-image: none !important;/);
 
   // Native phones retain the existing inline room treatment because the
