@@ -7,7 +7,7 @@ const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8
 const app = readFileSync("client/src/App.tsx", "utf8");
 const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
 
-test("Bag is the only opted-in full-device page; maps, home and pet placement stay unchanged", () => {
+test("Bag stays opted into full-device rendering; maps, home and pet placement stay unchanged", () => {
   assert.match(app, /location === "\/bag"[\s\S]{0,75}<StagePageSurface layout="viewport">/);
   for (const route of ["/map", "/pet-house", "/pet-care/"]) {
     const start = app.indexOf(`location === "${route}"`);
