@@ -16,8 +16,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
-import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { clientDeltaToStage } from "@/lib/stage";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
@@ -306,7 +306,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
-    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    const panDelta = homeCameraPointerDeltaX(e.clientX - drag.startX, container);
     const newPanX = clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW);
     setPanX(newPanX);
   }, []);
@@ -784,7 +784,7 @@ export default function VisitPetHousePage() {
     const w = container.offsetWidth;
     const imgW = container.offsetHeight * bgAspect;
     if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
-    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    const panDelta = homeCameraPointerDeltaX(e.clientX - drag.startX, container);
     setPanX(clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW));
   }, [bgAspect]);
 
