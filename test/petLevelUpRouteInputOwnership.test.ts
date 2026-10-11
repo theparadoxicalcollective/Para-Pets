@@ -22,7 +22,7 @@ test("Power Up keeps close and pointer drag interactions on its owned surface", 
 });
 
 test("isolated Level Up uses page-local pointer positions rather than stage conversion", () => {
-  assert.match(page, /data-stage-coordinate-space="canonical"/);
+  assert.match(page, /data-stage-coordinate-space=\{deviceSurface \? "viewport" : "canonical"\}/);
   assert.match(page, /pageRef\.current\?\.getBoundingClientRect\(\)/);
   assert.match(page, /localPoint\(event\.clientX, event\.clientY\)/);
   assert.match(page, /localPoint\(r\.left \+ r\.width \/ 2, r\.top \+ r\.height \/ 2\)/);

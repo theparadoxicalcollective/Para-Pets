@@ -50,7 +50,7 @@ function RouteError({ message, onRetry, onClose }: { message: string; onRetry?: 
     <main
       role="alert"
       data-testid="pet-level-up-route-error"
-      data-stage-coordinate-space="canonical"
+      data-stage-coordinate-space="viewport"
       style={{
         position: "absolute", inset: 0, display: "grid", placeItems: "center",
         padding: 24, background: "#060a09", color: "#fff8d9", textAlign: "center",
@@ -148,7 +148,7 @@ export default function PetLevelUpRoute() {
   return (
     <div
       data-testid="pet-level-up-isolated-surface"
-      style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 1000, pointerEvents: "auto", touchAction: "pan-y" }}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 1000, pointerEvents: "auto", touchAction: "pan-y" }}
     >
     <ErrorBoundary
       context="PetLevelUpRoute"
@@ -156,6 +156,7 @@ export default function PetLevelUpRoute() {
       fallback={<RouteError message="The Level Up page hit a display problem. Your pet and items are safe." onClose={close} />}
     >
       <PetLevelUpPage
+        deviceSurface
         admin={authenticatedUser?.isAdmin === true}
         petName={pet.petNickname || pet.name}
         petInventoryId={pet.inventoryId}

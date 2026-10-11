@@ -27,7 +27,7 @@ test("Pet Menu does not overlap full-screen Power-Up while its quest controls re
 
 test("isolated Level Up has an explicit touch-enabled viewport covering the tablet", () => {
   assert.match(levelRoute, /data-testid="pet-level-up-isolated-surface"/);
-  assert.match(levelRoute, /position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 1000, pointerEvents: "auto", touchAction: "pan-y"/);
+  assert.match(levelRoute, /position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 1000, pointerEvents: "auto", touchAction: "pan-y"/);
   assert.match(levelPage, /data-testid="button-close-levelup-modal"/);
   assert.match(levelPage, /onClick=\{onClose\}/);
   assert.match(levelPage, /onPointerDown=\{\(event\) => onPointerDown\(event, item\)\}/);

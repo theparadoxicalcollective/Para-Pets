@@ -338,15 +338,3 @@
     height: 72px !important;
   }
 }
-
-
-/*
- * Level Up's interactive viewport page must be above the decorative scene
- * portal (z30). Previously the page was z20, so scene scenery could paint
- * over the Level Up title, pet, tray and controls on tablets even though the
- * route had mounted successfully. Scope this to Level Up only; other routes,
- * maps, homes and the phone stage keep their existing stacking.
- */
-#game-stage[data-coordinate-owner="stage"] #game-viewport-page[data-level-up-route="true"] {
-  z-index: 35 !important;
-}
