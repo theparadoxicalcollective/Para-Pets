@@ -142,14 +142,17 @@ test("expanded WorldPage camera suspends behind modal and location UI", () => {
   assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/?>/);
 });
 
-test("world camera controller measures the actual portal surface and keeps shared stage input scale", () => {
+test("world camera controller measures the portal surface and uses local pointer scale", () => {
   const source = read("client/src/worlds/useWorldViewportController.ts");
 
   assert.match(source, /const width = el\.clientWidth \|\| getDesignW\(\)/);
   assert.match(source, /const height = el\.clientHeight \|\| DESIGN_H/);
   assert.match(source, /new ResizeObserver\(measure\)/);
   assert.match(source, /expandedCamera && !getStageSurface\(\)\.viewportOwned/);
-  assert.match(source, /clientDeltaToStage\(/);
+  assert.doesNotMatch(source, /clientDeltaToStage\(/);
+  assert.match(source, /viewportElement\?\.getBoundingClientRect\(\)/);
+  assert.match(source, /frameWRef\.current \/ rect\.width/);
+  assert.match(source, /frameHRef\.current \/ rect\.height/);
   assert.match(source, /event\.clientX - mapPanStartRef\.current\.x/);
   assert.match(source, /event\.clientY - mapPanStartRef\.current\.y/);
   assert.doesNotMatch(source, /const stageScale = getStageScale\(\)/);

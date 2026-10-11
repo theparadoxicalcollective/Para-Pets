@@ -16,7 +16,10 @@ test("shared world viewport controller owns frame measurement and pan lifecycle"
   assert.doesNotMatch(source, /const el = vpRef\.current/);
   assert.doesNotMatch(source, /window\.addEventListener\("orientationchange", measure\)/);
   assert.doesNotMatch(source, /visualViewport|window\.innerWidth|window\.innerHeight|display-mode: standalone/);
-  assert.match(source, /clientDeltaToStage\(/);
+  assert.doesNotMatch(source, /clientDeltaToStage\(/);
+  assert.match(source, /viewportElement\?\.getBoundingClientRect\(\)/);
+  assert.match(source, /frameWRef\.current \/ rect\.width/);
+  assert.match(source, /frameHRef\.current \/ rect\.height/);
   assert.doesNotMatch(source, /getStageScale\(\)/);
   assert.match(source, /WORLD_MAP_PAN_THRESHOLD_PX = 4/);
   assert.match(source, /WORLD_MAP_POST_PAN_CLICK_MS = 80/);
