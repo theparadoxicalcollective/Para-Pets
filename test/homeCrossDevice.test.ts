@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   centeredHomeCameraPanX,
   clampHomeCameraPanX,
+  homeCameraPointerDeltaX,
   HOME_FIXED_VIEWPORT_STYLE,
   HOME_TOUCH_SURFACE_STYLE,
   safeSetPointerCapture,
@@ -169,4 +170,17 @@ test("outdoor Home cameras convert pan movement using their rendered surface, no
     assert.equal((source.match(/homeCameraPointerDeltaX\(e\.clientX - drag\.startX, container\)/g) ?? []).length, 2);
     assert.doesNotMatch(source, /const panDelta = clientDeltaToStage/);
   }
+});
+
+
+test("Home camera pan preserves client-to-scene distances across device scale", () => {
+  const camera = (clientWidth: number, renderedWidth: number) => ({
+    clientWidth,
+    getBoundingClientRect: () => ({ width: renderedWidth }),
+  }) as unknown as Element;
+  assert.equal(homeCameraPointerDeltaX(60, camera(600, 600)), 60);
+  assert.equal(homeCameraPointerDeltaX(60, camera(600, 300)), 120);
+  assert.equal(homeCameraPointerDeltaX(60, camera(600, 1200)), 30);
+  assert.equal(homeCameraPointerDeltaX(60, null), 0);
+  assert.equal(homeCameraPointerDeltaX(60, camera(600, 0)), 0);
 });
