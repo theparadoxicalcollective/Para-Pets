@@ -9,7 +9,7 @@ const css = readFileSync("client/src/tabletStageShell.css", "utf8");
 
 test("Closet route uses full device viewport rather than reference plane", () => {
   assert.match(app, /location === "\/equip-accessories"[\s\S]{0,160}<StagePageSurface layout="viewport">/);
-  assert.match(css, /\[data-page-presentation="full-viewport"\] \[data-responsive-closet="true"\]/);
+  assert.match(css, /\[data-responsive-closet="true"\], \[data-device-closet="true"\]\)/);
   assert.match(css, /\[data-testid="closet-pet-preview"\]/);
   assert.match(css, /\.closet-accessory-slots/);
   assert.match(css, /\.closet-adornment-slots/);
@@ -25,7 +25,7 @@ test("Closet keeps original admin oval, equipment APIs and client-space slot tar
   assert.match(costumes, /closet-adornment-slots/);
 });
 
-test("tablet layout rules cannot affect native phone Closet", () => {
+test("responsive device Closet retains an explicit embedded fallback", () => {
   assert.match(css, /@media \(min-width: 768px\) \{[\s\S]*?\[data-page-presentation="full-viewport"\]/);
-  assert.match(closet, /data-stage-coordinate-space="canonical"/);
+  assert.match(closet, /data-stage-coordinate-space=\{deviceSurface \? "viewport" : "canonical"\}/);
 });

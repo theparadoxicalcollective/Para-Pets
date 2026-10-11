@@ -43,7 +43,7 @@ export default function EquipAccessoriesPage({ petInventoryId, returnPath = "/" 
 
   if (!ready || !activePet) {
     return (
-      <div className="absolute inset-0 flex h-full w-full items-center justify-center" data-stage-coordinate-space="canonical" style={{ background: "rgba(4,8,5,0.92)" }}>
+      <div className="absolute inset-0 flex h-full w-full items-center justify-center" data-stage-coordinate-space="viewport" style={{ background: "rgba(4,8,5,0.92)" }}>
         <p className="font-fantasy text-sm animate-pulse" style={{ color: "#5eead4" }}>Loading…</p>
       </div>
     );
@@ -51,6 +51,7 @@ export default function EquipAccessoriesPage({ petInventoryId, returnPath = "/" 
 
   return (
     <PetEquipAccessoriesPage
+      deviceSurface
       petInventoryId={activePet.inventoryId}
       petName={activePet.petNickname || activePet.name}
       petImage={activePet.hatchedImageUrl || activePet.imageUrl}
