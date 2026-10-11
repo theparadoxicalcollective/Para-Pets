@@ -158,3 +158,15 @@ test("player and visitor Home cameras measure artwork viewport instead of phone 
   const admin = read("client/src/components/HomeBundleSection.tsx");
   assert.match(admin, /observeHomeViewport\(container, recalc\)/);
 });
+
+
+test("outdoor Home cameras convert pan movement using their rendered surface, not global stage scale", () => {
+  const helper = readFileSync("client/src/lib/homeCrossDevice.ts", "utf8");
+  const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
+  assert.match(helper, /clientDeltaX \* logicalWidth \/ rect\.width/);
+  for (const source of [owner, visitor]) {
+    assert.equal((source.match(/homeCameraPointerDeltaX\(e\.clientX - drag\.startX, container\)/g) ?? []).length, 2);
+    assert.doesNotMatch(source, /const panDelta = clientDeltaToStage/);
+  }
+});
