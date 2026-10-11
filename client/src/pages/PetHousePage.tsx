@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
-import { centeredHomeCameraPanX, clampHomeCameraPanX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientDeltaToStage, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
@@ -612,7 +612,7 @@ function InteriorViewer({
     const h = container.offsetHeight;
     const imgW = h * aspectRef.current;
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 7) drag.moved = true;
-    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    const panDelta = homeCameraPointerDeltaX(e.clientX - drag.startX, container);
     const newPanX = clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW);
     setPanX(newPanX);
     panStateRef.current = {
@@ -1842,7 +1842,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     const w = container.offsetWidth;
     const h = container.offsetHeight;
     const imgW = h * bgAspect;
-    const panDelta = clientDeltaToStage(e.clientX - drag.startX, 0).x;
+    const panDelta = homeCameraPointerDeltaX(e.clientX - drag.startX, container);
     setPanX(clampHomeCameraPanX(drag.startPanX + panDelta, w, imgW));
   }, [bgAspect]);
 
