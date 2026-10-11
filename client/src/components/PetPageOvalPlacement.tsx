@@ -75,10 +75,12 @@ export default function PetPageOvalPlacement({
     // each page migrates off the legacy stage.
     const size = { width: bounds.width, height: bounds.height };
     const transform = calculateArtworkTransform(size, size);
+    // Translate both pointers into the actual scene's local coordinate system.
+    // Device and viewport origins must never become part of authored placements.
     const moved = dragArtworkPercentOffset(
       start.start,
-      { x: start.x, y: start.y },
-      { x: event.clientX, y: event.clientY },
+      { x: start.x - bounds.left, y: start.y - bounds.top },
+      { x: event.clientX - bounds.left, y: event.clientY - bounds.top },
       transform,
     );
     const next = { ...moved, x: +moved.x.toFixed(2), y: +moved.y.toFixed(2) };
