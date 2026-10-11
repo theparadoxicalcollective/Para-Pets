@@ -14,6 +14,8 @@ export interface PowerUpItem {
 export interface PetUpgradeModalProps {
   /** Enables page-only positioning controls for authorized admin callers. */
   admin?: boolean;
+  /** Standalone routes own device-sized UI; embedded modals retain legacy presentation. */
+  deviceSurface?: boolean;
   petName: string;
   petInventoryId: string;
   petImage: string | null;

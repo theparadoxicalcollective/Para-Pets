@@ -5,16 +5,16 @@ import { calculateStageLayout, clientRectPointToStage, logicalToRendered, render
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Level Up keeps its authored UI on the canonical stage without restoring HomePage", () => {
+test("Level Up uses local page ownership without restoring HomePage", () => {
   const level = read("client/src/components/PetLevelUpPage.tsx");
   const route = read("client/src/pages/PetLevelUpRoute.tsx");
   const home = read("client/src/pages/HomePage.tsx");
 
   assert.match(level, /\.lupage\{position:absolute;inset:0;width:100%;height:100%/);
-  assert.match(level, /data-stage-coordinate-space="canonical"/);
+  assert.match(level, /data-stage-coordinate-space=\{deviceSurface \? "viewport" : "canonical"\}/);
   assert.doesNotMatch(level, /\.lupage\{position:fixed/);
   assert.doesNotMatch(level, /max-width:768px/);
-  assert.match(route, /data-testid="pet-level-up-route-error"[\s\S]*data-stage-coordinate-space="canonical"/);
+  assert.match(route, /data-testid="pet-level-up-route-error"[\s\S]*data-stage-coordinate-space="viewport"/);
   assert.match(route, /position: "absolute"/);
   assert.doesNotMatch(home, /<PetLevelUpPage/);
 });

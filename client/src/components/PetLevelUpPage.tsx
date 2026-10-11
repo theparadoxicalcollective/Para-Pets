@@ -2,6 +2,7 @@ import { Component, memo, useCallback, useEffect, useRef, useState } from "react
 import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties, ErrorInfo, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Star, X } from "lucide-react";
+import { clientPointInRenderedElement } from "@/lib/stage";
 import { getNextZ } from "@/lib/layerManager";
 import PetAnimator from "@/components/PetAnimator";
 import PetPageOvalPlacement from "@/components/PetPageOvalPlacement";
@@ -170,13 +171,14 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
 
 export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const {
-    petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
+    deviceSurface = false, petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
     itemsRemaining, items, isPending, subtitle, showBuyButton = false,
     successEffect, onUseItem, onSuccessAnimEnd, onClose,
   } = props;
   const [z] = useState(() => getNextZ());
   const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   useStageSurroundings({
+    enabled: !deviceSurface,
     imageUrl: forestBg,
     backgroundColor: "#060a09",
     backgroundPosition: "center center",
@@ -189,7 +191,9 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const localPoint = useCallback((clientX: number, clientY: number) => {
     const rect = pageRef.current?.getBoundingClientRect();
-    return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+    const page = pageRef.current;
+    if (!rect || !page) return { x: 0, y: 0 };
+    return clientPointInRenderedElement(rect, clientX, clientY, page.clientWidth, page.clientHeight);
   }, []);
   const dragRef = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
@@ -307,9 +311,9 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space="canonical" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div ref={pageRef} className="lupage" data-viewport-visual-owner="backdrop" style={{ zIndex: z, touchAction: "auto" }} data-stage-coordinate-space={deviceSurface ? "viewport" : "canonical"} data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
-    <ViewportBackdropPortal>
+    {deviceSurface ? (
       <div
         data-testid="level-up-viewport-backdrop"
         className="absolute inset-0 pointer-events-none"
@@ -320,12 +324,22 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
           backgroundRepeat: "no-repeat",
         }}
       />
-    </ViewportBackdropPortal>
-
-
-    {/* The center background shares the pet/oval's canonical coordinates;
-        the viewport backdrop remains scenic extension on tablets. */}
-    <div data-testid="level-up-authored-background" className="lupage-authored-background" style={{ backgroundImage: `url(${forestBg})` }} />
+    ) : (
+      <ViewportBackdropPortal>
+        <div
+        data-testid="level-up-viewport-backdrop"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${forestBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      </ViewportBackdropPortal>
+    )}
+    {/* Embedded legacy modals retain their existing background composition. */}
+    {!deviceSurface && <div data-testid="level-up-authored-background" className="lupage-authored-background" style={{ backgroundImage: `url(${forestBg})` }} />}
 
     <div className="lupage-scroll">
       <header className="lupage-head">

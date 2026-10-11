@@ -6,7 +6,8 @@ import { calculateStageLayout, usesDeviceGameplaySurface, logicalToRendered, ren
 test("only audited inventory gameplay opts into device ownership", () => {
   assert.equal(usesDeviceGameplaySurface("/bag"), true);
   assert.equal(usesDeviceGameplaySurface("/pets"), true);
-  for (const route of ["/", "/pets/other", "/pet-house", "/world/swamp", "/pet-care/1", "/pet-level-up/1", "/equip-accessories", "/bag/other"]) {
+  assert.equal(usesDeviceGameplaySurface("/pet-level-up/pet-1"), true);
+  for (const route of ["/", "/pets/other", "/pet-house", "/world/swamp", "/pet-care/1", "/pet-level-up/", "/pet-level-up/1/extra", "/equip-accessories", "/bag/other"]) {
     assert.equal(usesDeviceGameplaySurface(route), false);
   }
 });

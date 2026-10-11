@@ -813,7 +813,6 @@ function GameStage({ children }: { children: ReactNode }) {
           <div
             id="game-viewport-page"
             data-testid="game-viewport-page"
-            data-level-up-route={location.startsWith("/pet-level-up/") ? "true" : undefined}
             style={{
               position: "absolute",
               left: 0,
