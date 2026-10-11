@@ -4,13 +4,13 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Power Up keeps its authored UI in its local modal surface", () => {
+test("Power Up renders its authored UI in its viewport modal surface", () => {
   const source = read("client/src/components/PetPowerUpPage.tsx");
 
   assert.match(source, /\.pupage\{position:absolute;inset:0;width:100%;height:100%/);
-  assert.match(source, /data-stage-coordinate-space="power-up-local"/);
+  assert.match(source, /data-stage-coordinate-space="power-up-viewport"/);
   assert.doesNotMatch(source, /\.pupage\{position:fixed/);
-  assert.doesNotMatch(source, /max-width:768px/);
+  assert.match(source, /<ViewportModalPortal><div className="pupage"/);
   assert.match(source, /\.pupage-stats-backdrop\{position:absolute/);
 });
 
