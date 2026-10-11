@@ -6,7 +6,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { DESIGN_H, clientDeltaToStage, getDesignW, getStageSurface } from "@/lib/stage";
+import { DESIGN_H, getDesignW, getStageSurface } from "@/lib/stage";
 import {
   calculateExpandedWorldCameraScale,
   calculateWorldFitScale,
@@ -263,10 +263,12 @@ export function useWorldViewportController({
 
     const pointers = Array.from(mapPanPointersRef.current.values());
     if (pointers.length === 1 && mapPanStartRef.current) {
-      const { x: dx, y: dy } = clientDeltaToStage(
-        event.clientX - mapPanStartRef.current.x,
-        event.clientY - mapPanStartRef.current.y,
-      );
+      // Camera offsets are measured in the rendered viewport element, not the
+      // global 390×844 stage. Convert pointer deltas using this camera alone.
+      const rect = viewportElement?.getBoundingClientRect();
+      if (!rect || !rect.width || !rect.height) return;
+      const dx = (event.clientX - mapPanStartRef.current.x) * frameWRef.current / rect.width;
+      const dy = (event.clientY - mapPanStartRef.current.y) * frameHRef.current / rect.height;
 
       if (
         !mapPanningRef.current
@@ -287,7 +289,7 @@ export function useWorldViewportController({
         );
       }
     }
-  }, [applyMapTransform, isLocationDragActive, isObjectDragActive]);
+  }, [applyMapTransform, isLocationDragActive, isObjectDragActive, viewportElement]);
 
   const finishViewportPointer = useCallback((event: ReactPointerEvent, cancelled: boolean) => {
     mapPanPointersRef.current.delete(event.pointerId);
