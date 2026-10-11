@@ -203,3 +203,15 @@ test("outdoor decor editing uses camera-local pointer deltas for live movement a
   assert.match(outdoorDecor, /homeCameraPointerDelta\(/);
   assert.doesNotMatch(outdoorDecor, /clientDeltaToStage/);
 });
+
+
+test("outdoor pet repositioning measures live and final movement in the Home camera", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const petDrag = owner.split("// ── Outdoor pet repositioning drag")[1]?.split("// ── Inventory drag starters")[0] ?? "";
+  assert.match(petDrag, /const \{ x: dx, y: dy \} = homeCameraPointerDelta\(/);
+  assert.match(petDrag, /const localDelta = homeCameraPointerDelta\(/);
+  assert.match(petDrag, /const rawPosition = dragHomePlacement\(/);
+  assert.doesNotMatch(petDrag, /clientDeltaToStage/);
+  assert.match(petDrag, /getHouseInteriorSleepSnapPosition/);
+  assert.match(petDrag, /updatePetPositionMutation\.mutateAsync\(finalPosition\)/);
+});
