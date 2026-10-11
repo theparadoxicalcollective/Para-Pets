@@ -50,6 +50,16 @@ export function homeCameraPointerDeltaX(clientDeltaX: number, camera: Element | 
   return clientDeltaX * logicalWidth / rect.width;
 }
 
+/** Convert client-pointer movement to the local Home camera coordinate plane. */
+export function homeCameraPointerDelta(clientDeltaX: number, clientDeltaY: number, camera: HTMLElement | null): { x: number; y: number } {
+  if (!camera) return { x: 0, y: 0 };
+  const rect = camera.getBoundingClientRect();
+  return {
+    x: rect.width > 0 && camera.clientWidth > 0 ? clientDeltaX * camera.clientWidth / rect.width : 0,
+    y: rect.height > 0 && camera.clientHeight > 0 ? clientDeltaY * camera.clientHeight / rect.height : 0,
+  };
+}
+
 export function centeredHomeCameraPanX(cameraWidth: number, imageWidth: number): number {
   return clampHomeCameraPanX((cameraWidth - imageWidth) / 2, cameraWidth, imageWidth);
 }

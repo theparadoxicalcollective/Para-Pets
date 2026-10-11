@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { MailOpen, Minus, Plus } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
-import { centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, homeCameraPointerDelta, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientDeltaToStage, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
@@ -2033,9 +2033,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePlacedDragMove = useCallback((e: React.PointerEvent) => {
     const drag = placedDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
-    const { x: dx, y: dy } = clientDeltaToStage(
+    const { x: dx, y: dy } = homeCameraPointerDelta(
       e.clientX - drag.startPointerX,
       e.clientY - drag.startPointerY,
+      containerRef.current,
     );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
@@ -2107,10 +2108,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
     if (!drag.canMove) return;
 
+    const localDelta = homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current);
     const final = dragHomePlacement(
       { xPct: drag.startXPct, yPct: drag.startYPct },
-      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
-      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      localDelta.x,
+      localDelta.y,
       imgWidth,
       containerH,
       HOME_DECOR_PLACEMENT_BOUNDS,
