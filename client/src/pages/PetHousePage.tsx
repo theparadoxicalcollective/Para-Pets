@@ -2108,10 +2108,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
     if (!drag.canMove) return;
 
+    const localDelta = homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current);
     const final = dragHomePlacement(
       { xPct: drag.startXPct, yPct: drag.startYPct },
-      homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current).x,
-      homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current).y,
+      localDelta.x,
+      localDelta.y,
       imgWidth,
       containerH,
       HOME_DECOR_PLACEMENT_BOUNDS,
