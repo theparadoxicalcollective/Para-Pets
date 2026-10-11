@@ -4,11 +4,11 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Power Up keeps its authored UI on the canonical stage", () => {
+test("Power Up keeps its authored UI in its local modal surface", () => {
   const source = read("client/src/components/PetPowerUpPage.tsx");
 
   assert.match(source, /\.pupage\{position:absolute;inset:0;width:100%;height:100%/);
-  assert.match(source, /data-stage-coordinate-space="canonical"/);
+  assert.match(source, /data-stage-coordinate-space="power-up-local"/);
   assert.doesNotMatch(source, /\.pupage\{position:fixed/);
   assert.doesNotMatch(source, /max-width:768px/);
   assert.match(source, /\.pupage-stats-backdrop\{position:absolute/);
@@ -25,7 +25,7 @@ test("Power Up temporarily owns the expanded device backdrop", () => {
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
 });
 
-test("Power Up drag ghosts and spark origins use logical stage coordinates", () => {
+test("Power Up drag ghosts and spark origins use rendered Power Up local coordinates", () => {
   const source = read("client/src/components/PetPowerUpPage.tsx");
 
   assert.match(source, /clientToStage\(event\.clientX, event\.clientY\)/);
