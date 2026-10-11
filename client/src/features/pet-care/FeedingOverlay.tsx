@@ -18,6 +18,7 @@ import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
@@ -582,23 +583,26 @@ function PetCareHungerMeter({
   );
 }
 
-export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = false, hideCoinDisplay = false }: {
+export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = false, hideCoinDisplay = false, deviceSurface = false }: {
   pet: HousePet;
   user: any;
   onUserUpdate: (u: any) => void;
   onClose: () => void;
   feedHint?: boolean;
   hideCoinDisplay?: boolean;
+  /** Standalone routes use local UI pixels; embedded care retains its prior host. */
+  deviceSurface?: boolean;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
-  // The Pet Care route can now render directly on the device's page surface.
-  // Resolve effect/gesture coordinates from that surface, not from the old
-  // 390x844 stage. The original inline phone path remains unchanged.
-  const viewportCareSurface = () => overlayRef.current?.closest<HTMLElement>('[data-page-presentation="full-viewport"]') ?? null;
+  // The standalone overlay owns UI pixels. Embedded callers may still use
+  // the legacy viewport-page host until their parent scene is migrated.
+  const viewportCareSurface = () => deviceSurface
+    ? overlayRef.current
+    : overlayRef.current?.closest<HTMLElement>('[data-page-presentation="full-viewport"]') ?? null;
   const carePoint = (x: number, y: number) => {
     const surface = viewportCareSurface();
     return surface
@@ -621,6 +625,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const { reducedVisualMode: safeMode, dragEnabled, emergencyInteractionFallback } = getPetCareRuntimeDecisions(runtime, window.location.search, !!recoveredPhase);
   const feedbackProfile = useMemo(() => getPetCareFeedbackProfile(safeMode), [safeMode]);
   useStageSurroundings({
+    enabled: !deviceSurface,
     imageUrl: feedingPageBg,
     backgroundPosition: "center center",
     overlayAlpha: 0.18,
@@ -815,12 +820,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     petGestureRef.current = null;
   }, []);
 
-  // Particles (coins/hearts/sparkles) are `position: fixed` inside the scaled
-  // #game-stage, so their left/top are read in stage-LOCAL design-space, not
-  // viewport px. Convert the incoming viewport point to stage-local and clamp to
-  // the authored frame. Using the overlay's viewport rect (the old approach) put
-  // particles in the wrong coordinate space → they drifted far to the right on
-  // tablets/desktop where the stage is centered with a left margin and scaled.
+  // Feedback positions use the same local surface as their rendered elements.
+  // Keep the legacy conversion only for callers that still own a legacy stage.
   const clampToFrame = useCallback((x: number, y: number, pad = 24) => {
     const p = carePoint(x, y);
     const w = viewportCareSurface()?.clientWidth ?? getDesignW();
@@ -1261,8 +1262,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   });
 
   const updateDragGhostPosition = useCallback((x: number, y: number) => {
-    // Phones retain PR #151's body/client-coordinate drag ownership. Desktop
-    // converts only because its ghost lives in the transformed portrait stage.
+    // Convert client input into the actual ghost host's local coordinates.
     dragPositionRef.current = careGhostPoint(x, y);
     if (dragFrameRef.current != null) return;
     dragFrameRef.current = requestAnimationFrame(() => {
@@ -1527,7 +1527,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   return (
     <>
-      <ViewportScenePortal interactive={false}>
+      {!deviceSurface && <ViewportScenePortal interactive={false}>
         <div
           data-testid="pet-care-viewport-environment"
           className="absolute inset-0 pointer-events-none"
@@ -1539,11 +1539,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             backgroundRepeat: "no-repeat",
           }}
         />
-      </ViewportScenePortal>
+      </ViewportScenePortal>}
       <div
       ref={overlayRef}
       className={`absolute inset-0 h-full w-full pet-care-overlay${dragEnabled && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
-      data-stage-coordinate-space={viewportCareSurface() ? "viewport" : "canonical"}
+      data-device-pet-care={deviceSurface ? "true" : undefined}
+      data-stage-coordinate-space={deviceSurface || viewportCareSurface() ? "viewport" : "canonical"}
       data-viewport-visual-owner="scene"
       style={{
         zIndex: 500,
@@ -1757,7 +1758,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {boostActivated && (
         <>
           <div
-            className="fixed pointer-events-none"
+            className={deviceSurface ? "absolute pointer-events-none" : "fixed pointer-events-none"}
             style={{
               bottom: "38%",
               left: "50%",
@@ -1812,7 +1813,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           size={h.size}
           dx={h.dx}
           delay={h.delay}
-          position="fixed"
+          position={deviceSurface ? "absolute" : "fixed"}
           zIndex={514}
         />
       ))}
@@ -1821,7 +1822,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {sparkles.map((s) => (
         <div
           key={s.id}
-          className="fixed pointer-events-none feed-sparkle"
+          className={`${deviceSurface ? "absolute" : "fixed"} pointer-events-none feed-sparkle`}
           style={{
             left: s.cx,
             top: s.cy,
@@ -1854,7 +1855,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {floatTexts.map((f) => (
         <div
           key={f.id}
-          className="fixed pointer-events-none feed-float-up"
+          className={`${deviceSurface ? "absolute" : "fixed"} pointer-events-none feed-float-up`}
           style={{
             left: f.x,
             top: f.y,
@@ -1887,7 +1888,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           <button
             key={c.id}
             onClick={() => !c.flying && collectCoin(c.id)}
-            className={c.flying ? "fixed care-coin care-coin-fly" : "fixed care-coin care-coin-spin"}
+            className={`${deviceSurface ? "absolute" : "fixed"} care-coin ${c.flying ? "care-coin-fly" : "care-coin-spin"}`}
             style={{
               left: c.cx,
               top: c.cy,
@@ -1929,6 +1930,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
       {/* Care tutorial overlay */}
       {showCareTutorial && (
+        <ViewportModalPortal enabled={deviceSurface}>
         <div
           className="absolute inset-0 z-[600] flex items-center justify-center px-5"
           style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
@@ -1997,6 +1999,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             >GOT IT</button>
           </div>
         </div>
+        </ViewportModalPortal>
       )}
 
       {/* ── Bottom inventory jars — gifts + edibles ─────────────────────── */}
@@ -2143,6 +2146,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           className="pet-care-drag-ghost"
           aria-hidden="true"
           style={{
+            position: deviceSurface ? "absolute" : undefined,
             left: 0,
             top: 0,
             width: PET_CARE_DRAG_GHOST_SIZE_PX,
@@ -2161,8 +2165,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
       {/* Feed-stack popup */}
       {pendingFeed && (
+        <ViewportModalPortal enabled={deviceSurface}>
         <div
-          className="fixed inset-0"
+          className={deviceSurface ? "absolute inset-0" : "fixed inset-0"}
           style={{ zIndex: 540, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)" }}
           onPointerDown={(e) => e.stopPropagation()}
           data-testid="overlay-feed-stack"
@@ -2342,6 +2347,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             )}
           </div>
         </div>
+        </ViewportModalPortal>
       )}
     </div>
     </>

@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Pet Care expands only its environment while keeping interaction coordinates canonical", () => {
+test("Pet Care selects device ownership and preserves embedded presentation", () => {
   const source = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
   assert.match(source, /<ViewportScenePortal interactive=\{false\}>/);
@@ -13,19 +13,19 @@ test("Pet Care expands only its environment while keeping interaction coordinate
   assert.match(source, /useStageSurroundings\(\{/);
   assert.match(source, /imageUrl: feedingPageBg/);
   assert.match(source, /className=\{`absolute inset-0 h-full w-full pet-care-overlay/);
-  assert.match(source, /data-stage-coordinate-space=\{viewportCareSurface\(\) \? "viewport" : "canonical"\}/);
+  assert.match(source, /data-stage-coordinate-space=\{deviceSurface \|\| viewportCareSurface\(\) \? "viewport" : "canonical"\}/);
   assert.doesNotMatch(source, /className=\{`fixed inset-0 pet-care-overlay/);
   assert.doesNotMatch(source, /maxWidth: "768px", margin: "0 auto", left: 0, right: 0/);
 });
 
-test("Pet Care item drag and reward effects retain shared stage conversions", () => {
+test("Pet Care uses local device effects with legacy conversions for embedded callers", () => {
   const source = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
   assert.match(source, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
   assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?careGhostTarget\(\)/);
   assert.match(source, /clientToStage\(/);
   assert.match(source, /clientRectPointToStage/);
-  assert.match(source, /position="fixed"/);
+  assert.match(source, /position=\{deviceSurface \? "absolute" : "fixed"\}/);
 });
 
 test("presentation-only viewport scene does not intercept Pet Care input", () => {
@@ -45,7 +45,7 @@ test("Pet Care keeps the same original background in both the canonical scene an
   assert.doesNotMatch(source, /backgroundSize:\s*"100% 100%"/);
 });
 
-test("iPhone 12 still uses the inline Pet Care scene path", () => {
+test("unmigrated scenes still have access to legacy reference constants", () => {
   const portal = read("client/src/components/ViewportScenePortal.tsx");
   const stage = read("client/src/lib/stage.ts");
 

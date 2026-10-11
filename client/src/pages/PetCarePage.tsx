@@ -71,7 +71,7 @@ export default function PetCarePage() {
 
   if (userQuery.isError || inventoryQuery.isError) {
     return (
-      <main className="pet-care-route-state" role="alert" data-testid="pet-care-error">
+      <main className="pet-care-route-state" data-stage-coordinate-space="viewport" style={{ position: "absolute" }} role="alert" data-testid="pet-care-error">
         <h1>Pet Care couldn't load</h1>
         <p>Your pet and items are safe. Check your connection and try again.</p>
         <div>
@@ -95,7 +95,7 @@ export default function PetCarePage() {
       context="PetCarePage.FeedingOverlay"
       resetKey={inventoryId}
       fallback={(
-        <main className="pet-care-route-state" role="alert" data-testid="pet-care-render-error">
+        <main className="pet-care-route-state" data-stage-coordinate-space="viewport" style={{ position: "absolute" }} role="alert" data-testid="pet-care-render-error">
           <h1>Pet Care couldn't finish loading</h1>
           <p>Your pet and items are safe. Go back and try again.</p>
           <button type="button" onClick={close}>Go back</button>
@@ -103,6 +103,7 @@ export default function PetCarePage() {
       )}
     >
       <FeedingOverlay
+        deviceSurface
         pet={housePet}
         user={user}
         onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
