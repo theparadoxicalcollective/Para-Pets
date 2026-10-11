@@ -24,9 +24,9 @@ export default function StagePageSurface({ children, layout = "reference" }: { c
     setTarget(document.getElementById(VIEWPORT_PAGE_ID));
   }, []);
 
-  // Opt-in document-sized controls on the existing viewport page. The stage
-  // remains responsible for world and admin artwork coordinates elsewhere.
-  const fullViewport = layout === "viewport" && !!target;
+  // Viewport pages never create a reference wrapper, including when rendered
+  // inline on a device-owned root. Legacy pages retain their authored plane.
+  const fullViewport = layout === "viewport";
   const content = (
     <div
       className="page-overlay"
@@ -34,7 +34,7 @@ export default function StagePageSurface({ children, layout = "reference" }: { c
       data-testid="stage-page-surface"
       style={{
         position: "absolute", inset: 0, width: "100%", height: "100%",
-        ...(fullViewport ? {
+        ...(fullViewport && target ? {
           "--fh": "var(--viewport-surface-height)",
           "--vh": "calc(var(--viewport-surface-height) / 100)",
           "--vw": "calc(var(--viewport-surface-width) / 100)",

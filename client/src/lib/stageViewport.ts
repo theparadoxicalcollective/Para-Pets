@@ -6,6 +6,7 @@ import {
   isTouchFirstDevice,
   shouldBlockTouchLandscape,
   shouldFitPortraitReference,
+  usesDeviceGameplaySurface,
   type StageLayout,
 } from "@/lib/stage";
 
@@ -19,7 +20,7 @@ export type StageViewportLayout = StageLayout & {
   touchPortraitBlocked: boolean;
 };
 
-export function readStageViewportLayout(): StageViewportLayout {
+export function readStageViewportLayout(pathname = ""): StageViewportLayout {
   const viewport = getVisibleViewport();
   const touchFirst = isTouchFirstDevice();
   const fitPortraitReference = shouldFitPortraitReference(
@@ -40,7 +41,7 @@ export function readStageViewportLayout(): StageViewportLayout {
       viewport.height,
       viewport.top,
       viewport.left,
-      { fitPortraitReference },
+      { fitPortraitReference, viewportSurface: usesDeviceGameplaySurface(pathname) },
     ),
     touchPortraitBlocked,
   };
@@ -86,7 +87,7 @@ type StageViewportListener = (layout: StageViewportLayout) => void;
  * viewport. requestAnimationFrame coalescing keeps Safari/Chrome toolbar and
  * orientation bursts from producing multiple competing measurements.
  */
-export function observeStageViewport(listener: StageViewportListener): () => void {
+export function observeStageViewport(listener: StageViewportListener, pathname = ""): () => void {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return () => {};
   }
@@ -95,7 +96,7 @@ export function observeStageViewport(listener: StageViewportListener): () => voi
 
   const update = () => {
     animationFrame = 0;
-    const next = readStageViewportLayout();
+    const next = readStageViewportLayout(pathname);
     publishStageViewportCss(next);
     listener(next);
   };
@@ -129,12 +130,13 @@ export function observeStageViewport(listener: StageViewportListener): () => voi
  * unauthenticated/root loading shell. Only one of those stage surfaces is
  * mounted at a time, but they now consume exactly the same viewport observer.
  */
-export function useStageViewportLayout(): StageViewportLayout {
-  const [layout, setLayout] = useState<StageViewportLayout>(() => readStageViewportLayout());
+export function useStageViewportLayout(pathname = ""): StageViewportLayout {
+  const [snapshot, setSnapshot] = useState(() => ({ pathname, layout: readStageViewportLayout(pathname) }));
 
-  useEffect(() => observeStageViewport(setLayout), []);
+  useEffect(() => observeStageViewport(layout => setSnapshot({ pathname, layout }), pathname), [pathname]);
 
-  return layout;
+  // Route ownership changes must take effect during render, before portals mount.
+  return snapshot.pathname === pathname ? snapshot.layout : readStageViewportLayout(pathname);
 }
 
 /**

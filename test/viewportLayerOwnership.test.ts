@@ -9,19 +9,20 @@ const aquarium = readFileSync("client/src/pages/AquariumPage.tsx", "utf8");
 const css = readFileSync("client/src/tabletStageShell.css", "utf8");
 
 test("GameStage has one explicit back-to-front viewport ownership stack", () => {
-  const backdrop = app.indexOf('id="game-viewport-backdrop"');
-  const content = app.indexOf('id="game-stage-content"');
-  const page = app.indexOf('id="game-viewport-page"');
-  const scene = app.indexOf('id="game-viewport-scene"');
-  const hud = app.indexOf('id="game-viewport-hud"', page);
+  const legacy = app.slice(app.indexOf("// Public entry and authentication"));
+  const backdrop = legacy.indexOf('id="game-viewport-backdrop"');
+  const content = legacy.indexOf('id="game-stage-content"');
+  const page = legacy.indexOf('id="game-viewport-page"');
+  const scene = legacy.indexOf('id="game-viewport-scene"');
+  const hud = legacy.indexOf('id="game-viewport-hud"', page);
   assert.ok(backdrop >= 0 && content >= 0 && page >= 0 && scene >= 0 && hud >= 0);
-  assert.match(app.slice(page, page + 900), /zIndex: 20/);
+  assert.match(legacy.slice(page, page + 900), /zIndex: 20/);
   // The full-device backdrop must cover stale canonical-stage scenery without intercepting page input.
-  assert.match(app.slice(backdrop, backdrop + 700), /zIndex: 17/);
-  assert.match(app.slice(backdrop, backdrop + 700), /pointerEvents: "none"/);
-  assert.match(app.slice(content, content + 500), /zIndex: 15/);
-  assert.match(app.slice(scene, scene + 500), /zIndex: 30/);
-  assert.match(app.slice(hud, hud + 600), /zIndex: 40/);
+  assert.match(legacy.slice(backdrop, backdrop + 700), /zIndex: 17/);
+  assert.match(legacy.slice(backdrop, backdrop + 700), /pointerEvents: "none"/);
+  assert.match(legacy.slice(content, content + 500), /zIndex: 15/);
+  assert.match(legacy.slice(scene, scene + 500), /zIndex: 30/);
+  assert.match(legacy.slice(hud, hud + 600), /zIndex: 40/);
 });
 
 test("stage route surface no longer paints a generic layer over page-owned scenery", () => {

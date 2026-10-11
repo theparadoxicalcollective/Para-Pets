@@ -14,7 +14,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { calculateViewportHudRect, calculateViewportSurfaceRect, getStageTransform, shouldUseDocumentLayout } from "@/lib/stage";
+import { calculateViewportHudRect, calculateViewportSurfaceRect, getStageTransform, shouldUseDocumentLayout, usesDeviceGameplaySurface } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
@@ -695,12 +695,42 @@ function CrashReporter() {
 // that coordinate plane as a visible phone frame.
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  const layout = useStageViewportLayout();
+  const layout = useStageViewportLayout(location);
   const hudRect = calculateViewportHudRect(layout);
   const sceneRect = calculateViewportSurfaceRect(layout);
   const expandedStage = layout.coordinateOwner === "stage";
   const referenceLeft = expandedStage ? -sceneRect.left : 0;
   const referenceTop = expandedStage ? -sceneRect.top : 0;
+
+
+  // Audited gameplay routes use real device pixels. They have no reference plane,
+  // stage transform, or centering offsets; authored scenes remain page-owned.
+  if (usesDeviceGameplaySurface(location)) {
+    return (
+      <div key="device-gameplay" className="game-stage-shell" data-stage-coordinate-owner="viewport"
+        style={{ position: "fixed", inset: 0, background: "#050c08" }}>
+        <div id="game-stage" data-design-width={layout.designWidth} data-design-height={layout.designHeight}
+          data-coordinate-owner="viewport" data-reference-portrait="false"
+          style={{
+            position: "absolute", left: layout.left, top: layout.top,
+            width: layout.designWidth, height: layout.designHeight,
+            overflow: "hidden", isolation: "isolate",
+            visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
+            "--fh": `${layout.designHeight}px`,
+            "--vh": `${layout.designHeight * 0.01}px`,
+            "--vw": `${layout.designWidth * 0.01}px`,
+          } as CSSProperties}>
+          <div id="game-stage-content" data-testid="game-stage-content"
+            style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 15 }}>
+            {children}
+          </div>
+          <div id="game-viewport-hud" data-testid="game-viewport-hud"
+            style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 40 }} />
+        </div>
+        <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
+      </div>
+    );
+  }
 
   // Public entry and authentication use the real viewport without a reference stage.\n  // Gameplay coordinates stay inside the stable 390x844 reference stage.
   // Larger devices can use full-device backdrop/scene/HUD/modal surfaces around
