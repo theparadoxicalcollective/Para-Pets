@@ -21,7 +21,7 @@ import pupCloseButton from "@assets/ui/power-up/close-page-icon.png";
 import pupStatBox from "@assets/ui/power-up/stat-box.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import { clientRectPointToStage, clientToStage } from "@/lib/stage";
+import { clientPointInRenderedElement } from "@/lib/stage";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 
@@ -211,13 +211,24 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
 
   const disabled = useCallback((item: PowerUpItem) => isPending || item.quantity <= 0 || (usesCapacity(item) && itemsRemaining !== Infinity && itemsRemaining <= 0), [isPending, itemsRemaining]);
   const pointInZone = useCallback((x: number, y: number) => { const r = zoneRef.current?.getBoundingClientRect(); return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }, []);
+  // Effects and item ghosts belong to Power Up's rendered surface, not Home's
+  // 390×844 stage. This also works if an ancestor is scaled or translated.
+  const pagePoint = useCallback((x: number, y: number) => {
+    const element = pageRef.current?.parentElement;
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height || !element.clientWidth || !element.clientHeight) return null;
+    return clientPointInRenderedElement(rect, x, y, element.clientWidth, element.clientHeight);
+  }, []);
   const burst = useCallback((color: string) => {
     const r = zoneRef.current?.getBoundingClientRect(); if (!r) return;
-    const { x, y } = clientRectPointToStage(r);
+    const origin = pagePoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (!origin) return;
+    const { x, y } = origin;
     const count = lowMemory ? 6 : 16;
     const next = Array.from({ length: count }, (_, i) => { const angle = (i / count) * Math.PI * 2; return { id: sparkId.current++, x, y, dx: Math.cos(angle) * (58 + Math.random() * 72), dy: Math.sin(angle) * (58 + Math.random() * 72), color }; });
     setSparks(next); scheduleTransient(() => setSparks([]), 760);
-  }, [lowMemory, scheduleTransient]);
+  }, [lowMemory, pagePoint, scheduleTransient]);
   const useItem = useCallback((item: PowerUpItem) => {
     if (disabled(item)) return;
     burst(itemColor(item));
@@ -226,8 +237,8 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     scheduleTransient(() => setPetAnim(""), 850);
     onUseItem(item);
   }, [burst, disabled, onUseItem, scheduleTransient]);
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, item: PowerUpItem) => { if (disabled(item)) return; event.preventDefault(); event.stopPropagation(); try { event.currentTarget.setPointerCapture(event.pointerId); } catch {} const logical = clientToStage(event.clientX, event.clientY); const next = { item, x: logical.x, y: logical.y }; dragRef.current = next; setDrag(next); }, [disabled]);
-  const onPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => { if (!dragRef.current) return; event.preventDefault(); event.stopPropagation(); const logical = clientToStage(event.clientX, event.clientY); const next = { ...dragRef.current, x: logical.x, y: logical.y }; dragRef.current = next; setDrag(next); setOver(pointInZone(event.clientX, event.clientY)); }, [pointInZone]);
+  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, item: PowerUpItem) => { if (disabled(item)) return; event.preventDefault(); event.stopPropagation(); try { event.currentTarget.setPointerCapture(event.pointerId); } catch {} const logical = pagePoint(event.clientX, event.clientY); if (!logical) return; const next = { item, x: logical.x, y: logical.y }; dragRef.current = next; setDrag(next); }, [disabled, pagePoint]);
+  const onPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => { if (!dragRef.current) return; event.preventDefault(); event.stopPropagation(); const logical = pagePoint(event.clientX, event.clientY); if (!logical) return; const next = { ...dragRef.current, x: logical.x, y: logical.y }; dragRef.current = next; setDrag(next); setOver(pointInZone(event.clientX, event.clientY)); }, [pagePoint, pointInZone]);
   const clearDrag = useCallback(() => { dragRef.current = null; setDrag(null); setOver(false); }, []);
   const onPointerUp = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => { const current = dragRef.current; if (!current) return; event.preventDefault(); event.stopPropagation(); try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {} if (pointInZone(event.clientX, event.clientY)) useItem(current.item); clearDrag(); }, [clearDrag, pointInZone, useItem]);
 
@@ -262,7 +273,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   ];
   const filterLabel = statFilter === "health" ? "HP" : statFilter?.toUpperCase();
 
-  return <div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="canonical" data-viewport-visual-owner="backdrop" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
+  return <div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="power-up-local" data-viewport-visual-owner="backdrop" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
     <style>{CSS}</style>
     <ViewportBackdropPortal>
       <div
