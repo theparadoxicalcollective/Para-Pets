@@ -42,6 +42,8 @@ export type StageLayout = {
 };
 
 export type StageLayoutOptions = {
+  /** Audited pages render in device pixels; artwork keeps its own scene extent. */
+  viewportSurface?: boolean;
   /**
    * Fit the canonical 390×844 composition into the available portrait surface.
    * Runtime detection is kept outside this pure geometry function so device
@@ -93,14 +95,15 @@ export function calculateStageLayout(
   const viewportWidth = Math.max(1, visibleWidth);
   const viewportHeight = Math.max(1, visibleHeight);
   const narrow = isNarrowLayout(viewportWidth);
-  const referencePortrait = options.fitPortraitReference === true;
+  const viewportSurface = options.viewportSurface === true;
+  const referencePortrait = !viewportSurface && options.fitPortraitReference === true;
 
   // PR #574/#576 made the stage and all important player interactions share one
   // coordinate contract. Portrait touch devices can therefore use the exact
   // 390×844 reference composition as one uniformly scaled unit. Other layouts
   // retain their existing ownership until their own focused follow-up.
-  const coordinateOwner: StageCoordinateOwner = referencePortrait || !narrow ? "stage" : "viewport";
-  const designWidth = referencePortrait ? DESIGN_W : getDesignWidth(viewportWidth);
+  const coordinateOwner: StageCoordinateOwner = !viewportSurface && (referencePortrait || !narrow) ? "stage" : "viewport";
+  const designWidth = viewportSurface ? viewportWidth : referencePortrait ? DESIGN_W : getDesignWidth(viewportWidth);
   const designHeight = coordinateOwner === "stage" ? DESIGN_H : viewportHeight;
   const scale = coordinateOwner === "stage"
     ? Math.min(viewportWidth / designWidth, viewportHeight / designHeight, MAX_STAGE_SCALE)
@@ -542,4 +545,9 @@ export function scenePlacementToClient(
     x: renderedScene.left + placement.x * renderedScene.width,
     y: renderedScene.top + placement.y * renderedScene.height,
   };
+}
+
+/** Only audited routes may bypass the legacy stage. Expand this as pages migrate. */
+export function usesDeviceGameplaySurface(pathname: string): boolean {
+  return pathname === "/bag";
 }
