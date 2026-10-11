@@ -159,3 +159,12 @@ test("decor and background selection clear location selection through one contro
   );
   assert.doesNotMatch(source, /setBarrelSelected/);
 });
+
+
+test("location admin dragging keeps a stable client-space origin when the camera rectangle shifts", () => {
+  const source = readFileSync("client/src/worlds/useWorldLocationAdminController.ts", "utf8");
+  assert.match(source, /startClientX: event\.clientX/);
+  assert.match(source, /const dx = event\.clientX - dragRef\.current\.startClientX/);
+  assert.doesNotMatch(source, /startCanvasX|currentCanvasX/);
+  assert.match(source, /dragWorldPlacementPercent\(/);
+});
