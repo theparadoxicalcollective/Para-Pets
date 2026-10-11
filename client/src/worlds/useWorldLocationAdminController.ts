@@ -50,7 +50,7 @@ export function useWorldLocationAdminController({
 
   const dragRef = useRef<{
     locId: string;
-    startCanvasX: number;
+    startClientX: number;
     startY: number;
     origPosX: number;
     origPosY: number;
@@ -103,13 +103,9 @@ export function useWorldLocationAdminController({
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
     didDragRef.current = false;
 
-    const rect = areaRef.current
-      ? areaRef.current.getBoundingClientRect()
-      : { left: 0 };
-
     dragRef.current = {
       locId: location.id,
-      startCanvasX: event.clientX - rect.left,
+      startClientX: event.clientX,
       startY: event.clientY,
       origPosX: location.posX,
       origPosY: location.posY,
@@ -122,8 +118,10 @@ export function useWorldLocationAdminController({
     event.preventDefault();
 
     const rect = areaRef.current.getBoundingClientRect();
-    const currentCanvasX = event.clientX - rect.left;
-    const dx = currentCanvasX - dragRef.current.startCanvasX;
+    // Keep both endpoints in client coordinates. The world camera may move
+    // or remeasure during a drag; subtracting different rect.left values
+    // would otherwise introduce a false jump in the saved NPC position.
+    const dx = event.clientX - dragRef.current.startClientX;
     const dy = event.clientY - dragRef.current.startY;
 
     if (Math.abs(dx) > WORLD_LOCATION_DRAG_THRESHOLD_PX || Math.abs(dy) > WORLD_LOCATION_DRAG_THRESHOLD_PX) {
