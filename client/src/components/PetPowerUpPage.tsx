@@ -300,7 +300,6 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">
         <img src={pupLogo} alt="Power Up" className="pupage-logo" />
-        <>
           <button
             type="button"
             className="pupage-corner pupage-close"
@@ -311,7 +310,6 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
             onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
             onClick={(event) => { if (event.detail === 0) onClose(); }}
           ><img src={pupCloseButton} alt="" /></button>
-        </>
       </header>
 
       <section className="pupage-enhance" aria-label={`${petName} has ${remaining} enhancements remaining`}><img src={pupEnhancementBar} alt="" className="pupage-enhance-art" /><div className="pupage-enhance-copy"><strong className="pupage-enhance-count">{remaining}</strong><span className="pupage-enhance-label">Remaining</span></div></section>
