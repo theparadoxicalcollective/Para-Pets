@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Closet expands only its environment while preserving the authored template", () => {
+test("Closet selects device ownership while retaining embedded presentation", () => {
   const source = read("client/src/components/PetEquipAccessoriesPage.tsx");
 
   assert.match(source, /useStageSurroundings\(\{/);
@@ -14,7 +14,7 @@ test("Closet expands only its environment while preserving the authored template
   assert.match(source, /data-testid="closet-viewport-environment"/);
   assert.match(source, /backgroundSize: "cover"/);
   assert.match(source, /data-testid="closet-authored-template"/);
-  assert.match(source, /data-stage-coordinate-space="canonical"/);
+  assert.match(source, /data-stage-coordinate-space=\{deviceSurface \? "viewport" : "canonical"\}/);
   assert.match(source, /className="absolute inset-0 z-\[200\] h-full w-full overflow-hidden"/);
   assert.doesNotMatch(source, /data-testid="closet-authored-template"[\s\S]{0,220}maxWidth: 768/);
   assert.doesNotMatch(source, /data-testid="closet-authored-template"[\s\S]{0,180}className="fixed inset-0/);
@@ -30,13 +30,13 @@ test("Closet uses a centered, square pet stage so the authored oval reaches the 
   assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "8%"[\s\S]*?top: "20%"[\s\S]*?width: "84%"[\s\S]*?height: "9\.2%"/);
 });
 
-test("Closet touch drag ghost follows shared stage portal coordinates on larger devices", () => {
+test("Closet touch drag selects device HUD coordinates or legacy embedded coordinates", () => {
   const source = read("client/src/components/PetEquipAccessoriesPage.tsx");
 
-  assert.match(source, /const ghostTarget = getStagePortalTarget\(\)/);
+  assert.match(source, /const ghostTarget = deviceSurface[\s\S]*getStagePortalTarget\(\)/);
   assert.match(source, /ghost\.style\.position = ghostTarget === document\.body \? "fixed" : "absolute"/);
-  assert.match(source, /const startPoint = clientToStagePortal\(touch\.clientX, touch\.clientY\)/);
-  assert.match(source, /const ghostPoint = clientToStagePortal\(point\.clientX, point\.clientY\)/);
+  assert.match(source, /const startPoint = ghostPointForClient\(touch\.clientX, touch\.clientY\)/);
+  assert.match(source, /const ghostPoint = ghostPointForClient\(point\.clientX, point\.clientY\)/);
   assert.match(source, /ghostTarget\.appendChild\(ghost\)/);
   assert.doesNotMatch(source, /document\.body\.appendChild\(ghost\)/);
 });
@@ -48,7 +48,7 @@ test("Closet slot hit testing stays in client space against the real rendered sl
   assert.match(source, /data-slot-index=\{slot\}/);
 });
 
-test("Closet drawers dialogs and mini-pet inventory remain inside the authored template", () => {
+test("Closet drawers and mini-pet inventory remain page-local", () => {
   const source = read("client/src/components/PetEquipAccessoriesPage.tsx");
   const template = source.indexOf('data-testid="closet-authored-template"');
   const mini = source.indexOf('data-testid="mini-pet-inventory"', template);
@@ -61,7 +61,7 @@ test("Closet drawers dialogs and mini-pet inventory remain inside the authored t
   assert.ok(dialog > template);
 });
 
-test("iPhone 12 keeps the inline Closet path and reference stage", () => {
+test("legacy reference constants remain available for unmigrated pages", () => {
   const portal = read("client/src/components/ViewportScenePortal.tsx");
   const stage = read("client/src/lib/stage.ts");
 

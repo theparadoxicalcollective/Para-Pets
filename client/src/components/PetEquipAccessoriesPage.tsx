@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PetPageOvalPlacement from "@/components/PetPageOvalPlacement";
 import { Lock, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,8 +9,9 @@ import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
-import { clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
+import { clientPointInRenderedElement, clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import MiniPetRenderer, { type EquippedMiniPet } from "@/components/MiniPetRenderer";
@@ -65,6 +66,7 @@ interface Props {
   petTemplateId: string | null;
   rarity: number;
   onClose: () => void;
+  deviceSurface?: boolean;
 }
 
 const PET_PREVIEW_DROPSHADOW_STYLE: React.CSSProperties = {
@@ -78,9 +80,10 @@ const RARITY_COLOR: Record<number, string> = {
 const SLOT_COST = 3000;
 const TOTAL_SLOTS = 5;
 
-export default function PetEquipAccessoriesPage({ petInventoryId, petName, petImage, petTemplateId, rarity, onClose }: Props) {
+export default function PetEquipAccessoriesPage({ petInventoryId, petName, petImage, petTemplateId, rarity, onClose, deviceSurface = false }: Props) {
   const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   useStageSurroundings({
+    enabled: !deviceSurface,
     imageUrl: closetBackground,
     backgroundPosition: "center center",
     overlayAlpha: 0.28,
@@ -95,6 +98,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
   const touchDragIdRef = useRef<string | null>(null);
   const ghostRef = useRef<HTMLDivElement | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragCleanupRef.current?.(), [petInventoryId]);
 
   const rc = RARITY_COLOR[rarity] ?? "#a89878";
   const { toast } = useToast();
@@ -260,10 +265,12 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   }
 
   function handleTouchStart(event: React.TouchEvent, inventoryId: string, imageUrl: string | null) {
+    const touch = event.touches[0];
+    if (!touch) return;
+    dragCleanupRef.current?.();
     touchDragIdRef.current = inventoryId;
     setDraggingId(inventoryId);
 
-    const touch = event.touches[0];
     const ghost = document.createElement("div");
     ghost.style.cssText = [
       "position:fixed", "z-index:9999", "width:64px", "height:64px", "border-radius:16px",
@@ -277,9 +284,16 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       image.style.cssText = "width:48px;height:48px;object-fit:contain;";
       ghost.appendChild(image);
     }
-    const ghostTarget = getStagePortalTarget();
+    const ghostTarget = deviceSurface
+      ? document.getElementById("game-viewport-hud") ?? document.body
+      : getStagePortalTarget();
+    const ghostPointForClient = (clientX: number, clientY: number) => {
+      if (!deviceSurface) return clientToStagePortal(clientX, clientY);
+      if (ghostTarget === document.body) return { x: clientX, y: clientY };
+      return clientPointInRenderedElement(ghostTarget.getBoundingClientRect(), clientX, clientY, ghostTarget.clientWidth, ghostTarget.clientHeight);
+    };
     ghost.style.position = ghostTarget === document.body ? "fixed" : "absolute";
-    const startPoint = clientToStagePortal(touch.clientX, touch.clientY);
+    const startPoint = ghostPointForClient(touch.clientX, touch.clientY);
     ghost.style.left = `${startPoint.x}px`;
     ghost.style.top = `${startPoint.y}px`;
     ghostTarget.appendChild(ghost);
@@ -288,8 +302,9 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     const onMove = (moveEvent: TouchEvent) => {
       moveEvent.preventDefault();
       const point = moveEvent.touches[0];
+      if (!point) return;
       if (ghostRef.current) {
-        const ghostPoint = clientToStagePortal(point.clientX, point.clientY);
+        const ghostPoint = ghostPointForClient(point.clientX, point.clientY);
         ghostRef.current.style.left = `${ghostPoint.x}px`;
         ghostRef.current.style.top = `${ghostPoint.y}px`;
       }
@@ -298,10 +313,12 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     };
 
     const onEnd = (endEvent: TouchEvent) => {
-      ghostRef.current?.remove();
-      ghostRef.current = null;
-      document.removeEventListener("touchmove", onMove);
+      setDraggingId(null);
+      setDragOverSlot(null);
+      const draggedId = touchDragIdRef.current;
+      cleanup();
       const point = endEvent.changedTouches[0];
+      if (!point) return;
       const target = document.elementFromPoint(point.clientX, point.clientY)?.closest("[data-slot-index]") as HTMLElement | null;
       if (target?.dataset.slotIndex !== undefined) {
         const slot = Number(target.dataset.slotIndex);
@@ -309,20 +326,54 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         else {
           const occupied = equippedAccessories.find((item) => item.slot === slot);
           if (occupied) setUnequipConfirm(occupied);
-          else if (touchDragIdRef.current) equipMutation.mutate(touchDragIdRef.current);
+          else if (draggedId) equipMutation.mutate(draggedId);
         }
       }
-      touchDragIdRef.current = null;
-      setDraggingId(null);
-      setDragOverSlot(null);
     };
+    const cleanup = () => {
+      ghost.remove();
+      ghostRef.current = null;
+      touchDragIdRef.current = null;
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onCancel);
+      dragCleanupRef.current = null;
+    };
+    const onCancel = () => { cleanup(); setDraggingId(null); setDragOverSlot(null); };
+    dragCleanupRef.current = cleanup;
 
     document.addEventListener("touchmove", onMove, { passive: false });
     document.addEventListener("touchend", onEnd, { once: true });
+    document.addEventListener("touchcancel", onCancel, { once: true });
   }
 
   return (
     <>
+
+      <div
+        data-testid="closet-authored-template"
+        data-responsive-closet="true"
+        data-device-closet={deviceSurface ? "true" : undefined}
+        data-stage-coordinate-space={deviceSurface ? "viewport" : "canonical"}
+        data-viewport-visual-owner="scene"
+        className="absolute inset-0 z-[200] h-full w-full overflow-hidden"
+        style={{ background: "transparent" }}
+      >
+
+
+      {deviceSurface ? (
+        <div
+          data-testid="closet-viewport-environment"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: "#020503",
+            backgroundImage: `url(${closetBackground})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      ) : (
       <ViewportBackdropPortal>
         <div
           data-testid="closet-viewport-environment"
@@ -337,19 +388,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         />
       </ViewportBackdropPortal>
 
-      <div
-        data-testid="closet-authored-template"
-        data-responsive-closet="true"
-        data-stage-coordinate-space="canonical"
-        data-viewport-visual-owner="scene"
-        className="absolute inset-0 z-[200] h-full w-full overflow-hidden"
-        style={{ background: "transparent" }}
-      >
-
-
-      {/* Draw the authored background under pet/slots in the SAME 390x844
-          coordinate plane. The viewport scene is only scenic bleed on tablets. */}
-      <div data-testid="closet-authored-background" className="absolute inset-0 pointer-events-none" style={{
+      )}
+      {!deviceSurface && <div data-testid="closet-authored-background" className="absolute inset-0 pointer-events-none" style={{
         zIndex: 0,
         backgroundImage: `url(${closetBackground})`,
         backgroundSize: "cover",
@@ -357,7 +397,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         backgroundRepeat: "no-repeat",
         WebkitMaskImage: "linear-gradient(90deg,transparent,black 8%,black 92%,transparent)",
         maskImage: "linear-gradient(90deg,transparent,black 8%,black 92%,transparent)",
-      }} />
+      }} />}
 
       <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "11.2%", width: "76%", maxWidth: 390, pointerEvents: "none" }}>
         <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.08em]" style={{ display: "inline-block", maxWidth: "100%", color: "#ffe7a4", fontSize: "clamp(15px, 4.2vw, 21px)", lineHeight: 1.35, textShadow: "0 2px 4px #000, 0 0 10px #000", background: "rgba(3,19,14,.76)", border: "1px solid rgba(245,209,123,.48)", borderRadius: 999, padding: "3px 14px", boxShadow: "0 3px 10px rgba(0,0,0,.4)" }}>{petName}</h1>
@@ -428,6 +468,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         petName={petName}
         rarityColor={rc}
         userCoins={user?.coins ?? 0}
+        deviceSurface={deviceSurface}
         closetMode
       />
 
@@ -513,7 +554,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       )}
 
       {unequipConfirm && (
-        <ClosetDialog title="Unequip Accessory?" color={rc}>
+        <ClosetDialog deviceSurface={deviceSurface} title="Unequip Accessory?" color={rc}>
           <img src={unequipConfirm.imageUrl || gemCrystalIcon} alt={unequipConfirm.name} className="h-16 w-16 object-contain" />
           <p className="text-center font-fantasy text-[11px] leading-relaxed" style={{ color: "rgba(207,226,207,.65)" }}>Remove <span style={{ color: "white" }}>{unequipConfirm.name}</span> from {petName}?</p>
           <div className="flex w-full gap-3">
@@ -524,7 +565,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       )}
 
       {unlockConfirm && (
-        <ClosetDialog title="Unlock Accessory Slot?" color="#e8bc52">
+        <ClosetDialog deviceSurface={deviceSurface} title="Unlock Accessory Slot?" color="#e8bc52">
           <Lock size={34} style={{ color: "#e8bc52" }} />
           <p className="text-center font-fantasy text-[11px] leading-relaxed" style={{ color: "rgba(207,226,207,.65)" }}>Add another accessory slot for {petName}.</p>
           <p className="inline-flex items-center justify-center gap-1 font-fantasy font-bold" style={{ color: "#fbbf24" }}><img src={currencyAssets.coin} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />3,000</p>
@@ -581,8 +622,8 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rarityColor, onClic
   );
 }
 
-function ClosetDialog({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
-  return <div className="absolute inset-0 z-[40] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.93)" }}><div className="flex w-full max-w-[320px] flex-col items-center gap-4 rounded-2xl p-6" style={{ background: "linear-gradient(180deg,#07170f,#030b07)", border: `1.5px solid ${color}66`, boxShadow: "0 12px 38px rgba(0,0,0,.72)" }}><p className="font-fantasy text-sm font-bold tracking-wider" style={{ color }}>{title}</p>{children}</div></div>;
+function ClosetDialog({ title, color, children, deviceSurface }: { title: string; color: string; children: React.ReactNode; deviceSurface?: boolean }) {
+  return <ViewportModalPortal enabled={deviceSurface ?? false}><div className="absolute inset-0 z-[40] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.93)" }}><div className="flex w-full max-w-[320px] flex-col items-center gap-4 rounded-2xl p-6" style={{ background: "linear-gradient(180deg,#07170f,#030b07)", border: `1.5px solid ${color}66`, boxShadow: "0 12px 38px rgba(0,0,0,.72)" }}><p className="font-fantasy text-sm font-bold tracking-wider" style={{ color }}>{title}</p>{children}</div></div></ViewportModalPortal>;
 }
 
 function DialogButton({ testId, danger, disabled, onClick, children }: { testId: string; danger?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
