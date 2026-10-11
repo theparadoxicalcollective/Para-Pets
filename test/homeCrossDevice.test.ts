@@ -5,6 +5,7 @@ import {
   centeredHomeCameraPanX,
   clampHomeCameraPanX,
   homeCameraPointerDeltaX,
+  homeCameraPointerDelta,
   HOME_FIXED_VIEWPORT_STYLE,
   HOME_TOUCH_SURFACE_STYLE,
   safeSetPointerCapture,
@@ -190,4 +191,15 @@ test("Home pet inventory horizontal scrolling follows its own rendered surface",
   const owner = read("client/src/pages/PetHousePage.tsx");
   assert.match(owner, /scrollTrack\.scrollLeft - homeCameraPointerDeltaX\(e\.clientX - scrollTrack\.startX, petScrollRef\.current\)/);
   assert.doesNotMatch(owner, /scrollTrack\.scrollLeft - clientDeltaToStage/);
+});
+
+
+test("outdoor decor editing uses camera-local pointer deltas for live movement and saving", () => {
+  const camera = { clientWidth: 600, clientHeight: 900, getBoundingClientRect: () => ({ width: 300, height: 450 }) } as unknown as HTMLElement;
+  assert.deepEqual(homeCameraPointerDelta(30, 45, camera), { x: 60, y: 90 });
+  assert.deepEqual(homeCameraPointerDelta(30, 45, null), { x: 0, y: 0 });
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const outdoorDecor = owner.split("// ── Outdoor decor drag")[1]?.split("// ── Outdoor pet repositioning drag")[0] ?? "";
+  assert.match(outdoorDecor, /homeCameraPointerDelta\(/);
+  assert.doesNotMatch(outdoorDecor, /clientDeltaToStage/);
 });
