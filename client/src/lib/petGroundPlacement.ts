@@ -1,6 +1,7 @@
 import type { ActivePetAnchor, PetPresentation } from "@shared/petPresentation";
 import type { AlphaBounds } from "./alphaBounds";
-import { AUTHORED_SCENE_WIDTH, dragAuthoredPercentOffset } from "./authoredScenePlacement";
+import { AUTHORED_SCENE_WIDTH, AUTHORED_SCENE_HEIGHT, dragAuthoredPercentOffset } from "./authoredScenePlacement";
+import { scenePointToPlacement } from "./stage";
 
 export interface GroundPart { partType: string; posX: number; posY: number; width: number; height: number; imageUrl: string; rotation?: number; pivotX?: number; pivotY?: number }
 
@@ -45,7 +46,8 @@ export function dragActivePetAnchor(value: ActivePetAnchor, dx: number, dy: numb
 export const PET_SPOT = { x: AUTHORED_SCENE_WIDTH / 2, y: 900, widthPercent: 45 } as const;
 
 export function getPetSpotPosition(anchor: ActivePetAnchor = { x: 0, y: 0 }) {
-  return { x: PET_SPOT.x / 10 + anchor.x, y: PET_SPOT.y / 10 + anchor.y };
+  const spot = scenePointToPlacement(PET_SPOT, { width: AUTHORED_SCENE_WIDTH, height: AUTHORED_SCENE_HEIGHT });
+  return { x: (spot?.x ?? 0.5) * 100 + anchor.x, y: (spot?.y ?? 0.9) * 100 + anchor.y };
 }
 
 export function getPetPlacementTransform(
@@ -53,9 +55,16 @@ export function getPetPlacementTransform(
   value: PetPresentation,
   anchor: ActivePetAnchor = { x: 0, y: 0 },
 ) {
+  const extent = { width: AUTHORED_SCENE_WIDTH, height: AUTHORED_SCENE_HEIGHT };
+  const spot = scenePointToPlacement(PET_SPOT, extent);
+  const feet = scenePointToPlacement(ground, extent);
+  // Retain the authored 1000x1000 artwork coordinate space while expressing
+  // the renderer offsets as scene-relative values rather than device pixels.
+  const xOffset = ((spot?.x ?? 0.5) - (feet?.x ?? 0.5)) * 100;
+  const yOffset = ((spot?.y ?? 0.9) - (feet?.y ?? 0.9)) * 100;
   return {
-    transform: `translate(${anchor.x + value.x + (PET_SPOT.x - ground.x) / 10}%, ${anchor.y + value.y + (PET_SPOT.y - ground.y) / 10}%) scale(${value.scale})`,
-    transformOrigin: `${ground.x / 10}% ${ground.y / 10}%`,
+    transform: `translate(${anchor.x + value.x + xOffset}%, ${anchor.y + value.y + yOffset}%) scale(${value.scale})`,
+    transformOrigin: `${(feet?.x ?? 0.5) * 100}% ${(feet?.y ?? 0.9) * 100}%`,
   };
 }
 export function centerPetPlacement(value: PetPresentation): PetPresentation {
