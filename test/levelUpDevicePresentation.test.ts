@@ -31,7 +31,8 @@ test("Level Up extends only its surroundings while preserving the isolated page"
   assert.doesNotMatch(level, /data-canonical-visual-layer="duplicate-backdrop"/);
   assert.doesNotMatch(level, /className="lupage-bg"/);
   assert.match(level, /@assets\/uploads\/NewActivePetBG\.png/);
-  assert.ok(level.includes('#game-stage[data-coordinate-owner="stage"] .lupage{background:transparent}'));
+  assert.ok(level.includes('#game-stage[data-coordinate-owner="stage"] .lupage[data-stage-coordinate-space="canonical"]{background:transparent}'));
+  assert.ok(level.includes('.lupage[data-stage-coordinate-space="viewport"]{background:#060a09}'));
 });
 
 test("Level Up drag ghosts and sparks use coordinates local to the isolated page", () => {
