@@ -95,3 +95,13 @@ export {
   WORLD_EXPANDED_CAMERA_PAN_RATIO,
   WORLD_EXPANDED_CAMERA_MAX_PAN_MARGIN,
 };
+
+/** Pointer travel in the actual rendered map viewport's local CSS coordinate plane. */
+export function worldCameraPointerDelta(deltaX: number, deltaY: number, camera: HTMLElement | null): { x: number; y: number } {
+  if (!camera) return { x: 0, y: 0 };
+  const rect = camera.getBoundingClientRect();
+  return {
+    x: rect.width > 0 && camera.clientWidth > 0 ? deltaX * camera.clientWidth / rect.width : 0,
+    y: rect.height > 0 && camera.clientHeight > 0 ? deltaY * camera.clientHeight / rect.height : 0,
+  };
+}
