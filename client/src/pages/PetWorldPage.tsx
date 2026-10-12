@@ -508,13 +508,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   const handleLocPointerMove = useCallback((e: React.PointerEvent) => {
     if (!locDragRef.current || !areaRef.current) return;
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - locDragRef.current.startX;
-    const dy = e.clientY - locDragRef.current.startY;
+    const map = areaRef.current;
+    const { x: dx, y: dy } = worldCameraPointerDelta(
+      e.clientX - locDragRef.current.startX,
+      e.clientY - locDragRef.current.startY,
+      map,
+    );
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) locDidDrag.current = true;
     const { x: newX, y: newY } = dragScenePercentage(
       { x: locDragRef.current.origPosX, y: locDragRef.current.origPosY },
-      { x: dx, y: dy }, rect,
+      { x: dx, y: dy }, { width: map.clientWidth, height: map.clientHeight },
       { minX: -10, maxX: 110, minY: -10, maxY: 110 },
     );
     setLocDragPos({ id: locDragRef.current.locId, x: newX, y: newY });
@@ -1231,13 +1234,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const handleDecorPointerMove = useCallback((e: React.PointerEvent) => {
     if (!decorDragRef.current || !areaRef.current) return;
     e.preventDefault();
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - decorDragRef.current.startX;
-    const dy = e.clientY - decorDragRef.current.startY;
+    const map = areaRef.current;
+    const { x: dx, y: dy } = worldCameraPointerDelta(
+      e.clientX - decorDragRef.current.startX,
+      e.clientY - decorDragRef.current.startY,
+      map,
+    );
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) decorDidDrag.current = true;
     const { x: newX, y: newY } = dragScenePercentage(
       { x: decorDragRef.current.origPosX, y: decorDragRef.current.origPosY },
-      { x: dx, y: dy }, rect,
+      { x: dx, y: dy }, { width: map.clientWidth, height: map.clientHeight },
       { minX: 0, maxX: 100, minY: 0, maxY: 100 },
     );
     setDecorDragPos({ id: decorDragRef.current.placementId, x: newX, y: newY });
@@ -1266,13 +1272,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   const handleDoorPointerMove = useCallback((e: React.PointerEvent) => {
     if (!doorDragRef.current || !areaRef.current) return;
-    const rect = areaRef.current.getBoundingClientRect();
-    const dx = e.clientX - doorDragRef.current.startX;
-    const dy = e.clientY - doorDragRef.current.startY;
+    const map = areaRef.current;
+    const { x: dx, y: dy } = worldCameraPointerDelta(
+      e.clientX - doorDragRef.current.startX,
+      e.clientY - doorDragRef.current.startY,
+      map,
+    );
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDidDrag.current = true;
     const { x: newX, y: newY } = dragScenePercentage(
       { x: doorDragRef.current.origPosX, y: doorDragRef.current.origPosY },
-      { x: dx, y: dy }, rect,
+      { x: dx, y: dy }, { width: map.clientWidth, height: map.clientHeight },
       { minX: 2, maxX: 98, minY: 2, maxY: 98 },
     );
     doorDragLivePosRef.current = { x: newX, y: newY };
