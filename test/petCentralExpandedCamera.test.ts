@@ -152,9 +152,10 @@ test("blocking Pet Central panels suspend the expanded camera instead of being c
   assert.match(source, /!petCentralCameraBlocked && \([\s\S]*?data-testid="pet-central-joystick-hud"/);
 });
 
-test("door interior panning keeps its separate stage-scale behavior", () => {
+test("door interior panning measures the actual camera instead of global stage scale", () => {
   const source = read("client/src/pages/PetWorldPage.tsx");
-  assert.match(source, /const s = getStageScale\(\)/);
-  assert.match(source, /const cw = containerRect\.width \/ s/);
-  assert.match(source, /const ch = containerRect\.height \/ s/);
+  assert.match(source, /const cw = camera\.clientWidth/);
+  assert.match(source, /const ch = camera\.clientHeight/);
+  assert.match(source, /worldCameraPointerDelta\(bgPanDragRef\.current\.startX - e\.clientX, 0, camera\)/);
+  assert.doesNotMatch(source, /getStageScale\(\)/);
 });
