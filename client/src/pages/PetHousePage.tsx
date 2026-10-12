@@ -61,7 +61,7 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
 import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
-import { HOME_DECOR_PLACEMENT_BOUNDS, HOME_INVENTORY_DROP_BOUNDS, dragHomePlacement, homeClientPointToPlacement } from "@/lib/homeAuthoredPlacement";
+import { HOME_DECOR_PLACEMENT_BOUNDS, HOME_INVENTORY_DROP_BOUNDS, dragHomePlacement, homeCameraDropToPlacement } from "@/lib/homeAuthoredPlacement";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgFlip() {
@@ -1876,7 +1876,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const container = containerRef.current;
         if (container) {
           const dropElement = interior?.element ?? container;
-          const dropRect = dropElement.getBoundingClientRect();
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxPets = getHouseBuildingPetLimit(building);
@@ -1884,14 +1883,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (currentCount >= maxPets) {
               toast({ title: "Pet Limit", description: `This home can only hold ${maxPets} pets.` });
             } else {
-              const dropPosition = homeClientPointToPlacement(
+              const dropPosition = homeCameraDropToPlacement(
                 e.clientX,
                 e.clientY,
-                dropRect,
+                dropElement,
                 interior.panX,
                 interior.imgWidth,
                 interior.containerH,
-                clientToStage,
                 HOME_INVENTORY_DROP_BOUNDS,
               );
               if (!dropPosition) return;
@@ -1926,14 +1924,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               toast({ title: "Pet Limit", description: `This home can only hold ${maxOutdoor} pets.` });
             } else {
               const maxYPct = maxYForHeight(containerH);
-              const dropPosition = homeClientPointToPlacement(
+              const dropPosition = homeCameraDropToPlacement(
                 e.clientX,
                 e.clientY,
-                dropRect,
+                dropElement,
                 panX,
                 imgWidth,
                 containerH,
-                clientToStage,
                 { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
               );
               if (!dropPosition) return;
@@ -1960,7 +1957,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         const container = containerRef.current;
         if (container) {
           const dropElement = interior?.element ?? container;
-          const dropRect = dropElement.getBoundingClientRect();
           if (interior && interior.imgWidth > 0 && openInterior) {
             const building = activeBundle?.buildings.find(b => b.id === openInterior.buildingId);
             const maxItems = getHouseBuildingDecorLimit(building);
@@ -1968,14 +1964,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxItems) {
               toast({ title: "Decor Limit", description: `This home can only hold ${maxItems} decor items.` });
             } else {
-              const dropPosition = homeClientPointToPlacement(
+              const dropPosition = homeCameraDropToPlacement(
                 e.clientX,
                 e.clientY,
-                dropRect,
+                dropElement,
                 interior.panX,
                 interior.imgWidth,
                 interior.containerH,
-                clientToStage,
                 HOME_INVENTORY_DROP_BOUNDS,
               );
               if (!dropPosition) return;
@@ -1992,14 +1987,13 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             if (homeSceneItemCountsTowardDecorLimit(decorDrag.itemType) && placedDecorCount >= maxOutdoorDecor) {
               toast({ title: "Decor Limit", description: `This home can only hold ${maxOutdoorDecor} decor items.` });
             } else {
-              const dropPosition = homeClientPointToPlacement(
+              const dropPosition = homeCameraDropToPlacement(
                 e.clientX,
                 e.clientY,
-                dropRect,
+                dropElement,
                 panX,
                 imgWidth,
                 containerH,
-                clientToStage,
                 HOME_INVENTORY_DROP_BOUNDS,
               );
               if (!dropPosition) return;

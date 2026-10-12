@@ -6,6 +6,7 @@ import {
   clampHomePlacementPoint,
   dragHomePlacement,
   homeClientPointToPlacement,
+  homeCameraDropToPlacement,
 } from "../client/src/lib/homeAuthoredPlacement";
 
 test("Pet Home authored movement is independent of rendered device scale", () => {
@@ -69,4 +70,18 @@ test("Pet Home pet drop bounds preserve the existing outdoor toolbar reserve", (
   const outdoorPetBounds = { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: 0.82 };
   const result = homeClientPointToPlacement(999, 999, { left: 0, top: 0 }, 0, 390, 844, identity, outdoorPetBounds);
   assert.deepEqual(result, { xPct: 0.95, yPct: 0.82 });
+});
+
+
+test("inventory drops resolve against the rendered camera on phones and scaled tablets", () => {
+  const camera = (left: number, top: number, width: number, height: number, logicalWidth: number, logicalHeight: number) => ({
+    clientWidth: logicalWidth, clientHeight: logicalHeight,
+    getBoundingClientRect: () => ({ left, top, width, height }),
+  }) as unknown as HTMLElement;
+  const phone = homeCameraDropToPlacement(234, 422, camera(0, 0, 390, 844, 390, 844), 39, 390, 844);
+  const tablet = homeCameraDropToPlacement(254, 231, camera(20, 20, 390, 422, 780, 844), 78, 780, 844);
+  assert.deepEqual(phone, { xPct: 0.5, yPct: 0.5 });
+  assert.deepEqual(tablet, phone);
+  assert.deepEqual(homeCameraDropToPlacement(999, 999, camera(0, 0, 390, 844, 390, 844), 0, 390, 844), { xPct: 0.97, yPct: 0.97 });
+  assert.equal(homeCameraDropToPlacement(10, 10, camera(0, 0, 0, 0, 390, 844), 0, 390, 844), null);
 });

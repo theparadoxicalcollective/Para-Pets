@@ -85,3 +85,25 @@ export function homeClientPointToPlacement(
   if (!placement) return null;
   return clampHomePlacementPoint({ xPct: placement.x, yPct: placement.y }, bounds);
 }
+
+/** Resolve a pointer drop into saved scene percentages using the rendered camera, not the phone stage. */
+export function homeCameraDropToPlacement(
+  clientX: number,
+  clientY: number,
+  camera: HTMLElement,
+  panX: number,
+  sceneWidth: number,
+  sceneHeight: number,
+  bounds: HomePlacementBounds = HOME_INVENTORY_DROP_BOUNDS,
+): HomePlacementPoint | null {
+  const rect = camera.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0 || camera.clientWidth <= 0 || camera.clientHeight <= 0) return null;
+  const localX = (clientX - rect.left) * camera.clientWidth / rect.width;
+  const localY = (clientY - rect.top) * camera.clientHeight / rect.height;
+  const placement = scenePointToPlacement(
+    { x: localX - panX, y: localY },
+    { width: sceneWidth, height: sceneHeight },
+  );
+  if (!placement) return null;
+  return clampHomePlacementPoint({ xPct: placement.x, yPct: placement.y }, bounds);
+}
