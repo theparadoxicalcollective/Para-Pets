@@ -490,7 +490,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const activePetAnchorQuery = useActivePetAnchor(true);
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
-    const logicalPixelPerAnchorPercent = 3.9; // retained 390px legacy chrome offset; scene placement is unchanged
+    const logicalPixelPerAnchorPercent = 3.9; // transitional saved chrome alignment; migrate to artwork coordinates next
     return {
       x: activePetAnchorQuery.anchor.x * logicalPixelPerAnchorPercent,
       y: activePetAnchorQuery.anchor.y * logicalPixelPerAnchorPercent,

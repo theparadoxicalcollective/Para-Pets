@@ -27,7 +27,7 @@ test("Active Pet sparkle bursts and potion drag previews use client coordinates"
 
 test("existing authored pet anchor and petting layers remain in place", () => {
   assert.match(source, /useActivePetAnchor\(true\)/);
-  assert.match(source, /data-testid="active-pet-placement-stage"/.test(source) ? /data-testid="active-pet-placement-stage"/ : /<ActivePetPlacement/);
+  assert.match(source, /<ActivePetPlacement/);
   assert.match(source, /data-testid="active-pet-viewport-particles"/);
   assert.match(source, /data-testid="display-pet-rarity-stars"/);
 });
