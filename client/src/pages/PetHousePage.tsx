@@ -2143,9 +2143,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePetDragMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidth <= 0) return;
-    const { x: dx, y: dy } = clientDeltaToStage(
+    const { x: dx, y: dy } = homeCameraPointerDelta(
       e.clientX - drag.startPointerX,
       e.clientY - drag.startPointerY,
+      containerRef.current,
     );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
@@ -2193,10 +2194,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return;
     }
     const maxYPct = maxYForHeight(containerH);
+    const localDelta = homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current);
     const rawPosition = dragHomePlacement(
       { xPct: drag.startXPct, yPct: drag.startYPct },
-      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
-      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      localDelta.x,
+      localDelta.y,
       imgWidth,
       containerH,
       { minX: 0.05, maxX: 0.95, minY: 0.05, maxY: maxYPct },
