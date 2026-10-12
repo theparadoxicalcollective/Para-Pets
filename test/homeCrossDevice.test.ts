@@ -215,3 +215,13 @@ test("outdoor pet repositioning measures live and final movement in the Home cam
   assert.match(petDrag, /getHouseInteriorSleepSnapPosition/);
   assert.match(petDrag, /updatePetPositionMutation\.mutateAsync\(finalPosition\)/);
 });
+
+
+test("interior decor dragging uses its rendered camera for preview and saved placement", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const interiorDecor = owner.split("  const onItemMove = useCallback")[1]?.split("  // Pet drag handlers")[0] ?? "";
+  assert.match(interiorDecor, /homeCameraPointerDelta\(/);
+  assert.match(interiorDecor, /const localDelta = homeCameraPointerDelta\(/);
+  assert.match(interiorDecor, /onUpdateItem\(drag\.id, \{ xPct: newXPct, yPct: newYPct \}\)/);
+  assert.doesNotMatch(interiorDecor, /clientDeltaToStage/);
+});

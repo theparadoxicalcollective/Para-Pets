@@ -652,9 +652,10 @@ function InteriorViewer({
   const onItemMove = useCallback((e: React.PointerEvent) => {
     const drag = itemDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
-    const { x: dx, y: dy } = clientDeltaToStage(
+    const { x: dx, y: dy } = homeCameraPointerDelta(
       e.clientX - drag.startPointerX,
       e.clientY - drag.startPointerY,
+      containerRef.current,
     );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
@@ -731,10 +732,11 @@ function InteriorViewer({
     // Unselected Decor/Objects do not move. Double tap first to enter edit mode.
     if (!drag.canMove) return;
 
+    const localDelta = homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current);
     const final = dragHomePlacement(
       { xPct: drag.startXPct, yPct: drag.startYPct },
-      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
-      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      localDelta.x,
+      localDelta.y,
       imgWidthRef.current,
       containerHRef.current,
       HOME_DECOR_PLACEMENT_BOUNDS,
