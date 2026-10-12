@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -1435,9 +1436,20 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         }
       }
     };
+    const cancel = () => {
+      panelDragRef.current = null;
+      setPanelDragGhost(null);
+    };
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", onUp);
-    return () => { document.removeEventListener("pointermove", onMove); document.removeEventListener("pointerup", onUp); };
+    document.addEventListener("pointercancel", cancel);
+    window.addEventListener("blur", cancel);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("blur", cancel);
+    };
   }, [!!panelDragGhost]);
 
   const petCentralCameraBlocked = Boolean(
@@ -3567,11 +3579,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       })()}
 
       {/* ── Panel drag ghost ─────────────────────────────────────────────── */}
-      {panelDragGhost && (
-        <div className="fixed pointer-events-none z-50"
+      {panelDragGhost && typeof document !== "undefined" && createPortal(
+        <div data-testid="pet-central-decor-viewport-drag-ghost" className="fixed pointer-events-none"
           style={{
             left: panelDragGhost.clientX - 28, top: panelDragGhost.clientY - 28,
-            width: 56, height: 56,
+            width: 56, height: 56, zIndex: 100000,
             opacity: 0.85, transform: "scale(1.1)",
             filter: `drop-shadow(0 4px 14px ${ACCENT}60)`,
           }}>
@@ -3580,7 +3592,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           ) : (
             <img src={panelDragGhost.item.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} />
           )}
-        </div>
+        </div>,
+        document.body,
       )}
 
 

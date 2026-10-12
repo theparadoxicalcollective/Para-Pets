@@ -37,3 +37,14 @@ test("admin map drag conversion uses the authored map plane under CSS camera sca
   assert.ok(Math.abs(result.x - 35) < 1e-9);
   assert.ok(Math.abs(result.y - 50) < 1e-9);
 });
+
+
+test("Pet Central admin decor drag preview escapes the scaled iPhone stage", () => {
+  assert.match(source, /createPortal\(/);
+  assert.match(source, /data-testid="pet-central-decor-viewport-drag-ghost"/);
+  assert.match(source, /document\.body,/);
+  assert.match(source, /left: panelDragGhost\.clientX - 28, top: panelDragGhost\.clientY - 28/);
+  assert.match(source, /document\.addEventListener\("pointercancel", cancel\)/);
+  assert.match(source, /window\.addEventListener\("blur", cancel\)/);
+  assert.match(source, /addDecorPlacementMutation\.mutate\(\{ item, posX: x, posY: y \}\)/);
+});
