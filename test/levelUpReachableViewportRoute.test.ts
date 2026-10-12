@@ -13,7 +13,7 @@ test("Level Up uses reachable full-viewport stage branch instead of isolated swi
 });
 
 test("stage branch renders only active route, keeping Home unmounted on Level Up", () => {
-  assert.match(app, /location === "\/" && \([\s\S]{0,90}<StagePageSurface>[\s\S]{0,90}<HomePage/);
+  assert.match(app, /location === "\/" && \([\s\S]{0,90}<StagePageSurface layout="viewport">[\s\S]{0,90}<HomePage/);
   assert.match(app, /location\.startsWith\("\/pet-level-up\/"\)[\s\S]{0,170}<PetLevelUpRoute/);
 });
 
