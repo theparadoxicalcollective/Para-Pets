@@ -3,14 +3,15 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { calculateStageLayout, usesDeviceGameplaySurface, logicalToRendered, renderedToLogical, getStageTransform, getStageScale, clientToStage, clientPointInRenderedElement } from "../client/src/lib/stage";
 
-test("only audited inventory gameplay opts into device ownership", () => {
+test("only migrated gameplay routes opt into device ownership", () => {
+  assert.equal(usesDeviceGameplaySurface("/"), true);
   assert.equal(usesDeviceGameplaySurface("/bag"), true);
   assert.equal(usesDeviceGameplaySurface("/pets"), true);
   assert.equal(usesDeviceGameplaySurface("/pet-care/pet-1"), true);
   assert.equal(usesDeviceGameplaySurface("/equip-accessories"), true);
   assert.equal(usesDeviceGameplaySurface("/equip-accessories/pet-1"), true);
   assert.equal(usesDeviceGameplaySurface("/pet-level-up/pet-1"), true);
-  for (const route of ["/", "/pets/other", "/pet-house", "/world/swamp", "/pet-care/", "/pet-care/1/extra", "/pet-level-up/", "/pet-level-up/1/extra", "/equip-accessories/", "/equip-accessories/1/extra", "/bag/other"]) {
+  for (const route of ["/pets/other", "/pet-house", "/world/swamp", "/pet-care/", "/pet-care/1/extra", "/pet-level-up/", "/pet-level-up/1/extra", "/equip-accessories/", "/equip-accessories/1/extra", "/bag/other"]) {
     assert.equal(usesDeviceGameplaySurface(route), false);
   }
 });
