@@ -9,7 +9,17 @@
 }
 
 .auth-form-panel {
+  position: relative;
+  z-index: 3;
   max-width: 24rem;
+}
+
+/* Keep form controls above decorative artwork and tappable on mobile keyboards. */
+.auth-form-panel input {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .auth-page-background {
