@@ -7,8 +7,9 @@ const source = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
 
 test("interior decor drag follows background image width, not viewport width", () => {
   assert.match(source, /const bgW = bgNaturalSizeRef\.current/);
+  assert.match(source, /worldCameraPointerDelta\(/);
   assert.match(source, /x: doorDecorDragRef\.current\.origPosX/);
-  assert.match(source, /\{ width: bgW, height: rect\.height \}/);
+  assert.match(source, /\{ width: bgW, height: camera\.clientHeight \}/);
   assert.match(source, /doorDecorDragLivePosRef\.current = \{ x: newX, y: newY \}/);
 });
 
