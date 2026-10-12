@@ -43,6 +43,7 @@ import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
+import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
 
 interface HomePageProps {
   user: {
@@ -493,11 +494,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     // The saved Admin anchor is a percent of the authored scene, not a 390px device.
     // Use the rendered scene width for both axes so movement tracks the pet
     // across phones, tablets and desktop without changing persisted offsets.
-    const logicalPixelPerAnchorPercent = Math.min(getVisibleViewport().width, getVisibleViewport().height) / 100;
-    return {
-      x: activePetAnchorQuery.anchor.x * logicalPixelPerAnchorPercent,
-      y: activePetAnchorQuery.anchor.y * logicalPixelPerAnchorPercent,
-    };
+    return petChromeAnchorOffset(activePetAnchorQuery.anchor, Math.min(getVisibleViewport().width, getVisibleViewport().height));
   }, [
     activePet?.isHatched,
     activePet?.petTemplateId,
