@@ -178,3 +178,13 @@ test("expanded camera policy keeps an explorable overscan margin instead of stop
   assert.match(viewport, /if \(Math\.min\(frameWidth, frameHeight\) < 600\) return coverScale/);
   assert.doesNotMatch(viewport, /WORLD_REFERENCE_CAMERA_(WIDTH|HEIGHT)/);
 });
+
+
+test("world admin decor drag preview uses device viewport rather than the scaled stage", () => {
+  const source = read("client/src/pages/WorldPage.tsx");
+  assert.match(source, /import \{ createPortal \} from "react-dom"/);
+  assert.match(source, /data-testid="world-decor-viewport-drag-ghost"/);
+  assert.match(source, /left: panelDragGhost\.clientX - 32/);
+  assert.match(source, /top: panelDragGhost\.clientY - 32/);
+  assert.match(source, /document\.body,/);
+});
