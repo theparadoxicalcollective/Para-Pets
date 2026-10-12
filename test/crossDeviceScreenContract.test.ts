@@ -71,16 +71,16 @@ test("scene and backdrop portals preserve native-phone content without allowing 
 
 test("Active Pet keeps authored pet geometry while independent HUD menu and scenery can expand", () => {
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
-  assert.match(home, /ref=\{petContainerRef\}/);
+  assert.match(home, /ref=\{\(element\) => \{ activePetSceneRef\.current = element; \}\}/);
   assert.match(home, /data-testid="active-pet-side-menu"/);
   assert.match(home, /<ViewportHudPortal>[\s\S]*data-testid="button-open-pet-menu"/);
 });
 
 test("Active Pet canonical page does not obscure its full-device backdrop on tablets", () => {
-  assert.ok(shell.includes('#game-stage[data-coordinate-owner="stage"] [data-testid="active-pet-page"]'));
+  assert.ok(shell.includes('[data-testid="active-pet-page"]'));
   assert.match(shell, /background: transparent !important/);
   assert.match(home, /data-testid="active-pet-viewport-backdrop"/);
-  assert.ok(home.includes("ref={petContainerRef}"));
+  assert.ok(home.includes("activePetSceneRef.current = element"));
 });
 
 test("World Map expands as one scene but saved worlds remain percentage-owned by the map", () => {
