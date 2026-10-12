@@ -32,7 +32,7 @@ test("rarity stars and name-level chrome follow the shared Admin Active Pet anch
 
   assert.match(home, /import \{ useActivePetAnchor \} from "@\/lib\/petPresentation"/);
   assert.match(home, /const activePetAnchorQuery = useActivePetAnchor\(true\)/);
-  assert.match(home, /const logicalPixelPerAnchorPercent = 3\.9/);
+  assert.match(home, /const logicalPixelPerAnchorPercent = Math\.min\(getVisibleViewport\(\)\.width, getVisibleViewport\(\)\.height\) \/ 100/);
   assert.match(home, /x: activePetAnchorQuery\.anchor\.x \* logicalPixelPerAnchorPercent/);
   assert.match(home, /y: activePetAnchorQuery\.anchor\.y \* logicalPixelPerAnchorPercent/);
 
