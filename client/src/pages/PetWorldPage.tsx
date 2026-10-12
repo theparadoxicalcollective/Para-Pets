@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
-import { DESIGN_H, clientDeltaToStage, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
+import { DESIGN_H, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
 import { dragScenePercentage } from "@/lib/coordinateContracts";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
@@ -19,7 +19,7 @@ import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
-import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset } from "@/lib/worldViewport";
+import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset, worldCameraPointerDelta } from "@/lib/worldViewport";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.webp";
 import cardStarImg from "@assets/uploads/CardStar.png";
@@ -1167,9 +1167,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (!mapPanStartRef.current || !mapPanPointersRef.current.has(e.pointerId)) return;
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    const { x: dx, y: dy } = clientDeltaToStage(
+    const { x: dx, y: dy } = worldCameraPointerDelta(
       e.clientX - mapPanStartRef.current.x,
       e.clientY - mapPanStartRef.current.y,
+      vpRef.current,
     );
     const sc = mapTransformRef.current.scale;
     const canPanX = MAP_W * sc > frameWRef.current + 0.5;
