@@ -769,9 +769,10 @@ function InteriorViewer({
   const onPetMove = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     if (!drag || drag.pid !== e.pointerId || imgWidthRef.current <= 0) return;
-    const { x: dx, y: dy } = clientDeltaToStage(
+    const { x: dx, y: dy } = homeCameraPointerDelta(
       e.clientX - drag.startPointerX,
       e.clientY - drag.startPointerY,
+      containerRef.current,
     );
     if (!drag.moved && Math.hypot(dx, dy) > HOME_EDIT_DRAG_THRESHOLD_PX) {
       drag.moved = true;
@@ -817,10 +818,11 @@ function InteriorViewer({
     }
 
     const maxY = maxYForHeight(containerHRef.current);
+    const localDelta = homeCameraPointerDelta(e.clientX - drag.startPointerX, e.clientY - drag.startPointerY, containerRef.current);
     const rawPosition = dragHomePlacement(
       { xPct: drag.startXPct, yPct: drag.startYPct },
-      clientDeltaToStage(e.clientX - drag.startPointerX, 0).x,
-      clientDeltaToStage(0, e.clientY - drag.startPointerY).y,
+      localDelta.x,
+      localDelta.y,
       imgWidthRef.current,
       containerHRef.current,
       { minX: 0.02, maxX: 0.98, minY: 0.02, maxY },
