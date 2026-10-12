@@ -506,7 +506,7 @@ function AppRouter() {
   return (
     <>
       {location === "/" && (
-        <StagePageSurface>
+        <StagePageSurface layout="viewport">
           <HomePage user={user} isOverlayActive={false} />
         </StagePageSurface>
       )}
