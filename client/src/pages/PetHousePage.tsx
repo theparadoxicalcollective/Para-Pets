@@ -3008,7 +3008,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Decor drag ghost */}
       {inventoryDragState && (
-        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: clientToStage(inventoryDragState.ghostX, inventoryDragState.ghostY).x - 65, top: clientToStage(inventoryDragState.ghostX, inventoryDragState.ghostY).y - 65, width: 130, height: 130, opacity: 0.88 }}>
+        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: inventoryDragState.ghostX - 65, top: inventoryDragState.ghostY - 65, width: 130, height: 130, opacity: 0.88 }}>
           {inventoryDragState.imageUrl ? (
             <img src={inventoryDragState.imageUrl} className="w-full h-full object-contain" draggable={false} style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.7))" }} />
           ) : (
@@ -3021,7 +3021,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
       {/* Pet drag ghost */}
       {petInvDragState && (
-        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: clientToStage(petInvDragState.ghostX, petInvDragState.ghostY).x - 60, top: clientToStage(petInvDragState.ghostX, petInvDragState.ghostY).y - 60, width: 120, height: 120, opacity: 0.88 }}>
+        <div className="fixed pointer-events-none" style={{ zIndex: 100, left: petInvDragState.ghostX - 60, top: petInvDragState.ghostY - 60, width: 120, height: 120, opacity: 0.88 }}>
           <img
             src={petInvDragState.pet.hatchedImageUrl ?? petInvDragState.pet.imageUrl ?? ""}
             className="w-full h-full object-contain"
