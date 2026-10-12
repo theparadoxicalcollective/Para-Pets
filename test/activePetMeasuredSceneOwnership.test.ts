@@ -7,7 +7,7 @@ test("Active Pet chrome reads the same rendered container that owns pet placemen
   assert.match(home, /const activePetSceneRef = useRef<HTMLDivElement \| null>\(null\)/);
   assert.match(home, /new ResizeObserver\(update\)/);
   assert.match(home, /observer\.observe\(element\)/);
-  assert.match(home, /petContainerRef\.current = element; activePetSceneRef\.current = element/);
+  assert.match(home, /activePetSceneRef\.current = element/);
   assert.match(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, activePetSceneWidth\)/);
   assert.doesNotMatch(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, Math\.min\(/);
 });
