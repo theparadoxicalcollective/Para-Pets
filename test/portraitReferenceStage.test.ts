@@ -125,7 +125,7 @@ test("Pet Home keeps authored placements while player cameras measure actual art
   const homeViewport = read("client/src/lib/homeCrossDevice.ts");
 
   assert.match(owner, /clientDeltaToStage/);
-  assert.match(owner, /homeClientPointToPlacement/);
+  assert.match(owner, /homeCameraDropToPlacement/);
   assert.match(owner, /HOME_INVENTORY_DROP_BOUNDS/);
   assert.doesNotMatch(owner, /clientPointInStageElement/);
   assert.match(owner, /clientToStage\(inventoryDragState\.ghostX, inventoryDragState\.ghostY\)/);
