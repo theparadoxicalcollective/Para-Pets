@@ -71,7 +71,7 @@ test("owner drag/drop converts client input through the active Home scene elemen
   const owner = read("client/src/pages/PetHousePage.tsx");
 
   assert.match(owner, /const dropElement = interior\?\.element \?\? container/);
-  assert.match(owner, /const dropRect = dropElement\.getBoundingClientRect\(\)/);
+  assert.match(owner, /homeCameraDropToPlacement\(/);
   assert.match(owner, /homeCameraDropToPlacement\([\s\S]*?dropElement,[\s\S]*?panX,[\s\S]*?imgWidth,[\s\S]*?containerH/);
   assert.match(owner, /homeCameraDropToPlacement\([\s\S]*?dropElement,[\s\S]*?interior\.panX,[\s\S]*?interior\.imgWidth,[\s\S]*?interior\.containerH/);
   const interiorPetDrag = owner.split("  // Pet drag handlers")[1]?.split("  return (\n    <ViewportScenePortal>")[0] ?? "";
