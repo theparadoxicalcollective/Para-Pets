@@ -2,11 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dragScenePercentage } from "../client/src/lib/coordinateContracts";
+import { worldCameraPointerDelta } from "../client/src/lib/worldViewport";
 
 const source = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
 
 test("Pet World admin locations decor and doors use scene-relative drags", () => {
   assert.match(source, /dragScenePercentage/);
+  assert.match(source, /worldCameraPointerDelta\(/);
+  assert.match(source, /\{ width: map\.clientWidth, height: map\.clientHeight \}/);
+  assert.doesNotMatch(source, /\{ x: dx, y: dy \}, rect,/);
   assert.match(source, /x: locDragRef\.current\.origPosX/);
   assert.match(source, /x: decorDragRef\.current\.origPosX/);
   assert.match(source, /x: doorDragRef\.current\.origPosX/);
@@ -22,4 +26,14 @@ test("admin drag saves equivalent positions on proportionally scaled backgrounds
     assert.ok(Math.abs(result.x - 47) < 1e-9);
     assert.ok(Math.abs(result.y - 48) < 1e-9);
   }
+});
+
+
+test("admin map drag conversion uses the authored map plane under CSS camera scaling", () => {
+  const map = { clientWidth: 1080, clientHeight: 691, getBoundingClientRect: () => ({ width: 540, height: 345.5 }) } as unknown as HTMLElement;
+  // Equivalent to a 54px horizontal, 34.55px vertical finger movement at 50% map zoom.
+  const delta = worldCameraPointerDelta(54, -34.55, map);
+  const result = dragScenePercentage({ x: 25, y: 60 }, delta, { width: map.clientWidth, height: map.clientHeight }, { minX: 0, maxX: 100, minY: 0, maxY: 100 });
+  assert.ok(Math.abs(result.x - 35) < 1e-9);
+  assert.ok(Math.abs(result.y - 50) < 1e-9);
 });
