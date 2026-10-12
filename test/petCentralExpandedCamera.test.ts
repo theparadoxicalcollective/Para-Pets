@@ -69,7 +69,7 @@ test("Pet Central expanded camera uses the shared explorable World framing polic
   assert.match(source, /calculateWorldFitScale\(/);
   assert.match(source, /clampWorldMapOffset\(/);
   assert.match(source, /const expandedCamera = !getStageSurface\(\)\.viewportOwned/);
-  assert.match(source, /clientDeltaToStage\(/);
+  assert.match(source, /worldCameraPointerDelta\(/);
   assert.doesNotMatch(source, /const dx = \(e\.clientX - mapPanStartRef\.current\.x\) \/ getStageScale\(\)/);
 
   assert.match(source, /const canPanX = MAP_W \* sc > frameWRef\.current \+ 0\.5/);

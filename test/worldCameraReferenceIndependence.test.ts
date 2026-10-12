@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset } from "../client/src/lib/worldViewport";
+import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset, worldCameraPointerDelta } from "../client/src/lib/worldViewport";
 
 test("world camera uses viewport cover without fixed phone reference", () => {
   for (const [width, height] of [[320, 700], [360, 780], [390, 844], [412, 915], [430, 932]]) {
@@ -31,4 +31,11 @@ test("expanded maps preserve overscan and pannable edges without moving authored
     assert.ok(Math.abs((screenX - min.x) / (1080 * scale) - percent.x) < 1e-12);
     assert.ok(Math.abs((screenY - min.y) / (mapHeight * scale) - percent.y) < 1e-12);
   }
+});
+
+
+test("Pet Central map pointer movement follows rendered camera size", () => {
+  const camera = { clientWidth: 780, clientHeight: 844, getBoundingClientRect: () => ({ width: 390, height: 422 }) } as unknown as HTMLElement;
+  assert.deepEqual(worldCameraPointerDelta(20, 30, camera), { x: 40, y: 60 });
+  assert.deepEqual(worldCameraPointerDelta(20, 30, null), { x: 0, y: 0 });
 });
