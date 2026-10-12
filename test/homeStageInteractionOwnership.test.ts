@@ -6,8 +6,8 @@ const app = readFileSync("client/src/App.tsx", "utf8");
 const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8");
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-test("Home uses the same stage page surface as authenticated gameplay routes", () => {
-  assert.match(app, /location === "\/"[\s\S]*<StagePageSurface>[\s\S]*<HomePage user=\{user\} isOverlayActive=\{false\} \/>[\s\S]*<\/StagePageSurface>/);
+test("Active Pet owns a full-device route, not the phone reference plane", () => {
+  assert.match(app, /location === "\/"[\s\S]*<StagePageSurface layout="viewport">[\s\S]*<HomePage user=\{user\} isOverlayActive=\{false\} \/>[\s\S]*<\/StagePageSurface>/);
   assert.doesNotMatch(app, /location === "\/"[\s\S]{0,180}<div style=\{\{ position: "absolute", inset: 0, isolation: "isolate" \}\}>[\s\S]{0,180}<HomePage/);
 });
 

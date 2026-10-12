@@ -24,7 +24,7 @@ import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
-import { clientToStage, getDesignW, getStageSurface } from "@/lib/stage";
+import { getVisibleViewport } from "@/lib/stage";
 import { bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -137,15 +137,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
   }, [showPetStats]);
-  // Sparkle bursts for the pet-action ring buttons. DOM events arrive in
-  // client pixels, but stored particles use logical stage coordinates so the
-  // burst stays on the tapped rune when the portrait stage is scaled.
+  // Sparkle bursts share the device viewport coordinates of the HUD buttons.
   const [ringSparkles, setRingSparkles] = useState<
     { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number }[]
   >([]);
   const ringSparkIdRef = useRef(0);
   const burstRingSparkles = useCallback((clientX: number, clientY: number, color: string, count = 14) => {
-    const origin = clientToStage(clientX, clientY);
+    const origin = { x: clientX, y: clientY };
     const newOnes = Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
       const dist = 40 + Math.random() * 70;
@@ -492,7 +490,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const activePetAnchorQuery = useActivePetAnchor(true);
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
-    const logicalPixelPerAnchorPercent = getDesignW() / 100;
+    const logicalPixelPerAnchorPercent = 3.9; // transitional saved chrome alignment; migrate to artwork coordinates next
     return {
       x: activePetAnchorQuery.anchor.x * logicalPixelPerAnchorPercent,
       y: activePetAnchorQuery.anchor.y * logicalPixelPerAnchorPercent,
@@ -726,11 +724,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         if (ev.pointerId !== pid) return;
         const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
         if (dist > 6) {
-          const stagePoint = clientToStage(ev.clientX, ev.clientY);
-          setHomeDragging({ item, x: stagePoint.x, y: stagePoint.y });
-          // Light up the tutorial egg region in logical stage coordinates so
-          // scaled tablets/desktop use the same 65% threshold as iPhone 12.
-          setHomeDragOver(stagePoint.y < getStageSurface().logicalHeight * 0.65);
+          setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+          // The tutorial threshold is viewport-relative; egg drop hit tests
+          // still use the actual DOM target bounds on every device.
+          setHomeDragOver(ev.clientY < getVisibleViewport().height * 0.65);
         }
       };
 
@@ -775,12 +772,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 6 && !dragActive) {
         dragActive = true;
-        const stagePoint = clientToStage(ev.clientX, ev.clientY);
-        setHomeDragging({ item, x: stagePoint.x, y: stagePoint.y });
+        setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
       }
       if (dragActive) {
-        const stagePoint = clientToStage(ev.clientX, ev.clientY);
-        setHomeDragging(prev => prev ? { ...prev, x: stagePoint.x, y: stagePoint.y } : null);
+        setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
         const dropRect = homeEggDropRef.current?.getBoundingClientRect();
         if (dropRect) {
           const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
@@ -1540,8 +1535,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </ViewportModalPortal>
       )}
 
-      {/* Drag ghost for home page speed-up sheet */}
-      {homeDragging && (
+      {/* Device-coordinate drag ghost, outside any scaled artwork plane. */}
+      {homeDragging && createPortal(
         <div
           className="fixed z-[90] pointer-events-none select-none"
           style={{
@@ -1564,7 +1559,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           ) : (
             <span style={{ fontSize: 28 }}>⏩</span>
           )}
-        </div>
+        </div>, document.body
       )}
 
       {/* Screen-relative Pet Menu: independent of tapping or petting the pet. */}
@@ -1611,7 +1606,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* ── Ring sparkle bursts (rendered above the action menu) ── */}
-      {ringSparkles.length > 0 && (
+      {ringSparkles.length > 0 && createPortal(
         <div className="fixed inset-0 pointer-events-none z-[60]">
           {ringSparkles.map((s) => (
             <div
@@ -1633,7 +1628,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               </svg>
             </div>
           ))}
-        </div>
+        </div>, document.body
       )}
 
       {/* ── Power Up modal ── */}
