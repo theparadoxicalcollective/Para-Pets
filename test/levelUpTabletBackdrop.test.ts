@@ -8,8 +8,8 @@ test("Level Up paints one continuous backdrop on stage-owned tablet layouts", ()
   assert.match(levelUp, /<ViewportBackdropPortal>/);
   assert.match(levelUp, /data-testid="level-up-viewport-backdrop"/);
   assert.match(levelUp, /data-viewport-visual-owner="backdrop"/);
-  assert.match(levelUp, /#game-stage\[data-coordinate-owner="stage"\] \.lupage\{background:transparent\}/);
-  assert.match(levelUp, /\.lupage-bg,#game-stage\[data-coordinate-owner="stage"\] \.lupage-shade\{display:none\}/);
+  assert.match(levelUp, /#game-stage\[data-coordinate-owner="stage"\] \.lupage\[data-stage-coordinate-space="canonical"\]\{background:transparent\}/);
+  assert.match(levelUp, /\.lupage\[data-stage-coordinate-space="canonical"\] \.lupage-bg,#game-stage\[data-coordinate-owner="stage"\] \.lupage\[data-stage-coordinate-space="canonical"\] \.lupage-shade\{display:none\}/);
 });
 
 test("Level Up keeps canonical phone visuals and pet drop interaction", () => {
