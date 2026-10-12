@@ -490,7 +490,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const activePetAnchorQuery = useActivePetAnchor(true);
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
-    const logicalPixelPerAnchorPercent = 3.9; // transitional saved chrome alignment; migrate to artwork coordinates next
+    // The saved Admin anchor is a percent of the authored scene, not a 390px device.
+    // Use the rendered scene width for both axes so movement tracks the pet
+    // across phones, tablets and desktop without changing persisted offsets.
+    const logicalPixelPerAnchorPercent = Math.min(getVisibleViewport().width, getVisibleViewport().height) / 100;
     return {
       x: activePetAnchorQuery.anchor.x * logicalPixelPerAnchorPercent,
       y: activePetAnchorQuery.anchor.y * logicalPixelPerAnchorPercent,
