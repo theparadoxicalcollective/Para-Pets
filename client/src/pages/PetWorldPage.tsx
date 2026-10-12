@@ -1295,7 +1295,24 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── door interior decor drag + background pan handlers ──────────────────────
   const interiorRef = useRef<HTMLDivElement>(null);
 
-  // Reset pan and preload background natural size whenever a door opens/closes
+  // Keep the authored decor image plane aligned with the actual door camera,
+  // including tablet resize, rotation, and browser chrome changes.
+  useEffect(() => {
+    if (!activeDoorId) return;
+    const camera = interiorRef.current;
+    if (!camera) return;
+    const measure = () => {
+      const nat = bgNaturalSizeRef.current;
+      const height = camera.clientHeight;
+      setBgRenderedW(nat && nat.h > 0 && height > 0 ? (nat.w / nat.h) * height : 0);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(camera);
+    return () => observer.disconnect();
+  }, [activeDoorId]);
+
+  // Reset pan and preload background natural size whenever a door opens/closes.
   useEffect(() => {
     bgPanXRef.current = 0;
     setBgPanX(0);
@@ -1305,15 +1322,15 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const door = kcDoors.find(d => d.id === activeDoorId);
     if (!door?.bgUrl) return;
     const img = new Image();
+    let cancelled = false;
     img.onload = () => {
+      if (cancelled) return;
       bgNaturalSizeRef.current = { w: img.naturalWidth, h: img.naturalHeight };
-      // bgRenderedH = FRAME_H (container fills the full frame height)
-      // bgRenderedW = natural aspect ratio × rendered height
-      if (img.naturalHeight > 0) {
-        setBgRenderedW((img.naturalWidth / img.naturalHeight) * FRAME_H);
-      }
+      const height = interiorRef.current?.clientHeight ?? 0;
+      setBgRenderedW(img.naturalHeight > 0 && height > 0 ? (img.naturalWidth / img.naturalHeight) * height : 0);
     };
     img.src = door.bgUrl;
+    return () => { cancelled = true; img.onload = null; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDoorId]);
 
