@@ -940,7 +940,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div
-            ref={(element) => { petContainerRef.current = element; activePetSceneRef.current = element; }}
+            ref={(element) => { activePetSceneRef.current = element; }}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
             style={activePet?.isHatched && activePet.petTemplateId ? {
               position: "absolute", top: "calc(72*var(--vh))", left: "50%", transform: "translate(-50%, -100%)",
