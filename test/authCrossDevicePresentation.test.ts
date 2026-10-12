@@ -39,3 +39,15 @@ test("tablet and desktop auth use the full device instead of a narrow phone pane
   assert.match(tablet, /\.auth-form-panel\s*\{[\s\S]*?max-width: 560px/);
   assert.match(tablet, /\.auth-paw-footer\s*\{[\s\S]*?520px/);
 });
+
+
+test("registration inputs remain interactive above decorative auth layers", () => {
+  const auth = read("client/src/pages/AuthPage.tsx");
+  const css = read("client/src/pages/authPage.css");
+  assert.match(auth, /data-testid="input-email"/);
+  assert.match(auth, /data-testid="input-username"/);
+  assert.match(auth, /data-testid="input-password"/);
+  assert.match(css, /\.auth-form-panel\s*\{[^}]*position: relative;[^}]*z-index: 3/);
+  assert.match(css, /\.auth-form-panel input\s*\{[^}]*pointer-events: auto;[^}]*touch-action: manipulation/);
+  assert.match(css, /\.auth-paw-footer\s*\{[^}]*pointer-events: none/);
+});
