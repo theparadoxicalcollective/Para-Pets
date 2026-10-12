@@ -166,7 +166,9 @@ test("outdoor Home cameras convert pan movement using their rendered surface, no
   const helper = readFileSync("client/src/lib/homeCrossDevice.ts", "utf8");
   const owner = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const visitor = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
-  assert.match(helper, /clientDeltaX \* logicalWidth \/ rect\.width/);
+  assert.match(helper, /sceneCameraPointerDelta\(clientDeltaX, 0, camera as HTMLElement \| null\)\.x/);
+  const shared = readFileSync("client/src/lib/sceneCameraCoordinates.ts", "utf8");
+  assert.match(shared, /delta \* logical \/ rendered/);
   for (const source of [owner, visitor]) {
     assert.equal((source.match(/homeCameraPointerDeltaX\(e\.clientX - drag\.startX, container\)/g) ?? []).length, 2);
     assert.doesNotMatch(source, /const panDelta = clientDeltaToStage/);
