@@ -28,3 +28,13 @@ test("the viewport style override is scoped, leaving native phone reference styl
   assert.match(page, /\[data-page-presentation="full-viewport"\]/);
   assert.match(surface, /layout = "reference"/);
 });
+
+
+test("tablet Level Up viewport UI is not hidden by legacy stage-owned backdrop suppression", () => {
+  assert.match(page, /\.lupage\[data-stage-coordinate-space="canonical"\]\{background:transparent\}/);
+  assert.match(page, /\.lupage\[data-stage-coordinate-space="viewport"\] \.lupage-scroll\{position:relative;z-index:1;display:flex;visibility:visible;opacity:1\}/);
+  assert.match(page, /data-stage-coordinate-space=\{deviceSurface \? "viewport" : "canonical"\}/);
+  assert.match(page, /className="lupage-scroll"/);
+  assert.match(page, /className="lupage-head"/);
+  assert.match(page, /className="lupage-tray"/);
+});
