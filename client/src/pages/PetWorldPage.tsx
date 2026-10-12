@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
-import { DESIGN_H, getDesignW, getStageScale, getStageSurface } from "@/lib/stage";
+import { DESIGN_H, getDesignW, getStageSurface } from "@/lib/stage";
 import { dragScenePercentage } from "@/lib/coordinateContracts";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
@@ -1337,21 +1337,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   }, [user.isAdmin]);
 
   const handleDoorDecorPointerMove = useCallback((e: React.PointerEvent) => {
-    // Background pan (anyone). bgPanX is applied as CSS px inside the scaled
-    // #game-stage, i.e. design px — so convert the (scaled) rect + pointer delta
-    // back into design px via the stage scale, keeping the pan finger-locked.
+    // Pan in the actual rendered door camera's CSS coordinate space, not the
+    // global iPhone reference stage. Shop backgrounds remain non-pannable.
     if (bgPanDragRef.current && interiorRef.current) {
-      const s = getStageScale();
-      const containerRect = interiorRef.current.getBoundingClientRect();
-      const cw = containerRect.width / s;
-      const ch = containerRect.height / s;
+      const camera = interiorRef.current;
+      const cw = camera.clientWidth;
+      const ch = camera.clientHeight;
       const nat = bgNaturalSizeRef.current;
-      // Compute the image's rendered width at height=100% from natural dimensions
-      const renderedW = nat && nat.h > 0
-        ? (nat.w / nat.h) * ch
-        : cw;
+      const renderedW = nat && nat.h > 0 ? (nat.w / nat.h) * ch : cw;
       const maxPan = Math.max(0, renderedW - cw);
-      const dx = (bgPanDragRef.current.startX - e.clientX) / s;
+      const dx = worldCameraPointerDelta(bgPanDragRef.current.startX - e.clientX, 0, camera).x;
       const newPan = Math.max(0, Math.min(maxPan, bgPanDragRef.current.startPan + dx));
       bgPanXRef.current = newPan;
       setBgPanX(newPan);
@@ -1359,18 +1354,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     // Decor drag (admin only)
     if (!doorDecorDragRef.current || !interiorRef.current) return;
     e.preventDefault();
-    const rect = interiorRef.current.getBoundingClientRect();
-    // X drag is relative to the background image width so items stay pinned to the background
+    const camera = interiorRef.current;
+    // Decor positions are authored against the actual image plane, independent
+    // of the device viewport or any ancestor's CSS scale.
     const bgW = bgNaturalSizeRef.current && bgNaturalSizeRef.current.h > 0
-      ? (bgNaturalSizeRef.current.w / bgNaturalSizeRef.current.h) * rect.height
-      : rect.width;
-    const dx = e.clientX - doorDecorDragRef.current.startX;
-    const dy = e.clientY - doorDecorDragRef.current.startY;
+      ? (bgNaturalSizeRef.current.w / bgNaturalSizeRef.current.h) * camera.clientHeight
+      : camera.clientWidth;
+    const { x: dx, y: dy } = worldCameraPointerDelta(
+      e.clientX - doorDecorDragRef.current.startX,
+      e.clientY - doorDecorDragRef.current.startY,
+      camera,
+    );
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) doorDecorDidDrag.current = true;
     const { x: newX, y: newY } = dragScenePercentage(
       { x: doorDecorDragRef.current.origPosX, y: doorDecorDragRef.current.origPosY },
       { x: dx, y: dy },
-      { width: bgW, height: rect.height },
+      { width: bgW, height: camera.clientHeight },
       { minX: 0, maxX: 100, minY: 0, maxY: 100 },
     );
     doorDecorDragLivePosRef.current = { x: newX, y: newY };
