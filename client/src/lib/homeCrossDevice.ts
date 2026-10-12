@@ -1,3 +1,4 @@
+import { sceneCameraPointerDelta } from "./sceneCameraCoordinates";
 import type { CSSProperties } from "react";
 import { getStageSurface } from "@/lib/stage";
 
@@ -43,21 +44,12 @@ export function clampHomeCameraPanX(
 
 /** Convert a pointer's client-pixel travel into the rendered Home camera's CSS coordinate space. */
 export function homeCameraPointerDeltaX(clientDeltaX: number, camera: Element | null): number {
-  if (!camera) return 0;
-  const rect = camera.getBoundingClientRect();
-  const logicalWidth = (camera as HTMLElement).clientWidth;
-  if (!rect.width || !logicalWidth) return 0;
-  return clientDeltaX * logicalWidth / rect.width;
+  return sceneCameraPointerDelta(clientDeltaX, 0, camera as HTMLElement | null).x;
 }
 
 /** Convert client-pointer movement to the local Home camera coordinate plane. */
 export function homeCameraPointerDelta(clientDeltaX: number, clientDeltaY: number, camera: HTMLElement | null): { x: number; y: number } {
-  if (!camera) return { x: 0, y: 0 };
-  const rect = camera.getBoundingClientRect();
-  return {
-    x: rect.width > 0 && camera.clientWidth > 0 ? clientDeltaX * camera.clientWidth / rect.width : 0,
-    y: rect.height > 0 && camera.clientHeight > 0 ? clientDeltaY * camera.clientHeight / rect.height : 0,
-  };
+  return sceneCameraPointerDelta(clientDeltaX, clientDeltaY, camera);
 }
 
 export function centeredHomeCameraPanX(cameraWidth: number, imageWidth: number): number {
