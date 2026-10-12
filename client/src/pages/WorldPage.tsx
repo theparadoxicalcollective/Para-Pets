@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
@@ -2078,8 +2079,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       )}
 
       {/* Drag-from-panel ghost */}
-      {panelDragGhost && (
+      {panelDragGhost && typeof document !== "undefined" && createPortal(
         <div
+          data-testid="world-decor-viewport-drag-ghost"
           style={{
             position: "fixed",
             left: panelDragGhost.clientX - 32,
@@ -2113,7 +2115,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           ) : (
             <img src={panelDragGhost.item.imageUrl} alt={panelDragGhost.item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           )}
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* World Decor Panel */}
