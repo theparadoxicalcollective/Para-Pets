@@ -21,3 +21,12 @@ test("interior decor percentage placement is invariant across scaled images", ()
     assert.ok(Math.abs(result.y - 55) < 1e-9);
   }
 });
+
+
+test("door decor image plane uses live camera height and resizes with the viewport", () => {
+  assert.match(source, /const height = camera\.clientHeight/);
+  assert.match(source, /observer\.observe\(camera\)/);
+  assert.match(source, /setBgRenderedW\(nat && nat\.h > 0 && height > 0 \? \(nat\.w \/ nat\.h\) \* height : 0\)/);
+  assert.match(source, /const height = interiorRef\.current\?\.clientHeight \?\? 0/);
+  assert.doesNotMatch(source, /setBgRenderedW\([^\n]*FRAME_H/);
+});
