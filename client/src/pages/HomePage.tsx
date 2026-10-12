@@ -43,6 +43,7 @@ import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
+import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
 
 interface HomePageProps {
   user: {
@@ -490,11 +491,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const activePetAnchorQuery = useActivePetAnchor(true);
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
-    const logicalPixelPerAnchorPercent = 3.9; // transitional saved chrome alignment; migrate to artwork coordinates next
-    return {
-      x: activePetAnchorQuery.anchor.x * logicalPixelPerAnchorPercent,
-      y: activePetAnchorQuery.anchor.y * logicalPixelPerAnchorPercent,
-    };
+    // The saved Admin anchor is a percent of the authored scene, not a 390px device.
+    // Use the rendered scene width for both axes so movement tracks the pet
+    // across phones, tablets and desktop without changing persisted offsets.
+    return petChromeAnchorOffset(activePetAnchorQuery.anchor, Math.min(getVisibleViewport().width, getVisibleViewport().height));
   }, [
     activePet?.isHatched,
     activePet?.petTemplateId,
