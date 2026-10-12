@@ -225,3 +225,14 @@ test("interior decor dragging uses its rendered camera for preview and saved pla
   assert.match(interiorDecor, /onUpdateItem\(drag\.id, \{ xPct: newXPct, yPct: newYPct \}\)/);
   assert.doesNotMatch(interiorDecor, /clientDeltaToStage/);
 });
+
+
+test("interior pet repositioning uses camera-local deltas for preview and save", () => {
+  const owner = read("client/src/pages/PetHousePage.tsx");
+  const interiorPets = owner.split("  // Pet drag handlers")[1]?.split("  return (\n    <ViewportScenePortal>")[0] ?? "";
+  assert.match(interiorPets, /const \{ x: dx, y: dy \} = homeCameraPointerDelta\(/);
+  assert.match(interiorPets, /const localDelta = homeCameraPointerDelta\(/);
+  assert.doesNotMatch(interiorPets, /clientDeltaToStage/);
+  assert.match(interiorPets, /getHouseInteriorSleepSnapPosition/);
+  assert.match(interiorPets, /onMovePet\(drag\.inventoryId, newXPct, newYPct, drag\.scalePct, drag\.flipped\)/);
+});
