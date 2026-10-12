@@ -489,17 +489,30 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     : null;
 
   const activePetAnchorQuery = useActivePetAnchor(true);
+  const [activePetSceneWidth, setActivePetSceneWidth] = useState(0);
+  const activePetSceneRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const element = activePetSceneRef.current;
+    if (!element) return;
+    const update = () => setActivePetSceneWidth(element.getBoundingClientRect().width);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [activePet?.petTemplateId, activePet?.isHatched]);
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
     // The saved Admin anchor is a percent of the authored scene, not a 390px device.
     // Use the rendered scene width for both axes so movement tracks the pet
     // across phones, tablets and desktop without changing persisted offsets.
-    return petChromeAnchorOffset(activePetAnchorQuery.anchor, Math.min(getVisibleViewport().width, getVisibleViewport().height));
+    return petChromeAnchorOffset(activePetAnchorQuery.anchor, activePetSceneWidth);
   }, [
     activePet?.isHatched,
     activePet?.petTemplateId,
     activePetAnchorQuery.anchor.x,
     activePetAnchorQuery.anchor.y,
+    activePetSceneWidth,
   ]);
 
   const ownsAnyPet = inventory.some((item) => item.type === "pet");
@@ -927,7 +940,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div
-            ref={petContainerRef}
+            ref={(element) => { petContainerRef.current = element; activePetSceneRef.current = element; }}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
             style={activePet?.isHatched && activePet.petTemplateId ? {
               position: "absolute", top: "calc(72*var(--vh))", left: "50%", transform: "translate(-50%, -100%)",
