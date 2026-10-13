@@ -30,6 +30,8 @@ test("Active Pet authored placement and chrome remain unchanged", () => {
   assert.match(home, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
   assert.match(home, /data-testid="display-pet-rarity-stars"/);
   assert.match(home, /paddingTop: "155px"/);
+  assert.match(home, /top: Math\.max\(0, activePetSceneRect\.top - 64\)/);
+  assert.match(home, /left: activePetSceneRect\.left \+ activePetSceneRect\.width \/ 2/);
   assert.match(home, /marginBottom: "-52px"/);
   assert.match(home, /data-testid="active-pet-name-level-anchor"/);
   assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \+ 12/);
