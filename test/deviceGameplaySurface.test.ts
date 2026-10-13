@@ -13,6 +13,7 @@ test("only migrated gameplay routes opt into device ownership", () => {
   assert.equal(usesDeviceGameplaySurface("/pet-level-up/pet-1"), true);
   assert.equal(usesDeviceGameplaySurface("/world/swamp"), true);
   assert.equal(usesDeviceGameplaySurface("/pet-house"), true);
+  assert.equal(usesDeviceGameplaySurface("/friends"), true);
   for (const route of ["/pets/other", "/pet-care/", "/pet-care/1/extra", "/pet-level-up/", "/pet-level-up/1/extra", "/equip-accessories/", "/equip-accessories/1/extra", "/bag/other"]) {
     assert.equal(usesDeviceGameplaySurface(route), false);
   }
