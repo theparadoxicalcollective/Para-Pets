@@ -532,7 +532,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/pet-house" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <PetHousePage user={user} />
           </StagePageSurface>
         )}

@@ -7,10 +7,10 @@ const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8
 const app = readFileSync("client/src/App.tsx", "utf8");
 const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
 
-test("Bag stays opted into full-device rendering; map migration preserves other reference routes", () => {
+test("Bag stays opted into full-device rendering; map and Pet Home migrations preserve other reference routes", () => {
   assert.match(app, /location === "\/bag"[\s\S]{0,75}<StagePageSurface layout="viewport">/);
   assert.ok(app.includes(`location === "/map" && (\n          <StagePageSurface layout="viewport">`));
-  for (const route of ["/pet-house", "/pet-care/"]) {
+  for (const route of ["/pet-care/"]) {
     const start = app.indexOf(`location === "${route}"`);
     if (start >= 0) assert.doesNotMatch(app.slice(start, start + 90), /layout="viewport"/);
   }
