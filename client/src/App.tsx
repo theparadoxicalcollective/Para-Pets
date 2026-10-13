@@ -542,7 +542,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/market" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <MarketPage user={user} onUserUpdate={u => queryClient.setQueryData(["/api/auth/me"], u)} />
           </StagePageSurface>
         )}
