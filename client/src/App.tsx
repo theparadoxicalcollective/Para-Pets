@@ -585,7 +585,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/games/molten-blocks" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <MiniGameFrame worldId="volcanic"><MoltenBlocksPage /></MiniGameFrame>
           </StagePageSurface>
         )}
