@@ -13,3 +13,19 @@ export function coverArtworkPoint(artwork: ArtworkSize, backdrop: BackdropRect, 
     y: backdrop.top + point.y * scale,
   };
 }
+
+/** Inverse of coverArtworkPoint, for calibrating a visible landmark in the artwork. */
+export function viewportPointToCoverArtwork(
+  artwork: ArtworkSize,
+  backdrop: BackdropRect,
+  point: ArtworkPoint,
+): ArtworkPoint | null {
+  const values = [artwork.width, artwork.height, backdrop.width, backdrop.height, backdrop.left, backdrop.top, point.x, point.y];
+  if (!values.every(Number.isFinite) || artwork.width <= 0 || artwork.height <= 0 || backdrop.width <= 0 || backdrop.height <= 0) return null;
+  const scale = Math.max(backdrop.width / artwork.width, backdrop.height / artwork.height);
+  const renderedWidth = artwork.width * scale;
+  return {
+    x: (point.x - backdrop.left - (backdrop.width - renderedWidth) / 2) / scale,
+    y: (point.y - backdrop.top) / scale,
+  };
+}
