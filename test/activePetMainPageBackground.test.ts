@@ -32,7 +32,7 @@ test("rarity stars and name-level chrome follow the shared Admin Active Pet anch
 
   assert.match(home, /import \{ useActivePetAnchor \} from "@\/lib\/petPresentation"/);
   assert.match(home, /const activePetAnchorQuery = useActivePetAnchor\(true\)/);
-  assert.match(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, activePetSceneRect\\.width\)/);
+  assert.match(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, activePetSceneRect\.width\)/);
 
   const stars = home.indexOf('data-testid="display-pet-rarity-stars"');
   const pet = home.indexOf('data-testid="display-active-pet"');
