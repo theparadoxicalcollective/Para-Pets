@@ -9,7 +9,7 @@ const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8")
 
 test("Bag stays opted into full-device rendering; map migration preserves other reference routes", () => {
   assert.match(app, /location === "\/bag"[\s\S]{0,75}<StagePageSurface layout="viewport">/);
-  assert.match(app, /location === "\\/map"[\\s\\S]{0,75}<StagePageSurface layout="viewport">/);
+  assert.ok(app.includes('location === "/map" && (\\n          <StagePageSurface layout="viewport">'));
   for (const route of ["/pet-house", "/pet-care/"]) {
     const start = app.indexOf(`location === "${route}"`);
     if (start >= 0) assert.doesNotMatch(app.slice(start, start + 90), /layout="viewport"/);
