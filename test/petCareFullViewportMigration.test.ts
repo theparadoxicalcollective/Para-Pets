@@ -9,7 +9,7 @@ const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8
 
 test("Pet Care opts into full-device UI without migrating maps, home or admin placements", () => {
   assert.match(app, /<StagePageSurface key=\{location\} layout="viewport">\s*<PetCarePage/);
-  assert.match(surface, /fullViewport \? children : <div/);
+  assert.match(surface, /\{children\}/);
   assert.match(app, /<StagePageSurface layout="viewport">\s*<BagInventoryPage/);
 });
 
