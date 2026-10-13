@@ -973,7 +973,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               ...(activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
                 ? {
                     position: "fixed" as const,
-                    top: Math.max(0, activePetSceneRect.top - 64),
+                    top: Math.max(110, activePetSceneRect.top - 44),
                     left: activePetSceneRect.left + activePetSceneRect.width / 2,
                     transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
                   }
@@ -1005,8 +1005,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   data-testid="home-active-pet-rarity-star"
                   src={cardStarImg}
                   alt=""
-                  width={64}
-                  height={64}
+                  width={52}
+                  height={52}
                   style={{
                     transform: `translateY(${curveY}px)`,
                     margin: "0 2px",
@@ -1028,13 +1028,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             ref={(element) => { activePetSceneRef.current = element; }}
             data-platform-artwork-x={activePetPlatformCalibration?.x.toFixed(1)}
             data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
-            className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
-            style={activePet?.isHatched && activePet.petTemplateId ? {
+            className="relative flex items-center justify-center"
+            style={{ width: activePet?.isHatched && activePet.petTemplateId ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet?.isHatched && activePet.petTemplateId ? {
               position: "absolute",
               top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
               left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
               transform: "translate(-50%, -100%)",
-            } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
+            } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }) }}
           >
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
