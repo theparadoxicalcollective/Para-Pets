@@ -25,7 +25,7 @@ test("Active Pet wide devices use viewport scenery without the canonical center 
 });
 
 test("Active Pet authored placement and chrome remain unchanged", () => {
-  assert.match(home, /ref=\{petContainerRef\}/);
+  assert.match(home, /ref=\{\(element\) => \{ activePetSceneRef\.current = element; \}\}/);
   assert.match(home, /top: "calc\(72\*var\(--vh\)\)"/);
   assert.match(home, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
   assert.match(home, /data-testid="display-pet-rarity-stars"/);

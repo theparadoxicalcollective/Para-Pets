@@ -33,7 +33,7 @@ test("Active Pet keeps authored coordinates while the viewport owns its scenery"
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
 
   // The pet's authored stage placement is intentionally unchanged.
-  assert.match(home, /ref=\{petContainerRef\}/);
+  assert.match(home, /ref=\{\(element\) => \{ activePetSceneRef\.current = element; \}\}/);
   assert.match(home, /top: "calc\(72\*var\(--vh\)\)"/);
 });
 
