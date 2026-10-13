@@ -522,7 +522,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location.startsWith("/world/") && (
-          <StagePageSurface key={location}>
+          <StagePageSurface key={location} layout="viewport">
             <WorldLoadingGate location={location} user={user} />
           </StagePageSurface>
         )}
