@@ -489,12 +489,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     : null;
 
   const activePetAnchorQuery = useActivePetAnchor(true);
-  const [activePetSceneWidth, setActivePetSceneWidth] = useState(0);
+  const [activePetSceneRect, setActivePetSceneRect] = useState({ width: 0, height: 0, left: 0, top: 0 });
   const activePetSceneRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const element = activePetSceneRef.current;
     if (!element) return;
-    const update = () => setActivePetSceneWidth(element.getBoundingClientRect().width);
+    const update = () => {
+      const { width, height, left, top } = element.getBoundingClientRect();
+      setActivePetSceneRect(previous => previous.width === width && previous.height === height && previous.left === left && previous.top === top ? previous : { width, height, left, top });
+    };
     update();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(update);
@@ -506,13 +509,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     // The saved Admin anchor is a percent of the authored scene, not a 390px device.
     // Use the rendered scene width for both axes so movement tracks the pet
     // across phones, tablets and desktop without changing persisted offsets.
-    return petChromeAnchorOffset(activePetAnchorQuery.anchor, activePetSceneWidth);
+    return petChromeAnchorOffset(activePetAnchorQuery.anchor, activePetSceneRect.width);
   }, [
     activePet?.isHatched,
     activePet?.petTemplateId,
     activePetAnchorQuery.anchor.x,
     activePetAnchorQuery.anchor.y,
-    activePetSceneWidth,
+    activePetSceneRect.width,
   ]);
 
   const ownsAnyPet = inventory.some((item) => item.type === "pet");

@@ -8,6 +8,6 @@ test("Active Pet chrome reads the same rendered container that owns pet placemen
   assert.match(home, /new ResizeObserver\(update\)/);
   assert.match(home, /observer\.observe\(element\)/);
   assert.match(home, /activePetSceneRef\.current = element/);
-  assert.match(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, activePetSceneWidth\)/);
+  assert.match(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, activePetSceneRect\.width\)/);
   assert.doesNotMatch(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, Math\.min\(/);
 });
