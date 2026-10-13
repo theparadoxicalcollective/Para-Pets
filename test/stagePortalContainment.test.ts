@@ -20,9 +20,9 @@ test("gameplay portals preserve legacy consumers while Raid Battle uses viewport
 
 test("Clearing ground input converts rendered pointer geometry to logical stage geometry", () => {
   const clearing = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
-  assert.match(clearing, /const stageScale = getStageScale\(\)/);
-  assert.match(clearing, /\(e\.clientX - rect\.left\) \/ stageScale/);
-  assert.match(clearing, /rect\.left \+ x \* stageScale/);
+  assert.match(clearing, /const scaleX = rect\.width \/ Math\.max\(1, logicalWidth\)/);
+  assert.match(clearing, /\(e\.clientX - rect\.left\) \/ scaleX/);
+  assert.match(clearing, /rect\.left \+ x \* scaleX/);
   assert.match(clearing, /!e\.isPrimary/);
   assert.match(clearing, /e\.pointerType === "mouse" && e\.button !== 0/);
   assert.match(clearing, /onPointerCancel=\{onJoystickPointerUp\}/);
@@ -63,6 +63,6 @@ test("battle drag ghosts use their respective coordinate owners and Clearing kee
   assert.doesNotMatch(raid, /clientToStagePortal|getStagePortalTarget/);
   assert.match(petCare, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
   assert.match(petCare, /careGhostTarget\(\)/);
-  assert.match(clearing, /const stageScale = getStageScale\(\)/);
-  assert.match(clearing, /\(e\.clientX - rect\.left\) \/ stageScale/);
+  assert.match(clearing, /const scaleX = rect\.width \/ Math\.max\(1, logicalWidth\)/);
+  assert.match(clearing, /\(e\.clientX - rect\.left\) \/ scaleX/);
 });
