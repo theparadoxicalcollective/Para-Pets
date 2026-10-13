@@ -39,6 +39,8 @@ test("Active Pet authored placement and chrome remain unchanged", () => {
   assert.match(home, /data-testid="button-open-pet-actions"/);
 });
 
-test("Active Pet platform baseline remains the shared 844px authored reference", () => {
-  assert.match(shell + readFileSync("client/src/index.css", "utf8"), /\.home-active-pet-stage \{[\s\S]*--home-active-pet-ground-y: 610px;[\s\S]*bottom: calc\(844px - var\(--home-active-pet-ground-y\)\)/);
+test("Active Pet no longer defines an unused 844px stage baseline", () => {
+  const css = readFileSync("client/src/index.css", "utf8");
+  assert.doesNotMatch(css, /\.home-active-pet-stage\s*\{/);
+  assert.doesNotMatch(css, /--home-active-pet-ground-y/);
 });
