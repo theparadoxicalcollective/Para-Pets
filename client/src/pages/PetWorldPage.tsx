@@ -26,8 +26,6 @@ import coinIconImg from "@assets/icon_coin.webp";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import aquariumIconImg from "@assets/icon_fish_inventory.png";
-import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
-import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -4155,116 +4153,85 @@ const BASE_R  = 56;
 // base ring's filigree hole instead of bulging past it. Also lets
 // the orb image read as "the gem in the centre of an ornate ring"
 // rather than a separate pearl glued on top.
-const THUMB_R = 17;
+const THUMB_R = 22;
 
 function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boolean) => void }) {
-  const baseRef   = useRef<HTMLDivElement>(null);
-  const thumbRef  = useRef<HTMLDivElement>(null);
-  const pidRef    = useRef<number | null>(null);
-  const centerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Match Clearing's floating-on-touch joystick without intercepting world
+  // taps or admin object interactions outside this dedicated touch region.
+  const zoneRef = useRef<HTMLDivElement>(null);
+  const pidRef = useRef<number | null>(null);
+  const centerRef = useRef({ x: 0, y: 0 });
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const maxDist = BASE_R - THUMB_R;
 
   const release = (pointerId: number) => {
     if (pidRef.current !== pointerId) return;
     pidRef.current = null;
-    if (thumbRef.current) thumbRef.current.style.transform = "translate(-50%, -50%)";
+    setOrigin(null);
+    setOffset({ x: 0, y: 0 });
     onChange(0, 0, false);
   };
 
   const move = (cx: number, cy: number) => {
     let dx = cx - centerRef.current.x;
     let dy = cy - centerRef.current.y;
-    const dist    = Math.hypot(dx, dy);
-    const maxDist = BASE_R - THUMB_R;
-    if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
-    if (thumbRef.current) thumbRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    const distance = Math.hypot(dx, dy);
+    if (distance > maxDist) {
+      dx = dx / distance * maxDist;
+      dy = dy / distance * maxDist;
+    }
+    setOffset({ x: dx, y: dy });
     onChange(dx / maxDist, dy / maxDist, true);
   };
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (pidRef.current !== null) return;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pidRef.current !== null || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const rect = zoneRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     pidRef.current = e.pointerId;
-    const rect = baseRef.current!.getBoundingClientRect();
-    centerRef.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const radius = BASE_R;
+    const x = Math.max(radius, Math.min(rect.width - radius, e.clientX - rect.left));
+    const y = Math.max(radius, Math.min(rect.height - radius, e.clientY - rect.top));
+    centerRef.current = { x: rect.left + x, y: rect.top + y };
+    setOrigin({ x, y });
     move(e.clientX, e.clientY);
   };
 
   return (
     <div
-      ref={baseRef}
-      data-testid="joystick-base"
+      ref={zoneRef}
+      data-testid="pet-central-joystick-zone"
       onPointerDown={onPointerDown}
       onPointerMove={e => { if (e.pointerId === pidRef.current) move(e.clientX, e.clientY); }}
       onPointerUp={e => release(e.pointerId)}
       onPointerCancel={e => release(e.pointerId)}
+      onLostPointerCapture={e => release(e.pointerId)}
       style={{
-        position: "absolute",
-        bottom: 108,
-        right: 20,
-        pointerEvents: "auto",
-        width: BASE_R * 2,
-        height: BASE_R * 2,
-        touchAction: "none",
-        zIndex: 60,
+        position: "absolute", right: 12, bottom: 85,
+        width: "min(42vw, 220px)", height: "min(34vh, 260px)",
+        minWidth: BASE_R * 2, minHeight: BASE_R * 2,
+        pointerEvents: "auto", touchAction: "none", zIndex: 60,
       }}
     >
-      {/* Base ring — ornate golden filigree PNG with a real transparent
-          centre hole. The image bleeds beyond the BASE_R*2 box because of
-          its built-in glow halo, so we let it overflow naturally rather
-          than clipping. A subtle box-shadow pulse adds a living feel
-          underneath the static art. */}
-      <img
-        src={joystickBaseImg}
-        alt=""
-        aria-hidden
-        draggable={false}
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          width: BASE_R * 2.2,
-          height: BASE_R * 2.2,
-          transform: "translate(-50%, -50%)",
-          objectFit: "contain",
-          pointerEvents: "none",
-          userSelect: "none",
-          filter: "drop-shadow(0 0 12px rgba(252,211,77,0.45))",
-        }}
-      />
-
-      {/* Thumb — ornate emerald gem PNG that fits inside the base ring's
-          centre hole. Sized small (THUMB_R * 2 = 34px) so the gold
-          filigree on the base remains the dominant ornament; the gem
-          reads as the centerpiece, not as the whole control. The image
-          carries its own glow + highlight, so we just add a soft drop
-          shadow underneath for depth and let the file do the work. */}
-      <div
-        ref={thumbRef}
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          width: THUMB_R * 2,
-          height: THUMB_R * 2,
-          transform: "translate(-50%, -50%)",
-          pointerEvents: "none",
-        }}
-      >
-        <img
-          src={joystickThumbImg}
-          alt=""
-          aria-hidden
-          draggable={false}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            pointerEvents: "none",
-            userSelect: "none",
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.55))",
-          }}
-        />
-      </div>
+      {origin && (
+        <div data-testid="floating-joystick" style={{
+          position: "absolute", left: origin.x, top: origin.y,
+          width: BASE_R * 2, height: BASE_R * 2,
+          transform: "translate(-50%, -50%)", pointerEvents: "none",
+        }}>
+          <div data-testid="joystick-base" className="absolute inset-0 rounded-full"
+            style={{ border: "1px solid rgba(210,225,200,.65)", background: "rgba(20,42,30,.54)", boxShadow: "0 2px 8px rgba(0,0,0,.35)" }} />
+          <div data-testid="joystick-thumb" style={{
+            position: "absolute", left: "50%", top: "50%",
+            width: 44, height: 44, borderRadius: "50%",
+            transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+            background: "rgba(165,190,165,.78)", border: "1px solid rgba(240,245,230,.7)",
+          }} />
+        </div>
+      )}
     </div>
   );
 }
