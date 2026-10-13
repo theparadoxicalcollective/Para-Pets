@@ -517,7 +517,7 @@ function AppRouter() {
           so Safari/Android never flash a different route underneath. */}
       <Suspense fallback={<LoadingScreen label="Loading…" />}>
         {location === "/map" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <MapPage user={user} />
           </StagePageSurface>
         )}
