@@ -590,7 +590,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/games/lava-crawl" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <MiniGameFrame worldId="volcanic"><LavaCrawlPage /></MiniGameFrame>
           </StagePageSurface>
         )}
