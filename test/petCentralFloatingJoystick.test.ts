@@ -17,12 +17,13 @@ test("Pet Central joystick floats at touch origin like Clearing without a global
   assert.match(world, /pointerEvents: "auto", touchAction: "none"/);
 });
 
-test("Pet Central retains existing movement controller and visual assets", () => {
+test("Pet Central retains existing movement controller with Clearing-style visuals", () => {
   assert.match(world, /onChange\(dx \/ maxDist, dy \/ maxDist, true\)/);
   assert.match(world, /onChange\(0, 0, false\)/);
   assert.match(world, /<Joystick onChange=\{handleJoystickChange\} \/>/);
   assert.match(world, /joystickDirRef\.current = \{ dx, dy \}/);
-  assert.match(world, /joystickBaseImg/);
-  assert.match(world, /joystickThumbImg/);
+  assert.doesNotMatch(world, /joystickBaseImg|joystickThumbImg/);
+  assert.match(world, /data-testid="joystick-base"/);
+  assert.match(world, /data-testid="joystick-thumb"/);
   assert.match(world, /data-testid="pet-central-joystick-hud"/);
 });
