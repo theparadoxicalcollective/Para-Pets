@@ -18,13 +18,13 @@ test("Pet Care selects device ownership and preserves embedded presentation", ()
   assert.doesNotMatch(source, /maxWidth: "768px", margin: "0 auto", left: 0, right: 0/);
 });
 
-test("Pet Care uses local device effects with legacy conversions for embedded callers", () => {
+test("Pet Care uses overlay-local feedback with legacy drag portal for embedded callers", () => {
   const source = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
   assert.match(source, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
   assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?careGhostTarget\(\)/);
-  assert.match(source, /clientToStage\(/);
-  assert.match(source, /clientRectPointToStage/);
+  assert.match(source, /const feedbackSurface = \(\) => overlayRef\.current/);
+  assert.doesNotMatch(source, /clientRectPointToStage|\bclientToStage\(/);
   assert.match(source, /position=\{deviceSurface \? "absolute" : "fixed"\}/);
 });
 
