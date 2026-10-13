@@ -897,9 +897,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             style={{
               pointerEvents: "none",
               zIndex: 30,
-              paddingTop: "155px",
-              marginBottom: "-52px",
-              transform: `translate(${activePetChromeOffset.x}px, ${activePetChromeOffset.y}px)`,
+              // Hatched pets share the measured artwork origin with their nameplate.
+              // Keep the original flow layout only for eggs and legacy pets.
+              ...(activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
+                ? {
+                    position: "fixed" as const,
+                    top: Math.max(0, activePetSceneRect.top - 64),
+                    left: activePetSceneRect.left + activePetSceneRect.width / 2,
+                    transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
+                  }
+                : {
+                    paddingTop: "155px",
+                    marginBottom: "-52px",
+                    transform: `translate(${activePetChromeOffset.x}px, ${activePetChromeOffset.y}px)`,
+                  }),
             }}
           >
             <div style={{
