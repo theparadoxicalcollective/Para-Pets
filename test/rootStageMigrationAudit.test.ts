@@ -21,7 +21,7 @@ test("root-stage audit: legacy root ownership and live consumers remain explicit
   assert.match(stage, /export const DESIGN_W = 390/);
   assert.match(stage, /export const DESIGN_H = 844/);
   assert.match(viewport, /shouldFitPortraitReference/);
-  assert.match(readFileSync("client/src/components/WalkAroundScene.tsx", "utf8"), /getStageScale/);
+  assert.doesNotMatch(readFileSync("client/src/components/WalkAroundScene.tsx", "utf8"), /getStageScale/);
   assert.match(readFileSync("client/src/pages/PvpBattlePage.tsx", "utf8"), /getStagePortalTarget/);
   assert.match(readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8"), /clientToStage/);
 });
