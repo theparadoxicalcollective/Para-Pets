@@ -615,7 +615,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/explore/elysian-bayou-clearing" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <ElysianBayouClearingPage user={user} />
           </StagePageSurface>
         )}
