@@ -46,7 +46,8 @@ test("player-facing overlays share the stage coordinate contract instead of phys
   assert.doesNotMatch(nav, /const available = window\.innerWidth/);
 
   assert.match(petCare, /careRectPoint\(box, 0\.5, 0\.3\)/);
-  assert.match(petCare, /getStageLogicalCenter\(\)/);
+  assert.match(petCare, /const feedbackSurface = \(\) => overlayRef\.current/);
+  assert.doesNotMatch(petCare, /getStageLogicalCenter\(\)/);
   assert.doesNotMatch(petCare, /const cx = box \? box\.left \+ box\.width \/ 2 : window\.innerWidth \/ 2/);
   assert.doesNotMatch(petCare, /const cy = box \? box\.top \+ box\.height \* 0\.3 : window\.innerHeight \/ 2/);
 });
