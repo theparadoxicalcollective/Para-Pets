@@ -13,7 +13,8 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
   assert.match(page, /activePetGroundViewport\.x - activePetContentRect\.left/);
   assert.doesNotMatch(page, /top: "calc\(72\*var\(--vh\)\)"/);
   assert.match(page, /marginBottom: activePet \? "calc\(26\*var\(--vh\)\)" : undefined/);
-  assert.match(page, /size=\{390\} fillContainer/);
+  assert.match(page, /size=\{activePetSceneRect\.width \|\| 200\} fillContainer/);
+  assert.doesNotMatch(page, /size=\{390\} fillContainer/);
   assert.doesNotMatch(page, /className="home-active-pet-stage"/);
 });
 
