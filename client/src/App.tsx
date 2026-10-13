@@ -527,7 +527,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/coins" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <CoinShopPage user={user} />
           </StagePageSurface>
         )}
