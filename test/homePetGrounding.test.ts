@@ -21,8 +21,8 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
 test("Begin Journey keeps the active egg compact on the phone stage", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-  assert.match(page, /width: "min\(calc\(70\*var\(--vw\)\), 320px\)"/);
-  assert.match(page, /maxHeight: "calc\(46\*var\(--vh\)\)"/);
+  assert.match(page, /width: "min\(70%, 320px\)"/);
+  assert.match(page, /maxHeight: "min\(46dvh, 460px\)"/);
   assert.doesNotMatch(page, /max-h-\[calc\(55\*var\(--vh\)\)\]/);
 });
 
