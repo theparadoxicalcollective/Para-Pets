@@ -8,7 +8,7 @@ const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8
 
 test("Level Up opts into full viewport while other pet placement pages remain unchanged", () => {
   assert.match(app, /location\.startsWith\("\/pet-level-up\/"\)[\s\S]{0,100}<StagePageSurface key=\{location\} layout="viewport">/);
-  assert.match(surface, /fullViewport \? children : <div/);
+  assert.match(surface, /\{children\}/);
   assert.match(app, /location\.startsWith\("\/pet-care\/"\)[\s\S]{0,100}<StagePageSurface key=\{location\} layout="viewport">/);
   assert.match(app, /location\.startsWith\("\/pet-level-up\/"\)[\s\S]{0,160}<PetLevelUpRoute/);
 });
@@ -26,7 +26,7 @@ test("Level Up viewport UI scrolls and pet position remains authored by the orig
 test("the viewport style override is scoped, leaving native phone reference styling intact", () => {
   assert.match(page, /@media\(max-width:430px\)/);
   assert.match(page, /\[data-page-presentation="full-viewport"\]/);
-  assert.match(surface, /layout = "reference"/);
+  assert.match(surface, /layout = "viewport"/);
 });
 
 

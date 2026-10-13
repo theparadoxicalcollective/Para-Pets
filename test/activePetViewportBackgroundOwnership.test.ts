@@ -15,7 +15,7 @@ test("Active Pet background belongs to the same viewport host as the pet page", 
   const backdropStyle = home.indexOf("backgroundImage: `url(${bgImg})`", art);
   const backdropEnd = home.indexOf("</ViewportBackdropPortal>", art);
   assert.ok(backdropStyle > art && backdropEnd > backdropStyle, "the Active Pet viewport backdrop owns its background image");
-  assert.match(stage, /data-testid="stage-page-reference-plane"/);
+  assert.doesNotMatch(stage, /data-testid="stage-page-reference-plane"/);
 });
 
 test("page-owned artwork paints behind pet controls but above stale canonical stage", () => {

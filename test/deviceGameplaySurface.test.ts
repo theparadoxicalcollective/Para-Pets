@@ -56,7 +56,7 @@ test("device gameplay has no reference wrapper and preserves modal stacking", ()
   assert.match(device, /id="game-viewport-hud"/);
   assert.match(device, /zIndex: 40/);
   const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8");
-  assert.match(surface, /const fullViewport = layout === "viewport";/);
+  assert.match(surface, /layout = "viewport"/);
 });
 
 test("Pets uses a device-sized surface while portrait artwork keeps local coordinates", () => {

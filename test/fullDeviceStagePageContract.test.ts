@@ -17,13 +17,13 @@ test("stage-owned larger devices expose a physical viewport page surface", () =>
   assert.match(app, /"--stage-reference-top": `\$\{referenceTop\}px`/);
 });
 
-test("normal stage pages portal to that viewport while retaining a canonical reference plane", () => {
+test("gameplay pages portal to the viewport without a canonical reference plane", () => {
   assert.match(surface, /const VIEWPORT_PAGE_ID = "game-viewport-page"/);
   assert.match(surface, /createPortal\(content, target\)/);
-  assert.match(surface, /data-page-presentation=\{fullViewport \? "full-viewport" : target \? "viewport" : "stage"\}/);
-  assert.match(surface, /data-stage-reference-plane="true"/);
-  assert.match(surface, /left: "var\(--stage-reference-left, 0px\)"/);
-  assert.match(surface, /width: "var\(--stage-reference-width, 100%\)"/);
+  assert.match(surface, /data-page-presentation="full-viewport"/);
+  assert.doesNotMatch(surface, /data-stage-reference-plane="true"/);
+  assert.doesNotMatch(surface, /--stage-reference-left/);
+  assert.doesNotMatch(surface, /--stage-reference-width/);
 });
 
 test("native iPhone reference remains the existing inline path", () => {

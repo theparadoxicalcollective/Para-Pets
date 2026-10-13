@@ -27,7 +27,7 @@ test("GameStage has one explicit back-to-front viewport ownership stack", () => 
 
 test("stage route surface no longer paints a generic layer over page-owned scenery", () => {
   assert.doesNotMatch(surface, /stage-page-viewport-visual/);
-  assert.match(surface, /data-stage-reference-plane="true"/);
+  assert.doesNotMatch(surface, /data-stage-reference-plane="true"/);
   assert.match(surface, /createPortal\(content, target\)/);
 });
 
