@@ -801,15 +801,6 @@
   transform-origin: center;
 }
 
-/* The authored home stage uses one explicit stone-platform baseline. */
-.home-active-pet-stage {
-  --home-active-pet-ground-y: 610px;
-  position: absolute;
-  left: 50%;
-  bottom: calc(844px - var(--home-active-pet-ground-y));
-  transform: translateX(-50%);
-}
-
 .pet-care-item-shelf__title {
   position: absolute;
   left: 50%;
