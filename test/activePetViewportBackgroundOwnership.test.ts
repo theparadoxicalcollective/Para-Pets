@@ -12,7 +12,9 @@ test("Active Pet background belongs to the same viewport host as the pet page", 
   const backdrop = home.indexOf('<ViewportBackdropPortal targetId="game-viewport-page">', start);
   const art = home.indexOf('data-testid="active-pet-viewport-backdrop"', backdrop);
   assert.ok(start >= 0 && backdrop > start && art > backdrop);
-  assert.match(home.slice(art, art + 350), /backgroundImage: `url\(\$\{bgImg\}\)`/);
+  const backdropStyle = home.indexOf("backgroundImage: `url(${bgImg})`", art);
+  const backdropEnd = home.indexOf("</ViewportBackdropPortal>", art);
+  assert.ok(backdropStyle > art && backdropEnd > backdropStyle, "the Active Pet viewport backdrop owns its background image");
   assert.match(stage, /data-testid="stage-page-reference-plane"/);
 });
 
