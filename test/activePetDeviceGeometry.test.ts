@@ -15,7 +15,7 @@ test("Active Pet owns native viewport dimensions across phone, tablet and deskto
     assert.equal(layout.top, 0);
   }
 });
-test("unmigrated world and Pet Home pages retain stage compatibility", () => {
+test("world pages use native viewport while Pet Home still retains stage compatibility", () => {
   assert.equal(usesDeviceGameplaySurface("/pet-house"), false);
-  assert.equal(usesDeviceGameplaySurface("/world/swamp"), false);
+  assert.equal(usesDeviceGameplaySurface("/world/swamp"), true);
 });
