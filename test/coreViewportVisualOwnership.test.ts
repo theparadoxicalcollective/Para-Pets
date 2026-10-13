@@ -32,9 +32,11 @@ test("Active Pet keeps authored coordinates while the viewport owns its scenery"
   assert.match(home, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>[\s\S]*data-testid="active-pet-viewport-backdrop"/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
 
-  // The pet's authored stage placement is intentionally unchanged.
+  // The pet retains its authored scene while the scene's origin follows the artwork platform.
   assert.match(home, /ref=\{\(element\) => \{ activePetSceneRef\.current = element; \}\}/);
-  assert.match(home, /top: "calc\(72\*var\(--vh\)\)"/);
+  assert.match(home, /activePetGroundViewport\.y - activePetContentRect\.top/);
+  assert.match(home, /activePetGroundViewport\.x - activePetContentRect\.left/);
+  assert.doesNotMatch(home, /top: "calc\(72\*var\(--vh\)\)"/);
 });
 
 test("Cards uses one wide-device scenery owner without widening collection coordinates", () => {
