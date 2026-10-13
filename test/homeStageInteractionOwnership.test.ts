@@ -13,7 +13,7 @@ test("Active Pet owns a full-device route, not the phone reference plane", () =>
 
 test("stage page surface keeps native phone inline and portals only when viewport page exists", () => {
   assert.match(surface, /return target \? createPortal\(content, target\) : content/);
-  assert.match(surface, /data-stage-reference-plane="true"/);
+  assert.doesNotMatch(surface, /data-stage-reference-plane="true"/);
 });
 
 test("active pet interaction remains attached to the authored pet hit target", () => {
