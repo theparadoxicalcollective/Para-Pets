@@ -44,6 +44,7 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
+import { viewportPointToCoverArtwork } from "@/lib/artworkCoverGeometry";
 
 interface HomePageProps {
   user: {
@@ -549,6 +550,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       window.visualViewport?.removeEventListener("scroll", update);
     };
   }, [activePet?.petTemplateId, activePet?.isHatched]);
+  // Calibration only: report where the current live scene baseline lands in
+  // intrinsic artwork pixels. Do not move the pet until the stone-platform
+  // landmark has been verified against the actual uploaded image.
+  const activePetPlatformCalibration = viewportPointToCoverArtwork(
+    activePetArtworkSize,
+    activePetBackdropRect,
+    { x: activePetSceneRect.left + activePetSceneRect.width / 2, y: activePetSceneRect.top + activePetSceneRect.height },
+  );
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
     // The saved Admin anchor is a percent of the authored scene, not a 390px device.
@@ -1005,6 +1014,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div
             ref={(element) => { activePetSceneRef.current = element; }}
+            data-platform-artwork-x={activePetPlatformCalibration?.x.toFixed(1)}
+            data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
             style={activePet?.isHatched && activePet.petTemplateId ? {
               position: "absolute", top: "calc(72*var(--vh))", left: "50%", transform: "translate(-50%, -100%)",
