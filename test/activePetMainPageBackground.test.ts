@@ -41,7 +41,7 @@ test("rarity stars and name-level chrome follow the shared Admin Active Pet anch
 
   const starBlock = home.slice(stars, pet);
   assert.match(starBlock, /paddingTop: "155px"/);
-  assert.match(starBlock, /top: Math\.max\(0, activePetSceneRect\.top - 64\)/);
+  assert.match(starBlock, /top: Math\.max\(110, activePetSceneRect\.top - 44\)/);
   assert.match(starBlock, /left: activePetSceneRect\.left \+ activePetSceneRect\.width \/ 2/);
   assert.match(starBlock, /marginBottom: "-52px"/);
   assert.match(starBlock, /transform: `translate\(\$\{activePetChromeOffset\.x\}px, \$\{activePetChromeOffset\.y\}px\)`/);
