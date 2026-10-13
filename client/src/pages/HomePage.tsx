@@ -499,10 +499,21 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       setActivePetSceneRect(previous => previous.width === width && previous.height === height && previous.left === left && previous.top === top ? previous : { width, height, left, top });
     };
     update();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
+    // getBoundingClientRect is viewport-relative: scrolling or moving the
+    // visual viewport changes left/top even when the scene size is unchanged.
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(element);
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
   }, [activePet?.petTemplateId, activePet?.isHatched]);
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
