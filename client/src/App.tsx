@@ -605,7 +605,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/raid/leaderboard" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <RaidLeaderboardPage />
           </StagePageSurface>
         )}
