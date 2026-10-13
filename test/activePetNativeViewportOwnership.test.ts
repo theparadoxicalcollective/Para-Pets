@@ -7,7 +7,8 @@ const stage = readFileSync("client/src/lib/stage.ts", "utf8");
 const app = readFileSync("client/src/App.tsx", "utf8");
 
 test("Active Pet route exits scaled stage ownership on all devices", () => {
-  assert.match(stage, /return pathname === "\/" \|\| pathname === "\/bag"/);
+  assert.match(stage, /return pathname === "\\/"/);
+  assert.match(stage, /pathname === "\\/bag"/);
   assert.match(app, /location === "\/"[\s\S]*?<StagePageSurface layout="viewport">/);
   assert.match(source, /data-testid="active-pet-page"/);
   assert.match(source, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
