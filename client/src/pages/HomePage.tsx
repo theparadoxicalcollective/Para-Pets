@@ -489,7 +489,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     : null;
 
   const activePetAnchorQuery = useActivePetAnchor(true);
-  const [activePetSceneWidth, setActivePetSceneWidth] = useState(0);
+  const [activePetSceneRect, setActivePetSceneRect] = useState({ width: 0, height: 0, left: 0, top: 0 });
   const activePetSceneRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const element = activePetSceneRef.current;
