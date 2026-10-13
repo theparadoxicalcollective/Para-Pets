@@ -14,10 +14,10 @@ test("Bag stays opted into full-device rendering; map and Pet Home migrations pr
     const start = app.indexOf(`location === "${route}"`);
     if (start >= 0) assert.doesNotMatch(app.slice(start, start + 90), /layout="viewport"/);
   }
-  assert.match(surface, /layout = "reference"/);
-  assert.match(surface, /fullViewport \? children : <div/);
+  assert.match(surface, /layout = "viewport"/);
+  assert.match(surface, /\{children\}/);
   assert.match(surface, /return target \? createPortal\(content, target\) : content/);
-  assert.match(surface, /data-stage-reference-plane="true"/);
+  assert.doesNotMatch(surface, /data-stage-reference-plane="true"/);
 });
 
 test("full-device Bag uses scene viewport CSS units rather than 390x844 units", () => {
