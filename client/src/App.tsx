@@ -547,7 +547,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/pvp" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <PvpArenaWrapper />
           </StagePageSurface>
         )}
