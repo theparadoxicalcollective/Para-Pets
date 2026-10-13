@@ -562,7 +562,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/cards" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <CardsCollectionPage />
           </StagePageSurface>
         )}
