@@ -1381,7 +1381,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               bottom: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
                 ? undefined
                 : "calc(11*var(--vh))",
-              left: "50%",
+              left: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.width > 0
+                ? activePetSceneRect.left + activePetSceneRect.width / 2
+                : "50%",
               transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
               zIndex: 20,
             }}
