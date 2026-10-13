@@ -1309,15 +1309,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ paddingTop: "calc(4*var(--vh))", width: "100%", display: "flex", justifyContent: "center" }}>
+                            <div style={{ paddingTop: "clamp(8px, 4dvh, 36px)", width: "100%", display: "flex", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
                                 className="object-contain"
                                 style={{
-                                  width: "min(calc(70*var(--vw)), 320px)",
+                                  width: "min(70%, 320px)",
                                   maxWidth: "70%",
-                                  maxHeight: "calc(46*var(--vh))",
+                                  maxHeight: "min(46dvh, 460px)",
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
                                   filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
