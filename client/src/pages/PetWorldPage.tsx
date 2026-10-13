@@ -26,8 +26,6 @@ import coinIconImg from "@assets/icon_coin.webp";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import aquariumIconImg from "@assets/icon_fish_inventory.png";
-import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
-import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -4155,7 +4153,7 @@ const BASE_R  = 56;
 // base ring's filigree hole instead of bulging past it. Also lets
 // the orb image read as "the gem in the centre of an ornate ring"
 // rather than a separate pearl glued on top.
-const THUMB_R = 17;
+const THUMB_R = 22;
 
 function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boolean) => void }) {
   // Match Clearing's floating-on-touch joystick without intercepting world
@@ -4224,19 +4222,14 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           width: BASE_R * 2, height: BASE_R * 2,
           transform: "translate(-50%, -50%)", pointerEvents: "none",
         }}>
-          <img data-testid="joystick-base" src={joystickBaseImg} alt="" aria-hidden draggable={false}
-            style={{ position: "absolute", left: "50%", top: "50%",
-              width: BASE_R * 2.2, height: BASE_R * 2.2,
-              transform: "translate(-50%, -50%)", objectFit: "contain",
-              filter: "drop-shadow(0 0 12px rgba(252,211,77,0.45))" }} />
+          <div data-testid="joystick-base" className="absolute inset-0 rounded-full"
+            style={{ border: "1px solid rgba(210,225,200,.65)", background: "rgba(20,42,30,.54)", boxShadow: "0 2px 8px rgba(0,0,0,.35)" }} />
           <div data-testid="joystick-thumb" style={{
             position: "absolute", left: "50%", top: "50%",
-            width: THUMB_R * 2, height: THUMB_R * 2,
+            width: 44, height: 44, borderRadius: "50%",
             transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
-          }}>
-            <img src={joystickThumbImg} alt="" aria-hidden draggable={false}
-              style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-          </div>
+            background: "rgba(165,190,165,.78)", border: "1px solid rgba(240,245,230,.7)",
+          }} />
         </div>
       )}
     </div>
