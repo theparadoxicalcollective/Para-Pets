@@ -537,7 +537,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/badges" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <BadgePage user={user} />
           </StagePageSurface>
         )}
