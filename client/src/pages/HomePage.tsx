@@ -488,6 +488,40 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
 
+  // Measure the actual viewport backdrop and loaded artwork independently of
+  // the pet scene. The background is cover-scaled and may crop on wide devices.
+  const activePetBackdropRef = useRef<HTMLDivElement | null>(null);
+  const [activePetBackdropRect, setActivePetBackdropRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [activePetArtworkSize, setActivePetArtworkSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => setActivePetArtworkSize({ width: image.naturalWidth, height: image.naturalHeight });
+    image.src = bgImg;
+    return () => { image.onload = null; };
+  }, []);
+  useEffect(() => {
+    const element = activePetBackdropRef.current;
+    if (!element) return;
+    const update = () => {
+      const { left, top, width, height } = element.getBoundingClientRect();
+      setActivePetBackdropRect(previous => previous.left === left && previous.top === top && previous.width === width && previous.height === height ? previous : { left, top, width, height });
+    };
+    update();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(element);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
+  }, [activePetModal]);
+
   const activePetAnchorQuery = useActivePetAnchor(true);
   const [activePetSceneRect, setActivePetSceneRect] = useState({ width: 0, height: 0, left: 0, top: 0 });
   const activePetSceneRef = useRef<HTMLDivElement | null>(null);
@@ -858,6 +892,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       <ViewportBackdropPortal targetId="game-viewport-page">
         <div
           data-testid="active-pet-viewport-backdrop"
+          ref={activePetBackdropRef}
+          data-artwork-width={activePetArtworkSize.width || undefined}
+          data-artwork-height={activePetArtworkSize.height || undefined}
+          data-backdrop-width={activePetBackdropRect.width || undefined}
+          data-backdrop-height={activePetBackdropRect.height || undefined}
           className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
           style={{
             backgroundImage: `url(${bgImg})`,

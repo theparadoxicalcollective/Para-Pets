@@ -44,3 +44,13 @@ test("Active Pet no longer defines an unused 844px stage baseline", () => {
   assert.doesNotMatch(css, /\.home-active-pet-stage\s*\{/);
   assert.doesNotMatch(css, /--home-active-pet-ground-y/);
 });
+
+test("Active Pet backdrop tracks its own viewport rect and loaded artwork dimensions", () => {
+  assert.match(home, /ref=\{activePetBackdropRef\}/);
+  assert.match(home, /image\.naturalWidth/);
+  assert.match(home, /image\.naturalHeight/);
+  assert.match(home, /activePetBackdropRef\.current/);
+  assert.match(home, /data-artwork-width=\{activePetArtworkSize\.width \|\| undefined\}/);
+  assert.match(home, /data-backdrop-width=\{activePetBackdropRect\.width \|\| undefined\}/);
+  assert.match(home, /window\.visualViewport\?\.addEventListener\("resize", update\)/);
+});
