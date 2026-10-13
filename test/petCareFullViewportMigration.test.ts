@@ -15,7 +15,8 @@ test("Pet Care opts into full-device UI without migrating maps, home or admin pl
 
 test("Pet Care particle, reward and item-drag positions use actual scene dimensions", () => {
   assert.match(overlay, /clientPointInRenderedElement\(surface\.getBoundingClientRect\(\), x, y, surface\.clientWidth, surface\.clientHeight\)/);
-  assert.match(overlay, /const w = viewportCareSurface\(\)\?\.clientWidth \?\? getDesignW\(\)/);
+  assert.match(overlay, /const w = surface\?\.clientWidth \?\? 0/);
+  assert.match(overlay, /const h = surface\?\.clientHeight \?\? 0/);
   assert.match(overlay, /careRectPoint\(box, 0\.5, 0\.3\)/);
   assert.match(overlay, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
   assert.match(overlay, /careGhostTarget\(\)/);

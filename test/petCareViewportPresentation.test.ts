@@ -26,7 +26,9 @@ test("stage-owned tablets and desktop move only Pet Care edge controls to the ph
 test("Pet Care interaction and reward behavior is not rewritten by the presentation change", () => {
   assert.match(care, /pointInsideExpandedPetDropZone/);
   assert.match(care, /PET_CARE_DROP_PADDING_PX/);
-  assert.match(care, /clientToStage\(x, y\)/);
+  assert.match(care, /const feedbackSurface = \(\) => overlayRef\.current/);
+  assert.match(care, /clientPointInRenderedElement\(surface\.getBoundingClientRect\(\), x, y, surface\.clientWidth, surface\.clientHeight\)/);
+  assert.doesNotMatch(care, /\bclientToStage\(x, y\)/);
   assert.match(care, /apiRequest\("POST", `\/api\/pets\/\$\{inventoryId\}\/petting-reward`/);
   assert.match(care, /apiRequest\("POST", `\/api\/pet\/\$\{pet\.inventoryId\}\/give-gift`/);
   assert.match(care, /apiRequest\("POST", `\/api\/pet\/\$\{pet\.inventoryId\}\/claim-loyalty-reward`/);
