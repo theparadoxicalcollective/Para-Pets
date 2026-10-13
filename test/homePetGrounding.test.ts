@@ -7,8 +7,10 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
 
   assert.match(
     page,
-    /className="relative flex items-center justify-center w-full max-w-\[520px\] md:max-w-\[680px\] lg:max-w-\[800px\]"/,
+    /className="relative flex items-center justify-center"/,
   );
+  assert.match(page, /min\(88vw, 38dvh, 520px\)/);
+  assert.match(page, /top: Math\.max\(110, activePetSceneRect\.top - 44\)/);
   assert.match(page, /activePetGroundViewport\.y - activePetContentRect\.top/);
   assert.match(page, /activePetGroundViewport\.x - activePetContentRect\.left/);
   assert.doesNotMatch(page, /top: "calc\(72\*var\(--vh\)\)"/);
