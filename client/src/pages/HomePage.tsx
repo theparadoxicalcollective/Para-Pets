@@ -44,7 +44,6 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
-import { coverArtworkPoint } from "@/lib/artworkCoverGeometry";
 
 interface HomePageProps {
   user: {
@@ -523,14 +522,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     };
   }, [activePetModal]);
 
-  // The projection is ready for a verified artwork landmark; do not change
-  // pet position until the platform's intrinsic artwork coordinates are known.
-  const activePetArtworkOrigin = useMemo(
-    () => coverArtworkPoint(activePetArtworkSize, activePetBackdropRect, { x: 0, y: 0 }),
-    [activePetArtworkSize, activePetBackdropRect],
-  );
-  void activePetArtworkOrigin;
-
   const activePetAnchorQuery = useActivePetAnchor(true);
   const [activePetSceneRect, setActivePetSceneRect] = useState({ width: 0, height: 0, left: 0, top: 0 });
   const activePetSceneRef = useRef<HTMLDivElement | null>(null);
@@ -902,6 +893,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <div
           data-testid="active-pet-viewport-backdrop"
           ref={activePetBackdropRef}
+          data-artwork-width={activePetArtworkSize.width || undefined}
+          data-artwork-height={activePetArtworkSize.height || undefined}
+          data-backdrop-width={activePetBackdropRect.width || undefined}
+          data-backdrop-height={activePetBackdropRect.height || undefined}
           className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
           style={{
             backgroundImage: `url(${bgImg})`,
