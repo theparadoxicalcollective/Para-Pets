@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientPointInRenderedElement, clientRectPointToStage, clientToStage, clientToStagePortal, getDesignW, getStageLogicalCenter, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientPointInRenderedElement, clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -603,20 +603,22 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const viewportCareSurface = () => deviceSurface
     ? overlayRef.current
     : overlayRef.current?.closest<HTMLElement>('[data-page-presentation="full-viewport"]') ?? null;
+  // Feedback always belongs to this overlay's rendered coordinate plane.
+  // Embedded and standalone Pet Care may use different portal owners, but
+  // neither should translate particle/text positions through the root stage.
+  const feedbackSurface = () => overlayRef.current;
   const carePoint = (x: number, y: number) => {
-    const surface = viewportCareSurface();
+    const surface = feedbackSurface();
     return surface
       ? clientPointInRenderedElement(surface.getBoundingClientRect(), x, y, surface.clientWidth, surface.clientHeight)
-      : clientToStage(x, y);
+      : { x, y };
   };
   const careCenter = () => {
-    const surface = viewportCareSurface();
-    return surface ? { x: surface.clientWidth / 2, y: surface.clientHeight / 2 } : getStageLogicalCenter();
+    const surface = feedbackSurface();
+    return { x: (surface?.clientWidth ?? 0) / 2, y: (surface?.clientHeight ?? 0) / 2 };
   };
-  const careRectPoint = (rect: DOMRect, x: number, y: number) => {
-    const surface = viewportCareSurface();
-    return surface ? carePoint(rect.left + rect.width * x, rect.top + rect.height * y) : clientRectPointToStage(rect, x, y);
-  };
+  const careRectPoint = (rect: DOMRect, x: number, y: number) =>
+    carePoint(rect.left + rect.width * x, rect.top + rect.height * y);
   const careGhostTarget = () => viewportCareSurface() ?? getStagePortalTarget();
   const careGhostPoint = (x: number, y: number) => viewportCareSurface() ? carePoint(x, y) : clientToStagePortal(x, y);
 
@@ -650,7 +652,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       innerWidth: window.innerWidth, innerHeight: window.innerHeight,
       visualViewportWidth: viewport?.width ?? null, visualViewportHeight: viewport?.height ?? null,
       visualViewportOffsetTop: viewport?.offsetTop ?? null,
-      devicePixelRatio: window.devicePixelRatio, stageScale: getStageScale(), route: window.location.pathname,
+      devicePixelRatio: window.devicePixelRatio, route: window.location.pathname,
     });
     if (recoveredPhase) {
       reportRecoveredPetCarePhase(recoveredPhase);
@@ -824,10 +826,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   // Keep the legacy conversion only for callers that still own a legacy stage.
   const clampToFrame = useCallback((x: number, y: number, pad = 24) => {
     const p = carePoint(x, y);
-    const w = viewportCareSurface()?.clientWidth ?? getDesignW();
+    const surface = feedbackSurface();
+    const w = surface?.clientWidth ?? 0;
+    const h = surface?.clientHeight ?? 0;
     return {
-      x: Math.min(Math.max(p.x, pad), w - pad),
-      y: Math.min(Math.max(p.y, pad), (viewportCareSurface()?.clientHeight ?? DESIGN_H) - pad),
+      x: Math.min(Math.max(p.x, pad), Math.max(pad, w - pad)),
+      y: Math.min(Math.max(p.y, pad), Math.max(pad, h - pad)),
     };
   }, []);
 
