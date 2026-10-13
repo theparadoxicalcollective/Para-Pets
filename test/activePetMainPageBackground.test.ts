@@ -44,7 +44,7 @@ test("rarity stars and name-level chrome follow the shared Admin Active Pet anch
   assert.match(starBlock, /marginBottom: "-52px"/);
   assert.match(starBlock, /transform: `translate\(\$\{activePetChromeOffset\.x\}px, \$\{activePetChromeOffset\.y\}px\)`/);
 
-  const chromeBlock = home.slice(chrome, chrome + 1800);
+  const chromeBlock = home.slice(chrome, chrome + 2600);
   assert.match(chromeBlock, /activePetSceneRect\.top \+ activePetSceneRect\.height \+ 12/);
   assert.match(chromeBlock, /bottom: activePet\.isHatched/);
   assert.match(chromeBlock, /left: "50%"/);
