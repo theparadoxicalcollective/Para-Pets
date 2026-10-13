@@ -29,8 +29,9 @@ test("expanded World guide targets use the full-device HUD coordinate surface", 
   assert.match(viewport, /anchor\.closest\("#game-viewport-scene, #game-viewport-hud"\)/);
   assert.match(viewport, /document\.getElementById\("game-viewport-hud"\)/);
   assert.match(viewport, /const rect = target\.getBoundingClientRect\(\)/);
-  assert.match(viewport, /const logicalWidth = target\.clientWidth \|\| rect\.width \/ scale/);
-  assert.match(viewport, /const logicalHeight = target\.clientHeight \|\| rect\.height \/ scale/);
+  assert.match(viewport, /const logicalWidth = target\.clientWidth \|\| rect\.width/);
+  assert.match(viewport, /const logicalHeight = target\.clientHeight \|\| rect\.height/);
+  assert.match(viewport, /const scale = Math\.max\(rect\.width \/ Math\.max\(1, logicalWidth\), 0\.0001\)/);
 
   assert.match(npcGuide, /const targetElement = document\.querySelector<HTMLElement>\(selector\)/);
   assert.match(npcGuide, /const surface = getQuestGuideSurface\(targetElement\)/);
