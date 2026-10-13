@@ -14,7 +14,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getStageScale } from "@/lib/stage";
 import PetAnimator from "@/components/PetAnimator";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
@@ -100,14 +99,17 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
     e.preventDefault();
     const rect = sceneRef.current.getBoundingClientRect();
-    const stageScale = getStageScale();
-    const logicalWidth = rect.width / stageScale;
-    const logicalHeight = rect.height / stageScale;
+    // Convert through this scene's actual rendered rectangle, not the global
+    // legacy stage scale. This also works if the scene is CSS-transformed.
+    const logicalWidth = sceneRef.current.clientWidth || rect.width;
+    const logicalHeight = sceneRef.current.clientHeight || rect.height;
+    const scaleX = rect.width / Math.max(1, logicalWidth);
+    const scaleY = rect.height / Math.max(1, logicalHeight);
     const radius = JOYSTICK_SIZE / 2;
-    const x = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalWidth - radius - JOYSTICK_EDGE_GAP, (e.clientX - rect.left) / stageScale));
-    const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalHeight - radius - JOYSTICK_EDGE_GAP, (e.clientY - rect.top) / stageScale));
+    const x = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalWidth - radius - JOYSTICK_EDGE_GAP, (e.clientX - rect.left) / scaleX));
+    const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalHeight - radius - JOYSTICK_EDGE_GAP, (e.clientY - rect.top) / scaleY));
     setJoystickCenter({ x, y });
-    onJoystickPointerDown(e, { x: rect.left + x * stageScale, y: rect.top + y * stageScale });
+    onJoystickPointerDown(e, { x: rect.left + x * scaleX, y: rect.top + y * scaleY });
   }, [gameplayBlocked, onJoystickPointerDown]);
 
   useEffect(() => {
