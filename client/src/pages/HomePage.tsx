@@ -1031,7 +1031,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
             style={activePet?.isHatched && activePet.petTemplateId ? {
               position: "absolute",
-              top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "68%",
+              top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
               left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
               transform: "translate(-50%, -100%)",
             } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
