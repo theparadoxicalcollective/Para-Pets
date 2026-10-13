@@ -32,7 +32,8 @@ test("Active Pet authored placement and chrome remain unchanged", () => {
   assert.match(home, /paddingTop: "155px"/);
   assert.match(home, /marginBottom: "-52px"/);
   assert.match(home, /data-testid="active-pet-name-level-anchor"/);
-  assert.match(home, /bottom: "calc\(11\*var\(--vh\)\)"/);
+  assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \+ 12/);
+  assert.match(home, /bottom: activePet\.isHatched/);
   assert.match(home, /data-testid="button-open-pet-actions"/);
 });
 
