@@ -1,4 +1,4 @@
-import { getStageScale, getStageSurface } from "./stage";
+import { getStageSurface } from "./stage";
 
 type Bounds = Pick<DOMRect, "left" | "right" | "top" | "bottom">;
 
@@ -24,9 +24,11 @@ function getExpandedQuestGuideSurface(anchor: Element | null | undefined): Quest
   // authored 390×844 gameplay coordinate system.
   const target = (document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
   const rect = target.getBoundingClientRect();
-  const scale = Math.max(getStageScale(), 0.0001);
-  const logicalWidth = target.clientWidth || rect.width / scale;
-  const logicalHeight = target.clientHeight || rect.height / scale;
+  // Derive the guide transform from the actual HUD owner, not the root
+  // reference stage. The HUD may have a different rendered scale.
+  const logicalWidth = target.clientWidth || rect.width;
+  const logicalHeight = target.clientHeight || rect.height;
+  const scale = Math.max(rect.width / Math.max(1, logicalWidth), 0.0001);
 
   return {
     target,
