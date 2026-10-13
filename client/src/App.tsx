@@ -595,7 +595,7 @@ function AppRouter() {
           </StagePageSurface>
         )}
         {location === "/friends" && (
-          <StagePageSurface>
+          <StagePageSurface layout="viewport">
             <FriendsPage />
           </StagePageSurface>
         )}
