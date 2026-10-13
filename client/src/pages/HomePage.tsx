@@ -1362,7 +1362,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4"
             style={{
               position: "fixed",
-              bottom: "calc(11*var(--vh))",
+              // The nameplate follows the measured artwork bottom, not an
+              // independent percentage of the device viewport.
+              top: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
+                ? activePetSceneRect.top + activePetSceneRect.height + 12
+                : undefined,
+              bottom: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
+                ? undefined
+                : "calc(11*var(--vh))",
               left: "50%",
               transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
               zIndex: 20,
