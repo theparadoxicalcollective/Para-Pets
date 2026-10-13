@@ -558,6 +558,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     activePetBackdropRect,
     { x: activePetSceneRect.left + activePetSceneRect.width / 2, y: activePetSceneRect.top + activePetSceneRect.height },
   );
+  const search = useSearch();
+  const showArtworkCalibration = currentUser.isAdmin && new URLSearchParams(search).get("petCalibration") === "1";
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
     // The saved Admin anchor is a percent of the authored scene, not a 390px device.
@@ -897,6 +899,27 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{ caretColor: "transparent" }}
     >
+      {showArtworkCalibration && activePet?.isHatched && activePet.petTemplateId && (
+        <div
+          data-testid="active-pet-artwork-calibration-readout"
+          aria-label="Active Pet artwork calibration diagnostics"
+          style={{
+            position: "fixed", top: "calc(env(safe-area-inset-top, 0px) + 64px)", right: 12,
+            zIndex: 33010, pointerEvents: "none", padding: "8px 10px",
+            maxWidth: "min(260px, 70vw)", fontSize: 11, lineHeight: 1.5,
+            color: "#fff4c8", background: "rgba(0,0,0,0.85)",
+            border: "1px solid #b68a34", borderRadius: 8,
+          }}
+        >
+          <strong>Artwork calibration (admin)</strong>
+          <div>Artwork: {activePetArtworkSize.width} × {activePetArtworkSize.height}</div>
+          <div>Backdrop: {Math.round(activePetBackdropRect.width)} × {Math.round(activePetBackdropRect.height)}</div>
+          <div>Scene baseline: {activePetPlatformCalibration
+            ? `${activePetPlatformCalibration.x.toFixed(1)}, ${activePetPlatformCalibration.y.toFixed(1)} px`
+            : "Waiting for image / viewport"}</div>
+          <div>Readout only — pet placement unchanged</div>
+        </div>
+      )}
       {activePetModal !== "power_up" && (
       <ViewportBackdropPortal targetId="game-viewport-page">
         <div
