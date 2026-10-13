@@ -44,7 +44,7 @@ import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
-import { viewportPointToCoverArtwork } from "@/lib/artworkCoverGeometry";
+import { coverArtworkPoint, viewportPointToCoverArtwork } from "@/lib/artworkCoverGeometry";
 
 interface HomePageProps {
   user: {
@@ -492,6 +492,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // Measure the actual viewport backdrop and loaded artwork independently of
   // the pet scene. The background is cover-scaled and may crop on wide devices.
   const activePetBackdropRef = useRef<HTMLDivElement | null>(null);
+  const activePetContentRef = useRef<HTMLDivElement | null>(null);
+  const [activePetContentRect, setActivePetContentRect] = useState({ left: 0, top: 0 });
   const [activePetBackdropRect, setActivePetBackdropRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [activePetArtworkSize, setActivePetArtworkSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
@@ -506,6 +508,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const update = () => {
       const { left, top, width, height } = element.getBoundingClientRect();
       setActivePetBackdropRect(previous => previous.left === left && previous.top === top && previous.width === width && previous.height === height ? previous : { left, top, width, height });
+      const contentRect = activePetContentRef.current?.getBoundingClientRect();
+      if (contentRect) setActivePetContentRect(previous => previous.left === contentRect.left && previous.top === contentRect.top ? previous : { left: contentRect.left, top: contentRect.top });
     };
     update();
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
@@ -557,6 +561,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     activePetArtworkSize,
     activePetBackdropRect,
     { x: activePetSceneRect.left + activePetSceneRect.width / 2, y: activePetSceneRect.top + activePetSceneRect.height },
+  );
+  // The actual uploaded artwork is 1620×2160. The stone platform's visible
+  // standing surface is centered near (810, 1475) intrinsic image pixels.
+  // Use the image's real natural dimensions to project this landmark through
+  // background-size: cover instead of anchoring to a percentage of a phone.
+  const activePetGroundViewport = coverArtworkPoint(
+    activePetArtworkSize, activePetBackdropRect,
+    { x: activePetArtworkSize.width / 2, y: activePetArtworkSize.height * (1475 / 2160) },
   );
   const activePetChromeOffset = useMemo(() => {
     if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
@@ -929,7 +941,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </ViewportBackdropPortal>
       )}
 
-      <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
+      <div ref={activePetContentRef} className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
         <ViewportHudPortal>
           <div
             data-testid="viewport-hud-topbar"
@@ -1018,7 +1030,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
             style={activePet?.isHatched && activePet.petTemplateId ? {
-              position: "absolute", top: "calc(72*var(--vh))", left: "50%", transform: "translate(-50%, -100%)",
+              position: "absolute",
+              top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
+              left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
+              transform: "translate(-50%, -100%)",
             } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
           >
 
