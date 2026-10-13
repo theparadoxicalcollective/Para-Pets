@@ -4224,7 +4224,7 @@ function Joystick({ onChange }: { onChange: (dx: number, dy: number, active: boo
           width: BASE_R * 2, height: BASE_R * 2,
           transform: "translate(-50%, -50%)", pointerEvents: "none",
         }}>
-          <img src={joystickBaseImg} alt="" aria-hidden draggable={false}
+          <img data-testid="joystick-base" src={joystickBaseImg} alt="" aria-hidden draggable={false}
             style={{ position: "absolute", left: "50%", top: "50%",
               width: BASE_R * 2.2, height: BASE_R * 2.2,
               transform: "translate(-50%, -50%)", objectFit: "contain",
