@@ -549,7 +549,7 @@ export function scenePlacementToClient(
 
 /** Only audited routes may bypass the legacy stage. Expand this as pages migrate. */
 export function usesDeviceGameplaySurface(pathname: string): boolean {
-  return pathname === "/" || pathname === "/map" || pathname.startsWith("/world/") || pathname === "/pet-house" || pathname === "/friends" || pathname === "/raid/leaderboard" || pathname === "/bag" || pathname === "/pets"
+  return pathname === "/" || pathname === "/map" || pathname.startsWith("/world/") || pathname === "/pet-house" || pathname === "/friends" || pathname === "/raid/leaderboard" || pathname === "/cards" || pathname === "/bag" || pathname === "/pets"
     || /^\/pet-level-up\/[^/]+$/.test(pathname)
     || /^\/pet-care\/[^/]+$/.test(pathname)
     || pathname === "/equip-accessories" || /^\/equip-accessories\/[^/]+$/.test(pathname);
