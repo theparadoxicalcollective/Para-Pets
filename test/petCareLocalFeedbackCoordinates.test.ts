@@ -12,5 +12,5 @@ test("Pet Care feedback measures its own rendered overlay on every device", () =
   assert.match(care, /const h = surface\?\.clientHeight \?\? 0/);
   assert.doesNotMatch(care, /getStageScale|getDesignW|getStageLogicalCenter|clientRectPointToStage|\bDESIGN_H\b/);
   assert.match(care, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
-  assert.match(care, /careGhostTarget\(\)/);
+  assert.match(care, /const careGhostTarget = \(\) => document\.body/);
 });
