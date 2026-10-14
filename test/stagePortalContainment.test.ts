@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("gameplay portals preserve legacy consumers while Raid Battle uses viewport pointer coordinates", () => {
+test("gameplay battle portals use viewport ownership while other consumers remain protected", () => {
   const pvp = readFileSync("client/src/pages/PvpBattlePage.tsx", "utf8");
   const raid = readFileSync("client/src/pages/RaidBattlePage.tsx", "utf8");
   const petCare = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
 
   assert.match(pvp, /data-testid="pvp-battle-stage-overlay"/);
-  assert.match(pvp, /getStagePortalTarget\(\)/);
-  assert.doesNotMatch(pvp, /<div data-testid="pvp-battle-stage-overlay"[\s\S]*?document\.body/);
+  assert.match(pvp, /document\.body,\s*\);/);
+  assert.doesNotMatch(pvp, /getStagePortalTarget/);
 
   assert.match(raid, /const ghost = \{ x: draggingPotion\.screenX, y: draggingPotion\.screenY \}/);
   assert.match(raid, /document\.body/);
@@ -58,7 +58,8 @@ test("battle drag ghosts use their respective coordinate owners and Clearing kee
   const petCare = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const clearing = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
 
-  assert.match(pvp, /getStagePortalTarget\(\)/);
+  assert.match(pvp, /document\.body,\s*\);/);
+  assert.doesNotMatch(pvp, /getStagePortalTarget/);
   assert.match(raid, /const ghost = \{ x: draggingPotion\.screenX, y: draggingPotion\.screenY \}/);
   assert.match(raid, /document\.body/);
   assert.doesNotMatch(raid, /clientToStagePortal|getStagePortalTarget/);
