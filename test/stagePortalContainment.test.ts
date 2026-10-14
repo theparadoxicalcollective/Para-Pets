@@ -15,7 +15,7 @@ test("gameplay portals preserve legacy consumers while Raid Battle uses viewport
   assert.match(raid, /document\.body/);
   assert.doesNotMatch(raid, /clientToStagePortal|getStagePortalTarget/);
   assert.match(petCare, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
-  assert.match(petCare, /careGhostTarget\(\)/);
+  assert.match(petCare, /const careGhostTarget = \(\) => document\.body/);
 });
 
 test("Clearing ground input converts rendered pointer geometry to logical stage geometry", () => {
@@ -63,7 +63,7 @@ test("battle drag ghosts use their respective coordinate owners and Clearing kee
   assert.match(raid, /document\.body/);
   assert.doesNotMatch(raid, /clientToStagePortal|getStagePortalTarget/);
   assert.match(petCare, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
-  assert.match(petCare, /careGhostTarget\(\)/);
+  assert.match(petCare, /const careGhostTarget = \(\) => document\.body/);
   assert.match(clearing, /const scaleX = rect\.width \/ Math\.max\(1, logicalWidth\)/);
   assert.match(clearing, /\(e\.clientX - rect\.left\) \/ scaleX/);
 });
