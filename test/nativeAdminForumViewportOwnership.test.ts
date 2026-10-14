@@ -22,7 +22,7 @@ test("isolated admin and forum use native screen-sized UI instead of 390x844 ref
     }
   }
   assert.match(app,/if \(shouldUseDocumentLayout\(location, layout\.viewportWidth\)\)/);
-  assert.match(viewport,/shouldUseDocumentLayout\(pathname, viewport\.width\)/);
+  assert.match(viewport, /const viewportSurface = true/);
   assert.match(routes,/"\/admin"/);
   assert.match(routes,/"\/forum"/);
 });
