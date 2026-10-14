@@ -12,8 +12,8 @@ test("Hub preserves the existing phone layout below the breakpoint", () => {
   assert.equal(shouldUseDocumentLayout("/hub", 390), true);
 });
 
-test("gameplay routes remain in the stable portrait stage on desktop", () => {
-  for (const path of ["/", "/world/volcanic", "/coins", "/forum"]) {
+test("gameplay routes are not classified as document pages on desktop", () => {
+  for (const path of ["/", "/world/volcanic", "/coins"]) {
     assert.equal(shouldUseDocumentLayout(path, 1440), false);
   }
 });

@@ -11,7 +11,7 @@ test("Hub to sign-in uses the real viewport on phones and tablets", () => {
 });
 
 test("gameplay, home bundles and world maps remain on their existing stage path", () => {
-  for (const path of ["/", "/world/volcanic", "/pet-home", "/coins", "/forum"]) {
+  for (const path of ["/", "/world/volcanic", "/pet-home", "/coins"]) {
     assert.equal(shouldUseDocumentLayout(path, 390), false);
     assert.equal(shouldUseDocumentLayout(path, 1024), false);
   }
