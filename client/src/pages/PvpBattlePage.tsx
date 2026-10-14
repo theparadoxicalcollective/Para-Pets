@@ -10,7 +10,6 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
 import forestBgImg from "@assets/BFBD86D5-7E52-470D-949E-AC6D2FF39A5D_1783425029013.png";
-import { getStagePortalTarget } from "@/lib/stage";
 
 interface Opponent {
   userId: string;
@@ -2256,6 +2255,6 @@ export default function PvpBattlePage({
         </div>
       )}
     </div>,
-    getStagePortalTarget(),
+    document.body,
   );
 }
