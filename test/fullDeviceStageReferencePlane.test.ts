@@ -16,12 +16,14 @@ test("larger devices use a full-device stage around a centered authored referenc
   assert.match(app, /height: layout\.designHeight/);
 });
 
-test("auth and loading root use the same full-device/reference-plane split", () => {
-  assert.match(root, /calculateViewportSurfaceRect/);
-  assert.match(root, /data-testid="root-stage-reference-plane"/);
-  assert.match(root, /width: expandedStage \? surface\.width : layout\.designWidth/);
-  assert.match(root, /left: -surface\.left/);
-  assert.match(root, /top: -surface\.top/);
+test("auth loading and verification root use a native viewport without a reference plane", () => {
+  assert.match(root, /useStageViewportLayout\("\/"\)/);
+  assert.match(root, /data-coordinate-owner="viewport"/);
+  assert.match(root, /data-reference-portrait="false"/);
+  assert.match(root, /width: layout\.viewportWidth/);
+  assert.match(root, /height: layout\.viewportHeight/);
+  assert.doesNotMatch(root, /root-stage-reference-plane/);
+  assert.doesNotMatch(root, /scale\(\$\{layout\.scale\}\)/);
 });
 
 test("input math remains based on the authored reference plane", () => {
