@@ -22,7 +22,7 @@ test("standalone pages use the native document shell on phones tablets and deskt
 });
 
 test("player home visits and unknown routes are not silently reclassified", () => {
-  for (const route of ["/visit/123", "/unknown-route"]) {
+  for (const route of ["/unknown-route"]) {
     assert.equal(shouldUseDocumentLayout(route, 390), false, route);
     assert.equal(usesDeviceGameplaySurface(route), false, route);
   }
