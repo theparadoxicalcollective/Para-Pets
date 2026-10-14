@@ -50,6 +50,29 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
   const expanded = getExpandedQuestGuideSurface(anchor);
   if (expanded) return expanded;
 
+  // For migrated gameplay routes, use the actual HUD owner even when a
+  // tutorial target is temporarily absent (loading, panning, or route changes).
+  // Otherwise a fallback to the old stage can move the spotlight off target.
+  if (typeof document !== "undefined") {
+    const hud = document.getElementById("game-viewport-hud");
+    const stage = document.getElementById("game-stage");
+    if (hud && stage?.dataset.coordinateOwner === "viewport") {
+      const rect = hud.getBoundingClientRect();
+      const width = hud.clientWidth || rect.width;
+      const height = hud.clientHeight || rect.height;
+      return {
+        target: hud,
+        inStage: false,
+        left: rect.left,
+        top: rect.top,
+        width,
+        height,
+        scale: Math.max(rect.width / Math.max(1, width), 0.0001),
+      };
+    }
+  }
+
+  // Preserve the legacy fallback only for routes that still own stage space.
   const surface = getStageSurface();
   return {
     target: surface.target,
