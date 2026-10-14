@@ -17,6 +17,9 @@ test("pet menu uses native HUD corner and matching circular navigation treatment
   assert.match(home, /<ViewportHudPortal>/);
   assert.match(home, /data-testid="active-pet-side-menu"/);
   assert.match(home, /h-\[58px\] w-\[58px\]/);
+  assert.match(home, /width=\{58\}/);
+  assert.match(home, /height=\{58\}/);
+  assert.equal((home.match(/relative flex h-\[50px\] w-\[50px\]/g) || []).length, 4);
   assert.match(home, /border-\[#d4a017\]\/70/);
   assert.match(nav, /const BUTTON_SIZE = 58/);
   assert.doesNotMatch(home, /getStageScale\(|clientToStage\(|DESIGN_W|DESIGN_H/);
