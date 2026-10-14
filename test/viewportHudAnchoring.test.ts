@@ -66,21 +66,10 @@ test("GameStage clips gameplay separately while allowing the HUD to reach device
   assert.match(app, /data-testid="game-stage-content"/);
   assert.match(app, /id="game-viewport-hud"/);
   assert.match(app, /data-testid="game-viewport-hud"/);
-  assert.match(app, /overflow: "visible"/);
-  assert.match(app, /id="game-stage-content"[\s\S]*?overflow: "hidden"/);
-  // Native iPhone keeps its existing inset HUD; the stage-owned branch expands
-  // the HUD to the physical stage without changing the canonical reference plane.
-  assert.match(app, /id="game-viewport-hud"[\s\S]{0,180}inset: 0/);
-  const stageHud = app.slice(app.lastIndexOf('id="game-viewport-hud"'));
-  assert.match(stageHud, /left: 0/);
-  assert.match(stageHud, /top: 0/);
-  assert.match(stageHud, /width: expandedStage \? "100%" : hudRect\.width/);
-  assert.match(stageHud, /height: expandedStage \? "100%" : hudRect\.height/);
-
-  // Existing gameplay portals remain clipped to the canonical stage instead
-  // of accidentally using the expanded HUD as a world/modal surface.
-  assert.match(stage, /const content = document\.getElementById\("game-stage-content"\)/);
-  assert.match(stage, /coordinateOwner === "stage"\) return content \?\? stage/);
+  assert.match(app, /id="game-stage-content"[\\s\\S]*?overflow: "hidden"/);
+  assert.match(app, /id="game-viewport-hud"[\\s\\S]{0,180}inset: 0/);
+  assert.doesNotMatch(app, /expandedStage|game-viewport-backdrop|game-viewport-page|game-viewport-scene/);
+  assert.match(stage, /const content = document\\.getElementById\\("game-stage-content"\\)/);
 });
 
 test("Active Pet top bar uses the viewport HUD without changing the underlying pet composition", () => {
