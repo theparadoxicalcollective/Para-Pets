@@ -44,7 +44,8 @@ test("unknown and malformed routes cannot masquerade as an authored game scene",
   assert.match(app, /<Route><Redirect to=\{user \? "\/" : "\/auth"\} \/><\/Route>/);
 });
 
-test("legacy renderer remains isolated for removal after route and test contract migration", () => {
-  assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
-  assert.match(app, /transform: expandedStage \? `scale\(\$\{layout\.scale\}\)`/);
+test("legacy root renderer is absent", () => {
+  assert.doesNotMatch(app, /expandedStage|game-viewport-backdrop|game-viewport-page|game-viewport-scene/);
+  assert.doesNotMatch(app, /layout\\.coordinateOwner === "stage"/);
+  assert.match(app, /Unknown paths only render AppRouter/);
 });
