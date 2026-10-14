@@ -1452,7 +1452,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               // The nameplate sits below the authored stone-platform standing landmark,
               // projected into the real viewport; admin oval movement shares the pet offset.
               top: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
-                ? activePetGroundViewport.y + Math.max(80, activePetSceneRect.height * 0.2)
+                ? (activePetGroundViewport?.y ?? (activePetSceneRect.top + activePetSceneRect.height)) + Math.max(80, activePetSceneRect.height * 0.2)
                 : undefined,
               bottom: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
                 ? undefined
