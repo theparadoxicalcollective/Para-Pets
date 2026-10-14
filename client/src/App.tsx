@@ -14,12 +14,11 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { calculateViewportHudRect, calculateViewportSurfaceRect, getStageTransform, shouldUseDocumentLayout, usesDeviceGameplaySurface } from "@/lib/stage";
+import { shouldUseDocumentLayout, usesDeviceGameplaySurface } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/uploads/NewActivePetBG.png";
-import mainGameBg from "@assets/uploads/MainGameBG.png";
 import MiniGameFrame from "@/components/world/MiniGameFrame";
 import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
 import StagePageSurface from "@/components/StagePageSurface";
@@ -696,12 +695,6 @@ function CrashReporter() {
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const layout = useStageViewportLayout(location);
-  const hudRect = calculateViewportHudRect(layout);
-  const sceneRect = calculateViewportSurfaceRect(layout);
-  const expandedStage = layout.coordinateOwner === "stage";
-  const referenceLeft = expandedStage ? -sceneRect.left : 0;
-  const referenceTop = expandedStage ? -sceneRect.top : 0;
-
 
   // Audited gameplay routes use real device pixels. They have no reference plane,
   // stage transform, or centering offsets; authored scenes remain page-owned.
@@ -732,11 +725,7 @@ function GameStage({ children }: { children: ReactNode }) {
     );
   }
 
-  // Public entry and authentication use the real viewport without a reference stage.\n  // Gameplay coordinates stay inside the stable 390x844 reference stage.
-  // Larger devices can use full-device backdrop/scene/HUD/modal surfaces around
-  // that reference plane, so the coordinate system remains stable without
-  // presenting it as a visible phone frame. The public Hub is the one true
-  // document-style route. Narrow screens keep the native phone rendering.
+  // Isolated document routes use the real viewport without a reference stage.
   if (shouldUseDocumentLayout(location, layout.viewportWidth)) {
     return (
       <div
@@ -774,125 +763,28 @@ function GameStage({ children }: { children: ReactNode }) {
     );
   }
 
+  // Unknown paths only render AppRouter's redirect. They must not restore
+  // the legacy reference plane while that redirect resolves.
   return (
-    <div
-      className="game-stage-shell"
-      data-active-pet-route={location === "/" ? "true" : undefined}
-      data-stage-coordinate-owner={layout.coordinateOwner}
-      style={{
-        position: "fixed", inset: 0,
-        background: "#050c08",
-        "--desktop-stage-background-image": `url(${mainGameBg})`,
-      } as CSSProperties}
-    >
-      <div
-        id="game-stage"
-        data-design-width={layout.designWidth}
-        data-design-height={layout.designHeight}
-        data-coordinate-owner={layout.coordinateOwner}
-        data-reference-portrait={layout.referencePortrait ? "true" : "false"}
+    <div className="game-stage-shell" data-stage-coordinate-owner="viewport"
+      style={{ position: "fixed", inset: 0, background: "#050c08" }}>
+      <div id="game-stage" data-coordinate-owner="viewport" data-reference-portrait="false"
+        data-design-width={layout.designWidth} data-design-height={layout.designHeight}
         style={{
-          position: "absolute",
-          left: expandedStage ? 0 : layout.left,
-          top: expandedStage ? 0 : layout.top,
-          width: expandedStage ? sceneRect.width : layout.designWidth,
-          height: expandedStage ? sceneRect.height : layout.designHeight,
-          transform: expandedStage ? `scale(${layout.scale})` : getStageTransform(layout),
-          transformOrigin: "top left",
-          overflow: "visible",
-          isolation: "isolate",
+          position: "absolute", left: layout.left, top: layout.top,
+          width: layout.designWidth, height: layout.designHeight,
+          overflow: "hidden", isolation: "isolate",
           visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
-          // Frame-relative viewport units remain logical pixels while the
-          // complete stage is uniformly scaled into the visual viewport.
           "--fh": `${layout.designHeight}px`,
           "--vh": `${layout.designHeight * 0.01}px`,
           "--vw": `${layout.designWidth * 0.01}px`,
-        } as CSSProperties}
-      >
-        {layout.coordinateOwner === "stage" && (
-          <div
-            id="game-viewport-page"
-            data-testid="game-viewport-page"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "auto",
-              overflow: "hidden",
-              zIndex: 20,
-              "--stage-reference-left": `${referenceLeft}px`,
-              "--stage-reference-top": `${referenceTop}px`,
-              "--stage-reference-width": `${layout.designWidth}px`,
-              "--stage-reference-height": `${layout.designHeight}px`,
-            } as CSSProperties}
-          />
-        )}
-        {layout.coordinateOwner === "stage" && (
-          <div
-            id="game-viewport-backdrop"
-            data-testid="game-viewport-backdrop"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-              overflow: "hidden",
-              // Above the legacy 390x844 stage-content layer (z15), which
-              // can otherwise show stale phone-width scenery through transparent
-              // viewport pages; below the interactive page plane (z20).
-              zIndex: 17,
-            }}
-          />
-        )}
-        <div
-          id="game-stage-content"
-          data-testid="game-stage-content"
-          style={{
-            position: "absolute",
-            left: referenceLeft,
-            top: referenceTop,
-            width: layout.designWidth,
-            height: layout.designHeight,
-            overflow: "hidden",
-            zIndex: 15,
-          }}
-        >
+        } as CSSProperties}>
+        <div id="game-stage-content" data-testid="game-stage-content"
+          style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 15 }}>
           {children}
         </div>
-        {layout.coordinateOwner === "stage" && (
-          <div
-            id="game-viewport-scene"
-            data-testid="game-viewport-scene"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-              overflow: "hidden",
-              zIndex: 30,
-            }}
-          />
-        )}
-        <div
-          id="game-viewport-hud"
-          data-testid="game-viewport-hud"
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width: expandedStage ? "100%" : hudRect.width,
-            height: expandedStage ? "100%" : hudRect.height,
-            pointerEvents: "none",
-            overflow: "visible",
-            zIndex: 40,
-          }}
-        />
+        <div id="game-viewport-hud" data-testid="game-viewport-hud"
+          style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 40 }} />
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>
