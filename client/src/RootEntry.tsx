@@ -27,8 +27,8 @@ function RootStage({ children }: { children: ReactNode }) {
         data-reference-portrait="false"
         style={{
           position: "absolute",
-          left: layout.viewportLeft,
-          top: layout.viewportTop,
+          left: layout.left,
+          top: layout.top,
           width: layout.viewportWidth,
           height: layout.viewportHeight,
           overflow: "hidden",
