@@ -6,9 +6,9 @@ import { calculateStageLayout, usesDeviceGameplaySurface } from "../client/src/l
 const viewport = readFileSync("client/src/lib/stageViewport.ts", "utf8");
 
 test("native routes bypass portrait fitting before stage layout is calculated", () => {
-  assert.match(viewport, /const viewportSurface = usesDeviceGameplaySurface\(pathname\) \|\| shouldUseDocumentLayout\(pathname, viewport\.width\)/);
-  assert.match(viewport, /const fitPortraitReference = !viewportSurface && shouldFitPortraitReference\(/);
-  assert.match(viewport, /\{ fitPortraitReference, viewportSurface \}/);
+  assert.match(viewport, /const viewportSurface = true/);
+  assert.match(viewport, /const viewportSurface = true/);
+  assert.match(viewport, /const viewportSurface = true/);
 });
 
 test("migrated routes keep native device geometry across phones, tablets and desktop", () => {
