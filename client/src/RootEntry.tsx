@@ -9,57 +9,37 @@ import GinnyQuestOverlay from "@/components/GinnyQuestOverlay";
 import JansonQuestOverlay from "@/components/JansonQuestOverlay";
 import LonelleQuestOverlay from "@/components/LonelleQuestOverlay";
 import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
-import { calculateViewportSurfaceRect, getStageTransform } from "@/lib/stage";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker";
 
 function RootStage({ children }: { children: ReactNode }) {
-  const layout = useStageViewportLayout();
-  const surface = calculateViewportSurfaceRect(layout);
-  const expandedStage = layout.coordinateOwner === "stage";
+  // Loading, sign-in and verification are viewport UI, not authored game scenes.
+  // The explicit native route prevents the legacy 390×844 fit on all devices.
+  const layout = useStageViewportLayout("/");
 
   return (
-    <div
-      className="game-stage-shell"
-      style={{ position: "fixed", inset: 0, background: "#020806" }}
-    >
+    <div className="game-stage-shell" style={{ position: "fixed", inset: 0, background: "#020806" }}>
       <div
         id="game-stage"
-        data-design-width={layout.designWidth}
-        data-design-height={layout.designHeight}
-        data-coordinate-owner={layout.coordinateOwner}
-        data-reference-portrait={layout.referencePortrait ? "true" : "false"}
+        data-design-width={layout.viewportWidth}
+        data-design-height={layout.viewportHeight}
+        data-coordinate-owner="viewport"
+        data-reference-portrait="false"
         style={{
           position: "absolute",
-          left: expandedStage ? 0 : layout.left,
-          top: expandedStage ? 0 : layout.top,
-          width: expandedStage ? surface.width : layout.designWidth,
-          height: expandedStage ? surface.height : layout.designHeight,
-          transform: expandedStage ? `scale(${layout.scale})` : getStageTransform(layout),
-          transformOrigin: "top left",
+          left: layout.left,
+          top: layout.top,
+          width: layout.viewportWidth,
+          height: layout.viewportHeight,
           overflow: "hidden",
           isolation: "isolate",
           visibility: layout.touchPortraitBlocked ? "hidden" : "visible",
-          "--fh": `${layout.designHeight}px`,
-          "--vh": `${layout.designHeight * 0.01}px`,
-          "--vw": `${layout.designWidth * 0.01}px`,
+          "--fh": `${layout.viewportHeight}px`,
+          "--vh": `${layout.viewportHeight * 0.01}px`,
+          "--vw": `${layout.viewportWidth * 0.01}px`,
         } as CSSProperties}
       >
-        {expandedStage ? (
-          <div
-            data-testid="root-stage-reference-plane"
-            style={{
-              position: "absolute",
-              left: -surface.left,
-              top: -surface.top,
-              width: layout.designWidth,
-              height: layout.designHeight,
-              overflow: "hidden",
-            }}
-          >
-            {children}
-          </div>
-        ) : children}
+        {children}
       </div>
       <PortraitOrientationBlocker visible={layout.touchPortraitBlocked} />
     </div>

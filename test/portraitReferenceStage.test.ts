@@ -115,7 +115,8 @@ test("rendered stages expose coordinate ownership so portals follow scaled portr
   const stage = read("client/src/lib/stage.ts");
 
   assert.match(app, /data-coordinate-owner=\{layout\.coordinateOwner\}/);
-  assert.match(root, /data-coordinate-owner=\{layout\.coordinateOwner\}/);
+  assert.match(root, /data-coordinate-owner="viewport"/);
+  assert.doesNotMatch(root, /data-coordinate-owner=\{layout\.coordinateOwner\}/);
   assert.match(app, /data-reference-portrait=\{layout\.referencePortrait \? "true" : "false"\}/);
   assert.match(stage, /stage\?\.dataset\.coordinateOwner === "stage"/);
   assert.match(stage, /getStagePortalTarget\(\) === document\.body/);

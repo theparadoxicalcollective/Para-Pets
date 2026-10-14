@@ -45,7 +45,7 @@ test("App and root auth stages consume the shared viewport controller instead of
   const root = read("client/src/RootEntry.tsx");
 
   for (const source of [app, root]) {
-    assert.match(source, /useStageViewportLayout\((?:location)?\)/);
+    assert.match(source, /useStageViewportLayout\((?:location|"\/")?\)/);
     assert.doesNotMatch(source, /calculateStageLayout/);
     assert.doesNotMatch(source, /getVisibleViewport/);
     assert.doesNotMatch(source, /--stage-scale/);
@@ -54,7 +54,8 @@ test("App and root auth stages consume the shared viewport controller instead of
   }
 
   assert.match(app, /getStageTransform\(layout\)/);
-  assert.match(root, /getStageTransform\(layout\)/);
+  assert.match(root, /data-coordinate-owner="viewport"/);
+  assert.doesNotMatch(root, /getStageTransform\(layout\)/);
 });
 
 test("shared publisher preserves the existing root viewport variable meanings", () => {

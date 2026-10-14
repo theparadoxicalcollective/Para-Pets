@@ -9,12 +9,13 @@ const app = read("client/src/App.tsx");
 const entry = read("client/src/RootEntry.tsx");
 const viewport = read("client/src/lib/stageViewport.ts");
 
-test("final audit explicitly records both remaining root-stage owners", () => {
+test("final audit tracks the legacy gameplay owner and migrated native entry shell", () => {
   for (const source of ["client/src/App.tsx", "client/src/RootEntry.tsx", "client/src/lib/stageViewport.ts", "client/src/lib/stage.ts", "client/src/tabletStageShell.css"]) {
     assert.ok(audit.includes(source), source);
   }
   assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
-  assert.match(entry, /data-testid="root-stage-reference-plane"/);
+  assert.match(entry, /data-coordinate-owner="viewport"/);
+  assert.doesNotMatch(entry, /root-stage-reference-plane/);
   assert.match(viewport, /!viewportSurface && shouldFitPortraitReference/);
 });
 
