@@ -7,7 +7,7 @@ const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
 
 test("Pet Menu is anchored to the opposite lower corner with circular upward options with labels", () => {
   assert.match(home, /data-testid="active-pet-side-menu"/);
-  assert.match(home, /left: 12, bottom: "calc\(34px \+ env\(safe-area-inset-bottom, 0px\)\)"/);
+  assert.match(home, /left: 12, bottom: "calc\(82px \+ env\(safe-area-inset-bottom, 0px\)\)"/);
   assert.match(home, /data-testid="pet-menu-options" className="flex flex-col-reverse items-center gap-4 pb-3"/);
   for (const id of ["power-up", "level-up", "equip-accessories", "care-feed"]) {
     assert.match(home, new RegExp(`data-testid="button-action-${id}"[^\\n]*rounded-full`));
