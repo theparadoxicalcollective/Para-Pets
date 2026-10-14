@@ -62,7 +62,7 @@ export function isNarrowLayout(viewportWidth: number): boolean {
  * testable without a browser.
  */
 export function shouldUseDocumentLayout(pathname: string, viewportWidth: number): boolean {
-  return pathname === "/hub" || pathname === "/auth";
+  return pathname === "/hub" || pathname === "/auth" || pathname === "/privacy" || pathname === "/founders" || /^\/reset-password\/[^/]+$/.test(pathname);
 }
 
 export function getDesignWidth(viewportWidth: number): number {
