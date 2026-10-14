@@ -12,7 +12,7 @@ test("native routes bypass portrait fitting before stage layout is calculated", 
 });
 
 test("migrated routes keep native device geometry across phones, tablets and desktop", () => {
-  for (const route of ["/", "/map", "/world/haunted-forest", "/pet-house", "/cards", "/bag", "/pets", "/pet-level-up/123", "/pet-care/123", "/equip-accessories/123", "/raid", "/raid/battle", "/pvp"]) {
+  for (const route of ["/", "/map", "/world/haunted-forest", "/pet-house", "/visit/123", "/cards", "/bag", "/pets", "/pet-level-up/123", "/pet-care/123", "/equip-accessories/123", "/raid", "/raid/battle", "/pvp"]) {
     assert.equal(usesDeviceGameplaySurface(route), true, route);
     for (const [width, height] of [[375, 667], [390, 844], [834, 1194], [1440, 900]]) {
       const layout = calculateStageLayout(width, height, 0, 0, { viewportSurface: true, fitPortraitReference: false });

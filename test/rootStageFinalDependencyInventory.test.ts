@@ -20,10 +20,10 @@ test("final audit tracks the legacy gameplay owner and migrated native entry she
 });
 
 test("final audit separates migrated routes from still-unclassified routes", () => {
-  for (const route of ["/", "/map", "/world/haunted-forest", "/pet-house", "/cards", "/pet-care/123", "/pet-level-up/123", "/raid/battle"]) {
+  for (const route of ["/", "/map", "/world/haunted-forest", "/pet-house", "/visit/123", "/cards", "/pet-care/123", "/pet-level-up/123", "/raid/battle"]) {
     assert.equal(usesDeviceGameplaySurface(route), true, route);
   }
-  for (const route of ["/admin", "/privacy", "/forum", "/founders", "/visit/123", "/reset-password/abc"]) {
+  for (const route of ["/admin", "/privacy", "/forum", "/founders", "/reset-password/abc"]) {
     assert.equal(usesDeviceGameplaySurface(route), false, route);
   }
   assert.match(audit, /not proof of live legacy gameplay/);

@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { usesDeviceGameplaySurface } from "../client/src/lib/stage";
 
 const source = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const stage = readFileSync("client/src/lib/stage.ts", "utf8");
 const app = readFileSync("client/src/App.tsx", "utf8");
 
 test("Active Pet route exits scaled stage ownership on all devices", () => {
-  assert.ok(stage.includes('return pathname === "/" || pathname === "/map"'));
+  assert.equal(usesDeviceGameplaySurface("/"), true);
+  assert.equal(usesDeviceGameplaySurface("/map"), true);
   assert.ok(stage.includes('pathname === "/bag"'));
   assert.match(app, /location === "\/"[\s\S]*?<StagePageSurface layout="viewport">/);
   assert.match(source, /data-testid="active-pet-page"/);
