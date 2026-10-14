@@ -22,7 +22,8 @@ function getExpandedQuestGuideSurface(anchor: Element | null | undefined): Quest
   // same full-device logical rectangle as the scene. Render the guide in the
   // HUD sibling so it stays above the interactive scene without changing the
   // authored 390×844 gameplay coordinate system.
-  const target = (document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
+  const hudOwner = anchor.closest("#game-viewport-hud");
+  const target = (hudOwner ?? document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
   const rect = target.getBoundingClientRect();
   // Derive the guide transform from the actual HUD owner, not the root
   // reference stage. The HUD may have a different rendered scale.
