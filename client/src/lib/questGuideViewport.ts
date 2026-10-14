@@ -15,7 +15,8 @@ export interface QuestGuideSurface {
 function getExpandedQuestGuideSurface(anchor: Element | null | undefined): QuestGuideSurface | null {
   if (typeof document === "undefined" || !anchor) return null;
 
-  // Include the actual HUD-mounted Pet Menu and its circular action buttons.\n  const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
+  // Include the actual HUD-mounted Pet Menu and its circular action buttons.
+  const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
   if (!expandedOwner) return null;
 
   // Guides for expanded World/Pet Central and the corner Pet Menu must be measured against the
