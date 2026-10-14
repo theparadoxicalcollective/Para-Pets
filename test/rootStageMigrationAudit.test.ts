@@ -16,7 +16,7 @@ test("root-stage audit: gameplay page wrappers are fully migrated", () => {
 });
 
 test("root-stage audit: legacy root ownership and live consumers remain explicit", () => {
-  assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
+  assert.doesNotMatch(app, /expandedStage|layout\.coordinateOwner === "stage"/);
   assert.match(app, /id="game-stage-content"/);
   assert.match(stage, /export const DESIGN_W = 390/);
   assert.match(stage, /export const DESIGN_H = 844/);
