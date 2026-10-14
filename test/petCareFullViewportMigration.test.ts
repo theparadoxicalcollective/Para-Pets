@@ -19,8 +19,8 @@ test("Pet Care particle, reward and item-drag positions use actual scene dimensi
   assert.match(overlay, /const h = surface\?\.clientHeight \?\? 0/);
   assert.match(overlay, /careRectPoint\(box, 0\.5, 0\.3\)/);
   assert.match(overlay, /dragPositionRef\.current = careGhostPoint\(x, y\)/);
-  assert.match(overlay, /careGhostTarget\(\)/);
-  assert.match(overlay, /: clientToStagePortal\(x, y\)/);
+  assert.match(overlay, /const careGhostTarget = \(\) => document\.body/);
+  assert.match(overlay, /const careGhostPoint = \(x: number, y: number\) => \(\{ x, y \}\)/);
 });
 
 test("translated tablet scene hit coordinates preserve fractional placement", () => {

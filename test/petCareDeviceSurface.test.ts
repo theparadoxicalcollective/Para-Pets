@@ -44,7 +44,7 @@ test("standalone care effects and dialogs explicitly own device coordinates", ()
   assert.match(overlay,/enabled: !deviceSurface/);
   assert.match(overlay,/\{!deviceSurface && <ViewportScenePortal/);
   assert.match(overlay,/position=\{deviceSurface \? "absolute" : "fixed"\}/);
-  assert.match(overlay,/position: deviceSurface \? "absolute" : undefined/);
+  assert.match(overlay,/position: "fixed"/);
   assert.equal((overlay.match(/<ViewportModalPortal enabled=\{deviceSurface\}>/g)??[]).length,2);
   assert.match(overlay,/data-stage-coordinate-space=\{deviceSurface \|\| viewportCareSurface\(\) \? "viewport" : "canonical"\}/);
   assert.match(css,/@container \(max-height: 650px\)/);
