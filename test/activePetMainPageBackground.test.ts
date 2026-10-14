@@ -41,13 +41,13 @@ test("rarity stars and name-level chrome follow the shared Admin Active Pet anch
 
   const starBlock = home.slice(stars, pet);
   assert.match(starBlock, /paddingTop: "155px"/);
-  assert.match(starBlock, /top: Math\.max\(110, activePetSceneRect\.top - 44\)/);
+  assert.match(starBlock, /top: Math\.max\(210, activePetSceneRect\.top \+ activePetSceneRect\.height \* 0\.32\)/);
   assert.match(starBlock, /left: activePetSceneRect\.left \+ activePetSceneRect\.width \/ 2/);
   assert.match(starBlock, /marginBottom: "-52px"/);
   assert.match(starBlock, /transform: `translate\(\$\{activePetChromeOffset\.x\}px, \$\{activePetChromeOffset\.y\}px\)`/);
 
   const chromeBlock = home.slice(chrome, chrome + 2600);
-  assert.match(chromeBlock, /activePetSceneRect\.top \+ activePetSceneRect\.height \+ 12/);
+  assert.match(chromeBlock, /activePetSceneRect\.top \+ activePetSceneRect\.height \* 0\.78/);
   assert.match(chromeBlock, /bottom: activePet\.isHatched/);
   assert.match(chromeBlock, /left: activePet\.isHatched/);
   assert.match(chromeBlock, /activePetSceneRect\.left \+ activePetSceneRect\.width \/ 2/);
