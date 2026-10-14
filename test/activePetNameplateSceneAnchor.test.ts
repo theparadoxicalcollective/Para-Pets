@@ -4,7 +4,7 @@ import test from "node:test";
 
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 test("hatched pet nameplate uses measured artwork geometry", () => {
-  assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \+ 12/);
+  assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \* 0\.78/);
   assert.match(home, /activePetSceneRect\.height > 0/);
   assert.match(home, /activePetSceneRect\.left \+ activePetSceneRect\.width \/ 2/);
   assert.match(home, /bottom: activePet\.isHatched/);
