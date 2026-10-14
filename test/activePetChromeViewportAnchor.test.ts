@@ -7,7 +7,7 @@ const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
 
 test("pet rarity stars and nameplate follow measured scene and shared admin anchor", () => {
   assert.match(home, /top: Math\.max\(210, activePetSceneRect\.top \+ activePetSceneRect\.height \* 0\.32\)/);
-  assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \* 0\.78/);
+  assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \+ Math\.max\(24, activePetSceneRect\.height \* 0\.12\)/);
   assert.match(home, /petChromeAnchorOffset\(activePetAnchorQuery\.anchor, activePetSceneRect\.width\)/);
   assert.match(home, /activePetChromeOffset\.x/);
   assert.match(home, /activePetChromeOffset\.y/);
