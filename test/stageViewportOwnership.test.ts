@@ -54,7 +54,8 @@ test("App and root auth stages consume the shared viewport controller instead of
   }
 
   assert.match(app, /getStageTransform\(layout\)/);
-  assert.match(root, /getStageTransform\(layout\)/);
+  assert.match(root, /data-coordinate-owner="viewport"/);
+  assert.doesNotMatch(root, /getStageTransform\(layout\)/);
 });
 
 test("shared publisher preserves the existing root viewport variable meanings", () => {
