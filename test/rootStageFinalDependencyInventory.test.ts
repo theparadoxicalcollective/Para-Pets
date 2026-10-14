@@ -16,7 +16,8 @@ test("final audit tracks the legacy gameplay owner and migrated native entry she
   assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
   assert.match(entry, /data-coordinate-owner="viewport"/);
   assert.doesNotMatch(entry, /root-stage-reference-plane/);
-  assert.match(viewport, /!viewportSurface && shouldFitPortraitReference/);
+  assert.doesNotMatch(viewport, /shouldFitPortraitReference/);
+  assert.match(viewport, /const viewportSurface = true/);
 });
 
 test("final audit separates migrated routes from still-unclassified routes", () => {
