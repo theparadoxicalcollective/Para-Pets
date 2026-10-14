@@ -11,7 +11,7 @@ test("isolated admin and forum use native screen-sized UI instead of 390x844 ref
   for(const route of ["/admin","/forum"]){
     assert.equal(shouldUseDocumentLayout(route,390),true,route);
     assert.equal(shouldUseDocumentLayout(route,834),true,route);
-    assert.equal(usesDeviceGameplaySurface(route),false,route);
+    assert.equal(usesDeviceGameplaySurface(route),route === "/visit/123",route);
     for(const [w,h] of [[360,760],[390,844],[834,1194],[1440,900]]){
       const layout=calculateStageLayout(w,h,0,0,{viewportSurface:true,fitPortraitReference:false});
       assert.equal(layout.coordinateOwner,"viewport");
@@ -27,7 +27,7 @@ test("isolated admin and forum use native screen-sized UI instead of 390x844 ref
   assert.match(routes,/"\/forum"/);
 });
 
-test("visitor home and unknown routes remain outside the migrated document policy",()=>{
+test("visitor home and unknown routes remain outside the native document policy",()=>{
   for(const route of ["/visit/123","/unknown-route"]){
     assert.equal(shouldUseDocumentLayout(route,834),false,route);
     assert.equal(usesDeviceGameplaySurface(route),false,route);
