@@ -23,7 +23,9 @@ export type StageViewportLayout = StageLayout & {
 export function readStageViewportLayout(pathname = ""): StageViewportLayout {
   const viewport = getVisibleViewport();
   const touchFirst = isTouchFirstDevice();
-  const fitPortraitReference = shouldFitPortraitReference(
+  // Migrated routes must not request the 390×844 reference fit.
+  const viewportSurface = usesDeviceGameplaySurface(pathname);
+  const fitPortraitReference = !viewportSurface && shouldFitPortraitReference(
     viewport.width,
     viewport.height,
     touchFirst,
@@ -41,7 +43,7 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
       viewport.height,
       viewport.top,
       viewport.left,
-      { fitPortraitReference, viewportSurface: usesDeviceGameplaySurface(pathname) },
+      { fitPortraitReference, viewportSurface },
     ),
     touchPortraitBlocked,
   };
