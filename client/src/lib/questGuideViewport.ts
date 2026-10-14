@@ -15,13 +15,13 @@ export interface QuestGuideSurface {
 function getExpandedQuestGuideSurface(anchor: Element | null | undefined): QuestGuideSurface | null {
   if (typeof document === "undefined" || !anchor) return null;
 
-  const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
+  // Include the actual HUD-mounted Pet Menu and its circular action buttons.\n  const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
   if (!expandedOwner) return null;
 
-  // Guides for expanded World/Pet Central targets must be measured against the
+  // Guides for expanded World/Pet Central and the corner Pet Menu must be measured against the
   // same full-device logical rectangle as the scene. Render the guide in the
   // HUD sibling so it stays above the interactive scene without changing the
-  // authored 390×844 gameplay coordinate system.
+  // world-coordinate placement.
   const target = (document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
   const rect = target.getBoundingClientRect();
   // Derive the guide transform from the actual HUD owner, not the root
