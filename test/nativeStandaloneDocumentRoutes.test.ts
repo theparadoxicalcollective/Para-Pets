@@ -18,7 +18,7 @@ test("standalone pages use the native document shell on phones tablets and deskt
     assert.equal(usesDeviceGameplaySurface(route), false);
   }
   assert.match(app, /if \(shouldUseDocumentLayout\(location, layout\.viewportWidth\)\)/);
-  assert.match(viewport, /usesDeviceGameplaySurface\(pathname\) \|\| shouldUseDocumentLayout\(pathname, viewport\.width\)/);
+  assert.match(viewport, /const viewportSurface = true/);
 });
 
 test("player home visits and unknown routes are not silently reclassified", () => {
