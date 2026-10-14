@@ -25,7 +25,7 @@ test("Pet Care uses overlay-local feedback with legacy drag portal for embedded 
   assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?careGhostTarget\(\)/);
   assert.match(source, /const feedbackSurface = \(\) => overlayRef\.current/);
   assert.doesNotMatch(source, /clientRectPointToStage|\bclientToStage\(/);
-  assert.match(source, /position=\{deviceSurface \? "absolute" : "fixed"\}/);
+  assert.match(source, /position: "fixed"/);
 });
 
 test("presentation-only viewport scene does not intercept Pet Care input", () => {
