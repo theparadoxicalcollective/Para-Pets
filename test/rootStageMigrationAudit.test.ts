@@ -20,7 +20,7 @@ test("root-stage audit: legacy root ownership and live consumers remain explicit
   assert.match(app, /id="game-stage-content"/);
   assert.match(stage, /export const DESIGN_W = 390/);
   assert.match(stage, /export const DESIGN_H = 844/);
-  assert.match(viewport, /shouldFitPortraitReference/);
+  assert.doesNotMatch(viewport, /shouldFitPortraitReference/);
   assert.doesNotMatch(readFileSync("client/src/components/WalkAroundScene.tsx", "utf8"), /getStageScale/);
   assert.doesNotMatch(readFileSync("client/src/lib/questGuideViewport.ts", "utf8"), /getStageScale/);
   assert.doesNotMatch(readFileSync("client/src/pages/PvpBattlePage.tsx", "utf8"), /getStagePortalTarget/);

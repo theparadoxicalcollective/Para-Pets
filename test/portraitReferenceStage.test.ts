@@ -99,11 +99,11 @@ test("runtime viewport controller applies portrait fitting only after touch/orie
   const stage = read("client/src/lib/stage.ts");
 
   assert.match(viewport, /isTouchFirstDevice\(\)/);
-  assert.match(viewport, /shouldFitPortraitReference\(/);
+  assert.doesNotMatch(viewport, /shouldFitPortraitReference\(/);
   assert.match(viewport, /viewport\.keyboardReduced/);
-  assert.match(viewport, /const viewportSurface = usesDeviceGameplaySurface\(pathname\) \|\| shouldUseDocumentLayout\(pathname, viewport\.width\)/);
-  assert.match(viewport, /const fitPortraitReference = !viewportSurface && shouldFitPortraitReference\(/);
-  assert.match(viewport, /\{ fitPortraitReference, viewportSurface \}/);
+  assert.match(viewport, /const viewportSurface = true/);
+  assert.doesNotMatch(viewport, /const fitPortraitReference =/);
+  assert.match(viewport, /\{ viewportSurface \}/);
   assert.match(stage, /navigator\.maxTouchPoints/);
   assert.match(stage, /\(pointer: coarse\)/);
   assert.match(stage, /\(hover: none\)/);

@@ -22,7 +22,7 @@ test("visitor home uses native device viewport without a scaled 390x844 root",()
   }
   assert.equal(usesDeviceGameplaySurface("/visit"),false);
   assert.equal(usesDeviceGameplaySurface("/visit/123/extra"),false);
-  assert.match(viewport,/usesDeviceGameplaySurface\(pathname\)/);
+  assert.match(viewport, /const viewportSurface = true/);
   assert.match(app,/<Route path="\/visit\/:userId">/);
   assert.match(app,/if \(usesDeviceGameplaySurface\(location\)\)/);
 });
