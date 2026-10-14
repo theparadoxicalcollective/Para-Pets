@@ -13,7 +13,7 @@ test("final audit tracks the legacy gameplay owner and migrated native entry she
   for (const source of ["client/src/App.tsx", "client/src/RootEntry.tsx", "client/src/lib/stageViewport.ts", "client/src/lib/stage.ts", "client/src/tabletStageShell.css"]) {
     assert.ok(audit.includes(source), source);
   }
-  assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
+  assert.doesNotMatch(app, /expandedStage|layout\.coordinateOwner === "stage"/);
   assert.match(entry, /data-coordinate-owner="viewport"/);
   assert.doesNotMatch(entry, /root-stage-reference-plane/);
   assert.doesNotMatch(viewport, /shouldFitPortraitReference/);
