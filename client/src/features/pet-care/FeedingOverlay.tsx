@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientPointInRenderedElement, clientToStagePortal, getStagePortalTarget } from "@/lib/stage";
+import { clientPointInRenderedElement } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -619,8 +619,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   };
   const careRectPoint = (rect: DOMRect, x: number, y: number) =>
     carePoint(rect.left + rect.width * x, rect.top + rect.height * y);
-  const careGhostTarget = () => viewportCareSurface() ?? getStagePortalTarget();
-  const careGhostPoint = (x: number, y: number) => viewportCareSurface() ? carePoint(x, y) : clientToStagePortal(x, y);
+  // The drag ghost is a fixed viewport overlay. Pointer client coordinates
+  // are already in the same space; never convert through the root stage.
+  const careGhostTarget = () => document.body;
+  const careGhostPoint = (x: number, y: number) => ({ x, y });
 
   const runtime = useMemo(() => detectRuntimeMode(), []);
   const recoveredPhase = useMemo(() => readRecoverablePetCarePhase(window.localStorage), []);
@@ -2150,7 +2152,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           className="pet-care-drag-ghost"
           aria-hidden="true"
           style={{
-            position: deviceSurface ? "absolute" : undefined,
+            position: "fixed",
+            pointerEvents: "none",
             left: 0,
             top: 0,
             width: PET_CARE_DRAG_GHOST_SIZE_PX,
