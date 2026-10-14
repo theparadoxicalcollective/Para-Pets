@@ -29,7 +29,7 @@ test("Clearing ground input converts rendered pointer geometry to logical stage 
 });
 
 
-test("player-facing overlays share the stage coordinate contract instead of physical window geometry", () => {
+test("player-facing overlays use their respective viewport or stage coordinate owners", () => {
   const stage = readFileSync("client/src/lib/stage.ts", "utf8");
   const guides = readFileSync("client/src/lib/questGuideViewport.ts", "utf8");
   const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
@@ -42,8 +42,10 @@ test("player-facing overlays share the stage coordinate contract instead of phys
   assert.match(guides, /const surface = getStageSurface\(\)/);
   assert.doesNotMatch(guides, /window\.innerWidth|window\.innerHeight/);
 
-  assert.match(nav, /getStageSurface\(\)\.logicalWidth/);
-  assert.doesNotMatch(nav, /const available = window\.innerWidth/);
+  assert.match(nav, /getElementById\("game-viewport-hud"\)/);
+  assert.match(nav, /getBoundingClientRect\(\)\.width/);
+  assert.match(nav, /ResizeObserver\(measure\)/);
+  assert.doesNotMatch(nav, /getStageSurface/);
 
   assert.match(petCare, /careRectPoint\(box, 0\.5, 0\.3\)/);
   assert.match(petCare, /const feedbackSurface = \(\) => overlayRef\.current/);
