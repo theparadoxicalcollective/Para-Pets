@@ -5,9 +5,6 @@ import {
   getVisibleViewport,
   isTouchFirstDevice,
   shouldBlockTouchLandscape,
-  shouldFitPortraitReference,
-  shouldUseDocumentLayout,
-  usesDeviceGameplaySurface,
   type StageLayout,
 } from "@/lib/stage";
 
@@ -24,14 +21,10 @@ export type StageViewportLayout = StageLayout & {
 export function readStageViewportLayout(pathname = ""): StageViewportLayout {
   const viewport = getVisibleViewport();
   const touchFirst = isTouchFirstDevice();
-  // Migrated routes must not request the 390×844 reference fit.
-  const viewportSurface = usesDeviceGameplaySurface(pathname) || shouldUseDocumentLayout(pathname, viewport.width);
-  const fitPortraitReference = !viewportSurface && shouldFitPortraitReference(
-    viewport.width,
-    viewport.height,
-    touchFirst,
-    viewport.keyboardReduced,
-  );
+  // All rendered routes now own the device viewport. Unknown routes still
+  // pass through AppRouter's redirect, but must never resurrect a 390×844
+  // root reference plane while that redirect resolves.
+  const viewportSurface = true;
   const touchPortraitBlocked = shouldBlockTouchLandscape(
     viewport.width,
     viewport.height,
@@ -44,7 +37,7 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
       viewport.height,
       viewport.top,
       viewport.left,
-      { fitPortraitReference, viewportSurface },
+      { viewportSurface },
     ),
     touchPortraitBlocked,
   };
