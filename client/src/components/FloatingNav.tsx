@@ -25,7 +25,6 @@ import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
-import { getStageSurface } from "@/lib/stage";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -94,13 +93,13 @@ const ICON_SIZE   = 50;
 const BUTTON_SIZE = 58;
 const NAV_RIGHT   = 12;
 
-function calcSpacing() {
-  // Navigation belongs to the logical game stage, not the physical browser
-  // window. Today this preserves native phone spacing; after portrait scaling
-  // lands, the same math will still match the 390px reference composition.
-  const available = getStageSurface().logicalWidth - NAV_RIGHT - BUTTON_SIZE - 4;
+function calcSpacing(hudWidth: number): number {
+  // The floating menu lives in #game-viewport-hud, not the old 390px stage.
+  // Keep existing fan spacing limits while measuring the actual HUD owner.
+  const available = hudWidth - NAV_RIGHT - BUTTON_SIZE - 4;
   return Math.min(62, Math.max(34, Math.floor(available / LEFT_ITEMS.length)));
 }
+
 
 function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: string }) {
   return (
@@ -149,7 +148,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [bjStatus, setBjStatus] = useState(() => bjGetStatus());
-  const [spacing, setSpacing]   = useState(calcSpacing);
+  const [spacing, setSpacing]   = useState(() => calcSpacing(typeof window !== "undefined" ? window.innerWidth : 390));
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -160,9 +159,16 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   }, []);
 
   useEffect(() => {
-    const onResize = () => setSpacing(calcSpacing());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const hud = document.getElementById("game-viewport-hud");
+    const measure = () => setSpacing(calcSpacing(hud?.getBoundingClientRect().width || window.innerWidth));
+    measure();
+    const observer = hud && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (hud && observer) observer.observe(hud);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   // Sync localStorage from server-side flags — fixes older players seeing tutorial again on new device/browser
