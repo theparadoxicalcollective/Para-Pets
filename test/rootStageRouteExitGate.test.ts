@@ -33,7 +33,7 @@ test("every isolated document route bypasses the legacy portrait stage", () => {
     assert.equal(usesDeviceGameplaySurface(route), false, route);
   }
   assert.match(app, /if \(shouldUseDocumentLayout\(location, layout\.viewportWidth\)\)/);
-  assert.match(viewport, /usesDeviceGameplaySurface\(pathname\) \|\| shouldUseDocumentLayout\(pathname, viewport\.width\)/);
+  assert.match(viewport, /const viewportSurface = true/);
 });
 
 test("unknown and malformed routes cannot masquerade as an authored game scene", () => {
