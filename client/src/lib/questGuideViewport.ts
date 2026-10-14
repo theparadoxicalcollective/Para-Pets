@@ -22,7 +22,11 @@ function getExpandedQuestGuideSurface(anchor: Element | null | undefined): Quest
   // same full-device logical rectangle as the scene. Render the guide in the
   // HUD sibling so it stays above the interactive scene without changing the
   // world-coordinate placement.
-  const target = (document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
+  // Use the nearest HUD owner for corner menu controls, even if a nested
+  // viewport scene is also present. Never derive Pet Menu spotlight positions
+  // from the legacy stage rectangle.
+  const hudOwner = anchor.closest("#game-viewport-hud");
+  const target = (hudOwner ?? document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
   const rect = target.getBoundingClientRect();
   // Derive the guide transform from the actual HUD owner, not the root
   // reference stage. The HUD may have a different rendered scale.
