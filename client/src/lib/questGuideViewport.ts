@@ -49,13 +49,12 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
   const expanded = getExpandedQuestGuideSurface(anchor);
   if (expanded) return expanded;
 
-  // For migrated gameplay routes, use the actual HUD owner even when a
-  // tutorial target is temporarily absent (loading, panning, or route changes).
-  // Otherwise a fallback to the old stage can move the spotlight off target.
+  // Prefer the actual HUD whenever it is mounted. All root routes now use
+  // viewport ownership; a stale/missing stage data attribute must not send
+  // an unanchored spotlight back through the legacy stage fallback.
   if (typeof document !== "undefined") {
     const hud = document.getElementById("game-viewport-hud");
-    const stage = document.getElementById("game-stage");
-    if (hud && stage?.dataset.coordinateOwner === "viewport") {
+    if (hud) {
       const rect = hud.getBoundingClientRect();
       const width = hud.clientWidth || rect.width;
       const height = hud.clientHeight || rect.height;
@@ -71,9 +70,8 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
     }
   }
 
-  // No HUD host exists yet (for example, during initial route mounting).
-  // Preserve the existing stage-surface fallback for those transitional frames;
-  // do not infer a fixed phone-sized coordinate plane from screen width.
+  // The HUD may not exist during initial route mounting. Preserve the
+  // established stage-surface fallback until its callers are migrated.
   const surface = getStageSurface();
   return {
     target: surface.target,
