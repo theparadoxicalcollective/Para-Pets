@@ -1557,6 +1557,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         touchAction: "none",
         overscrollBehavior: "contain",
       }}
+      onPointerDownCapture={() => {
+        // The first real gameplay interaction dismisses the nonblocking feed
+        // hint without stealing pointer capture from petting or item dragging.
+        if (showFeedHint) setShowFeedHint(false);
+      }}
       onPointerMove={dragEnabled ? onItemPointerMove : undefined}
       onPointerUp={dragEnabled ? onItemPointerUp : undefined}
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
@@ -2038,12 +2043,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           Tap anywhere outside the card to dismiss.                         */}
       {showFeedHint && (
         <>
-          {/* Dismiss layer */}
-          <div
-            className="absolute inset-0"
-            style={{ zIndex: 598, cursor: "pointer" }}
-            onClick={() => setShowFeedHint(false)}
-          />
+          {/* A nonblocking tutorial hint must never capture the entire care
+              surface. The hint is dismissed by the next real interaction. */}
           <div
             className="absolute pointer-events-none"
             style={{
