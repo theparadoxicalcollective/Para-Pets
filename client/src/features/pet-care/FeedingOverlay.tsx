@@ -1004,7 +1004,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const onPetPointerDown = useCallback((e: React.PointerEvent) => {
     if (dragRef.current) return; // ignore — an item is being dragged onto the pet
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {
+      // Some mobile WebViews reject capture during gesture transitions.
+    }
     const box = petBoxRef.current?.getBoundingClientRect();
     if (!box) return;
     petGestureRef.current = {
@@ -1336,7 +1340,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     };
     itemGestureControllerRef.current.begin(e.pointerId, e.clientX, e.clientY, item);
     const captureTarget = e.currentTarget;
-    captureTarget.setPointerCapture?.(e.pointerId);
+    try {
+      captureTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      // Keep tap-to-select available when a browser refuses pointer capture.
+    }
     capturedPointerRef.current = e.pointerId;
     captureTargetRef.current = captureTarget;
     setDragGhost(null);
@@ -1557,6 +1565,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         touchAction: "none",
         overscrollBehavior: "contain",
       }}
+      onPointerDownCapture={() => {
+        // The first real gameplay interaction dismisses the nonblocking feed
+        // hint without stealing pointer capture from petting or item dragging.
+        if (showFeedHint) setShowFeedHint(false);
+      }}
       onPointerMove={dragEnabled ? onItemPointerMove : undefined}
       onPointerUp={dragEnabled ? onItemPointerUp : undefined}
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
@@ -1597,41 +1610,27 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               </span>
             </div>
           )}
-          {/* Help / tutorial button */}
-          <button
-            onClick={() => { playClick(); setShowCareTutorial(true); }}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{
-              background: "rgba(15,25,12,0.75)",
-              border: "1px solid rgba(180,255,160,0.4)",
-              backdropFilter: safeMode ? "none" : "blur(6px)",
-              color: "#dfffd0",
-              fontFamily: "Lora, serif",
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: "pointer",
-            }}
-            data-testid="button-care-help"
-            aria-label="How to care for your pet"
-          >?</button>
-          <button
-            onClick={() => { playClick(); onClose(); }}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{
-              background: "rgba(15,25,12,0.75)",
-              border: "1px solid rgba(180,255,160,0.4)",
-              backdropFilter: safeMode ? "none" : "blur(6px)",
-              color: "#dfffd0",
-              fontFamily: "Lora, serif",
-              fontWeight: 700,
-              fontSize: 18,
-              cursor: "pointer",
-            }}
-            data-testid="button-close-feeding"
-            aria-label="Close feeding"
-          >×</button>
         </div>
       </div>
+
+      <ViewportModalPortal enabled={deviceSurface} blocking={false}>
+        <button
+          type="button"
+          data-testid="button-care-help"
+          aria-label="How to care for your pet"
+          onClick={() => { playClick(); setShowCareTutorial(true); }}
+          className="absolute z-[6] w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 14px)", right: 64, pointerEvents: "auto", touchAction: "manipulation", background: "rgba(15,25,12,0.9)", border: "1px solid rgba(180,255,160,0.6)", color: "#dfffd0", fontSize: 18, cursor: "pointer" }}
+        >?</button>
+        <button
+          type="button"
+          data-testid="button-close-feeding"
+          aria-label="Close feeding"
+          onClick={() => { playClick(); onClose(); }}
+          className="absolute z-[6] w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 14px)", right: 16, pointerEvents: "auto", touchAction: "manipulation", background: "rgba(15,25,12,0.9)", border: "1px solid rgba(180,255,160,0.6)", color: "#dfffd0", fontSize: 22, cursor: "pointer" }}
+        >×</button>
+      </ViewportModalPortal>
 
       {/* Floating glowing orbs around the pet — pure decoration */}
       {!safeMode && [
@@ -2052,12 +2051,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           Tap anywhere outside the card to dismiss.                         */}
       {showFeedHint && (
         <>
-          {/* Dismiss layer */}
-          <div
-            className="absolute inset-0"
-            style={{ zIndex: 598, cursor: "pointer" }}
-            onClick={() => setShowFeedHint(false)}
-          />
+          {/* A nonblocking tutorial hint must never capture the entire care
+              surface. The hint is dismissed by the next real interaction. */}
           <div
             className="absolute pointer-events-none"
             style={{
