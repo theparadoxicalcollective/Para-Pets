@@ -12,6 +12,7 @@ test("full-device route ownership stays separate from authored coordinates", () 
   assert.match(surface, /return target \? createPortal\(content, target\) : content/);
   assert.doesNotMatch(surface, /stage-page-viewport-visual/);
   assert.match(app, /id="game-viewport-page"/);
+  assert.doesNotMatch(app, /expandedStage|scale\(\$\{layout\.scale\}\)/);
 });
 
 test("iPhone 12 remains the canonical admin and gameplay reference", () => {
