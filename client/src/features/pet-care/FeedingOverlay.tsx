@@ -1551,7 +1551,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        touchAction: "pan-x pan-y",
+        // Gameplay is a drag surface: allowing browser panning here cancels
+        // pointer streams on mobile before items reach the pet drop zone.
+        // Scrollable inventory panels own their own touch-action policy.
+        touchAction: "none",
         overscrollBehavior: "contain",
       }}
       onPointerMove={dragEnabled ? onItemPointerMove : undefined}
