@@ -24,6 +24,7 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
   // All rendered routes now own the device viewport. Unknown routes still
   // pass through AppRouter's redirect, but must never resurrect a 390×844
   // root reference plane while that redirect resolves.
+  const viewportSurface = true;
   const touchPortraitBlocked = shouldBlockTouchLandscape(
     viewport.width,
     viewport.height,
@@ -36,7 +37,7 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
       viewport.height,
       viewport.top,
       viewport.left,
-      { viewportSurface: true },
+      { viewportSurface },
     ),
     touchPortraitBlocked,
   };
