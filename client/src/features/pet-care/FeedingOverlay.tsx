@@ -1597,28 +1597,18 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               </span>
             </div>
           )}
-          {/* Help / tutorial button */}
-          <button
-            onClick={() => { playClick(); setShowCareTutorial(true); }}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{
-              background: "rgba(15,25,12,0.75)",
-              border: "1px solid rgba(180,255,160,0.4)",
-              backdropFilter: safeMode ? "none" : "blur(6px)",
-              color: "#dfffd0",
-              fontFamily: "Lora, serif",
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: "pointer",
-            }}
-            data-testid="button-care-help"
-            aria-label="How to care for your pet"
-          >?</button>
-
         </div>
       </div>
 
       <ViewportModalPortal enabled={deviceSurface} blocking={false}>
+        <button
+          type="button"
+          data-testid="button-care-help"
+          aria-label="How to care for your pet"
+          onClick={() => { playClick(); setShowCareTutorial(true); }}
+          className="absolute z-[6] w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 14px)", right: 64, pointerEvents: "auto", touchAction: "manipulation", background: "rgba(15,25,12,0.9)", border: "1px solid rgba(180,255,160,0.6)", color: "#dfffd0", fontSize: 18, cursor: "pointer" }}
+        >?</button>
         <button
           type="button"
           data-testid="button-close-feeding"
