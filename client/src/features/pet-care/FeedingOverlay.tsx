@@ -1004,7 +1004,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const onPetPointerDown = useCallback((e: React.PointerEvent) => {
     if (dragRef.current) return; // ignore — an item is being dragged onto the pet
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {
+      // Some mobile WebViews reject capture during gesture transitions.
+    }
     const box = petBoxRef.current?.getBoundingClientRect();
     if (!box) return;
     petGestureRef.current = {
@@ -1336,7 +1340,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     };
     itemGestureControllerRef.current.begin(e.pointerId, e.clientX, e.clientY, item);
     const captureTarget = e.currentTarget;
-    captureTarget.setPointerCapture?.(e.pointerId);
+    try {
+      captureTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      // Keep tap-to-select available when a browser refuses pointer capture.
+    }
     capturedPointerRef.current = e.pointerId;
     captureTargetRef.current = captureTarget;
     setDragGhost(null);
