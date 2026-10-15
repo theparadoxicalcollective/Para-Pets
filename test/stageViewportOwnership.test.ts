@@ -53,7 +53,8 @@ test("App and root auth stages consume the shared viewport controller instead of
     assert.doesNotMatch(source, /--stage-logical-height/);
   }
 
-  assert.match(app, /getStageTransform\(layout\)/);
+  assert.doesNotMatch(app, /getStageTransform\(layout\)/);
+  assert.match(app, /data-coordinate-owner="viewport"/);
   assert.match(root, /data-coordinate-owner="viewport"/);
   assert.doesNotMatch(root, /getStageTransform\(layout\)/);
 });
