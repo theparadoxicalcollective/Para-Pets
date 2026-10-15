@@ -1,3 +1,15 @@
+/*
+ * Tablet/desktop native viewport presentation.
+ * Root gameplay no longer uses a centered 390×844 stage owner.
+ * Keep viewport-page styling and independent authored placement coordinates.
+ */
+
+/*
+ * When a stage-owned page supplies a full-device backdrop, its canonical
+ * 390×844 surface remains the coordinate owner but must not repaint an opaque
+ * page background over that backdrop. Phones use coordinate-owner="viewport"
+ * and therefore keep their existing inline presentation unchanged.
+ */
 
 
 
@@ -6,10 +18,13 @@
 
 
 
-
-
-
-
+/*
+ * Active Pet's old canonical wrapper adds a soft green tint across the full
+ * 390px stage. It is useful on native phones, where the stage is the viewport,
+ * but reads as a phone-sized center panel once the scenery is viewport-owned.
+ * Suppress only that decorative tint on stage-owned larger devices; the pet,
+ * platform, effects and interaction geometry remain in the canonical stage.
+ */
 
 
 
@@ -69,17 +84,32 @@
 }
 
 
+/*
+ * Pet Care already paints its environment through the viewport scene portal.
+ * On stage-owned larger devices, let the lightweight help/close header reach
+ * the physical device edge while the pet, meters, jars, drop target, particles,
+ * and all interaction math remain in the authored 390×844 care coordinate
+ * plane. Native phones do not match this selector and remain pixel-identical.
+ */
 
 
 
 
 
+/*
+ * Inventory pages already own their full-device forest backdrop. On stage-owned
+ * larger devices, keep cards/grids in the authored 390×844 plane but let the
+ * page-level back control reach the physical device width. Native phones remain
+ * outside this override.
+ */
 
 
 
-
-
-
+/*
+ * Full-device route ownership. The page surface is the real tablet/desktop
+ * camera; the nested reference plane is only the authored coordinate system.
+ * Do not style the reference plane as a card/frame.
+ */
 
 
 
@@ -94,7 +124,11 @@
  */
 
 
-
+/*
+ * The Active Pet background is already owned by the full-device backdrop
+ * portal. On stage-owned tablets the canonical page must not paint another
+ * opaque phone-width surface above it. Keep all pet/admin coordinates intact.
+ */
 
 
 /*
@@ -144,21 +178,41 @@
 /*
  * Tablet Closet controls: keep the authored pet/background/oval in their
  * existing shared coordinate plane, but make its equipment controls usable.
- * Viewport-page hosts are covered; phones are excluded.
+ * Both stage-owned and viewport-page hosts are covered; phones are excluded.
  * No drag targets, saved placement coordinates or equipment API paths change.
  */
 @media (min-width: 768px) {
-  
+  #game-viewport-page [data-responsive-closet="true"] {
+    overflow: visible !important;
+  }
 
-  
+  #game-viewport-page .closet-accessory-slots {
+    min-height: 72px;
+    background: rgba(2, 18, 13, .94) !important;
+  }
 
-  
+  #game-viewport-page .closet-mini-pet-trigger {
+    min-width: 48px;
+    min-height: 48px;
+    z-index: 15;
+  }
 
-  
+  #game-viewport-page .closet-mini-pet-panel {
+    max-height: 78% !important;
+    z-index: 40;
+  }
 
-  
+  #game-viewport-page .closet-accessory-drawer {
+    height: 40% !important;
+    min-height: 230px;
+    z-index: 30;
+  }
 
-  
+  #game-viewport-page .closet-mini-pet-panel > .overflow-y-auto,
+#game-viewport-page .closet-accessory-drawer > .overflow-y-auto {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 
