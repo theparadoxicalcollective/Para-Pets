@@ -15,8 +15,8 @@ test("tablet and desktop shell use page surroundings with cover instead of disto
   assert.doesNotMatch(css, /background-size:\s*100% 100%/);
 
   // MainGameBG remains the safe fallback for pages that have not opted in yet.
-  assert.match(app, /--desktop-stage-background-image/);
-  assert.match(app, /MainGameBG\.png/);
+  assert.match(app, /data-stage-coordinate-owner="viewport"/);
+  assert.doesNotMatch(app, /--desktop-stage-background-image|MainGameBG\.png/);
 });
 
 test("surrounding hook only mutates shell presentation and restores nested parent environments", () => {
