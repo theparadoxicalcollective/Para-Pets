@@ -6,15 +6,10 @@ const app = readFileSync("client/src/App.tsx", "utf8");
 const surface = readFileSync("client/src/components/StagePageSurface.tsx", "utf8");
 const stage = readFileSync("client/src/lib/stage.ts", "utf8");
 
-test("stage-owned larger devices expose a physical viewport page surface", () => {
-  assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
-  assert.match(app, /left: expandedStage \? 0 : layout\.left/);
-  assert.match(app, /top: expandedStage \? 0 : layout\.top/);
-  assert.match(app, /width: expandedStage \? sceneRect\.width : layout\.designWidth/);
-  assert.match(app, /height: expandedStage \? sceneRect\.height : layout\.designHeight/);
-  assert.match(app, /id="game-viewport-page"[\s\S]{0,700}left: 0[\s\S]{0,200}top: 0[\s\S]{0,200}width: "100%"[\s\S]{0,200}height: "100%"/);
-  assert.match(app, /"--stage-reference-left": `\$\{referenceLeft\}px`/);
-  assert.match(app, /"--stage-reference-top": `\$\{referenceTop\}px`/);
+test("native root exposes a viewport page host without legacy scaling", () => {
+  assert.match(app, /id="game-viewport-page"/);
+  assert.match(app, /data-stage-coordinate-owner="viewport"/);
+  assert.doesNotMatch(app, /expandedStage|--stage-reference-left|--stage-reference-top/);
 });
 
 test("gameplay pages portal to the viewport without a canonical reference plane", () => {
