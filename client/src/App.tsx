@@ -716,11 +716,11 @@ function GameStage({ children }: { children: ReactNode }) {
           {/* Native viewport hosts remain necessary for gameplay page, backdrop,
             and scene portals; none uses the old 390×844 transform. */}
         <div id="game-viewport-page" data-testid="game-viewport-page"
-          style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }} />
-        <div id="game-viewport-backdrop" data-testid="game-viewport-backdrop"
-          style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none" }} />
-        <div id="game-viewport-scene" data-testid="game-viewport-scene"
           style={{ position: "absolute", inset: 0, zIndex: 20, pointerEvents: "none" }} />
+        <div id="game-viewport-backdrop" data-testid="game-viewport-backdrop"
+          style={{ position: "absolute", inset: 0, zIndex: 17, pointerEvents: "none" }} />
+        <div id="game-viewport-scene" data-testid="game-viewport-scene"
+          style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }} />
         <div id="game-stage-content" data-testid="game-stage-content"
             style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 15 }}>
             {children}
