@@ -9,7 +9,7 @@ const aquarium = readFileSync("client/src/pages/AquariumPage.tsx", "utf8");
 const css = readFileSync("client/src/tabletStageShell.css", "utf8");
 
 test("GameStage has one explicit back-to-front viewport ownership stack", () => {
-  const legacy = app.slice(app.indexOf("// Public entry and authentication"));
+  const legacy = app.slice(app.indexOf("if (usesDeviceGameplaySurface(location))"), app.indexOf("// Isolated document routes"));
   const backdrop = legacy.indexOf('id="game-viewport-backdrop"');
   const content = legacy.indexOf('id="game-stage-content"');
   const page = legacy.indexOf('id="game-viewport-page"');
