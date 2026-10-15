@@ -1074,17 +1074,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     g.pathDistance += Math.hypot(e.clientX - g.lastX, e.clientY - g.lastY);
     g.lastX = e.clientX;
     g.lastY = e.clientY;
-    // A deliberate short rub is petting too; it should not require a perfect
-    // circle. It enters the same guarded reward path as circular motion.
-    if (g.pathDistance >= 46 && performance.now() - g.startedAt >= 80) {
-      triggerCircleEffects();
-      if (!g.rewardTriedThisPress) {
-        g.rewardTriedThisPress = true;
-        if (pet?.inventoryId) pettingRewardMutation.mutate(pet.inventoryId);
-      }
-      g.pathDistance = 0;
-      g.startedAt = performance.now();
-    }
     const dx = e.clientX - g.cx;
     const dy = e.clientY - g.cy;
     const dist = Math.hypot(dx, dy);
