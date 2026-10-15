@@ -66,10 +66,11 @@ test("GameStage clips gameplay separately while allowing the HUD to reach device
   assert.match(app, /data-testid="game-stage-content"/);
   assert.match(app, /id="game-viewport-hud"/);
   assert.match(app, /data-testid="game-viewport-hud"/);
-  assert.match(app, /id="game-stage-content"[\\s\\S]*?overflow: "hidden"/);
+  assert.match(app, /id="game-stage-content"[\s\S]*?overflow: "hidden"/);
   assert.match(app, /id="game-viewport-hud"[\\s\\S]{0,180}inset: 0/);
-  assert.doesNotMatch(app, /expandedStage|game-viewport-backdrop|game-viewport-page|game-viewport-scene/);
-  assert.match(stage, /const content = document\\.getElementById\\("game-stage-content"\\)/);
+  assert.doesNotMatch(app, /expandedStage|scale\(\$\{layout\.scale\}\)/);
+  for (const id of ["game-viewport-backdrop", "game-viewport-page", "game-viewport-scene"]) assert.ok(app.includes(`id="${id}"`));
+  assert.match(stage, /const content = document\.getElementById\("game-stage-content"\)/);
 });
 
 test("Active Pet top bar uses the viewport HUD without changing the underlying pet composition", () => {
