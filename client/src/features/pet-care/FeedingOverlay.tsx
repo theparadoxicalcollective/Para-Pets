@@ -1559,7 +1559,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
       onLostPointerCapture={dragEnabled ? onItemPointerCancel : undefined}
       onClickCapture={(e) => {
-        if (suppressClickRef.current) {
+        // Only suppress the synthetic click on the item that just completed a
+        // drag. Never swallow close/help/navigation buttons above the scene.
+        if (suppressClickRef.current && (e.target as Element).closest?.('[data-pet-care-physics-body="true"]')) {
           e.preventDefault();
           e.stopPropagation();
         }
