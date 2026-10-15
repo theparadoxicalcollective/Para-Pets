@@ -18,10 +18,8 @@ function getExpandedQuestGuideSurface(anchor: Element | null | undefined): Quest
   const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
   if (!expandedOwner) return null;
 
-  // Guides for expanded World/Pet Central targets must be measured against the
-  // same full-device logical rectangle as the scene. Render the guide in the
-  // HUD sibling so it stays above the interactive scene without changing the
-  // authored 390×844 gameplay coordinate system.
+  // World/Pet Central guides use the rendered full-device HUD surface.
+  // Saved scene coordinates are independent from guide positioning.
   const hudOwner = anchor.closest("#game-viewport-hud");
   const target = (hudOwner ?? document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
   const rect = target.getBoundingClientRect();
@@ -51,13 +49,12 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
   const expanded = getExpandedQuestGuideSurface(anchor);
   if (expanded) return expanded;
 
-  // For migrated gameplay routes, use the actual HUD owner even when a
-  // tutorial target is temporarily absent (loading, panning, or route changes).
-  // Otherwise a fallback to the old stage can move the spotlight off target.
+  // Prefer the actual HUD whenever it is mounted. All root routes now use
+  // viewport ownership; a stale/missing stage data attribute must not send
+  // an unanchored spotlight back through the legacy stage fallback.
   if (typeof document !== "undefined") {
     const hud = document.getElementById("game-viewport-hud");
-    const stage = document.getElementById("game-stage");
-    if (hud && stage?.dataset.coordinateOwner === "viewport") {
+    if (hud) {
       const rect = hud.getBoundingClientRect();
       const width = hud.clientWidth || rect.width;
       const height = hud.clientHeight || rect.height;
@@ -73,7 +70,8 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
     }
   }
 
-  // Preserve the legacy fallback only for routes that still own stage space.
+  // The HUD may not exist during initial route mounting. Preserve the
+  // established stage-surface fallback until its callers are migrated.
   const surface = getStageSurface();
   return {
     target: surface.target,
