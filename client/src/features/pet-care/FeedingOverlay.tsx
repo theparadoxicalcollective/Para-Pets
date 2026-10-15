@@ -381,7 +381,8 @@ function PetCareItemShelf({
                 }}
                 className="pet-care-item-jar__item"
                 data-pet-care-physics-body="true"
-                onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
+                data-gameplay-touch-gesture="true"
+                  onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
                 onPointerMove={dragEnabled ? moveJarItem : undefined}
                 onPointerUp={dragEnabled ? endJarMove : undefined}
                 onPointerCancel={dragEnabled ? endJarMove : undefined}
@@ -1676,6 +1677,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           transition: safeMode ? "none" : "filter 0.3s ease",
           touchAction: "none",
         }}
+        data-gameplay-touch-gesture="true"
         onPointerDown={onPetPointerDown}
         onPointerMove={onPetPointerMove}
         onPointerUp={endPetGesture}
