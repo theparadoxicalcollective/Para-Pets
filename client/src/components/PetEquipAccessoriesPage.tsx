@@ -507,7 +507,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
               </div>
             )}
           </div>
-        </aside></ViewportModalPortal>
+        </aside>
       )}
 
 
@@ -552,7 +552,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
               </div>
             )}
           </div>
-        </aside>
+        </aside></ViewportModalPortal>
       )}
 
       {unequipConfirm && (
