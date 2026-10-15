@@ -1,14 +1,9 @@
 /*
- * Tablet/desktop presentation shell only.
- *
- * The canonical 390×844 gameplay stage remains the authored coordinate
- * reference, but normal gameplay routes now mount on a separate full-device
- * page surface on stage-owned larger devices. The reference plane is centered
- * inside that surface, so saved/admin coordinates remain stable without making
- * the route itself a phone-sized overlay.
- *
- * Phones (including iPhone/Android standalone web apps) keep their native
- * mobile layout and are never opted into this presentation by width.
+ * Tablet/desktop viewport presentation.
+ * The root gameplay shell now uses native viewport ownership. Legacy
+ * stage-owned selectors below remain temporarily because visual regression
+ * contracts still assert them; remove each only with corresponding consumer
+ * and cross-device verification. Viewport-page rules are the live path.
  */
 
 /*
