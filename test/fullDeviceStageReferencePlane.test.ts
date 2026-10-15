@@ -25,7 +25,8 @@ test("auth loading and verification root use a native viewport without a referen
 
 test("input math remains based on the authored reference plane", () => {
   assert.match(stage, /document\.getElementById\("game-stage-content"\)/);
-  assert.match(stage, /root-stage-reference-plane/);
+  assert.doesNotMatch(stage, /root-stage-reference-plane/);
+  assert.match(stage, /document\.getElementById\("game-stage-content"\)/);
   assert.match(stage, /clientX - referenceRect\.left/);
   assert.match(stage, /clientY - referenceRect\.top/);
 });
