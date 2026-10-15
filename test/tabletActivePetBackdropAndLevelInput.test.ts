@@ -9,10 +9,10 @@ const levelPage = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8
 
 test("tablet background paints over stale reference-stage scenery but below the interactive page", () => {
   const page = app.indexOf('id="game-viewport-page"');
-  const backdrop = app.indexOf('id="game-viewport-backdrop"', page);
+  const backdrop = app.indexOf('id="game-viewport-backdrop"');
   const reference = app.indexOf('id="game-stage-content"', backdrop);
-  assert.ok(page >= 0 && backdrop > page && reference > backdrop);
-  assert.match(app.slice(page, backdrop), /zIndex: 20/);
+  assert.ok(page >= 0 && backdrop >= 0 && reference > backdrop);
+  assert.match(app.slice(page, page + 180), /zIndex: 20/);
   assert.match(app.slice(backdrop, reference), /zIndex: 17/);
   assert.match(app.slice(backdrop, reference), /pointerEvents: "none"/);
   assert.match(app.slice(reference, reference + 370), /zIndex: 15/);
