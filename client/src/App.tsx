@@ -882,6 +882,7 @@ function App() {
     let touchStartY = 0;
     let touchStartedInPetCareShelf = false;
     let touchStartedInIosEdgeControl = false;
+    let touchStartedInGameplayGesture = false;
 
     // Track where a touch started so touchmove can detect horizontal swipes.
     // Do NOT call preventDefault on touchstart — it silently kills click events
@@ -892,13 +893,16 @@ function App() {
       const target = e.target as Element | null;
       touchStartedInPetCareShelf = target?.closest?.(".pet-care-item-shelf__viewport") != null;
       touchStartedInIosEdgeControl = target?.closest?.('[data-ios-edge-control="true"]') != null;
+      // Petting, item dragging and scene panning own their gestures. The global
+      // iOS navigation guard must not cancel those pointer streams.
+      touchStartedInGameplayGesture = target?.closest?.('[data-gameplay-touch-gesture="true"]') != null;
     };
 
     // Block iOS swipe-back / swipe-forward gestures. Prevents back-navigation when
     // players swipe horizontally to attack in battles or navigate map areas.
     // Blocks any predominantly-horizontal swipe, plus edge-started ones at any angle.
     const blockHorizontalSwipe = (e: TouchEvent) => {
-      if (touchStartedInPetCareShelf || touchStartedInIosEdgeControl) return;
+      if (touchStartedInPetCareShelf || touchStartedInIosEdgeControl || touchStartedInGameplayGesture) return;
       const adx = Math.abs(e.touches[0].clientX - touchStartX);
       const ady = Math.abs(e.touches[0].clientY - touchStartY);
       const fromEdge = touchStartX < 80 || touchStartX > window.innerWidth - 80;
