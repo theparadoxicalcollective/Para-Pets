@@ -46,8 +46,10 @@ export default function PetCarePage() {
   const hasRedirectedRef = useRef(false);
 
   const close = () => {
-    if (window.history.length > 1) window.history.back();
-    else navigate("/");
+    // Browser history can contain a previous Pet Care entry (or a stale
+    // in-app redirect), so history.back() may appear to leave the page open.
+    // Return to the Active Pet home explicitly, matching the Closet route.
+    navigate("/");
   };
 
   // Navigation is a side effect. Running it while React is rendering can
