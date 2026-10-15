@@ -31,3 +31,10 @@ PR #813 removed the scaled root renderer from `client/src/App.tsx`. PR #812 made
 - World camera/scene coordinates and saved house/decor placement must not be converted to screen coordinates.
 - HUD, overlays and modals should use their actual viewport owner; avoid introducing new 390×844 compatibility wrappers.
 - CI passing is necessary but does not establish that touch input, z-index or placement is correct on physical devices.
+
+
+## PR #816 regression finding
+
+The first attempt to delete all `#game-stage[data-coordinate-owner="stage"]` selectors failed **10 existing tests** (Active Pet backdrop/tint, Closet, Pet Care, Inventory, Aquarium, and tablet presentation). These tests encode historical CSS rules even though root App currently uses viewport ownership. The removal was reverted rather than suppressing assertions or risking an unverified visual change.
+
+**Next action:** for each legacy selector, first verify whether any non-root host can still set `data-coordinate-owner="stage"`, then replace outdated static CSS assertions with runtime ownership/visual regression coverage for the actual `#game-viewport-page` or `#game-viewport-scene` host. Only then delete that selector in a separate focused PR. Keep physical-device testing as a requirement before declaring layout stabilization complete.
