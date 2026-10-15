@@ -475,8 +475,9 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       />
 
       {miniPetOpen && (
+        <ViewportModalPortal enabled={deviceSurface} blocking={false}>
         <aside className="absolute inset-x-[5%] top-[14%] z-[35] closet-mini-pet-panel flex max-h-[72%] flex-col overflow-hidden rounded-2xl" data-testid="mini-pet-inventory"
-          style={{ background: "linear-gradient(180deg,rgba(7,30,20,.985),rgba(2,10,7,.99))", border: "1.5px solid rgba(112,240,174,.5)", boxShadow: "0 16px 40px rgba(0,0,0,.82),0 0 24px rgba(50,220,145,.14)" }}>
+          style={{ pointerEvents: "auto", touchAction: "pan-y", WebkitOverflowScrolling: "touch", background: "linear-gradient(180deg,rgba(7,30,20,.985),rgba(2,10,7,.99))", border: "1.5px solid rgba(112,240,174,.5)", boxShadow: "0 16px 40px rgba(0,0,0,.82),0 0 24px rgba(50,220,145,.14)" }}>
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "rgba(112,240,174,.18)" }}>
             <div><p className="font-fantasy text-xs tracking-[.14em]" style={{ color: "#a7f3d0" }}>MINI PETS</p><p className="font-fantasy text-[8px]" style={{ color: "rgba(210,235,218,.5)" }}>Choose one companion for {petName}</p></div>
             <button type="button" aria-label="Close Mini Pets inventory" onClick={() => setMiniPetOpen(false)} className="grid h-8 w-8 place-items-center rounded-full" style={{ color: "#a7f3d0", border: "1px solid rgba(112,240,174,.3)" }}><X size={16} /></button>
@@ -508,6 +509,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             )}
           </div>
         </aside>
+        </ViewportModalPortal>
       )}
 
 
