@@ -18,10 +18,8 @@ function getExpandedQuestGuideSurface(anchor: Element | null | undefined): Quest
   const expandedOwner = anchor.closest("#game-viewport-scene, #game-viewport-hud");
   if (!expandedOwner) return null;
 
-  // Guides for expanded World/Pet Central targets must be measured against the
-  // same full-device logical rectangle as the scene. Render the guide in the
-  // HUD sibling so it stays above the interactive scene without changing the
-  // authored 390×844 gameplay coordinate system.
+  // World/Pet Central guides use the rendered full-device HUD surface.
+  // Saved scene coordinates are independent from guide positioning.
   const hudOwner = anchor.closest("#game-viewport-hud");
   const target = (hudOwner ?? document.getElementById("game-viewport-hud") ?? expandedOwner) as HTMLElement;
   const rect = target.getBoundingClientRect();
@@ -73,7 +71,9 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
     }
   }
 
-  // Preserve the legacy fallback only for routes that still own stage space.
+  // No HUD host exists yet (for example, during initial route mounting).
+  // Preserve the existing stage-surface fallback for those transitional frames;
+  // do not infer a fixed phone-sized coordinate plane from screen width.
   const surface = getStageSurface();
   return {
     target: surface.target,
