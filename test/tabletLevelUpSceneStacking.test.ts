@@ -12,7 +12,8 @@ test("Level Up no longer needs a legacy scene-portal stacking exception", () => 
   assert.doesNotMatch(app, /data-level-up-route/);
   assert.doesNotMatch(css, /data-level-up-route/);
   const device = app.slice(app.indexOf("if (usesDeviceGameplaySurface(location))"), app.indexOf("// Public entry and authentication"));
-  assert.doesNotMatch(device, /game-viewport-scene/);
+  assert.match(device, /id="game-viewport-scene"/);
+  assert.match(device, /id="game-viewport-scene"[\s\S]*zIndex: 30/);
   assert.match(device, /id="game-stage-content"[\s\S]*zIndex: 15/);
   assert.match(device, /id="game-viewport-hud"[\s\S]*zIndex: 40/);
 });
