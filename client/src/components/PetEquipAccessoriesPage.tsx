@@ -403,16 +403,18 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.08em]" style={{ display: "inline-block", maxWidth: "100%", color: "#ffe7a4", fontSize: "clamp(15px, 4.2vw, 21px)", lineHeight: 1.35, textShadow: "0 2px 4px #000, 0 0 10px #000", background: "rgba(3,19,14,.76)", border: "1px solid rgba(245,209,123,.48)", borderRadius: 999, padding: "3px 14px", boxShadow: "0 3px 10px rgba(0,0,0,.4)" }}>{petName}</h1>
       </header>
 
+      <ViewportModalPortal enabled={deviceSurface} blocking={false}>
       <button
         type="button"
         data-testid="button-close-equip-accessories"
         aria-label="Close The Closet"
         onClick={onClose}
         className="absolute z-[6] transition-transform active:scale-90"
-        style={{ top: "3.1%", right: "3.2%", width: "11.5%", aspectRatio: "1", background: "transparent", border: 0, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+        style={{ top: deviceSurface ? "calc(env(safe-area-inset-top, 0px) + 12px)" : "3.1%", right: deviceSurface ? "12px" : "3.2%", width: deviceSurface ? "48px" : "11.5%", aspectRatio: "1", background: "transparent", border: 0, padding: 0, cursor: "pointer", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
       >
         <img src={closetCloseButton} alt="" className="h-full w-full object-contain" style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,.75))" }} />
       </button>
+      </ViewportModalPortal>
 
       <div data-testid="closet-pet-preview" className="absolute z-[2]" style={{ left: "5%", top: "28%", width: "90%", aspectRatio: "1" }}>
         <PetPageOvalPlacement page="closet" admin={user?.isAdmin === true} petTemplateId={petTemplateId} petInventoryId={petInventoryId}>
@@ -510,7 +512,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
 
       {bagOpen && (
-        <aside className="absolute bottom-[1.4%] left-[3.5%] right-[3.5%] z-[12] closet-accessory-drawer flex h-[26%] flex-col overflow-hidden rounded-2xl" data-testid="accessory-bag-drawer" style={{ background: "linear-gradient(180deg,rgba(7,24,16,.97),rgba(3,12,8,.98))", border: "1.5px solid rgba(202,164,76,.5)", boxShadow: "0 -8px 28px rgba(0,0,0,.7), inset 0 0 24px rgba(0,0,0,.45)" }}>
+        <ViewportModalPortal enabled={deviceSurface} blocking={false}><aside className="absolute bottom-[1.4%] left-[3.5%] right-[3.5%] z-[12] closet-accessory-drawer flex h-[26%] flex-col overflow-hidden rounded-2xl" data-testid="accessory-bag-drawer" style={{ pointerEvents: "auto", background: "linear-gradient(180deg,rgba(7,24,16,.97),rgba(3,12,8,.98))", border: "1.5px solid rgba(202,164,76,.5)", boxShadow: "0 -8px 28px rgba(0,0,0,.7), inset 0 0 24px rgba(0,0,0,.45)" }}>
           <div className="flex items-center justify-between border-b px-4 py-2" style={{ borderColor: "rgba(202,164,76,.18)" }}>
             <div>
               <p className="font-fantasy tracking-[0.14em]" style={{ color: "#d8ba72", fontSize: "clamp(8px, 2.3vw, 11px)" }}>YOUR ACCESSORIES</p>
@@ -550,7 +552,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
               </div>
             )}
           </div>
-        </aside>
+        </aside></ViewportModalPortal>
       )}
 
       {unequipConfirm && (
