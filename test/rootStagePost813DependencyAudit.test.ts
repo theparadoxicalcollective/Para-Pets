@@ -10,7 +10,7 @@ test("native root no longer owns a scaled 390 by 844 rendering plane", () => {
   assert.doesNotMatch(app, /expandedStage|layout\.coordinateOwner === "stage"|getStageTransform\(layout\)/);
   assert.match(app, /id="game-viewport-hud"/);
   assert.match(app, /id="game-viewport-scene"/);
-  assert.match(viewport, /const viewportSurface = true/);
+  assert.match(viewport, /\{ viewportSurface: true \}/);
   assert.doesNotMatch(viewport, /shouldFitPortraitReference/);
 });
 
