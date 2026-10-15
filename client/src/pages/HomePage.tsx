@@ -259,6 +259,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     travel: number;
     pettedThisPress: boolean;
     moved: boolean;
+    lastX: number;
+    lastY: number;
+    pathDistance: number;
+    startedAt: number;
     heartTimer: number | null;
     sparkleTimer: number | null;
     resetTimer: number | null;
@@ -379,6 +383,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const activePetTouchHandlers = useMemo(() => ({
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
       const target = e.currentTarget as HTMLDivElement;
+      if (e.pointerType === "touch") e.preventDefault();
       target.setPointerCapture?.(e.pointerId);
       const box = target.getBoundingClientRect();
       petGestureStateRef.current = {
@@ -391,6 +396,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         travel: 0,
         pettedThisPress: false,
         moved: false,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        pathDistance: 0,
+        startedAt: performance.now(),
         heartTimer: null,
         sparkleTimer: null,
         resetTimer: null,
@@ -400,6 +409,21 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
       const g = petGestureStateRef.current;
       if (!g || g.pid !== e.pointerId) return;
+      // A short, deliberate rub is petting too; requiring a near-perfect
+      // circle made ordinary touchscreen strokes appear unresponsive.
+      g.pathDistance += Math.hypot(e.clientX - g.lastX, e.clientY - g.lastY);
+      g.lastX = e.clientX;
+      g.lastY = e.clientY;
+      if (g.pathDistance >= 46 && performance.now() - g.startedAt >= 80) {
+        startCircleEffects();
+        if (!g.pettedThisPress) {
+          g.pettedThisPress = true;
+          const id = activePetIdRef.current;
+          if (id) homePettingRewardMutation.mutate(id);
+        }
+        g.pathDistance = 0;
+        g.startedAt = performance.now();
+      }
       const dx = e.clientX - g.cx;
       const dy = e.clientY - g.cy;
       if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > 6) g.moved = true;
@@ -1237,6 +1261,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     {activePet.isHatched ? (
                       <div
                         {...activePetTouchHandlers}
+                        data-gameplay-touch-gesture="true"
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
