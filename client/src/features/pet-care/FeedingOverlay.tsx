@@ -382,7 +382,7 @@ function PetCareItemShelf({
                 className="pet-care-item-jar__item"
                 data-pet-care-physics-body="true"
                 data-gameplay-touch-gesture="true"
-                  onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
+                onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
                 onPointerMove={dragEnabled ? moveJarItem : undefined}
                 onPointerUp={dragEnabled ? endJarMove : undefined}
                 onPointerCancel={dragEnabled ? endJarMove : undefined}
@@ -1288,7 +1288,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     if (releaseCapture && capturedPointer != null && captureTarget?.hasPointerCapture?.(capturedPointer)) {
       captureTarget.releasePointerCapture(capturedPointer);
     }
-    if (captureTarget) captureTarget.style.visibility = "";
+    if (captureTarget) captureTarget.style.opacity = "";
     capturedPointerRef.current = null;
     captureTargetRef.current = null;
     dragRef.current = null;
@@ -1457,7 +1457,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       // The portal ghost becomes the single visible copy outside the glass.
       // Keep the physics body alive but hide its jar artwork until cleanup so
       // an invalid drop can return it to the exact position it left behind.
-      if (captureTargetRef.current) captureTargetRef.current.style.visibility = "hidden";
+      // Keep the captured element rendered so WebKit does not cancel the
+      // pointer stream while the drag ghost takes over its appearance.
+      if (captureTargetRef.current) captureTargetRef.current.style.opacity = "0";
       setDragGhost(gesture.item);
     }
     const box = petBoxRef.current?.getBoundingClientRect();
