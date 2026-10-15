@@ -382,7 +382,7 @@ function PetCareItemShelf({
                 className="pet-care-item-jar__item"
                 data-pet-care-physics-body="true"
                 data-gameplay-touch-gesture="true"
-                  onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
+                onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
                 onPointerMove={dragEnabled ? moveJarItem : undefined}
                 onPointerUp={dragEnabled ? endJarMove : undefined}
                 onPointerCancel={dragEnabled ? endJarMove : undefined}
@@ -1074,17 +1074,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     g.pathDistance += Math.hypot(e.clientX - g.lastX, e.clientY - g.lastY);
     g.lastX = e.clientX;
     g.lastY = e.clientY;
-    // A deliberate short rub is petting too; it should not require a perfect
-    // circle. It enters the same guarded reward path as circular motion.
-    if (g.pathDistance >= 46 && performance.now() - g.startedAt >= 80) {
-      triggerCircleEffects();
-      if (!g.rewardTriedThisPress) {
-        g.rewardTriedThisPress = true;
-        if (pet?.inventoryId) pettingRewardMutation.mutate(pet.inventoryId);
-      }
-      g.pathDistance = 0;
-      g.startedAt = performance.now();
-    }
     const dx = e.clientX - g.cx;
     const dy = e.clientY - g.cy;
     const dist = Math.hypot(dx, dy);
@@ -1288,7 +1277,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     if (releaseCapture && capturedPointer != null && captureTarget?.hasPointerCapture?.(capturedPointer)) {
       captureTarget.releasePointerCapture(capturedPointer);
     }
-    if (captureTarget) captureTarget.style.visibility = "";
+    if (captureTarget) captureTarget.style.opacity = "";
     capturedPointerRef.current = null;
     captureTargetRef.current = null;
     dragRef.current = null;
@@ -1457,7 +1446,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       // The portal ghost becomes the single visible copy outside the glass.
       // Keep the physics body alive but hide its jar artwork until cleanup so
       // an invalid drop can return it to the exact position it left behind.
-      if (captureTargetRef.current) captureTargetRef.current.style.visibility = "hidden";
+      // Keep the captured element rendered so WebKit does not cancel the
+      // pointer stream while the drag ghost takes over its appearance.
+      if (captureTargetRef.current) captureTargetRef.current.style.opacity = "0";
       setDragGhost(gesture.item);
     }
     const box = petBoxRef.current?.getBoundingClientRect();
@@ -1568,7 +1559,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
       onLostPointerCapture={dragEnabled ? onItemPointerCancel : undefined}
       onClickCapture={(e) => {
-        if (suppressClickRef.current) {
+        // Only suppress the synthetic click on the item that just completed a
+        // drag. Never swallow close/help/navigation buttons above the scene.
+        if (suppressClickRef.current && (e.target as Element).closest?.('[data-pet-care-physics-body="true"]')) {
           e.preventDefault();
           e.stopPropagation();
         }

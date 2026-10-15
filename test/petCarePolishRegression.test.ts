@@ -43,9 +43,9 @@ test("normal mode arbitrates pointer taps and drags while explicit fallback reta
   assert.match(source, /data-pet-care-emergency-input-fallback/);
 });
 
-test("pet rubbing enters the existing single guarded reward path", () => {
+test("circular petting enters the existing single guarded reward path", () => {
   const source = page();
-  assert.match(source, /g\.pathDistance >= 46/);
+  assert.match(source, /g\.travel > Math\.PI \* 0\.66/);
   assert.match(source, /!g\.rewardTriedThisPress/);
   assert.doesNotMatch(source, /new PointerEvent\(/);
 });

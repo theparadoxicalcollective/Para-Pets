@@ -378,6 +378,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, []);
   const activePetTouchHandlers = useMemo(() => ({
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
       const target = e.currentTarget as HTMLDivElement;
       target.setPointerCapture?.(e.pointerId);
       const box = target.getBoundingClientRect();
@@ -1237,6 +1238,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     {activePet.isHatched ? (
                       <div
                         {...activePetTouchHandlers}
+                        data-gameplay-touch-gesture="true"
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
