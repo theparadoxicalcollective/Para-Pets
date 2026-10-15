@@ -87,18 +87,16 @@ test("only explicitly opted-in scenes use the device viewport scene portal", () 
   assert.match(portal, /if \(!enabled \|\| !target\) return <>\{children\}<\/?>/);
 });
 
-test("GameStage provides a scene surface only on the stage-owned presentation path", () => {
+test("GameStage provides a native viewport scene host on gameplay routes", () => {
   const app = read("client/src/App.tsx");
 
-  assert.match(app, /layout\.coordinateOwner === "stage" && \(/);
+  assert.doesNotMatch(app, /layout\.coordinateOwner === "stage" && \(/);
   assert.match(app, /id="game-viewport-scene"/);
   assert.match(app, /id="game-viewport-scene"/);
   const sceneStart = app.indexOf('id="game-viewport-scene"');
   const sceneBlock = app.slice(sceneStart, sceneStart + 900);
-  assert.match(sceneBlock, /left: 0/);
-  assert.match(sceneBlock, /top: 0/);
-  assert.match(sceneBlock, /width: "100%"/);
-  assert.match(sceneBlock, /height: "100%"/);
+  assert.match(sceneBlock, /inset: 0/);
+  assert.match(sceneBlock, /zIndex: 30/);
   assert.match(app, /pointerEvents: "none"/);
 
   const documentBranchStart = app.indexOf("if (shouldUseDocumentLayout");
