@@ -19,3 +19,9 @@ test("Both pet pages require circular movement before triggering hearts", () => 
   assert.doesNotMatch(care, /g\\.pathDistance >= 46/);
   assert.match(home, /data-gameplay-touch-gesture="true"/);
 });
+
+test("Pet Care drag click suppression never consumes its close button", () => {
+  const care = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  assert.match(care, /suppressClickRef\\.current && \\(e\\.target as Element\\)\\.closest\\?\\.\\('\\[data-pet-care-physics-body="true"\\]'\\)/);
+  assert.match(care, /data-testid="button-close-feeding"/);
+});
