@@ -47,7 +47,7 @@ test("tablet and desktop viewport surfaces cover the physical camera while canon
   }
 });
 
-test("GameStage exposes separate backdrop scene HUD and modal ownership without widening stage content", () => {
+test("GameStage preserves native viewport portal hosts without scaling stage content", () => {
   assert.match(app, /id="game-stage-content"/);
   assert.match(app, /width: layout\.designWidth/);
   assert.match(app, /height: layout\.designHeight/);

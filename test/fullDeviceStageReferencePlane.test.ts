@@ -6,14 +6,11 @@ const app = readFileSync("client/src/App.tsx", "utf8");
 const root = readFileSync("client/src/RootEntry.tsx", "utf8");
 const stage = readFileSync("client/src/lib/stage.ts", "utf8");
 
-test("larger devices use a full-device stage around a centered authored reference plane", () => {
-  assert.match(app, /const expandedStage = layout\.coordinateOwner === "stage"/);
-  assert.match(app, /width: expandedStage \? sceneRect\.width : layout\.designWidth/);
-  assert.match(app, /height: expandedStage \? sceneRect\.height : layout\.designHeight/);
-  assert.match(app, /left: referenceLeft/);
-  assert.match(app, /top: referenceTop/);
-  assert.match(app, /width: layout\.designWidth/);
-  assert.match(app, /height: layout\.designHeight/);
+test("gameplay root uses a native viewport without a centered reference plane", () => {
+  assert.match(app, /data-coordinate-owner="viewport"/);
+  assert.match(app, /id="game-viewport-page"/);
+  assert.match(app, /id="game-viewport-hud"/);
+  assert.doesNotMatch(app, /expandedStage|referenceLeft|referenceTop|scale\(\$\{layout\.scale\}\)/);
 });
 
 test("auth loading and verification root use a native viewport without a reference plane", () => {

@@ -4,25 +4,17 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("stage-owned devices expose a full-device backdrop behind canonical content", () => {
+test("native gameplay viewport retains a non-interactive backdrop below page and HUD", () => {
   const app = read("client/src/App.tsx");
-
   const backdrop = app.indexOf('id="game-viewport-backdrop"');
-  const content = app.indexOf('id="game-stage-content"', backdrop);
-  const scene = app.indexOf('id="game-viewport-scene"', content);
-  const hud = app.indexOf('id="game-viewport-hud"', scene);
-
-  assert.ok(backdrop >= 0);
-  assert.ok(content > backdrop);
-  assert.ok(scene > content);
-  assert.ok(hud > scene);
-
-  const backdropBlock = app.slice(backdrop, content);
-  assert.match(backdropBlock, /left: 0/);
-  assert.match(backdropBlock, /top: 0/);
-  assert.match(backdropBlock, /width: "100%"/);
-  assert.match(backdropBlock, /height: "100%"/);
-  assert.match(backdropBlock, /pointerEvents: "none"/);
+  const content = app.indexOf('id="game-stage-content"');
+  const page = app.indexOf('id="game-viewport-page"');
+  const scene = app.indexOf('id="game-viewport-scene"');
+  const hud = app.indexOf('id="game-viewport-hud"');
+  assert.ok([backdrop, content, page, scene, hud].every(index => index >= 0));
+  assert.match(app.slice(backdrop, backdrop + 190), /inset: 0, zIndex: 17, pointerEvents: "none"/);
+  assert.match(app.slice(page, page + 190), /inset: 0, zIndex: 20, pointerEvents: "none"/);
+  assert.match(app.slice(scene, scene + 190), /inset: 0, zIndex: 30, pointerEvents: "none"/);
 });
 
 test("Active Pet background uses the backdrop portal while presentation stays on the canonical stage", () => {
