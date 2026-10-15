@@ -10,10 +10,12 @@ test("Pet Care drag ghost does not hide the element holding pointer capture", ()
   assert.match(source, /captureTarget\.setPointerCapture\?\.\(e\.pointerId\)/);
 });
 
-test("Active Pet recognizes a short rub and owns its touch stream", () => {
-  const source = readFileSync("client/src/pages/HomePage.tsx", "utf8");
-  assert.match(source, /g\.pathDistance \+= Math\.hypot/);
-  assert.match(source, /g\.pathDistance >= 46 && performance\.now\(\) - g\.startedAt >= 80/);
-  assert.match(source, /data-gameplay-touch-gesture="true"/);
-  assert.match(source, /target\.setPointerCapture\?\.\(e\.pointerId\)/);
+test("Both pet pages require circular movement before triggering hearts", () => {
+  const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+  const care = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  assert.match(home, /g\\.travel > Math\\.PI \\* 0\\.66/);
+  assert.match(care, /g\\.travel > Math\\.PI \\* 0\\.66/);
+  assert.doesNotMatch(home, /g\\.pathDistance >= 46/);
+  assert.doesNotMatch(care, /g\\.pathDistance >= 46/);
+  assert.match(home, /data-gameplay-touch-gesture="true"/);
 });
