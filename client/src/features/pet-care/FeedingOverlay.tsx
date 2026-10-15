@@ -1320,6 +1320,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
     e.stopPropagation();
+    // Jar items implement tap selection on pointer release, so prevent the
+    // browser from claiming the initial touch for scrolling or image dragging.
+    if (e.pointerType === "touch") e.preventDefault();
     if (isApplyingItemRef.current || dragRef.current || !item?.id || (item.quantity ?? 0) <= 0) return false;
     interactionRef.current = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, itemType: item.type === "gift" ? "gift" : "edibles" };
     recordPhase("pointer-down");
