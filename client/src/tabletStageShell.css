@@ -1,48 +1,16 @@
-/*
- * Tablet/desktop presentation shell only.
- *
- * The canonical 390×844 gameplay stage remains the authored coordinate
- * reference, but normal gameplay routes now mount on a separate full-device
- * page surface on stage-owned larger devices. The reference plane is centered
- * inside that surface, so saved/admin coordinates remain stable without making
- * the route itself a phone-sized overlay.
- *
- * Phones (including iPhone/Android standalone web apps) keep their native
- * mobile layout and are never opted into this presentation by width.
- */
-
-/*
- * When a stage-owned page supplies a full-device backdrop, its canonical
- * 390×844 surface remains the coordinate owner but must not repaint an opaque
- * page background over that backdrop. Phones use coordinate-owner="viewport"
- * and therefore keep their existing inline presentation unchanged.
- */
-#game-stage[data-coordinate-owner="stage"] [data-viewport-visual-owner="backdrop"] {
-  background-color: transparent !important;
-  background-image: none !important;
-}
 
 
-#game-stage[data-coordinate-owner="stage"] [data-viewport-visual-owner="scene"] {
-  background-color: transparent !important;
-  background-image: none !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-canonical-visual-layer="duplicate-backdrop"] {
-  display: none !important;
-}
 
 
-/*
- * Active Pet's old canonical wrapper adds a soft green tint across the full
- * 390px stage. It is useful on native phones, where the stage is the viewport,
- * but reads as a phone-sized center panel once the scenery is viewport-owned.
- * Suppress only that decorative tint on stage-owned larger devices; the pet,
- * platform, effects and interaction geometry remain in the canonical stage.
- */
-#game-stage[data-coordinate-owner="stage"] .active-pet-canonical-ambient {
-  background: transparent !important;
-}
+
+
+
+
+
+
+
+
+
 
 
 /* Shared desktop/tablet presentation. */
@@ -67,9 +35,7 @@
     background-color: #050c08 !important;
   }
 
-  #game-stage[data-coordinate-owner="stage"] .active-pet-viewport-backdrop {
-    background-position: center center !important;
-  }
+  
 }
 
 /*
@@ -99,54 +65,24 @@
     background-color: #050c08 !important;
   }
 
-  #game-stage[data-coordinate-owner="stage"] .active-pet-viewport-backdrop {
-    background-position: center center !important;
-  }
+  
 }
 
 
-/*
- * Pet Care already paints its environment through the viewport scene portal.
- * On stage-owned larger devices, let the lightweight help/close header reach
- * the physical device edge while the pet, meters, jars, drop target, particles,
- * and all interaction math remain in the authored 390×844 care coordinate
- * plane. Native phones do not match this selector and remain pixel-identical.
- */
-#game-stage[data-coordinate-owner="stage"] [data-testid="overlay-feeding"] {
-  overflow: visible !important;
-}
-
-#game-stage[data-coordinate-owner="stage"] [data-testid="overlay-feeding"] .pet-care-header {
-  left: var(--viewport-surface-left, 0px) !important;
-  right: var(--viewport-surface-right, 0px) !important;
-}
 
 
-/*
- * Inventory pages already own their full-device forest backdrop. On stage-owned
- * larger devices, keep cards/grids in the authored 390×844 plane but let the
- * page-level back control reach the physical device width. Native phones remain
- * outside this override.
- */
-#game-stage[data-coordinate-owner="stage"] [data-testid="inventory-page-back-row"] {
-  margin-left: var(--viewport-surface-left, 0px);
-  margin-right: var(--viewport-surface-right, 0px);
-}
 
 
-/*
- * Full-device route ownership. The page surface is the real tablet/desktop
- * camera; the nested reference plane is only the authored coordinate system.
- * Do not style the reference plane as a card/frame.
- */
-#game-stage[data-coordinate-owner="stage"] [data-page-presentation="viewport"] {
-  overflow: hidden;
-  background: transparent;
-}
 
-#game-stage[data-coordinate-owner="stage"] [data-stage-reference-plane="true"] {
-  isolation: isolate;
-}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -156,19 +92,10 @@
  * hide previously-opened screens; full-screen modal/page owners sit above
  * prior content by the GameStage host z-order.
  */
-#game-stage[data-coordinate-owner="stage"] [data-testid="aquarium-page"] {
-  overflow: visible !important;
-}
 
-/*
- * The Active Pet background is already owned by the full-device backdrop
- * portal. On stage-owned tablets the canonical page must not paint another
- * opaque phone-width surface above it. Keep all pet/admin coordinates intact.
- */
-#game-stage[data-coordinate-owner="stage"] [data-testid="active-pet-page"] {
-  background: transparent !important;
-  background-image: none !important;
-}
+
+
+
 
 /*
  * StagePageSurface portals tablet pages into #game-viewport-page, a sibling
@@ -217,48 +144,21 @@
 /*
  * Tablet Closet controls: keep the authored pet/background/oval in their
  * existing shared coordinate plane, but make its equipment controls usable.
- * Both stage-owned and viewport-page hosts are covered; phones are excluded.
+ * Viewport-page hosts are covered; phones are excluded.
  * No drag targets, saved placement coordinates or equipment API paths change.
  */
 @media (min-width: 768px) {
-  #game-stage[data-coordinate-owner="stage"] [data-responsive-closet="true"],
-  #game-viewport-page [data-responsive-closet="true"] {
-    overflow: visible !important;
-  }
+  
 
-  #game-stage[data-coordinate-owner="stage"] .closet-accessory-slots,
-  #game-viewport-page .closet-accessory-slots {
-    min-height: 72px;
-    background: rgba(2, 18, 13, .94) !important;
-  }
+  
 
-  #game-stage[data-coordinate-owner="stage"] .closet-mini-pet-trigger,
-  #game-viewport-page .closet-mini-pet-trigger {
-    min-width: 48px;
-    min-height: 48px;
-    z-index: 15;
-  }
+  
 
-  #game-stage[data-coordinate-owner="stage"] .closet-mini-pet-panel,
-  #game-viewport-page .closet-mini-pet-panel {
-    max-height: 78% !important;
-    z-index: 40;
-  }
+  
 
-  #game-stage[data-coordinate-owner="stage"] .closet-accessory-drawer,
-  #game-viewport-page .closet-accessory-drawer {
-    height: 40% !important;
-    min-height: 230px;
-    z-index: 30;
-  }
+  
 
-  #game-stage[data-coordinate-owner="stage"] .closet-mini-pet-panel > .overflow-y-auto,
-  #game-viewport-page .closet-mini-pet-panel > .overflow-y-auto,
-  #game-stage[data-coordinate-owner="stage"] .closet-accessory-drawer > .overflow-y-auto,
-  #game-viewport-page .closet-accessory-drawer > .overflow-y-auto {
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
+  
 }
 
 
