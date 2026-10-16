@@ -304,9 +304,15 @@ export function registerPetGiftLoyaltyRoutes(
       const loyaltyMaxMap: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
       const loyaltyMax = loyaltyMaxMap[starRarity] ?? 1000;
 
+      // A gift with no configured loyalty or EXP is a catalog-data problem,
+      // not a successful gift. Do not silently consume it for zero reward.
       const points = Math.max(0, itemShopItem.giftPoints || 0);
       const newLoyalty = Math.min(loyaltyMax, (petInv.petLoyalty ?? 0) + points);
       const expAdded = Math.max(0, itemShopItem.petExp ?? 0);
+      if (points === 0 && expAdded === 0) {
+        console.warn("Pet Care gift has no configured reward", { shopItemId: itemShopItem.id, inventoryId: itemInv.id });
+        return res.status(422).json({ message: "This gift has no loyalty or EXP reward configured. Ask an administrator to update it.", code: "GIFT_REWARD_NOT_CONFIGURED" });
+      }
       const updated = await db.transaction(async (tx) => {
         const locked = await tx.execute(sql`SELECT pet_level, pet_level_points FROM user_inventory
           WHERE id = ${petInv.id} AND user_id = ${user.id} FOR UPDATE`);
