@@ -17,3 +17,12 @@ test("hatched stars remain mounted but hidden while Power Up is open", () => {
   assert.match(anchor, /visibility: activePetModal \? "hidden" : "visible"/);
   assert.match(anchor, /data-testid="display-pet-rarity-stars"/);
 });
+
+test("hatched stars stay high in the pet artwork frame and never use legacy fixed screen coordinates", () => {
+  const anchor = home.slice(home.indexOf("Hatched rarity stars share the pet scene"), home.indexOf("Rarity sparkle lights (3/4/5 star)"));
+  assert.match(anchor, /top: "8%", left: "50%"/);
+  assert.match(anchor, /visibility: activePetModal \? "hidden" : "visible"/);
+  const eggStars = home.slice(home.indexOf('activePet && !\(activePet.isHatched && activePet.petTemplateId\)'), home.indexOf("Hatched rarity stars share the pet scene"));
+  assert.doesNotMatch(eggStars, /position: "fixed"/);
+  assert.doesNotMatch(eggStars, /activePetSceneRect\.top/);
+});
