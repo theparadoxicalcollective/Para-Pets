@@ -43,6 +43,7 @@ import {
   PET_CARE_DROP_PADDING_PX,
   PET_CARE_DRAG_GHOST_SIZE_PX,
   getPetCareDragGhostTransform,
+  getPetCareDragGhostCenter,
   pointInsideExpandedPetDropZone,
   type PetCareItemGestureIntent,
 } from "@/lib/petCareInteractions";
@@ -1497,7 +1498,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       setDragGhost(gesture.item);
     }
     const box = petBoxRef.current?.getBoundingClientRect();
-    const nextGlow = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box);
+    const nextGlow = !!box && (pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box) || pointInsideExpandedPetDropZone(getPetCareDragGhostCenter(point.clientX, point.clientY), box));
     setPetGlow((current) => current === nextGlow ? current : nextGlow);
   }, [cleanupItemGesture, recordPhase, updateDragGhostPosition]);
 
@@ -1518,7 +1519,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
     const point = e;
     const box = petBoxRef.current?.getBoundingClientRect();
-    const validDrop = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box, PET_CARE_DROP_PADDING_PX);
+    const validDrop = !!box && (pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box, PET_CARE_DROP_PADDING_PX) || pointInsideExpandedPetDropZone(getPetCareDragGhostCenter(point.clientX, point.clientY), box, PET_CARE_DROP_PADDING_PX));
     scheduleTimeout(() => { suppressClickRef.current = false; }, 0);
     if (!validDrop) {
       cleanupItemGesture();
