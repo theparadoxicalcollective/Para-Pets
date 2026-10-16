@@ -967,7 +967,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           </div>
         </ViewportHudPortal>
 
-        {activePet && (
+        {activePet && !(activePet.isHatched && activePet.petTemplateId) && (
           <div
             data-testid="display-pet-rarity-stars"
             className="relative shrink-0 flex justify-center items-center"
@@ -1042,6 +1042,49 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               transform: "translate(-50%, -100%)",
             } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }) }}
           >
+
+            {/* Hatched rarity stars share the pet scene, never a fixed viewport rect. */}
+            {activePet && activePet.isHatched && activePet.petTemplateId && !activePetModal && (
+              <div data-testid="display-pet-rarity-stars" className="absolute flex justify-center items-center"
+                style={{ pointerEvents: "none", zIndex: 600, top: "32%", left: "50%", transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`, width: "max-content" }}>
+            <div style={{
+              position: "absolute",
+              width: "280px",
+              height: "65px",
+              background: "radial-gradient(ellipse, rgba(240,192,64,0.2) 0%, rgba(240,160,20,0.08) 50%, transparent 70%)",
+              filter: "blur(18px)",
+              borderRadius: "50%",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }} />
+            {Array.from({ length: 5 }).map((_, i) => {
+              const t = (i - 2) / 2;
+              const curveY = -(1 - t * t) * 12;
+              const filled = i < (activePet.rarity || 0);
+              return (
+                <img
+                  key={i}
+                  data-testid="home-active-pet-rarity-star"
+                  src={cardStarImg}
+                  alt=""
+                  width={58}
+                  height={58}
+                  style={{
+                    transform: `translateY(${curveY}px)`,
+                    margin: "0 2px",
+                    position: "relative",
+                    zIndex: 1,
+                    opacity: filled ? 1 : 0.15,
+                    filter: filled
+                      ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 5px rgba(240,192,64,0.5)) drop-shadow(0 0 10px rgba(240,192,64,0.25))"
+                      : "grayscale(1) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)",
+                  }}
+                />
+              );
+            })}
+              </div>
+            )}
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
             {orbsReady && !activePetModal && activePet && (activePet.rarity || 0) >= 3 && (() => {
