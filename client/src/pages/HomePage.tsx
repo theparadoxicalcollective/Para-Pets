@@ -539,6 +539,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       setActivePetSceneRect(previous => previous.width === width && previous.height === height && previous.left === left && previous.top === top ? previous : { width, height, left, top });
     };
     update();
+    // A modal transition can restore the Active Pet viewport after the first
+    // synchronous measurement. Measure again after layout settles so rarity
+    // stars use the same scene anchor as the pet without a route remount.
+    const settleFrame = window.requestAnimationFrame(update);
     // getBoundingClientRect is viewport-relative: scrolling or moving the
     // visual viewport changes left/top even when the scene size is unchanged.
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
@@ -548,13 +552,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     window.visualViewport?.addEventListener("resize", update);
     window.visualViewport?.addEventListener("scroll", update);
     return () => {
+      window.cancelAnimationFrame(settleFrame);
       observer?.disconnect();
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("scroll", update);
     };
-  }, [activePet?.petTemplateId, activePet?.isHatched]);
+  }, [activePet?.petTemplateId, activePet?.isHatched, activePetModal]);
   // Calibration only: report where the current live scene baseline lands in
   // intrinsic artwork pixels. Do not move the pet until the stone-platform
   // landmark has been verified against the actual uploaded image.
