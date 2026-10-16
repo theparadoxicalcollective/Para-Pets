@@ -648,6 +648,28 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   }, [runtime.displayMode, safeMode]);
   const [showFeedHint, setShowFeedHint] = useState(feedHint);
   useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("careInputDebug")) return;
+    const trace = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      const top = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const owner = target?.closest<HTMLElement>("[data-testid], [id^='game-viewport'], #game-stage-content");
+      console.info("[PetCare document hit test]", {
+        event: event.type,
+        target: target?.dataset?.testid ?? target?.tagName,
+        owner: owner?.dataset?.testid ?? owner?.id,
+        top: top?.dataset?.testid ?? top?.tagName,
+        topPointerEvents: top ? getComputedStyle(top).pointerEvents : null,
+      });
+    };
+    document.addEventListener("pointerdown", trace, true);
+    document.addEventListener("pointercancel", trace, true);
+    return () => {
+      document.removeEventListener("pointerdown", trace, true);
+      document.removeEventListener("pointercancel", trace, true);
+    };
+  }, []);
+
+  useEffect(() => {
     const viewport = window.visualViewport;
     console.info("[Para Pets] Pet Care runtime", {
       buildId: __BUILD_ID__, displayMode: runtime.displayMode,
@@ -1563,13 +1585,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         // pointer streams on mobile before items reach the pet drop zone.
         // Scrollable inventory panels own their own touch-action policy.
         touchAction: "none",
+        pointerEvents: "auto",
         overscrollBehavior: "contain",
       }}
-      onPointerDownCapture={() => {
-        // The first real gameplay interaction dismisses the nonblocking feed
-        // hint without stealing pointer capture from petting or item dragging.
-        if (showFeedHint) setShowFeedHint(false);
-      }}
+
       onPointerMove={dragEnabled ? onItemPointerMove : undefined}
       onPointerUp={dragEnabled ? onItemPointerUp : undefined}
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
@@ -1581,6 +1600,22 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           e.preventDefault();
           e.stopPropagation();
         }
+      }}
+      onPointerDownCapture={(event) => {
+        if (showFeedHint) setShowFeedHint(false);
+        // Opt-in device diagnostics: identify the actual hit target and the
+        // elements stacked above it without recording coordinates or pet data.
+        if (!window.location.search.includes("careInputDebug=1")) return;
+        const target = event.target as HTMLElement;
+        const top = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+        console.info("[PetCare input]", {
+          phase: "down",
+          target: target?.dataset?.testid ?? target?.tagName,
+          top: top?.dataset?.testid ?? top?.tagName,
+          pet: !!target?.closest?.(".pet-care-pet"),
+          item: !!target?.closest?.('[data-pet-care-physics-body="true"]'),
+          pointerEvents: top ? getComputedStyle(top).pointerEvents : "none",
+        });
       }}
       data-testid="overlay-feeding"
       data-pet-care-safe-mode={safeMode ? "true" : "false"}
