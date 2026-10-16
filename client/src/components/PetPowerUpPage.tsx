@@ -113,6 +113,44 @@ const CSS = String.raw`
   .pupage-bottom-spacer { height: 48px; }
 }
 
+/* Native viewport layout: the pet, its rarity orbit, and its nameplate belong
+   to one scene. The inventory must follow that scene in document flow rather
+   than covering its lower edge with a negative margin. */
+#game-viewport-hud .pupage-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+}
+#game-viewport-hud .pupage-head { min-height: clamp(84px, 12dvh, 126px); }
+#game-viewport-hud .pupage-enhance { margin-top: 0; margin-bottom: 8px; }
+#game-viewport-hud .pupage-capacity { margin-bottom: 12px; }
+#game-viewport-hud .pupage-stage {
+  height: clamp(410px, 54dvh, 590px);
+  margin-top: 0;
+  margin-bottom: 0;
+  isolation: isolate;
+}
+#game-viewport-hud .pupage-nameplate { bottom: 8px; }
+#game-viewport-hud .pupage-inventory {
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+#game-viewport-hud .pupage-bottom-spacer { height: 24px; }
+@media (max-width: 430px) {
+  #game-viewport-hud .pupage-stage { height: clamp(400px, 54dvh, 490px); }
+  #game-viewport-hud .pupage-inventory { margin-top: 20px; }
+}
+@media (min-width: 768px) {
+  #game-viewport-hud .pupage-stage { height: clamp(450px, 55dvh, 650px); }
+  #game-viewport-hud .pupage-inventory { margin-top: 24px; }
+}
+
 `;
 
 function usesCapacity(item: PowerUpItem) {
