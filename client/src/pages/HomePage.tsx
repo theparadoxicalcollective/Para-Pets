@@ -1044,9 +1044,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           >
 
             {/* Hatched rarity stars share the pet scene, never a fixed viewport rect. */}
-            {activePet && activePet.isHatched && activePet.petTemplateId && !activePetModal && (
+            {activePet && activePet.isHatched && activePet.petTemplateId && (
               <div data-testid="display-pet-rarity-stars" className="absolute flex justify-center items-center"
-                style={{ pointerEvents: "none", zIndex: 600, top: "32%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
+                style={{ pointerEvents: "none", visibility: activePetModal ? "hidden" : "visible", zIndex: 600, top: "32%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
             <div style={{
               position: "absolute",
               width: "280px",
@@ -1725,7 +1725,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Screen-relative Pet Menu: independent of tapping or petting the pet. */}
-      {!isOverlayActive && activePetModal === null && activePetForModal && (
+      {!isOverlayActive && !showProfile && !showPetStats && !showSupportModal && !showWorldChat && activePetModal === null && activePetForModal && (
         <ViewportHudPortal>
           <div data-testid="active-pet-side-menu" className="absolute flex flex-col-reverse items-center gap-3" style={{ left: 12, bottom: "calc(82px + env(safe-area-inset-bottom, 0px))", zIndex: 150, pointerEvents: "auto" }}>
             <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => { if (!showActionMenu) window.dispatchEvent(new Event("para-pets:pet-menu-open")); setShowActionMenu(value => !value); }} className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_0_2px_rgba(212,160,23,.15),0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" style={{ touchAction: "manipulation" }}><img src={petMenuIconImg} alt="" aria-hidden="true" className="h-11 w-11 object-contain drop-shadow-[0_2px_3px_#000]" draggable={false} /></button>
