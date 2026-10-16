@@ -4,11 +4,11 @@ import test from "node:test";
 
 const source = () => readFileSync("client/src/components/PetPowerUpPage.tsx", "utf8");
 
-test("Power Up uses one scroll surface and keeps pet scene before inventory", () => {
+test("Power Up uses one fixed scene and keeps pet scene before inventory", () => {
   const page = source();
-  assert.match(page, /#game-viewport-hud \.pupage-scroll \{\s*overflow-y: auto;/);
-  assert.match(page, /#game-viewport-hud \.pupage-inventory \{[\s\S]*?margin-top: 18px;/);
-  assert.match(page, /#game-viewport-hud \.pupage-stage \{[\s\S]*?height: clamp\(410px, 54dvh, 590px\);/);
+  assert.match(page, /#game-viewport-hud \.pupage-scroll \{[\s\S]*?overflow: hidden;/);
+  assert.match(page, /#game-viewport-hud \.pupage-inventory \{[\s\S]*?align-self: end;/);
+  assert.match(page, /#game-viewport-hud \.pupage-stage \{[\s\S]*?height: 100%;/);
   assert.ok(page.indexOf('className="pupage-stage"') < page.indexOf('className="pupage-inventory"'));
 });
 
