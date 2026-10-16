@@ -711,14 +711,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   );
   const edibles = useMemo(
     () => orderPetCareItemsByEffect(
-      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles") as any[]),
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles" && Number(it.quantity ?? 0) > 0) as any[]),
       "edibles",
     ),
     [inventory],
   );
   const gifts = useMemo(
     () => orderPetCareItemsByEffect(
-      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift") as any[]),
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift" && Number(it.quantity ?? 0) > 0) as any[]),
       "gifts",
     ),
     [inventory],

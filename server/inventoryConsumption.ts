@@ -12,7 +12,7 @@ export function remainingQuantityAfterConsumption(quantity: number, amount = 1):
  * Marketplace listings are escrow: a listed inventory row must not be consumed
  * while buyers can still see and purchase the listing.
  * A guarded UPDATE makes the operation safe when two requests race for the last
- * unit; the row is removed only after that update leaves it at zero.
+ * unit; the row is removed only after that update leaves it at zero and no Clearing Shop purchase history references it.
  */
 export async function tryConsumeOneFromInventory(
   tx: any,
@@ -41,6 +41,10 @@ export async function tryConsumeOneFromInventory(
       eq(userInventory.id, inventoryId),
       eq(userInventory.userId, userId),
       eq(userInventory.isListed, false),
+      // Clearing Shop purchase history retains a RESTRICT foreign key to
+      // the purchased inventory row. Keep the exhausted row at quantity=0
+      // when history references it; never delete that purchase history.
+      sql`NOT EXISTS (SELECT 1 FROM clearing_shop_purchases csp WHERE csp.inventory_id = ${userInventory.id})`,
     ));
   }
   return { consumed: true, remainingQuantity };
@@ -72,6 +76,10 @@ export async function tryConsumeInventoryQuantity(
       eq(userInventory.id, inventoryId),
       eq(userInventory.userId, userId),
       eq(userInventory.isListed, false),
+      // Clearing Shop purchase history retains a RESTRICT foreign key to
+      // the purchased inventory row. Keep the exhausted row at quantity=0
+      // when history references it; never delete that purchase history.
+      sql`NOT EXISTS (SELECT 1 FROM clearing_shop_purchases csp WHERE csp.inventory_id = ${userInventory.id})`,
     ));
   }
   return true;
