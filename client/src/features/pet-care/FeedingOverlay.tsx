@@ -387,7 +387,12 @@ function PetCareItemShelf({
                 onPointerUp={dragEnabled ? endJarMove : undefined}
                 onPointerCancel={dragEnabled ? endJarMove : undefined}
                 onLostPointerCapture={dragEnabled ? endJarMove : undefined}
-                onClick={!dragEnabled ? () => onItemClick(visual.item) : undefined}
+                onClick={() => {
+                  // Native click remains a fallback for accessibility and
+                  // browsers that do not deliver a complete pointer stream.
+                  // A confirmed drag suppresses its trailing synthetic click.
+                  if (!dragEnabled) onItemClick(visual.item);
+                }}
                 data-pet-care-stack-id={visual.item.stackId}
                 data-testid={`${isEdible ? "edible" : "gift"}-item-${visual.item.id}${visual.ordinal === 0 ? "" : `-${visual.ordinal}`}`}
                 title={dragEnabled ? `Drag ${visual.item.name} to your pet` : `Select ${visual.item.name}`}
@@ -1563,6 +1568,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         // pointer streams on mobile before items reach the pet drop zone.
         // Scrollable inventory panels own their own touch-action policy.
         touchAction: "none",
+        pointerEvents: "auto",
         overscrollBehavior: "contain",
       }}
       onPointerDownCapture={() => {
@@ -1581,6 +1587,21 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           e.preventDefault();
           e.stopPropagation();
         }
+      }}
+      onPointerDownCapture={(event) => {
+        // Opt-in device diagnostics: identify the actual hit target and the
+        // elements stacked above it without recording coordinates or pet data.
+        if (!window.location.search.includes("careInputDebug=1")) return;
+        const target = event.target as HTMLElement;
+        const top = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+        console.info("[PetCare input]", {
+          phase: "down",
+          target: target?.dataset?.testid ?? target?.tagName,
+          top: top?.dataset?.testid ?? top?.tagName,
+          pet: !!target?.closest?.(".pet-care-pet"),
+          item: !!target?.closest?.('[data-pet-care-physics-body="true"]'),
+          pointerEvents: top ? getComputedStyle(top).pointerEvents : "none",
+        });
       }}
       data-testid="overlay-feeding"
       data-pet-care-safe-mode={safeMode ? "true" : "false"}
