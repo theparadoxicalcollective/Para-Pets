@@ -194,3 +194,19 @@ test("pointer cancellation is cleanup-only and server mutation paths stay intact
   assert.match(page, /`\/api\/pet\/\$\{pet\.inventoryId\}\/feed-edible`/);
   assert.match(page, /`\/api\/pet\/\$\{pet\.inventoryId\}\/give-gift`/);
 });
+
+
+test("gift responses reconcile the live loyalty meter using the server maximum", () => {
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  const routes = readFileSync("server/routes/petCare.routes.ts", "utf8");
+  assert.match(routes, /loyaltyAdded: Math\.max\(0, newLoyalty - \(petInv\.petLoyalty \?\? 0\)\)/);
+  assert.match(routes, /petLoyalty: newLoyalty, loyaltyMax, expAdded/);
+  assert.match(page, /setServerLoyaltyMax\(Number\(data\.loyaltyMax\)\)/);
+  assert.match(page, /qc\.setQueryData\(\["\/api\/inventory"\]/);
+});
+
+test("jar motion limits mobile pointer velocity spikes without disabling drags", () => {
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  assert.match(page, /Math\.max\(0\.016, \(now - active\.lastTime\) \/ 1000\)/);
+  assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => beginJarMove\(event, visual\) : undefined\}/);
+});

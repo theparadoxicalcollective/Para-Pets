@@ -323,7 +323,7 @@ export function registerPetGiftLoyaltyRoutes(
         if (!consumed) throw new Error("Gift is no longer available");
         return pet;
       });
-      return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty, expAdded });
+      return res.json({ pet: updated, loyaltyAdded: Math.max(0, newLoyalty - (petInv.petLoyalty ?? 0)), petLoyalty: newLoyalty, loyaltyMax, expAdded });
     } catch (err) {
       console.error("Give gift error:", err);
       if (err instanceof Error && err.message === "Gift is no longer available") {

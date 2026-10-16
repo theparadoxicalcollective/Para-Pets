@@ -27,7 +27,7 @@ import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
 import moodFaceSad from "@assets/mood_face_sad.png";
 import moodFaceHungry from "@assets/mood_face_hungry.png";
-import coinIconImg from "@assets/icon_coin.webp";
+import coinIconImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
@@ -279,14 +279,16 @@ function PetCareItemShelf({
     const body = bodiesRef.current.find((candidate) => candidate.key === active?.key);
     if (!active || active.pointerId !== event.pointerId || !rect?.width || !rect?.height || !body) return;
     const now = performance.now();
-    const elapsed = Math.max(0.008, (now - active.lastTime) / 1000);
+    // Pointermove can fire multiple times in one frame on mobile; avoid
+    // injecting extreme velocity spikes into the jar physics simulation.
+    const elapsed = Math.max(0.016, (now - active.lastTime) / 1000);
     movePetCareJarBody(
       body,
       { width: rect.width, height: rect.height },
       event.clientX - rect.left,
       event.clientY - rect.top,
-      (event.clientX - active.lastX) / elapsed,
-      (event.clientY - active.lastY) / elapsed,
+      ((event.clientX - active.lastX) / elapsed) * 0.6,
+      ((event.clientY - active.lastY) / elapsed) * 0.6,
     );
     active.lastX = event.clientX;
     active.lastY = event.clientY;
@@ -736,9 +738,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const moodVal = Number.isFinite(rawMood)
     ? finitePetCareStat(rawMood, 100)
     : 100;
+  const [serverLoyaltyMax, setServerLoyaltyMax] = useState<number | null>(null);
   const petStarRarity: number = Number(livePet?.starRarity) || 1;
   const loyaltyMaxByRarity: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
-  const loyaltyMax = loyaltyMaxByRarity[petStarRarity] ?? 1000;
+  const loyaltyMax = serverLoyaltyMax ?? loyaltyMaxByRarity[petStarRarity] ?? 1000;
   const rawLoyalty = Number(livePet?.petLoyalty);
   const loyaltyVal = Number.isFinite(rawLoyalty)
     ? finitePetCareStat(rawLoyalty, 0, loyaltyMax)
@@ -1171,6 +1174,18 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       recordPhase("mutation-success-received");
       setSelectedCareItem(null);
       playPlop();
+      // Reconcile the pet immediately from the authoritative gift response;
+      // inventory polling can otherwise leave the loyalty meter visually stale.
+      if (data?.pet?.id === pet.inventoryId) {
+        qc.setQueryData(["/api/inventory"], (previous: unknown) =>
+          Array.isArray(previous) ? previous.map((entry: any) =>
+            entry?.id === data.pet.id ? { ...entry, ...data.pet } : entry
+          ) : previous
+        );
+      }
+      if (Number.isFinite(Number(data?.loyaltyMax)) && Number(data.loyaltyMax) > 0) {
+        setServerLoyaltyMax(Number(data.loyaltyMax));
+      }
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       recordPhase("success-visual-started");
       setPetBounce(true);
@@ -1182,8 +1197,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
       const textPoint = box ? careRectPoint(box, 0.5, 0.3) : careCenter();
-      const added = data?.loyaltyAdded ?? 0;
-      setFloatTexts((arr) => [...arr, { id, x: textPoint.x, y: textPoint.y, text: `+${added} Loyalty` }]);
+      const added = Math.max(0, Number(data?.loyaltyAdded) || 0);
+      setFloatTexts((arr) => [...arr, { id, x: textPoint.x, y: textPoint.y, text: added > 0 ? `+${added} Loyalty` : "Loyalty is full" }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
       if (box) {
         const bx = box.left + box.width / 2;
