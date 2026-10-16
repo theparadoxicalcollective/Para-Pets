@@ -1356,9 +1356,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                                 alt={activePet.name}
                                 className="object-contain"
                                 style={{
-                                  width: "70%",
+                                  width: "50%",
                                   maxWidth: "320px",
-                                  maxHeight: "70%",
+                                  maxHeight: "50%",
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
                                   filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
