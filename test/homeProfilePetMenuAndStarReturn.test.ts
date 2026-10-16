@@ -34,7 +34,16 @@ test("unhatched eggs share the active pet artwork stage without legacy viewport 
   assert.match(stage, /transform: "translate\(-50%, -100%\)"/);
   assert.doesNotMatch(stage, /activePet\?\.isHatched && activePet.petTemplateId \?/);
   const egg = home.slice(home.indexOf('data-testid="button-egg-tap"'), home.indexOf('data-testid="display-egg-hatch-ready"'));
-  assert.match(egg, /width: "70%"/);
-  assert.match(egg, /maxHeight: "70%"/);
+  assert.match(egg, /width: "50%"/);
+  assert.match(egg, /maxHeight: "50%"/);
   assert.doesNotMatch(egg, /paddingTop: "clamp\(8px, 4dvh, 36px\)"/);
+});
+
+test("profile settings use blocking viewport modal layer above the pet HUD", () => {
+  const profile = readFileSync("client/src/components/UserProfilePanel.tsx", "utf8");
+  assert.match(profile, /import ViewportModalPortal from/);
+  assert.match(profile, /<ViewportModalPortal>/);
+  assert.match(profile, /data-global-hud-blocker="true"/);
+  assert.match(profile, /data-testid="button-close-profile"/);
+  assert.match(profile, /data-testid="button-toggle-change-password"/);
 });
