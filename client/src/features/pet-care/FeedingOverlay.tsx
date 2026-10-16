@@ -387,12 +387,7 @@ function PetCareItemShelf({
                 onPointerUp={dragEnabled ? endJarMove : undefined}
                 onPointerCancel={dragEnabled ? endJarMove : undefined}
                 onLostPointerCapture={dragEnabled ? endJarMove : undefined}
-                onClick={() => {
-                  // Native click remains a fallback for accessibility and
-                  // browsers that do not deliver a complete pointer stream.
-                  // A confirmed drag suppresses its trailing synthetic click.
-                  if (!dragEnabled) onItemClick(visual.item);
-                }}
+                onClick={!dragEnabled ? () => onItemClick(visual.item) : undefined}
                 data-pet-care-stack-id={visual.item.stackId}
                 data-testid={`${isEdible ? "edible" : "gift"}-item-${visual.item.id}${visual.ordinal === 0 ? "" : `-${visual.ordinal}`}`}
                 title={dragEnabled ? `Drag ${visual.item.name} to your pet` : `Select ${visual.item.name}`}
