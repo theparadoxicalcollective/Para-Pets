@@ -1026,12 +1026,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-platform-artwork-x={activePetPlatformCalibration?.x.toFixed(1)}
             data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
             className="relative flex items-center justify-center"
-            style={{ width: activePet?.isHatched && activePet.petTemplateId ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet?.isHatched && activePet.petTemplateId ? {
-              position: "absolute",
+            style={{ width: activePet ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet ? {
+              position: "absolute" as const,
               top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
               left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
               transform: "translate(-50%, -100%)",
-            } : { marginBottom: activePet ? "calc(26*var(--vh))" : undefined }) }}
+            } : { marginBottom: undefined }) }}
           >
 
             {/* Hatched rarity stars share the pet scene, never a fixed viewport rect. */}
@@ -1335,7 +1335,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         : false;
                       return (
                         <div
-                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer" }}
+                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer", width: "100%", aspectRatio: "1 / 1", position: "relative" }}
                           className="w-full flex items-center justify-center"
                           data-testid="button-egg-tap"
                           onClick={() => {
@@ -1350,15 +1350,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ paddingTop: "clamp(8px, 4dvh, 36px)", width: "100%", display: "flex", justifyContent: "center" }}>
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
                                 className="object-contain"
                                 style={{
-                                  width: "min(70%, 320px)",
-                                  maxWidth: "70%",
-                                  maxHeight: "min(46dvh, 460px)",
+                                  width: "70%",
+                                  maxWidth: "320px",
+                                  maxHeight: "70%",
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
                                   filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
