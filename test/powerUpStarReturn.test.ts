@@ -9,7 +9,7 @@ test("Active Pet refreshes the measured rarity-star anchor when Power Up closes"
   assert.match(home, /\[activePet\?\.petTemplateId, activePet\?\.isHatched, activePetModal\]/);
   assert.match(home, /const settleFrame = window\.requestAnimationFrame\(update\)/);
   assert.match(home, /window\.cancelAnimationFrame\(settleFrame\)/);
-  assert.match(home, /activePetSceneRect\.top \+ activePetSceneRect\.height \* 0\.32/);
+  assert.match(home, /visibility: activePetModal \? "hidden" : "visible"/);
 });
 
 test("Power Up lowers the whole scene without changing pet placement or enabling scrolling", () => {

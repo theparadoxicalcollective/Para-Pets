@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 interface User {
   id: string;
@@ -357,7 +358,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
 
   return (
-    <>
+    <ViewportModalPortal>
       <div data-global-hud-blocker="true" className="fixed inset-0 flex items-end justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
         <div
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -1235,6 +1236,6 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
           onClose={() => setViewingFriendId(null)}
         />
       )}
-    </>
+    </ViewportModalPortal>
   );
 }

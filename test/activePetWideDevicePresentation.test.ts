@@ -31,7 +31,7 @@ test("Active Pet authored placement and chrome remain unchanged", () => {
   assert.match(home, /activePetGroundViewport\.x - activePetContentRect\.left/);
   assert.match(home, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
   assert.match(home, /data-testid="display-pet-rarity-stars"/);
-  assert.match(home, /left: activePetSceneRect\.left \+ activePetSceneRect\.width \/ 2/);
+  assert.match(home, /top: "8%", left: "50%"/);
   assert.match(home, /data-testid="active-pet-name-level-anchor"/);
   assert.match(home, /bottom: activePet\.isHatched/);
   assert.match(home, /data-testid="button-open-pet-actions"/);
