@@ -26,3 +26,15 @@ test("hatched stars stay high in the pet artwork frame and never use legacy fixe
   assert.doesNotMatch(eggStars, /position: "fixed"/);
   assert.doesNotMatch(eggStars, /activePetSceneRect\.top/);
 });
+
+test("unhatched eggs share the active pet artwork stage without legacy viewport offsets", () => {
+  const stage = home.slice(home.indexOf('ref={(element) => { activePetSceneRef.current = element; }}'), home.indexOf('Hatched rarity stars share the pet scene'));
+  assert.match(stage, /width: activePet \? "min\(88vw, 38dvh, 520px\)"/);
+  assert.match(stage, /top: activePetGroundViewport \? activePetGroundViewport.y - activePetContentRect.top/);
+  assert.match(stage, /transform: "translate\(-50%, -100%\)"/);
+  assert.doesNotMatch(stage, /activePet\?\.isHatched && activePet.petTemplateId \?/);
+  const egg = home.slice(home.indexOf('data-testid="button-egg-tap"'), home.indexOf('data-testid="display-egg-hatch-ready"'));
+  assert.match(egg, /width: "70%"/);
+  assert.match(egg, /maxHeight: "70%"/);
+  assert.doesNotMatch(egg, /paddingTop: "clamp\(8px, 4dvh, 36px\)"/);
+});
