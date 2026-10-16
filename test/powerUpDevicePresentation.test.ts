@@ -14,11 +14,12 @@ test("Power Up renders its authored UI in its viewport modal surface", () => {
   assert.match(source, /\.pupage-stats-backdrop\{position:absolute/);
 });
 
-test("Power Up temporarily owns the expanded device backdrop", () => {
+test("Power Up owns its backdrop inside the modal without affecting Active Pet", () => {
   const power = read("client/src/components/PetPowerUpPage.tsx");
   const home = read("client/src/pages/HomePage.tsx");
 
-  assert.match(power, /<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);
+  assert.doesNotMatch(power, /<ViewportBackdropPortal/);
+  assert.match(power, /className="pupage-fixed-backdrop"/);
   assert.match(power, /data-testid="power-up-viewport-backdrop"/);
   assert.match(power, /url\(\$\{pupBackground\}\)/);
   assert.match(home, /activePetModal !== "power_up"[\s\S]*<ViewportBackdropPortal(?:\s+targetId="game-viewport-page")?>/);

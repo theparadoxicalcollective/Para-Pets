@@ -19,7 +19,8 @@ test("Power Up hides global navigation and keeps capacity above the pet stage", 
 
 test("Power Up locks the viewport and keeps the compact controls readable", () => {
   assert.match(powerUpSource, /pupage-scroll\{height:100%;width:100%;overflow:hidden/);
-  assert.match(powerUpSource, /document\.body\.style\.overflow = "hidden"/);
+  assert.doesNotMatch(powerUpSource, /document\.body\.style\.overflow = "hidden"/);
+  assert.match(powerUpSource, /#game-viewport-hud \.pupage-scroll \{[\s\S]*?overflow: hidden;/);
   assert.match(powerUpSource, /pupage-cap-track\{height:11px/);
   assert.match(powerUpSource, /pupage-enhance\{position:relative;width:min\(50%,270px\)/);
   assert.match(powerUpSource, /pupage-enhance-copy\{[^}]*align-items:center[^}]*transform:translateY\(-4px\)/);
