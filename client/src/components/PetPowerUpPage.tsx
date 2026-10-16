@@ -150,13 +150,6 @@ const CSS = String.raw`
   #game-viewport-hud .pupage-inventory { margin-top: 24px; }
 }
 
-/* Move the whole orbit/pet/platform/nameplate together without changing
-   admin placement coordinates or introducing a scrollable stage. */
-#game-viewport-hud .pupage-stage { transform: translateY(clamp(8px, 1.5dvh, 18px)); }
-@media (max-height: 700px) {
-  #game-viewport-hud .pupage-stage { transform: translateY(6px); }
-}
-
 /* The Power Up scene is a fixed viewport composition. No scrolling stage and
    no cross-page backdrop portal: neither can affect Active Pet on dismissal. */
 #game-viewport-hud .pupage { overflow: hidden; isolation: isolate; }
@@ -190,6 +183,17 @@ const CSS = String.raw`
   width: min(94%, 610px); margin: 4px auto 0; align-self: end;
 }
 #game-viewport-hud .pupage-bottom-spacer { display: none; }
+/* Lower only the entire interactive scene (nodes, pet, platform, nameplate,
+   level) into the unused space above the inventory. The title, remaining
+   count, capacity meter and item tray remain fixed in their grid rows. */
+#game-viewport-hud .pupage-stage {
+  transform: translate3d(0, clamp(26px, 4dvh, 52px), 0);
+}
+@media (max-height: 700px) {
+  #game-viewport-hud .pupage-stage {
+    transform: translate3d(0, clamp(12px, 2dvh, 24px), 0);
+  }
+}
 @media (max-height: 700px) {
   #game-viewport-hud .pupage-head { height: 64px; }
   #game-viewport-hud .pupage-enhance { width: min(42%, 190px); }
