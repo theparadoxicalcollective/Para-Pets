@@ -391,7 +391,7 @@ function PetCareItemShelf({
                   // Native click remains a fallback for accessibility and
                   // browsers that do not deliver a complete pointer stream.
                   // A confirmed drag suppresses its trailing synthetic click.
-                  if (!dragEnabled) onItemClick(visual.item);
+                  if (!dragEnabled || (!dragRef.current && !suppressClickRef.current)) onItemClick(visual.item);
                 }}
                 data-pet-care-stack-id={visual.item.stackId}
                 data-testid={`${isEdible ? "edible" : "gift"}-item-${visual.item.id}${visual.ordinal === 0 ? "" : `-${visual.ordinal}`}`}
@@ -652,6 +652,28 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     if (phase === "cleanup-complete") clearPetCarePhase(window.localStorage);
   }, [runtime.displayMode, safeMode]);
   const [showFeedHint, setShowFeedHint] = useState(feedHint);
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("careInputDebug")) return;
+    const trace = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      const top = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const owner = target?.closest<HTMLElement>("[data-testid], [id^='game-viewport'], #game-stage-content");
+      console.info("[PetCare document hit test]", {
+        event: event.type,
+        target: target?.dataset?.testid ?? target?.tagName,
+        owner: owner?.dataset?.testid ?? owner?.id,
+        top: top?.dataset?.testid ?? top?.tagName,
+        topPointerEvents: top ? getComputedStyle(top).pointerEvents : null,
+      });
+    };
+    document.addEventListener("pointerdown", trace, true);
+    document.addEventListener("pointercancel", trace, true);
+    return () => {
+      document.removeEventListener("pointerdown", trace, true);
+      document.removeEventListener("pointercancel", trace, true);
+    };
+  }, []);
+
   useEffect(() => {
     const viewport = window.visualViewport;
     console.info("[Para Pets] Pet Care runtime", {
