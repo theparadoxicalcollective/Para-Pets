@@ -12,6 +12,8 @@ test("hatched Active Pet rarity stars live inside the pet scene instead of fixed
   const anchored = home.slice(stars, sparkles);
   assert.match(anchored, /data-testid="display-pet-rarity-stars"/);
   assert.match(anchored, /top: "32%", left: "50%"/);
+  assert.match(anchored, /transform: "translateX\(-50%\)"/);
+  assert.doesNotMatch(anchored, /activePetChromeOffset/);
   assert.doesNotMatch(anchored, /activePetSceneRect/);
   assert.doesNotMatch(anchored, /position: "fixed"/);
 });
