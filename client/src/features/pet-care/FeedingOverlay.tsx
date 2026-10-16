@@ -391,7 +391,7 @@ function PetCareItemShelf({
                   // Native click remains a fallback for accessibility and
                   // browsers that do not deliver a complete pointer stream.
                   // A confirmed drag suppresses its trailing synthetic click.
-                  if (!dragEnabled || (!dragRef.current && !suppressClickRef.current)) onItemClick(visual.item);
+                  if (!dragEnabled) onItemClick(visual.item);
                 }}
                 data-pet-care-stack-id={visual.item.stackId}
                 data-testid={`${isEdible ? "edible" : "gift"}-item-${visual.item.id}${visual.ordinal === 0 ? "" : `-${visual.ordinal}`}`}
@@ -1593,11 +1593,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         pointerEvents: "auto",
         overscrollBehavior: "contain",
       }}
-      onPointerDownCapture={() => {
-        // The first real gameplay interaction dismisses the nonblocking feed
-        // hint without stealing pointer capture from petting or item dragging.
-        if (showFeedHint) setShowFeedHint(false);
-      }}
+
       onPointerMove={dragEnabled ? onItemPointerMove : undefined}
       onPointerUp={dragEnabled ? onItemPointerUp : undefined}
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
@@ -1611,6 +1607,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         }
       }}
       onPointerDownCapture={(event) => {
+        if (showFeedHint) setShowFeedHint(false);
         // Opt-in device diagnostics: identify the actual hit target and the
         // elements stacked above it without recording coordinates or pet data.
         if (!window.location.search.includes("careInputDebug=1")) return;
