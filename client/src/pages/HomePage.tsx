@@ -974,20 +974,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             style={{
               pointerEvents: "none",
               zIndex: 30,
-              // Hatched pets share the measured artwork origin with their nameplate.
-              // Keep the original flow layout only for eggs and legacy pets.
-              ...(activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
-                ? {
-                    position: "fixed" as const,
-                    top: Math.max(210, activePetSceneRect.top + activePetSceneRect.height * 0.32),
-                    left: activePetSceneRect.left + activePetSceneRect.width / 2,
-                    transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
-                  }
-                : {
-                    paddingTop: "155px",
-                    marginBottom: "-52px",
-                    transform: `translate(${activePetChromeOffset.x}px, ${activePetChromeOffset.y}px)`,
-                  }),
+              // Hatched pets use the scene-relative stars below. Eggs and
+              // legacy pets alone retain this original flow positioning.
+              paddingTop: "155px",
+              marginBottom: "-52px",
+              transform: `translate(${activePetChromeOffset.x}px, ${activePetChromeOffset.y}px)`,
             }}
           >
             <div style={{
@@ -1046,7 +1037,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             {/* Hatched rarity stars share the pet scene, never a fixed viewport rect. */}
             {activePet && activePet.isHatched && activePet.petTemplateId && (
               <div data-testid="display-pet-rarity-stars" className="absolute flex justify-center items-center"
-                style={{ pointerEvents: "none", visibility: activePetModal ? "hidden" : "visible", zIndex: 600, top: "32%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
+                style={{ pointerEvents: "none", visibility: activePetModal ? "hidden" : "visible", zIndex: 600, top: "8%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
             <div style={{
               position: "absolute",
               width: "280px",
