@@ -22,7 +22,6 @@ import pupStatBox from "@assets/ui/power-up/stat-box.png";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { clientPointInRenderedElement } from "@/lib/stage";
-import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 const ITEMS_PER_PAGE = 5;
@@ -151,6 +150,45 @@ const CSS = String.raw`
   #game-viewport-hud .pupage-inventory { margin-top: 24px; }
 }
 
+/* The Power Up scene is a fixed viewport composition. No scrolling stage and
+   no cross-page backdrop portal: neither can affect Active Pet on dismissal. */
+#game-viewport-hud .pupage { overflow: hidden; isolation: isolate; }
+#game-viewport-hud .pupage-fixed-backdrop {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-size: cover; background-position: center center; background-repeat: no-repeat;
+}
+#game-viewport-hud .pupage-scroll {
+  position: relative; display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  align-content: stretch; height: 100%; min-height: 0;
+  overflow: hidden; overscroll-behavior: none; touch-action: none;
+  padding: max(env(safe-area-inset-top, 0px), 8px) 10px max(env(safe-area-inset-bottom, 0px), 12px);
+}
+#game-viewport-hud .pupage-head { min-height: 0; height: clamp(68px, 11dvh, 116px); }
+#game-viewport-hud .pupage-logo { max-height: 100%; }
+#game-viewport-hud .pupage-enhance { margin: 0 auto 2px; width: min(47%, 240px); }
+#game-viewport-hud .pupage-capacity { margin: 0 auto 2px; }
+#game-viewport-hud .pupage-stage {
+  height: 100%; min-height: 0; max-height: none; margin: 0 auto;
+  width: min(100%, 610px); isolation: isolate;
+}
+#game-viewport-hud .pupage-orbit-group { inset: 0; }
+#game-viewport-hud .pupage-pet-zone {
+  width: min(62%, 30dvh, 290px); height: auto; aspect-ratio: 1;
+  top: 43%;
+}
+#game-viewport-hud .pupage-platform { top: 56%; width: min(70%, 380px); }
+#game-viewport-hud .pupage-nameplate { bottom: 0; }
+#game-viewport-hud .pupage-inventory {
+  width: min(94%, 610px); margin: 4px auto 0; align-self: end;
+}
+#game-viewport-hud .pupage-bottom-spacer { display: none; }
+@media (max-height: 700px) {
+  #game-viewport-hud .pupage-head { height: 64px; }
+  #game-viewport-hud .pupage-enhance { width: min(42%, 190px); }
+  #game-viewport-hud .pupage-pet-zone { width: min(58%, 27dvh, 220px); }
+}
+
 `;
 
 function usesCapacity(item: PowerUpItem) {
@@ -225,20 +263,11 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     transientTimers.current.forEach((timer) => window.clearTimeout(timer));
     transientTimers.current = [];
   }, []);
+  // The viewport modal owns interaction blocking. Do not mutate global body
+  // scroll/touch styles: they belong to the underlying Active Pet page.
   useEffect(() => {
-    const bodyOverflow = document.body.style.overflow;
-    const rootOverflow = document.documentElement.style.overflow;
-    const bodyTouchAction = document.body.style.touchAction;
     setNavHidden(true);
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
-    return () => {
-      setNavHidden(false);
-      document.body.style.overflow = bodyOverflow;
-      document.documentElement.style.overflow = rootOverflow;
-      document.body.style.touchAction = bodyTouchAction;
-    };
+    return () => setNavHidden(false);
   }, []);
   useEffect(() => { dragRef.current = drag; }, [drag]);
   useEffect(() => {
@@ -321,18 +350,12 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
 
   return <ViewportModalPortal><div className="pupage" style={{ zIndex: z }} data-stage-coordinate-space="power-up-viewport" data-viewport-visual-owner="backdrop" data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
     <style>{CSS}</style>
-    <ViewportBackdropPortal targetId="game-viewport-page">
-      <div
-        data-testid="power-up-viewport-backdrop"
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(180deg,rgba(0,6,9,.08),rgba(0,7,9,.03) 62%,rgba(0,4,7,.58)), url(${pupBackground})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
-    </ViewportBackdropPortal>
+    <div
+      data-testid="power-up-viewport-backdrop"
+      className="pupage-fixed-backdrop"
+      aria-hidden="true"
+      style={{ backgroundImage: `linear-gradient(180deg,rgba(0,6,9,.08),rgba(0,7,9,.03) 62%,rgba(0,4,7,.58)), url(${pupBackground})` }}
+    />
     <img src={pupBackground} alt="" className="pupage-bg" data-canonical-visual-layer="duplicate-backdrop" />
     <div className="pupage-vignette" data-canonical-visual-layer="duplicate-backdrop" />
     <div ref={pageRef} className="pupage-scroll">
