@@ -19,7 +19,7 @@ test("tablet background paints over stale reference-stage scenery but below the 
 });
 
 test("Pet Menu does not overlap full-screen Power-Up while its quest controls remain", () => {
-  assert.match(home, /!isOverlayActive && activePetModal === null && activePetForModal && \(/);
+  assert.match(home, /!isOverlayActive && !showProfile && !showPetStats && !showSupportModal && !showWorldChat && activePetModal === null && activePetForModal && \(/);
   assert.match(home, /data-testid="button-open-pet-menu"/);
   assert.match(home, /data-testid="button-action-power-up"/);
   assert.match(home, /data-testid="button-action-level-up"/);
