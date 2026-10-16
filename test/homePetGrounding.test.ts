@@ -13,7 +13,7 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
   assert.match(page, /activePetGroundViewport\.y - activePetContentRect\.top/);
   assert.match(page, /activePetGroundViewport\.x - activePetContentRect\.left/);
   assert.doesNotMatch(page, /top: "calc\(72\*var\(--vh\)\)"/);
-  assert.match(page, /marginBottom: activePet \? "calc\(26\*var\(--vh\)\)" : undefined/);
+  assert.match(page, /transform: "translate\(-50%, -100%\)"/);
   assert.match(page, /size=\{activePetSceneRect\.width \|\| 200\} fillContainer/);
   assert.doesNotMatch(page, /size=\{390\} fillContainer/);
   assert.doesNotMatch(page, /className="home-active-pet-stage"/);
@@ -22,8 +22,8 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
 test("Begin Journey keeps the active egg compact on the phone stage", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-  assert.match(page, /width: "min\(70%, 320px\)"/);
-  assert.match(page, /maxHeight: "min\(46dvh, 460px\)"/);
+  assert.match(page, /width: "50%"/);
+  assert.match(page, /maxHeight: "50%"/);
   assert.doesNotMatch(page, /max-h-\[calc\(55\*var\(--vh\)\)\]/);
 });
 
