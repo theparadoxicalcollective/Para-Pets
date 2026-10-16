@@ -10,6 +10,12 @@ export function getPetCareDragGhostTransform(x: number, y: number): string {
   return `translate3d(${x - PET_CARE_DRAG_GHOST_SIZE_PX / 2}px, ${y - PET_CARE_DRAG_GHOST_SIZE_PX - PET_CARE_DRAG_GHOST_FINGER_GAP_PX}px, 0)`;
 }
 
+/** The visible drag ghost is above the finger. Check the visible item's
+ * center as well as the touch point when releasing onto the pet. */
+export function getPetCareDragGhostCenter(x: number, y: number): PetCarePoint {
+  return { x, y: y - PET_CARE_DRAG_GHOST_SIZE_PX / 2 - PET_CARE_DRAG_GHOST_FINGER_GAP_PX };
+}
+
 export type PetCareItemGestureIntent =
   | "pending"
   | "horizontal-scroll"
