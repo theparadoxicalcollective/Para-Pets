@@ -698,7 +698,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   ]), []);
 
   return (
-    <div data-stage-coordinate-space="canonical" data-viewport-visual-owner="backdrop" data-testid="market-canonical-page" style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
+    <div data-stage-coordinate-space="canonical" data-viewport-visual-owner="backdrop" data-testid="market-canonical-page" style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", pointerEvents: "auto", overflow: "hidden", background: "#100018" }}>
       <style>{`
         @keyframes marketCollectGlow {
           0%, 100% { filter: brightness(1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 5px rgba(246,201,93,.28)); }
