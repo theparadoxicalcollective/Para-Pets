@@ -1347,9 +1347,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                             if (bjIsStep5TapMode() && !hatchHomeMutation.isPending) {
                               // Tutorial tap mode: force-hatch regardless of eggHatchReady state
                               hatchHomeMutation.mutate(activePet.inventoryId);
-                            } else if (eggHatchReady && !hatchHomeMutation.isPending) {
-                              hatchHomeMutation.mutate(activePet.inventoryId);
-                            } else if (!eggHatchReady) {
+                            } else {
+                              // Always open the hatching item panel for an unhatched egg.
+                              // Ready eggs can be hatched explicitly from the panel.
                               setShowSpeedUp(true);
                             }
                           }}
@@ -1606,6 +1606,24 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               </button>
             </div>
 
+            {activePet.hatchStartedAt && activePet.hatchTime &&
+              Date.now() - new Date(activePet.hatchStartedAt).getTime() >= activePet.hatchTime * 3600000 && (
+              <div className="px-5 pb-4">
+                <button
+                  type="button"
+                  data-testid="button-hatch-ready-egg"
+                  disabled={hatchHomeMutation.isPending}
+                  onClick={() => {
+                    if (hatchHomeMutation.isPending) return;
+                    setShowSpeedUp(false);
+                    hatchHomeMutation.mutate(activePet.inventoryId);
+                  }}
+                  className="w-full rounded-xl border border-[#f0c040] bg-[#47300c] px-4 py-3 font-fantasy font-bold text-[#ffe6a0] disabled:opacity-50"
+                >
+                  Hatch Egg
+                </button>
+              </div>
+            )}
             {/* Egg drop zone */}
             <div className="px-5 pb-4" data-bj="egg-drop-zone">
               <div
