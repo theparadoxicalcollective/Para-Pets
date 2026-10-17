@@ -271,7 +271,8 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   // The front name is authored inside CardPreview, but must not pop out of its face.
   assert.match(preview, /\{renderTextBox\("name"\)\}/);
   assert.doesNotMatch(preview, /--card-title-depth/);
-  assert.match(preview, /transform: isName && depth3d \? "translateZ\(42px\)" : undefined/);
+  assert.doesNotMatch(preview, /transform: isName && depth3d \? "translateZ\(42px\)" : undefined/);
+  assert.doesNotMatch(preview, /translateZ\(var\(--card-frame-depth/);
   assert.match(preview, /transform: depth3d \? "translateZ\(42px\)" : undefined/);
   assert.doesNotMatch(detail, /--card-edge-title-opacity|card-edge-attached-title|--card-title-depth/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
