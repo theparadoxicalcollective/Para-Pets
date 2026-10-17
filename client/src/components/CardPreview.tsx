@@ -279,9 +279,7 @@ export default function CardPreview({
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
           textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
-          // Match the stars: keep the front title ahead of the raised border while
-          // it rotates with the card face (not as a separate edge title).
-          transform: isName && depth3d ? "translateZ(42px)" : undefined,
+          // The printed title stays flat on the banner; the whole card rotates.
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
@@ -570,7 +568,7 @@ export default function CardPreview({
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
         draggable={false}
-        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(var(--card-frame-depth, 0px))" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 9px 14px rgba(0,0,0,.55))" : undefined }}
+        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 9px 14px rgba(0,0,0,.55))" : undefined }}
       />
       {label && <CardCornerBanner label={label} depth3d={depth3d} />}
       {renderTextBox("name")}
