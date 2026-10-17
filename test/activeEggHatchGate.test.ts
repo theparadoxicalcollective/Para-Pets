@@ -16,3 +16,12 @@ test("active egg is enlarged and bottom-aligned in its scene container", () => {
   assert.ok(home.includes('maxHeight: "75%"'));
   assert.ok(home.includes('alignItems: "flex-end"'));
 });
+
+test("tapping an unhatched egg opens hatching item panel; ready eggs have explicit hatch action", () => {
+  const eggTap = home.slice(home.indexOf('data-testid="button-egg-tap"'), home.indexOf('{activePet.eggImageUrl ?', home.indexOf('data-testid="button-egg-tap"')));
+  assert.ok(eggTap.includes('setShowSpeedUp(true)'));
+  assert.ok(home.includes('data-testid="active-pet-speedup-viewport-modal"'));
+  assert.ok(home.includes('data-testid="button-hatch-ready-egg"'));
+  assert.ok(home.includes('data-bj="egg-drop-zone"'));
+  assert.ok(home.includes('onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}'));
+});
