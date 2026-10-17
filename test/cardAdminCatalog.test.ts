@@ -268,10 +268,10 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /inset: artworkInsetForRarity\(rarity, depth3d\)/);
   assert.match(preview, /artworkBackingInsetForRarity\(rarity\)/);
   assert.match(preview, /inset 0 0 24px 8px/);
-  assert.match(preview, /transform: depth3d \? "translateZ\(var\(--card-title-depth, 0px\)\)" : undefined/);
-  assert.doesNotMatch(preview, /translateZ\(30px\)/);
-  assert.match(detail, /--card-title-depth/);
-  assert.match(detail, /intensity \* 1\.2/);
+  // The front name is authored inside CardPreview, but must not pop out of its face.
+  assert.match(preview, /\{renderTextBox\("name"\)\}/);
+  assert.doesNotMatch(preview, /--card-title-depth/);
+  assert.doesNotMatch(detail, /--card-edge-title-opacity|card-edge-attached-title|--card-title-depth/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
   assert.match(preview, /TITLE_Y_NUDGE[\s\S]*?2:\s*\.75[\s\S]*?3:\s*\.9/);
   assert.match(preview, /isName && !editable && textSize !== "scaled"/);
@@ -330,7 +330,7 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /text=\{card\.name\}/);
   assert.match(detail, /turnAnimatingRef\.current = false/);
 
-  assert.match(detail, /data-testid="card-front-face"/);
+  // Both names remain children of their own rotating faces, not separate edge overlays.\n  assert.ok(detail.indexOf('data-testid="card-front-face"') < detail.indexOf('data-testid="card-back-face"'));\n  assert.doesNotMatch(detail, /data-testid="card-edge-attached-title"/);\n  assert.match(detail, /data-testid="card-front-face"/);
   assert.match(detail, /transformStyle: "preserve-3d"/);
   assert.match(detail, /<CardPreview[\s\S]*depth3d[\s\S]*showSparkles/);
 
