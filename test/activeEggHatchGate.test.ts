@@ -25,3 +25,15 @@ test("tapping an unhatched egg opens hatching item panel; ready eggs have explic
   assert.ok(home.includes('data-bj="egg-drop-zone"'));
   assert.ok(home.includes('onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}'));
 });
+
+test("active unhatched egg opens its existing drag-and-drop hatch speed-up sheet", () => {
+  const eggTap = home.indexOf('data-testid="button-egg-tap"');
+  assert.ok(eggTap >= 0);
+  const eggHandler = home.slice(eggTap, home.indexOf("</div>", eggTap));
+  assert.ok(eggHandler.includes("setShowSpeedUp(true)"));
+  assert.ok(home.includes('data-testid="active-pet-speedup-viewport-modal"'));
+  assert.ok(home.includes('item.specialType === "hatch_time"'));
+  assert.ok(home.includes("onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}"));
+  assert.ok(home.includes("homeEggDropRef.current?.getBoundingClientRect()"));
+  assert.ok(home.includes("showSpeedUp && activePet && !activePet.isHatched"));
+});
