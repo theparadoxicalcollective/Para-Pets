@@ -19,11 +19,11 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
   assert.doesNotMatch(page, /className="home-active-pet-stage"/);
 });
 
-test("Begin Journey keeps the active egg compact on the phone stage", () => {
+test("Begin Journey keeps the enlarged active egg within its artwork stage", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-  assert.match(page, /width: "50%"/);
-  assert.match(page, /maxHeight: "50%"/);
+  assert.match(page, /width: "75%"/);
+  assert.match(page, /maxHeight: "75%"/);
   assert.doesNotMatch(page, /max-h-\[calc\(55\*var\(--vh\)\)\]/);
 });
 
