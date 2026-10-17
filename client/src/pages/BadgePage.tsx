@@ -433,7 +433,7 @@ export default function BadgePage({ user }: BadgePageProps) {
       data-testid="badges-page"
       data-stage-coordinate-space="canonical"
       data-viewport-visual-owner="backdrop"
-      className="relative w-full h-screen-frame overflow-hidden flex flex-col"
+      className="relative w-full h-screen-frame min-h-0 overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(${bgImg})`,
         backgroundSize: "cover",
@@ -444,7 +444,7 @@ export default function BadgePage({ user }: BadgePageProps) {
       <ViewportBackdropPortal>
         <div
           data-testid="badges-viewport-backdrop"
-          className="absolute inset-0 overflow-hidden"
+          className="absolute inset-0 overflow-hidden pointer-events-none"
           style={{
             backgroundImage: `url(${bgImg})`,
             backgroundSize: "cover",
@@ -459,7 +459,7 @@ export default function BadgePage({ user }: BadgePageProps) {
       <div data-canonical-visual-layer="duplicate-backdrop" className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85 z-0 pointer-events-none" />
 
       <div
-        className="relative z-10 flex flex-col h-full"
+        className="relative z-10 flex flex-col h-full min-h-0"
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -498,7 +498,7 @@ export default function BadgePage({ user }: BadgePageProps) {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-48 gap-3">
               <p className="font-fantasy text-sm tracking-wider animate-pulse" style={{ color: "#7fbfb0" }}>
