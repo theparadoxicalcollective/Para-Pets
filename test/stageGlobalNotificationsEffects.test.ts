@@ -27,7 +27,7 @@ test("unhatched pet menu warnings dispatch and render text", () => {
 
   assert.ok(home.includes('toast({ title: "Must hatch Egg first" })'));
   for (const action of ["power-up", "level-up", "equip-accessories", "care-feed"]) {
-    const line = home.split("\\n").find(value => value.includes(`data-testid="button-action-${action}"`));
+    const line = home.split("\n").find(value => value.includes(`data-testid="button-action-${action}"`));
     assert.ok(line?.includes("requireHatchedActivePet()"), `${action} must guard unhatched eggs`);
   }
   assert.ok(hook.includes('type: "ADD_TOAST"'));
