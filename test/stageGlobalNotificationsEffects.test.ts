@@ -21,6 +21,21 @@ test("gameplay toast viewport stays outside GameStage to avoid stage clipping an
   assert.doesNotMatch(toast, /sm:bottom-0|sm:right-0|sm:top-auto|sm:flex-col|sm:slide-in-from-bottom-full/);
 });
 
+test("unhatched pet menu warnings reach the existing visible toast renderer", () => {
+  const home = read("client/src/pages/HomePage.tsx");
+  const hook = read("client/src/hooks/use-toast.ts");
+  const toaster = read("client/src/components/ui/toaster.tsx");
+
+  assert.match(home, /const requireHatchedActivePet = \\(\\) => \\{[\\s\\S]*?toast\\(\\{ title: "Must hatch Egg first" \\}\\)/);
+  for (const action of ["power-up", "level-up", "equip-accessories", "care-feed"]) {
+    assert.match(home, new RegExp(`data-testid="button-action-${action}"[^\\n]*requireHatchedActivePet\\(\\)`));
+  }
+  assert.match(hook, /function toast\\(\\{ \\.\\.\\.props \\}: Toast\\)[\\s\\S]*?dispatch\\(\\{[\\s\\S]*?type: "ADD_TOAST"/);
+  assert.match(toaster, /toasts\\.map/);
+  assert.match(toaster, /<ToastTitle>\\{title\\}<\\/ToastTitle>/);
+  assert.match(toaster, /<ToastViewport \\/>/);
+});
+
 test("click sparkles portal through the authoritative stage coordinate contract", () => {
   const source = read("client/src/lib/interactionEffects.ts");
 
