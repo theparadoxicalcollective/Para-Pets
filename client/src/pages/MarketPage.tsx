@@ -711,7 +711,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       <ViewportBackdropPortal>
         <div
           data-testid="market-viewport-backdrop"
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage: `linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7)), url(${marketBg})`,
             backgroundPosition: "center top",
@@ -720,8 +720,8 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           }}
         />
       </ViewportBackdropPortal>
-      <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0 }} />
-      <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1 }} />
+      <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0, pointerEvents: "none" }} />
+      <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1, pointerEvents: "none" }} />
 
       <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "max(calc(env(safe-area-inset-top,0px) + 10px),46px) 10px 0", display: "grid", gridTemplateColumns: "43px minmax(0,1fr) minmax(72px,auto)", gap: 6, alignItems: "center" }}>
