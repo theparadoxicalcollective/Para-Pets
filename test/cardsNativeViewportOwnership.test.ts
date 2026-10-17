@@ -29,7 +29,7 @@ test("Cards retains collection UI, background portal, and detail popup", () => {
 test("Cards restores pointer ownership inside the decorative viewport page host", () => {
   // App's viewport page host intentionally ignores pointer input. Cards must
   // opt back in at the root, like the working Pet Inventory page.
-  const appHost = app.match(/id="game-viewport-page"[\\s\\S]{0,180}pointerEvents: "none"/);
+  const appHost = app.match(/id="game-viewport-page"[\s\S]{0,180}pointerEvents: "none"/);
   assert.ok(appHost, "the shared viewport page host should remain decorative");
   assert.match(cards, /data-testid="page-cards-collection"[\s\S]{0,620}pointerEvents: "auto"/);
   assert.match(cards, /onClick=\{\(\) => setRarityFilter\(filter\.rarity\)\}/);
