@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Lock, Pencil, X, Check } from "lucide-react";
 import bgImg from "@assets/bg_home_v2.png";
 import coinIconImg from "@assets/icon_coin.webp";
-import TopBar from "@/components/TopBar";
 import { useState, useEffect, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -467,11 +466,7 @@ export default function BadgePage({ user }: BadgePageProps) {
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        <TopBar
-          user={currentUser}
-          onProfileClick={() => {}}
-          onUserUpdate={(u) => setCurrentUser(u)}
-        />
+        {/* Badge page has its own back control; hide profile and currency chrome. */}
 
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button
