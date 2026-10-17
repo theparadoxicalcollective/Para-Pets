@@ -21,6 +21,7 @@ test("Market route uses native device viewport rather than 390x844 reference sta
 
 test("Market preserves canonical content, viewport backdrop, and page interactions", () => {
   assert.match(market, /data-testid="market-canonical-page"/);
+  assert.match(market, /position: "relative", pointerEvents: "auto", overflow: "hidden"/);
   assert.match(market, /<ViewportBackdropPortal>/);
   assert.match(market, /data-viewport-visual-owner="backdrop"/);
 });
