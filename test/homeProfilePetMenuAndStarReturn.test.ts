@@ -47,3 +47,12 @@ test("profile settings use blocking viewport modal layer above the pet HUD", () 
   assert.match(profile, /data-testid="button-close-profile"/);
   assert.match(profile, /data-testid="button-toggle-change-password"/);
 });
+
+test("ready active eggs hatch on tap while incubating eggs open hatch items", () => {
+  const egg = home.slice(home.indexOf('data-testid="button-egg-tap"'), home.indexOf('data-testid="display-egg-hatch-ready"'));
+  assert.match(egg, /hatchHomeMutation\.isPending \|\| hatchRevealing/);
+  assert.match(egg, /bjIsStep5TapMode\(\) \|\| eggHatchReady/);
+  assert.match(egg, /hatchHomeMutation\.mutate\(activePet\.inventoryId\)/);
+  assert.match(egg, /setShowSpeedUp\(true\)/);
+  assert.match(home, /setHatchRevealing\(true\)/);
+});
