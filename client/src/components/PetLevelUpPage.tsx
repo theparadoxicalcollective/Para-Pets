@@ -98,6 +98,13 @@ const CSS = String.raw`
   }
 }
 @media (max-height:740px){[data-page-presentation="full-viewport"] .lupage-scroll{overflow-y:auto}[data-page-presentation="full-viewport"] .lupage-stage{flex:0 0 auto;min-height:235px}}
+/* On short screens the forest belongs to the scrolling page, not a fixed
+   viewport layer: text, pet and item tray travel across one continuous scene. */
+@media(max-height:740px){
+  .lupage-scroll{background-image:linear-gradient(rgba(4,10,8,.12),rgba(3,8,6,.28)),url("${forestBg}");background-position:center top;background-size:cover;background-repeat:no-repeat;background-attachment:local}
+  .lupage[data-stage-coordinate-space="viewport"] [data-testid="level-up-viewport-backdrop"]{display:none}
+  .lupage[data-stage-coordinate-space="viewport"] .lupage-scroll{overflow-y:auto;min-height:100%;height:100%}
+}
 /* Stage-owned tablet/desktop: allow the complete UI to be reached instead of
    clipping inventory/actions below the fixed logical frame. The phone layout
    and the authored pet oval remain unchanged. */
