@@ -32,8 +32,8 @@ test("unhatched pet menu warnings reach the existing visible toast renderer", ()
   }
   assert.match(hook, /function toast\\(\\{ \\.\\.\\.props \\}: Toast\\)[\\s\\S]*?dispatch\\(\\{[\\s\\S]*?type: "ADD_TOAST"/);
   assert.match(toaster, /toasts\\.map/);
-  assert.match(toaster, /<ToastTitle>\\{title\\}<\\/ToastTitle>/);
-  assert.match(toaster, /<ToastViewport \\/>/);
+  assert.ok(toaster.includes("<ToastTitle>{title}</ToastTitle>"));
+  assert.ok(toaster.includes("<ToastViewport />"));
 });
 
 test("click sparkles portal through the authoritative stage coordinate contract", () => {
