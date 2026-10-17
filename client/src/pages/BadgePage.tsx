@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 
 interface BadgePageProps {
   user: {
@@ -458,6 +459,7 @@ export default function BadgePage({ user }: BadgePageProps) {
 
       <div data-canonical-visual-layer="duplicate-backdrop" className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85 z-0 pointer-events-none" />
 
+      <ViewportModalPortal>
       <div
         className="relative z-10 flex flex-col h-full min-h-0"
         style={{
@@ -498,7 +500,7 @@ export default function BadgePage({ user }: BadgePageProps) {
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div data-testid="badges-scroll-region" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch", pointerEvents: "auto" }}>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-48 gap-3">
               <p className="font-fantasy text-sm tracking-wider animate-pulse" style={{ color: "#7fbfb0" }}>
@@ -595,6 +597,7 @@ export default function BadgePage({ user }: BadgePageProps) {
           onSaved={handleSaved}
         />
       )}
+      </ViewportModalPortal>
     </div>
   );
 }
