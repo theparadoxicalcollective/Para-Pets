@@ -64,10 +64,10 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     turn.style.setProperty("--card-frame-depth", `${intensity * 24}px`);
     turn.style.setProperty("--card-art-depth", `${intensity * -12}px`);
     turn.style.setProperty("--card-backing-depth", `${intensity * -18}px`);
-    // Keep the normal title pressed close to the card surface. A separate
-    // edge-on bridge below keeps the name readable only through the narrow
-    // sideways portion of the turn.
+    // Keep the front title anchored to its face, and a narrow edge title
+    // physically attached to the turning card rather than counter-rotated.
     turn.style.setProperty("--card-title-depth", `${intensity * 1.2}px`);
+    turn.style.setProperty("--card-edge-title-opacity", String(Math.max(0, Math.min(1, (frontAngle - 55) / 25)) * Math.max(0, Math.min(1, (125 - frontAngle) / 25))));
 
 
 
@@ -273,6 +273,43 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                     depth3d
                     showSparkles
                   />
+                </div>
+
+                {/* A title plane mounted perpendicular to the card remains visible near edge-on turns.
+                    Unlike a counter-rotating overlay it cannot drift away from the card. */}
+                <div
+                  data-testid="card-edge-attached-title"
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    transform: "rotateY(-90deg)",
+                    transformStyle: "flat",
+                    backfaceVisibility: "visible",
+                    WebkitBackfaceVisibility: "visible",
+                    pointerEvents: "none",
+                    opacity: "var(--card-edge-title-opacity, 0)",
+                    zIndex: 4,
+                  }}
+                >
+                  <div style={{
+                    position: "absolute",
+                    left: `${layout.nameX}%`,
+                    top: `${layout.nameY + backTitleYNudge}%`,
+                    width: `${layout.nameWidth}%`,
+                    height: `${layout.nameHeight}%`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: CARD_TITLE_COLORS[card.rarity],
+                    fontFamily: "'Cinzel', 'Palatino Linotype', serif",
+                    fontWeight: 700,
+                    fontSize: backTitleFontSize,
+                    textAlign: "center",
+                    textShadow: "0 1px 3px rgba(0,0,0,.8)",
+                  }}>
+                    <CardFittedText text={card.name} preferredFontSize={backTitleFontSize} minimumFontSize={14} curve={layout.nameCurve ?? 0} />
+                  </div>
                 </div>
 
                 <div
