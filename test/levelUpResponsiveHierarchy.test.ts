@@ -15,3 +15,9 @@ test("Level Up retains pet drop and item pointer interactions", () => {
   assert.ok(source.includes("onPointerUp={onPointerUp}"));
   assert.ok(source.includes("PetPageOvalPlacement page=\"levelUp\""));
 });
+
+test("short-screen scroll carries the forest background with the page", () => {
+  assert.ok(source.includes("background-attachment:local"));
+  assert.ok(source.includes('[data-testid="level-up-viewport-backdrop"]{display:none}'));
+  assert.ok(source.includes('.lupage[data-stage-coordinate-space="viewport"] .lupage-scroll{overflow-y:auto'));
+});
