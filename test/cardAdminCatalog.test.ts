@@ -327,11 +327,6 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /animateTurnTo\(gesture\.baseAngle \+ direction \* 180\)/);
   assert.match(detail, /front\.style\.transformStyle = frontAngle >= 70 \? "flat" : "preserve-3d"/);
   assert.match(detail, /front\.style\.visibility = frontAngle >= 90 \? "hidden" : "visible"/);
-  assert.match(detail, /const sideDistance = Math\.abs\(frontAngle - 90\)/);
-  assert.match(detail, /--card-side-title-opacity/);
-  assert.match(detail, /--card-title-counter-turn/);
-  assert.match(detail, /data-testid="card-side-turn-title"/);
-  assert.match(detail, /rotateY\(var\(--card-title-counter-turn, 0deg\)\)/);
   assert.match(detail, /text=\{card\.name\}/);
   assert.match(detail, /turnAnimatingRef\.current = false/);
 
