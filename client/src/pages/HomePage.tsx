@@ -1037,7 +1037,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             {/* Hatched rarity stars share the pet scene, never a fixed viewport rect. */}
             {activePet && activePet.isHatched && activePet.petTemplateId && (
               <div data-testid="display-pet-rarity-stars" className="absolute flex justify-center items-center"
-                style={{ pointerEvents: "none", visibility: activePetModal ? "hidden" : "visible", zIndex: 600, top: "8%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
+                style={{ pointerEvents: "none", visibility: activePetModal ? "hidden" : "visible", zIndex: 600, top: "-20%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
             <div style={{
               position: "absolute",
               width: "280px",
