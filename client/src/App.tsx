@@ -931,9 +931,8 @@ function App() {
           <ErrorBoundary fallback={null}>
             <GlobalLevelUpOverlay />
           </ErrorBoundary>
+          <Toaster />
         </GameStage>
-        {/* Toasts must escape the transformed game stage so blocked pet-menu actions remain visible. */}
-        <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );

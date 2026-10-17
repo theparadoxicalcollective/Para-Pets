@@ -158,7 +158,25 @@ function toast({ ...props }: Toast) {
   const id = genId()
   const isError = props.variant === "destructive";
   showFlash(isError);
-  return { id, dismiss: () => {}, update: () => {} };
+  // The flash is supplemental feedback; the existing Toaster must also
+  // receive the message so titles and descriptions are visible to players.
+  dispatch({
+    type: "ADD_TOAST",
+    toast: {
+      ...props,
+      id,
+      open: true,
+      onOpenChange: (open) => {
+        if (!open) dispatch({ type: "DISMISS_TOAST", toastId: id })
+      },
+    },
+  })
+  return {
+    id,
+    dismiss: () => dispatch({ type: "DISMISS_TOAST", toastId: id }),
+    update: (nextProps: Partial<ToasterToast>) =>
+      dispatch({ type: "UPDATE_TOAST", toast: { ...nextProps, id } }),
+  }
 }
 
 function useToast() {

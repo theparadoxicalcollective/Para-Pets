@@ -4,21 +4,35 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("gameplay toast viewport stays outside GameStage to avoid stage clipping and keeps the phone placement policy", () => {
+test("gameplay notifications use the existing stage HUD modal host without a fixed phone width", () => {
   const app = read("client/src/App.tsx");
   const toast = read("client/src/components/ui/toast.tsx");
+  const toaster = read("client/src/components/ui/toaster.tsx");
 
   const gameStageStart = app.indexOf("<GameStage>");
   const toasterIndex = app.indexOf("<Toaster />", gameStageStart);
   const gameStageEnd = app.indexOf("</GameStage>", gameStageStart);
 
-  assert.ok(gameStageStart >= 0);
-  assert.ok(gameStageEnd > gameStageStart);
-  assert.ok(toasterIndex > gameStageEnd, "toast must render after GameStage so pet-menu feedback is not clipped by gameplay layers");
-  assert.match(toast, /fixed left-1\/2 top-0/);
-  assert.match(toast, /max-w-\[390px\]/);
-  assert.match(toast, /-translate-x-1\/2/);
-  assert.doesNotMatch(toast, /sm:bottom-0|sm:right-0|sm:top-auto|sm:flex-col|sm:slide-in-from-bottom-full/);
+  assert.ok(gameStageStart >= 0 && toasterIndex > gameStageStart && toasterIndex < gameStageEnd);
+  assert.ok(toaster.includes("<ViewportModalPortal blocking={false}>"));
+  assert.ok(toast.includes("pointer-events-none absolute"));
+  assert.ok(toast.includes("w-[min(100%,28rem)]"));
+  assert.ok(!toast.includes("max-w-[390px]"));
+});
+
+test("unhatched pet menu warnings dispatch and render text", () => {
+  const home = read("client/src/pages/HomePage.tsx");
+  const hook = read("client/src/hooks/use-toast.ts");
+  const toaster = read("client/src/components/ui/toaster.tsx");
+
+  assert.ok(home.includes('toast({ title: "Must hatch Egg first" })'));
+  for (const action of ["power-up", "level-up", "equip-accessories", "care-feed"]) {
+    const line = home.split("\n").find(value => value.includes(`data-testid="button-action-${action}"`));
+    assert.ok(line?.includes("requireHatchedActivePet()"), `${action} must guard unhatched eggs`);
+  }
+  assert.ok(hook.includes('type: "ADD_TOAST"'));
+  assert.ok(toaster.includes("<ToastTitle>{title}</ToastTitle>"));
+  assert.ok(toaster.includes("<ToastViewport />"));
 });
 
 test("click sparkles portal through the authoritative stage coordinate contract", () => {
