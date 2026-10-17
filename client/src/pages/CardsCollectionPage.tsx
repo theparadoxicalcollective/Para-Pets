@@ -73,6 +73,9 @@ export default function CardsCollectionPage() {
       style={{
         position: "absolute",
         inset: 0,
+        // The viewport page host is decorative (pointer-events: none).
+        // Restore input on this page, as PetInventory does for its controls.
+        pointerEvents: "auto",
         overflow: "hidden",
         background:
           "radial-gradient(circle at 50% 11%, rgba(67,139,80,.25), transparent 31%), radial-gradient(circle at 18% 30%, rgba(58,115,73,.12), transparent 24%), radial-gradient(circle at 82% 66%, rgba(58,115,73,.1), transparent 24%), linear-gradient(180deg, #06150d 0%, #0a2117 48%, #06120d 100%)",
