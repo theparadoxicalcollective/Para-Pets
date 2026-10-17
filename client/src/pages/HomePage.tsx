@@ -929,7 +929,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           data-artwork-height={activePetArtworkSize.height || undefined}
           data-backdrop-width={activePetBackdropRect.width || undefined}
           data-backdrop-height={activePetBackdropRect.height || undefined}
-          className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
+          className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden pointer-events-none"
           style={{
             backgroundImage: `url(${bgImg})`,
             backgroundSize: "cover",
@@ -1031,7 +1031,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-platform-artwork-x={activePetPlatformCalibration?.x.toFixed(1)}
             data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
             className="relative flex items-center justify-center"
-            style={{ width: activePet ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet ? {
+            style={{ pointerEvents: "auto", zIndex: 2, width: activePet ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet ? {
               position: "absolute" as const,
               top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
               left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
@@ -1285,6 +1285,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         data-gameplay-touch-gesture="true"
                         style={{
                           cursor: "pointer",
+                          pointerEvents: "auto",
                           touchAction: "none",
                           // Template pets share the editor’s ground coordinates;
                           // keep legacy image pet transforms separate.
@@ -1340,7 +1341,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         : false;
                       return (
                         <div
-                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer", width: "100%", aspectRatio: "1 / 1", position: "relative" }}
+                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer", touchAction: "manipulation", pointerEvents: "auto", zIndex: 2, width: "100%", aspectRatio: "1 / 1", position: "relative" }}
                           className="w-full flex items-center justify-center"
                           data-testid="button-egg-tap"
                           onClick={() => {
