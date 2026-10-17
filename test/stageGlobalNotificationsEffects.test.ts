@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("gameplay toast viewport stays inside GameStage and keeps the phone placement policy", () => {
+test("gameplay toast viewport stays outside GameStage to avoid stage clipping and keeps the phone placement policy", () => {
   const app = read("client/src/App.tsx");
   const toast = read("client/src/components/ui/toast.tsx");
 
@@ -13,7 +13,8 @@ test("gameplay toast viewport stays inside GameStage and keeps the phone placeme
   const gameStageEnd = app.indexOf("</GameStage>", gameStageStart);
 
   assert.ok(gameStageStart >= 0);
-  assert.ok(toasterIndex > gameStageStart && toasterIndex < gameStageEnd);
+  assert.ok(gameStageEnd > gameStageStart);
+  assert.ok(toasterIndex > gameStageEnd, "toast must render after GameStage so pet-menu feedback is not clipped by gameplay layers");
   assert.match(toast, /fixed left-1\/2 top-0/);
   assert.match(toast, /max-w-\[390px\]/);
   assert.match(toast, /-translate-x-1\/2/);
