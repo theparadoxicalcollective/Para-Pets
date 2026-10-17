@@ -34,8 +34,8 @@ test("unhatched eggs share the active pet artwork stage without legacy viewport 
   assert.match(stage, /transform: "translate\(-50%, -100%\)"/);
   assert.doesNotMatch(stage, /activePet\?\.isHatched && activePet.petTemplateId \?/);
   const egg = home.slice(home.indexOf('data-testid="button-egg-tap"'), home.indexOf('data-testid="display-egg-hatch-ready"'));
-  assert.match(egg, /width: "50%"/);
-  assert.match(egg, /maxHeight: "50%"/);
+  assert.match(egg, /width: "75%"/);
+  assert.match(egg, /maxHeight: "75%"/);
   assert.doesNotMatch(egg, /paddingTop: "clamp\(8px, 4dvh, 36px\)"/);
 });
 

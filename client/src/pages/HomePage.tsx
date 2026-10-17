@@ -727,6 +727,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   );
 
   const activePetForModal = activePet ?? frozenActivePetRef.current;
+  const requireHatchedActivePet = () => {
+    if (activePetForModal?.isHatched) return true;
+    toast({ title: "Must hatch Egg first" });
+    return false;
+  };
 
   const powerUpMutation = useMutation({
     mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
@@ -924,7 +929,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           data-artwork-height={activePetArtworkSize.height || undefined}
           data-backdrop-width={activePetBackdropRect.width || undefined}
           data-backdrop-height={activePetBackdropRect.height || undefined}
-          className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden"
+          className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden pointer-events-none"
           style={{
             backgroundImage: `url(${bgImg})`,
             backgroundSize: "cover",
@@ -1026,7 +1031,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-platform-artwork-x={activePetPlatformCalibration?.x.toFixed(1)}
             data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
             className="relative flex items-center justify-center"
-            style={{ width: activePet ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet ? {
+            style={{ pointerEvents: "auto", zIndex: 2, width: activePet ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet ? {
               position: "absolute" as const,
               top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
               left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
@@ -1280,6 +1285,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         data-gameplay-touch-gesture="true"
                         style={{
                           cursor: "pointer",
+                          pointerEvents: "auto",
                           touchAction: "none",
                           // Template pets share the editor’s ground coordinates;
                           // keep legacy image pet transforms separate.
@@ -1335,30 +1341,30 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         : false;
                       return (
                         <div
-                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer", width: "100%", aspectRatio: "1 / 1", position: "relative" }}
+                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer", touchAction: "manipulation", pointerEvents: "auto", zIndex: 2, width: "100%", aspectRatio: "1 / 1", position: "relative" }}
                           className="w-full flex items-center justify-center"
                           data-testid="button-egg-tap"
                           onClick={() => {
                             if (bjIsStep5TapMode() && !hatchHomeMutation.isPending) {
                               // Tutorial tap mode: force-hatch regardless of eggHatchReady state
                               hatchHomeMutation.mutate(activePet.inventoryId);
-                            } else if (eggHatchReady && !hatchHomeMutation.isPending) {
-                              hatchHomeMutation.mutate(activePet.inventoryId);
-                            } else if (!eggHatchReady) {
+                            } else {
+                              // Always open the hatching item panel for an unhatched egg.
+                              // Ready eggs can be hatched explicitly from the panel.
                               setShowSpeedUp(true);
                             }
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
                                 className="object-contain"
                                 style={{
-                                  width: "50%",
-                                  maxWidth: "320px",
-                                  maxHeight: "50%",
+                                  width: "75%",
+                                  maxWidth: "480px",
+                                  maxHeight: "75%",
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
                                   filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
@@ -1601,6 +1607,24 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               </button>
             </div>
 
+            {activePet.hatchStartedAt && activePet.hatchTime &&
+              Date.now() - new Date(activePet.hatchStartedAt).getTime() >= activePet.hatchTime * 3600000 && (
+              <div className="px-5 pb-4">
+                <button
+                  type="button"
+                  data-testid="button-hatch-ready-egg"
+                  disabled={hatchHomeMutation.isPending}
+                  onClick={() => {
+                    if (hatchHomeMutation.isPending) return;
+                    setShowSpeedUp(false);
+                    hatchHomeMutation.mutate(activePet.inventoryId);
+                  }}
+                  className="w-full rounded-xl border border-[#f0c040] bg-[#47300c] px-4 py-3 font-fantasy font-bold text-[#ffe6a0] disabled:opacity-50"
+                >
+                  Hatch Egg
+                </button>
+              </div>
+            )}
             {/* Egg drop zone */}
             <div className="px-5 pb-4" data-bj="egg-drop-zone">
               <div
@@ -1721,10 +1745,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <div data-testid="active-pet-side-menu" className="absolute flex flex-col-reverse items-center gap-3" style={{ left: 12, bottom: "calc(82px + env(safe-area-inset-bottom, 0px))", zIndex: 150, pointerEvents: "auto" }}>
             <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => { if (!showActionMenu) window.dispatchEvent(new Event("para-pets:pet-menu-open")); setShowActionMenu(value => !value); }} className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_0_2px_rgba(212,160,23,.15),0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" style={{ touchAction: "manipulation" }}><img src={petMenuIconImg} alt="" aria-hidden="true" className="h-11 w-11 object-contain drop-shadow-[0_2px_3px_#000]" draggable={false} /></button>
             {showActionMenu && <div data-testid="pet-menu-options" className="flex flex-col-reverse items-center gap-4 pb-3" role="group" aria-label="Pet actions">
-                <button type="button" data-testid="button-action-power-up" aria-label="Power-Up" title="Power-Up" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { if (questGuideMode === "powerup") setPowerUpFromQuest(true); setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Power-Up</span><img src={powerUpIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
-                <button type="button" data-testid="button-action-level-up" aria-label="Level Up" title="Level Up" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { setShowActionMenu(false); const id = activePetForModal.inventoryId; if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Level Up</span><img src={levelUpIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
-                <button type="button" data-testid="button-action-equip-accessories" aria-label="Closet" title="Closet" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { setShowActionMenu(false); navigate("/equip-accessories"); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Closet</span><img src={closetIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
-                <button type="button" data-testid="button-action-care-feed" aria-label="Pet Care" title="Pet Care" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { setShowActionMenu(false); setQuestGuideMode(null); const id = activePetForModal.inventoryId; navigate(id ? "/pet-care/" + encodeURIComponent(id) : "/pet-house"); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Pet Care</span><img src={petCareIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-power-up" aria-label="Power-Up" title="Power-Up" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { if (!requireHatchedActivePet()) return; if (questGuideMode === "powerup") setPowerUpFromQuest(true); setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Power-Up</span><img src={powerUpIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-level-up" aria-label="Level Up" title="Level Up" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { if (!requireHatchedActivePet()) return; setShowActionMenu(false); const id = activePetForModal.inventoryId; if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Level Up</span><img src={levelUpIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-equip-accessories" aria-label="Closet" title="Closet" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { if (!requireHatchedActivePet()) return; setShowActionMenu(false); navigate("/equip-accessories"); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Closet</span><img src={closetIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-care-feed" aria-label="Pet Care" title="Pet Care" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017]/70 bg-[#142819] text-[#ffe5a1] shadow-[0_0_14px_rgba(212,160,23,.25),0_4px_16px_rgba(0,0,0,.7)] transition-transform active:scale-90" onClick={() => { if (!requireHatchedActivePet()) return; setShowActionMenu(false); setQuestGuideMode(null); const id = activePetForModal.inventoryId; navigate(id ? "/pet-care/" + encodeURIComponent(id) : "/pet-house"); }}><span aria-hidden="true" className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold leading-none text-[#f0c040] drop-shadow-[0_2px_4px_#000]">Pet Care</span><img src={petCareIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
             </div>}
           </div>
         </ViewportHudPortal>

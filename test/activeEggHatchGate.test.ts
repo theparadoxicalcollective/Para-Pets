@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+test("unhatched active pet blocks all four pet actions with the same message", () => {
+  assert.ok(home.includes('toast({ title: "Must hatch Egg first" })'));
+  for (const action of ["power-up", "level-up", "equip-accessories", "care-feed"]) {
+    const start = home.indexOf(`data-testid="button-action-${action}"`);
+    assert.ok(start >= 0, `${action} button exists`);
+    const end = home.indexOf("</button>", start);
+    assert.ok(home.slice(start, end).includes("if (!requireHatchedActivePet()) return;"), `${action} requires hatch`);
+  }
+});
+test("active egg is enlarged and bottom-aligned in its scene container", () => {
+  assert.ok(home.includes('width: "75%"'));
+  assert.ok(home.includes('maxHeight: "75%"'));
+  assert.ok(home.includes('alignItems: "flex-end"'));
+});
+
+test("tapping an unhatched egg opens hatching item panel; ready eggs have explicit hatch action", () => {
+  const eggTap = home.slice(home.indexOf('data-testid="button-egg-tap"'), home.indexOf('{activePet.eggImageUrl ?', home.indexOf('data-testid="button-egg-tap"')));
+  assert.ok(eggTap.includes('setShowSpeedUp(true)'));
+  assert.ok(home.includes('data-testid="active-pet-speedup-viewport-modal"'));
+  assert.ok(home.includes('data-testid="button-hatch-ready-egg"'));
+  assert.ok(home.includes('data-bj="egg-drop-zone"'));
+  assert.ok(home.includes('onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}'));
+});
+
+test("active unhatched egg opens its existing drag-and-drop hatch speed-up sheet", () => {
+  const eggTap = home.indexOf('data-testid="button-egg-tap"');
+  assert.ok(eggTap >= 0);
+  const eggHandler = home.slice(eggTap, home.indexOf("</div>", eggTap));
+  assert.ok(eggHandler.includes("setShowSpeedUp(true)"));
+  assert.ok(home.includes('data-testid="active-pet-speedup-viewport-modal"'));
+  assert.ok(home.includes('item.specialType === "hatch_time"'));
+  assert.ok(home.includes("onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}"));
+  assert.ok(home.includes("homeEggDropRef.current?.getBoundingClientRect()"));
+  assert.ok(home.includes("showSpeedUp && activePet && !activePet.isHatched"));
+});
+
+test("active pet interaction targets remain above decorative backdrop hit layers", () => {
+  assert.ok(home.includes('active-pet-viewport-backdrop absolute inset-0 overflow-hidden pointer-events-none'));
+  assert.ok(home.includes('data-testid="button-egg-tap"'));
+  assert.ok(home.includes('cursor: "pointer", touchAction: "manipulation", pointerEvents: "auto"'));
+  assert.ok(home.includes('data-testid="button-open-pet-actions"'));
+  assert.ok(home.includes('pointerEvents: "auto",\n                          touchAction: "none"'));
+  assert.ok(home.includes('...activePetTouchHandlers'));
+});
