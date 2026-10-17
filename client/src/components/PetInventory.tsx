@@ -425,7 +425,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         data-stage-coordinate-space={pageMode ? "canonical" : undefined}
         data-viewport-visual-owner={pageMode ? "backdrop" : undefined}
         className={pageMode ? "absolute inset-0 flex flex-col" : "fixed inset-0 z-40 flex flex-col"}
-        style={pageMode ? undefined : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        style={pageMode ? { pointerEvents: "auto", touchAction: "pan-y" } : { maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
       >
         {pageMode && (
           <ViewportBackdropPortal>
@@ -453,7 +453,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         <div data-testid={pageMode ? "inventory-canonical-content" : undefined} className="relative z-10 flex flex-col h-full overflow-hidden">
 
           {/* Header */}
-          <div className="px-4 pb-0" style={{ paddingTop: pageMode && !showBag ? 8 : 56 }}>
+          <div className="px-4 pb-0" style={{ paddingTop: pageMode ? "calc(env(safe-area-inset-top, 0px) + 44px)" : 56 }}>
             <div className="flex items-center justify-between mb-3">
               {pageMode ? (
                 /* Page mode: slim count row */
@@ -581,7 +581,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
           {/* Bottom back button — page mode only */}
           {pageMode && (
-            <div data-testid="inventory-page-back-row" className="flex-shrink-0 px-5 pb-6 pt-3">
+            <div data-testid="inventory-page-back-row" className="flex-shrink-0 px-5 pt-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
               <button
                 data-testid="button-close-inventory"
                 onClick={onClose}
