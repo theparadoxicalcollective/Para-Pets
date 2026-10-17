@@ -6,7 +6,7 @@ const coinShop = readFileSync("client/src/pages/CoinShopPage.tsx", "utf8");
 
 test("Coin Shop keeps its authored page on the canonical player stage", () => {
   assert.match(coinShop, /data-stage-coordinate-space="canonical"/);
-  assert.match(coinShop, /position: "absolute", inset: 0, overflowY: "auto"/);
+  assert.match(coinShop, /position: "absolute", inset: 0, pointerEvents: "auto", overflowY: "auto"/);
 });
 
 test("Coin Shop extends its existing atmosphere into the larger device backdrop", () => {
