@@ -279,7 +279,9 @@ export default function CardPreview({
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
           textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
-          // Text stays on its own card face, matching the back title.
+          // Match the stars: keep the front title ahead of the raised border while
+          // it rotates with the card face (not as a separate edge title).
+          transform: isName && depth3d ? "translateZ(42px)" : undefined,
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
