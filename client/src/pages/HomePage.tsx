@@ -1345,12 +1345,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           className="w-full flex items-center justify-center"
                           data-testid="button-egg-tap"
                           onClick={() => {
-                            if (bjIsStep5TapMode() && !hatchHomeMutation.isPending) {
-                              // Tutorial tap mode: force-hatch regardless of eggHatchReady state
+                            if (hatchHomeMutation.isPending || hatchRevealing) return;
+                            if (bjIsStep5TapMode() || eggHatchReady) {
+                              // Ready active eggs hatch on tap; preserve the tutorial's
+                              // force-hatch behavior. The successful mutation already
+                              // triggers the existing hatch reveal animation.
+                              setShowSpeedUp(false);
                               hatchHomeMutation.mutate(activePet.inventoryId);
                             } else {
-                              // Always open the hatching item panel for an unhatched egg.
-                              // Ready eggs can be hatched explicitly from the panel.
+                              // Only eggs still incubating need the hatching item panel.
                               setShowSpeedUp(true);
                             }
                           }}
