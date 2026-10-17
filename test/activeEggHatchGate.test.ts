@@ -37,3 +37,12 @@ test("active unhatched egg opens its existing drag-and-drop hatch speed-up sheet
   assert.ok(home.includes("homeEggDropRef.current?.getBoundingClientRect()"));
   assert.ok(home.includes("showSpeedUp && activePet && !activePet.isHatched"));
 });
+
+test("active pet interaction targets remain above decorative backdrop hit layers", () => {
+  assert.ok(home.includes('active-pet-viewport-backdrop absolute inset-0 overflow-hidden pointer-events-none'));
+  assert.ok(home.includes('data-testid="button-egg-tap"'));
+  assert.ok(home.includes('cursor: "pointer", touchAction: "manipulation", pointerEvents: "auto"'));
+  assert.ok(home.includes('data-testid="button-open-pet-actions"'));
+  assert.ok(home.includes('pointerEvents: "auto",\n                          touchAction: "none"'));
+  assert.ok(home.includes('...activePetTouchHandlers'));
+});
