@@ -68,11 +68,9 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     // edge-on bridge below keeps the name readable only through the narrow
     // sideways portion of the turn.
     turn.style.setProperty("--card-title-depth", `${intensity * 1.2}px`);
-    const sideDistance = Math.abs(frontAngle - 90);
-    const sideTitleOpacity = Math.max(0, Math.min(1, (40 - sideDistance) / 25));
-    turn.style.setProperty("--card-side-title-opacity", String(sideTitleOpacity));
-    turn.style.setProperty("--card-title-counter-turn", `${-angle}deg`);
-    turn.style.setProperty("--card-side-title-scale", String(.82 + (1 - sideTitleOpacity) * .18));
+
+
+
     turn.style.setProperty("--card-glow-depth", `${intensity * 28}px`);
     turn.style.setProperty("--card-sparkle-depth", `${intensity * 30}px`);
     turn.style.setProperty("--card-turn-opacity", String(intensity * .9));
@@ -274,47 +272,6 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                     layout={layout}
                     depth3d
                     showSparkles
-                  />
-                </div>
-
-                <div
-                  data-testid="card-side-turn-title"
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    left: `${layout.nameX}%`,
-                    top: `${layout.nameY + backTitleYNudge}%`,
-                    width: `${layout.nameWidth}%`,
-                    height: `${layout.nameHeight}%`,
-                    zIndex: 20,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "1% 3%",
-                    boxSizing: "border-box",
-                    overflow: (layout.nameCurve ?? 0) > 0 ? "visible" : "hidden",
-                    color: CARD_TITLE_COLORS[card.rarity],
-                    fontFamily: "'Cinzel', 'Palatino Linotype', serif",
-                    fontWeight: 700,
-                    fontSize: backTitleFontSize,
-                    lineHeight: 1.05,
-                    letterSpacing: ".05em",
-                    textAlign: "center",
-                    textShadow: "0 1px 0 rgba(255,255,255,.64), 0 0 4px rgba(255,244,205,.48), 0 2px 5px rgba(0,0,0,.72)",
-                    pointerEvents: "none",
-                    opacity: "var(--card-side-title-opacity, 0)",
-                    transform: "translateZ(1px) rotateY(var(--card-title-counter-turn, 0deg)) scaleX(var(--card-side-title-scale, 1))",
-                    transformOrigin: "center center",
-                    backfaceVisibility: "visible",
-                    WebkitBackfaceVisibility: "visible",
-                    willChange: "transform, opacity",
-                  }}
-                >
-                  <CardFittedText
-                    text={card.name}
-                    preferredFontSize={backTitleFontSize}
-                    minimumFontSize={14}
-                    curve={layout.nameCurve ?? 0}
                   />
                 </div>
 

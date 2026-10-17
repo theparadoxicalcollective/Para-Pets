@@ -139,7 +139,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
       data-testid="section-costume-equipment"
       aria-label="Adornment slots"
       className={closetMode ? (selectedSlot || removeCostume || unlockSlot ? "absolute z-[40] closet-adornment-slots" : "absolute z-[8] closet-adornment-slots") : "mx-5 mb-8 rounded-2xl p-4"}
-      style={closetMode ? { left: "11.5%", top: "80.1%", width: "77%", height: "11.8%", padding: 3, borderRadius: 12, background: "rgba(15,12,8,.75)", border: "1px solid rgba(234,197,103,.6)", boxShadow: "0 4px 14px rgba(0,0,0,.75)" } : { background: "rgba(4,11,8,.88)", border: "1px solid rgba(167,139,250,.3)" }}
+      style={closetMode ? { pointerEvents: "auto", left: "11.5%", top: "80.1%", width: "77%", height: "11.8%", padding: 3, borderRadius: 12, background: "rgba(15,12,8,.75)", border: "1px solid rgba(234,197,103,.6)", boxShadow: "0 4px 14px rgba(0,0,0,.75)" } : { background: "rgba(4,11,8,.88)", border: "1px solid rgba(167,139,250,.3)" }}
     >
       <div className={closetMode ? "absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-center" : "mb-3 flex items-center justify-between"} style={closetMode ? { bottom: "104%" } : undefined}>
         <p className="font-fantasy tracking-[0.16em]" style={{ color: "#fff1c0", fontSize: closetMode ? "clamp(9px, 2.3vw, 12px)" : 9, textShadow: "0 2px 4px #000", background: closetMode ? "rgba(18,13,5,.92)" : undefined, padding: closetMode ? "3px 8px" : undefined, borderRadius: 99 }}>ADORNMENTS · {equipped.length}/{unlockedCount}</p>

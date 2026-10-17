@@ -442,7 +442,9 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         )}
       </button>
 
-      <section className="absolute z-[8] closet-accessory-slots" aria-label="Accessory slots" style={{ left: "8%", top: "20%", width: "84%", height: "9.2%", borderRadius: 10, background: "rgba(2,18,13,.63)", border: "1px solid rgba(96,233,160,.43)", padding: 2, boxShadow: "0 3px 9px rgba(0,0,0,.6)" }}>
+      <ViewportModalPortal enabled={deviceSurface} blocking={false}>
+      <div className="absolute inset-0 pointer-events-none" data-testid="closet-equipment-hit-layer">
+      <section className="absolute z-[8] closet-accessory-slots" aria-label="Accessory slots" style={{ left: "8%", top: "20%", width: "84%", height: "9.2%", pointerEvents: "auto", borderRadius: 10, background: "rgba(2,18,13,.63)", border: "1px solid rgba(96,233,160,.43)", padding: 2, boxShadow: "0 3px 9px rgba(0,0,0,.6)" }}>
         <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "104%", color: "#e8ffef", fontSize: "clamp(9px, 2.2vw, 11px)", textShadow: "0 2px 4px #000", background: "rgba(2,21,14,.85)", border: "1px solid rgba(97,202,144,.45)", borderRadius: 999, padding: "3px 9px", cursor: "pointer", letterSpacing: "0.06em" }}>
           ACCESSORIES · {equippedAccessories.length}/{maxSlots} · OPEN BAG
         </button>
@@ -473,6 +475,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         deviceSurface={deviceSurface}
         closetMode
       />
+      </div>
+      </ViewportModalPortal>
 
       {miniPetOpen && (
         <ViewportModalPortal enabled={deviceSurface} blocking={false}>
