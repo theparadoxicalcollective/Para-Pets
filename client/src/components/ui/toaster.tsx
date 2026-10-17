@@ -1,4 +1,5 @@
 import { useToast } from "@/hooks/use-toast"
+import ViewportModalPortal from "@/components/ViewportModalPortal"
 import {
   Toast,
   ToastClose,
@@ -12,7 +13,8 @@ export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <ToastProvider>
+    <ViewportModalPortal blocking={false}>
+      <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props}>
@@ -28,6 +30,7 @@ export function Toaster() {
         )
       })}
       <ToastViewport />
-    </ToastProvider>
+      </ToastProvider>
+    </ViewportModalPortal>
   )
 }
