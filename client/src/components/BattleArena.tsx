@@ -2931,6 +2931,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
                 </div>
               )}
+              <div className="flex items-center justify-center gap-2 max-w-full">
               <div className="flex gap-2 items-center pointer-events-auto rounded-2xl px-3 py-1.5"
                 style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}>
                 {Array.from({ length: isCave ? 3 : 5 }, (_, i) => {
@@ -2981,6 +2982,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     </button>
                   );
                 })}
+              </div>
               </div>
             </div>
 
