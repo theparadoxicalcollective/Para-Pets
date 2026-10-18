@@ -1462,7 +1462,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     >
       <style>{`.world-scroll::-webkit-scrollbar-thumb{background:${accent}40;border-radius:4px;}.world-scroll::-webkit-scrollbar-thumb:hover{background:${accent}70;}`}</style>
 
-      <ViewportScenePortal enabled={!worldMapCameraBlocked}>
+      {/* Keep the world scene mounted in one portal when an overlay opens. Switching
+          between inline and portaled rendering remounts WorldLocations and resets
+          its local Casino scene state immediately after opening. */}
+      <ViewportScenePortal>
       <div
         ref={vpRef}
         data-testid="world-expanded-camera"
