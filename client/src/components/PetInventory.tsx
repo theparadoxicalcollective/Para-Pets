@@ -10,6 +10,9 @@ import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
 import bagIconImg from "@assets/icon_bag.png";
+import tabIconPet from "@assets/icon_pet_inventory.png";
+import tabIconFish from "@assets/icon_fish_inventory.png";
+import tabIconHome from "@assets/icon_home_inventory.png";
 import tabIconPotion from "@assets/potion_health.png";
 import tabIconItem from "@assets/item_crystal_charm.png";
 import tabIconAccessory from "@assets/acc_gem_amulet.png";
@@ -1272,27 +1275,6 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 
 const POTION_STACK_MAX = 50;
 
-const BAG_CATEGORY_ICONS: Record<GameItemCategoryKey, string> = {
-  pets: petPawIcon,
-  mini_pets: petPawIcon,
-  costumes: tabIconAccessory,
-  accessories: tabIconAccessory,
-  fish: tabIconItem,
-  poles: tabIconItem,
-  bait: tabIconItem,
-  objects: tabIconItem,
-  decor: tabIconItem,
-  homes: bagIconImg,
-  potions: tabIconPotion,
-  power_ups: powerupBagIcon,
-  specials: tabIconSpecial,
-  edibles: tabIconPotion,
-  gifts: tabIconSpecial,
-  ingredients: tabIconItem,
-  recipes: recipeScrollIcon,
-  clearing: tabIconAccessory,
-};
-
 function BagView({
   items,
   userId,
@@ -1310,6 +1292,7 @@ function BagView({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bagGroup, setBagGroup] = useState<GameItemGroupKey>("items");
   const [bagCategory, setBagCategory] = useState<GameItemCategoryKey | null>(null);
+  const groupIcons: Record<GameItemGroupKey, string> = { pets: tabIconPet, fish: tabIconFish, home: tabIconHome, items: tabIconPotion };
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1444,15 +1427,16 @@ function BagView({
               key={group.key}
               data-testid={`button-bag-group-${group.key}`}
               onClick={() => { setBagGroup(group.key); setBagCategory(null); }}
-              className="min-h-10 rounded-lg px-1 py-1.5 font-fantasy text-[10px] sm:text-xs tracking-wide transition-all active:scale-95"
+              className="min-h-10 rounded-lg px-1 py-1.5 font-fantasy text-[10px] sm:text-xs tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1 sm:gap-1.5"
               style={{
-                background: active ? "linear-gradient(180deg, rgba(147,105,25,.66), rgba(45,35,15,.92))" : "rgba(15,21,13,.72)",
-                border: active ? "1px solid rgba(240,192,64,.58)" : "1px solid rgba(212,160,23,.2)",
-                color: active ? "#f3d177" : "#9d8a6b",
-                boxShadow: active ? "0 0 10px rgba(240,192,64,.12)" : "none",
+                background: active ? "linear-gradient(180deg, rgba(77,92,54,.90), rgba(30,43,29,.94))" : "rgba(20,36,28,.84)",
+                border: active ? "1px solid rgba(197,210,149,.75)" : "1px solid rgba(142,173,131,.32)",
+                color: active ? "#f1e5ba" : "#ced5bb",
+                boxShadow: active ? "0 0 10px rgba(174,198,132,.18)" : "none",
               }}
             >
-              {group.label}
+              <img src={groupIcons[group.key]} alt="" aria-hidden="true" className="w-[15px] h-[15px] sm:w-[18px] sm:h-[18px] shrink-0 object-contain" style={{ filter: active ? "sepia(.42) saturate(.7) brightness(1.15)" : "sepia(.55) saturate(.55) brightness(.95)" }} />
+              <span>{group.label}</span>
             </button>
           );
         })}
@@ -1474,16 +1458,11 @@ function BagView({
               onClick={() => setBagCategory(category)}
               className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[9px] sm:text-[10px] leading-tight tracking-wide transition-all active:scale-95"
               style={{
-                background: active ? "linear-gradient(90deg, rgba(147,105,25,.6), rgba(55,44,19,.88))" : "rgba(255,255,255,0.04)",
-                border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.15)",
-                color: active ? "#f0c040" : "rgba(210,185,145,0.75)",
+                background: active ? "linear-gradient(90deg, rgba(76,96,54,.73), rgba(40,53,33,.90))" : "rgba(225,240,200,.055)",
+                border: active ? "1px solid rgba(194,214,159,.53)" : "1px solid rgba(189,211,174,.19)",
+                color: active ? "#f2e7c8" : "#c2cfb2",
               }}
             >
-              <img
-                src={BAG_CATEGORY_ICONS[category]}
-                alt=""
-                style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.65, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
-              />
               <span className="min-w-0 break-words flex-1">{GAME_ITEM_CATEGORY_LABELS[category]}</span>
               {count > 0 && <span className="text-[8px] opacity-70">{count}</span>}
             </button>
