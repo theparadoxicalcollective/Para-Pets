@@ -1342,6 +1342,33 @@ export default function MoltenBlocksPage() {
         fontFamily: "Lora, serif", color: "#f5d589",
       }}
     >
+      {holdWarning && (
+        <div
+          role="alert"
+          data-testid="molten-petrifying-hold-warning"
+          style={{
+            position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+            zIndex: 50, width: "min(88%, 340px)", padding: "18px 16px",
+            background: "linear-gradient(160deg, #332014, #160c0a)",
+            border: "2px solid #e6a64d", borderRadius: 12,
+            boxShadow: "0 0 32px rgba(235,110,38,0.55)", textAlign: "center",
+            pointerEvents: "auto",
+          }}
+        >
+          <div style={{ color: "#ffda92", fontWeight: 800, marginBottom: 8 }}>PETRIFYING STONE BOMB</div>
+          <div style={{ color: "#f9e7ca", fontSize: 13, marginBottom: 12 }}>
+            A piece carrying a Petrifying Stone Bomb cannot be held. Move or drop it instead!
+          </div>
+          <button
+            type="button"
+            onClick={() => setHoldWarning(false)}
+            data-testid="button-dismiss-petrifying-hold-warning"
+            style={{ border: "1px solid #e6a64d", borderRadius: 8, background: "#6d361a", color: "#fff1cf", padding: "7px 20px", fontWeight: 700 }}
+          >
+            UNDERSTOOD
+          </button>
+        </div>
+      )}
       <ViewportBackdropPortal>
         <div
           data-testid="molten-blocks-viewport-backdrop"
