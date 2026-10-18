@@ -15,7 +15,7 @@ test("WorldPage owns map controls in the scene rather than the persistent viewpo
   assert.match(source, /import ViewportScenePortal from "@\/components\/ViewportScenePortal"/);
   assert.doesNotMatch(source, /import ViewportHudPortal from "@\/components\/ViewportHudPortal"/);
   assert.match(source, /expandedCamera: true/);
-  assert.match(source, /<ViewportScenePortal enabled=\\{!worldMapCameraBlocked\\}>/);
+  assert.match(source, /<ViewportScenePortal enabled=\{!worldMapCameraBlocked\}>/);
 
   const sceneStart = source.indexOf("<ViewportScenePortal enabled={!worldMapCameraBlocked}>");
   const camera = source.indexOf('data-testid="world-expanded-camera"', sceneStart);
@@ -31,7 +31,7 @@ test("WorldPage owns map controls in the scene rather than the persistent viewpo
   assert.ok(backButton > hud && backButton < sceneEnd);
   assert.ok(decorButton > hud && decorButton < sceneEnd);
   assert.ok(shopPanel > sceneEnd, "shop panel must not move into expanded map camera");
-  assert.match(source.slice(camera, sceneEnd), /\\{!worldMapCameraBlocked && \\(\\s*<div data-testid="world-map-only-controls"/);
+  assert.match(source.slice(camera, sceneEnd), /\{!worldMapCameraBlocked && \(\s*<div data-testid="world-map-only-controls"/);
 });
 
 test("World map controls preserve viewport-edge offsets without a fixed phone reference plane", () => {
