@@ -15,6 +15,7 @@ import counterLightningPng from "@assets/icon_battle_counter.png";
 import crossedSwordsPng from "@assets/icon_battle_crossed_swords.png";
 import hitMarkPng from "@assets/icon_battle_hitmark.png";
 import skullPng from "@assets/Photoroom_20260705_103527_PM_1783308939570.png";
+import caveDefeatSkullPng from "@assets/generated_images/icon_skull_defeat.png";
 import bossWarnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
 import miniBossOrangePng from "@assets/Photoroom_20260705_110030_PM_1783310667789.png";
 // Canvas-based renderer — each PetAnimator <img>-per-part allocates its own
@@ -2412,7 +2413,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     className="absolute pointer-events-none"
                     style={{ left: `${comp.pos.x}%`, top: `${comp.pos.y}%`, zIndex: 8, animation: "enemyDeathSlide 0.8s ease-out forwards" }}
                   >
-                    <img src={skullPng} alt="" style={{ position: "absolute", top: -44, left: "50%", width: 34, height: 34, animation: "skullBubbleFloat 1.3s ease-out forwards", pointerEvents: "none" }} />
+                    <img src={isCave ? caveDefeatSkullPng : skullPng} alt="" style={{ position: "absolute", top: -44, left: "50%", width: 34, height: 34, animation: "skullBubbleFloat 1.3s ease-out forwards", pointerEvents: "none" }} />
                     <img src={comp.encounter.imageUrl} alt="" style={{ width: comp.encounter.isMiniBoss ? 118 : 90, height: comp.encounter.isMiniBoss ? 118 : 90, filter: "grayscale(1) opacity(0.32)", display: "block", objectFit: "contain" }} />
                   </div>
                 );
@@ -2592,7 +2593,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 )}
 
                 {enemyHp <= 0 && enemy.imageUrl && (
-                  <img src={skullPng} alt="" style={{
+                  <img src={isCave ? caveDefeatSkullPng : skullPng} alt="" style={{
                     position: "absolute", top: enemy.isBoss ? -56 : -44, left: "50%",
                     width: enemy.isBoss ? 44 : 34, height: enemy.isBoss ? 44 : 34,
                     animation: "skullBubbleFloat 1.3s ease-out forwards",
@@ -2835,7 +2836,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             </div>
 
             {/* ── Block & Skill buttons on the right ─────────────────── */}
-            {phase === "battle" && (
+            {phase === "battle" && !isCave && (
               <div className="absolute z-20 flex flex-col gap-4"
                 style={{ right: "4%", top: "52%", transform: "translateY(-50%)", pointerEvents: "auto" }}>
 
@@ -2898,6 +2899,40 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 slash arena. */}
             <div className="absolute z-20 left-0 right-0 flex justify-center pointer-events-none"
               style={{ bottom: "9%" }}>
+              {isCave && phase === "battle" && (
+                <div data-testid="cave-block-beside-potions" className="flex flex-col items-center pointer-events-auto shrink-0">
+                {/* Cave Block button — hold to shield (no cooldown, 5s max per hold) */}
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    data-testid="button-battle-block"
+                    onPointerDown={(e) => { e.stopPropagation(); startBlock(); }}
+                    onPointerUp={() => endBlock()}
+                    onPointerLeave={() => endBlock()}
+                    className="relative flex items-center justify-center transition-all active:scale-90"
+                    style={{
+                      width: 72, height: 72,
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                    }}
+                  >
+                    <img src={blockIconPng} alt="Block" style={{
+                      width: 68, height: 68,
+                      objectFit: "contain",
+                      animation: blockHeld
+                        ? "blockIconHeld 0.55s ease-in-out infinite"
+                        : "blockIconGlow 2s ease-in-out infinite",
+                    }} />
+                  </button>
+                  <span className="font-fantasy text-[9px] tracking-widest"
+                    style={{ color: blockHeld ? "#93c5fd" : "#60a5fa", textShadow: blockHeld ? "0 0 8px rgba(147,197,253,0.9)" : "0 0 6px rgba(96,165,250,0.5)" }}>
+                    BLOCK
+                  </span>
+                </div>
+
+                </div>
+              )}
+              <div className="flex items-center justify-center gap-2 max-w-full">
               <div className="flex gap-2 items-center pointer-events-auto rounded-2xl px-3 py-1.5"
                 style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}>
                 {Array.from({ length: isCave ? 3 : 5 }, (_, i) => {
@@ -2948,6 +2983,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     </button>
                   );
                 })}
+              </div>
               </div>
             </div>
 
