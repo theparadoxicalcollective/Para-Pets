@@ -268,6 +268,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // slot clears itself on tap. The drag-and-drop rig was removed.
   const [potionPickerOpen, setPotionPickerOpen] = useState(false);
   const [showSellFish, setShowSellFish] = useState(false);
+  const [worldLocationOverlayOpen, setWorldLocationOverlayOpen] = useState(false);
   useEffect(() => {
     if (worldId !== ELYSIAN_BAYOU_WORLD_ID) return;
     const openFishMarket = () => setShowSellFish(true);
@@ -1428,7 +1429,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }
 
   const accent = world.accent;
-  const [worldLocationOverlayOpen, setWorldLocationOverlayOpen] = useState(false);
   const worldMapCameraBlocked = Boolean(
     showProfile
     || worldLocationOverlayOpen
