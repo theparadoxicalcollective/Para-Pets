@@ -137,7 +137,7 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
   const icon = prizeGlyph(slot);
   const amount = visibleAmount(slot);
   const isLoss = slot.kind === "loss";
-  const isLimited = /mini jack[ -]?o[ -]?lantern/i.test(slot.label);
+  const isLimited = /(?:mini.*)?jack[ -]?o[ -]?lantern|jackolantern/i.test(slot.label);
 
   if (!slot.configured && !admin) return null;
 
@@ -175,7 +175,7 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
               </span>
             )}
           </div>
-          {slot.chance != null && admin && <span className="absolute -bottom-[12%] left-1/2 -translate-x-1/2 whitespace-nowrap text-[clamp(5px,1.3vw,9px)] font-bold text-amber-100 pointer-events-none">{(slot.chance * 100).toFixed(1)}%</span>}
+          {slot.chance != null && <span className="absolute -bottom-[12%] left-1/2 -translate-x-1/2 whitespace-nowrap text-[clamp(5px,1.3vw,9px)] font-bold text-amber-100 pointer-events-none">{(slot.chance * 100).toFixed(1)}%</span>}
           {isLimited && <span className="absolute -top-[15%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-amber-200 bg-[#651b28] px-1 text-[clamp(5px,1.2vw,9px)] font-black tracking-wide text-amber-100 pointer-events-none">LIMITED</span>}
           {admin && !isLoss && !spinning && (
             <button
