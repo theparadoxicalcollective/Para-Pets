@@ -15,6 +15,7 @@ import counterLightningPng from "@assets/icon_battle_counter.png";
 import crossedSwordsPng from "@assets/icon_battle_crossed_swords.png";
 import hitMarkPng from "@assets/icon_battle_hitmark.png";
 import skullPng from "@assets/Photoroom_20260705_103527_PM_1783308939570.png";
+import caveDefeatSkullPng from "@assets/generated_images/icon_skull_defeat.png";
 import bossWarnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
 import miniBossOrangePng from "@assets/Photoroom_20260705_110030_PM_1783310667789.png";
 // Canvas-based renderer — each PetAnimator <img>-per-part allocates its own
@@ -2412,7 +2413,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     className="absolute pointer-events-none"
                     style={{ left: `${comp.pos.x}%`, top: `${comp.pos.y}%`, zIndex: 8, animation: "enemyDeathSlide 0.8s ease-out forwards" }}
                   >
-                    <img src={skullPng} alt="" style={{ position: "absolute", top: -44, left: "50%", width: 34, height: 34, animation: "skullBubbleFloat 1.3s ease-out forwards", pointerEvents: "none" }} />
+                    <img src={isCave ? caveDefeatSkullPng : skullPng} alt="" style={{ position: "absolute", top: -44, left: "50%", width: 34, height: 34, animation: "skullBubbleFloat 1.3s ease-out forwards", pointerEvents: "none" }} />
                     <img src={comp.encounter.imageUrl} alt="" style={{ width: comp.encounter.isMiniBoss ? 118 : 90, height: comp.encounter.isMiniBoss ? 118 : 90, filter: "grayscale(1) opacity(0.32)", display: "block", objectFit: "contain" }} />
                   </div>
                 );
@@ -2592,7 +2593,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 )}
 
                 {enemyHp <= 0 && enemy.imageUrl && (
-                  <img src={skullPng} alt="" style={{
+                  <img src={isCave ? caveDefeatSkullPng : skullPng} alt="" style={{
                     position: "absolute", top: enemy.isBoss ? -56 : -44, left: "50%",
                     width: enemy.isBoss ? 44 : 34, height: enemy.isBoss ? 44 : 34,
                     animation: "skullBubbleFloat 1.3s ease-out forwards",
