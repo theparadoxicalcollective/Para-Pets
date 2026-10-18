@@ -834,6 +834,7 @@ function PetView({
   isPending,
   pendingPetId,
   isDragging,
+  readOnly = false,
 }: {
   pets: InventoryItem[];
   activePetId: string | null;
@@ -842,6 +843,7 @@ function PetView({
   isPending: boolean;
   pendingPetId: string | null;
   isDragging?: boolean;
+  readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1151,6 +1153,7 @@ function PetView({
                 </>
               )}
 
+              {!readOnly && (
               {/* SELECT / ACTIVE button */}
               <button
                 data-testid={`button-select-pet-${pet.shopItemId}`}
@@ -1187,6 +1190,7 @@ function PetView({
                   {isPending && pendingPetId === pet.inventoryId ? "UPDATING…" : isActive ? "ACTIVE" : "SELECT"}
                 </span>
               </button>
+              )}
             </div>
           </div>
         );
@@ -1490,7 +1494,7 @@ function BagView({
 
       {activeBagCategory === "pets" && pets.length > 0 && (
         <div data-testid="bag-full-pets" className="mb-3">
-          <PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} />
+          <PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} readOnly />
         </div>
       )}
       {isEmpty ? (
