@@ -900,7 +900,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             <div
               className="absolute inset-0"
               style={{
-                clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)",
+                clipPath: "polygon(50% 100%,0 28%,30% 28%,30% 0,70% 0,70% 28%,100% 28%)",
                 background: "linear-gradient(180deg,#fff0a8 0%,#d99a23 46%,#7d4a08 100%)",
               }}
             >
@@ -908,7 +908,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
                 className="absolute"
                 style={{
                   inset: 2,
-                  clipPath: "polygon(50% 0,100% 0,50% 100%)",
+                  clipPath: "polygon(50% 94%,10% 32%,36% 32%,36% 6%,64% 6%,64% 32%,90% 32%)",
                   background: "linear-gradient(180deg,#e04438 0%,#9f171d 52%,#4d090e 100%)",
                   boxShadow: "inset 0 0 7px rgba(255,126,95,.55)",
                 }}
@@ -959,16 +959,6 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       </main>
 
       <footer className="relative z-[4] w-full max-w-xl shrink-0 px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
-        {result && !spinning && (
-          <div
-            className="mx-auto mb-2 flex max-w-md items-center justify-center gap-2 rounded-xl border border-amber-200/35 bg-black/70 px-3 py-2 text-center text-xs text-amber-50 backdrop-blur-sm"
-            role="status"
-            aria-live="polite"
-          >
-            {prizeGlyph(result.reward) ? <img src={prizeGlyph(result.reward)!} alt="" className="h-8 w-8 shrink-0 object-contain" /> : result.reward.kind === "exp" ? <Sparkles className="h-6 w-6 text-cyan-200" /> : null}
-            <span>{result.reward.message}</span>
-          </div>
-        )}
         {state.isAdmin && <div className="mx-auto mb-2 flex max-w-xs items-center justify-center gap-2 text-[10px] text-amber-100/85">
           <span className="mr-1">Drag wheel · move pointer separately · Size</span>
           <button type="button" aria-label="Make prize wheel smaller" disabled={layoutSaving || spinning || layout.size <= 55} onClick={() => resizeWheel(-1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
@@ -989,17 +979,26 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
         </button>
       </footer>
 
-      {showHelp && (
+      {result && !spinning && !showHelp && (
+        <div className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center px-5" data-testid="beau-prize-result-overlay">
+          <div role="status" aria-live="polite" className="flex max-w-sm items-center gap-3 rounded-2xl border border-amber-300/70 bg-[#160e1d]/95 px-5 py-4 text-center font-fantasy text-base text-amber-100 shadow-[0_15px_50px_rgba(0,0,0,.8),0_0_24px_rgba(220,158,62,.25)]">
+            {prizeGlyph(result.reward) ? <img src={prizeGlyph(result.reward)!} alt="" className="h-12 w-12 shrink-0 object-contain" /> : result.reward.kind === "exp" ? <Sparkles className="h-10 w-10 shrink-0 text-cyan-200" /> : null}
+            <span>{result.reward.message}</span>
+          </div>
+        </div>
+      )}
+
+            {showHelp && (
         <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/75 px-4" role="presentation" onPointerDown={event => event.stopPropagation()}>
-          <section role="dialog" aria-modal="true" aria-labelledby="beau-wheel-help-title" className="w-full max-w-sm rounded-2xl border border-amber-300/60 bg-[#170e1d] p-5 text-amber-50 shadow-2xl">
+          <section role="dialog" aria-modal="true" aria-labelledby="beau-wheel-help-title" className="w-full max-w-sm rounded-2xl border-2 border-amber-400/70 bg-[radial-gradient(ellipse_at_top,#38213b,#170e1d_70%)] p-5 text-amber-50 shadow-[0_0_35px_rgba(238,177,72,.2),0_20px_60px_rgba(0,0,0,.85)]">
             <div className="flex items-center justify-between gap-3">
-              <h2 id="beau-wheel-help-title" className="font-fantasy text-xl text-amber-200">How to Play</h2>
+              <h2 id="beau-wheel-help-title" className="font-fantasy text-2xl text-amber-200">Beau’s Wheel of Fortune</h2>
               <button type="button" aria-label="Close wheel tutorial" onClick={() => setShowHelp(false)} className="grid h-10 w-10 place-items-center rounded-full border border-amber-300/40"><X className="h-5 w-5" /></button>
             </div>
-            <p className="mt-3 text-sm leading-relaxed">Your first spin each day is free. After that, each spin costs {BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()} coins.</p>
-            <p className="mt-2 text-sm leading-relaxed">Tap SPIN or drag and flick the wheel to try for a prize. Rewards have different chances based on their rarity, so equal-sized sections do not guarantee equal odds.</p>
-            <p className="mt-2 text-sm leading-relaxed">The skull section awards its special consolation prize. LIMITED marks a special reward, not an expiration timer.</p>
-            <button type="button" onClick={() => setShowHelp(false)} className="mt-5 w-full rounded-xl border border-amber-300/60 bg-amber-900/60 py-3 font-semibold">Got it</button>
+            <div className="mt-4 rounded-xl border border-amber-300/30 bg-black/30 p-3"><p className="font-fantasy text-amber-200">1. Claim your daily gift</p><p className="mt-1 text-sm leading-relaxed">Your first spin each day is FREE! After that, try again for {BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()} coins.</p></div>
+            <div className="mt-2 rounded-xl border border-amber-300/30 bg-black/30 p-3"><p className="font-fantasy text-amber-200">2. Give the wheel a whirl</p><p className="mt-1 text-sm leading-relaxed">Tap SPIN, or drag and flick the wheel. Each prize has its own rarity, so equal slices don't mean equal chances.</p></div>
+            <div className="mt-2 rounded-xl border border-amber-300/30 bg-black/30 p-3"><p className="font-fantasy text-amber-200">3. Discover your treasure</p><p className="mt-1 text-sm leading-relaxed">Land on a reward to claim it! The skull gives a consolation prize, and LIMITED marks a special collectible.</p></div>
+            <button type="button" onClick={() => setShowHelp(false)} className="mt-5 w-full rounded-xl border border-amber-300/60 bg-amber-900/60 py-3 font-semibold">Let’s Spin!</button>
           </section>
         </div>
       )}
