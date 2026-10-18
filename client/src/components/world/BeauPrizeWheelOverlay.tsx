@@ -175,6 +175,7 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
               </span>
             )}
           </div>
+          {slot.chance != null && admin && <span className="absolute -bottom-[12%] left-1/2 -translate-x-1/2 whitespace-nowrap text-[clamp(5px,1.3vw,9px)] font-bold text-amber-100 pointer-events-none">{(slot.chance * 100).toFixed(1)}%</span>}
           {isLimited && <span className="absolute -top-[15%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-amber-200 bg-[#651b28] px-1 text-[clamp(5px,1.2vw,9px)] font-black tracking-wide text-amber-100 pointer-events-none">LIMITED</span>}
           {admin && !isLoss && !spinning && (
             <button
@@ -328,6 +329,17 @@ function PrizeEditor({
                 {entry.label}
               </button>
             ))}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-amber-200/20 bg-black/25 p-3">
+            <label htmlFor="beau-prize-rarity" className="block text-xs text-amber-100 mb-2">Reward rarity (controls winning odds)</label>
+            <select id="beau-prize-rarity" value={rarity} onChange={event => setRarity(event.target.value as BeauPrizeRarity)}
+              className="w-full rounded-lg border border-amber-200/40 bg-[#24151c] p-2 text-sm text-amber-50">
+              <option value="common">Common · weight 6</option>
+              <option value="uncommon">Uncommon · weight 3</option>
+              <option value="rare">Rare · weight 1</option>
+            </select>
+            <p className="mt-2 text-[11px] text-amber-100/70">Exact chance depends on the rarity of all wheel sections. Existing prizes remain Common until changed.</p>
           </div>
 
           {usesAmount ? (
