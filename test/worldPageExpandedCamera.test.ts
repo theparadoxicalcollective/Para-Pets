@@ -12,8 +12,8 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 test("WorldPage owns map controls in the scene rather than the persistent viewport HUD", () => {
   const source = read("client/src/pages/WorldPage.tsx");
-  assert.match(source, /import ViewportScenePortal from "@\\/components\\/ViewportScenePortal"/);
-  assert.doesNotMatch(source, /import ViewportHudPortal from "@\\/components\\/ViewportHudPortal"/);
+  assert.match(source, /import ViewportScenePortal from "@\/components\/ViewportScenePortal"/);
+  assert.doesNotMatch(source, /import ViewportHudPortal from "@\/components\/ViewportHudPortal"/);
   assert.match(source, /expandedCamera: true/);
   assert.match(source, /<ViewportScenePortal enabled=\\{!worldMapCameraBlocked\\}>/);
 
