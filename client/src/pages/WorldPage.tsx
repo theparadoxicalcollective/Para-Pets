@@ -43,7 +43,6 @@ import SellFishPage from "@/pages/SellFishPage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import { useStageSurroundings } from "@/lib/stageSurroundings";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
-import ViewportHudPortal from "@/components/ViewportHudPortal";
 
 const recipeBookClosed = "/recipe-book-closed.png";
 const mixingTreeTitle = "/mixing-tree-title.png";
@@ -1868,10 +1867,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               })()}
             </div>
         </div>
-      </ViewportScenePortal>
-
       {!worldMapCameraBlocked && (
-      <ViewportHudPortal>
+      <div data-testid="world-map-only-controls" className="absolute inset-0 pointer-events-none">
         <div
           data-testid="world-persistent-hud"
           className="absolute inset-0 pointer-events-none"
@@ -1918,8 +1915,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             </div>
           )}
         </div>
-      </ViewportHudPortal>
+      </div>
       )}
+      </ViewportScenePortal>
 
       {showAddLocation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
