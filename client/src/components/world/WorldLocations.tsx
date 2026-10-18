@@ -1,3 +1,4 @@
+import hauntedCasinoBackground from "@assets/HauntedCasinoMainBG.png";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { getStagePortalTarget } from "@/lib/stage";
@@ -59,7 +60,6 @@ function isScrollableHauntedCasino(
   return (
     worldId === "haunted_woods" &&
     /casino/i.test(location.name) &&
-    Boolean(location.bgUrl) &&
     !location.isShop &&
     location.type !== "fishing" &&
     location.type !== "battle" &&
@@ -477,7 +477,7 @@ export default function WorldLocations({
           >
             <div className="h-full min-w-full w-max">
               <img
-                src={casinoScene.bgUrl || ""}
+                src={casinoScene.bgUrl || hauntedCasinoBackground}
                 alt=""
                 draggable={false}
                 onLoad={centerCasinoScene}
