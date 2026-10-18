@@ -8,7 +8,7 @@ test("wheel uses shared coin art, tutorial and arrow pointer without slot odds l
   assert.match(source, /aria-label="How Beau's Prize Wheel works"/);
   assert.match(source, /aria-labelledby="beau-wheel-help-title"/);
   assert.match(source, /setShowHelp\(false\)/);
-  assert.match(source, /polygon\(50% 0,100% 0,50% 100%\)/);
+  assert.match(source, /polygon\(50% 94%,10% 32%,36% 32%,36% 6%,64% 6%,64% 32%,90% 32%\)/);
   assert.match(source, /LIMITED/);
   assert.doesNotMatch(source, /slot.chance \* 100/);
   assert.match(source, /<img src=\{currencyAssets.coin\} alt="coins"/);
