@@ -769,54 +769,58 @@ export default function MoltenBlocksPage() {
   // ── Drawing ────────────────────────────────────────────────────────────
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
     const img = imgsRef.current[type];
+    // Round only the artwork, not the board geometry. Keep the radius small
+    // so adjacent occupied cells still read as a solid falling shape.
+    const radius = Math.max(1, Math.min(3, size * 0.075));
+    const cellPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + size - radius, y);
+      ctx.quadraticCurveTo(x + size, y, x + size, y + radius);
+      ctx.lineTo(x + size, y + size - radius);
+      ctx.quadraticCurveTo(x + size, y + size, x + size - radius, y + size);
+      ctx.lineTo(x + radius, y + size);
+      ctx.quadraticCurveTo(x, y + size, x, y + size - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    };
+
+    ctx.save();
+    cellPath();
+    ctx.clip();
     if (img && img.complete && img.naturalWidth > 0) {
-      // 1) Solid base fill — last-line defence against any transparent
-      //    pixel ever revealing the playfield background through the cell.
-      //    Overdraw by 1px on the right/bottom so adjacent cells visually
-      //    seal together with no subpixel hairline gaps.
+      // Fill behind the opaque center-cropped texture so the corners never
+      // become transparent artifacts as the piece moves.
       if (!ghost) {
         ctx.fillStyle = PIECE_BASE[type];
-        ctx.fillRect(x, y, size + 1, size + 1);
+        ctx.fillRect(x, y, size, size);
       }
-      // 2) Source-crop the PNG deep inside the artwork: these textures
-      //    fade from solid in the centre to a soft alpha edge, so we
-      //    sample only the dense inner ~52% of each axis (24% inset on
-      //    every edge) to grab the most opaque, saturated region and
-      //    stretch it across the entire cell — no transparent corners,
-      //    no rounded edges, no fade-to-background halos.
-      ctx.save();
       if (ghost) ctx.globalAlpha = 0.22;
-      // Crisp pixel sampling — bilinear smoothing was washing out the
-      //    inner texture and re-introducing semi-transparent edges.
-      const prevSmoothing = ctx.imageSmoothingEnabled;
+      const previousSmoothing = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = false;
       const nW = img.naturalWidth, nH = img.naturalHeight;
-      const sInsetX = nW * 0.24;
-      const sInsetY = nH * 0.24;
-      ctx.drawImage(
-        img,
-        sInsetX, sInsetY, nW - sInsetX * 2, nH - sInsetY * 2,
-        x, y, size + 1, size + 1,
-      );
-      ctx.imageSmoothingEnabled = prevSmoothing;
-      ctx.restore();
-      // 3) Coloured glow rim so each piece is identifiable at a glance.
-      if (!ghost) {
-        ctx.save();
-        ctx.shadowColor = PIECE_GLOW[type];
-        ctx.shadowBlur = Math.max(4, size * 0.25);
-        ctx.strokeStyle = PIECE_GLOW[type];
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
-        ctx.restore();
-      }
+      const sInsetX = nW * 0.24, sInsetY = nH * 0.24;
+      ctx.drawImage(img, sInsetX, sInsetY, nW - 2 * sInsetX, nH - 2 * sInsetY, x, y, size, size);
+      ctx.imageSmoothingEnabled = previousSmoothing;
     } else {
-      // Fallback solid colour cell
-      ctx.fillStyle = ghost ? PIECE_GLOW[type].replace(/[\d.]+\)$/, "0.18)") : PIECE_GLOW[type];
+      ctx.fillStyle = ghost ? PIECE_GLOW[type].replace(/[\\d.]+\\)$/, "0.18)") : PIECE_GLOW[type];
       ctx.fillRect(x, y, size, size);
-      ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
     }
+    ctx.restore();
+
+    ctx.save();
+    cellPath();
+    if (!ghost) {
+      ctx.shadowColor = PIECE_GLOW[type];
+      ctx.shadowBlur = Math.max(3, size * 0.18);
+      ctx.strokeStyle = PIECE_GLOW[type];
+    } else {
+      ctx.strokeStyle = "rgba(255,190,110,0.22)";
+    }
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
   };
 
   const drawBoard = () => {
