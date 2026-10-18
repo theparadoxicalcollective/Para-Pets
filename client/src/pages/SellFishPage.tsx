@@ -159,7 +159,11 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
   return (
     <div
       className="absolute inset-0 z-50 flex flex-col"
-      style={{ background: "rgba(5,12,10,0.97)", backdropFilter: "blur(6px)" }}
+      data-testid="sell-fish-blocking-page"
+      onPointerDown={event => event.stopPropagation()}
+      onPointerMove={event => event.stopPropagation()}
+      onPointerUp={event => event.stopPropagation()}
+      style={{ background: "rgba(5,12,10,0.97)", backdropFilter: "blur(6px)", pointerEvents: "auto" }}
     >
       {/* Header */}
       <div

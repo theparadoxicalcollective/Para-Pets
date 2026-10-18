@@ -1863,6 +1863,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         </div>
       </ViewportScenePortal>
 
+      {!worldMapCameraBlocked && (
       <ViewportHudPortal>
         <div
           data-testid="world-persistent-hud"
@@ -1911,6 +1912,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           )}
         </div>
       </ViewportHudPortal>
+      )}
 
       {showAddLocation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
