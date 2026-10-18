@@ -78,7 +78,7 @@ test("player popup uses Beau art, arrow pointer and Haunted Forest background", 
   assert.match(overlay, /drop-shadow\(0 0 3px rgba\(255,92,84,\.96\)\)/);
   assert.match(overlay, /drop-shadow\(0 0 9px rgba\(190,28,40,\.72\)\)/);
   assert.match(overlay, /#fff0a8/);
-  assert.match(overlay, /polygon\(50% 0,100% 50%,50% 100%,0 50%\)/);
+  assert.match(overlay, /polygon\(50% 100%,0 28%,30% 28%,30% 0,70% 0,70% 28%,100% 28%\)/);
   assert.match(overlay, /data-testid="beau-skull-burst"/);
   assert.match(overlay, /SKULL_BURST_PARTICLES/);
   assert.match(overlay, /FREE SPIN/);
@@ -141,7 +141,7 @@ test("players can rotate Beau's wheel by drag and a quick flick starts one autho
   assert.match(overlay, /void spin\(spinDrag\.velocity\)/);
   assert.match(overlay, /body: JSON\.stringify\(\{ actionId: createActionId\(\) \}\)/);
   assert.match(overlay, /beauWheelLandingRotation\(spinResult\.slotIndex, pointerAngle\)/);
-  assert.match(overlay, /Tap SPIN or drag and flick the wheel/);
+  assert.match(overlay, /Tap SPIN, or drag and flick the wheel/);
 });
 
 test("weighted wheel odds are normalized, preserve legacy defaults and favor common rewards", () => {
