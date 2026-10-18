@@ -118,12 +118,8 @@ export default function WorldLocations({
 
   const activateLocation = (loc: WorldLocationData) => {
     if (isScrollableHauntedCasino(loc, worldId)) {
-      // Admins keep the existing first-tap-select behavior so a hotspot can be
-      // moved/resized safely. Once selected, the next tap opens the casino.
-      if (isAdmin && selectedLocId !== loc.id) {
-        onLocationClick(loc);
-        return;
-      }
+      // Open the casino on the first activation for players and admins alike.
+      // Admin hotspot placement remains available inside the casino overlay.
       setCasinoScene(loc);
       return;
     }
