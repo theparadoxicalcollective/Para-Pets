@@ -2835,7 +2835,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             </div>
 
             {/* ── Block & Skill buttons on the right ─────────────────── */}
-            {phase === "battle" && (
+            {phase === "battle" && !isCave && (
               <div className="absolute z-20 flex flex-col gap-4"
                 style={{ right: "4%", top: "52%", transform: "translateY(-50%)", pointerEvents: "auto" }}>
 
@@ -2898,6 +2898,39 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 slash arena. */}
             <div className="absolute z-20 left-0 right-0 flex justify-center pointer-events-none"
               style={{ bottom: "9%" }}>
+              {isCave && phase === "battle" && (
+                <div data-testid="cave-block-beside-potions" className="flex flex-col items-center pointer-events-auto shrink-0">
+                {/* Cave Block button — hold to shield (no cooldown, 5s max per hold) */}
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    data-testid="button-battle-block"
+                    onPointerDown={(e) => { e.stopPropagation(); startBlock(); }}
+                    onPointerUp={() => endBlock()}
+                    onPointerLeave={() => endBlock()}
+                    className="relative flex items-center justify-center transition-all active:scale-90"
+                    style={{
+                      width: 72, height: 72,
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                    }}
+                  >
+                    <img src={blockIconPng} alt="Block" style={{
+                      width: 68, height: 68,
+                      objectFit: "contain",
+                      animation: blockHeld
+                        ? "blockIconHeld 0.55s ease-in-out infinite"
+                        : "blockIconGlow 2s ease-in-out infinite",
+                    }} />
+                  </button>
+                  <span className="font-fantasy text-[9px] tracking-widest"
+                    style={{ color: blockHeld ? "#93c5fd" : "#60a5fa", textShadow: blockHeld ? "0 0 8px rgba(147,197,253,0.9)" : "0 0 6px rgba(96,165,250,0.5)" }}>
+                    BLOCK
+                  </span>
+                </div>
+
+                </div>
+              )}
               <div className="flex gap-2 items-center pointer-events-auto rounded-2xl px-3 py-1.5"
                 style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}>
                 {Array.from({ length: isCave ? 3 : 5 }, (_, i) => {
