@@ -575,7 +575,9 @@ export default function MoltenBlocksPage() {
       return;
     }
     setHoldWarning(false);
-    const carriedLaser = pendingSpecialRef.current?.kind === "laser" ? pendingSpecialRef.current : null;
+    const carriedLaser: { kind: "laser"; cellIdx: number } | null = pendingSpecialRef.current?.kind === "laser"
+      ? { kind: "laser", cellIdx: pendingSpecialRef.current.cellIdx }
+      : null;
     const stashedLaser = heldSpecialRef.current;
     const stashed = holdRef.current;
     heldSpecialRef.current = carriedLaser;
