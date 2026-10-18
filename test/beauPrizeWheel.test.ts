@@ -65,7 +65,7 @@ test("wheel cannot spin until every admin prize is valid", () => {
   assert.match(bridge, /if \(!next\.ready && !next\.isAdmin\)/);
 });
 
-test("player popup uses Beau art, red-gold diamond pointer and Haunted Forest background", () => {
+test("player popup uses Beau art, arrow pointer and Haunted Forest background", () => {
   assert.match(overlay, /BeauPrizeWheel\.png/);
   assert.match(overlay, /PrizeWheelEmpty\.png/);
   assert.doesNotMatch(overlay, /PrizeWheelArrow\.png/);
@@ -82,7 +82,7 @@ test("player popup uses Beau art, red-gold diamond pointer and Haunted Forest ba
   assert.match(overlay, /data-testid="beau-skull-burst"/);
   assert.match(overlay, /SKULL_BURST_PARTICLES/);
   assert.match(overlay, /FREE SPIN/);
-  assert.match(overlay, /SPIN ·/);
+  assert.match(overlay, /<span>SPIN<\/span>/);
 });
 
 test("admin can set coins, essence, pet EXP, items and eggs directly on wheel sections", () => {
@@ -110,7 +110,7 @@ test("Beau only opens the wheel from the Haunted Forest NPC and startup installs
   assert.match(migration, /action_id UUID PRIMARY KEY/);
 });
 
-test("admin wheel and diamond pointer placement stay independently valid", () => {
+test("admin wheel and arrow pointer placement stay independently valid", () => {
   assert.deepEqual(beauWheelLayoutFrom(DEFAULT_BEAU_WHEEL_LAYOUT), DEFAULT_BEAU_WHEEL_LAYOUT);
   assert.deepEqual(beauPointerLayoutFrom(DEFAULT_BEAU_POINTER_LAYOUT), DEFAULT_BEAU_POINTER_LAYOUT);
   assert.deepEqual(beauWheelLayoutFrom({ left: 12.345, top: 20.123, size: 78 }), { left: 12.35, top: 20.12, size: 78 });
@@ -141,7 +141,7 @@ test("players can rotate Beau's wheel by drag and a quick flick starts one autho
   assert.match(overlay, /void spin\(spinDrag\.velocity\)/);
   assert.match(overlay, /body: JSON\.stringify\(\{ actionId: createActionId\(\) \}\)/);
   assert.match(overlay, /beauWheelLandingRotation\(spinResult\.slotIndex, pointerAngle\)/);
-  assert.match(overlay, /Drag the wheel to turn it · a quick flick starts the spin/);
+  assert.match(overlay, /Tap SPIN or drag and flick the wheel/);
 });
 
 test("weighted wheel odds are normalized, preserve legacy defaults and favor common rewards", () => {
