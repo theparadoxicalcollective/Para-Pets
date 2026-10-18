@@ -7,7 +7,9 @@ const market = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
 test("Player Market keeps interactive content on the canonical stage", () => {
   assert.match(market, /data-stage-coordinate-space="canonical"/);
   assert.doesNotMatch(market, /maxWidth: 760/);
-  assert.match(market, /height: "calc\(100\*var\(--vh\)\)", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column"/);
+  assert.match(market, /className="market-shell"[\s\S]*?height: "100dvh"/);
+  assert.match(market, /className="market-listing-grid"/);
+  assert.match(market, /className="market-filter-tabs"/);
 });
 
 test("Player Market uses its own artwork for the expanded device backdrop", () => {

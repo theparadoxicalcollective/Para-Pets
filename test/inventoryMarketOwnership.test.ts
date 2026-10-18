@@ -64,7 +64,7 @@ test("market artwork fields retain the requested card alignment", () => {
   assert.match(market, /data-market-collect-ready="true"[\s\S]*?marketCollectGlow 1\.8s/);
   assert.match(market, /data-market-empty-card-art[\s\S]*?grayscale\(\.82\) brightness\(\.5\)/);
   assert.match(market, /List Item<\/span>/);
-  assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 64[\s\S]*?center\/100% auto no-repeat/);
+  assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 66[\s\S]*?center\/100% auto no-repeat/);
 });
 
 test("market category subfilters use simple text controls under the shared groups", () => {

@@ -700,6 +700,14 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   return (
     <div data-stage-coordinate-space="canonical" data-viewport-visual-owner="backdrop" data-testid="market-canonical-page" style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", pointerEvents: "auto", overflow: "hidden", background: "#100018" }}>
       <style>{`
+        .market-shell { max-width: 1160px; margin: 0 auto; width: 100%; }
+        .market-main-tabs { max-width: 760px; width: 100%; margin-left: auto !important; margin-right: auto !important; }
+        .market-content { width: 100%; max-width: 1080px; margin: 0 auto; }
+        .market-listing-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,190px),1fr)); gap: 14px; align-content: start; }
+        .market-filter-tabs { display: flex !important; overflow-x: auto; scrollbar-width: none; justify-content: center; }
+        .market-filter-tabs > button { flex: 1 0 95px; max-width: 170px; }
+        .market-empty { margin: clamp(20px,5vh,60px) auto 0; max-width: 440px; padding: 28px 22px; border: 1px solid rgba(246,201,93,.35); border-radius: 18px; background: linear-gradient(160deg,rgba(8,25,21,.92),rgba(18,10,29,.9)); box-shadow: 0 16px 45px rgba(0,0,0,.45),inset 0 1px rgba(255,240,180,.1); }
+        @media (max-width: 520px) { .market-listing-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; } .market-filter-tabs { justify-content: flex-start; } .market-filter-tabs > button { flex-basis: 72px; } }
         @keyframes marketCollectGlow {
           0%, 100% { filter: brightness(1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 5px rgba(246,201,93,.28)); }
           50% { filter: brightness(1.1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 16px rgba(246,201,93,.88)); }
@@ -723,34 +731,35 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0, pointerEvents: "none" }} />
       <div data-canonical-visual-layer="duplicate-backdrop" style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1, pointerEvents: "none" }} />
 
-      <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "max(calc(env(safe-area-inset-top,0px) + 10px),46px) 10px 0", display: "grid", gridTemplateColumns: "43px minmax(0,1fr) minmax(72px,auto)", gap: 6, alignItems: "center" }}>
+      <div className="market-shell" style={{ position: "relative", zIndex: 2, height: "100dvh", minHeight: 0, boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "calc(env(safe-area-inset-top,0px) + 16px) clamp(12px,3vw,32px) 0", display: "grid", gridTemplateColumns: "44px minmax(0,1fr) minmax(88px,auto)", gap: 6, alignItems: "center" }}>
           <button aria-label="Back" data-testid="button-back-home" onClick={() => navigate("/")} style={{ width: 43, height: 43, padding: 0, border: "1px solid rgba(255,205,90,.46)", borderRadius: 12, background: "linear-gradient(145deg,rgba(20,74,39,.9),rgba(13,35,28,.94))", color: cream, cursor: "pointer", boxShadow: "inset 0 0 0 1px rgba(103,255,148,.12),0 4px 12px rgba(0,0,0,.4),0 0 9px rgba(86,238,129,.16)", fontFamily: "Georgia, serif", fontSize: 27, fontWeight: 700, lineHeight: 1, textShadow: "0 1px 2px #07130b,0 0 7px rgba(255,222,120,.45)" }}>←</button>
-          <h1 style={{ margin: 0, minWidth: 0, textAlign: "center", color: cream, fontFamily: "Georgia, serif", fontSize: "clamp(17px,5.4vw,22px)", lineHeight: 1.05, letterSpacing: .4, textShadow: "0 0 14px #b832ff,0 2px 3px #190021" }}>Player Market</h1>
+          <h1 style={{ margin: 0, minWidth: 0, textAlign: "center", color: cream, fontFamily: "Georgia, serif", fontSize: "clamp(20px,3vw,32px)", lineHeight: 1.05, letterSpacing: .4, textShadow: "0 0 14px #b832ff,0 2px 3px #190021" }}>Player Market</h1>
           <button data-testid="button-market-coin-shop" onClick={() => navigate("/coins")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3, minWidth: 0, maxWidth: 112, minHeight: 39, borderRadius: 12, border: "1px solid rgba(255,205,90,.4)", background: "rgba(23,3,37,.76)", padding: "5px 7px", color: gold, fontSize: 11, whiteSpace: "nowrap", fontFamily: "Georgia, serif", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,.4)" }}><CoinIcon size={15} /><span data-testid="text-market-coins">{formatCoins(user?.coins ?? 0)}</span><span>+</span></button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 7, margin: "11px 10px 0" }}>
+        <div className="market-main-tabs" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12, margin: "clamp(14px,3vh,26px) 10px 0" }}>
           <button data-testid="button-tab-browse" onClick={() => setActiveTab("browse")} style={{ ...artButtonStyle(activeTab === "browse"), minWidth: 0, minHeight: 46, padding: "5px 8px", fontSize: 12, lineHeight: 1.1 }}>Market</button>
           <button data-testid="button-tab-myshop" onClick={() => setActiveTab("myshop")} style={{ ...artButtonStyle(activeTab === "myshop"), minWidth: 0, minHeight: 46, padding: "5px 8px", fontSize: 12, lineHeight: 1.1 }}>List Items</button>
         </div>
 
         {activeTab === "browse" ? (
-          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "8px 10px 0" }}>
-            <div data-testid="market-search-frame" style={{ position: "relative", height: 64, flexShrink: 0, marginBottom: 7, background: `url(${marketSearchBar}) center/100% auto no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
+          <div className="market-content" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "clamp(12px,2vh,22px) clamp(12px,3vw,32px) 0" }}>
+            <div data-testid="market-search-frame" style={{ position: "relative", height: 66, maxWidth: 740, width: "100%", margin: "0 auto clamp(12px,2vh,20px)", flexShrink: 0, background: `url(${marketSearchBar}) center/100% auto no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
               <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder="Search the market…" style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
             <div
               data-testid="market-browse-group-tabs"
-              style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 4, marginBottom: 6 }}
+              className="market-filter-tabs"
+              style={{ display: "flex", gap: 8, marginBottom: 14 }}
             >
               {mainTabs.map(tab => (
                 <button
                   key={tab.value}
                   data-testid={`button-main-tab-${tab.value}`}
                   onClick={() => { setMainTab(tab.value); setMarketCategory("all"); playTick(); }}
-                  style={{ ...artButtonStyle(mainTab === tab.value), minWidth: 0, minHeight: 40, padding: "4px 2px", fontSize: "clamp(8px,2.3vw,10px)", lineHeight: 1.05, whiteSpace: "nowrap" }}
+                  style={{ ...artButtonStyle(mainTab === tab.value), minWidth: 0, minHeight: 40, padding: "4px 2px", fontSize: "clamp(10px,1.2vw,13px)", lineHeight: 1.05, whiteSpace: "nowrap" }}
                 >
                   {tab.label}
                 </button>
@@ -780,12 +789,12 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
               </div>
             )}
 
-            <div style={{ flex: 1, overflowY: "auto", padding: "3px 2px 20px", scrollbarWidth: "none" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "10px 2px 28px", scrollbarWidth: "none" }}>
               {marketQuery.isLoading
                 ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div>
                 : !visibleMarketListings.length
-                  ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div>
-                  : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>
+                  ? <div className="market-empty" style={{ textAlign: "center", color: cream, fontFamily: "Georgia, serif", fontSize: "clamp(15px,2vw,19px)", lineHeight: 1.5 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div>
+                  : <div className="market-listing-grid">
                       {visibleMarketListings.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}
                     </div>}
             </div>
