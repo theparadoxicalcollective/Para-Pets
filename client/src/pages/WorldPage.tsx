@@ -2962,6 +2962,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         </div>
       )}
 
+      <ViewportModalPortal enabled={showLocationView && activeLocationId === ELYSIAN_BAYOU_LOCATION_IDS.bayousHeart}>
       {showLocationView && (() => {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         if (!activeLoc) return null;
@@ -3367,6 +3368,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         </div>
         );
       })()}
+      </ViewportModalPortal>
 
       {showAddObject && activeLocationId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -4265,6 +4267,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         />
       )}
 
+      <ViewportModalPortal enabled={cauldronOpen} blocking={false}>
       {cauldronOpen && (
         <CauldronPanel
           inventory={inventory}
@@ -4286,6 +4289,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           dropZoneRef={cauldronZoneRef}
         />
       )}
+      </ViewportModalPortal>
 
       <RecipeAlreadyRecordedModal
         open={alreadyUnlockedOpen}
