@@ -238,7 +238,7 @@ export default function JansonQuestOverlay() {
            style={{ ...actionStyle, display: "block", margin: "6px auto 0" }}>Open Fish Market</button>
        </div>}</>, npcMount)}
     {questListMount && logQuest && createPortal(<QuestCard quest={logQuest} busy={claim.isPending} onGo={() => onQuestGo(logQuest)} onClaim={() => claim.mutate(logQuest.questKey)} />, questListMount)}
-    {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,10,7,.82)" }} onClick={() => setDialogOpen(false)}>
+    {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,10,7,.82)", pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()} onClick={() => setDialogOpen(false)}>
       <section role="dialog" aria-modal="true" aria-label="Janson's fishing quests" data-testid="janson-quest-dialog" onClick={event => event.stopPropagation()}
         style={{ width: dialogWidth, padding: 18, borderRadius: 18, border: "1px solid rgba(184,219,142,.65)", background: "linear-gradient(#163528,#081b16)", boxShadow: "0 16px 45px #000a", color: "#f5ead0", fontFamily: "Lora,serif" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
