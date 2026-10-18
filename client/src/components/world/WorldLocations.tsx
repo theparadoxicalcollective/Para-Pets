@@ -1,4 +1,4 @@
-import hauntedCasinoBackground from "@assets/HauntedCasinoMainBG.png";
+import hauntedCasinoBackground from "@assets/uploads/HauntedCasinoMainBG.png";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { getStagePortalTarget } from "@/lib/stage";
