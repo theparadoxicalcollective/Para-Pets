@@ -493,7 +493,7 @@ export default function GinnyQuestOverlay() {
       )}
 
       {dialogOpen && createPortal(
-        <div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,2,5,.78)", backdropFilter: "blur(5px)" }} onClick={() => setDialogOpen(false)}>
+        <div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,2,5,.78)", backdropFilter: "blur(5px)", pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()} onClick={() => setDialogOpen(false)}>
           <section
             data-testid="ginny-quest-dialog"
             role="dialog"
