@@ -21,7 +21,7 @@ test("individual world pages own the real device viewport, not 390x844", () => {
 });
 
 test("world camera remains viewport-owned and admin placement stays in world scene", () => {
-  assert.match(world, /<ViewportScenePortal enabled=\{!worldMapCameraBlocked\}>/);
+  assert.match(world, /<ViewportScenePortal>/);
   assert.match(world, /data-testid="world-expanded-camera"/);
   assert.match(world, /data-quest-guide-pan-surface/);
   assert.match(world, /WORLD_MAP_HEIGHT/);
