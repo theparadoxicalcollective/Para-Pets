@@ -67,11 +67,23 @@ export function beauPointerAngle(wheel: BeauWheelLayout, pointer: BeauPointerLay
   return ((angle % 360) + 360) % 360;
 }
 
+export type BeauPrizeRarity = "common" | "uncommon" | "rare";
+export const BEAU_RARITY_WEIGHTS: Record<BeauPrizeRarity, number> = { common: 6, uncommon: 3, rare: 1 };
+
+export function beauPrizeWeight(rarity: BeauPrizeRarity = "common"): number { return BEAU_RARITY_WEIGHTS[rarity]; }
+
+export function beauWheelOdds(rarities: BeauPrizeRarity[]): number[] {
+  const weights = rarities.map(beauPrizeWeight);
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  return weights.map(weight => weight / total);
+}
+
 export type BeauPrizeKind = "coins" | "essence" | "exp" | "item" | "egg";
 
 export interface BeauPrizeConfig {
   slot: number;
   kind: BeauPrizeKind;
+  rarity?: BeauPrizeRarity;
   amount?: number;
   shopItemId?: string;
 }
@@ -79,6 +91,8 @@ export interface BeauPrizeConfig {
 export interface BeauPrizeView {
   slot: number;
   configured: boolean;
+  rarity?: BeauPrizeRarity;
+  chance?: number;
   kind: BeauPrizeKind | "loss" | null;
   label: string;
   imageUrl: string | null;
