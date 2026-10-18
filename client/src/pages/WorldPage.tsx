@@ -32,6 +32,7 @@ import { VOLCANIC_LOCATION_IDS, VOLCANIC_WORLD_ID } from "@shared/worlds/volcani
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import PondAdminModal from "@/components/world/PondAdminModal";
 import { CauldronOverlay, CauldronPanel } from "@/components/world/MixingTreeCauldron";
 import { RecipeAlreadyRecordedModal, RecipeBookModal, RecipeDetailModal, type MixingTreeRecipe } from "@/components/world/MixingTreeRecipes";
@@ -253,6 +254,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [caveBattleTier, setCaveBattleTier] = useState(1);
   const [cavePotionSlots, setCavePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null]);
   const [cavePotionPickerOpen, setCavePotionPickerOpen] = useState(false);
+  const [draggingCavePotion, setDraggingCavePotion] = useState<string | null>(null);
+  const [cavePotionDetails, setCavePotionDetails] = useState<{ name: string; description: string; quantity: number; imageUrl: string | null; healthRestored: number | null; manaRestored: number | null; petsRevived: number | null } | null>(null);
+  const cavePotionPointerStart = useRef<{ x: number; y: number } | null>(null);
   const [battlePotionSlots, setBattlePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null, null, null]);
   const [battlePets, setBattlePets] = useState<(InventoryItem | null)[]>([null, null, null]);
   // Ref guard: prevents the save effect from writing stale state back to
@@ -3560,7 +3564,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
                 const cavePotions = inventory.filter((i: any) => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0 || (i.petsRevived ?? 0) > 0));
                 // Group identical potions into stacks of up to 50
-                const cavePotionStacks: Array<{ shopItemId: string; inventoryId: string; quantity: number; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; petsRevived?: number | null; }> = Object.values(
+                const cavePotionStacks: Array<{ shopItemId: string; inventoryId: string; quantity: number; name: string; description?: string | null; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; petsRevived?: number | null; }> = Object.values(
                   cavePotions.reduce((acc: Record<string, any>, p: any) => {
                     if (!acc[p.shopItemId]) acc[p.shopItemId] = { ...p, quantity: 0 };
                     acc[p.shopItemId].quantity = Math.min(50, acc[p.shopItemId].quantity + (p.quantity ?? 1));
@@ -3595,7 +3599,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           return (
                             <button key={i}
                               data-testid={`div-cave-potion-slot-${i}`}
-                              onClick={() => slot ? removeCavePotion(i) : setCavePotionPickerOpen(true)}
+                              data-cave-potion-drop-slot={i}
+                              onClick={() => slot && removeCavePotion(i)}
                               className="relative flex items-center justify-center rounded-2xl border-2 transition-all active:scale-95"
                               style={{
                                 width: 54, height: 54, flexShrink: 0,
@@ -3623,17 +3628,30 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           );
                         })}
                       </div>
-                      <p className="font-fantasy text-[8px] tracking-wider text-white/20 text-center">Tap to add · tap to remove</p>
+                      <p className="font-fantasy text-[8px] tracking-wider text-white/20 text-center">Drag a potion onto a slot · tap an equipped slot to remove</p>
                     </div>
 
+                    {cavePotionDetails && (
+                      <div data-testid="cave-potion-description" className="absolute inset-0 z-[70] flex items-center justify-center p-3" style={{ background: "rgba(0,0,0,.7)", pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()}>
+                        <div className="w-full max-w-sm rounded-xl p-4 text-white" style={{ background: "#13111f", border: "1px solid #cba34b" }}>
+                          <div className="flex justify-between items-center gap-3">
+                            <h4 className="font-fantasy text-sm text-amber-200">{cavePotionDetails.name}</h4>
+                            <button aria-label="Close potion details" onClick={() => setCavePotionDetails(null)}><X className="w-5 h-5" /></button>
+                          </div>
+                          {cavePotionDetails.imageUrl && <img src={cavePotionDetails.imageUrl} alt="" className="w-16 h-16 object-contain mx-auto my-3" />}
+                          <p className="text-xs text-white/75 mb-2">{cavePotionDetails.description || "Potion"}</p>
+                          <p className="text-xs text-white/60">Owned: ×{cavePotionDetails.quantity}</p>
+                          {Boolean(cavePotionDetails.healthRestored) && <p className="text-xs text-green-300">Restores {cavePotionDetails.healthRestored} HP</p>}
+                          {Boolean(cavePotionDetails.manaRestored) && <p className="text-xs text-blue-300">Restores {cavePotionDetails.manaRestored} MP</p>}
+                          {Boolean(cavePotionDetails.petsRevived) && <p className="text-xs text-amber-200">Revives pets: {cavePotionDetails.petsRevived}</p>}
+                        </div>
+                      </div>
+                    )}
                     {/* Inline potion picker */}
-                    {cavePotionPickerOpen && (
+                    {(
                       <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.5)" }}>
                         <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                          <span className="font-fantasy text-[10px] tracking-widest text-white/50">CHOOSE POTION</span>
-                          <button onClick={() => setCavePotionPickerOpen(false)} className="text-white/40 hover:text-white/70 transition-colors">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          <span className="font-fantasy text-[10px] tracking-widest text-white/50">DRAG POTIONS TO SLOTS</span>
                         </div>
                         {cavePotionStacks.length === 0 ? (
                           <p className="font-fantasy text-[10px] text-white/30 text-center py-3">No potions in bag</p>
@@ -3642,14 +3660,29 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             {cavePotionStacks.map((p) => {
                               const isEquipped = assignedShopIds.has(p.shopItemId);
                               return (
-                                <button key={p.shopItemId}
-                                  disabled={isEquipped}
-                                  onClick={() => {
+                                <div key={p.shopItemId}
+                                  data-testid={`cave-draggable-potion-${p.shopItemId}`}
+                                  onPointerDown={(event) => {
                                     if (isEquipped) return;
-                                    const updated = [...cavePotionSlots] as (BattlePotionSlot | null)[];
-                                    const emptyIdx = updated.findIndex(s => s === null);
-                                    if (emptyIdx === -1) return;
-                                    updated[emptyIdx] = {
+                                    event.currentTarget.setPointerCapture(event.pointerId);
+                                    setDraggingCavePotion(p.shopItemId);
+                                    cavePotionPointerStart.current = { x: event.clientX, y: event.clientY };
+                                  }}
+                                  onPointerUp={(event) => {
+                                    setDraggingCavePotion(null);
+                                    if (isEquipped) return;
+                                    const start = cavePotionPointerStart.current;
+                                    cavePotionPointerStart.current = null;
+                                    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 10) {
+                                      setCavePotionDetails({ name: p.name, description: p.description ?? "", quantity: p.quantity, imageUrl: p.imageUrl ?? null, healthRestored: p.healthRestored ?? null, manaRestored: p.manaRestored ?? null, petsRevived: p.petsRevived ?? null });
+                                      return;
+                                    }
+                                    const target = document.elementFromPoint(event.clientX, event.clientY);
+                                    const slotElement = target?.closest("[data-cave-potion-drop-slot]");
+                                    const index = Number(slotElement?.getAttribute("data-cave-potion-drop-slot"));
+                                    if (!slotElement || !Number.isInteger(index) || index < 0 || index >= cavePotionSlots.length || cavePotionSlots[index]) return;
+                                    const updated = [...cavePotionSlots];
+                                    updated[index] = {
                                       shopItemId: p.shopItemId,
                                       inventoryId: p.inventoryId,
                                       qty: Math.max(1, Math.min(50, p.quantity ?? 1)),
@@ -3661,22 +3694,22 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                       petsHealed: null,
                                     };
                                     setCavePotionSlots(updated);
-                                    const hasFreeSlot = updated.some(s => s === null);
-                                    if (!hasFreeSlot) setCavePotionPickerOpen(false);
                                   }}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                                  onPointerCancel={() => { setDraggingCavePotion(null); cavePotionPointerStart.current = null; }}
+                                  aria-label={`Drag ${p.name} to a potion slot`}
+                                  className="relative flex items-center justify-center w-14 h-14 rounded-xl transition-all active:scale-95"
                                   style={{
                                     background: isEquipped ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.08)",
                                     border: `1px solid ${isEquipped ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.15)"}`,
                                     opacity: isEquipped ? 0.4 : 1,
+                                    touchAction: "none",
+                                    cursor: isEquipped ? "default" : "grab",
+                                    outline: draggingCavePotion === p.shopItemId ? "2px solid #cba34b" : undefined,
                                   }}
                                 >
-                                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-5 h-5 object-contain" />}
-                                  <div className="text-left">
-                                    <div className="font-fantasy text-[9px] text-white/80 leading-tight">{p.name}</div>
-                                    <div className="font-fantasy text-[8px] text-white/40">×{p.quantity ?? 1}</div>
-                                  </div>
-                                </button>
+                                  {p.imageUrl ? <img src={p.imageUrl} alt={p.name} draggable={false} className="w-9 h-9 object-contain pointer-events-none" /> : <span className="text-xs text-white/70">Potion</span>}
+                                  <span className="absolute bottom-0 right-1 font-fantasy text-[9px] text-white/80">×{p.quantity ?? 1}</span>
+                                </div>
                               );
                             })}
                           </div>
@@ -4114,6 +4147,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         const caveLocation = locations.find((location) => location.id === battleLocationId);
         if (!caveLocation) return null;
         return (
+          <ViewportModalPortal>
           <WorldCaveOverlay
             mode={showBattle ? "battle" : "entry"}
             activePetId={currentUser.activePetId ?? null}
@@ -4162,6 +4196,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               }
             }}
           />
+          </ViewportModalPortal>
         );
       })()}
 
