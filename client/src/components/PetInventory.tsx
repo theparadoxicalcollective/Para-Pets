@@ -1488,6 +1488,11 @@ function BagView({
           <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayCount} {displayCount === 1 ? "item" : "items"}</span>
         </div>
 
+      {activeBagCategory === "pets" && pets.length > 0 && (
+        <div data-testid="bag-full-pets" className="mb-3">
+          <PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} />
+        </div>
+      )}
       {isEmpty ? (
         <div className="text-center py-16">
           <div
@@ -1501,10 +1506,6 @@ function BagView({
           </div>
           <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
-        </div>
-      ) : activeBagCategory === "pets" ? (
-        <div data-testid="bag-full-pets">
-          <PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} />
         </div>
       ) : displayCount === 0 ? (
         <div className="text-center py-12">
