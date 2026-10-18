@@ -411,7 +411,7 @@ export default function SlaughterSlotsOverlay({
           <span className="flex items-center gap-1.5"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain" />{state?.balances.coins ?? "—"}</span>
           <span className="h-4 w-px bg-white/15" />
           <span className="flex items-center gap-1.5"><img src={currencyAssets.essenceToken} alt="Essence" className="h-5 w-5 object-contain" />{state?.balances.essence ?? "—"}</span>
-          {state?.freeSpinAvailable && <button type="button" data-testid="slaughter-slots-free-spin" disabled={!canFreeSpin} onClick={() => { stopHold(); void spinOnce(true); }} className="min-h-8 rounded-full border border-amber-300/60 bg-amber-950/85 px-2 text-[9px] font-bold text-amber-100 disabled:opacity-40">FREE 500 SPIN</button>}
+          
         </div>
 
         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
@@ -492,15 +492,15 @@ export default function SlaughterSlotsOverlay({
           <button
             data-testid="slaughter-slots-spin-control"
             type="button"
-            aria-label={holding ? "Stop automatic spins" : "Spin once, or hold to keep spinning"}
+            aria-label={holding ? "Stop automatic spins" : state?.freeSpinAvailable ? "Use daily free 500 coin spin" : "Spin once, or hold to keep spinning"}
             aria-pressed={holding}
-            onPointerDown={beginHold}
+            onPointerDown={state?.freeSpinAvailable ? undefined : beginHold}
             onPointerUp={finishHold}
             onPointerCancel={() => { suppressClickRef.current = true; stopHold(); }}
             onLostPointerCapture={clearHoldTimer}
-            onClick={clickSpin}
+            onClick={state?.freeSpinAvailable ? () => { stopHold(); void spinOnce(true); } : clickSpin}
             onContextMenu={event => event.preventDefault()}
-            disabled={!canStartHold}
+            disabled={state?.freeSpinAvailable ? !canFreeSpin : !canStartHold}
             className="absolute z-[7] flex flex-col items-center justify-center overflow-hidden rounded-[18%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
             style={{
               left: "26.5%",
@@ -514,8 +514,8 @@ export default function SlaughterSlotsOverlay({
               animation: holding ? "slaughterHoldPulse .86s ease-in-out infinite" : undefined,
             }}
           >
-            <span className="font-fantasy text-[clamp(11px,2.9vw,17px)] leading-none tracking-[.16em] text-amber-100">{holding ? "STOP AUTO" : spinning ? "SPINNING" : "SPIN"}</span>
-            <span className="mt-1 text-[clamp(5px,1.35vw,8px)] font-semibold uppercase tracking-[.08em] text-emerald-100/80">{holding ? "Tap to stop" : "Tap once · hold for auto"}</span>
+            <span className="font-fantasy text-[clamp(11px,2.9vw,17px)] leading-none tracking-[.16em] text-amber-100">{holding ? "STOP AUTO" : spinning ? "SPINNING" : state?.freeSpinAvailable ? "FREE SPIN" : "SPIN"}</span>
+            <span className="mt-1 text-[clamp(5px,1.35vw,8px)] font-semibold uppercase tracking-[.08em] text-emerald-100/80">{holding ? "Tap to stop" : state?.freeSpinAvailable ? "Daily · 500 coin bet" : "Tap once · hold for auto"}</span>
           </button>
         </div>
 

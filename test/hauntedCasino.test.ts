@@ -140,9 +140,9 @@ test("Slaughter Slots raises bet and spin controls one notch", () => {
   assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "63%"/);
   assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "72\.5%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
-  assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : "SPIN"\}/);
+  assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : state\?\.freeSpinAvailable \? "FREE SPIN" : "SPIN"\}/);
   assert.match(client, /Tap once · hold for auto/);
-  assert.match(client, /onPointerDown=\{beginHold\}/);
+  assert.match(client, /onPointerDown=\{state\?\.freeSpinAvailable \? undefined : beginHold\}/);
   assert.match(client, /aria-label="Decrease bet"/);
   assert.match(client, /aria-label="Increase bet"/);
   assert.doesNotMatch(client, /Hold limit|Maximum coins to spend while holding|gross-wager safety limit|holdSpentRef|budgetLimitRef|MAX must be/);
@@ -247,4 +247,16 @@ test("higher stakes scale currency payouts without increasing reel odds", () => 
     assert.equal(pair.coins, Math.ceil(bet * 1.25));
     assert.equal(evaluateHauntedSlotResult(["skull", "skull", "skull"], bet).essence, bet * 5);
   }
+});
+
+test("casino scene attaches its existing hotspot runtime and daily free spin occupies the primary spin control", () => {
+  const world = fs.readFileSync("client/src/components/world/WorldLocations.tsx", "utf8");
+  const runtime = fs.readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
+  const slots = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  assert.match(world, /enhanceHauntedCasinoRoot\(element\)/);
+  assert.match(runtime, /hauntedCasinoEnhanced === "1"/);
+  assert.match(slots, /data-testid="slaughter-slots-spin-control"/);
+  assert.match(slots, /state\?\.freeSpinAvailable \? \(\) => \{ stopHold\(\); void spinOnce\(true\); \} : clickSpin/);
+  assert.match(slots, /state\?\.freeSpinAvailable \? "FREE SPIN" : "SPIN"/);
+  assert.doesNotMatch(slots, /data-testid="slaughter-slots-free-spin"/);
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { createPortal } from "react-dom";
 import { getStagePortalTarget } from "@/lib/stage";
 import MiniGameFrame from "./MiniGameFrame";
+import { enhanceHauntedCasinoRoot } from "./HauntedCasinoRuntime";
 import {
   Copy,
   FlipHorizontal,
@@ -459,6 +460,7 @@ export default function WorldLocations({
         <MiniGameFrame worldId={worldId}>
           <div
             className="absolute inset-0 z-[80] bg-[#05020a]"
+            ref={(element) => { if (element) enhanceHauntedCasinoRoot(element); }}
             data-testid="haunted-casino-scroll-view"
             role="dialog"
             aria-modal="true"
