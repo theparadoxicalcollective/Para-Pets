@@ -1153,8 +1153,8 @@ function PetView({
                 </>
               )}
 
+              {/* Only the main Pet Companions inventory may change the active pet. */}
               {!readOnly && (
-              {/* SELECT / ACTIVE button */}
               <button
                 data-testid={`button-select-pet-${pet.shopItemId}`}
                 data-inventory-id={pet.inventoryId}
