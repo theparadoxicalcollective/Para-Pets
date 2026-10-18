@@ -821,6 +821,8 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
           <span className="mx-2 text-amber-100/25">•</span>
           <span className="inline-flex items-center gap-1.5"><img src={essenceIcon} alt="" className="h-5 w-5 object-contain" />{state.balances.essence.toLocaleString()}</span>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" aria-label="How Beau's Prize Wheel works" onClick={() => setShowHelp(true)} className="grid h-11 w-11 place-items-center rounded-full border border-amber-100/30 bg-black/55 text-amber-50 backdrop-blur-sm"><HelpCircle className="h-5 w-5" /></button>
         <button
           type="button"
           aria-label="Close Beau's Prize Wheel"
