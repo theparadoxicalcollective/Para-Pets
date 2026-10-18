@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 
 type InventoryReadStorage = Pick<
   typeof import("../storage").storage,
-  "getUserInventoryWithItems" | "updateInventoryItem"
+  "getUserInventoryWithItems" | "updateInventoryItem" | "getAllShopItems" | "getHouseBundles"
 >;
 
 export interface InventoryReadRouteDependencies {
@@ -87,6 +87,33 @@ export function registerInventoryReadRoutes(
     }
     return { petHunger: hunger, petMood: mood };
   }
+
+  // Render the Bag group icons using uploaded game catalog artwork, not local
+  // placeholder images or assets a particular player happens to own.
+  app.get("/api/inventory/group-icons", isAuthenticated, async (_req, res) => {
+    try {
+      const [shopItems, bundles] = await Promise.all([
+        storage.getAllShopItems(),
+        storage.getHouseBundles(),
+      ]);
+      const hasName = (name: string, target: string) =>
+        name.trim().toLowerCase().includes(target);
+      const seerRabbit = shopItems.find(item => item.type === "pet" && hasName(item.name, "seer rabbit"));
+      const radioactiveBass = shopItems.find(item =>
+        (item.type === "fish" || item.fishingType === "fish") && hasName(item.name, "radioactive bass"));
+      const basicHealingPotion = shopItems.find(item =>
+        item.type === "potion" && hasName(item.name, "basic healing potion"));
+      const fallHome = bundles.find(bundle => hasName(bundle.name, "fall home"));
+      return res.json({
+        pets: seerRabbit?.hatchedImageUrl || seerRabbit?.imageUrl || null,
+        fish: radioactiveBass?.imageUrl || null,
+        home: fallHome?.shopImageUrl || fallHome?.bgImageUrl || null,
+        items: basicHealingPotion?.imageUrl || null,
+      });
+    } catch {
+      return res.status(500).json({ message: "Could not load inventory group artwork" });
+    }
+  });
 
   app.get("/api/inventory", isAuthenticated, async (req, res) => {
     try {
