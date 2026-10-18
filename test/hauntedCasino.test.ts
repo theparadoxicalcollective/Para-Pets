@@ -248,3 +248,15 @@ test("higher stakes scale currency payouts without increasing reel odds", () => 
     assert.equal(evaluateHauntedSlotResult(["skull", "skull", "skull"], bet).essence, bet * 5);
   }
 });
+
+test("casino scene attaches its existing hotspot runtime and daily free spin occupies the primary spin control", () => {
+  const world = fs.readFileSync("client/src/components/world/WorldLocations.tsx", "utf8");
+  const runtime = fs.readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
+  const slots = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  assert.match(world, /enhanceHauntedCasinoRoot\(element\)/);
+  assert.match(runtime, /hauntedCasinoEnhanced === "1"/);
+  assert.match(slots, /data-testid="slaughter-slots-spin-control"/);
+  assert.match(slots, /state\?\.freeSpinAvailable \? \(\) => \{ stopHold\(\); void spinOnce\(true\); \} : clickSpin/);
+  assert.match(slots, /state\?\.freeSpinAvailable \? "FREE SPIN" : "SPIN"/);
+  assert.doesNotMatch(slots, /data-testid="slaughter-slots-free-spin"/);
+});
