@@ -140,7 +140,7 @@ test("Slaughter Slots raises bet and spin controls one notch", () => {
   assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "63%"/);
   assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "72\.5%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
-  assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : "SPIN"\}/);
+  assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : state\?\.freeSpinAvailable \? "FREE SPIN" : "SPIN"\}/);
   assert.match(client, /Tap once · hold for auto/);
   assert.match(client, /onPointerDown=\{beginHold\}/);
   assert.match(client, /aria-label="Decrease bet"/);
