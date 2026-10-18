@@ -17,6 +17,7 @@ import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
 import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
 import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import { PETRIFY_COUNTDOWN_MS, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -242,6 +243,11 @@ export default function MoltenBlocksPage() {
   const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
+  const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
+  const laserRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
+  const bombsRef = useRef<PetrifyingBomb[]>([]);
+  const pendingSpecialRef = useRef<{ kind: "stone" | "laser"; cellIdx: number } | null>(null);
+  const lastBombTickRef = useRef<number | null>(null);
   const blocksLockedRef = useRef(0);
   const dropItemsRef = useRef<DropItem[]>([]);
   // Item carried by the currently-falling piece (assigned at spawn time)
@@ -341,6 +347,11 @@ export default function MoltenBlocksPage() {
   const resetBoard = useCallback(() => {
     boardRef.current = emptyBoard();
     itemBoardRef.current = emptyItemBoard();
+    stoneRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    laserRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    bombsRef.current = [];
+    pendingSpecialRef.current = null;
+    lastBombTickRef.current = null;
     pendingDropItemRef.current = null;
     bagRef.current = makeBag();
     activeRef.current = spawn(pullPiece());
@@ -517,7 +528,14 @@ export default function MoltenBlocksPage() {
       activeRef.current = p;
       // Assign a drop item to this piece if we've hit the next threshold
       pendingDropItemRef.current = null;
-      if (dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
+      pendingSpecialRef.current = null;
+      // Special tiles use the same single-cell replacement placement as rewards.
+      // Keep them uncommon and mutually exclusive with a reward on this piece.
+      const specialRoll = Math.random();
+      if (specialRoll < 0.055) {
+        pendingSpecialRef.current = { kind: specialRoll < 0.028 ? "stone" : "laser", cellIdx: Math.floor(Math.random() * 4) };
+      }
+      if (!pendingSpecialRef.current && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
         const drop = pickDropItem(dropItemsRef.current);
         if (drop) {
           const shape = SHAPES[t][0];
@@ -625,9 +643,22 @@ export default function MoltenBlocksPage() {
       pendingDropItemRef.current = null;
     }
 
-    // Detect cleared row indices for flash effect
-    const clearedIdx: number[] = [];
-    for (let r = 0; r < ROWS; r++) if (locked[r].every(c => c !== 0)) clearedIdx.push(r);
+    // Place a single special tile in the locked piece's occupied cells.
+    if (pendingSpecialRef.current) {
+      const cells: [number, number][] = [];
+      const shape = SHAPES[piece.type][piece.rot];
+      for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c] && piece.y + r >= 0) cells.push([piece.y + r, piece.x + c]);
+      }
+      if (cells.length) {
+        const [row, col] = cells[pendingSpecialRef.current.cellIdx % cells.length];
+        if (pendingSpecialRef.current.kind === "stone") bombsRef.current.push({ row, col, remainingMs: PETRIFY_COUNTDOWN_MS });
+        else laserRef.current[row][col] = true;
+      }
+      pendingSpecialRef.current = null;
+    }
+
+    const { rows: clearedIdx } = planMoltenLineClear(locked, stoneRef.current, laserRef.current);
 
     if (clearedIdx.length > 0) {
       // Collect items sitting in the rows that are about to be cleared
@@ -646,8 +677,16 @@ export default function MoltenBlocksPage() {
       activeRef.current = null;
       setTimeout(() => {
         const lockedSnap = boardRef.current;
-        const { board: cleared, cleared: n } = clearLines(lockedSnap);
-        itemBoardRef.current = clearItemBoardLines(itemBoardRef.current, lockedSnap);
+        const { rows } = planMoltenLineClear(lockedSnap, stoneRef.current, laserRef.current);
+        const n = rows.length;
+        const cleared = collapseMoltenRows(lockedSnap, rows, 0 as Cell);
+        itemBoardRef.current = collapseMoltenRows(itemBoardRef.current, rows, null as ItemCell);
+        stoneRef.current = collapseMoltenRows(stoneRef.current, rows, false);
+        laserRef.current = collapseMoltenRows(laserRef.current, rows, false);
+        bombsRef.current = bombsRef.current.flatMap(bomb => {
+          if (rows.includes(bomb.row)) return [];
+          return [{ ...bomb, row: bomb.row + rows.filter(row => row > bomb.row).length }];
+        });
         boardRef.current = cleared;
         flashRef.current = null;
 
@@ -748,6 +787,19 @@ export default function MoltenBlocksPage() {
   useEffect(() => {
     let raf = 0;
     const loop = (t: number) => {
+      // Countdown advances in active play only, never during pause, intro or line flash.
+      const bombTickActive = runningRef.current && !paused && !showIntro && !flashRef.current && !gameOverRef.current;
+      if (bombTickActive) {
+        const elapsed = lastBombTickRef.current == null ? 0 : Math.min(250, t - lastBombTickRef.current);
+        const result = tickPetrifyingBombs(bombsRef.current, elapsed);
+        bombsRef.current = result.active;
+        for (const bomb of result.expired) {
+          if (boardRef.current[bomb.row]?.[bomb.col] !== 0) {
+            stoneRef.current = petrifyOccupiedNeighbors(boardRef.current, stoneRef.current, bomb.row, bomb.col);
+          }
+        }
+      }
+      lastBombTickRef.current = bombTickActive ? t : null;
       // Drop tick
       if (runningRef.current && !paused && !showIntro && activeRef.current && !flashRef.current) {
         const interval = softDropRef.current ? Math.min(60, dropIntervalRef.current) : dropIntervalRef.current;
