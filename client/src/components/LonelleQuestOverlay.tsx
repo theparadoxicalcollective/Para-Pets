@@ -210,7 +210,7 @@ export default function LonelleQuestOverlay() {
       blockingGuide={false}
       testId="lonelle-guide-spotlight"
     />}
-    {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000 }} onPointerDown={event => event.stopPropagation()}>
+    {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000, pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()}>
       <section role="dialog" aria-modal="true" aria-label="Scarf found" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#eccc78] bg-[#173126] p-5 text-center font-fantasy text-[#ffefc6] shadow-2xl" style={{ maxHeight: dialogMaxHeight }}>
         {state.scarf?.imageUrl && <img src={state.scarf.imageUrl} alt="Lonelle's Scarf" className="mx-auto h-24 w-24 object-contain" />}
         <h2 className="mt-2 text-xl text-[#ffe38a]">You found Lonelle's Scarf!</h2>
@@ -220,7 +220,7 @@ export default function LonelleQuestOverlay() {
         {message && <p role="alert" className="mt-2 text-sm text-red-200">{message}</p>}
       </section>
     </div>, surface.target)}
-    {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/80 p-4`} style={{ zIndex: 2147482000 }} onClick={() => setDialogOpen(false)}>
+    {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/80 p-4`} style={{ zIndex: 2147482000, pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()} onClick={() => setDialogOpen(false)}>
       <section role="dialog" aria-modal="true" aria-label="Lonelle's Lost Adornment quest" data-testid="lonelle-quest-dialog" onClick={event => event.stopPropagation()} className="w-full max-w-md overflow-y-auto rounded-2xl border border-[#e5c06c] p-4 font-fantasy text-[#fff0c9] shadow-2xl" style={{ maxHeight: dialogMaxHeight, background: "linear-gradient(155deg,#244735,#10221c)" }}>
         <div className="flex gap-3"><LonellePortrait state={state} mood={state.status === "available" ? "sad" : state.scarfEquipped ? "happy" : "talking_casual"} /><div><span className="text-xl font-bold text-[#ffe288]">Lonelle</span><p className="mt-1 text-lg">“{heading}”</p></div></div>
         <p className="mt-4 text-sm leading-relaxed">“{speech}”</p>
@@ -235,7 +235,7 @@ export default function LonelleQuestOverlay() {
         </div>
       </section>
     </div>, surface.target)}
-    {prize && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/80 p-4`} style={{ zIndex: 2147482100 }}>
+    {prize && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/80 p-4`} style={{ zIndex: 2147482100, pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()}>
       <section role="dialog" aria-modal="true" aria-label="Quest rewards" data-testid="lonelle-quest-rewards" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#ffe28b] p-6 text-center font-fantasy text-[#fff6d5] shadow-[0_0_40px_#e8bd6c88]" style={{ maxHeight: dialogMaxHeight, background: "radial-gradient(#31513a,#12251e)" }}>
         <span className="text-3xl">✦</span><h2 className="mt-2 text-2xl text-[#ffe28b]">Quest Complete!</h2><p className="mt-2 text-sm">Lonelle's thanks are yours.</p>
         <div className="mt-5 flex items-center justify-center gap-4 rounded-xl bg-black/20 p-3">{prize.reward?.imageUrl && <img src={prize.reward.imageUrl} alt="Firefly Cluster" className="h-20 w-20 object-contain" />}<strong>{prize.reward?.name ?? "Firefly Cluster"}</strong></div>
