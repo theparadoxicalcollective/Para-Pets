@@ -1798,7 +1798,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 const cy = `calc(${moltenLoc.posY}% - 10px)`;
                 return (
                   <>
-                    <div className="absolute inset-0" style={{ zIndex: 498, cursor: "pointer" }} onClick={() => setShowMoltenHint(false)} />
+                    {/* The hint is visual guidance, not a full-map tap blocker. */}
                     <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: "translate(-50%, -100%)", zIndex: 499, display: "flex", flexDirection: "column", alignItems: "center" }}>
                       <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(251,191,36,0.95)", boxShadow: "0 0 8px rgba(245,158,11,1), 0 0 18px rgba(245,158,11,0.8)", animation: "hintOrb1 2.4s ease-in-out infinite" }} />
                       <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(253,230,138,0.9)", boxShadow: "0 0 6px rgba(251,191,36,1), 0 0 14px rgba(245,158,11,0.7)", animation: "hintOrb2 2.1s ease-in-out 0.5s infinite" }} />
@@ -1825,12 +1825,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 const cy = `calc(${hintLoc.posY}% - 10px)`;
                 return (
                   <>
-                    {/* Dismiss layer */}
-                    <div
-                      className="absolute inset-0"
-                      style={{ zIndex: 498, cursor: "pointer" }}
-                      onClick={() => setShowShopHint(null)}
-                    />
+                    {/* Keep quest guidance non-interactive so location taps and panning work. */}
                     <div
                       className="absolute pointer-events-none"
                       style={{

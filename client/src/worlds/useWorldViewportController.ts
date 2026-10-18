@@ -232,8 +232,9 @@ export function useWorldViewportController({
     }
     if (isLocationDragActive() || isObjectDragActive()) return;
 
-    safeSetWorldPointerCapture(event.currentTarget, event.pointerId);
-
+    // Do not capture a tap before it can reach a location hotspot. Only a
+    // confirmed map drag owns the pointer; capture on down retargets clicks
+    // away from cave, fishing and other location controls on touch devices.
     mapPanPointersRef.current.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY,
@@ -278,6 +279,7 @@ export function useWorldViewportController({
         )
       ) {
         mapPanningRef.current = true;
+        safeSetWorldPointerCapture(event.currentTarget, event.pointerId);
       }
 
       if (mapPanningRef.current) {
