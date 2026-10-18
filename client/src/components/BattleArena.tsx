@@ -1855,7 +1855,34 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // ── Rarity color for pet skill glow ──────────────────────────────────────
   const RARITY_COLORS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
   const rarityColor = RARITY_COLORS[Math.min(5, Math.max(1, pet?.rarity ?? 1))] ?? "#a78bfa";
-  const PET_X = getPetPos(0, equippedPetsCountRef.current).x;
+  // Cave-only horizontal movement; no reference-stage or fixed pixel coordinates.
+  const [cavePetX, setCavePetX] = useState(() => getPetPos(0, 1).x);
+  const cavePetDragRef = useRef<{ pointerId: number; startX: number; moved: boolean } | null>(null);
+  const moveCavePet = (clientX: number) => {
+    const x = getArenaPos(clientX, 0).x;
+    setCavePetX(Math.max(14, Math.min(86, x)));
+  };
+  const onCavePetDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isCave || phase !== "battle" || petHp <= 0) return;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cavePetDragRef.current = { pointerId: event.pointerId, startX: event.clientX, moved: false };
+  };
+  const onCavePetMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = cavePetDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    if (Math.abs(event.clientX - drag.startX) > 7) drag.moved = true;
+    if (drag.moved) moveCavePet(event.clientX);
+  };
+  const onCavePetUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = cavePetDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    cavePetDragRef.current = null;
+    if (!drag.moved) handlePetClick(event);
+  };
+  const PET_X = isCave ? cavePetX : getPetPos(0, equippedPetsCountRef.current).x;
   const PET_Y = getPetPos(0, equippedPetsCountRef.current).y;
 
   // ── Pet click: block takes priority over skill ────────────────────────────
@@ -2743,11 +2770,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   : petHp <= 0
                     ? "grayscale(1) opacity(0.35)"
                     : undefined,
-                pointerEvents: (phase === "battle" && (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill) && petHp > 0) ? "auto" : "none",
+                pointerEvents: isCave && phase === "battle" && petHp > 0 ? "auto" : (phase === "battle" && (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill) && petHp > 0) ? "auto" : "none",
+                touchAction: isCave ? "none" : undefined,
                 cursor: (mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill && petHp > 0) ? "pointer" : "default",
                 ["--rarity-glow" as any]: rarityColor,
               }}
-              onPointerDown={handlePetClick}
+              onPointerDown={isCave ? onCavePetDown : handlePetClick}
+              onPointerMove={isCave ? onCavePetMove : undefined}
+              onPointerUp={isCave ? onCavePetUp : undefined}
+              onPointerCancel={isCave ? () => { cavePetDragRef.current = null; } : undefined}
               data-testid="pet-battle-sprite"
             >
               {/* Counter window golden ring */}
@@ -2900,7 +2931,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             <div className="absolute z-20 left-0 right-0 flex justify-center pointer-events-none"
               style={{ bottom: "9%" }}>
               {isCave && phase === "battle" && (
-                <div data-testid="cave-block-beside-potions" className="flex flex-col items-center pointer-events-auto shrink-0">
+                <div data-testid="cave-block-beside-potions" className="flex flex-col items-center pointer-events-auto shrink-0 mr-[clamp(16px,4vw,48px)]">
                 {/* Cave Block button — hold to shield (no cooldown, 5s max per hold) */}
                 <div className="flex flex-col items-center gap-1">
                   <button
@@ -3190,13 +3221,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         {skillEffect && (() => {
           const fx = skillEffect;
           const total = equippedPetsCountRef.current;
-          const casterPos = getPetPos(fx.casterIdx, total);
+          const casterPos = isCave && fx.casterIdx === 0 ? { x: cavePetX, y: PET_Y } : getPetPos(fx.casterIdx, total);
           // Resolve target list based on what the skill affects.
           const targets: { x: number; y: number }[] = (() => {
             if (fx.affects === "self") return [casterPos];
             if (fx.affects === "party") {
               const list: { x: number; y: number }[] = [];
-              if (petHpRef.current > 0) list.push(getPetPos(0, total));
+              if (petHpRef.current > 0) list.push(isCave ? { x: cavePetX, y: PET_Y } : getPetPos(0, total));
               for (let i = 0; i < 2; i++) {
                 if (equippedExtraPetsRef.current[i] && extraPetHpsRef.current[i] > 0) {
                   list.push(getPetPos((i + 1) as 1 | 2, total));
