@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Check, Coins, Gem, Minus, Pencil, Plus, Search, Sparkles, X } from "lucide-react";
+import { Check, Coins, Gem, HelpCircle, Minus, Pencil, Plus, Search, Sparkles, X } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+import { currencyAssets } from "@/lib/currencyAssets";
 import {
   BEAU_PRIZE_WHEEL_PAID_COST,
   BEAU_WHEEL_STAGE_RATIO,
@@ -21,7 +22,7 @@ const beauFrame = "/world-assets/uploads/BeauPrizeWheel.png";
 const emptyWheel = "/world-assets/uploads/PrizeWheelEmpty.png";
 const hauntedForestBackground = "/world-assets/bg_haunted_woods_v2.webp";
 const lossSkull = "/world-assets/Photoroom_20260705_103527_PM_1783426783499.png";
-const coinIcon = "/world-assets/icon_coin.png";
+const coinIcon = currencyAssets.coin;
 const essenceIcon = "/world-assets/Photoroom_20260709_23958_PM_1783626016795.png";
 
 export interface WheelState {
@@ -175,8 +176,7 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
               </span>
             )}
           </div>
-          {slot.chance != null && <span className="absolute -bottom-[12%] left-1/2 -translate-x-1/2 whitespace-nowrap text-[clamp(5px,1.3vw,9px)] font-bold text-amber-100 pointer-events-none">{(slot.chance * 100).toFixed(1)}%</span>}
-          {isLimited && <span className="absolute -top-[15%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-amber-200 bg-[#651b28] px-1 text-[clamp(5px,1.2vw,9px)] font-black tracking-wide text-amber-100 pointer-events-none">LIMITED</span>}
+          {isLimited && <span className="absolute -top-[7%] left-1/2 -translate-x-1/2 -rotate-6 whitespace-nowrap rounded-sm border border-yellow-200/90 bg-gradient-to-r from-[#6e1836] via-[#a02b45] to-[#64162d] px-1.5 py-0.5 text-[clamp(6px,1.35vw,10px)] font-black tracking-[.08em] text-[#ffe7a1] shadow-[0_2px_5px_rgba(0,0,0,.8)] pointer-events-none">LIMITED</span>}
           {admin && !isLoss && !spinning && (
             <button
               type="button"
@@ -434,6 +434,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [editorSlot, setEditorSlot] = useState<number | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const [options, setOptions] = useState<PrizeOptions | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState("");
@@ -830,6 +831,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
         >
           <X className="h-5 w-5" />
         </button>
+        </div>
       </header>
 
       <main className="relative z-[2] flex min-h-0 w-full flex-1 flex-col items-center justify-center px-1">
@@ -904,7 +906,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
                 className="absolute"
                 style={{
                   inset: 2,
-                  clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)",
+                  clipPath: "polygon(50% 0,100% 0,50% 100%)",
                   background: "linear-gradient(180deg,#e04438 0%,#9f171d 52%,#4d090e 100%)",
                   boxShadow: "inset 0 0 7px rgba(255,126,95,.55)",
                 }}
@@ -966,14 +968,13 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
           </div>
         )}
         {state.isAdmin && <div className="mx-auto mb-2 flex max-w-xs items-center justify-center gap-2 text-[10px] text-amber-100/85">
-          <span className="mr-1">Drag wheel · move red diamond separately · Size</span>
+          <span className="mr-1">Drag wheel · move pointer separately · Size</span>
           <button type="button" aria-label="Make prize wheel smaller" disabled={layoutSaving || spinning || layout.size <= 55} onClick={() => resizeWheel(-1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
           <button type="button" aria-label="Make prize wheel larger" disabled={layoutSaving || spinning || layout.size >= 78} onClick={() => resizeWheel(1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
           {(layoutSaving || pointerSaving) && <span role="status">Saving…</span>}
         </div>}
         {error && <div className="mx-auto mb-2 max-w-md rounded-lg border border-rose-300/35 bg-rose-950/65 px-3 py-2 text-center text-xs text-rose-100">{error}</div>}
-        <div className="mx-auto mb-1 max-w-md text-center text-[10px] leading-relaxed text-amber-100/75">{footerMessage}</div>
-        {!state.isAdmin && canSpin && <div className="mx-auto mb-2 max-w-md text-center text-[9px] text-amber-100/55">Drag the wheel to turn it · a quick flick starts the spin</div>}
+        {(!state.ready || activePetBlocked || !canAfford || error) && <div className="mx-auto mb-1 max-w-md text-center text-[10px] leading-relaxed text-amber-100/75">{footerMessage}</div>}
         <button
           type="button"
           data-testid="button-spin-beau-prize-wheel"
@@ -982,9 +983,24 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
           className="mx-auto flex min-h-12 w-full max-w-xs items-center justify-center rounded-xl border border-amber-200/65 bg-gradient-to-b from-[#7d251f]/95 to-[#32100e]/95 px-5 font-fantasy text-base tracking-[.1em] text-amber-50 disabled:opacity-35 active:scale-[.98]"
           style={{ boxShadow: canSpin ? "0 0 18px rgba(251,191,36,.25), inset 0 0 14px rgba(255,220,130,.09)" : undefined }}
         >
-          {spinning ? "SPINNING…" : spinLabel}
+          {spinning ? "SPINNING…" : state.freeSpinAvailable ? "FREE SPIN" : <><span>SPIN</span><img src={currencyAssets.coin} alt="coins" className="ml-3 mr-1 h-6 w-6 object-contain" /><span>{BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()}</span></>}
         </button>
       </footer>
+
+      {showHelp && (
+        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/75 px-4" role="presentation" onPointerDown={event => event.stopPropagation()}>
+          <section role="dialog" aria-modal="true" aria-labelledby="beau-wheel-help-title" className="w-full max-w-sm rounded-2xl border border-amber-300/60 bg-[#170e1d] p-5 text-amber-50 shadow-2xl">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="beau-wheel-help-title" className="font-fantasy text-xl text-amber-200">How to Play</h2>
+              <button type="button" aria-label="Close wheel tutorial" onClick={() => setShowHelp(false)} className="grid h-10 w-10 place-items-center rounded-full border border-amber-300/40"><X className="h-5 w-5" /></button>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed">Your first spin each day is free. After that, each spin costs {BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()} coins.</p>
+            <p className="mt-2 text-sm leading-relaxed">Tap SPIN or drag and flick the wheel to try for a prize. Rewards have different chances based on their rarity, so equal-sized sections do not guarantee equal odds.</p>
+            <p className="mt-2 text-sm leading-relaxed">The skull section awards its special consolation prize. LIMITED marks a special reward, not an expiration timer.</p>
+            <button type="button" onClick={() => setShowHelp(false)} className="mt-5 w-full rounded-xl border border-amber-300/60 bg-amber-900/60 py-3 font-semibold">Got it</button>
+          </section>
+        </div>
+      )}
 
       {state.isAdmin && editorSlot !== null && editorSlot < BEAU_PRIZE_WHEEL_PRIZE_SLOTS && (
         <PrizeEditor
