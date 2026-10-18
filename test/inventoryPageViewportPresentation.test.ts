@@ -32,8 +32,8 @@ test("inventory interactions and modal ownership remain unchanged", () => {
 });
 
 test("Bag Pets reuses owned pets and existing interaction handlers", () => {
-  assert.match(inventory, /<BagView items=\\{bagItems\\} pets=\\{pets\\}/);
-  assert.match(inventory, /data-testid="bag-full-pets"/);
-  assert.match(inventory, /<PetView pets=\\{pets\\} activePetId=\\{activePetId\\} onToggle=\\{onPetToggle\\}/);
-  assert.match(inventory, /category === "pets" \\? pets\\.length : 0/);
+  assert.ok(inventory.includes('<BagView items={bagItems} pets={pets}'));
+  assert.ok(inventory.includes('data-testid="bag-full-pets"'));
+  assert.ok(inventory.includes('<PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle}'));
+  assert.ok(inventory.includes('category === "pets" ? pets.length : 0'));
 });
