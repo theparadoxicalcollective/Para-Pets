@@ -564,6 +564,8 @@ export default function MoltenBlocksPage() {
     // No once-per-piece restriction — the player can swap as often as they like.
 
     const currentType = activeRef.current.type;
+    // A held piece does not retain a randomly assigned special tile.
+    pendingSpecialRef.current = null;
     const stashed = holdRef.current;
     playHoldSwap();
     if (stashed == null) {
@@ -978,6 +980,34 @@ export default function MoltenBlocksPage() {
       }
     };
 
+    // Stone and special-bomb overlays share the board's existing cell coordinates.
+    const bombByCell = new Map(bombsRef.current.map(b => [`${b.row}:${b.col}`, b]));
+    const drawSpecial = (x: number, y: number, kind: "stone" | "laser", seconds?: number) => {
+      ctx.save();
+      ctx.fillStyle = kind === "stone" ? "rgba(110,108,130,0.92)" : "rgba(14,95,110,0.90)";
+      ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
+      ctx.strokeStyle = kind === "stone" ? "#b4a6d3" : "#6af4ff";
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = cell * 0.35;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 3, y + 3, cell - 6, cell - 6);
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.38))}px sans-serif`;
+      ctx.fillText(seconds !== undefined ? String(Math.ceil(seconds)) : kind === "laser" ? "↔" : "◆", x + cell / 2, y + cell / 2);
+      ctx.restore();
+    };
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === 0) continue;
+      const bomb = bombByCell.get(`${r}:${c}`);
+      if (stoneRef.current[r][c] || bomb) {
+        drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs ? bomb.remainingMs / 1000 : undefined);
+      } else if (laserRef.current[r][c]) {
+        drawSpecial(offX + c * cell, offY + r * cell, "laser");
+      }
+    }
+
     // Item overlay on locked cells
     const nt = performance.now();
     const itemBoard = itemBoardRef.current;
@@ -996,6 +1026,12 @@ export default function MoltenBlocksPage() {
       let gy = 0;
       while (!collides(board, active, 0, gy + 1, 0)) gy++;
       const shape = SHAPES[active.type][active.rot];
+      const specialCells: [number, number][] = [];
+      for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c] && active.y + r >= 0) specialCells.push([active.y + r, active.x + c]);
+      }
+      const special = pendingSpecialRef.current;
+      const specialCell = special && specialCells.length ? specialCells[special.cellIdx % specialCells.length] : null;
       for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
           if (!shape[r][c]) continue;
@@ -1024,8 +1060,12 @@ export default function MoltenBlocksPage() {
           if (y < 0) continue;
           // Skip the block draw for the item cell — item rendering replaces it below
           if (y === itemCellRow && x === itemCellCol) continue;
+          if (specialCell && y === specialCell[0] && x === specialCell[1]) continue;
           drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type);
         }
+      }
+      if (specialCell && special) {
+        drawSpecial(offX + specialCell[1] * cell, offY + specialCell[0] * cell, special.kind);
       }
       // Item cell: draw item image replacing the block entirely
       if (pendingDropItemRef.current && itemCellRow >= 0) {
