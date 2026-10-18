@@ -568,7 +568,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} userId={user.id} pageMode={!!pageMode} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
+              <BagView items={bagItems} pets={pets} activePetId={user.activePetId} onPetToggle={handlePetToggle} onEggSpeedUp={(id) => setSpeedUpTargetId(id)} petTogglePending={setActivePetMutation.isPending} pendingPetId={setActivePetMutation.variables ?? null} userId={user.id} pageMode={!!pageMode} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
@@ -1277,11 +1277,23 @@ const POTION_STACK_MAX = 50;
 
 function BagView({
   items,
+  pets,
+  activePetId,
+  onPetToggle,
+  onEggSpeedUp,
+  petTogglePending,
+  pendingPetId,
   userId,
   pageMode,
   onItemPointerDown,
 }: {
   items: InventoryItem[];
+  pets: InventoryItem[];
+  activePetId: string | null;
+  onPetToggle: (id: string) => void;
+  onEggSpeedUp: (id: string) => void;
+  petTogglePending: boolean;
+  pendingPetId: string | null;
   userId: string;
   pageMode: boolean;
   onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void;
@@ -1346,9 +1358,8 @@ function BagView({
     staleTime: 60 * 1000,
   });
 
-  // Build stacked player inventory entries. Full pets remain in the dedicated
-  // Pet Companions view; the shared Pets group here contains Mini Pets,
-  // Adornments, and Accessories.
+  // Build stacked non-pet entries; full pets render using the existing PetView
+  // so their active selection, hatching, and portrait behavior stays consistent.
   const stackMap = new Map<string, { item: InventoryItem; count: number }>();
   for (const item of items) {
     if (item.type === "pet") continue;
@@ -1391,7 +1402,8 @@ function BagView({
   const homeAssets = [...homeDecorAssets, ...homeBundleAssets];
   const categoriesForActiveGroup = gameItemCategoriesForGroup(bagGroup);
   const categoryHasItems = (category: GameItemCategoryKey) =>
-    inventoryEntries.some(entry => entry.category === category)
+    (category === "pets" && pets.length > 0)
+    || inventoryEntries.some(entry => entry.category === category)
     || homeAssets.some(entry => entry.category === category);
 
   const firstPopulatedCategory = categoriesForActiveGroup.find(categoryHasItems)
@@ -1409,8 +1421,8 @@ function BagView({
   const displayHomeAssets = homeAssets
     .filter(entry => entry.category === activeBagCategory)
     .sort((a, b) => a.name.localeCompare(b.name));
-  const displayCount = displayInventoryEntries.length + displayHomeAssets.length;
-  const isEmpty = inventoryEntries.length === 0 && homeAssets.length === 0;
+  const displayCount = displayInventoryEntries.length + displayHomeAssets.length + (activeBagCategory === "pets" ? pets.length : 0);
+  const isEmpty = inventoryEntries.length === 0 && homeAssets.length === 0 && pets.length === 0;
 
   return (
     <>
@@ -1450,7 +1462,8 @@ function BagView({
         {categoriesForActiveGroup.map(category => {
           const active = activeBagCategory === category;
           const count = inventoryEntries.filter(entry => entry.category === category).length
-            + homeAssets.filter(entry => entry.category === category).length;
+            + homeAssets.filter(entry => entry.category === category).length
+            + (category === "pets" ? pets.length : 0);
           return (
             <button
               key={category}
@@ -1488,6 +1501,10 @@ function BagView({
           </div>
           <p className="font-fantasy text-[#a89878] text-sm tracking-wider mb-2">Bag is empty</p>
           <p className="font-fantasy text-[#6a5840] text-xs tracking-wider">Purchase items from world shops!</p>
+        </div>
+      ) : activeBagCategory === "pets" ? (
+        <div data-testid="bag-full-pets">
+          <PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} />
         </div>
       ) : displayCount === 0 ? (
         <div className="text-center py-12">
