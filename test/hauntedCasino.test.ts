@@ -142,7 +142,7 @@ test("Slaughter Slots raises bet and spin controls one notch", () => {
   assert.match(client, /Spin once, or hold to keep spinning/);
   assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : state\?\.freeSpinAvailable \? "FREE SPIN" : "SPIN"\}/);
   assert.match(client, /Tap once · hold for auto/);
-  assert.match(client, /onPointerDown=\{beginHold\}/);
+  assert.match(client, /onPointerDown=\{state\?\.freeSpinAvailable \? undefined : beginHold\}/);
   assert.match(client, /aria-label="Decrease bet"/);
   assert.match(client, /aria-label="Increase bet"/);
   assert.doesNotMatch(client, /Hold limit|Maximum coins to spend while holding|gross-wager safety limit|holdSpentRef|budgetLimitRef|MAX must be/);
