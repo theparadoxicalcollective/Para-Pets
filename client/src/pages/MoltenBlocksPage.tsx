@@ -804,7 +804,8 @@ export default function MoltenBlocksPage() {
       ctx.drawImage(img, sInsetX, sInsetY, nW - 2 * sInsetX, nH - 2 * sInsetY, x, y, size, size);
       ctx.imageSmoothingEnabled = previousSmoothing;
     } else {
-      ctx.fillStyle = ghost ? PIECE_GLOW[type].replace(/[\\d.]+\\)$/, "0.18)") : PIECE_GLOW[type];
+      if (ghost) ctx.globalAlpha = 0.18;
+      ctx.fillStyle = PIECE_GLOW[type];
       ctx.fillRect(x, y, size, size);
     }
     ctx.restore();
