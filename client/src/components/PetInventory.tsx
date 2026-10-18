@@ -10,10 +10,6 @@ import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 const recipeScrollIcon = "/recipe-scroll-icon.png";
 import bagIconImg from "@assets/icon_bag.png";
-import tabIconPotion from "@assets/potion_health.png";
-import tabIconItem from "@assets/item_crystal_charm.png";
-import tabIconAccessory from "@assets/acc_gem_amulet.png";
-import tabIconSpecial from "@assets/generated_images/icon_egg_magic.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
 import petInvForestBg from "@assets/generated_images/pet_inventory_bg.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
@@ -1272,25 +1268,11 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 
 const POTION_STACK_MAX = 50;
 
-const BAG_CATEGORY_ICONS: Record<GameItemCategoryKey, string> = {
-  pets: petPawIcon,
-  mini_pets: petPawIcon,
-  costumes: tabIconAccessory,
-  accessories: tabIconAccessory,
-  fish: tabIconItem,
-  poles: tabIconItem,
-  bait: tabIconItem,
-  objects: tabIconItem,
-  decor: tabIconItem,
-  homes: bagIconImg,
-  potions: tabIconPotion,
-  power_ups: powerupBagIcon,
-  specials: tabIconSpecial,
-  edibles: tabIconPotion,
-  gifts: tabIconSpecial,
-  ingredients: tabIconItem,
-  recipes: recipeScrollIcon,
-  clearing: tabIconAccessory,
+const BAG_GROUP_COLORS: Record<GameItemGroupKey, string> = {
+  pets: "#c5dba7",
+  fish: "#a8dcd3",
+  home: "#e8c19c",
+  items: "#ebd497",
 };
 
 function BagView({
@@ -1310,6 +1292,10 @@ function BagView({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bagGroup, setBagGroup] = useState<GameItemGroupKey>("items");
   const [bagCategory, setBagCategory] = useState<GameItemCategoryKey | null>(null);
+  const { data: groupArtwork } = useQuery<Partial<Record<GameItemGroupKey, string | null>>>({
+    queryKey: ["/api/inventory/group-icons"],
+    staleTime: 5 * 60 * 1000,
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1438,29 +1424,50 @@ function BagView({
       >
         {GAME_ITEM_GROUPS.map(group => {
           const active = bagGroup === group.key;
+          const accent = BAG_GROUP_COLORS[group.key];
+          const artwork = groupArtwork?.[group.key];
           return (
             <button
               type="button"
               key={group.key}
               data-testid={`button-bag-group-${group.key}`}
               onClick={() => { setBagGroup(group.key); setBagCategory(null); }}
-              className="min-h-10 rounded-lg px-1 py-1.5 font-fantasy text-[10px] sm:text-xs tracking-wide transition-all active:scale-95"
+              className="min-h-11 rounded-lg px-1 py-1.5 font-fantasy text-[10px] sm:text-xs tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1.5"
               style={{
-                background: active ? "linear-gradient(180deg, rgba(147,105,25,.66), rgba(45,35,15,.92))" : "rgba(15,21,13,.72)",
-                border: active ? "1px solid rgba(240,192,64,.58)" : "1px solid rgba(212,160,23,.2)",
-                color: active ? "#f3d177" : "#9d8a6b",
-                boxShadow: active ? "0 0 10px rgba(240,192,64,.12)" : "none",
+                background: active ? "linear-gradient(180deg, rgba(49,68,49,.92), rgba(31,38,29,.96))" : "rgba(24,34,27,.80)",
+                border: active ? `1px solid ${accent}99` : "1px solid rgba(174,190,149,.28)",
+                color: accent,
+                boxShadow: active ? `inset 0 0 12px ${accent}18, 0 0 10px ${accent}20` : "none",
               }}
             >
-              {group.label}
+              {artwork && (
+                <span
+                  data-testid={`bag-group-artwork-${group.key}`}
+                  aria-hidden="true"
+                  className="shrink-0 block w-6 h-6 sm:w-7 sm:h-7"
+                  style={{
+                    backgroundColor: accent,
+                    maskImage: `url("${artwork}")`,
+                    WebkitMaskImage: `url("${artwork}")`,
+                    maskSize: "contain",
+                    WebkitMaskSize: "contain",
+                    maskPosition: "center",
+                    WebkitMaskPosition: "center",
+                    maskRepeat: "no-repeat",
+                    WebkitMaskRepeat: "no-repeat",
+                    opacity: active ? 1 : 0.85,
+                  }}
+                />
+              )}
+              <span>{group.label}</span>
             </button>
           );
         })}
       </div>
       {/* The category rail scrolls independently of the item shelf on phones. */}
       <div className="flex items-start gap-2 sm:gap-4 min-w-0">
-      <nav aria-label={`${GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label ?? "Bag"} categories`} className="w-[112px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
-        <p className="font-fantasy text-[#d8b864] text-[9px] sm:text-[10px] tracking-widest px-1 pb-1">
+      <nav aria-label={`${GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label ?? "Bag"} categories`} className="w-[112px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(24,37,28,.94), rgba(26,32,23,.94))", border: "1px solid rgba(169,192,147,.36)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
+        <p className="font-fantasy text-[#c9d8a9] text-[9px] sm:text-[10px] tracking-widest px-1 pb-1">
           {GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label.toUpperCase()}
         </p>
         {categoriesForActiveGroup.map(category => {
@@ -1474,26 +1481,21 @@ function BagView({
               onClick={() => setBagCategory(category)}
               className="w-full min-h-10 flex items-center gap-1.5 px-1.5 sm:px-2 py-1.5 rounded-lg text-left font-fantasy text-[9px] sm:text-[10px] leading-tight tracking-wide transition-all active:scale-95"
               style={{
-                background: active ? "linear-gradient(90deg, rgba(147,105,25,.6), rgba(55,44,19,.88))" : "rgba(255,255,255,0.04)",
-                border: active ? "1px solid rgba(240,192,64,0.45)" : "1px solid rgba(255,255,255,0.15)",
-                color: active ? "#f0c040" : "rgba(210,185,145,0.75)",
+                background: active ? "linear-gradient(90deg, rgba(77,98,64,.82), rgba(39,55,38,.9))" : "rgba(200,224,180,0.045)",
+                border: active ? "1px solid rgba(187,217,152,.56)" : "1px solid rgba(181,202,162,.17)",
+                color: active ? "#e3efc0" : "#b9c5a8",
               }}
             >
-              <img
-                src={BAG_CATEGORY_ICONS[category]}
-                alt=""
-                style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.65, filter: active ? "drop-shadow(0 0 4px rgba(240,192,64,0.5))" : "none" }}
-              />
               <span className="min-w-0 break-words flex-1">{GAME_ITEM_CATEGORY_LABELS[category]}</span>
               {count > 0 && <span className="text-[8px] opacity-70">{count}</span>}
             </button>
           );
         })}
       </nav>
-      <section aria-label={activeBagTabLabel} className="flex-1 min-w-0 rounded-xl p-2 sm:p-3" style={{ background: "rgba(15,19,10,.43)", border: "1px solid rgba(212,160,23,.22)" }}>
+      <section aria-label={activeBagTabLabel} className="flex-1 min-w-0 rounded-xl p-2 sm:p-3" style={{ background: "rgba(20,34,25,.56)", border: "1px solid rgba(179,203,154,.27)" }}>
         <div className="flex flex-wrap items-baseline justify-between gap-1 mb-3 px-1">
-          <h3 className="font-fantasy text-[#f4d482] text-sm sm:text-base tracking-wider">{activeBagTabLabel}</h3>
-          <span className="font-fantasy text-[#c5ad86] text-[10px]">{displayCount} {displayCount === 1 ? "item" : "items"}</span>
+          <h3 className="font-fantasy text-[#e4eac2] text-sm sm:text-base tracking-wider">{activeBagTabLabel}</h3>
+          <span className="font-fantasy text-[#bac9ac] text-[10px]">{displayCount} {displayCount === 1 ? "item" : "items"}</span>
         </div>
 
       {isEmpty ? (
