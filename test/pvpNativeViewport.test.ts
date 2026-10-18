@@ -26,3 +26,11 @@ test("PvP keeps arena controls, tickets, leaderboard and viewport backdrop", () 
   assert.match(pvp, /data-testid="button-open-ticket-shop"/);
   assert.match(pvp, /data-testid="row-leaderboard-header"/);
 });
+
+test("PvP arena restores pointer input on the native viewport host and keeps the main list scrollable", () => {
+  assert.match(app, /id="game-viewport-page"[\s\S]{0,180}pointerEvents: "none"/);
+  assert.match(pvp, /data-testid="pvp-arena-page"[\s\S]{0,180}pointerEvents: "auto"/);
+  assert.match(pvp, /touchAction: "pan-y"/);
+  assert.match(pvp, /flex-1 min-h-0 overflow-y-auto overscroll-contain/);
+  assert.match(pvp, /data-testid="button-open-ticket-shop"/);
+});
