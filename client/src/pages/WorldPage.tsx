@@ -1428,8 +1428,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }
 
   const accent = world.accent;
+  const [worldLocationOverlayOpen, setWorldLocationOverlayOpen] = useState(false);
   const worldMapCameraBlocked = Boolean(
     showProfile
+    || worldLocationOverlayOpen
     || showLocationView
     || showShop
     || showFishing
@@ -1719,6 +1721,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               dragPosition={dragPos}
               onPointerDown={handlePointerDown}
               onLocationClick={handleLocationClick}
+              onOverlayVisibilityChange={setWorldLocationOverlayOpen}
               onEditLocation={(loc) => {
                 setEditingLocation(loc);
                 setEditLocName(loc.name);
