@@ -3501,7 +3501,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         const dangerLoc = locations.find(l => l.id === activeLocationId);
         if (!dangerLoc) return null;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div data-testid="world-danger-dialog-input-surface" className="fixed inset-0 z-50 flex items-center justify-center" style={{ pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDangerWarning(false)} />
             {/* Bayou's Heart entrance mist — renders over backdrop, under modal */}
             {dangerLoc.id === ELYSIAN_BAYOU_LOCATION_IDS.bayousHeart && (
