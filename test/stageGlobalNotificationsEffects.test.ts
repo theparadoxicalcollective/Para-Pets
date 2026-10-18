@@ -16,7 +16,10 @@ test("gameplay notifications use the existing stage HUD modal host without a fix
   assert.ok(gameStageStart >= 0 && toasterIndex > gameStageStart && toasterIndex < gameStageEnd);
   assert.ok(toaster.includes("<ViewportModalPortal blocking={false}>"));
   assert.ok(toast.includes("pointer-events-none absolute"));
-  assert.ok(toast.includes("w-[min(100%,24rem)]"));
+  assert.ok(toast.includes("w-[min(calc(100%-2rem),24rem)]"));
+  assert.ok(toast.includes("top-1/2"));
+  assert.ok(toast.includes("-translate-y-1/2"));
+  assert.ok(toast.includes("max-h-[min(70dvh,32rem)]"));
   assert.ok(!toast.includes("max-w-[390px]"));
   assert.ok(toast.includes("border-[#cba34b] bg-[#10271c]/95"));
   assert.ok(toast.includes("font-[Cinzel,Georgia,serif]"));
