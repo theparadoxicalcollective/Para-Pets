@@ -740,7 +740,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     <div
       data-testid="pvp-arena-page"
       className="fixed inset-0 z-50 flex flex-col overflow-hidden"
-      style={{ fontFamily: "Lora, serif" }}
+      style={{ fontFamily: "Lora, serif", pointerEvents: "auto", touchAction: "pan-y" }}
     >
       <ViewportBackdropPortal>
         <div data-testid="pvp-arena-viewport-backdrop" className="absolute inset-0 overflow-hidden">
@@ -831,7 +831,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+      <div className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
 
         {/* ── Centered "PvP Arena" title. Tickets used to live on the
              left of this row but moved into the header above for better
@@ -851,7 +851,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
              sits within thumb reach. flex-col + mt-auto on the prep
              card pushes the team-select row toward the bottom edge of
              the scroll area. ── */}
-        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 flex flex-col gap-3">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pt-2 pb-3 flex flex-col gap-3">
           {/* ── Leaderboard (basic clean list) ──────────────────────
                Previous version had an ornate ruins frame, platinum
                trophies on the top 3, and per-tier coloured chips —
