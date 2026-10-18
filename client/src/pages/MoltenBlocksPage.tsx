@@ -241,6 +241,8 @@ export default function MoltenBlocksPage() {
   // no once-per-piece restriction — the player can swap freely.
   const holdRef = useRef<Piece | null>(null);
   const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
+  const heldSpecialRef = useRef<{ kind: "laser"; cellIdx: number } | null>(null);
+  const [holdWarning, setHoldWarning] = useState(false);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
   const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
@@ -351,6 +353,8 @@ export default function MoltenBlocksPage() {
     laserRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     bombsRef.current = [];
     pendingSpecialRef.current = null;
+    heldSpecialRef.current = null;
+    setHoldWarning(false);
     lastBombTickRef.current = null;
     pendingDropItemRef.current = null;
     bagRef.current = makeBag();
@@ -381,6 +385,8 @@ export default function MoltenBlocksPage() {
     setCoinFlash(null);
     holdRef.current = null;
     setHoldPiece(null);
+    heldSpecialRef.current = null;
+    setHoldWarning(false);
   }, [resetBoard]);
 
   // Sync localStorage key + hi-score from the user-specific key once auth resolves.
@@ -564,9 +570,16 @@ export default function MoltenBlocksPage() {
     // No once-per-piece restriction — the player can swap as often as they like.
 
     const currentType = activeRef.current.type;
-    // A held piece does not retain a randomly assigned special tile.
-    pendingSpecialRef.current = null;
+    if (pendingSpecialRef.current?.kind === "stone") {
+      setHoldWarning(true);
+      return;
+    }
+    setHoldWarning(false);
+    const carriedLaser = pendingSpecialRef.current?.kind === "laser" ? pendingSpecialRef.current : null;
+    const stashedLaser = heldSpecialRef.current;
     const stashed = holdRef.current;
+    heldSpecialRef.current = carriedLaser;
+    pendingSpecialRef.current = stashed == null ? null : stashedLaser;
     playHoldSwap();
     if (stashed == null) {
       // First hold this run — stash current and bring in the next-queue piece.
@@ -1111,6 +1124,28 @@ export default function MoltenBlocksPage() {
   const drawSide = () => {
     drawPieceCanvas(sideCanvasRef.current, nextRef.current);
     drawPieceCanvas(holdCanvasRef.current, holdRef.current);
+    if (holdCanvasRef.current && heldSpecialRef.current) {
+      const canvas = holdCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx && holdRef.current) {
+        const shape = SHAPES[holdRef.current][0];
+        const cell = Math.floor(Math.min(canvas.width / 5, canvas.height / 4));
+        const offX = Math.floor((canvas.width - shape[0].length * cell) / 2);
+        const offY = Math.floor((canvas.height - shape.length * cell) / 2);
+        const filled: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c]) filled.push([r, c]);
+        const [r, c] = filled[heldSpecialRef.current.cellIdx % filled.length];
+        ctx.save();
+        ctx.fillStyle = "rgba(14,95,110,0.95)";
+        ctx.fillRect(offX + c * cell + 2, offY + r * cell + 2, cell - 4, cell - 4);
+        ctx.fillStyle = "#9ff9ff";
+        ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.5))}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("↔", offX + (c + 0.5) * cell, offY + (r + 0.5) * cell);
+        ctx.restore();
+      }
+    }
   };
 
   // ── Resize canvases to their container, accounting for DPR ──────────────
