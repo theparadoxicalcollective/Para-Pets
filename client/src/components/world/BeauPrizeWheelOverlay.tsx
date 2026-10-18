@@ -12,6 +12,7 @@ import {
   beauWheelSlotCenterAngle,
   type BeauPointerLayout,
   type BeauPrizeKind,
+  type BeauPrizeRarity,
   type BeauWheelLayout,
   type BeauPrizeView,
 } from "@shared/beauPrizeWheel";
@@ -136,6 +137,7 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
   const icon = prizeGlyph(slot);
   const amount = visibleAmount(slot);
   const isLoss = slot.kind === "loss";
+  const isLimited = /(?:mini.*)?jack[ -]?o[ -]?lantern|jackolantern/i.test(slot.label);
 
   if (!slot.configured && !admin) return null;
 
@@ -173,6 +175,8 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
               </span>
             )}
           </div>
+          {slot.chance != null && <span className="absolute -bottom-[12%] left-1/2 -translate-x-1/2 whitespace-nowrap text-[clamp(5px,1.3vw,9px)] font-bold text-amber-100 pointer-events-none">{(slot.chance * 100).toFixed(1)}%</span>}
+          {isLimited && <span className="absolute -top-[15%] left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-amber-200 bg-[#651b28] px-1 text-[clamp(5px,1.2vw,9px)] font-black tracking-wide text-amber-100 pointer-events-none">LIMITED</span>}
           {admin && !isLoss && !spinning && (
             <button
               type="button"
@@ -181,7 +185,7 @@ function PrizeToken({ slot, admin, spinning, onEdit }: { slot: BeauPrizeView; ad
               className="absolute -right-[2%] -top-[1%] grid h-[30%] w-[30%] place-items-center rounded-full border border-amber-200/70 bg-[#29160c]/95 text-amber-100 active:scale-90"
               style={{ boxShadow: "0 0 8px rgba(251,191,36,.55)" }}
             >
-              <Pencil className="h-[55%] w-[55%]" />
+              <Plus className="h-[55%] w-[55%]" />
             </button>
           )}
         </div>
@@ -221,6 +225,7 @@ function PrizeEditor({
 }) {
   const initialKind: BeauPrizeKind = current?.configured && current.kind && current.kind !== "loss" ? current.kind : "coins";
   const [kind, setKind] = useState<BeauPrizeKind>(initialKind);
+  const [rarity, setRarity] = useState<BeauPrizeRarity>(current?.rarity ?? "common");
   const [amount, setAmount] = useState(String(current?.amount ?? (initialKind === "exp" ? 100 : 500)));
   const [shopItemId, setShopItemId] = useState(current?.shopItemId ?? "");
   const [search, setSearch] = useState("");
@@ -247,7 +252,7 @@ function PrizeEditor({
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(usesAmount ? { kind, amount: Number(amount) } : { kind, shopItemId }),
+        body: JSON.stringify(usesAmount ? { kind, rarity, amount: Number(amount) } : { kind, rarity, shopItemId }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.message || "Prize could not be saved.");
@@ -324,6 +329,17 @@ function PrizeEditor({
                 {entry.label}
               </button>
             ))}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-amber-200/20 bg-black/25 p-3">
+            <label htmlFor="beau-prize-rarity" className="block text-xs text-amber-100 mb-2">Reward rarity (controls winning odds)</label>
+            <select id="beau-prize-rarity" value={rarity} onChange={event => setRarity(event.target.value as BeauPrizeRarity)}
+              className="w-full rounded-lg border border-amber-200/40 bg-[#24151c] p-2 text-sm text-amber-50">
+              <option value="common">Common · weight 6</option>
+              <option value="uncommon">Uncommon · weight 3</option>
+              <option value="rare">Rare · weight 1</option>
+            </select>
+            <p className="mt-2 text-[11px] text-amber-100/70">Exact chance depends on the rarity of all wheel sections. Existing prizes remain Common until changed.</p>
           </div>
 
           {usesAmount ? (

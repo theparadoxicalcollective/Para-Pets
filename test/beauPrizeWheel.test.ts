@@ -9,6 +9,7 @@ import {
   DEFAULT_BEAU_POINTER_LAYOUT,
   DEFAULT_BEAU_WHEEL_LAYOUT,
   beauPointerAngle,
+  beauWheelOdds,
   beauPointerLayoutFrom,
   beauWheelLayoutFrom,
   beauWheelLandingRotation,
@@ -41,7 +42,7 @@ test("spin cost, daily free spin and reward grant stay server-authoritative and 
   assert.match(server, /transaction\(async tx/);
   assert.match(server, /WHERE id = \$\{userId\}[\s\S]*FOR UPDATE/);
   assert.match(server, /FROM beau_prize_wheel_spins[\s\S]*spin_day/);
-  assert.match(server, /randomInt\(BEAU_PRIZE_WHEEL_SLOT_COUNT\)/);
+  assert.match(server, /randomInt\(totalWeight\)/);
   assert.match(server, /slotIndex === BEAU_PRIZE_WHEEL_LOSS_SLOT/);
   assert.match(server, /grantSkullBonus/);
   assert.match(server, /SKULL_BONUS_AMOUNT = 100/);
@@ -141,4 +142,16 @@ test("players can rotate Beau's wheel by drag and a quick flick starts one autho
   assert.match(overlay, /body: JSON\.stringify\(\{ actionId: createActionId\(\) \}\)/);
   assert.match(overlay, /beauWheelLandingRotation\(spinResult\.slotIndex, pointerAngle\)/);
   assert.match(overlay, /Drag the wheel to turn it · a quick flick starts the spin/);
+});
+
+test("weighted wheel odds are normalized, preserve legacy defaults and favor common rewards", () => {
+  const uniform = beauWheelOdds(Array(8).fill("common"));
+  assert.equal(uniform.length, 8);
+  uniform.forEach(chance => assert.equal(chance, 0.125));
+  const weighted = beauWheelOdds(["common", "uncommon", "rare", "common", "rare", "uncommon", "common", "common"]);
+  assert.ok(Math.abs(weighted.reduce((sum, chance) => sum + chance, 0) - 1) < 1e-12);
+  assert.ok(weighted[0] > weighted[1] && weighted[1] > weighted[2]);
+  assert.match(server, /const ticket = randomInt\(totalWeight\)/);
+  assert.match(overlay, /beau-prize-rarity/);
+  assert.match(overlay, /LIMITED/);
 });

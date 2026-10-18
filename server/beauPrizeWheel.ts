@@ -12,6 +12,9 @@ import {
   beauWheelLayoutFrom,
   type BeauPointerLayout,
   type BeauWheelLayout,
+  beauPrizeWeight,
+  beauWheelOdds,
+  type BeauPrizeRarity,
   type BeauPrizeConfig,
   type BeauPrizeKind,
   type BeauPrizeView,
@@ -76,20 +79,22 @@ export function parseBeauPrizeDraft(value: unknown, slot: number): BeauPrizeConf
   }
   const row = value as any;
   const kind = String(row.kind ?? "") as BeauPrizeKind;
+  const rarity: BeauPrizeRarity = row.rarity ?? "common";
+  if (!["common", "uncommon", "rare"].includes(rarity)) throw new BeauPrizeWheelError("invalid_request", 400, "Invalid prize rarity.");
   if (!["coins", "essence", "exp", "item", "egg"].includes(kind)) {
     throw new BeauPrizeWheelError("invalid_request", 400, "Choose coins, essence, EXP, an item, or a pet egg.");
   }
   if (kind === "coins" || kind === "essence") {
-    return { slot, kind, amount: requireAmount(row.amount, MAX_CURRENCY_REWARD) };
+    return { slot, kind, rarity, amount: requireAmount(row.amount, MAX_CURRENCY_REWARD) };
   }
   if (kind === "exp") {
-    return { slot, kind, amount: requireAmount(row.amount, MAX_EXP_REWARD) };
+    return { slot, kind, rarity, amount: requireAmount(row.amount, MAX_EXP_REWARD) };
   }
   const shopItemId = typeof row.shopItemId === "string" ? row.shopItemId.trim() : "";
   if (!shopItemId || shopItemId.length > 100) {
     throw new BeauPrizeWheelError("invalid_request", 400, "Choose a valid catalog prize.");
   }
-  return { slot, kind, shopItemId };
+  return { slot, kind, rarity, shopItemId };
 }
 
 export function parseBeauWheelLayout(value: unknown): BeauWheelLayout {
@@ -166,13 +171,14 @@ async function readStoredSlots(executor: Executor): Promise<Array<BeauPrizeConfi
 
 function currencyView(config: BeauPrizeConfig): BeauPrizeView {
   const amount = Number(config.amount ?? 0);
+  const rarity = config.rarity ?? "common";
   if (config.kind === "coins") {
-    return { slot: config.slot, configured: true, kind: config.kind, label: amount.toLocaleString() + " Coins", imageUrl: COIN_IMAGE, amount, shopItemId: null };
+    return { slot: config.slot, configured: true, kind: config.kind, rarity, label: amount.toLocaleString() + " Coins", imageUrl: COIN_IMAGE, amount, shopItemId: null };
   }
   if (config.kind === "essence") {
-    return { slot: config.slot, configured: true, kind: config.kind, label: amount.toLocaleString() + " Essence", imageUrl: ESSENCE_IMAGE, amount, shopItemId: null };
+    return { slot: config.slot, configured: true, kind: config.kind, rarity, label: amount.toLocaleString() + " Essence", imageUrl: ESSENCE_IMAGE, amount, shopItemId: null };
   }
-  return { slot: config.slot, configured: true, kind: config.kind, label: amount.toLocaleString() + " EXP", imageUrl: null, amount, shopItemId: null };
+  return { slot: config.slot, configured: true, kind: config.kind, rarity, label: amount.toLocaleString() + " EXP", imageUrl: null, amount, shopItemId: null };
 }
 
 interface ResolvedWheel {
@@ -230,6 +236,7 @@ async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
       slot,
       configured: true,
       kind: config.kind,
+      rarity: config.rarity ?? "common",
       label: item.name,
       imageUrl: config.kind === "egg" ? item.egg_image_url : item.image_url,
       amount: 1,
@@ -240,6 +247,7 @@ async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
   slots.push({
     slot: BEAU_PRIZE_WHEEL_LOSS_SLOT,
     configured: true,
+    rarity: "common",
     kind: "loss",
     label: "Skull Bonus",
     imageUrl: LOSS_IMAGE,
@@ -247,6 +255,8 @@ async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
     shopItemId: null,
   });
 
+  const odds = beauWheelOdds(slots.map(slot => slot.rarity ?? "common"));
+  slots.forEach((slot, index) => { slot.chance = odds[index]; });
   return {
     configs,
     slots,
@@ -578,7 +588,16 @@ export async function spinBeauPrizeWheel(
       await executor.execute(sql`UPDATE users SET coins = coins - ${cost} WHERE id = ${userId}`);
     }
 
-    const slotIndex = randomInt(BEAU_PRIZE_WHEEL_SLOT_COUNT);
+    // Server-authoritative weighted draw. Keep the skull at its existing common weight.
+    const weights = wheel.slots.map(slot => beauPrizeWeight(slot.rarity ?? "common"));
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    const ticket = randomInt(totalWeight);
+    let slotIndex = 0;
+    let cumulative = 0;
+    for (let index = 0; index < weights.length; index++) {
+      cumulative += weights[index];
+      if (ticket < cumulative) { slotIndex = index; break; }
+    }
     let reward: any;
     if (slotIndex === BEAU_PRIZE_WHEEL_LOSS_SLOT) {
       reward = await grantSkullBonus(executor, userId, slotIndex);
