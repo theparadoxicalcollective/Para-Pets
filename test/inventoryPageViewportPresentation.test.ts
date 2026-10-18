@@ -16,7 +16,7 @@ test("inventory page keeps authored content canonical and full-device scenery se
   assert.match(inventory, /data-stage-coordinate-space=\{pageMode \? "canonical" : undefined\}/);
   assert.match(inventory, /<ViewportBackdropPortal>[\s\S]*data-testid="inventory-viewport-backdrop"/);
   assert.match(inventory, /data-testid=\{pageMode \? "inventory-canonical-content" : undefined\}/);
-  assert.match(inventory, /<BagView items=\{bagItems\} userId=\{user\.id\} pageMode=\{!!pageMode\}/);
+  assert.match(inventory, /<BagView items=\{bagItems\} pets=\{pets\}[\s\S]*userId=\{user\.id\} pageMode=\{!!pageMode\}/);
 });
 
 test("larger-device inventory moves only its page-level back row to the physical width", () => {
@@ -29,4 +29,11 @@ test("inventory interactions and modal ownership remain unchanged", () => {
   assert.match(inventory, /onEggSpeedUp=\{\(id\) => setSpeedUpTargetId\(id\)\}/);
   assert.match(inventory, /<ViewportModalPortal enabled=\{!!pageMode\}>/);
   assert.match(inventory, /data-testid="button-close-inventory"/);
+});
+
+test("Bag Pets reuses owned pets and existing interaction handlers", () => {
+  assert.ok(inventory.includes('<BagView items={bagItems} pets={pets}'));
+  assert.ok(inventory.includes('data-testid="bag-full-pets"'));
+  assert.ok(inventory.includes('<PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle}'));
+  assert.ok(inventory.includes('category === "pets" ? pets.length : 0'));
 });
