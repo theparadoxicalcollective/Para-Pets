@@ -7,7 +7,7 @@ const fish = readFileSync("client/src/pages/SellFishPage.tsx", "utf8");
 
 test("world persistent map HUD is absent while a foreground page is open", () => {
   assert.match(world, /worldMapCameraBlocked = Boolean\([\s\S]*?showSellFish/);
-  assert.match(world, /\{!worldMapCameraBlocked && \(\s*<ViewportHudPortal>/);
+  assert.match(world, /\{!worldMapCameraBlocked && \(\s*<div data-testid="world-map-only-controls"/);
   assert.match(world, /data-testid="button-back-to-map"/);
 });
 

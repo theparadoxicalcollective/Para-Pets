@@ -10,37 +10,34 @@ import {
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("WorldPage keeps persistent controls in the viewport HUD above the expanded map camera", () => {
+test("WorldPage owns map controls in the scene rather than the persistent viewport HUD", () => {
   const source = read("client/src/pages/WorldPage.tsx");
-
   assert.match(source, /import ViewportScenePortal from "@\/components\/ViewportScenePortal"/);
-  assert.match(source, /import ViewportHudPortal from "@\/components\/ViewportHudPortal"/);
+  assert.doesNotMatch(source, /import ViewportHudPortal from "@\/components\/ViewportHudPortal"/);
   assert.match(source, /expandedCamera: true/);
   assert.match(source, /<ViewportScenePortal enabled=\{!worldMapCameraBlocked\}>/);
-  assert.match(source, /data-testid="world-expanded-camera"/);
 
-  const portalStart = source.indexOf("<ViewportScenePortal enabled={!worldMapCameraBlocked}>");
-  const portalEnd = source.indexOf("</ViewportScenePortal>", portalStart);
-  const hudStart = source.indexOf("<ViewportHudPortal>", portalEnd);
-  const hud = source.indexOf('data-testid="world-persistent-hud"', hudStart);
+  const sceneStart = source.indexOf("<ViewportScenePortal enabled={!worldMapCameraBlocked}>");
+  const camera = source.indexOf('data-testid="world-expanded-camera"', sceneStart);
+  const controls = source.indexOf('data-testid="world-map-only-controls"', camera);
+  const hud = source.indexOf('data-testid="world-persistent-hud"', controls);
   const backButton = source.indexOf('data-testid="button-back-to-map"', hud);
   const decorButton = source.indexOf('data-testid="button-world-decor"', hud);
-  const hudEnd = source.indexOf("</ViewportHudPortal>", hudStart);
-  const shopPanel = source.indexOf("{showShop && (", portalEnd);
+  const sceneEnd = source.indexOf("</ViewportScenePortal>", controls);
+  const shopPanel = source.indexOf("{showShop && (", sceneEnd);
 
-  assert.ok(portalStart >= 0 && portalEnd > portalStart);
-  assert.ok(hudStart > portalEnd);
-  assert.ok(hud > hudStart && hud < hudEnd);
-  assert.ok(backButton > hud && backButton < hudEnd);
-  assert.ok(decorButton > hud && decorButton < hudEnd);
-  assert.ok(shopPanel > portalEnd, "shop panel must not move into expanded map camera");
-  assert.doesNotMatch(source.slice(hudStart, hudEnd), /className="fixed/);
+  assert.ok(sceneStart >= 0 && camera > sceneStart);
+  assert.ok(controls > camera && hud > controls && hud < sceneEnd);
+  assert.ok(backButton > hud && backButton < sceneEnd);
+  assert.ok(decorButton > hud && decorButton < sceneEnd);
+  assert.ok(shopPanel > sceneEnd, "shop panel must not move into expanded map camera");
+  assert.match(source.slice(camera, sceneEnd), /\{!worldMapCameraBlocked && \(\s*<div data-testid="world-map-only-controls"/);
 });
 
-test("World HUD preserves the existing iPhone 12 control offsets while using device edges elsewhere", () => {
+test("World map controls preserve viewport-edge offsets without a fixed phone reference plane", () => {
   const source = read("client/src/pages/WorldPage.tsx");
   const hudStart = source.indexOf('data-testid="world-persistent-hud"');
-  const hudEnd = source.indexOf("</ViewportHudPortal>", hudStart);
+  const hudEnd = source.indexOf("</ViewportScenePortal>", hudStart);
   const hud = source.slice(hudStart, hudEnd);
 
   assert.match(hud, /data-testid="button-back-to-map"/);

@@ -43,6 +43,7 @@ interface WorldLocationsProps {
     location: WorldLocationData,
   ) => void;
   onLocationClick: (location: WorldLocationData) => void;
+  onOverlayVisibilityChange?: (open: boolean) => void;
   onEditLocation: (location: WorldLocationData) => void;
   onFlipLocation: (locationId: string) => void;
   onDeleteLocation: (location: WorldLocationData) => void;
@@ -75,6 +76,7 @@ export default function WorldLocations({
   dragPosition,
   onPointerDown,
   onLocationClick,
+  onOverlayVisibilityChange,
   onEditLocation,
   onFlipLocation,
   onDeleteLocation,
@@ -85,6 +87,11 @@ export default function WorldLocations({
   const dragPos = dragPosition;
   const [casinoScene, setCasinoScene] = useState<WorldLocationData | null>(null);
   const casinoScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    onOverlayVisibilityChange?.(casinoScene !== null);
+    return () => onOverlayVisibilityChange?.(false);
+  }, [casinoScene, onOverlayVisibilityChange]);
 
   useEffect(() => {
     if (!casinoScene) return;
