@@ -5,10 +5,9 @@ import { viewportPointerEvents } from "@/lib/viewportLayers";
 const VIEWPORT_BACKDROP_ID = "game-viewport-backdrop";
 
 /**
- * Full-device visual layer that sits behind the canonical gameplay stage.
- *
- * Native iPhone-12-style viewport ownership has no backdrop target, so
- * children render inline and keep the exact existing phone path.
+ * Full-device visual layer behind the gameplay scene. If the host does not
+ * expose a backdrop portal target, children render inline without creating
+ * another viewport or reference stage.
  */
 export default function ViewportBackdropPortal({
   children,
