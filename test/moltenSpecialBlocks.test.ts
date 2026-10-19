@@ -85,23 +85,23 @@ test("Molten bomb artwork is wired into active, locked and held-cell rendering",
   assert.ok(page.includes('ctx.fillText(String(Math.ceil(seconds))'));
 });
 
-test("single, double and laser special spawns have 5/3/12 percent probabilities", () => {
-  assert.equal(MOLTEN_SPECIAL_SPAWN_CHANCE, 0.20);
+test("single, double and laser special spawns have 10/5/15 percent probabilities", () => {
+  assert.equal(MOLTEN_SPECIAL_SPAWN_CHANCE, 0.30);
   assert.equal(rollMoltenSpecial(0), "stone");
-  assert.equal(rollMoltenSpecial(0.049999), "stone");
-  assert.equal(rollMoltenSpecial(0.05), "double-stone");
-  assert.equal(rollMoltenSpecial(0.079999), "double-stone");
-  assert.equal(rollMoltenSpecial(0.08), "laser");
-  assert.equal(rollMoltenSpecial(0.199999), "laser");
-  assert.equal(rollMoltenSpecial(0.20), null);
+  assert.equal(rollMoltenSpecial(0.099999), "stone");
+  assert.equal(rollMoltenSpecial(0.10), "double-stone");
+  assert.equal(rollMoltenSpecial(0.149999), "double-stone");
+  assert.equal(rollMoltenSpecial(0.15), "laser");
+  assert.equal(rollMoltenSpecial(0.299999), "laser");
+  assert.equal(rollMoltenSpecial(0.30), null);
   assert.equal(rollMoltenSpecial(0.9), null);
   assert.equal(rollMoltenSpecial(-1), null);
   assert.equal(rollMoltenSpecial(Number.NaN), null);
   const samples = Array.from({ length: 1000 }, (_, index) => rollMoltenSpecial((index + 0.5) / 1000));
-  assert.equal(samples.filter(kind => kind === "stone").length, 50);
-  assert.equal(samples.filter(kind => kind === "double-stone").length, 30);
-  assert.equal(samples.filter(kind => kind === "laser").length, 120);
-  assert.equal(samples.filter(kind => kind === null).length, 800);
+  assert.equal(samples.filter(kind => kind === "stone").length, 100);
+  assert.equal(samples.filter(kind => kind === "double-stone").length, 50);
+  assert.equal(samples.filter(kind => kind === "laser").length, 150);
+  assert.equal(samples.filter(kind => kind === null).length, 700);
 });
 
 test("double petrification occupies distinct cells and shares the existing countdown behavior", () => {
