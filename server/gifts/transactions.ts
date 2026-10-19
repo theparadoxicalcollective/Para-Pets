@@ -1,6 +1,6 @@
 import { and, eq, gt, gte, sql } from "drizzle-orm";
 import { db } from "../db";
-import { gifts, homeDecorItems, shopItems, userHomeDecorInventory, userInventory, users, type Gift } from "@shared/schema";
+import { gifts, homeDecorItems, shopItems, playerFishInventory, userHomeDecorInventory, userInventory, users, type Gift } from "@shared/schema";
 
 type GiftTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -117,14 +117,21 @@ const postgresGiftOperations: GiftTransactionOperations = {
 
       if (gift.coinAmount > 0) await tx.update(users).set(giftCoinCreditUpdate(gift.coinAmount)).where(eq(users.id, receiverId));
       if (gift.itemType === "shop_item" && gift.shopItemId) {
-        const [catalog] = await tx.select({ id: shopItems.id }).from(shopItems).where(eq(shopItems.id, gift.shopItemId)).for("share");
+        const [catalog] = await tx.select({ id: shopItems.id, fishingType: shopItems.fishingType }).from(shopItems).where(eq(shopItems.id, gift.shopItemId)).for("share");
         if (!catalog) throw new Error("Item data not found");
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${receiverId}), hashtext(${gift.shopItemId}))`);
-        const rows = await tx.select().from(userInventory)
-          .where(and(eq(userInventory.userId, receiverId), eq(userInventory.shopItemId, gift.shopItemId)))
-          .orderBy(userInventory.id).for("update");
-        if (rows[0]) await tx.update(userInventory).set({ quantity: sql`${userInventory.quantity} + ${gift.itemQuantity}` }).where(eq(userInventory.id, rows[0].id));
-        else await tx.insert(userInventory).values({ userId: receiverId, shopItemId: gift.shopItemId, quantity: gift.itemQuantity });
+        if (catalog.fishingType === "fish") {
+          // Aquarium inventory stores one row per fish, unlike stackable shop inventory.
+          await tx.insert(playerFishInventory).values(
+            Array.from({ length: gift.itemQuantity }, () => ({ userId: receiverId, shopItemId: gift.shopItemId! }))
+          );
+        } else {
+          const rows = await tx.select().from(userInventory)
+            .where(and(eq(userInventory.userId, receiverId), eq(userInventory.shopItemId, gift.shopItemId)))
+            .orderBy(userInventory.id).for("update");
+          if (rows[0]) await tx.update(userInventory).set({ quantity: sql`${userInventory.quantity} + ${gift.itemQuantity}` }).where(eq(userInventory.id, rows[0].id));
+          else await tx.insert(userInventory).values({ userId: receiverId, shopItemId: gift.shopItemId, quantity: gift.itemQuantity });
+        }
       }
       if (gift.itemType === "decor" && gift.decorItemId) {
         const [catalog] = await tx.select({ id: homeDecorItems.id }).from(homeDecorItems).where(eq(homeDecorItems.id, gift.decorItemId)).for("share");
