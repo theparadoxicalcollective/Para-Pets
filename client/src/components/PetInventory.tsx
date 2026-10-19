@@ -55,15 +55,19 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }:
     const node = host.current;
     if (!node) return;
     if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { rootMargin: "160px" });
+    // Once a portrait has entered view, keep its renderer mounted. Toggling it
+    // on every scroll boundary flashes the fallback and refetches appearance data.
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); observer.disconnect(); }
+    }, { rootMargin: "240px" });
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
-  const fallback = imageUrl ? <img src={imageUrl} alt={name} style={{ width: 140, height: 140, objectFit: "contain" }} /> : null;
-  return <div ref={host} data-testid={`inventory-pet-portrait-${petInventoryId}`} style={{ position: "relative", width: 140, height: 140, isolation: "isolate" }}>
+  const fallback = imageUrl ? <img src={imageUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : null;
+  return <div ref={host} data-testid={`inventory-pet-portrait-${petInventoryId}`} style={{ position: "relative", width: "100%", height: "100%", isolation: "isolate" }}>
     {visible ? <ErrorBoundary context="PetInventory.PetPortrait" resetKey={petInventoryId} fallback={fallback}>
-      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} fillContainer fitVisible style={{ width: 140, height: 140, position: "relative", zIndex: 1 }} />
+      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} fillContainer fitVisible performanceStatic style={{ width: "100%", height: "100%", position: "relative", zIndex: 1 }} />
       <div
         data-testid="inventory-mini-pet-layer"
         style={{ position: "absolute", left: 0, bottom: 2, width: 42, height: 42, zIndex: 10, pointerEvents: "none" }}
@@ -1514,7 +1518,9 @@ function BagView({
               >
                 <div className="w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden"
                   style={{ background: "rgba(0,0,0,.35)", border: "1px solid rgba(255,255,255,.05)" }}>
-                  {portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" />
+                  {pet.isHatched && pet.petTemplateId ? (
+                    <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={portrait} name={petName} />
+                  ) : portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" />
                     : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
                 </div>
                 <span className="font-fantasy text-[#f0c040] text-xs font-semibold truncate w-full">{petName}</span>
@@ -1661,13 +1667,11 @@ function BagView({
               >✕</button>
               <div className="w-28 h-28 rounded-lg flex items-center justify-center"
                 style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(212,160,23,.2)" }}>
-                <img
-                  src={selectedBagPet.isHatched
-                    ? (selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl || petPawIcon)
-                    : (selectedBagPet.eggImageUrl || selectedBagPet.imageUrl || eggMagicIcon)}
-                  alt={selectedBagPet.petNickname || selectedBagPet.name}
-                  className="w-full h-full object-contain"
-                />
+                {selectedBagPet.isHatched && selectedBagPet.petTemplateId ? (
+                  <InventoryPetPortrait petInventoryId={selectedBagPet.inventoryId} petTemplateId={selectedBagPet.petTemplateId} imageUrl={selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl} name={selectedBagPet.petNickname || selectedBagPet.name} />
+                ) : (
+                  <img src={selectedBagPet.eggImageUrl || selectedBagPet.imageUrl || eggMagicIcon} alt={selectedBagPet.petNickname || selectedBagPet.name} className="w-full h-full object-contain" />
+                )}
               </div>
               <h3 className="font-fantasy text-[#f0c040] text-lg">{selectedBagPet.petNickname || selectedBagPet.name}</h3>
               <div aria-label={`${selectedBagPet.rarity ?? 1} of 5 rarity stars`}>
