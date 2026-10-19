@@ -28,7 +28,9 @@ test("all custom formations are connected, rotate four times and fit the board",
     assert.deepEqual(rotated,original,name);
   }
 });
-test("two-cell Ember Pair is frequent enough to repair crowded rows",()=>{
+test("two-cell Ember Pair and three-cell Ember Hook help repair crowded rows",()=>{
+  assert.equal(moltenFormationCells("T"),3);
+  assert.deepEqual(MOLTEN_FORMATIONS.T[0],[[0,1],[1,1]]);
   assert.equal(moltenFormationCells("I"),2);
   assert.deepEqual(MOLTEN_FORMATIONS.I[0],[[1,1]]);
   const bag=makeMoltenFormationBag(()=>0.5);
