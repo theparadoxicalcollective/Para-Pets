@@ -147,12 +147,15 @@ test("double-petrifying pieces cannot be held and draw two active sprites", asyn
   assert.ok(page.includes("for (const [row, col] of specialPositions)"));
 });
 
-test("petrified cells are greyed out rather than drawn as bomb sprites", async () => {
+test("petrified cells render ash-cracked obsidian over their original tile, not bomb sprites", async () => {
   const { readFileSync } = await import("node:fs");
   const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
   assert.ok(page.includes("rollMoltenSpecial(Math.random())"));
   assert.ok(page.includes("if (stoneRef.current[r][c])"));
-  assert.ok(page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
+  assert.ok(page.includes('ctx.fillStyle = "rgba(25,26,31,0.58)"'));
+  assert.ok(page.includes('ctx.strokeStyle = "rgba(255,111,34,0.65)"'));
+  assert.ok(page.includes("if (stoneRef.current[r][c])"));
+  assert.ok(!page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
   assert.ok(page.includes('if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000)'));
   assert.ok(!page.includes('drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs'));
 });
