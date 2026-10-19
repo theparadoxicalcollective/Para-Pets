@@ -8,6 +8,10 @@ import {
   MOLTEN_X2_SPAWN_CHANCE,
   MOLTEN_X2_DURATION_MS,
   laserTripleScoreBonus,
+  moltenClearScore,
+  collectMoltenCoinPickups,
+  removePetrifiedCoinPickups,
+  MOLTEN_COIN_PICKUP_AMOUNT,
   removePetrifiedMultipliers,
   clearedMultiplier,
   moltenX2Multiplier,
@@ -143,18 +147,21 @@ test("double-petrifying pieces cannot be held and draw two active sprites", asyn
   assert.ok(page.includes("for (const [row, col] of specialPositions)"));
 });
 
-test("petrified cells are greyed out rather than drawn as bomb sprites", async () => {
+test("petrified cells render ash-cracked obsidian over their original tile, not bomb sprites", async () => {
   const { readFileSync } = await import("node:fs");
   const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
   assert.ok(page.includes("rollMoltenSpecial(Math.random())"));
   assert.ok(page.includes("if (stoneRef.current[r][c])"));
-  assert.ok(page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
+  assert.ok(page.includes('ctx.fillStyle = "rgba(25,26,31,0.58)"'));
+  assert.ok(page.includes('ctx.strokeStyle = "rgba(255,111,34,0.65)"'));
+  assert.ok(page.includes("if (stoneRef.current[r][c])"));
+  assert.ok(!page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
   assert.ok(page.includes('if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000)'));
   assert.ok(!page.includes('drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs'));
 });
 
-test("laser triple line clear awards an extra 10 points only for exactly three cleared rows", () => {
-  assert.equal(laserTripleScoreBonus([7], [6,7,8]), 10);
+test("laser triple line clear awards an extra 15 points only for exactly three cleared rows", () => {
+  assert.equal(laserTripleScoreBonus([7], [6,7,8]), 15);
   assert.equal(laserTripleScoreBonus([], [6,7,8]), 0);
   assert.equal(laserTripleScoreBonus([7], [5,6,7,8]), 0);
   assert.equal(laserTripleScoreBonus([7], [7,8]), 0);
@@ -216,4 +223,35 @@ test("Molten modal blocks gravity, bomb countdown and controls until it is dismi
   assert.ok(page.includes("lastBombTickRef.current = null"));
   assert.ok(page.includes("lastDropRef.current = performance.now()"));
   assert.ok(page.includes('data-testid="molten-hold-warning-scrim"'));
+});
+
+test("scoring rewards combos, live bombs, laser rescue and x2 exactly once", () => {
+  assert.equal(moltenClearScore([17], [], 0, 0, 1), 10);
+  assert.equal(moltenClearScore([16,17], [], 0, 0, 1), 25);
+  assert.equal(moltenClearScore([15,16,17], [], 0, 0, 1), 45);
+  assert.equal(moltenClearScore([14,15,16,17], [], 0, 0, 1), 70);
+  assert.equal(moltenClearScore([15,16,17], [16], 2, 1, 1), 75);
+  assert.equal(moltenClearScore([15,16,17], [16], 2, 1, 2), 150);
+  assert.equal(moltenClearScore([], [16], 2, 1, 2), 0);
+});
+
+test("coin pickup only pays for unpetrified tiles in cleared rows", () => {
+  const pickups = [[true,false,true],[false,true,false],[true,false,false]];
+  const stones = [[true,false,false],[false,false,false],[false,false,false]];
+  assert.equal(MOLTEN_COIN_PICKUP_AMOUNT, 10);
+  assert.equal(collectMoltenCoinPickups(pickups,stones,[0,1]), 2);
+  assert.equal(collectMoltenCoinPickups(pickups,stones,[2]), 1);
+  assert.equal(collectMoltenCoinPickups(pickups,stones,[]), 0);
+  assert.deepEqual(removePetrifiedCoinPickups(pickups,stones),[[false,false,true],[false,true,false],[true,false,false]]);
+});
+
+test("Molten uses one coin reward art and a visible x2 playfield timer", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx","utf8");
+  assert.ok(page.includes("import coinBonusArt from"));
+  assert.ok(page.includes('data-testid="molten-x2-timer"'));
+  assert.ok(page.includes("x2 ACTIVE"));
+  assert.ok(page.includes("coinPickupBoardRef.current = collapseMoltenRows"));
+  assert.ok(page.includes("coinPickupBoardRef.current = removePetrifiedCoinPickups"));
+  assert.ok(page.includes("collectedCoinPickups * MOLTEN_COIN_PICKUP_AMOUNT"));
 });

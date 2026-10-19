@@ -19,7 +19,8 @@ import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import petrifyingBombArt from "@assets/uploads/PetrifyingBomb.png";
 import laserBombArt from "@assets/uploads/LaserBomb.png";
-import { PETRIFY_COUNTDOWN_MS, moltenSpecialCellIndices, rollMoltenSpecial, type MoltenSpecialKind, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb, MOLTEN_X2_SPAWN_CHANCE, MOLTEN_X2_DURATION_MS, laserTripleScoreBonus, removePetrifiedMultipliers, clearedMultiplier, moltenX2Multiplier } from "@/lib/moltenSpecialBlocks";
+import coinBonusArt from "@assets/Photoroom_20260708_40401_PM_1783544889601.png";
+import { PETRIFY_COUNTDOWN_MS, moltenSpecialCellIndices, rollMoltenSpecial, type MoltenSpecialKind, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb, MOLTEN_X2_SPAWN_CHANCE, MOLTEN_X2_DURATION_MS, laserTripleScoreBonus, removePetrifiedMultipliers, clearedMultiplier, moltenX2Multiplier, moltenClearScore, collectMoltenCoinPickups, removePetrifiedCoinPickups, MOLTEN_COIN_PICKUP_AMOUNT, MOLTEN_COIN_PICKUP_INTERVAL_MIN, MOLTEN_COIN_PICKUP_INTERVAL_SPREAD } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -202,22 +203,13 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
   return { board: [...newRows, ...remaining], cleared };
 }
 
-// Scoring rules per spec:
-//   - 3 points awarded per cleared row (multi-row clears = n × 3)
-//   - Every 35 points crossed grants 5 coins (credited to the player's
-//     coin balance at the end of the run, batched in a single API call)
-//   - 3 lives — each top-out costs one life; the board resets but score
-//     and coins-earned carry over until all lives are gone
-const POINTS_PER_ROW = 10;
+// Combo scoring lives in moltenSpecialBlocks.ts. Coin tiers remain unchanged.
 const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER coins
 const COINS_PER_TIER = 10;
 const DOUBLE_BONUS_COINS = 1;       // +1 coin for clearing exactly 2 rows in one drop
 const TRIPLE_BONUS_COINS = 3;       // +3 coins for clearing exactly 3 rows in one drop
 const TETRIS_BONUS_COINS = 8;       // +8 coins for clearing 4+ rows in one drop
 // Bonus score points added silently to the score counter on multi-row clears.
-const DOUBLE_BONUS_SCORE = 3;       // +3 bonus score for 2-row clear
-const TRIPLE_BONUS_SCORE = 5;       // +5 bonus score for 3-row clear
-const TETRIS_BONUS_SCORE  = 10;     // +10 bonus score for 4-row clear
 const STARTING_LIVES = 1;
 
 export default function MoltenBlocksPage() {
@@ -252,9 +244,14 @@ export default function MoltenBlocksPage() {
   const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
   const laserRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
   const multiplierBoardRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
+  const coinPickupBoardRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
+  const pendingCoinPickupRef = useRef<number | null>(null);
+  const heldCoinPickupRef = useRef<number | null>(null);
+  const nextCoinPickupThresholdRef = useRef(MOLTEN_COIN_PICKUP_INTERVAL_MIN + Math.floor(Math.random() * MOLTEN_COIN_PICKUP_INTERVAL_SPREAD));
   const pendingMultiplierRef = useRef<number | null>(null);
   const multiplierRemainingRef = useRef(0);
   const [multiplierSeconds, setMultiplierSeconds] = useState(0);
+  const [coinPickupFlash, setCoinPickupFlash] = useState(false);
   const bombsRef = useRef<PetrifyingBomb[]>([]);
   const pendingSpecialRef = useRef<{ kind: MoltenSpecialKind; cellIdx: number } | null>(null);
   const lastBombTickRef = useRef<number | null>(null);
@@ -335,6 +332,8 @@ export default function MoltenBlocksPage() {
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
   const bombImgsRef = useRef<Partial<Record<"stone" | "laser", HTMLImageElement>>>({});
+  const coinPickupImgRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => { const img = new Image(); img.src = coinBonusArt; coinPickupImgRef.current = img; }, []);
   useEffect(() => {
     const bombSources = { stone: petrifyingBombArt, laser: laserBombArt };
     (Object.keys(bombSources) as Array<"stone" | "laser">).forEach(kind => {
@@ -369,6 +368,10 @@ export default function MoltenBlocksPage() {
     stoneRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     laserRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     multiplierBoardRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    coinPickupBoardRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    pendingCoinPickupRef.current = null;
+    heldCoinPickupRef.current = null;
+    nextCoinPickupThresholdRef.current = MOLTEN_COIN_PICKUP_INTERVAL_MIN + Math.floor(Math.random() * MOLTEN_COIN_PICKUP_INTERVAL_SPREAD);
     pendingMultiplierRef.current = null;
     heldMultiplierRef.current = null;
     bombsRef.current = [];
@@ -405,6 +408,7 @@ export default function MoltenBlocksPage() {
     setGameOver(false); setPaused(false);
     setCoinAward({ amount: 0, status: "idle" });
     setCoinFlash(null);
+    setCoinPickupFlash(false);
     multiplierRemainingRef.current = 0;
     setMultiplierSeconds(0);
     holdRef.current = null;
@@ -561,6 +565,7 @@ export default function MoltenBlocksPage() {
       pendingDropItemRef.current = null;
       pendingSpecialRef.current = null;
       pendingMultiplierRef.current = null;
+      pendingCoinPickupRef.current = null;
       // Special tiles use the same single-cell replacement placement as rewards.
       // Keep them uncommon and mutually exclusive with a reward on this piece.
       const specialKind = rollMoltenSpecial(Math.random());
@@ -568,7 +573,11 @@ export default function MoltenBlocksPage() {
         pendingSpecialRef.current = { kind: specialKind, cellIdx: Math.floor(Math.random() * 4) };
       }
       if (!pendingSpecialRef.current && Math.random() < MOLTEN_X2_SPAWN_CHANCE) pendingMultiplierRef.current = Math.floor(Math.random() * 4);
-      if (!pendingSpecialRef.current && pendingMultiplierRef.current === null && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
+      if (!pendingSpecialRef.current && pendingMultiplierRef.current === null && blocksLockedRef.current >= nextCoinPickupThresholdRef.current) {
+        pendingCoinPickupRef.current = Math.floor(Math.random() * 4);
+        nextCoinPickupThresholdRef.current = blocksLockedRef.current + MOLTEN_COIN_PICKUP_INTERVAL_MIN + Math.floor(Math.random() * MOLTEN_COIN_PICKUP_INTERVAL_SPREAD);
+      }
+      if (!pendingSpecialRef.current && pendingMultiplierRef.current === null && pendingCoinPickupRef.current === null && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
         const drop = pickDropItem(dropItemsRef.current);
         if (drop) {
           const shape = SHAPES[t][0];
@@ -609,6 +618,9 @@ export default function MoltenBlocksPage() {
     const stashed = holdRef.current;
     heldSpecialRef.current = carriedLaser;
     pendingSpecialRef.current = stashed == null ? null : stashedLaser;
+    const carriedCoin = pendingCoinPickupRef.current;
+    pendingCoinPickupRef.current = stashed == null ? null : heldCoinPickupRef.current;
+    heldCoinPickupRef.current = carriedCoin;
     const carriedMultiplier = pendingMultiplierRef.current;
     pendingMultiplierRef.current = stashed == null ? null : heldMultiplierRef.current;
     heldMultiplierRef.current = carriedMultiplier;
@@ -690,6 +702,13 @@ export default function MoltenBlocksPage() {
       pendingDropItemRef.current = null;
     }
 
+    if (pendingCoinPickupRef.current !== null) {
+      const cells: [number, number][] = [];
+      const shape = SHAPES[piece.type][piece.rot];
+      for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c] && piece.y + r >= 0) cells.push([piece.y + r, piece.x + c]);
+      if (cells.length) { const [r,c] = cells[pendingCoinPickupRef.current % cells.length]; coinPickupBoardRef.current[r][c] = true; }
+      pendingCoinPickupRef.current = null;
+    }
     if (pendingMultiplierRef.current !== null) {
       const cells: [number, number][] = [];
       const shape = SHAPES[piece.type][piece.rot];
@@ -745,11 +764,15 @@ export default function MoltenBlocksPage() {
           setMultiplierSeconds(Math.ceil(MOLTEN_X2_DURATION_MS / 1000));
         }
         const n = rows.length;
+        const liveBombsCleared = bombsRef.current.filter(b => rows.includes(b.row)).length;
+        const petrifiedRowsRescued = rows.filter(r => stoneRef.current[r].some(Boolean)).length;
+        const collectedCoinPickups = collectMoltenCoinPickups(coinPickupBoardRef.current, stoneRef.current, rows);
         const cleared = collapseMoltenRows(lockedSnap, rows, 0 as Cell);
         itemBoardRef.current = collapseMoltenRows(itemBoardRef.current, rows, null as ItemCell);
         stoneRef.current = collapseMoltenRows(stoneRef.current, rows, false);
         laserRef.current = collapseMoltenRows(laserRef.current, rows, false);
         multiplierBoardRef.current = collapseMoltenRows(multiplierBoardRef.current, rows, false);
+        coinPickupBoardRef.current = collapseMoltenRows(coinPickupBoardRef.current, rows, false);
         bombsRef.current = bombsRef.current.flatMap(bomb => {
           if (rows.includes(bomb.row)) return [];
           return [{ ...bomb, row: bomb.row + rows.filter(row => row > bomb.row).length }];
@@ -772,9 +795,7 @@ export default function MoltenBlocksPage() {
         // the values that include this final clear (React state setters
         // batch and would leave the refs stale).
         const prevScore = scoreRef.current;
-        // Bonus score points for multi-row clears (added silently, no effect).
-        const bonusScore = n >= 4 ? TETRIS_BONUS_SCORE : n === 3 ? TRIPLE_BONUS_SCORE : n === 2 ? DOUBLE_BONUS_SCORE : 0;
-        const nextScore = prevScore + (n * POINTS_PER_ROW + bonusScore + laserTripleScoreBonus(laserRows, rows)) * multiplier;
+        const nextScore = prevScore + moltenClearScore(rows, laserRows, liveBombsCleared, petrifiedRowsRescued, multiplier);
         // Tier coins — every full POINTS_PER_COIN_TIER points crossed grants COINS_PER_TIER.
         // Bonus score counts toward tier thresholds too.
         const tiersBefore = Math.floor(prevScore / POINTS_PER_COIN_TIER);
@@ -783,7 +804,8 @@ export default function MoltenBlocksPage() {
         const tierCoins = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
         // Multi-row bonus coins — 2 rows: +1, 3 rows: +3, 4+ rows: +8.
         const bonusCoins = n >= 4 ? TETRIS_BONUS_COINS : n === 3 ? TRIPLE_BONUS_COINS : n === 2 ? DOUBLE_BONUS_COINS : 0;
-        const coinsAdded = tierCoins + bonusCoins * multiplier;
+        const coinsAdded = tierCoins + bonusCoins * multiplier + collectedCoinPickups * MOLTEN_COIN_PICKUP_AMOUNT;
+        if (collectedCoinPickups > 0) { setCoinPickupFlash(true); setTimeout(() => setCoinPickupFlash(false), 1400); }
         scoreRef.current = nextScore;
         coinsEarnedRef.current = coinsEarnedRef.current + coinsAdded;
         setScore(nextScore);
@@ -866,6 +888,7 @@ export default function MoltenBlocksPage() {
           if (boardRef.current[bomb.row]?.[bomb.col] !== 0) {
             stoneRef.current = petrifyOccupiedNeighbors(boardRef.current, stoneRef.current, bomb.row, bomb.col);
             multiplierBoardRef.current = removePetrifiedMultipliers(multiplierBoardRef.current, stoneRef.current);
+            coinPickupBoardRef.current = removePetrifiedCoinPickups(coinPickupBoardRef.current, stoneRef.current);
           }
         }
       }
@@ -1131,11 +1154,26 @@ export default function MoltenBlocksPage() {
       const y = offY + r * cell;
       if (stoneRef.current[r][c]) {
         ctx.save();
-        ctx.fillStyle = "rgba(100,104,113,0.82)";
-        ctx.fillRect(x + cell * 0.06, y + cell * 0.06, cell * 0.88, cell * 0.88);
-        ctx.strokeStyle = "rgba(196,199,205,0.55)";
-        ctx.lineWidth = Math.max(1, cell * 0.035);
-        ctx.strokeRect(x + cell * 0.07, y + cell * 0.07, cell * 0.86, cell * 0.86);
+        // Ash-glazed obsidian: retain original lava texture beneath translucent stone.
+        ctx.fillStyle = "rgba(25,26,31,0.58)";
+        ctx.fillRect(x + cell * 0.035, y + cell * 0.035, cell * 0.93, cell * 0.93);
+        ctx.strokeStyle = "rgba(173,162,148,0.85)";
+        ctx.lineWidth = Math.max(1, cell * 0.04);
+        ctx.strokeRect(x + cell * 0.055, y + cell * 0.055, cell * 0.89, cell * 0.89);
+        // Stable angular fissures; a hint of molten amber beneath the ash.
+        ctx.beginPath();
+        ctx.moveTo(x + cell * 0.19, y + cell * 0.08);
+        ctx.lineTo(x + cell * 0.42, y + cell * 0.32);
+        ctx.lineTo(x + cell * 0.35, y + cell * 0.55);
+        ctx.lineTo(x + cell * 0.67, y + cell * 0.79);
+        ctx.lineTo(x + cell * 0.76, y + cell * 0.93);
+        ctx.strokeStyle = "rgba(255,111,34,0.65)";
+        ctx.shadowColor = "#ed521b"; ctx.shadowBlur = cell * 0.08;
+        ctx.lineWidth = Math.max(0.8, cell * 0.027); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.moveTo(x + cell * 0.42, y + cell * 0.32); ctx.lineTo(x + cell * 0.76, y + cell * 0.18);
+        ctx.moveTo(x + cell * 0.35, y + cell * 0.55); ctx.lineTo(x + cell * 0.13, y + cell * 0.72);
+        ctx.strokeStyle = "rgba(180,177,172,0.68)"; ctx.stroke();
         ctx.restore();
       } else {
         const bomb = bombByCell.get(`${r}:${c}`);
@@ -1144,6 +1182,16 @@ export default function MoltenBlocksPage() {
       }
     }
 
+    // Gold coin-bonus pickups share the existing locked-cell canvas coordinates.
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (!coinPickupBoardRef.current[r][c] || board[r][c] === 0 || stoneRef.current[r][c]) continue;
+      const x = offX + c * cell, y = offY + r * cell;
+      const img = coinPickupImgRef.current;
+      ctx.save(); ctx.shadowColor = "#ffbd3c"; ctx.shadowBlur = cell * 0.35;
+      if (img?.complete && img.naturalWidth > 0) ctx.drawImage(img, x + cell * 0.07, y + cell * 0.07, cell * 0.86, cell * 0.86);
+      else { ctx.fillStyle = "#ffd36d"; ctx.font = `bold ${Math.max(9,cell * 0.34)}px sans-serif`; ctx.fillText("+10", x + cell * 0.15, y + cell * 0.62); }
+      ctx.restore();
+    }
     // X2 marks stay attached to their locked cell until cleared or petrified.
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       if (board[r][c] !== 0 && multiplierBoardRef.current[r][c] && !stoneRef.current[r][c]) drawMultiplier(offX + c * cell, offY + r * cell);
@@ -1210,6 +1258,16 @@ export default function MoltenBlocksPage() {
           drawSpecial(offX + col * cell, offY + row * cell, special.kind === "laser" ? "laser" : "stone");
         }
       }
+      if (pendingCoinPickupRef.current !== null) {
+        const cells: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c] && active.y + r >= 0) cells.push([active.y + r, active.x + c]);
+        if (cells.length) {
+          const [r,c] = cells[pendingCoinPickupRef.current % cells.length];
+          const img = coinPickupImgRef.current;
+          if (img?.complete && img.naturalWidth > 0) ctx.drawImage(img, offX + c * cell + cell * 0.07, offY + r * cell + cell * 0.07, cell * 0.86, cell * 0.86);
+          else { ctx.save(); ctx.fillStyle = "#ffd36d"; ctx.font = `bold ${Math.max(9,cell * 0.34)}px sans-serif`; ctx.fillText("+10", offX + c * cell + cell * 0.15, offY + r * cell + cell * 0.62); ctx.restore(); }
+        }
+      }
       if (pendingMultiplierRef.current !== null) {
         const cells: [number, number][] = [];
         for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c] && active.y + r >= 0) cells.push([active.y + r, active.x + c]);
@@ -1262,6 +1320,20 @@ export default function MoltenBlocksPage() {
   const drawSide = () => {
     drawPieceCanvas(sideCanvasRef.current, nextRef.current);
     drawPieceCanvas(holdCanvasRef.current, holdRef.current);
+    if (holdCanvasRef.current && heldCoinPickupRef.current !== null && holdRef.current) {
+      const canvas = holdCanvasRef.current; const ctx = canvas.getContext("2d");
+      if (ctx) {
+        const shape = SHAPES[holdRef.current][0];
+        const cell = Math.floor(Math.min(canvas.width / 5, canvas.height / 4));
+        const offX = Math.floor((canvas.width - shape[0].length * cell) / 2);
+        const offY = Math.floor((canvas.height - shape.length * cell) / 2);
+        const cells: [number,number][] = [];
+        for (let r=0;r<shape.length;r++) for (let c=0;c<shape[r].length;c++) if(shape[r][c]) cells.push([r,c]);
+        const [r,c] = cells[heldCoinPickupRef.current % cells.length];
+        const img = coinPickupImgRef.current;
+        if (img?.complete && img.naturalWidth > 0) ctx.drawImage(img, offX + c * cell, offY + r * cell, cell, cell);
+      }
+    }
     if (holdCanvasRef.current && heldMultiplierRef.current !== null && holdRef.current) {
       const canvas = holdCanvasRef.current;
       const ctx = canvas.getContext("2d");
@@ -1611,7 +1683,6 @@ export default function MoltenBlocksPage() {
           </div>
           <MiniStat label="BEST" value={hiScore.toLocaleString()} color={accent} testId="text-hi-score" />
           <MiniStat label="COINS" value={coinsEarned.toLocaleString()} color="#ffd166" testId="text-coins-earned" />
-          {multiplierSeconds > 0 && <div data-testid="molten-x2-timer" style={{ color: "#ffe98b", fontSize: 12, fontWeight: 800, alignSelf: "center", whiteSpace: "nowrap" }}>x2 {multiplierSeconds}s</div>}
         </div>
 
         {/* PLAYFIELD — full width, fills remaining vertical space */}
@@ -1622,6 +1693,7 @@ export default function MoltenBlocksPage() {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerCancel}
         >
+          {multiplierSeconds > 0 && <div data-testid="molten-x2-timer" role="timer" aria-label={`Double score active: ${multiplierSeconds} seconds remaining`} style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 3, pointerEvents: "none", minWidth: 144, padding: "6px 12px", border: "2px solid #ff9d2e", borderRadius: 10, background: "rgba(35,10,4,0.94)", color: "#ffe9a4", textAlign: "center", fontSize: 17, fontWeight: 900, textShadow: "0 0 12px #ff6b18", boxShadow: "0 0 16px rgba(255,108,23,0.7)" }}>x2 ACTIVE · {multiplierSeconds}s<div style={{ marginTop: 4, height: 4, background: "#60311a", borderRadius: 4 }}><div style={{ height: "100%", width: `${multiplierSeconds / 20 * 100}%`, background: "#ffad36", borderRadius: 4 }} /></div></div>}
           <canvas
             ref={canvasRef}
             data-testid="canvas-board"
@@ -1711,9 +1783,10 @@ export default function MoltenBlocksPage() {
             <div style={{ margin: "10px 0 6px", color: "#fb923c", fontSize: 12, letterSpacing: "0.12em", fontWeight: 700 }}>SPECIAL BLOCKS</div>
             <SpecialRule image={petrifyingBombArt} title="Petrifying Bomb" text="Cannot be held. After 15 seconds of play, nearby occupied blocks turn grey and petrify. Clear it before the countdown ends!" />
             <SpecialRule image={petrifyingBombArt} title="Double Petrifying Bomb" text="Two bombs in one piece, each with its own countdown and petrification area." double />
-            <SpecialRule image={laserBombArt} title="Laser Bomb" text="Clear its row to sweep three rows, even petrified ones. An exact three-row laser clear earns +10 extra score." />
+            <SpecialRule image={laserBombArt} title="Laser Bomb" text="Clear its row to sweep three rows, even petrified ones. An exact three-row laser clear earns +15 extra score." />
             <SpecialRule title="Glowing x2 Block" text="Clear its row to double score and line-clear bonus coins for 20 seconds. Petrification destroys an unused x2." multiplier />
-            <TutoLine icon="◇" text="Clear rows containing reward items to collect them." />
+            <SpecialRule image={coinBonusArt} title="+10 Coin Pickup" text="An occasional golden bonus tile. Clear its row to earn 10 extra coins; petrification destroys it." />
+            <TutoLine icon="◇" text="Clear rows containing reward items to collect them. Clear live bombs for +5 score each, or rescue a petrified row with a laser for +5." />
           </div>
 
           <div style={{ fontSize: 11, color: "#7a5530", marginBottom: 18, textAlign: "center" }}>
