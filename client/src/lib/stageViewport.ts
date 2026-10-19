@@ -44,14 +44,10 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
 }
 
 /**
- * Publish the same viewport/stage variables used by existing gameplay CSS.
- * This deliberately preserves their current meanings:
- * - root --fh/--vh/--vw describe the visible viewport
- * - #game-stage overrides those variables with logical stage dimensions
- *
- * The viewport-surface offsets describe the real device camera in logical
- * stage pixels. They let presentation-only UI reach device edges without
- * widening or rewriting the authored gameplay coordinate plane.
+ * Publish viewport geometry for gameplay CSS and portal surfaces.
+ * All runtime root routes now use viewport-owned layout (scale 1); the
+ * legacy variable names remain for existing consumers until audited.
+ * The surface offsets are measured viewport coordinates, not a 390×844 plane.
  */
 export function publishStageViewportCss(layout: StageLayout): void {
   if (typeof document === "undefined") return;
