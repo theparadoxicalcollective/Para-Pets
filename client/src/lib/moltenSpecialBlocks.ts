@@ -134,3 +134,43 @@ export function clearedMultiplier(
 export function moltenX2Multiplier(remainingMs: number, triggered: boolean): number {
   return triggered || remainingMs > 0 ? 2 : 1;
 }
+
+/** Reward balance: the rare coin pickup is independent of shop item drops. */
+export const MOLTEN_COIN_PICKUP_AMOUNT = 10;
+export const MOLTEN_COIN_PICKUP_INTERVAL_MIN = 15;
+export const MOLTEN_COIN_PICKUP_INTERVAL_SPREAD = 11;
+export const MOLTEN_LINE_SCORES = [0, 10, 25, 45, 70] as const;
+export const MOLTEN_LASER_TRIPLE_BONUS = 15;
+export const MOLTEN_LIVE_BOMB_CLEAR_BONUS = 5;
+export const MOLTEN_PETRIFIED_RESCUE_BONUS = 5;
+
+/** Score only distinct removed cells/rows; no credit for empty rows. */
+export function moltenClearScore(
+  clearedRows: readonly number[],
+  laserRows: readonly number[],
+  liveBombsCleared: number,
+  petrifiedRowsRescued: number,
+  multiplier: number,
+): number {
+  const lines = clearedRows.length;
+  if (lines === 0) return 0;
+  const base = lines <= 4 ? MOLTEN_LINE_SCORES[lines] : 70 + (lines - 4) * 10;
+  const laserBonus = laserRows.length > 0 && lines === 3 ? MOLTEN_LASER_TRIPLE_BONUS : 0;
+  return (base + laserBonus + Math.max(0,liveBombsCleared)*MOLTEN_LIVE_BOMB_CLEAR_BONUS + Math.max(0,petrifiedRowsRescued)*MOLTEN_PETRIFIED_RESCUE_BONUS) * multiplier;
+}
+
+/** A pickup is lost if petrified, and pays only when its row is removed. */
+export function collectMoltenCoinPickups(
+  pickups: readonly (readonly boolean[])[],
+  stones: readonly (readonly boolean[])[],
+  rows: readonly number[],
+): number {
+  return rows.reduce((total, row) => total + (pickups[row]?.filter((active,col) => active && !stones[row]?.[col]).length ?? 0), 0);
+}
+
+export function removePetrifiedCoinPickups(
+  pickups: readonly (readonly boolean[])[],
+  stones: readonly (readonly boolean[])[],
+): boolean[][] {
+  return pickups.map((row,r) => row.map((active,c) => active && !stones[r]?.[c]));
+}
