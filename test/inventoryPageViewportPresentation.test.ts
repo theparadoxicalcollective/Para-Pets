@@ -42,3 +42,16 @@ test("Bag Pets displays compact, view-only tiles with a pet detail modal", () =>
   assert.ok(!inventory.includes('<PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} readOnly />'));
   assert.ok(inventory.includes('category === "pets" ? pets.length : 0'));
 });
+
+test("Bag pet cards and detail reuse the evolved, adorned and mini-pet inventory renderer", () => {
+  assert.match(inventory, /data-testid="bag-full-pets"[\s\S]*<InventoryPetPortrait petInventoryId=\{pet\.inventoryId\}/);
+  assert.match(inventory, /selectedBagPet\.isHatched && selectedBagPet\.petTemplateId[\s\S]*<InventoryPetPortrait petInventoryId=\{selectedBagPet\.inventoryId\}/);
+  assert.match(inventory, /<PetAnimator petTemplateId=\{petTemplateId\} petInventoryId=\{petInventoryId\}/);
+  assert.match(inventory, /<MiniPetRenderer petInventoryId=\{petInventoryId\} animated=\{false\}/);
+});
+
+test("Pet inventory keeps appearance renderers mounted after first becoming visible", () => {
+  assert.match(inventory, /if \(entry\.isIntersecting\) \{ setVisible\(true\); observer\.disconnect\(\); \}/);
+  assert.doesNotMatch(inventory, /setVisible\(entry\.isIntersecting\)/);
+  assert.match(inventory, /data-testid=\{\x60inventory-pet-portrait-\$\{petInventoryId\}\x60\}/);
+});
