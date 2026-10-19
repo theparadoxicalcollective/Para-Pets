@@ -17,8 +17,8 @@ import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
 import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
 import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
-import petrifyingBombArt from "../../attached_assets/uploads/PetrifyingBomb.png";
-import laserBombArt from "../../attached_assets/uploads/LaserBomb.png";
+import petrifyingBombArt from "@assets/uploads/PetrifyingBomb.png";
+import laserBombArt from "@assets/uploads/LaserBomb.png";
 import { PETRIFY_COUNTDOWN_MS, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
