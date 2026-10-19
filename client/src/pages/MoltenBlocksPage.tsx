@@ -17,6 +17,8 @@ import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
 import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
 import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
+import petrifyingBombArt from "@assets/uploads/PetrifyingBomb.png";
+import laserBombArt from "@assets/uploads/LaserBomb.png";
 import { PETRIFY_COUNTDOWN_MS, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
@@ -326,6 +328,15 @@ export default function MoltenBlocksPage() {
 
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
+  const bombImgsRef = useRef<Partial<Record<"stone" | "laser", HTMLImageElement>>>({});
+  useEffect(() => {
+    const bombSources = { stone: petrifyingBombArt, laser: laserBombArt };
+    (Object.keys(bombSources) as Array<"stone" | "laser">).forEach(kind => {
+      const img = new Image();
+      img.src = bombSources[kind];
+      bombImgsRef.current[kind] = img;
+    });
+  }, []);
   useEffect(() => {
     const types: Piece[] = ["I","O","T","S","Z","L","J"];
     let loaded = 0;
@@ -999,18 +1010,25 @@ export default function MoltenBlocksPage() {
     const bombByCell = new Map(bombsRef.current.map(b => [`${b.row}:${b.col}`, b]));
     const drawSpecial = (x: number, y: number, kind: "stone" | "laser", seconds?: number) => {
       ctx.save();
-      ctx.fillStyle = kind === "stone" ? "rgba(110,108,130,0.92)" : "rgba(14,95,110,0.90)";
-      ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
-      ctx.strokeStyle = kind === "stone" ? "#b4a6d3" : "#6af4ff";
-      ctx.shadowColor = ctx.strokeStyle;
-      ctx.shadowBlur = cell * 0.35;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 3, y + 3, cell - 6, cell - 6);
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.38))}px sans-serif`;
-      ctx.fillText(seconds !== undefined ? String(Math.ceil(seconds)) : kind === "laser" ? "↔" : "◆", x + cell / 2, y + cell / 2);
+      const image = bombImgsRef.current[kind];
+      if (image?.complete && image.naturalWidth > 0) {
+        // Sprite stays within the existing cell in every viewport/DPR.
+        const pad = cell * 0.05;
+        ctx.drawImage(image, x + pad, y + pad, cell - pad * 2, cell - pad * 2);
+      } else {
+        // Keep a legible fallback while assets load or if either file fails.
+        ctx.fillStyle = kind === "stone" ? "#706c82" : "#0e5f6e";
+        ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
+      }
+      if (seconds !== undefined) {
+        ctx.fillStyle = "rgba(15,8,5,0.87)";
+        ctx.fillRect(x + cell * 0.22, y + cell * 0.64, cell * 0.56, cell * 0.3);
+        ctx.fillStyle = "#fff2d8";
+        ctx.font = `bold ${Math.max(9, Math.floor(cell * 0.34))}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(Math.ceil(seconds)), x + cell / 2, y + cell * 0.79);
+      }
       ctx.restore();
     };
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -1138,13 +1156,16 @@ export default function MoltenBlocksPage() {
         for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c]) filled.push([r, c]);
         const [r, c] = filled[heldSpecialRef.current.cellIdx % filled.length];
         ctx.save();
-        ctx.fillStyle = "rgba(14,95,110,0.95)";
-        ctx.fillRect(offX + c * cell + 2, offY + r * cell + 2, cell - 4, cell - 4);
-        ctx.fillStyle = "#9ff9ff";
-        ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.5))}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("↔", offX + (c + 0.5) * cell, offY + (r + 0.5) * cell);
+        const laserArt = bombImgsRef.current.laser;
+        const x = offX + c * cell;
+        const y = offY + r * cell;
+        if (laserArt?.complete && laserArt.naturalWidth > 0) {
+          const pad = cell * 0.05;
+          ctx.drawImage(laserArt, x + pad, y + pad, cell - pad * 2, cell - pad * 2);
+        } else {
+          ctx.fillStyle = "#0e5f6e";
+          ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
+        }
         ctx.restore();
       }
     }
