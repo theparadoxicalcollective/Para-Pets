@@ -123,7 +123,7 @@ const FISH_PART_ANIM: Record<string, { anim: string; duration: string; origin: s
 
 const FISH_LAYER_ORDER_NORMAL: Record<string, number> = {
   tail: 1, body: 2, bottom_fin_2: 3, bottom_fin_1: 4, bottom_fin: 4,
-  accessory: 5, side_fin: 6, top_fin: 7, head: 8, head_accessory: 9, head_fin: 9,
+  accessory: 5, side_fin: 6, top_fin: 7, head: 8, eyes_open: 9, head_accessory: 10, head_fin: 9,
 };
 const FISH_LAYER_ORDER_SEA_ANIMAL: Record<string, number> = {
   tail_3: 1, tail_2: 2, tail_1: 3, back_accessory: 4, back_leg: 5, back_arm: 6,
@@ -182,7 +182,7 @@ function FishPartsView({ fishItemId, size, flipped, isSeaAnimal }: { fishItemId:
                   objectFit: "contain",
                   pointerEvents: "none",
                   userSelect: "none",
-                  ...(anim ? { animation: `${anim.anim} ${anim.duration} ease-in-out infinite alternate`, transformOrigin: anim.origin } : {}),
+                  ...(anim ? { animation: `${anim.anim} ${anim.duration} ease-in-out infinite${part.partType === "eyes_open" ? "" : " alternate"}`, transformOrigin: anim.origin } : {}),
                 }}
               />
             );
