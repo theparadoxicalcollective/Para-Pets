@@ -107,7 +107,7 @@ export function moltenSpecialCellIndices(kind: MoltenSpecialKind, cellIdx: numbe
 export const MOLTEN_X2_SPAWN_CHANCE = 0.08;
 /** Active play time, not wall-clock time. */
 export const MOLTEN_X2_DURATION_MS = 20_000;
-export const LASER_TRIPLE_BONUS_SCORE = 10;
+export const LASER_TRIPLE_BONUS_SCORE = 15;
 
 /** The bonus triggers only when the laser actually clears exactly three rows. */
 export function laserTripleScoreBonus(laserRows: readonly number[], clearedRows: readonly number[]): number {
@@ -140,7 +140,7 @@ export const MOLTEN_COIN_PICKUP_AMOUNT = 10;
 export const MOLTEN_COIN_PICKUP_INTERVAL_MIN = 15;
 export const MOLTEN_COIN_PICKUP_INTERVAL_SPREAD = 11;
 export const MOLTEN_LINE_SCORES = [0, 10, 25, 45, 70] as const;
-export const MOLTEN_LASER_TRIPLE_BONUS = 15;
+export const MOLTEN_LASER_TRIPLE_BONUS = LASER_TRIPLE_BONUS_SCORE;
 export const MOLTEN_LIVE_BOMB_CLEAR_BONUS = 5;
 export const MOLTEN_PETRIFIED_RESCUE_BONUS = 5;
 
