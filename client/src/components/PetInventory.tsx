@@ -1303,6 +1303,7 @@ function BagView({
   onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedBagPet, setSelectedBagPet] = useState<InventoryItem | null>(null);
   const [selectedStackCount, setSelectedStackCount] = useState<number>(1);
   const [selectedHomeAsset, setSelectedHomeAsset] = useState<BagHomeAsset | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -1493,8 +1494,38 @@ function BagView({
         </div>
 
       {activeBagCategory === "pets" && pets.length > 0 && (
-        <div data-testid="bag-full-pets" className="mb-3">
-          <PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} readOnly />
+        <div data-testid="bag-full-pets" className="grid grid-cols-2 gap-2 mb-3">
+          {[...pets].sort((a, b) => (b.rarity ?? 0) - (a.rarity ?? 0) || a.name.localeCompare(b.name)).map(pet => {
+            const petName = pet.petNickname || pet.name;
+            const portrait = !pet.isHatched ? (pet.eggImageUrl || pet.imageUrl) : (pet.hatchedImageUrl || pet.imageUrl);
+            return (
+              <button
+                key={pet.inventoryId}
+                type="button"
+                data-testid={`button-bag-pet-${pet.inventoryId}`}
+                aria-label={`View ${petName} details`}
+                onClick={() => setSelectedBagPet(pet)}
+                className="min-w-0 rounded-xl p-2 flex flex-col items-center gap-1.5 text-center"
+                style={{
+                  background: "linear-gradient(135deg, rgba(28,14,4,.97), rgba(48,28,8,.97))",
+                  border: "1px solid rgba(240,192,64,.32)",
+                  boxShadow: "0 0 10px rgba(240,192,64,.08)",
+                }}
+              >
+                <div className="w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden"
+                  style={{ background: "rgba(0,0,0,.35)", border: "1px solid rgba(255,255,255,.05)" }}>
+                  {portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" />
+                    : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
+                </div>
+                <span className="font-fantasy text-[#f0c040] text-xs font-semibold truncate w-full">{petName}</span>
+                <span className="text-xs tracking-tight" aria-label={`${pet.rarity ?? 1} of 5 rarity stars`}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} style={{ color: i < Math.min(5, Math.max(1, pet.rarity ?? 1)) ? "#f0c040" : "#51422b" }}>★</span>
+                  ))}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
       {isEmpty ? (
@@ -1597,6 +1628,66 @@ function BagView({
       )}
       </section>
       </div>
+
+      {selectedBagPet && (
+        <ViewportModalPortal enabled={!!pageMode}>
+          <div
+            className={pageMode ? "absolute inset-0 z-[100] flex items-center justify-center" : "fixed inset-0 z-[100] flex items-center justify-center"}
+            style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)" }}
+            onClick={() => setSelectedBagPet(null)}
+            data-testid="modal-bag-pet-detail-backdrop"
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${selectedBagPet.petNickname || selectedBagPet.name} details`}
+              data-testid="modal-bag-pet-detail"
+              className="relative w-[85%] max-w-sm rounded-xl p-5 flex flex-col items-center gap-3 text-center"
+              style={{
+                background: "linear-gradient(135deg, rgba(30,15,5,.98), rgba(50,30,10,.98))",
+                border: "1px solid rgba(212,160,23,.4)",
+                boxShadow: "0 0 40px rgba(0,0,0,.6), 0 0 15px rgba(240,192,64,.1)",
+                maxHeight: "85%", overflowY: "auto",
+              }}
+              onClick={event => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                data-testid="button-close-bag-pet-detail"
+                aria-label="Close pet details"
+                className="absolute top-3 right-3 w-8 h-8 rounded-full"
+                style={{ background: "rgba(180,50,50,.2)", border: "1px solid rgba(180,50,50,.4)", color: "#e05050" }}
+                onClick={() => setSelectedBagPet(null)}
+              >✕</button>
+              <div className="w-28 h-28 rounded-lg flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(212,160,23,.2)" }}>
+                <img
+                  src={selectedBagPet.isHatched
+                    ? (selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl || petPawIcon)
+                    : (selectedBagPet.eggImageUrl || selectedBagPet.imageUrl || eggMagicIcon)}
+                  alt={selectedBagPet.petNickname || selectedBagPet.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <h3 className="font-fantasy text-[#f0c040] text-lg">{selectedBagPet.petNickname || selectedBagPet.name}</h3>
+              <div aria-label={`${selectedBagPet.rarity ?? 1} of 5 rarity stars`}>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <span key={i} style={{ color: i < Math.min(5, Math.max(1, selectedBagPet.rarity ?? 1)) ? "#f0c040" : "#51422b" }}>★</span>
+                ))}
+              </div>
+              {selectedBagPet.isHatched ? (
+                <div className="w-full grid grid-cols-2 gap-2 text-xs font-fantasy text-[#e9d5a3]">
+                  <span>Level {selectedBagPet.petLevel}</span>
+                  <span>HP {selectedBagPet.petHealth}</span>
+                  <span>ATK {selectedBagPet.petAtk}</span>
+                  <span>DEF {selectedBagPet.petDef}</span>
+                </div>
+              ) : <p className="font-fantasy text-[#c5ad86] text-sm">Unhatched egg</p>}
+              {selectedBagPet.specialSkill && <p className="font-fantasy text-[#c5ad86] text-xs">{selectedBagPet.specialSkill}</p>}
+            </div>
+          </div>
+        </ViewportModalPortal>
+      )}
 
       {selectedHomeAsset && (
         <ViewportModalPortal enabled={!!pageMode}>

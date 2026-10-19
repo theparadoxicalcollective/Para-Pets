@@ -31,9 +31,14 @@ test("inventory interactions and modal ownership remain unchanged", () => {
   assert.match(inventory, /data-testid="button-close-inventory"/);
 });
 
-test("Bag Pets reuses owned pets and existing interaction handlers", () => {
+test("Bag Pets displays compact, view-only tiles with a pet detail modal", () => {
   assert.ok(inventory.includes('<BagView items={bagItems} pets={pets}'));
   assert.ok(inventory.includes('data-testid="bag-full-pets"'));
-  assert.ok(inventory.includes('<PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle}'));
+  assert.ok(inventory.includes('data-testid={`button-bag-pet-${pet.inventoryId}`}'));
+  assert.ok(inventory.includes('onClick={() => setSelectedBagPet(pet)}'));
+  assert.ok(inventory.includes('data-testid="modal-bag-pet-detail"'));
+  assert.ok(inventory.includes('data-testid="button-close-bag-pet-detail"'));
+  assert.ok(inventory.includes('<ViewportModalPortal enabled={!!pageMode}>'));
+  assert.ok(!inventory.includes('<PetView pets={pets} activePetId={activePetId} onToggle={onPetToggle} onEggSpeedUp={onEggSpeedUp} isPending={petTogglePending} pendingPetId={pendingPetId} readOnly />'));
   assert.ok(inventory.includes('category === "pets" ? pets.length : 0'));
 });
