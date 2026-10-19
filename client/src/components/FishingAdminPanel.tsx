@@ -47,6 +47,7 @@ interface FishPart {
 const FISH_PART_TYPES_NORMAL = [
   { key: "head_accessory", label: "Head Accessory", defaultZ: 9 },
   { key: "head",           label: "Head",           defaultZ: 8 },
+  { key: "eyes_open",      label: "Eyes",           defaultZ: 9 },
   { key: "top_fin",        label: "Top Fin",        defaultZ: 7 },
   { key: "side_fin",       label: "Side Fin",       defaultZ: 6 },
   { key: "accessory",      label: "Accessory",      defaultZ: 5 },
