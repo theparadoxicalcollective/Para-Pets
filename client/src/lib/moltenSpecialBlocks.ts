@@ -102,3 +102,35 @@ export function moltenSpecialCellIndices(kind: MoltenSpecialKind, cellIdx: numbe
   if (kind !== "double-stone" || occupiedCount === 1) return [first];
   return [first, (first + 1) % occupiedCount];
 }
+
+/** A x2 block appears on 8% of otherwise ordinary pieces. */
+export const MOLTEN_X2_SPAWN_CHANCE = 0.08;
+/** Active play time, not wall-clock time. */
+export const MOLTEN_X2_DURATION_MS = 20_000;
+export const LASER_TRIPLE_BONUS_SCORE = 10;
+
+/** The bonus triggers only when the laser actually clears exactly three rows. */
+export function laserTripleScoreBonus(laserRows: readonly number[], clearedRows: readonly number[]): number {
+  return laserRows.length > 0 && clearedRows.length === 3 ? LASER_TRIPLE_BONUS_SCORE : 0;
+}
+
+/** A petrified cell loses its x2 power-up permanently. */
+export function removePetrifiedMultipliers(
+  multipliers: readonly (readonly boolean[])[],
+  stones: readonly (readonly boolean[])[],
+): boolean[][] {
+  return multipliers.map((row, r) => row.map((enabled, c) => enabled && !stones[r]?.[c]));
+}
+
+/** A cleared x2 tile starts or refreshes the temporary bonus. */
+export function clearedMultiplier(
+  multipliers: readonly (readonly boolean[])[],
+  clearedRows: readonly number[],
+): boolean {
+  return clearedRows.some(row => multipliers[row]?.some(Boolean));
+}
+
+/** Multiply base points and direct bonus coins; tier coins are derived from the resulting score. */
+export function moltenX2Multiplier(remainingMs: number, triggered: boolean): number {
+  return triggered || remainingMs > 0 ? 2 : 1;
+}
