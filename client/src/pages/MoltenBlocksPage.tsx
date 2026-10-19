@@ -40,6 +40,7 @@ const PIECE_GLOW: Record<Piece, string> = {
   Z: "rgba(255,60,60,0.95)",   // red lava
   L: "rgba(255,150,30,0.9)",   // black-orange lava
   J: "rgba(80,255,220,0.9)",   // teal swirl
+  K: "rgba(255,184,75,0.95)", // Cinder Line
 };
 
 // Solid base colour painted UNDER each tile texture so any transparent
@@ -53,13 +54,14 @@ const PIECE_BASE: Record<Piece, string> = {
   Z: "#2a0808",
   L: "#0a0a0a",
   J: "#0a2228",
+  K: "#3a1f08",
 };
 
 const PIECE_IMG_SRC: Record<Piece, string> = {
-  I: blockI, O: blockO, T: blockT, S: blockS, Z: blockZ, L: blockL, J: blockJ,
+  I: blockI, O: blockO, T: blockT, S: blockS, Z: blockZ, L: blockL, J: blockJ, K: blockI,
 };
 
-// ── Board cell: 0 = empty, 'I'..'J' = locked piece type ─────────────────────
+// ── Board cell: 0 = empty, formation key = locked piece type ─────────────────────
 type Cell = 0 | Piece;
 const emptyBoard = (): Cell[][] =>
   Array.from({ length: ROWS }, () => Array<Cell>(COLS).fill(0));
@@ -215,7 +217,7 @@ export default function MoltenBlocksPage() {
   // Tracks which shopItemIds have fully loaded images (onload fired)
   const itemImgReadyRef = useRef<Set<string>>(new Set());
   const lastDropRef = useRef<number>(0);
-  const dropIntervalRef = useRef<number>(800);
+  const dropIntervalRef = useRef<number>(1050);
   const softDropRef = useRef<boolean>(false);
   const runningRef = useRef<boolean>(true);
   const gameOverRef = useRef<boolean>(false);
@@ -347,7 +349,7 @@ export default function MoltenBlocksPage() {
     // the player whether THIS run beat it.
     try { setPrevHi(parseInt(localStorage.getItem(lsKeyRef.current) || "0", 10) || 0); } catch {}
     resetBoard();
-    dropIntervalRef.current = 800;
+    dropIntervalRef.current = 1050;
     // Reset refs SYNCHRONOUSLY so the loop and finalize logic don't see
     // leftover values from a previous run before useEffect mirrors them.
     scoreRef.current = 0;
@@ -773,7 +775,7 @@ export default function MoltenBlocksPage() {
           if (newLevel !== level) {
             setLevel(newLevel);
             // Speed increases every 10 levels (~15% faster per tier)
-            dropIntervalRef.current = Math.max(80, 800 * Math.pow(0.85, Math.floor((newLevel - 1) / 10)));
+            dropIntervalRef.current = Math.max(110, 1050 * Math.pow(0.87, Math.floor((newLevel - 1) / 10)));
           }
           return totalLines;
         });
@@ -949,11 +951,11 @@ export default function MoltenBlocksPage() {
     // behind the playfield, then paint a translucent dark wash inside the
     // bordered play area only, for block legibility.
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "rgba(8,3,1,0.55)";
+    ctx.fillStyle = "rgba(9,5,8,0.76)";
     ctx.fillRect(offX, offY, boardW, boardH);
 
     // Subtle grid
-    ctx.strokeStyle = "rgba(255,140,50,0.07)";
+    ctx.strokeStyle = "rgba(255,160,82,0.12)";
     ctx.lineWidth = 1;
     for (let c = 0; c <= COLS; c++) {
       ctx.beginPath();
@@ -1117,22 +1119,25 @@ export default function MoltenBlocksPage() {
       const y = offY + r * cell;
       if (stoneRef.current[r][c]) {
         ctx.save();
-        // Repaint the original block texture in grayscale, not a solid overlay.
-        const type = board[r][c] as Piece;
-        const img = imgsRef.current[type];
+        // Preserve the original lava cracks under a neutral charcoal tint.
+        // The dark overlay is reliable on mobile canvas implementations and
+        // prevents colorful edges from surviving a CSS-style filter.
         const radius = Math.max(2, Math.min(5, cell * 0.12));
-        ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius); ctx.clip();
-        ctx.fillStyle = "#414047"; ctx.fillRect(x, y, cell, cell);
-        if (img?.complete && img.naturalWidth > 0) {
-          const insetX = img.naturalWidth * 0.24, insetY = img.naturalHeight * 0.24;
-          ctx.filter = "grayscale(1) brightness(0.83) contrast(1.3)";
-          ctx.drawImage(img, insetX, insetY, img.naturalWidth - 2 * insetX, img.naturalHeight - 2 * insetY, x, y, cell, cell);
-          ctx.filter = "none";
-        }
+        ctx.beginPath();
+        ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius);
+        ctx.clip();
+        ctx.fillStyle = "rgba(12,13,17,0.88)";
+        ctx.fillRect(x, y, cell, cell);
         ctx.restore();
-        ctx.save(); ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, Math.max(2, cell * 0.12));
-        ctx.shadowColor = "#e0d6c8"; ctx.shadowBlur = cell * 0.25;
-        ctx.strokeStyle = "#b9b1ab"; ctx.lineWidth = Math.max(1.4, cell * 0.055); ctx.stroke(); ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius);
+        ctx.strokeStyle = "rgba(130,136,149,0.9)";
+        ctx.shadowColor = "rgba(105,113,128,0.42)";
+        ctx.shadowBlur = cell * 0.13;
+        ctx.lineWidth = Math.max(1.2, cell * 0.045);
+        ctx.stroke();
+        ctx.restore();
       } else {
         const bomb = bombByCell.get(`${r}:${c}`);
         if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000);
