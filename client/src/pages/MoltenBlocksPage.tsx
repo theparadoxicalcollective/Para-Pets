@@ -19,7 +19,7 @@ import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import petrifyingBombArt from "@assets/uploads/PetrifyingBomb.png";
 import laserBombArt from "@assets/uploads/LaserBomb.png";
-import { PETRIFY_COUNTDOWN_MS, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
+import { PETRIFY_COUNTDOWN_MS, rollMoltenSpecial, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -548,9 +548,9 @@ export default function MoltenBlocksPage() {
       pendingSpecialRef.current = null;
       // Special tiles use the same single-cell replacement placement as rewards.
       // Keep them uncommon and mutually exclusive with a reward on this piece.
-      const specialRoll = Math.random();
-      if (specialRoll < 0.055) {
-        pendingSpecialRef.current = { kind: specialRoll < 0.028 ? "stone" : "laser", cellIdx: Math.floor(Math.random() * 4) };
+      const specialKind = rollMoltenSpecial(Math.random());
+      if (specialKind) {
+        pendingSpecialRef.current = { kind: specialKind, cellIdx: Math.floor(Math.random() * 4) };
       }
       if (!pendingSpecialRef.current && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
         const drop = pickDropItem(dropItemsRef.current);
@@ -1031,13 +1031,24 @@ export default function MoltenBlocksPage() {
       }
       ctx.restore();
     };
+    // Petrified cells keep their original shape but lose their color. Only
+    // live countdown bombs and laser cells display the uploaded bomb artwork.
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       if (board[r][c] === 0) continue;
-      const bomb = bombByCell.get(`${r}:${c}`);
-      if (stoneRef.current[r][c] || bomb) {
-        drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs ? bomb.remainingMs / 1000 : undefined);
-      } else if (laserRef.current[r][c]) {
-        drawSpecial(offX + c * cell, offY + r * cell, "laser");
+      const x = offX + c * cell;
+      const y = offY + r * cell;
+      if (stoneRef.current[r][c]) {
+        ctx.save();
+        ctx.fillStyle = "rgba(100,104,113,0.82)";
+        ctx.fillRect(x + cell * 0.06, y + cell * 0.06, cell * 0.88, cell * 0.88);
+        ctx.strokeStyle = "rgba(196,199,205,0.55)";
+        ctx.lineWidth = Math.max(1, cell * 0.035);
+        ctx.strokeRect(x + cell * 0.07, y + cell * 0.07, cell * 0.86, cell * 0.86);
+        ctx.restore();
+      } else {
+        const bomb = bombByCell.get(`${r}:${c}`);
+        if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000);
+        else if (laserRef.current[r][c]) drawSpecial(x, y, "laser");
       }
     }
 
