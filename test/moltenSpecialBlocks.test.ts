@@ -70,3 +70,14 @@ test("parallel board and special-cell metadata collapse by the same rows", () =>
     [false, false], [false, false], [true, false],
   ]);
 });
+
+test("new Molten bomb artwork is shared by active, locked and held-cell renderers", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.match(page, /import petrifyingBombArt from "..\\/..\\/attached_assets\\/uploads\\/PetrifyingBomb\\.png"/);
+  assert.match(page, /import laserBombArt from "..\\/..\\/attached_assets\\/uploads\\/LaserBomb\\.png"/);
+  assert.match(page, /const bombImgsRef = useRef/);
+  assert.match(page, /ctx\\.drawImage\\(image, x \+ pad, y \+ pad/);
+  assert.match(page, /ctx\\.drawImage\\(laserArt, x \+ pad, y \+ pad/);
+  assert.match(page, /ctx\\.fillText\\(String\\(Math\\.ceil\\(seconds\\)\\)/);
+});
