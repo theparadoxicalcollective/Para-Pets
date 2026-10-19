@@ -34,7 +34,7 @@ test("two-cell Ember Pair and three-cell Ember Hook help repair crowded rows",()
   assert.equal(moltenFormationCells("K"),4);
   assert.deepEqual(MOLTEN_FORMATIONS.K[0],[[1,1,1,1]]);
   assert.equal(moltenFormationCells("Z"),4);
-  assert.deepEqual(MOLTEN_FORMATIONS.Z[0],[[1,1,1],[0,1]]);
+  assert.deepEqual(MOLTEN_FORMATIONS.Z[0],[[1,1,1],[0,1,0]]);
   assert.equal(moltenFormationCells("T"),3);
   assert.deepEqual(MOLTEN_FORMATIONS.T[0],[[0,1],[1,1]]);
   assert.equal(moltenFormationCells("I"),2);
