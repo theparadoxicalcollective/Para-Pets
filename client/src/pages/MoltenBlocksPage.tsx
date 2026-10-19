@@ -850,7 +850,7 @@ export default function MoltenBlocksPage() {
     lockAndClear();
   }, [lockAndClear]);
 
-  const modalOpen = paused || showIntro || showHelp || holdWarning;
+  const modalOpen = paused || showIntro || showHelp || holdWarning || returnSummary !== null;
 
   // ── Game loop (single rAF, gravity drop + redraw) ───────────────────────
   useEffect(() => {
