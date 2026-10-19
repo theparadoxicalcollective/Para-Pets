@@ -4,7 +4,7 @@ export type FormationMatrix = number[][];
 const BASE: Record<MoltenFormation, FormationMatrix> = {
   I: [[1,1]],                         // Ember Pair: gap-repair domino
   O: [[0,1,0],[1,1,1],[0,1,0]],     // Molten Spear (5)
-  T: [[0,0,1,1],[1,1,1,0]],         // Ember Hook (5)
+  T: [[0,1],[1,1]],                 // Ember Hook (3)
   S: [[1,1,0],[0,1,1],[0,0,1]],     // Magma Step (5)
   Z: [[1,1,1],[0,1,0],[0,1,0]],     // Ash Fork (5)
   L: [[1,1,0],[0,1,0],[0,1,1]],     // Serpent (5)
