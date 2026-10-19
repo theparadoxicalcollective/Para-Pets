@@ -246,6 +246,7 @@ export default function MoltenBlocksPage() {
   const heldSpecialRef = useRef<{ kind: "laser"; cellIdx: number } | null>(null);
   const heldMultiplierRef = useRef<number | null>(null);
   const [holdWarning, setHoldWarning] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
   const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
@@ -375,6 +376,7 @@ export default function MoltenBlocksPage() {
     heldSpecialRef.current = null;
     heldMultiplierRef.current = null;
     setHoldWarning(false);
+    setShowHelp(false);
     lastBombTickRef.current = null;
     pendingDropItemRef.current = null;
     bagRef.current = makeBag();
@@ -409,6 +411,7 @@ export default function MoltenBlocksPage() {
     setHoldPiece(null);
     heldSpecialRef.current = null;
     setHoldWarning(false);
+    setShowHelp(false);
   }, [resetBoard]);
 
   // Sync localStorage key + hi-score from the user-specific key once auth resolves.
@@ -589,7 +592,7 @@ export default function MoltenBlocksPage() {
   // once, to prevent infinite stalling.
   const tryHold = useCallback(() => {
     if (gameOverRef.current || !runningRef.current) return;
-    if (paused || showIntro) return;
+    if (paused || showIntro || showHelp || holdWarning) return;
     if (!activeRef.current || flashRef.current) return;
     // No once-per-piece restriction — the player can swap as often as they like.
 
@@ -657,7 +660,7 @@ export default function MoltenBlocksPage() {
         activeRef.current = p;
       }
     }
-  }, [paused, showIntro, pullPiece, resetBoard, finalizeRun]);
+  }, [paused, showIntro, showHelp, holdWarning, pullPiece, resetBoard, finalizeRun]);
 
   // ── Lock current piece, clear lines, update score / level ───────────────
   const lockAndClear = useCallback(() => {
@@ -847,12 +850,14 @@ export default function MoltenBlocksPage() {
     lockAndClear();
   }, [lockAndClear]);
 
+  const modalOpen = paused || showIntro || showHelp || holdWarning || returnSummary !== null;
+
   // ── Game loop (single rAF, gravity drop + redraw) ───────────────────────
   useEffect(() => {
     let raf = 0;
     const loop = (t: number) => {
       // Countdown advances in active play only, never during pause, intro or line flash.
-      const bombTickActive = runningRef.current && !paused && !showIntro && !flashRef.current && !gameOverRef.current;
+      const bombTickActive = runningRef.current && !modalOpen && !flashRef.current && !gameOverRef.current;
       if (bombTickActive) {
         const elapsed = lastBombTickRef.current == null ? 0 : Math.min(250, t - lastBombTickRef.current);
         const result = tickPetrifyingBombs(bombsRef.current, elapsed);
@@ -872,7 +877,7 @@ export default function MoltenBlocksPage() {
       }
       lastBombTickRef.current = bombTickActive ? t : null;
       // Drop tick
-      if (runningRef.current && !paused && !showIntro && activeRef.current && !flashRef.current) {
+      if (runningRef.current && !modalOpen && activeRef.current && !flashRef.current) {
         const interval = softDropRef.current ? Math.min(60, dropIntervalRef.current) : dropIntervalRef.current;
         if (t - lastDropRef.current >= interval) {
           lastDropRef.current = t;
@@ -887,7 +892,7 @@ export default function MoltenBlocksPage() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, showIntro, lockAndClear, tryMove, imagesReady]);
+  }, [modalOpen, lockAndClear, tryMove, imagesReady]);
 
   // ── Drawing ────────────────────────────────────────────────────────────
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
@@ -1367,7 +1372,7 @@ export default function MoltenBlocksPage() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (gameOver || paused || showIntro) return;
+    if (gameOver || modalOpen) return;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     // Ignore additional fingers while a primary gesture is active.
     if (gestureRef.current.active) return;
@@ -1391,7 +1396,7 @@ export default function MoltenBlocksPage() {
 
   const onPointerMove = (e: React.PointerEvent) => {
     const g = gestureRef.current;
-    if (!g.active || e.pointerId !== g.primaryId || gameOver || paused) return;
+    if (!g.active || e.pointerId !== g.primaryId || gameOver || modalOpen) return;
     const point = pointerPoint(e);
     const dx = point.x - g.lastStepX;
     const totalDx = point.x - g.startX;
@@ -1427,7 +1432,7 @@ export default function MoltenBlocksPage() {
     g.active = false;
     g.primaryId = -1;
     g.softDropArmed = false;
-    if (gameOver || paused) return;
+    if (gameOver || modalOpen) return;
     const dt = performance.now() - g.startTime;
     const point = pointerPoint(e);
     const totalDy = point.y - g.startY;
@@ -1457,7 +1462,7 @@ export default function MoltenBlocksPage() {
   // Keyboard controls (handy on desktop; harmless on mobile)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (gameOver) return;
+      if (gameOver || modalOpen) return;
       if (e.key === "ArrowLeft")        { e.preventDefault(); if (tryMove(-1, 0)) playBlockMove(); }
       else if (e.key === "ArrowRight")  { e.preventDefault(); if (tryMove(1, 0)) playBlockMove(); }
       else if (e.key === "ArrowDown")   { e.preventDefault(); softDropRef.current = true; }
@@ -1474,7 +1479,19 @@ export default function MoltenBlocksPage() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [tryMove, tryRotate, hardDrop, gameOver]);
+  }, [tryMove, tryRotate, hardDrop, gameOver, modalOpen]);
+
+  const resetInputAfterDialog = () => {
+    cancelHoldTimer();
+    gestureRef.current.active = false;
+    gestureRef.current.primaryId = -1;
+    gestureRef.current.softDropArmed = false;
+    softDropRef.current = false;
+    lastDropRef.current = performance.now();
+    lastBombTickRef.current = null;
+  };
+  const openHelp = () => { resetInputAfterDialog(); setShowHelp(true); };
+  const closeHelp = () => { resetInputAfterDialog(); setShowHelp(false); };
 
   const accent = "#fbbf24"; // volcanic gold
 
@@ -1494,6 +1511,7 @@ export default function MoltenBlocksPage() {
         fontFamily: "Lora, serif", color: "#f5d589",
       }}
     >
+      {holdWarning && <div data-testid="molten-hold-warning-scrim" style={{ position: "absolute", inset: 0, zIndex: 49, background: "rgba(5,2,1,0.64)", pointerEvents: "auto" }} />}
       {holdWarning && (
         <div
           role="alert"
@@ -1513,7 +1531,7 @@ export default function MoltenBlocksPage() {
           </div>
           <button
             type="button"
-            onClick={() => setHoldWarning(false)}
+            onClick={() => { resetInputAfterDialog(); setHoldWarning(false); }}
             data-testid="button-dismiss-petrifying-hold-warning"
             style={{ border: "1px solid #e6a64d", borderRadius: 8, background: "#6d361a", color: "#fff1cf", padding: "7px 20px", fontWeight: 700 }}
           >
@@ -1561,9 +1579,10 @@ export default function MoltenBlocksPage() {
           </div>
         </div>
 
+        <button data-testid="button-help-molten" aria-label="How to Play" onClick={openHelp} disabled={showIntro || gameOver || holdWarning || showHelp} style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`, color: accent, borderRadius: "50%", width: 34, height: 34, fontSize: 17, fontWeight: 800, cursor: "pointer" }}>?</button>
         <button
           data-testid="button-pause"
-          onClick={() => setPaused(p => !p)}
+          onClick={() => { if (!showHelp && !holdWarning) { resetInputAfterDialog(); setPaused(p => !p); } }}
           style={{
             background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`,
             color: accent, padding: "6px 12px", borderRadius: 8,
@@ -1618,7 +1637,7 @@ export default function MoltenBlocksPage() {
           <button
             data-testid="button-hold"
             onClick={tryHold}
-            disabled={paused || showIntro || gameOver}
+            disabled={modalOpen || gameOver}
             style={{
               background: "rgba(20,8,4,0.85)",
               border: `1px solid ${holdPiece ? "rgba(251,191,36,0.55)" : "rgba(251,191,36,0.25)"}`,
@@ -1662,8 +1681,8 @@ export default function MoltenBlocksPage() {
         </div>
       ))}
 
-      {/* Pre-game intro: title + tutorial + Start button (mount-only) */}
-      {showIntro && !gameOver && introStep === 1 && (
+      {/* Existing rules overlay can be reopened without restarting the run. */}
+      {((showIntro && introStep === 1) || showHelp) && !gameOver && (
         <Overlay>
           <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
           <h2 style={{
@@ -1681,24 +1700,27 @@ export default function MoltenBlocksPage() {
 
           <div style={{
             background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
-            borderRadius: 10, padding: "18px 20px", marginBottom: 20, width: "100%", maxWidth: 320,
+            borderRadius: 10, padding: "12px 14px", marginBottom: 12, width: "100%", maxWidth: 360,
             textAlign: "left", lineHeight: 1.7, fontSize: 13, color: "#f5d589",
           }}>
             <TutoLine icon="↺" text="TAP to rotate the falling piece." />
             <TutoLine icon="↔" text="SWIPE left or right to move." />
             <TutoLine icon="●" text="HOLD your finger still to soft drop." />
             <TutoLine icon="↓" text="FLICK down hard to slam the piece." />
+            <TutoLine icon="▣" text="Clear multiple rows together for extra points and coins." />
+            <div style={{ margin: "10px 0 6px", color: "#fb923c", fontSize: 12, letterSpacing: "0.12em", fontWeight: 700 }}>SPECIAL BLOCKS</div>
+            <SpecialRule image={petrifyingBombArt} title="Petrifying Bomb" text="Cannot be held. After 15 seconds of play, nearby occupied blocks turn grey and petrify. Clear it before the countdown ends!" />
+            <SpecialRule image={petrifyingBombArt} title="Double Petrifying Bomb" text="Two bombs in one piece, each with its own countdown and petrification area." double />
+            <SpecialRule image={laserBombArt} title="Laser Bomb" text="Clear its row to sweep three rows, even petrified ones. An exact three-row laser clear earns +10 extra score." />
+            <SpecialRule title="Glowing x2 Block" text="Clear its row to double score and line-clear bonus coins for 20 seconds. Petrification destroys an unused x2." multiplier />
+            <TutoLine icon="◇" text="Clear rows containing reward items to collect them." />
           </div>
 
           <div style={{ fontSize: 11, color: "#7a5530", marginBottom: 18, textAlign: "center" }}>
             Clear lines to score. Fill the top — game over.
           </div>
 
-          <button
-            data-testid="button-intro-next"
-            onClick={() => setIntroStep(2)}
-            style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 32px", letterSpacing: "0.18em" }}
-          >NEXT →</button>
+          {showHelp ? <button data-testid="button-close-molten-help" onClick={closeHelp} style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 32px" }}>RESUME GAME</button> : <button data-testid="button-intro-next" onClick={() => setIntroStep(2)} style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 32px", letterSpacing: "0.18em" }}>NEXT →</button>}
         </Overlay>
       )}
 
@@ -1850,7 +1872,7 @@ export default function MoltenBlocksPage() {
       )}
 
       {/* Pause overlay */}
-      {paused && !gameOver && !showIntro && (
+      {paused && !gameOver && !showIntro && !showHelp && (
         <Overlay>
           <h2 style={{ margin: 0, fontSize: 28, color: accent, letterSpacing: "0.18em" }}>PAUSED</h2>
           {coinsEarned > 0 && (
@@ -1860,7 +1882,7 @@ export default function MoltenBlocksPage() {
           )}
           <button
             data-testid="button-resume"
-            onClick={() => setPaused(false)}
+            onClick={() => { resetInputAfterDialog(); setPaused(false); }}
             style={overlayBtnStyle(accent)}
           >Resume</button>
           <button
@@ -1868,6 +1890,7 @@ export default function MoltenBlocksPage() {
             onClick={async () => {
               const snap = { coins: coinsEarnedRef.current, score: scoreRef.current };
               setReturnSummary(snap);
+              resetInputAfterDialog();
               setPaused(false);
               await finalizeRun();
             }}
@@ -2055,6 +2078,17 @@ function Overlay({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function SpecialRule({ image, title, text, double = false, multiplier = false }: { image?: string; title: string; text: string; double?: boolean; multiplier?: boolean }) {
+  return <div style={{ display: "flex", gap: 10, alignItems: "center", margin: "9px 0" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 52, flexShrink: 0, gap: 2 }}>
+      {image && <img src={image} alt="" style={{ width: double ? 24 : 42, height: double ? 24 : 42, objectFit: "contain", filter: "drop-shadow(0 0 5px #fc812c)" }} />}
+      {double && image && <img src={image} alt="" style={{ width: 24, height: 24, objectFit: "contain", filter: "drop-shadow(0 0 5px #fc812c)" }} />}
+      {multiplier && <span aria-hidden="true" style={{ fontSize: 22, fontWeight: 900, color: "#ffad36", textShadow: "0 0 9px #ff6b18" }}>x2</span>}
+    </div>
+    <div style={{ flex: 1, lineHeight: 1.4 }}><strong style={{ color: "#ffcc72" }}>{title}</strong><div style={{ fontSize: 12, marginTop: 2 }}>{text}</div></div>
+  </div>;
 }
 
 function TutoLine({ icon, text }: { icon: string; text: string }) {

@@ -190,3 +190,30 @@ test("bomb and x2 visual accents are drawn in the existing canvas with animated 
   assert.ok(page.includes("ctx.shadowBlur"));
   assert.ok(page.includes("const effectTime = performance.now() / 1000"));
 });
+
+
+test("Molten tutorial special rule images and in-game help can reopen without resetting play", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes('data-testid="button-help-molten"'));
+  assert.ok(page.includes('data-testid="button-close-molten-help"'));
+  assert.ok(page.includes("setShowHelp(true)"));
+  assert.ok(page.includes("setShowHelp(false)"));
+  assert.ok(page.includes("SpecialRule image={petrifyingBombArt}"));
+  assert.ok(page.includes("SpecialRule image={laserBombArt}"));
+  assert.ok(page.includes('title="Glowing x2 Block"'));
+  assert.ok(page.includes("Double Petrifying Bomb"));
+});
+
+test("Molten modal blocks gravity, bomb countdown and controls until it is dismissed", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes("const modalOpen = paused || showIntro || showHelp || holdWarning"));
+  assert.ok(page.includes("const bombTickActive = runningRef.current && !modalOpen"));
+  assert.ok(page.includes("if (runningRef.current && !modalOpen && activeRef.current"));
+  assert.ok(page.includes("if (gameOver || modalOpen) return"));
+  assert.ok(page.includes("setHoldWarning(false)"));
+  assert.ok(page.includes("lastBombTickRef.current = null"));
+  assert.ok(page.includes("lastDropRef.current = performance.now()"));
+  assert.ok(page.includes('data-testid="molten-hold-warning-scrim"'));
+});
