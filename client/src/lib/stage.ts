@@ -1,6 +1,6 @@
-// Mobile keeps the original native viewport layout. Larger devices retain the
-// canonical logical stage as a coordinate reference while full-device visual
-// surfaces can extend beyond it.
+// Runtime root routes use native viewport geometry. Legacy design constants
+// and opt-in reference helpers remain only for independently audited callers;
+// do not reintroduce them into the root renderer.
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
 export const WIDE_BREAKPOINT = 768;
