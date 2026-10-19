@@ -82,3 +82,11 @@ export function collapseMoltenRows<T>(grid: readonly (readonly T[])[], clearedRo
     ...remaining,
   ];
 }
+
+/** A special block appears on roughly one in six spawned pieces, split evenly. */
+export const MOLTEN_SPECIAL_SPAWN_CHANCE = 0.16;
+
+export function rollMoltenSpecial(roll: number): "stone" | "laser" | null {
+  if (!Number.isFinite(roll) || roll < 0 || roll >= MOLTEN_SPECIAL_SPAWN_CHANCE) return null;
+  return roll < MOLTEN_SPECIAL_SPAWN_CHANCE / 2 ? "stone" : "laser";
+}
