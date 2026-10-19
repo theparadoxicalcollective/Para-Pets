@@ -240,6 +240,7 @@ export default function MoltenBlocksPage() {
   const [holdWarning, setHoldWarning] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
+  const moltenEffectsRef = useRef<Array<{ kind: "laser" | "stone"; rows: number[]; col: number; row: number; started: number }>>([]);
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
   const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
   const laserRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
@@ -386,6 +387,7 @@ export default function MoltenBlocksPage() {
     activeRef.current = spawn(pullPiece());
     nextRef.current = pullPiece();
     flashRef.current = null;
+    moltenEffectsRef.current = [];
     lastDropRef.current = performance.now();
     softDropRef.current = false;
     gameOverRef.current = false;
@@ -749,6 +751,8 @@ export default function MoltenBlocksPage() {
         }
       }
 
+      const plannedLaserRows = planMoltenLineClear(locked, stoneRef.current, laserRef.current).laserRows;
+      if (plannedLaserRows.length) moltenEffectsRef.current.push({ kind: "laser", rows: plannedLaserRows, col: 0, row: 0, started: performance.now() });
       flashRef.current = { rows: clearedIdx, until: performance.now() + 180 };
       // Defer the actual line-clear until after the flash so the player
       // sees the rows light up first.
@@ -887,6 +891,7 @@ export default function MoltenBlocksPage() {
         for (const bomb of result.expired) {
           if (boardRef.current[bomb.row]?.[bomb.col] !== 0) {
             stoneRef.current = petrifyOccupiedNeighbors(boardRef.current, stoneRef.current, bomb.row, bomb.col);
+            moltenEffectsRef.current.push({ kind: "stone", rows: [], col: bomb.col, row: bomb.row, started: t });
             multiplierBoardRef.current = removePetrifiedMultipliers(multiplierBoardRef.current, stoneRef.current);
             coinPickupBoardRef.current = removePetrifiedCoinPickups(coinPickupBoardRef.current, stoneRef.current);
           }
@@ -922,7 +927,7 @@ export default function MoltenBlocksPage() {
     const img = imgsRef.current[type];
     // Round only the artwork, not the board geometry. Keep the radius small
     // so adjacent occupied cells still read as a solid falling shape.
-    const radius = Math.max(1, Math.min(3, size * 0.075));
+    const radius = Math.max(2, Math.min(5, size * 0.12));
     const cellPath = () => {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -940,6 +945,9 @@ export default function MoltenBlocksPage() {
     ctx.save();
     cellPath();
     ctx.clip();
+    if (!ghost && img && img.complete && img.naturalWidth > 0) {
+      ctx.shadowColor = PIECE_GLOW[type];
+    }
     if (img && img.complete && img.naturalWidth > 0) {
       // Fill behind the opaque center-cropped texture so the corners never
       // become transparent artifacts as the piece moves.
@@ -947,7 +955,7 @@ export default function MoltenBlocksPage() {
         ctx.fillStyle = PIECE_BASE[type];
         ctx.fillRect(x, y, size, size);
       }
-      if (ghost) ctx.globalAlpha = 0.22;
+      if (ghost) ctx.globalAlpha = 0.36;
       const previousSmoothing = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = false;
       const nW = img.naturalWidth, nH = img.naturalHeight;
@@ -955,7 +963,7 @@ export default function MoltenBlocksPage() {
       ctx.drawImage(img, sInsetX, sInsetY, nW - 2 * sInsetX, nH - 2 * sInsetY, x, y, size, size);
       ctx.imageSmoothingEnabled = previousSmoothing;
     } else {
-      if (ghost) ctx.globalAlpha = 0.18;
+      if (ghost) ctx.globalAlpha = 0.32;
       ctx.fillStyle = PIECE_GLOW[type];
       ctx.fillRect(x, y, size, size);
     }
@@ -965,12 +973,14 @@ export default function MoltenBlocksPage() {
     cellPath();
     if (!ghost) {
       ctx.shadowColor = PIECE_GLOW[type];
-      ctx.shadowBlur = Math.max(3, size * 0.18);
+      ctx.shadowBlur = Math.max(5, size * 0.34);
       ctx.strokeStyle = PIECE_GLOW[type];
     } else {
-      ctx.strokeStyle = "rgba(255,190,110,0.22)";
+      ctx.strokeStyle = "rgba(255,224,151,0.85)";
+      ctx.shadowColor = "#ffc05b";
+      ctx.shadowBlur = Math.max(4, size * 0.26);
     }
-    ctx.lineWidth = 1;
+    ctx.lineWidth = ghost ? Math.max(1.4, size * 0.045) : Math.max(1.2, size * 0.045);
     ctx.stroke();
     ctx.restore();
   };
@@ -1038,7 +1048,7 @@ export default function MoltenBlocksPage() {
       ctx.fillStyle = it.rarity === 'rare' ? "rgba(255,215,0,1)" :
                       it.rarity === 'uncommon' ? "rgba(74,222,128,1)" : "rgba(180,180,255,1)";
       const inset = cell * 0.08;
-      ctx.fillRect(ix + inset, iy + inset, cell - inset * 2, cell - inset * 2);
+      ctx.beginPath(); ctx.roundRect(ix + inset, iy + inset, cell - inset * 2, cell - inset * 2, cell * 0.12); ctx.fill();
       ctx.restore();
 
       // Rarity-coloured glow border
@@ -1047,7 +1057,7 @@ export default function MoltenBlocksPage() {
       ctx.shadowBlur = cell * (it.rarity === 'rare' ? 0.9 : 0.65) * pulse;
       ctx.strokeStyle = glow;
       ctx.lineWidth = it.rarity === 'rare' ? 3 : 2;
-      ctx.strokeRect(ix + 2, iy + 2, cell - 4, cell - 4);
+      ctx.beginPath(); ctx.roundRect(ix + 2, iy + 2, cell - 4, cell - 4, cell * 0.13); ctx.stroke();
       ctx.restore();
 
       // Item image (if loaded) drawn over the fill
@@ -1061,6 +1071,11 @@ export default function MoltenBlocksPage() {
         ctx.restore();
       }
 
+      // All reward tiles have a gentle animated ember ring, like special bombs.
+      const spin = nt2 / 1250;
+      ctx.save(); ctx.strokeStyle = glow; ctx.shadowColor = glow;
+      ctx.shadowBlur = cell * 0.26; ctx.lineWidth = Math.max(1, cell * 0.045);
+      ctx.beginPath(); ctx.arc(ix + cell / 2, iy + cell / 2, cell * 0.39, spin, spin + Math.PI * 0.85); ctx.stroke(); ctx.restore();
       // Spinning arc for rare items
       if (it.rarity === 'rare') {
         const spin = nt2 / 1000;
@@ -1154,27 +1169,22 @@ export default function MoltenBlocksPage() {
       const y = offY + r * cell;
       if (stoneRef.current[r][c]) {
         ctx.save();
-        // Ash-glazed obsidian: retain original lava texture beneath translucent stone.
-        ctx.fillStyle = "rgba(25,26,31,0.58)";
-        ctx.fillRect(x + cell * 0.035, y + cell * 0.035, cell * 0.93, cell * 0.93);
-        ctx.strokeStyle = "rgba(173,162,148,0.85)";
-        ctx.lineWidth = Math.max(1, cell * 0.04);
-        ctx.strokeRect(x + cell * 0.055, y + cell * 0.055, cell * 0.89, cell * 0.89);
-        // Stable angular fissures; a hint of molten amber beneath the ash.
-        ctx.beginPath();
-        ctx.moveTo(x + cell * 0.19, y + cell * 0.08);
-        ctx.lineTo(x + cell * 0.42, y + cell * 0.32);
-        ctx.lineTo(x + cell * 0.35, y + cell * 0.55);
-        ctx.lineTo(x + cell * 0.67, y + cell * 0.79);
-        ctx.lineTo(x + cell * 0.76, y + cell * 0.93);
-        ctx.strokeStyle = "rgba(255,111,34,0.65)";
-        ctx.shadowColor = "#ed521b"; ctx.shadowBlur = cell * 0.08;
-        ctx.lineWidth = Math.max(0.8, cell * 0.027); ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.beginPath(); ctx.moveTo(x + cell * 0.42, y + cell * 0.32); ctx.lineTo(x + cell * 0.76, y + cell * 0.18);
-        ctx.moveTo(x + cell * 0.35, y + cell * 0.55); ctx.lineTo(x + cell * 0.13, y + cell * 0.72);
-        ctx.strokeStyle = "rgba(180,177,172,0.68)"; ctx.stroke();
+        // Repaint the original block texture in grayscale, not a solid overlay.
+        const type = board[r][c] as Piece;
+        const img = imgsRef.current[type];
+        const radius = Math.max(2, Math.min(5, cell * 0.12));
+        ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius); ctx.clip();
+        ctx.fillStyle = "#414047"; ctx.fillRect(x, y, cell, cell);
+        if (img?.complete && img.naturalWidth > 0) {
+          const insetX = img.naturalWidth * 0.24, insetY = img.naturalHeight * 0.24;
+          ctx.filter = "grayscale(1) brightness(0.83) contrast(1.3)";
+          ctx.drawImage(img, insetX, insetY, img.naturalWidth - 2 * insetX, img.naturalHeight - 2 * insetY, x, y, cell, cell);
+          ctx.filter = "none";
+        }
         ctx.restore();
+        ctx.save(); ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, Math.max(2, cell * 0.12));
+        ctx.shadowColor = "#e0d6c8"; ctx.shadowBlur = cell * 0.25;
+        ctx.strokeStyle = "#b9b1ab"; ctx.lineWidth = Math.max(1.4, cell * 0.055); ctx.stroke(); ctx.restore();
       } else {
         const bomb = bombByCell.get(`${r}:${c}`);
         if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000);
@@ -1284,6 +1294,30 @@ export default function MoltenBlocksPage() {
       }
     }
 
+    // Transient bomb effects use board-local coordinates and the existing frame loop.
+    const nowFx = performance.now();
+    moltenEffectsRef.current = moltenEffectsRef.current.filter(effect => nowFx - effect.started < 650);
+    for (const effect of moltenEffectsRef.current) {
+      const progress = Math.min(1, (nowFx - effect.started) / 650);
+      ctx.save();
+      if (effect.kind === "laser") {
+        for (const r of effect.rows) {
+          const beamY = offY + (r + 0.5) * cell;
+          const beamX = offX + boardW * progress;
+          ctx.strokeStyle = `rgba(255,228,140,${1-progress})`;
+          ctx.shadowColor = "#ff541a"; ctx.shadowBlur = cell * 0.65;
+          ctx.lineWidth = Math.max(3, cell * 0.16);
+          ctx.beginPath(); ctx.moveTo(offX, beamY); ctx.lineTo(beamX, beamY); ctx.stroke();
+        }
+      } else {
+        const cx = offX + (effect.col + 0.5) * cell, cy = offY + (effect.row + 0.5) * cell;
+        ctx.strokeStyle = `rgba(208,218,226,${1-progress})`;
+        ctx.shadowColor = "#d6e4f4"; ctx.shadowBlur = cell * 0.38;
+        ctx.lineWidth = Math.max(2, cell * 0.07);
+        ctx.beginPath(); ctx.arc(cx, cy, cell * (0.3 + progress * 2.4), 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
     // Line-clear flash overlay
     if (flashRef.current) {
       const alpha = Math.max(0, (flashRef.current.until - performance.now()) / 180);
