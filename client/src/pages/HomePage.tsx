@@ -938,6 +938,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           }}
         >
           <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
+          {/* Background-only depth: darken busy forest edges while leaving a soft,
+              diffuse clearing behind pets of every rarity. No pet-position changes. */}
+          <div
+            data-testid="active-pet-background-depth"
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "radial-gradient(ellipse 58% 42% at 50% 54%, rgba(157,205,150,0.13) 0%, rgba(95,150,115,0.065) 45%, transparent 78%), radial-gradient(ellipse 85% 68% at 50% 52%, transparent 34%, rgba(2,12,10,0.23) 72%, rgba(1,7,8,0.50) 100%)",
+            }}
+          />
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute" style={{ left: "12%", top: "25%", width: "8px", height: "8px", borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.8) 0%, rgba(127,255,212,0) 70%)", boxShadow: "0 0 18px rgba(127,255,212,0.35)", animation: "orbFloat1 8s ease-in-out infinite", willChange: "transform" }} />
             <div className="absolute" style={{ right: "15%", top: "20%", width: "6px", height: "6px", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,230,255,0.8) 0%, rgba(200,230,255,0) 70%)", boxShadow: "0 0 14px rgba(200,230,255,0.3)", animation: "orbFloat2 10s ease-in-out infinite 1s", willChange: "transform" }} />
