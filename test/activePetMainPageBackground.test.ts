@@ -67,3 +67,17 @@ test("individual pet placement remains owned by ActivePetPlacement", () => {
   assert.match(placement, /getPetPlacementTransform\(ground, value, editor \? DEFAULT_ACTIVE_PET_ANCHOR : anchor\)/);
   assert.match(placement, /data-testid="active-pet-placement-guide"/);
 });
+
+test("Active Pet forest depth remains a passive viewport backdrop, not a pet overlay", () => {
+  const home = read("client/src/pages/HomePage.tsx");
+  const backdrop = home.indexOf('data-testid="active-pet-viewport-backdrop"');
+  const depth = home.indexOf('data-testid="active-pet-background-depth"');
+  const backdropEnd = home.indexOf('</ViewportBackdropPortal>', backdrop);
+  const pet = home.indexOf('data-testid="display-active-pet"');
+  assert.ok(backdrop >= 0 && depth > backdrop && depth < backdropEnd && backdropEnd < pet);
+  const layer = home.slice(depth, depth + 650);
+  assert.match(layer, /aria-hidden="true"/);
+  assert.match(layer, /pointer-events-none/);
+  assert.match(layer, /radial-gradient/);
+  assert.doesNotMatch(layer, /390|844|position: "fixed"|onClick|onPointer/);
+});
