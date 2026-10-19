@@ -83,10 +83,22 @@ export function collapseMoltenRows<T>(grid: readonly (readonly T[])[], clearedRo
   ];
 }
 
-/** A special block appears on roughly one in six spawned pieces, split evenly. */
-export const MOLTEN_SPECIAL_SPAWN_CHANCE = 0.16;
+/** Special pieces total 20%: 5% single petrify, 3% double petrify, 12% laser. */
+export const MOLTEN_SPECIAL_SPAWN_CHANCE = 0.20;
 
-export function rollMoltenSpecial(roll: number): "stone" | "laser" | null {
+export type MoltenSpecialKind = "stone" | "double-stone" | "laser";
+
+export function rollMoltenSpecial(roll: number): MoltenSpecialKind | null {
   if (!Number.isFinite(roll) || roll < 0 || roll >= MOLTEN_SPECIAL_SPAWN_CHANCE) return null;
-  return roll < MOLTEN_SPECIAL_SPAWN_CHANCE / 2 ? "stone" : "laser";
+  if (roll < 0.05) return "stone";
+  if (roll < 0.08) return "double-stone";
+  return "laser";
+}
+
+/** Resolve two bomb cells without overlapping even when only part of a piece is visible. */
+export function moltenSpecialCellIndices(kind: MoltenSpecialKind, cellIdx: number, occupiedCount: number): number[] {
+  if (occupiedCount <= 0) return [];
+  const first = ((cellIdx % occupiedCount) + occupiedCount) % occupiedCount;
+  if (kind !== "double-stone" || occupiedCount === 1) return [first];
+  return [first, (first + 1) % occupiedCount];
 }
