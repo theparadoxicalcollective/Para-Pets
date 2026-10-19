@@ -19,7 +19,7 @@ import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import petrifyingBombArt from "@assets/uploads/PetrifyingBomb.png";
 import laserBombArt from "@assets/uploads/LaserBomb.png";
-import { PETRIFY_COUNTDOWN_MS, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
+import { PETRIFY_COUNTDOWN_MS, moltenSpecialCellIndices, rollMoltenSpecial, type MoltenSpecialKind, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb, MOLTEN_X2_SPAWN_CHANCE, MOLTEN_X2_DURATION_MS, laserTripleScoreBonus, removePetrifiedMultipliers, clearedMultiplier, moltenX2Multiplier } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -244,13 +244,18 @@ export default function MoltenBlocksPage() {
   const holdRef = useRef<Piece | null>(null);
   const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
   const heldSpecialRef = useRef<{ kind: "laser"; cellIdx: number } | null>(null);
+  const heldMultiplierRef = useRef<number | null>(null);
   const [holdWarning, setHoldWarning] = useState(false);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
   const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
   const laserRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
+  const multiplierBoardRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
+  const pendingMultiplierRef = useRef<number | null>(null);
+  const multiplierRemainingRef = useRef(0);
+  const [multiplierSeconds, setMultiplierSeconds] = useState(0);
   const bombsRef = useRef<PetrifyingBomb[]>([]);
-  const pendingSpecialRef = useRef<{ kind: "stone" | "laser"; cellIdx: number } | null>(null);
+  const pendingSpecialRef = useRef<{ kind: MoltenSpecialKind; cellIdx: number } | null>(null);
   const lastBombTickRef = useRef<number | null>(null);
   const blocksLockedRef = useRef(0);
   const dropItemsRef = useRef<DropItem[]>([]);
@@ -362,9 +367,13 @@ export default function MoltenBlocksPage() {
     itemBoardRef.current = emptyItemBoard();
     stoneRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     laserRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    multiplierBoardRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    pendingMultiplierRef.current = null;
+    heldMultiplierRef.current = null;
     bombsRef.current = [];
     pendingSpecialRef.current = null;
     heldSpecialRef.current = null;
+    heldMultiplierRef.current = null;
     setHoldWarning(false);
     lastBombTickRef.current = null;
     pendingDropItemRef.current = null;
@@ -394,6 +403,8 @@ export default function MoltenBlocksPage() {
     setGameOver(false); setPaused(false);
     setCoinAward({ amount: 0, status: "idle" });
     setCoinFlash(null);
+    multiplierRemainingRef.current = 0;
+    setMultiplierSeconds(0);
     holdRef.current = null;
     setHoldPiece(null);
     heldSpecialRef.current = null;
@@ -546,13 +557,15 @@ export default function MoltenBlocksPage() {
       // Assign a drop item to this piece if we've hit the next threshold
       pendingDropItemRef.current = null;
       pendingSpecialRef.current = null;
+      pendingMultiplierRef.current = null;
       // Special tiles use the same single-cell replacement placement as rewards.
       // Keep them uncommon and mutually exclusive with a reward on this piece.
-      const specialRoll = Math.random();
-      if (specialRoll < 0.055) {
-        pendingSpecialRef.current = { kind: specialRoll < 0.028 ? "stone" : "laser", cellIdx: Math.floor(Math.random() * 4) };
+      const specialKind = rollMoltenSpecial(Math.random());
+      if (specialKind) {
+        pendingSpecialRef.current = { kind: specialKind, cellIdx: Math.floor(Math.random() * 4) };
       }
-      if (!pendingSpecialRef.current && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
+      if (!pendingSpecialRef.current && Math.random() < MOLTEN_X2_SPAWN_CHANCE) pendingMultiplierRef.current = Math.floor(Math.random() * 4);
+      if (!pendingSpecialRef.current && pendingMultiplierRef.current === null && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
         const drop = pickDropItem(dropItemsRef.current);
         if (drop) {
           const shape = SHAPES[t][0];
@@ -581,7 +594,7 @@ export default function MoltenBlocksPage() {
     // No once-per-piece restriction — the player can swap as often as they like.
 
     const currentType = activeRef.current.type;
-    if (pendingSpecialRef.current?.kind === "stone") {
+    if (pendingSpecialRef.current?.kind === "stone" || pendingSpecialRef.current?.kind === "double-stone") {
       setHoldWarning(true);
       return;
     }
@@ -593,6 +606,9 @@ export default function MoltenBlocksPage() {
     const stashed = holdRef.current;
     heldSpecialRef.current = carriedLaser;
     pendingSpecialRef.current = stashed == null ? null : stashedLaser;
+    const carriedMultiplier = pendingMultiplierRef.current;
+    pendingMultiplierRef.current = stashed == null ? null : heldMultiplierRef.current;
+    heldMultiplierRef.current = carriedMultiplier;
     playHoldSwap();
     if (stashed == null) {
       // First hold this run — stash current and bring in the next-queue piece.
@@ -671,17 +687,30 @@ export default function MoltenBlocksPage() {
       pendingDropItemRef.current = null;
     }
 
-    // Place a single special tile in the locked piece's occupied cells.
-    if (pendingSpecialRef.current) {
+    if (pendingMultiplierRef.current !== null) {
       const cells: [number, number][] = [];
       const shape = SHAPES[piece.type][piece.rot];
       for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) {
         if (shape[r][c] && piece.y + r >= 0) cells.push([piece.y + r, piece.x + c]);
       }
       if (cells.length) {
-        const [row, col] = cells[pendingSpecialRef.current.cellIdx % cells.length];
-        if (pendingSpecialRef.current.kind === "stone") bombsRef.current.push({ row, col, remainingMs: PETRIFY_COUNTDOWN_MS });
-        else laserRef.current[row][col] = true;
+        const [r, c] = cells[pendingMultiplierRef.current % cells.length];
+        multiplierBoardRef.current[r][c] = true;
+      }
+      pendingMultiplierRef.current = null;
+    }
+
+    // Lock one or two bomb tiles using the existing piece cells and countdown loop.
+    if (pendingSpecialRef.current) {
+      const cells: [number, number][] = [];
+      const shape = SHAPES[piece.type][piece.rot];
+      for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c] && piece.y + r >= 0) cells.push([piece.y + r, piece.x + c]);
+      }
+      for (const index of moltenSpecialCellIndices(pendingSpecialRef.current.kind, pendingSpecialRef.current.cellIdx, cells.length)) {
+        const [row, col] = cells[index];
+        if (pendingSpecialRef.current.kind === "laser") laserRef.current[row][col] = true;
+        else bombsRef.current.push({ row, col, remainingMs: PETRIFY_COUNTDOWN_MS });
       }
       pendingSpecialRef.current = null;
     }
@@ -705,12 +734,19 @@ export default function MoltenBlocksPage() {
       activeRef.current = null;
       setTimeout(() => {
         const lockedSnap = boardRef.current;
-        const { rows } = planMoltenLineClear(lockedSnap, stoneRef.current, laserRef.current);
+        const { rows, laserRows } = planMoltenLineClear(lockedSnap, stoneRef.current, laserRef.current);
+        const triggersX2 = clearedMultiplier(multiplierBoardRef.current, rows);
+        const multiplier = moltenX2Multiplier(multiplierRemainingRef.current, triggersX2);
+        if (triggersX2) {
+          multiplierRemainingRef.current = MOLTEN_X2_DURATION_MS;
+          setMultiplierSeconds(Math.ceil(MOLTEN_X2_DURATION_MS / 1000));
+        }
         const n = rows.length;
         const cleared = collapseMoltenRows(lockedSnap, rows, 0 as Cell);
         itemBoardRef.current = collapseMoltenRows(itemBoardRef.current, rows, null as ItemCell);
         stoneRef.current = collapseMoltenRows(stoneRef.current, rows, false);
         laserRef.current = collapseMoltenRows(laserRef.current, rows, false);
+        multiplierBoardRef.current = collapseMoltenRows(multiplierBoardRef.current, rows, false);
         bombsRef.current = bombsRef.current.flatMap(bomb => {
           if (rows.includes(bomb.row)) return [];
           return [{ ...bomb, row: bomb.row + rows.filter(row => row > bomb.row).length }];
@@ -735,7 +771,7 @@ export default function MoltenBlocksPage() {
         const prevScore = scoreRef.current;
         // Bonus score points for multi-row clears (added silently, no effect).
         const bonusScore = n >= 4 ? TETRIS_BONUS_SCORE : n === 3 ? TRIPLE_BONUS_SCORE : n === 2 ? DOUBLE_BONUS_SCORE : 0;
-        const nextScore = prevScore + n * POINTS_PER_ROW + bonusScore;
+        const nextScore = prevScore + (n * POINTS_PER_ROW + bonusScore + laserTripleScoreBonus(laserRows, rows)) * multiplier;
         // Tier coins — every full POINTS_PER_COIN_TIER points crossed grants COINS_PER_TIER.
         // Bonus score counts toward tier thresholds too.
         const tiersBefore = Math.floor(prevScore / POINTS_PER_COIN_TIER);
@@ -744,7 +780,7 @@ export default function MoltenBlocksPage() {
         const tierCoins = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
         // Multi-row bonus coins — 2 rows: +1, 3 rows: +3, 4+ rows: +8.
         const bonusCoins = n >= 4 ? TETRIS_BONUS_COINS : n === 3 ? TRIPLE_BONUS_COINS : n === 2 ? DOUBLE_BONUS_COINS : 0;
-        const coinsAdded = tierCoins + bonusCoins;
+        const coinsAdded = tierCoins + bonusCoins * multiplier;
         scoreRef.current = nextScore;
         coinsEarnedRef.current = coinsEarnedRef.current + coinsAdded;
         setScore(nextScore);
@@ -824,8 +860,15 @@ export default function MoltenBlocksPage() {
         for (const bomb of result.expired) {
           if (boardRef.current[bomb.row]?.[bomb.col] !== 0) {
             stoneRef.current = petrifyOccupiedNeighbors(boardRef.current, stoneRef.current, bomb.row, bomb.col);
+            multiplierBoardRef.current = removePetrifiedMultipliers(multiplierBoardRef.current, stoneRef.current);
           }
         }
+      }
+      if (bombTickActive && multiplierRemainingRef.current > 0) {
+        const elapsed = lastBombTickRef.current == null ? 0 : Math.min(250, t - lastBombTickRef.current);
+        multiplierRemainingRef.current = Math.max(0, multiplierRemainingRef.current - elapsed);
+        const seconds = Math.ceil(multiplierRemainingRef.current / 1000);
+        setMultiplierSeconds(previous => previous === seconds ? previous : seconds);
       }
       lastBombTickRef.current = bombTickActive ? t : null;
       // Drop tick
@@ -1006,39 +1049,99 @@ export default function MoltenBlocksPage() {
       }
     };
 
-    // Stone and special-bomb overlays share the board's existing cell coordinates.
     const bombByCell = new Map(bombsRef.current.map(b => [`${b.row}:${b.col}`, b]));
-    const drawSpecial = (x: number, y: number, kind: "stone" | "laser", seconds?: number) => {
+    // Animated accents are drawn inside existing board cells, without extra DOM layers.
+    // Deterministic orbs avoid per-frame random flicker and keep the effects inexpensive.
+    const effectTime = performance.now() / 1000;
+    const drawEmbers = (x: number, y: number, seed: number, hue: "orange" | "cyan") => {
       ctx.save();
-      const image = bombImgsRef.current[kind];
-      if (image?.complete && image.naturalWidth > 0) {
-        // Sprite stays within the existing cell in every viewport/DPR.
-        const pad = cell * 0.05;
-        ctx.drawImage(image, x + pad, y + pad, cell - pad * 2, cell - pad * 2);
-      } else {
-        // Keep a legible fallback while assets load or if either file fails.
-        ctx.fillStyle = kind === "stone" ? "#706c82" : "#0e5f6e";
-        ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
-      }
-      if (seconds !== undefined) {
-        ctx.fillStyle = "rgba(15,8,5,0.87)";
-        ctx.fillRect(x + cell * 0.22, y + cell * 0.64, cell * 0.56, cell * 0.3);
-        ctx.fillStyle = "#fff2d8";
-        ctx.font = `bold ${Math.max(9, Math.floor(cell * 0.34))}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(Math.ceil(seconds)), x + cell / 2, y + cell * 0.79);
+      const rgb = hue === "cyan" ? "91,236,255" : "255,151,45";
+      for (let i = 0; i < 3; i++) {
+        const phase = (effectTime * (0.42 + i * 0.11) + seed * 0.17 + i * 0.31) % 1;
+        const px = x + cell * (0.22 + ((seed * 7 + i * 3) % 7) * 0.095);
+        const py = y + cell * (0.84 - phase * 0.68);
+        const radius = Math.max(0.8, cell * (0.027 + i * 0.008));
+        ctx.globalAlpha = (0.32 + 0.42 * Math.sin(Math.PI * phase));
+        ctx.fillStyle = `rgba(${rgb},0.95)`;
+        ctx.shadowColor = `rgba(${rgb},0.9)`;
+        ctx.shadowBlur = Math.max(2, cell * 0.14);
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     };
+    const drawSpecial = (x: number, y: number, kind: "stone" | "laser", seconds?: number) => {
+      ctx.save();
+      const image = bombImgsRef.current[kind];
+      const cyan = kind === "laser";
+      const glow = cyan ? "75,225,255" : "255,112,35";
+      const pulse = 0.65 + 0.22 * Math.sin(effectTime * 4 + x * 0.09 + y * 0.06);
+      ctx.strokeStyle = `rgba(${glow},${pulse})`;
+      ctx.lineWidth = Math.max(1.3, cell * 0.065);
+      ctx.shadowColor = `rgba(${glow},0.9)`;
+      ctx.shadowBlur = Math.max(3, cell * 0.24);
+      ctx.strokeRect(x + cell * 0.07, y + cell * 0.07, cell * 0.86, cell * 0.86);
+      ctx.shadowBlur = 0;
+      if (image?.complete && image.naturalWidth > 0) {
+        const pad = cell * 0.05;
+        ctx.drawImage(image, x + pad, y + pad, cell - pad * 2, cell - pad * 2);
+      } else {
+        ctx.fillStyle = cyan ? "#0e5f6e" : "#706c82";
+        ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
+      }
+      ctx.restore();
+      drawEmbers(x, y, Math.round(x + y * 13), cyan ? "cyan" : "orange");
+      if (seconds !== undefined) {
+        ctx.save();
+        ctx.fillStyle = "rgba(15,8,5,0.9)";
+        ctx.fillRect(x + cell * 0.22, y + cell * 0.64, cell * 0.56, cell * 0.3);
+        ctx.fillStyle = "#fff2d8";
+        ctx.font = `bold ${Math.max(9, Math.floor(cell * 0.34))}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(Math.ceil(seconds)), x + cell / 2, y + cell * 0.79);
+        ctx.restore();
+      }
+    };
+    const drawMultiplier = (x: number, y: number) => {
+      ctx.save();
+      const pulse = 0.78 + 0.22 * Math.sin(effectTime * 4.3 + x * 0.05);
+      ctx.fillStyle = "rgba(38,14,5,0.65)";
+      ctx.fillRect(x + cell * 0.11, y + cell * 0.2, cell * 0.78, cell * 0.6);
+      ctx.font = `900 ${Math.max(10, Math.floor(cell * 0.47))}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.shadowColor = "#ff6b18";
+      ctx.shadowBlur = Math.max(4, cell * 0.24);
+      ctx.strokeStyle = `rgba(255,93,10,${pulse})`;
+      ctx.lineWidth = Math.max(1.5, cell * 0.07);
+      ctx.strokeText("x2", x + cell / 2, y + cell / 2);
+      ctx.fillStyle = "#ffad36";
+      ctx.fillText("x2", x + cell / 2, y + cell / 2);
+      ctx.restore();
+      drawEmbers(x, y, Math.round(x * 3 + y * 11), "orange");
+    };
+    // Petrified cells keep their original shape but lose their color. Only
+    // live countdown bombs and laser cells display the uploaded bomb artwork.
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       if (board[r][c] === 0) continue;
-      const bomb = bombByCell.get(`${r}:${c}`);
-      if (stoneRef.current[r][c] || bomb) {
-        drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs ? bomb.remainingMs / 1000 : undefined);
-      } else if (laserRef.current[r][c]) {
-        drawSpecial(offX + c * cell, offY + r * cell, "laser");
+      const x = offX + c * cell;
+      const y = offY + r * cell;
+      if (stoneRef.current[r][c]) {
+        ctx.save();
+        ctx.fillStyle = "rgba(100,104,113,0.82)";
+        ctx.fillRect(x + cell * 0.06, y + cell * 0.06, cell * 0.88, cell * 0.88);
+        ctx.strokeStyle = "rgba(196,199,205,0.55)";
+        ctx.lineWidth = Math.max(1, cell * 0.035);
+        ctx.strokeRect(x + cell * 0.07, y + cell * 0.07, cell * 0.86, cell * 0.86);
+        ctx.restore();
+      } else {
+        const bomb = bombByCell.get(`${r}:${c}`);
+        if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000);
+        else if (laserRef.current[r][c]) drawSpecial(x, y, "laser");
       }
+    }
+
+    // X2 marks stay attached to their locked cell until cleared or petrified.
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== 0 && multiplierBoardRef.current[r][c] && !stoneRef.current[r][c]) drawMultiplier(offX + c * cell, offY + r * cell);
     }
 
     // Item overlay on locked cells
@@ -1064,7 +1167,7 @@ export default function MoltenBlocksPage() {
         if (shape[r][c] && active.y + r >= 0) specialCells.push([active.y + r, active.x + c]);
       }
       const special = pendingSpecialRef.current;
-      const specialCell = special && specialCells.length ? specialCells[special.cellIdx % specialCells.length] : null;
+      const specialPositions = special ? moltenSpecialCellIndices(special.kind, special.cellIdx, specialCells.length).map(index => specialCells[index]) : [];
       for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
           if (!shape[r][c]) continue;
@@ -1093,12 +1196,22 @@ export default function MoltenBlocksPage() {
           if (y < 0) continue;
           // Skip the block draw for the item cell — item rendering replaces it below
           if (y === itemCellRow && x === itemCellCol) continue;
-          if (specialCell && y === specialCell[0] && x === specialCell[1]) continue;
+          if (specialPositions.some(([row, col]) => y === row && x === col)) continue;
           drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type);
         }
       }
-      if (specialCell && special) {
-        drawSpecial(offX + specialCell[1] * cell, offY + specialCell[0] * cell, special.kind);
+      if (special) {
+        for (const [row, col] of specialPositions) {
+          drawSpecial(offX + col * cell, offY + row * cell, special.kind === "laser" ? "laser" : "stone");
+        }
+      }
+      if (pendingMultiplierRef.current !== null) {
+        const cells: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c] && active.y + r >= 0) cells.push([active.y + r, active.x + c]);
+        if (cells.length) {
+          const [r, c] = cells[pendingMultiplierRef.current % cells.length];
+          drawMultiplier(offX + c * cell, offY + r * cell);
+        }
       }
       // Item cell: draw item image replacing the block entirely
       if (pendingDropItemRef.current && itemCellRow >= 0) {
@@ -1144,6 +1257,22 @@ export default function MoltenBlocksPage() {
   const drawSide = () => {
     drawPieceCanvas(sideCanvasRef.current, nextRef.current);
     drawPieceCanvas(holdCanvasRef.current, holdRef.current);
+    if (holdCanvasRef.current && heldMultiplierRef.current !== null && holdRef.current) {
+      const canvas = holdCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        const shape = SHAPES[holdRef.current][0];
+        const cell = Math.floor(Math.min(canvas.width / 5, canvas.height / 4));
+        const offX = Math.floor((canvas.width - shape[0].length * cell) / 2);
+        const offY = Math.floor((canvas.height - shape.length * cell) / 2);
+        const cells: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c]) cells.push([r,c]);
+        const [r,c] = cells[heldMultiplierRef.current % cells.length];
+        ctx.fillStyle = "#ffe98b"; ctx.font = `bold ${Math.max(9, cell * 0.6)}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("x2", offX + (c + 0.5) * cell, offY + (r + 0.5) * cell);
+      }
+    }
     if (holdCanvasRef.current && heldSpecialRef.current) {
       const canvas = holdCanvasRef.current;
       const ctx = canvas.getContext("2d");
@@ -1463,6 +1592,7 @@ export default function MoltenBlocksPage() {
           </div>
           <MiniStat label="BEST" value={hiScore.toLocaleString()} color={accent} testId="text-hi-score" />
           <MiniStat label="COINS" value={coinsEarned.toLocaleString()} color="#ffd166" testId="text-coins-earned" />
+          {multiplierSeconds > 0 && <div data-testid="molten-x2-timer" style={{ color: "#ffe98b", fontSize: 12, fontWeight: 800, alignSelf: "center", whiteSpace: "nowrap" }}>x2 {multiplierSeconds}s</div>}
         </div>
 
         {/* PLAYFIELD — full width, fills remaining vertical space */}

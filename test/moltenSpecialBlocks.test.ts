@@ -2,6 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PETRIFY_COUNTDOWN_MS,
+  MOLTEN_SPECIAL_SPAWN_CHANCE,
+  rollMoltenSpecial,
+  moltenSpecialCellIndices,
+  MOLTEN_X2_SPAWN_CHANCE,
+  MOLTEN_X2_DURATION_MS,
+  laserTripleScoreBonus,
+  removePetrifiedMultipliers,
+  clearedMultiplier,
+  moltenX2Multiplier,
   tickPetrifyingBombs,
   petrifyOccupiedNeighbors,
   planMoltenLineClear,
@@ -80,4 +89,104 @@ test("Molten bomb artwork is wired into active, locked and held-cell rendering",
   assert.ok(page.includes('ctx.drawImage(image, x + pad, y + pad'));
   assert.ok(page.includes('ctx.drawImage(laserArt, x + pad, y + pad'));
   assert.ok(page.includes('ctx.fillText(String(Math.ceil(seconds))'));
+});
+
+test("single, double and laser special spawns have 10/5/15 percent probabilities", () => {
+  assert.equal(MOLTEN_SPECIAL_SPAWN_CHANCE, 0.30);
+  assert.equal(rollMoltenSpecial(0), "stone");
+  assert.equal(rollMoltenSpecial(0.099999), "stone");
+  assert.equal(rollMoltenSpecial(0.10), "double-stone");
+  assert.equal(rollMoltenSpecial(0.149999), "double-stone");
+  assert.equal(rollMoltenSpecial(0.15), "laser");
+  assert.equal(rollMoltenSpecial(0.299999), "laser");
+  assert.equal(rollMoltenSpecial(0.30), null);
+  assert.equal(rollMoltenSpecial(0.9), null);
+  assert.equal(rollMoltenSpecial(-1), null);
+  assert.equal(rollMoltenSpecial(Number.NaN), null);
+  const samples = Array.from({ length: 1000 }, (_, index) => rollMoltenSpecial((index + 0.5) / 1000));
+  assert.equal(samples.filter(kind => kind === "stone").length, 100);
+  assert.equal(samples.filter(kind => kind === "double-stone").length, 50);
+  assert.equal(samples.filter(kind => kind === "laser").length, 150);
+  assert.equal(samples.filter(kind => kind === null).length, 700);
+});
+
+test("double petrification occupies distinct cells and shares the existing countdown behavior", () => {
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 2, 4), [2, 3]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 3, 4), [3, 0]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 3, 2), [1, 0]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 0, 1), [0]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 0, 0), []);
+  assert.deepEqual(moltenSpecialCellIndices("laser", 2, 4), [2]);
+  const bombs = moltenSpecialCellIndices("double-stone", 0, 4).map(col => ({ row: 1, col, remainingMs: PETRIFY_COUNTDOWN_MS }));
+  const expired = tickPetrifyingBombs(bombs, PETRIFY_COUNTDOWN_MS);
+  assert.equal(expired.active.length, 0);
+  assert.equal(expired.expired.length, 2);
+  const board = [
+    ["T", "I", "J", 0],
+    ["O", "S", "L", 0],
+    [0, "Z", "T", 0],
+  ] as const;
+  let stones = board.map(row => row.map(() => false));
+  for (const bomb of expired.expired) stones = petrifyOccupiedNeighbors(board, stones, bomb.row, bomb.col);
+  assert.deepEqual(stones, [
+    [true, true, true, false],
+    [true, true, true, false],
+    [false, true, true, false],
+  ]);
+});
+
+test("double-petrifying pieces cannot be held and draw two active sprites", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes('pendingSpecialRef.current?.kind === "double-stone"'));
+  assert.ok(page.includes("for (const index of moltenSpecialCellIndices("));
+  assert.ok(page.includes("for (const [row, col] of specialPositions)"));
+});
+
+test("petrified cells are greyed out rather than drawn as bomb sprites", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes("rollMoltenSpecial(Math.random())"));
+  assert.ok(page.includes("if (stoneRef.current[r][c])"));
+  assert.ok(page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
+  assert.ok(page.includes('if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000)'));
+  assert.ok(!page.includes('drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs'));
+});
+
+test("laser triple line clear awards an extra 10 points only for exactly three cleared rows", () => {
+  assert.equal(laserTripleScoreBonus([7], [6,7,8]), 10);
+  assert.equal(laserTripleScoreBonus([], [6,7,8]), 0);
+  assert.equal(laserTripleScoreBonus([7], [5,6,7,8]), 0);
+  assert.equal(laserTripleScoreBonus([7], [7,8]), 0);
+});
+
+test("x2 is rare, lasts 20 seconds, and is removed when petrified", () => {
+  assert.equal(MOLTEN_X2_SPAWN_CHANCE, 0.08);
+  assert.equal(MOLTEN_X2_DURATION_MS, 20_000);
+  const multipliers = [[false,true,false],[true,false,false]];
+  const stones = [[false,true,false],[false,false,false]];
+  const surviving = removePetrifiedMultipliers(multipliers, stones);
+  assert.deepEqual(surviving, [[false,false,false],[true,false,false]]);
+  assert.equal(clearedMultiplier(surviving, [0]), false);
+  assert.equal(clearedMultiplier(surviving, [1]), true);
+  assert.equal(moltenX2Multiplier(0, false), 1);
+  assert.equal(moltenX2Multiplier(12_000, false), 2);
+  assert.equal(moltenX2Multiplier(0, true), 2);
+});
+
+test("x2 grid collapses with the same cleared rows as the board", () => {
+  const marks = [[true,false],[false,true],[true,true]];
+  assert.deepEqual(collapseMoltenRows(marks, [1], false), [[false,false],[true,false],[true,true]]);
+});
+
+test("bomb and x2 visual accents are drawn in the existing canvas with animated embers", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes("const drawEmbers = ("));
+  assert.ok(page.includes('ctx.strokeText("x2"'));
+  assert.ok(page.includes('ctx.fillText("x2"'));
+  assert.ok(page.includes('drawEmbers(x, y, Math.round(x + y * 13)'));
+  assert.ok(page.includes('drawEmbers(x, y, Math.round(x * 3 + y * 11)'));
+  assert.ok(page.includes("ctx.shadowBlur"));
+  assert.ok(page.includes("const effectTime = performance.now() / 1000"));
 });
