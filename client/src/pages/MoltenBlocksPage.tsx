@@ -1538,7 +1538,6 @@ export default function MoltenBlocksPage() {
           </button>
         </div>
       )}
-      {holdWarning && <div data-testid="molten-hold-warning-scrim" style={{ position: "absolute", inset: 0, zIndex: 49, background: "rgba(5,2,1,0.64)", pointerEvents: "auto" }} />}
       <ViewportBackdropPortal>
         <div
           data-testid="molten-blocks-viewport-backdrop"
@@ -1579,7 +1578,7 @@ export default function MoltenBlocksPage() {
           </div>
         </div>
 
-        <button data-testid="button-help-molten" aria-label="How to Play" onClick={openHelp} disabled={showIntro || gameOver || holdWarning} style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`, color: accent, borderRadius: "50%", width: 34, height: 34, fontSize: 17, fontWeight: 800, cursor: "pointer" }}>?</button>
+        <button data-testid="button-help-molten" aria-label="How to Play" onClick={openHelp} disabled={showIntro || gameOver || holdWarning || showHelp} style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`, color: accent, borderRadius: "50%", width: 34, height: 34, fontSize: 17, fontWeight: 800, cursor: "pointer" }}>?</button>
         <button
           data-testid="button-pause"
           onClick={() => { if (!showHelp && !holdWarning) { resetInputAfterDialog(); setPaused(p => !p); } }}
@@ -1680,6 +1679,8 @@ export default function MoltenBlocksPage() {
           }}>{award.rarity.toUpperCase()} DROP</div>
         </div>
       ))}
+
+      {holdWarning && <div data-testid="molten-hold-warning-scrim" style={{ position: "absolute", inset: 0, zIndex: 49, background: "rgba(5,2,1,0.64)", pointerEvents: "auto" }} />}
 
       {/* Existing rules overlay can be reopened without restarting the run. */}
       {((showIntro && introStep === 1) || showHelp) && !gameOver && (
