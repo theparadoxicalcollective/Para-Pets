@@ -1049,6 +1049,7 @@ export default function MoltenBlocksPage() {
       }
     };
 
+    const bombByCell = new Map(bombsRef.current.map(b => [`${b.row}:${b.col}`, b]));
     // Animated accents are drawn inside existing board cells, without extra DOM layers.
     // Deterministic orbs avoid per-frame random flicker and keep the effects inexpensive.
     const effectTime = performance.now() / 1000;
