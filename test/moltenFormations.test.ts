@@ -29,6 +29,8 @@ test("all custom formations are connected, rotate four times and fit the board",
   }
 });
 test("two-cell Ember Pair and three-cell Ember Hook help repair crowded rows",()=>{
+  // Verify the new straight piece rotates vertically without changing size.
+  assert.deepEqual(MOLTEN_FORMATIONS.K[1],[[1],[1],[1],[1]]);
   assert.equal(moltenFormationCells("K"),4);
   assert.deepEqual(MOLTEN_FORMATIONS.K[0],[[1,1,1,1]]);
   assert.equal(moltenFormationCells("Z"),4);
