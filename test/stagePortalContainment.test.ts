@@ -70,3 +70,34 @@ test("battle drag ghosts use their respective coordinate owners and Clearing kee
   assert.match(clearing, /const scaleX = rect\.width \/ Math\.max\(1, logicalWidth\)/);
   assert.match(clearing, /\(e\.clientX - rect\.left\) \/ scaleX/);
 });
+
+test("portal target honors native viewport ownership across screen sizes and mount transitions", async () => {
+  const { getStagePortalTarget } = await import("../client/src/lib/stage");
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const body = { id: "body" };
+  const stage = { dataset: {} as Record<string, string>, id: "game-stage" };
+  const content = { id: "game-stage-content" };
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      body,
+      getElementById(id: string) {
+        return id === "game-stage" ? stage : id === "game-stage-content" ? content : null;
+      },
+    },
+  });
+  try {
+    // The native root can be mounting before its coordinate-owner attribute exists.
+    assert.equal(getStagePortalTarget(), body);
+    stage.dataset.coordinateOwner = "viewport";
+    assert.equal(getStagePortalTarget(), body);
+    // Keep the explicit stage-owner branch for any audited legacy consumer.
+    stage.dataset.coordinateOwner = "stage";
+    assert.equal(getStagePortalTarget(), content);
+    delete stage.dataset.coordinateOwner;
+    assert.equal(getStagePortalTarget(), body);
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "document", previous);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+});

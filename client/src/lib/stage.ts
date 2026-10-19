@@ -479,8 +479,8 @@ export function getStagePortalTarget(): HTMLElement {
   const content = document.getElementById("game-stage-content");
   if (stage?.dataset.coordinateOwner === "stage") return content ?? stage;
   if (stage?.dataset.coordinateOwner === "viewport") return document.body;
-  // Compatibility fallback while an older root shell is still mounting.
-  if (!isNarrowLayout(getVisibleViewport().width)) return content ?? stage ?? document.body;
+  // The root now owns the device viewport on every screen size. During mount,
+  // an unlabelled stage must not silently become a desktop-only portal target.
   return document.body;
 }
 
