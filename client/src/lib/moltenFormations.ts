@@ -1,21 +1,22 @@
 /** Original connected Molten formations. Keys retain existing tile-art colors. */
-export type MoltenFormation = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
+export type MoltenFormation = "I" | "O" | "T" | "S" | "Z" | "L" | "J" | "K";
 export type FormationMatrix = number[][];
 const BASE: Record<MoltenFormation, FormationMatrix> = {
   I: [[1,1]],                         // Ember Pair: gap-repair domino
   O: [[0,1,0],[1,1,1],[0,1,0]],     // Molten Spear (5)
   T: [[0,1],[1,1]],                 // Ember Hook (3)
   S: [[1,1,0],[0,1,1],[0,0,1]],     // Magma Step (5)
-  Z: [[1,1,1],[0,1,0],[0,1,0]],     // Ash Fork (5)
+  Z: [[1,1,1],[0,1,0]],             // Ash Fork (4)
   L: [[1,1,0],[0,1,0],[0,1,1]],     // Serpent (5)
   J: [[0,1,0,1,0],[1,1,1,1,1]],     // Lava Crown (7, rare)
+  K: [[1,1,1,1]],                     // Cinder Line (4)
 };
 export const MOLTEN_FORMATION_NAMES: Record<MoltenFormation,string> = {
   I: "Ember Pair", O: "Molten Spear", T: "Ember Hook", S: "Magma Step",
-  Z: "Ash Fork", L: "Serpent", J: "Lava Crown",
+  Z: "Ash Fork", L: "Serpent", J: "Lava Crown", K: "Cinder Line",
 };
 export const MOLTEN_FORMATION_WEIGHTS: Record<MoltenFormation,number> = {
-  I: 3, O: 2, T: 2, S: 2, Z: 2, L: 2, J: 1,
+  I: 4, O: 1, T: 4, S: 1, Z: 3, L: 1, J: 1, K: 3,
 };
 export function rotateMoltenFormation(matrix: FormationMatrix): FormationMatrix {
   return matrix[0].map((_, col) => matrix.map(row => row[col]).reverse());
