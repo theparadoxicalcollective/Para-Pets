@@ -5,6 +5,12 @@ import {
   MOLTEN_SPECIAL_SPAWN_CHANCE,
   rollMoltenSpecial,
   moltenSpecialCellIndices,
+  MOLTEN_X2_SPAWN_CHANCE,
+  MOLTEN_X2_DURATION_MS,
+  laserTripleScoreBonus,
+  removePetrifiedMultipliers,
+  clearedMultiplier,
+  moltenX2Multiplier,
   tickPetrifyingBombs,
   petrifyOccupiedNeighbors,
   planMoltenLineClear,
@@ -145,4 +151,30 @@ test("petrified cells are greyed out rather than drawn as bomb sprites", async (
   assert.ok(page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
   assert.ok(page.includes('if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000)'));
   assert.ok(!page.includes('drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs'));
+});
+
+test("laser triple line clear awards an extra 10 points only for exactly three cleared rows", () => {
+  assert.equal(laserTripleScoreBonus([7], [6,7,8]), 10);
+  assert.equal(laserTripleScoreBonus([], [6,7,8]), 0);
+  assert.equal(laserTripleScoreBonus([7], [5,6,7,8]), 0);
+  assert.equal(laserTripleScoreBonus([7], [7,8]), 0);
+});
+
+test("x2 is rare, lasts 20 seconds, and is removed when petrified", () => {
+  assert.equal(MOLTEN_X2_SPAWN_CHANCE, 0.08);
+  assert.equal(MOLTEN_X2_DURATION_MS, 20_000);
+  const multipliers = [[false,true,false],[true,false,false]];
+  const stones = [[false,true,false],[false,false,false]];
+  const surviving = removePetrifiedMultipliers(multipliers, stones);
+  assert.deepEqual(surviving, [[false,false,false],[true,false,false]]);
+  assert.equal(clearedMultiplier(surviving, [0]), false);
+  assert.equal(clearedMultiplier(surviving, [1]), true);
+  assert.equal(moltenX2Multiplier(0, false), 1);
+  assert.equal(moltenX2Multiplier(12_000, false), 2);
+  assert.equal(moltenX2Multiplier(0, true), 2);
+});
+
+test("x2 grid collapses with the same cleared rows as the board", () => {
+  const marks = [[true,false],[false,true],[true,true]];
+  assert.deepEqual(collapseMoltenRows(marks, [1], false), [[false,false],[true,false],[true,true]]);
 });
