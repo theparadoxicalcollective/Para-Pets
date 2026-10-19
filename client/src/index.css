@@ -2127,18 +2127,10 @@
 /* ───────────────────────────────────────────────────────────────────────────
  * Cross-device gameplay stage
  *
- * Gameplay is authored against the canonical 390×844 #game-stage coordinate
- * system. iPhone 12 remains the pixel-faithful scale-1 reference. Stage-owned
- * tablets/desktops can uniformly scale that logical coordinate plane while
- * full-device backdrop, scene, HUD, and modal surfaces provide a seamless
- * larger-screen presentation around it.
- *
- * Viewport units inside the stage must remain STAGE-relative, not
- * window-relative, or authored placements would shift with the outer browser
- * size. At :root the custom properties still describe the real viewport;
- * inside #game-stage they become logical stage pixels that scale with the
- * transform. Source vw/vh/svh/dvh usages are rewritten to
- * calc(N * var(--vw|--vh)).
+ * Runtime gameplay uses the measured device viewport, not a scaled 390×844
+ * reference plane. --vw/--vh at :root and #game-stage describe viewport
+ * dimensions; authored scene coordinates belong to each scene/camera.
+ * Keep these CSS variable names while auditing downstream consumers.
  * ─────────────────────────────────────────────────────────────────────────── */
 :root {
   --vw: 1vw;
