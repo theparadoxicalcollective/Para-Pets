@@ -244,6 +244,7 @@ export default function MoltenBlocksPage() {
   const holdRef = useRef<Piece | null>(null);
   const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
   const heldSpecialRef = useRef<{ kind: "laser"; cellIdx: number } | null>(null);
+  const heldMultiplierRef = useRef<number | null>(null);
   const [holdWarning, setHoldWarning] = useState(false);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
@@ -368,9 +369,11 @@ export default function MoltenBlocksPage() {
     laserRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     multiplierBoardRef.current = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     pendingMultiplierRef.current = null;
+    heldMultiplierRef.current = null;
     bombsRef.current = [];
     pendingSpecialRef.current = null;
     heldSpecialRef.current = null;
+    heldMultiplierRef.current = null;
     setHoldWarning(false);
     lastBombTickRef.current = null;
     pendingDropItemRef.current = null;
@@ -603,6 +606,9 @@ export default function MoltenBlocksPage() {
     const stashed = holdRef.current;
     heldSpecialRef.current = carriedLaser;
     pendingSpecialRef.current = stashed == null ? null : stashedLaser;
+    const carriedMultiplier = pendingMultiplierRef.current;
+    pendingMultiplierRef.current = stashed == null ? null : heldMultiplierRef.current;
+    heldMultiplierRef.current = carriedMultiplier;
     playHoldSwap();
     if (stashed == null) {
       // First hold this run — stash current and bring in the next-queue piece.
@@ -1220,6 +1226,22 @@ export default function MoltenBlocksPage() {
   const drawSide = () => {
     drawPieceCanvas(sideCanvasRef.current, nextRef.current);
     drawPieceCanvas(holdCanvasRef.current, holdRef.current);
+    if (holdCanvasRef.current && heldMultiplierRef.current !== null && holdRef.current) {
+      const canvas = holdCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        const shape = SHAPES[holdRef.current][0];
+        const cell = Math.floor(Math.min(canvas.width / 5, canvas.height / 4));
+        const offX = Math.floor((canvas.width - shape[0].length * cell) / 2);
+        const offY = Math.floor((canvas.height - shape.length * cell) / 2);
+        const cells: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c]) cells.push([r,c]);
+        const [r,c] = cells[heldMultiplierRef.current % cells.length];
+        ctx.fillStyle = "#ffe98b"; ctx.font = `bold ${Math.max(9, cell * 0.6)}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("x2", offX + (c + 0.5) * cell, offY + (r + 0.5) * cell);
+      }
+    }
     if (holdCanvasRef.current && heldSpecialRef.current) {
       const canvas = holdCanvasRef.current;
       const ctx = canvas.getContext("2d");
@@ -1539,6 +1561,7 @@ export default function MoltenBlocksPage() {
           </div>
           <MiniStat label="BEST" value={hiScore.toLocaleString()} color={accent} testId="text-hi-score" />
           <MiniStat label="COINS" value={coinsEarned.toLocaleString()} color="#ffd166" testId="text-coins-earned" />
+          {multiplierSeconds > 0 && <div data-testid="molten-x2-timer" style={{ color: "#ffe98b", fontSize: 12, fontWeight: 800, alignSelf: "center", whiteSpace: "nowrap" }}>x2 {multiplierSeconds}s</div>}
         </div>
 
         {/* PLAYFIELD — full width, fills remaining vertical space */}
