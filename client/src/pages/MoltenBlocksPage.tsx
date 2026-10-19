@@ -5,13 +5,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { playBlockMove, playBlockRotate, playBlockLock, playBlockHardDrop, playLineClear, playHoldSwap, playDefeat, playShopBell } from "@/lib/sounds";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
-import blockI from "@assets/molten_block_I.webp";
-import blockO from "@assets/molten_block_O.webp";
-import blockT from "@assets/molten_block_T.webp";
-import blockS from "@assets/molten_block_S.webp";
-import blockZ from "@assets/molten_block_Z.webp";
-import blockL from "@assets/molten_block_L.webp";
-import blockJ from "@assets/molten_block_J.webp";
+import blockI from "@assets/uploads/BlockTexture1.png";
+import blockO from "@assets/uploads/BlockTexture2.png";
+import blockT from "@assets/uploads/BlockTexture3.png";
+import blockS from "@assets/uploads/BlockTexture4.png";
+import blockZ from "@assets/uploads/BlockTexture5.png";
+import blockL from "@assets/uploads/BlockTexture6.png";
+import blockJ from "@assets/uploads/BlockTexture7.png";
+import petrifiedBlockTexture from "@assets/uploads/PetrifiedBlock.png";
 import bgMolten from "@assets/shop_volcanic.png";
 import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
 import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
@@ -282,6 +283,7 @@ export default function MoltenBlocksPage() {
 
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
+  const petrifiedImgRef = useRef<HTMLImageElement | null>(null);
   const bombImgsRef = useRef<Partial<Record<"stone" | "laser", HTMLImageElement>>>({});
   const coinPickupImgRef = useRef<HTMLImageElement | null>(null);
   useEffect(() => { const img = new Image(); img.src = coinBonusArt; coinPickupImgRef.current = img; }, []);
@@ -303,6 +305,12 @@ export default function MoltenBlocksPage() {
       img.src = PIECE_IMG_SRC[t];
       imgsRef.current[t] = img;
     });
+  }, []);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = petrifiedBlockTexture;
+    petrifiedImgRef.current = img;
   }, []);
 
   // ── Pull next piece from the bag ────────────────────────────────────────
@@ -899,7 +907,7 @@ export default function MoltenBlocksPage() {
       ctx.shadowColor = PIECE_GLOW[type];
     }
     if (img && img.complete && img.naturalWidth > 0) {
-      // Fill behind the opaque center-cropped texture so the corners never
+      // Fill behind the uploaded texture so the corners never
       // become transparent artifacts as the piece moves.
       if (!ghost) {
         ctx.fillStyle = PIECE_BASE[type];
@@ -910,11 +918,6 @@ export default function MoltenBlocksPage() {
       ctx.imageSmoothingEnabled = true;
       // Preserve the authored block artwork rather than enlarging a tiny center crop.
       ctx.drawImage(img, x, y, size, size);
-      if (type === "K") {
-        // Cinder Line shares Ember Pair artwork but has its own warm-gold tint.
-        ctx.fillStyle = "rgba(255,176,60,0.22)";
-        ctx.fillRect(x, y, size, size);
-      }
       ctx.imageSmoothingEnabled = previousSmoothing;
     } else {
       if (ghost) ctx.globalAlpha = 0.32;
@@ -1103,24 +1106,20 @@ export default function MoltenBlocksPage() {
       const y = offY + r * cell;
       if (stoneRef.current[r][c]) {
         ctx.save();
-        // Preserve the original lava cracks under a neutral charcoal tint.
-        // The dark overlay is reliable on mobile canvas implementations and
-        // prevents colorful edges from surviving a CSS-style filter.
+        // Draw the uploaded petrified stone artwork over the locked tile.
+        // Keep the same cell coordinates and rounded corners as normal blocks.
         const radius = Math.max(2, Math.min(5, cell * 0.12));
         ctx.beginPath();
         ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius);
         ctx.clip();
-        ctx.fillStyle = "rgba(12,13,17,0.58)";
-        ctx.fillRect(x, y, cell, cell);
-        ctx.restore();
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius);
-        ctx.strokeStyle = "rgba(132,139,153,0.78)";
-        ctx.shadowColor = "rgba(105,113,128,0.42)";
-        ctx.shadowBlur = cell * 0.13;
-        ctx.lineWidth = Math.max(1.2, cell * 0.045);
-        ctx.stroke();
+        const stoneImg = petrifiedImgRef.current;
+        if (stoneImg?.complete && stoneImg.naturalWidth > 0) {
+          ctx.drawImage(stoneImg, x, y, cell, cell);
+        } else {
+          // Only while the asset is loading: retain the existing block texture.
+          ctx.fillStyle = "rgba(12,13,17,0.35)";
+          ctx.fillRect(x, y, cell, cell);
+        }
         ctx.restore();
       } else {
         const bomb = bombByCell.get(`${r}:${c}`);
