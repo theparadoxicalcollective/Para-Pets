@@ -831,8 +831,10 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {grouped.map(([shopItemId, { item, count }]) => {
+                  // `count` is already the number of unplaced fish. Comparing it to
+                  // inTank wrongly disables a fish type whenever some are displayed.
                   const inTank = aquariumFish.filter(f => f.shopItemId === shopItemId).length;
-                  const canAdd = aquariumFish.length < AQ_MAX && inTank < count;
+                  const canAdd = aquariumFish.length < AQ_MAX && count > 0;
                   return (
                     <div
                       key={shopItemId}

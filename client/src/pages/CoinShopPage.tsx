@@ -106,6 +106,26 @@ function styleForCoins(coins: number): PackStyle {
 }
 
 
+const limitedEggStyles = `
+  @keyframes coinShopEggTwinkle {
+    0%, 100% { opacity: .18; transform: scale(.65) rotate(0deg); }
+    45% { opacity: 1; transform: scale(1.18) rotate(25deg); }
+    70% { opacity: .4; transform: scale(.85) rotate(40deg); }
+  }
+  .coin-shop-limited-egg { isolation: isolate; }
+  .coin-shop-egg-sparkle {
+    position: absolute; color: #fff4c6; font-size: 19px; line-height: 1;
+    text-shadow: 0 0 6px #fff, 0 0 12px #e2a7ff;
+    animation: coinShopEggTwinkle 2.8s ease-in-out infinite;
+  }
+  .coin-shop-egg-sparkle-one { left: 8%; top: 10%; }
+  .coin-shop-egg-sparkle-two { right: 0; top: 30%; animation-delay: .85s; font-size: 15px; }
+  .coin-shop-egg-sparkle-three { left: 30%; bottom: 2%; animation-delay: 1.6s; font-size: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    .coin-shop-egg-sparkle { animation: none; opacity: .65; }
+  }
+`;
+
 const fireflies = [
   { left: "15%", bottom: "60%", animation: "fireflyDrift1 6s ease-in-out infinite", color: "rgba(180,255,200,0.9)", size: 4 },
   { left: "75%", bottom: "40%", animation: "fireflyDrift2 8s ease-in-out 1s infinite", color: "rgba(127,255,212,0.85)", size: 3 },
@@ -387,6 +407,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   return (
     <div data-stage-coordinate-space="canonical" style={{ position: "absolute", inset: 0, pointerEvents: "auto", overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      <style>{limitedEggStyles}</style>
       <ViewportBackdropPortal>
         <div
           data-testid="coin-shop-viewport-backdrop"
@@ -987,21 +1008,33 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   {/* Egg pop-piece: floating outside the card at bottom-right */}
                   {bonus?.eggUrl && (
                     <>
-                      <img
-                        src={bonus.eggUrl}
-                        alt={bonus.name}
-                        className="object-contain"
+                      <div
+                        data-testid={`limited-egg-spotlight-${pack.id}`}
+                        className="coin-shop-limited-egg"
                         style={{
                           position: "absolute",
-                          bottom: -18,
-                          right: -14,
-                          width: 72, height: 72,
-                          transform: "rotate(14deg) scale(1.05)",
+                          bottom: -22,
+                          right: -12,
+                          width: "clamp(84px, 28vw, 110px)",
+                          aspectRatio: "1",
                           pointerEvents: "none",
                           zIndex: 4,
-                          filter: "drop-shadow(0 0 12px rgba(200,80,255,1)) drop-shadow(0 0 28px rgba(160,40,220,0.85)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
                         }}
-                      />
+                      >
+                        <img
+                          src={bonus.eggUrl}
+                          alt={bonus.name}
+                          className="object-contain coin-shop-limited-egg-art"
+                          style={{
+                            width: "100%", height: "100%",
+                            transform: "rotate(10deg)",
+                            filter: "drop-shadow(0 0 12px rgba(200,80,255,0.9)) drop-shadow(0 0 22px rgba(160,40,220,0.7)) drop-shadow(0 3px 8px rgba(0,0,0,0.65))",
+                          }}
+                        />
+                        <span className="coin-shop-egg-sparkle coin-shop-egg-sparkle-one" aria-hidden="true">✦</span>
+                        <span className="coin-shop-egg-sparkle coin-shop-egg-sparkle-two" aria-hidden="true">✧</span>
+                        <span className="coin-shop-egg-sparkle coin-shop-egg-sparkle-three" aria-hidden="true">✦</span>
+                      </div>
                       <span
                         className="font-fantasy text-[8px] tracking-wide text-center w-full"
                         style={{
