@@ -74,8 +74,8 @@ test("parallel board and special-cell metadata collapse by the same rows", () =>
 test("Molten bomb artwork is wired into active, locked and held-cell rendering", async () => {
   const { readFileSync } = await import("node:fs");
   const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
-  assert.ok(page.includes('attached_assets/uploads/PetrifyingBomb.png'));
-  assert.ok(page.includes('attached_assets/uploads/LaserBomb.png'));
+  assert.ok(page.includes('@assets/uploads/PetrifyingBomb.png'));
+  assert.ok(page.includes('@assets/uploads/LaserBomb.png'));
   assert.ok(page.includes('const bombImgsRef = useRef'));
   assert.ok(page.includes('ctx.drawImage(image, x + pad, y + pad'));
   assert.ok(page.includes('ctx.drawImage(laserArt, x + pad, y + pad'));
