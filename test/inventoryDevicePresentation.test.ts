@@ -23,8 +23,10 @@ test("page-mode inventory owns the canonical stage and its expanded backdrop", (
 });
 
 test("dedicated inventory dialogs use the shared viewport modal layer without changing overlay mode", () => {
-  assert.equal((inventory.match(/<ViewportModalPortal enabled=\{!!pageMode\}>/g) ?? []).length, 4);
-  assert.equal((inventory.match(/<\/ViewportModalPortal>/g) ?? []).length, 4);
+  // The Bag pet detail dialog adds one more use of the existing modal layer.
+  assert.equal((inventory.match(/<ViewportModalPortal enabled=\{!!pageMode\}>/g) ?? []).length, 5);
+  assert.equal((inventory.match(/<\/ViewportModalPortal>/g) ?? []).length, 5);
+  assert.match(inventory, /data-testid="modal-bag-pet-detail"/);
 
   assert.match(inventory, /className=\{pageMode \? "absolute inset-0 z-\[80\] flex items-end justify-center" : "fixed inset-0 z-\[80\] flex items-end justify-center"\}/);
   assert.match(inventory, /className=\{pageMode \? "absolute inset-0 z-\[100\] flex items-center justify-center" : "fixed inset-0 z-\[100\] flex items-center justify-center"\}/);
