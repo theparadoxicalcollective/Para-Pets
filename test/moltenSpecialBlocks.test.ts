@@ -4,6 +4,7 @@ import {
   PETRIFY_COUNTDOWN_MS,
   MOLTEN_SPECIAL_SPAWN_CHANCE,
   rollMoltenSpecial,
+  moltenSpecialCellIndices,
   tickPetrifyingBombs,
   petrifyOccupiedNeighbors,
   planMoltenLineClear,
@@ -84,20 +85,56 @@ test("Molten bomb artwork is wired into active, locked and held-cell rendering",
   assert.ok(page.includes('ctx.fillText(String(Math.ceil(seconds))'));
 });
 
-test("special bombs spawn at balanced, predictable probability boundaries", () => {
-  assert.equal(MOLTEN_SPECIAL_SPAWN_CHANCE, 0.16);
+test("single, double and laser special spawns have 5/3/12 percent probabilities", () => {
+  assert.equal(MOLTEN_SPECIAL_SPAWN_CHANCE, 0.20);
   assert.equal(rollMoltenSpecial(0), "stone");
-  assert.equal(rollMoltenSpecial(0.079999), "stone");
+  assert.equal(rollMoltenSpecial(0.049999), "stone");
+  assert.equal(rollMoltenSpecial(0.05), "double-stone");
+  assert.equal(rollMoltenSpecial(0.079999), "double-stone");
   assert.equal(rollMoltenSpecial(0.08), "laser");
-  assert.equal(rollMoltenSpecial(0.159999), "laser");
-  assert.equal(rollMoltenSpecial(0.16), null);
+  assert.equal(rollMoltenSpecial(0.199999), "laser");
+  assert.equal(rollMoltenSpecial(0.20), null);
   assert.equal(rollMoltenSpecial(0.9), null);
   assert.equal(rollMoltenSpecial(-1), null);
   assert.equal(rollMoltenSpecial(Number.NaN), null);
   const samples = Array.from({ length: 1000 }, (_, index) => rollMoltenSpecial((index + 0.5) / 1000));
-  assert.equal(samples.filter(kind => kind === "stone").length, 80);
-  assert.equal(samples.filter(kind => kind === "laser").length, 80);
-  assert.equal(samples.filter(kind => kind === null).length, 840);
+  assert.equal(samples.filter(kind => kind === "stone").length, 50);
+  assert.equal(samples.filter(kind => kind === "double-stone").length, 30);
+  assert.equal(samples.filter(kind => kind === "laser").length, 120);
+  assert.equal(samples.filter(kind => kind === null).length, 800);
+});
+
+test("double petrification occupies distinct cells and shares the existing countdown behavior", () => {
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 2, 4), [2, 3]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 3, 4), [3, 0]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 3, 2), [1, 0]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 0, 1), [0]);
+  assert.deepEqual(moltenSpecialCellIndices("double-stone", 0, 0), []);
+  assert.deepEqual(moltenSpecialCellIndices("laser", 2, 4), [2]);
+  const bombs = moltenSpecialCellIndices("double-stone", 0, 4).map(col => ({ row: 1, col, remainingMs: PETRIFY_COUNTDOWN_MS }));
+  const expired = tickPetrifyingBombs(bombs, PETRIFY_COUNTDOWN_MS);
+  assert.equal(expired.active.length, 0);
+  assert.equal(expired.expired.length, 2);
+  const board = [
+    ["T", "I", "J", 0],
+    ["O", "S", "L", 0],
+    [0, "Z", "T", 0],
+  ] as const;
+  let stones = board.map(row => row.map(() => false));
+  for (const bomb of expired.expired) stones = petrifyOccupiedNeighbors(board, stones, bomb.row, bomb.col);
+  assert.deepEqual(stones, [
+    [true, true, true, false],
+    [true, true, true, false],
+    [false, true, true, false],
+  ]);
+});
+
+test("double-petrifying pieces cannot be held and draw two active sprites", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes('pendingSpecialRef.current?.kind === "double-stone"'));
+  assert.ok(page.includes("for (const index of moltenSpecialCellIndices("));
+  assert.ok(page.includes("for (const [row, col] of specialPositions)"));
 });
 
 test("petrified cells are greyed out rather than drawn as bomb sprites", async () => {
