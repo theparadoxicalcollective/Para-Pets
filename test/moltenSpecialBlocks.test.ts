@@ -178,3 +178,15 @@ test("x2 grid collapses with the same cleared rows as the board", () => {
   const marks = [[true,false],[false,true],[true,true]];
   assert.deepEqual(collapseMoltenRows(marks, [1], false), [[false,false],[true,false],[true,true]]);
 });
+
+test("bomb and x2 visual accents are drawn in the existing canvas with animated embers", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes("const drawEmbers = ("));
+  assert.ok(page.includes('ctx.strokeText("x2"'));
+  assert.ok(page.includes('ctx.fillText("x2"'));
+  assert.ok(page.includes('drawEmbers(x, y, Math.round(x + y * 13)'));
+  assert.ok(page.includes('drawEmbers(x, y, Math.round(x * 3 + y * 11)'));
+  assert.ok(page.includes("ctx.shadowBlur"));
+  assert.ok(page.includes("const effectTime = performance.now() / 1000"));
+});
