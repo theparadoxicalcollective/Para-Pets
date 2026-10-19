@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PETRIFY_COUNTDOWN_MS,
+  MOLTEN_SPECIAL_SPAWN_CHANCE,
+  rollMoltenSpecial,
   tickPetrifyingBombs,
   petrifyOccupiedNeighbors,
   planMoltenLineClear,
@@ -80,4 +82,30 @@ test("Molten bomb artwork is wired into active, locked and held-cell rendering",
   assert.ok(page.includes('ctx.drawImage(image, x + pad, y + pad'));
   assert.ok(page.includes('ctx.drawImage(laserArt, x + pad, y + pad'));
   assert.ok(page.includes('ctx.fillText(String(Math.ceil(seconds))'));
+});
+
+test("special bombs spawn at balanced, predictable probability boundaries", () => {
+  assert.equal(MOLTEN_SPECIAL_SPAWN_CHANCE, 0.16);
+  assert.equal(rollMoltenSpecial(0), "stone");
+  assert.equal(rollMoltenSpecial(0.079999), "stone");
+  assert.equal(rollMoltenSpecial(0.08), "laser");
+  assert.equal(rollMoltenSpecial(0.159999), "laser");
+  assert.equal(rollMoltenSpecial(0.16), null);
+  assert.equal(rollMoltenSpecial(0.9), null);
+  assert.equal(rollMoltenSpecial(-1), null);
+  assert.equal(rollMoltenSpecial(Number.NaN), null);
+  const samples = Array.from({ length: 1000 }, (_, index) => rollMoltenSpecial((index + 0.5) / 1000));
+  assert.equal(samples.filter(kind => kind === "stone").length, 80);
+  assert.equal(samples.filter(kind => kind === "laser").length, 80);
+  assert.equal(samples.filter(kind => kind === null).length, 840);
+});
+
+test("petrified cells are greyed out rather than drawn as bomb sprites", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes("rollMoltenSpecial(Math.random())"));
+  assert.ok(page.includes("if (stoneRef.current[r][c])"));
+  assert.ok(page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
+  assert.ok(page.includes('if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000)'));
+  assert.ok(!page.includes('drawSpecial(offX + c * cell, offY + r * cell, "stone", bomb?.remainingMs'));
 });
