@@ -407,6 +407,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   return (
     <div data-stage-coordinate-space="canonical" style={{ position: "absolute", inset: 0, pointerEvents: "auto", overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      <style>{limitedEggStyles}</style>
       <ViewportBackdropPortal>
         <div
           data-testid="coin-shop-viewport-backdrop"
