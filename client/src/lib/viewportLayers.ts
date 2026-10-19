@@ -2,8 +2,8 @@
  * Shared viewport-layer policy for Para Pets.
  *
  * Keep stacking and input ownership in one place so a visual portal cannot
- * accidentally become a full-screen hit target. Authored gameplay coordinates
- * remain owned by the canonical stage/reference plane.
+ * accidentally become a full-screen hit target. Gameplay pages own the device
+ * viewport; authored world coordinates remain owned by their individual scenes.
  */
 export const VIEWPORT_LAYER_Z = {
   backdrop: 0,

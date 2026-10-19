@@ -4,10 +4,9 @@ import { createPortal } from "react-dom";
 const HUD_TARGET_ID = "game-viewport-hud";
 
 /**
- * Persistent controls can live on the visible-device HUD while gameplay keeps
- * using the canonical iPhone-12-based stage. The target itself is still a
- * child of #game-stage, so existing modal/z-index relationships remain local
- * to the game rather than escaping into document.body.
+ * Persistent controls live on the device-viewport HUD. The target remains
+ * inside #game-stage for local stacking and modal ordering; the runtime root
+ * no longer scales that container to a phone-sized reference plane.
  */
 export default function ViewportHudPortal({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<HTMLElement | null>(null);
