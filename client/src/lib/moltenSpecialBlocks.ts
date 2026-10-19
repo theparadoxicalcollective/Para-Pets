@@ -83,15 +83,15 @@ export function collapseMoltenRows<T>(grid: readonly (readonly T[])[], clearedRo
   ];
 }
 
-/** Special pieces total 20%: 5% single petrify, 3% double petrify, 12% laser. */
-export const MOLTEN_SPECIAL_SPAWN_CHANCE = 0.20;
+/** Special pieces total 30%: 10% single petrify, 5% double petrify, 15% laser. */
+export const MOLTEN_SPECIAL_SPAWN_CHANCE = 0.30;
 
 export type MoltenSpecialKind = "stone" | "double-stone" | "laser";
 
 export function rollMoltenSpecial(roll: number): MoltenSpecialKind | null {
   if (!Number.isFinite(roll) || roll < 0 || roll >= MOLTEN_SPECIAL_SPAWN_CHANCE) return null;
-  if (roll < 0.05) return "stone";
-  if (roll < 0.08) return "double-stone";
+  if (roll < 0.10) return "stone";
+  if (roll < 0.15) return "double-stone";
   return "laser";
 }
 
