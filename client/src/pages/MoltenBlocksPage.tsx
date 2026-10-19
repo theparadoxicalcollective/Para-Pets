@@ -19,7 +19,7 @@ import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import petrifyingBombArt from "@assets/uploads/PetrifyingBomb.png";
 import laserBombArt from "@assets/uploads/LaserBomb.png";
-import { PETRIFY_COUNTDOWN_MS, rollMoltenSpecial, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
+import { PETRIFY_COUNTDOWN_MS, moltenSpecialCellIndices, rollMoltenSpecial, type MoltenSpecialKind, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb } from "@/lib/moltenSpecialBlocks";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -250,7 +250,7 @@ export default function MoltenBlocksPage() {
   const stoneRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
   const laserRef = useRef<boolean[][]>(Array.from({ length: ROWS }, () => Array(COLS).fill(false)));
   const bombsRef = useRef<PetrifyingBomb[]>([]);
-  const pendingSpecialRef = useRef<{ kind: "stone" | "laser"; cellIdx: number } | null>(null);
+  const pendingSpecialRef = useRef<{ kind: MoltenSpecialKind; cellIdx: number } | null>(null);
   const lastBombTickRef = useRef<number | null>(null);
   const blocksLockedRef = useRef(0);
   const dropItemsRef = useRef<DropItem[]>([]);
@@ -581,7 +581,7 @@ export default function MoltenBlocksPage() {
     // No once-per-piece restriction — the player can swap as often as they like.
 
     const currentType = activeRef.current.type;
-    if (pendingSpecialRef.current?.kind === "stone") {
+    if (pendingSpecialRef.current?.kind === "stone" || pendingSpecialRef.current?.kind === "double-stone") {
       setHoldWarning(true);
       return;
     }
@@ -671,17 +671,17 @@ export default function MoltenBlocksPage() {
       pendingDropItemRef.current = null;
     }
 
-    // Place a single special tile in the locked piece's occupied cells.
+    // Lock one or two bomb tiles using the existing piece cells and countdown loop.
     if (pendingSpecialRef.current) {
       const cells: [number, number][] = [];
       const shape = SHAPES[piece.type][piece.rot];
       for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) {
         if (shape[r][c] && piece.y + r >= 0) cells.push([piece.y + r, piece.x + c]);
       }
-      if (cells.length) {
-        const [row, col] = cells[pendingSpecialRef.current.cellIdx % cells.length];
-        if (pendingSpecialRef.current.kind === "stone") bombsRef.current.push({ row, col, remainingMs: PETRIFY_COUNTDOWN_MS });
-        else laserRef.current[row][col] = true;
+      for (const index of moltenSpecialCellIndices(pendingSpecialRef.current.kind, pendingSpecialRef.current.cellIdx, cells.length)) {
+        const [row, col] = cells[index];
+        if (pendingSpecialRef.current.kind === "laser") laserRef.current[row][col] = true;
+        else bombsRef.current.push({ row, col, remainingMs: PETRIFY_COUNTDOWN_MS });
       }
       pendingSpecialRef.current = null;
     }
@@ -1075,7 +1075,7 @@ export default function MoltenBlocksPage() {
         if (shape[r][c] && active.y + r >= 0) specialCells.push([active.y + r, active.x + c]);
       }
       const special = pendingSpecialRef.current;
-      const specialCell = special && specialCells.length ? specialCells[special.cellIdx % specialCells.length] : null;
+      const specialPositions = special ? moltenSpecialCellIndices(special.kind, special.cellIdx, specialCells.length).map(index => specialCells[index]) : [];
       for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
           if (!shape[r][c]) continue;
@@ -1104,12 +1104,14 @@ export default function MoltenBlocksPage() {
           if (y < 0) continue;
           // Skip the block draw for the item cell — item rendering replaces it below
           if (y === itemCellRow && x === itemCellCol) continue;
-          if (specialCell && y === specialCell[0] && x === specialCell[1]) continue;
+          if (specialPositions.some(([row, col]) => y === row && x === col)) continue;
           drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type);
         }
       }
-      if (specialCell && special) {
-        drawSpecial(offX + specialCell[1] * cell, offY + specialCell[0] * cell, special.kind);
+      if (special) {
+        for (const [row, col] of specialPositions) {
+          drawSpecial(offX + col * cell, offY + row * cell, special.kind === "laser" ? "laser" : "stone");
+        }
       }
       // Item cell: draw item image replacing the block entirely
       if (pendingDropItemRef.current && itemCellRow >= 0) {
