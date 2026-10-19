@@ -1049,43 +1049,73 @@ export default function MoltenBlocksPage() {
       }
     };
 
-    // Stone and special-bomb overlays share the board's existing cell coordinates.
-    const bombByCell = new Map(bombsRef.current.map(b => [`${b.row}:${b.col}`, b]));
-    const drawSpecial = (x: number, y: number, kind: "stone" | "laser", seconds?: number) => {
+    // Animated accents are drawn inside existing board cells, without extra DOM layers.
+    // Deterministic orbs avoid per-frame random flicker and keep the effects inexpensive.
+    const effectTime = performance.now() / 1000;
+    const drawEmbers = (x: number, y: number, seed: number, hue: "orange" | "cyan") => {
       ctx.save();
-      const image = bombImgsRef.current[kind];
-      if (image?.complete && image.naturalWidth > 0) {
-        // Sprite stays within the existing cell in every viewport/DPR.
-        const pad = cell * 0.05;
-        ctx.drawImage(image, x + pad, y + pad, cell - pad * 2, cell - pad * 2);
-      } else {
-        // Keep a legible fallback while assets load or if either file fails.
-        ctx.fillStyle = kind === "stone" ? "#706c82" : "#0e5f6e";
-        ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
-      }
-      if (seconds !== undefined) {
-        ctx.fillStyle = "rgba(15,8,5,0.87)";
-        ctx.fillRect(x + cell * 0.22, y + cell * 0.64, cell * 0.56, cell * 0.3);
-        ctx.fillStyle = "#fff2d8";
-        ctx.font = `bold ${Math.max(9, Math.floor(cell * 0.34))}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(Math.ceil(seconds)), x + cell / 2, y + cell * 0.79);
+      const rgb = hue === "cyan" ? "91,236,255" : "255,151,45";
+      for (let i = 0; i < 3; i++) {
+        const phase = (effectTime * (0.42 + i * 0.11) + seed * 0.17 + i * 0.31) % 1;
+        const px = x + cell * (0.22 + ((seed * 7 + i * 3) % 7) * 0.095);
+        const py = y + cell * (0.84 - phase * 0.68);
+        const radius = Math.max(0.8, cell * (0.027 + i * 0.008));
+        ctx.globalAlpha = (0.32 + 0.42 * Math.sin(Math.PI * phase));
+        ctx.fillStyle = `rgba(${rgb},0.95)`;
+        ctx.shadowColor = `rgba(${rgb},0.9)`;
+        ctx.shadowBlur = Math.max(2, cell * 0.14);
+        ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     };
+    const drawSpecial = (x: number, y: number, kind: "stone" | "laser", seconds?: number) => {
+      ctx.save();
+      const image = bombImgsRef.current[kind];
+      const cyan = kind === "laser";
+      const glow = cyan ? "75,225,255" : "255,112,35";
+      const pulse = 0.65 + 0.22 * Math.sin(effectTime * 4 + x * 0.09 + y * 0.06);
+      ctx.strokeStyle = `rgba(${glow},${pulse})`;
+      ctx.lineWidth = Math.max(1.3, cell * 0.065);
+      ctx.shadowColor = `rgba(${glow},0.9)`;
+      ctx.shadowBlur = Math.max(3, cell * 0.24);
+      ctx.strokeRect(x + cell * 0.07, y + cell * 0.07, cell * 0.86, cell * 0.86);
+      ctx.shadowBlur = 0;
+      if (image?.complete && image.naturalWidth > 0) {
+        const pad = cell * 0.05;
+        ctx.drawImage(image, x + pad, y + pad, cell - pad * 2, cell - pad * 2);
+      } else {
+        ctx.fillStyle = cyan ? "#0e5f6e" : "#706c82";
+        ctx.fillRect(x + 2, y + 2, cell - 4, cell - 4);
+      }
+      ctx.restore();
+      drawEmbers(x, y, Math.round(x + y * 13), cyan ? "cyan" : "orange");
+      if (seconds !== undefined) {
+        ctx.save();
+        ctx.fillStyle = "rgba(15,8,5,0.9)";
+        ctx.fillRect(x + cell * 0.22, y + cell * 0.64, cell * 0.56, cell * 0.3);
+        ctx.fillStyle = "#fff2d8";
+        ctx.font = `bold ${Math.max(9, Math.floor(cell * 0.34))}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(Math.ceil(seconds)), x + cell / 2, y + cell * 0.79);
+        ctx.restore();
+      }
+    };
     const drawMultiplier = (x: number, y: number) => {
       ctx.save();
-      ctx.fillStyle = "rgba(15,8,32,0.83)";
-      ctx.fillRect(x + cell * 0.12, y + cell * 0.23, cell * 0.76, cell * 0.54);
-      ctx.strokeStyle = "#ffd55c";
-      ctx.lineWidth = Math.max(1, cell * 0.045);
-      ctx.strokeRect(x + cell * 0.12, y + cell * 0.23, cell * 0.76, cell * 0.54);
-      ctx.fillStyle = "#ffe98b";
-      ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.42))}px sans-serif`;
+      const pulse = 0.78 + 0.22 * Math.sin(effectTime * 4.3 + x * 0.05);
+      ctx.fillStyle = "rgba(38,14,5,0.65)";
+      ctx.fillRect(x + cell * 0.11, y + cell * 0.2, cell * 0.78, cell * 0.6);
+      ctx.font = `900 ${Math.max(10, Math.floor(cell * 0.47))}px sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.shadowColor = "#ff6b18";
+      ctx.shadowBlur = Math.max(4, cell * 0.24);
+      ctx.strokeStyle = `rgba(255,93,10,${pulse})`;
+      ctx.lineWidth = Math.max(1.5, cell * 0.07);
+      ctx.strokeText("x2", x + cell / 2, y + cell / 2);
+      ctx.fillStyle = "#ffad36";
       ctx.fillText("x2", x + cell / 2, y + cell / 2);
       ctx.restore();
+      drawEmbers(x, y, Math.round(x * 3 + y * 11), "orange");
     };
     // Petrified cells keep their original shape but lose their color. Only
     // live countdown bombs and laser cells display the uploaded bomb artwork.
