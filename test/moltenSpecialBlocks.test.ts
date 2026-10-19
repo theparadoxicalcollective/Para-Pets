@@ -152,7 +152,7 @@ test("petrified cells render charcoal tinted original tiles, not bomb sprites", 
   const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
   assert.ok(page.includes("rollMoltenSpecial(Math.random())"));
   assert.ok(page.includes("if (stoneRef.current[r][c])"));
-  assert.ok(page.includes('ctx.fillStyle = "rgba(12,13,17,0.88)"'));
+  assert.ok(page.includes('ctx.fillStyle = "rgba(12,13,17,0.58)"'));
   assert.ok(!page.includes('ctx.filter = "grayscale(1) brightness(0.83) contrast(1.3)"'));
   assert.ok(page.includes('ctx.shadowColor = "rgba(105,113,128,0.42)"'));
   assert.ok(page.includes("if (stoneRef.current[r][c])"));
@@ -255,4 +255,16 @@ test("Molten uses one coin reward art and a visible x2 playfield timer", async (
   assert.ok(page.includes("coinPickupBoardRef.current = collapseMoltenRows"));
   assert.ok(page.includes("coinPickupBoardRef.current = removePetrifiedCoinPickups"));
   assert.ok(page.includes("collectedCoinPickups * MOLTEN_COIN_PICKUP_AMOUNT"));
+});
+
+// Source-level coverage complements canvas screenshots; real-device visual QA is still required.
+test("Molten canvas preloads all eight formations and keeps textured artwork visible", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes('const types: Piece[] = ["I","O","T","S","Z","L","J","K"]'));
+  assert.ok(page.includes('K: blockI'));
+  assert.ok(page.includes('ctx.drawImage(img, x, y, size, size)'));
+  assert.ok(page.includes('ctx.fillStyle = "rgba(12,13,17,0.58)"'));
+  assert.ok(!page.includes('const spin = nt2 / 1250'));
+  assert.ok(!page.includes('const spin = nt2 / 1000'));
 });
