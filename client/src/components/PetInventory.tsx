@@ -1516,12 +1516,17 @@ function BagView({
                   boxShadow: "0 0 10px rgba(240,192,64,.08)",
                 }}
               >
-                <div className="w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden"
+                <div className="w-full aspect-square rounded-lg relative"
+                  data-testid="bag-pet-portrait-frame"
                   style={{ background: "rgba(0,0,0,.35)", border: "1px solid rgba(255,255,255,.05)" }}>
-                  {pet.isHatched && pet.petTemplateId ? (
-                    <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={portrait} name={petName} />
-                  ) : portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" />
-                    : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
+                  {/* Match the player-detail card's fitVisible portrait, but reserve
+                      breathing room for tall ears, horns, wings and adornments. */}
+                  <div className="absolute inset-[12%] flex items-center justify-center" style={{ minWidth: 0, minHeight: 0 }}>
+                    {pet.isHatched && pet.petTemplateId ? (
+                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={portrait} name={petName} />
+                    ) : portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" />
+                      : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
+                  </div>
                 </div>
                 <span className="font-fantasy text-[#f0c040] text-xs font-semibold truncate w-full">{petName}</span>
                 <span className="text-xs tracking-tight" aria-label={`${pet.rarity ?? 1} of 5 rarity stars`}>
