@@ -22,53 +22,10 @@ import laserBombArt from "@assets/uploads/LaserBomb.png";
 import coinBonusArt from "@assets/Photoroom_20260708_40401_PM_1783544889601.png";
 import { PETRIFY_COUNTDOWN_MS, moltenSpecialCellIndices, rollMoltenSpecial, type MoltenSpecialKind, tickPetrifyingBombs, petrifyOccupiedNeighbors, planMoltenLineClear, collapseMoltenRows, type PetrifyingBomb, MOLTEN_X2_SPAWN_CHANCE, MOLTEN_X2_DURATION_MS, laserTripleScoreBonus, removePetrifiedMultipliers, clearedMultiplier, moltenX2Multiplier, moltenClearScore, collectMoltenCoinPickups, removePetrifiedCoinPickups, MOLTEN_COIN_PICKUP_AMOUNT, MOLTEN_COIN_PICKUP_INTERVAL_MIN, MOLTEN_COIN_PICKUP_INTERVAL_SPREAD } from "@/lib/moltenSpecialBlocks";
 
-// ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
-type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
-
-const SHAPES: Record<Piece, number[][][]> = {
-  I: [
-    [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
-    [[0,0,1,0],[0,0,1,0],[0,0,1,0],[0,0,1,0]],
-    [[0,0,0,0],[0,0,0,0],[1,1,1,1],[0,0,0,0]],
-    [[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]],
-  ],
-  O: [
-    [[1,1],[1,1]],
-    [[1,1],[1,1]],
-    [[1,1],[1,1]],
-    [[1,1],[1,1]],
-  ],
-  T: [
-    [[0,1,0],[1,1,1],[0,0,0]],
-    [[0,1,0],[0,1,1],[0,1,0]],
-    [[0,0,0],[1,1,1],[0,1,0]],
-    [[0,1,0],[1,1,0],[0,1,0]],
-  ],
-  S: [
-    [[0,1,1],[1,1,0],[0,0,0]],
-    [[0,1,0],[0,1,1],[0,0,1]],
-    [[0,0,0],[0,1,1],[1,1,0]],
-    [[1,0,0],[1,1,0],[0,1,0]],
-  ],
-  Z: [
-    [[1,1,0],[0,1,1],[0,0,0]],
-    [[0,0,1],[0,1,1],[0,1,0]],
-    [[0,0,0],[1,1,0],[0,1,1]],
-    [[0,1,0],[1,1,0],[1,0,0]],
-  ],
-  L: [
-    [[0,0,1],[1,1,1],[0,0,0]],
-    [[0,1,0],[0,1,0],[0,1,1]],
-    [[0,0,0],[1,1,1],[1,0,0]],
-    [[1,1,0],[0,1,0],[0,1,0]],
-  ],
-  J: [
-    [[1,0,0],[1,1,1],[0,0,0]],
-    [[0,1,1],[0,1,0],[0,1,0]],
-    [[0,0,0],[1,1,1],[0,0,1]],
-    [[0,1,0],[0,1,0],[1,1,0]],
-  ],
-};
+// Original connected Molten formations, generated rotations and weighted bag.
+import { MOLTEN_FORMATIONS, makeMoltenFormationBag, moltenFormationCells, type MoltenFormation } from "@/lib/moltenFormations";
+type Piece = MoltenFormation;
+const SHAPES = MOLTEN_FORMATIONS;
 
 const COLS = 10;
 const ROWS = 18;
@@ -149,21 +106,12 @@ interface ActivePiece {
   rot: 0 | 1 | 2 | 3;
 }
 
-// ── 7-bag randomizer ───────────────────────────────────────────────────────
-function makeBag(): Piece[] {
-  const arr: Piece[] = ["I","O","T","S","Z","L","J"];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
+// Weighted shuffle preserves a regular supply of small gap-repair pieces.
+function makeBag(): Piece[] { return makeMoltenFormationBag(); }
 
 function spawn(type: Piece): ActivePiece {
-  // Spawn pieces near the top-middle. Y is set so the piece appears just
-  // peeking onto the board.
-  const startX = type === "O" ? 4 : 3;
-  return { type, x: startX, y: type === "I" ? -1 : 0, rot: 0 };
+  const width = SHAPES[type][0][0].length;
+  return { type, x: Math.floor((COLS-width)/2), y: 0, rot: 0 };
 }
 
 function collides(board: Cell[][], piece: ActivePiece, dx = 0, dy = 0, drot = 0): boolean {
@@ -572,11 +520,11 @@ export default function MoltenBlocksPage() {
       // Keep them uncommon and mutually exclusive with a reward on this piece.
       const specialKind = rollMoltenSpecial(Math.random());
       if (specialKind) {
-        pendingSpecialRef.current = { kind: specialKind, cellIdx: Math.floor(Math.random() * 4) };
+        pendingSpecialRef.current = { kind: specialKind, cellIdx: Math.floor(Math.random() * moltenFormationCells(t)) };
       }
-      if (!pendingSpecialRef.current && Math.random() < MOLTEN_X2_SPAWN_CHANCE) pendingMultiplierRef.current = Math.floor(Math.random() * 4);
+      if (!pendingSpecialRef.current && Math.random() < MOLTEN_X2_SPAWN_CHANCE) pendingMultiplierRef.current = Math.floor(Math.random() * moltenFormationCells(t));
       if (!pendingSpecialRef.current && pendingMultiplierRef.current === null && blocksLockedRef.current >= nextCoinPickupThresholdRef.current) {
-        pendingCoinPickupRef.current = Math.floor(Math.random() * 4);
+        pendingCoinPickupRef.current = Math.floor(Math.random() * moltenFormationCells(t));
         nextCoinPickupThresholdRef.current = blocksLockedRef.current + MOLTEN_COIN_PICKUP_INTERVAL_MIN + Math.floor(Math.random() * MOLTEN_COIN_PICKUP_INTERVAL_SPREAD);
       }
       if (!pendingSpecialRef.current && pendingMultiplierRef.current === null && pendingCoinPickupRef.current === null && dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
