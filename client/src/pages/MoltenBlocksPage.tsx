@@ -1511,6 +1511,7 @@ export default function MoltenBlocksPage() {
         fontFamily: "Lora, serif", color: "#f5d589",
       }}
     >
+      {holdWarning && <div data-testid="molten-hold-warning-scrim" style={{ position: "absolute", inset: 0, zIndex: 49, background: "rgba(5,2,1,0.64)", pointerEvents: "auto" }} />}
       {holdWarning && (
         <div
           role="alert"
@@ -1679,8 +1680,6 @@ export default function MoltenBlocksPage() {
           }}>{award.rarity.toUpperCase()} DROP</div>
         </div>
       ))}
-
-      {holdWarning && <div data-testid="molten-hold-warning-scrim" style={{ position: "absolute", inset: 0, zIndex: 49, background: "rgba(5,2,1,0.64)", pointerEvents: "auto" }} />}
 
       {/* Existing rules overlay can be reopened without restarting the run. */}
       {((showIntro && introStep === 1) || showHelp) && !gameOver && (
