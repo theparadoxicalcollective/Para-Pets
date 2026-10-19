@@ -294,7 +294,7 @@ export default function MoltenBlocksPage() {
     });
   }, []);
   useEffect(() => {
-    const types: Piece[] = ["I","O","T","S","Z","L","J"];
+    const types: Piece[] = ["I","O","T","S","Z","L","J","K"];
     let loaded = 0;
     types.forEach(t => {
       const img = new Image();
@@ -907,10 +907,14 @@ export default function MoltenBlocksPage() {
       }
       if (ghost) ctx.globalAlpha = 0.36;
       const previousSmoothing = ctx.imageSmoothingEnabled;
-      ctx.imageSmoothingEnabled = false;
-      const nW = img.naturalWidth, nH = img.naturalHeight;
-      const sInsetX = nW * 0.24, sInsetY = nH * 0.24;
-      ctx.drawImage(img, sInsetX, sInsetY, nW - 2 * sInsetX, nH - 2 * sInsetY, x, y, size, size);
+      ctx.imageSmoothingEnabled = true;
+      // Preserve the authored block artwork rather than enlarging a tiny center crop.
+      ctx.drawImage(img, x, y, size, size);
+      if (type === "K") {
+        // Cinder Line shares Ember Pair artwork but has its own warm-gold tint.
+        ctx.fillStyle = "rgba(255,176,60,0.22)";
+        ctx.fillRect(x, y, size, size);
+      }
       ctx.imageSmoothingEnabled = previousSmoothing;
     } else {
       if (ghost) ctx.globalAlpha = 0.32;
@@ -990,7 +994,6 @@ export default function MoltenBlocksPage() {
     // Helper: draw an item's image + rarity glow on a single cell
     const drawItemOnCell = (ix: number, iy: number, it: DropItem, pulse: number) => {
       const glow = RARITY_GLOW[it.rarity] ?? RARITY_GLOW.common;
-      const nt2 = performance.now();
 
       // Solid rarity-coloured background fill so the item is always visible
       ctx.save();
@@ -1021,25 +1024,6 @@ export default function MoltenBlocksPage() {
         ctx.restore();
       }
 
-      // All reward tiles have a gentle animated ember ring, like special bombs.
-      const spin = nt2 / 1250;
-      ctx.save(); ctx.strokeStyle = glow; ctx.shadowColor = glow;
-      ctx.shadowBlur = cell * 0.26; ctx.lineWidth = Math.max(1, cell * 0.045);
-      ctx.beginPath(); ctx.arc(ix + cell / 2, iy + cell / 2, cell * 0.39, spin, spin + Math.PI * 0.85); ctx.stroke(); ctx.restore();
-      // Spinning arc for rare items
-      if (it.rarity === 'rare') {
-        const spin = nt2 / 1000;
-        const cx2 = ix + cell / 2, cy2 = iy + cell / 2;
-        ctx.save();
-        ctx.strokeStyle = `rgba(255,215,0,${(0.8 * pulse).toFixed(2)})`;
-        ctx.lineWidth = 2;
-        ctx.shadowColor = "rgba(255,215,0,0.9)";
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.arc(cx2, cy2, cell * 0.42, spin, spin + Math.PI * 1.4);
-        ctx.stroke();
-        ctx.restore();
-      }
     };
 
     const bombByCell = new Map(bombsRef.current.map(b => [`${b.row}:${b.col}`, b]));
@@ -1126,13 +1110,13 @@ export default function MoltenBlocksPage() {
         ctx.beginPath();
         ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius);
         ctx.clip();
-        ctx.fillStyle = "rgba(12,13,17,0.88)";
+        ctx.fillStyle = "rgba(12,13,17,0.58)";
         ctx.fillRect(x, y, cell, cell);
         ctx.restore();
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, radius);
-        ctx.strokeStyle = "rgba(130,136,149,0.9)";
+        ctx.strokeStyle = "rgba(132,139,153,0.78)";
         ctx.shadowColor = "rgba(105,113,128,0.42)";
         ctx.shadowBlur = cell * 0.13;
         ctx.lineWidth = Math.max(1.2, cell * 0.045);
