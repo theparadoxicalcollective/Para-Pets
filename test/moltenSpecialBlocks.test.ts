@@ -154,7 +154,7 @@ test("petrified cells use dedicated uploaded stone artwork, not bomb sprites", a
   assert.ok(page.includes("if (stoneRef.current[r][c])"));
   assert.ok(page.includes('ctx.drawImage(stoneImg, x, y, cell, cell)'));
   assert.ok(!page.includes('ctx.filter = "grayscale(1) brightness(0.83) contrast(1.3)"'));
-  assert.ok(page.includes('ctx.shadowColor = "rgba(105,113,128,0.42)"'));
+  assert.ok(page.includes('ctx.drawImage(stoneImg, x, y, cell, cell)'));
   assert.ok(page.includes("if (stoneRef.current[r][c])"));
   assert.ok(!page.includes('ctx.fillStyle = "rgba(100,104,113,0.82)"'));
   assert.ok(page.includes('if (bomb) drawSpecial(x, y, "stone", bomb.remainingMs / 1000)'));
@@ -266,7 +266,7 @@ test("Molten canvas preloads all eight formations and keeps textured artwork vis
   for (let n = 1; n <= 7; n++) assert.ok(page.includes(`@assets/uploads/BlockTexture${n}.png`));
   assert.ok(page.includes('@assets/uploads/PetrifiedBlock.png'));
   assert.ok(page.includes('ctx.drawImage(img, x, y, size, size)'));
-  assert.ok(page.includes('ctx.fillStyle = "rgba(12,13,17,0.58)"'));
+  assert.ok(page.includes('ctx.drawImage(stoneImg, x, y, cell, cell)'));
   assert.ok(!page.includes('const spin = nt2 / 1250'));
   assert.ok(!page.includes('const spin = nt2 / 1000'));
 });
