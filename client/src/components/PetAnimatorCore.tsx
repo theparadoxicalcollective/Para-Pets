@@ -1396,6 +1396,8 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // and properly scaled inside arena slots that aren't exactly `size` px.
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [measuredSize, setMeasuredSize] = useState<number>(size);
+  // Static fitVisible portraits still need real container dimensions and alpha
+  // bounds. Static disables motion, not layout or transparent-edge fitting.
   // Synchronously seed measuredSize from the container BEFORE paint so the
   // first render isn't off-center. Without this, the initial render uses
   // the `size` prop (e.g. 72) and then ResizeObserver fires after paint
@@ -1404,15 +1406,15 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // the measurement and the corresponding state update happen before the
   // browser paints the first frame.
   useLayoutEffect(() => {
-    if (!fillContainer || performanceStatic) return;
+    if (!fillContainer || (performanceStatic && !fitVisible)) return;
     const el = wrapperRef.current;
     if (!el) return;
     // Placement scales the parent; measure the unscaled artwork canvas.
     const s = Math.min(el.clientWidth, el.clientHeight);
     if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
-  }, [fillContainer, performanceStatic]);
+  }, [fillContainer, performanceStatic, fitVisible]);
   useEffect(() => {
-    if (!fillContainer || performanceStatic || lowMemory) return;
+    if (!fillContainer || (performanceStatic && !fitVisible) || lowMemory) return;
     const el = wrapperRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
@@ -1425,7 +1427,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [fillContainer, performanceStatic, lowMemory]);
+  }, [fillContainer, performanceStatic, fitVisible, lowMemory]);
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null; evolutionEffects?: EvolutionPetEffect[] }>({
     ...petTemplateQuery(petTemplateId, artworkForm),
@@ -1446,7 +1448,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // any of the same part images get the corrected pivot for free.
   const [, bumpAlphaVersion] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
-    if (performanceStatic || lowMemory || !allParts.length) return;
+    if ((performanceStatic && !fitVisible) || lowMemory || !allParts.length) return;
     let cancelled = false;
     let pending = 0;
     for (const p of allParts) {
@@ -1462,7 +1464,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
       });
     }
     return () => { cancelled = true; };
-  }, [allParts, performanceStatic, lowMemory]);
+  }, [allParts, performanceStatic, fitVisible, lowMemory]);
   // Flying pets keep the original head-bob idle so they look like they're
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".

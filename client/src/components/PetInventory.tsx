@@ -1,3 +1,4 @@
+import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { fishBagItems, type FishBagRecord } from "@/lib/fishBagInventory";
 import { useState, useEffect, useRef } from "react";
 import { bjGetStatus } from "@/lib/beginJourney";
@@ -43,9 +44,10 @@ import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { clientPointInRenderedElement, clientToStage } from "@/lib/stage";
 
-function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }: {
+function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, isEvolved }: {
   petInventoryId: string;
   petTemplateId: string;
+  isEvolved?: boolean;
   imageUrl: string | null;
   name: string;
 }) {
@@ -65,13 +67,13 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name }:
     return () => observer.disconnect();
   }, []);
 
-  const fallback = imageUrl ? <img src={imageUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : null;
-  return <div ref={host} data-testid={`inventory-pet-portrait-${petInventoryId}`} style={{ position: "relative", width: "100%", height: "100%", isolation: "isolate" }}>
+  const fallback = imageUrl ? <VisibleAssetImage src={imageUrl} alt={name} className="w-full h-full object-contain" /> : null;
+  return <div ref={host} data-testid={`inventory-pet-portrait-${petInventoryId}`} style={{ position: "relative", width: "100%", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden", isolation: "isolate", pointerEvents: "none" }}>
     {visible ? <ErrorBoundary context="PetInventory.PetPortrait" resetKey={petInventoryId} fallback={fallback}>
-      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} fillContainer fitVisible performanceStatic style={{ width: "100%", height: "100%", position: "relative", zIndex: 1 }} />
+      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="static" size={140} fillContainer fitVisible performanceStatic artworkForm={isEvolved === undefined ? undefined : isEvolved ? "evolution" : "base"} style={{ width: "100%", height: "100%", position: "relative", zIndex: 1 }} />
       <div
         data-testid="inventory-mini-pet-layer"
-        style={{ position: "absolute", left: 0, bottom: 2, width: 42, height: 42, zIndex: 10, pointerEvents: "none" }}
+        style={{ position: "absolute", left: 0, bottom: 0, width: "32%", height: "32%", maxWidth: 42, maxHeight: 42, zIndex: 10, pointerEvents: "none" }}
       >
         <MiniPetRenderer petInventoryId={petInventoryId} animated={false} />
       </div>
@@ -120,6 +122,7 @@ interface InventoryItem {
   healthRestored: number | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
+  isEvolved?: boolean;
   isListed: boolean;
   petHealth: number;
   petAtk: number;
@@ -998,7 +1001,7 @@ function PetView({
                       pointerEvents: "none",
                     }} />
                     {!isEgg && pet.petTemplateId ? (
-                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={displayImage} name={pet.name} />
+                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={displayImage} name={pet.name} isEvolved={pet.isEvolved} />
                     ) : displayImage ? (
                       <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", position: "relative" }} />
                     ) : (
@@ -1526,15 +1529,15 @@ function BagView({
                   boxShadow: "0 0 10px rgba(240,192,64,.08)",
                 }}
               >
-                <div className="w-full aspect-square rounded-lg relative"
+                <div className="w-full aspect-square rounded-lg relative overflow-hidden"
                   data-testid="bag-pet-portrait-frame"
                   style={{ background: "rgba(0,0,0,.35)", border: "1px solid rgba(255,255,255,.05)" }}>
                   {/* Match the player-detail card's fitVisible portrait, but reserve
                       breathing room for tall ears, horns, wings and adornments. */}
                   <div className="absolute inset-[12%] flex items-center justify-center" style={{ minWidth: 0, minHeight: 0 }}>
                     {pet.isHatched && pet.petTemplateId ? (
-                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={portrait} name={petName} />
-                    ) : portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" />
+                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={portrait} name={petName} isEvolved={pet.isEvolved} />
+                    ) : portrait ? <VisibleAssetImage src={portrait} alt={petName} className="w-full h-full object-contain" />
                       : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
                   </div>
                 </div>
@@ -1685,7 +1688,7 @@ function BagView({
               <div className="w-28 h-28 rounded-lg flex items-center justify-center"
                 style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(212,160,23,.2)" }}>
                 {selectedBagPet.isHatched && selectedBagPet.petTemplateId ? (
-                  <InventoryPetPortrait petInventoryId={selectedBagPet.inventoryId} petTemplateId={selectedBagPet.petTemplateId} imageUrl={selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl} name={selectedBagPet.petNickname || selectedBagPet.name} />
+                  <InventoryPetPortrait petInventoryId={selectedBagPet.inventoryId} petTemplateId={selectedBagPet.petTemplateId} imageUrl={selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl} name={selectedBagPet.petNickname || selectedBagPet.name} isEvolved={selectedBagPet.isEvolved} />
                 ) : (
                   <img src={selectedBagPet.eggImageUrl || selectedBagPet.imageUrl || eggMagicIcon} alt={selectedBagPet.petNickname || selectedBagPet.name} className="w-full h-full object-contain" />
                 )}
