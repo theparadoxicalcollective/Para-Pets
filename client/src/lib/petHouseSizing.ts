@@ -1,6 +1,13 @@
 export const PET_HOUSE_OUTDOOR_PET_BASE_SIZE = 100;
 export const PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100;
 
+// The 100px baseline was authored against a 844px-tall Home scene. Home
+// backgrounds scale with their measured scene height; pets must use the same
+// scene scale or they appear proportionally smaller on larger screens.
+export function petHouseScenePetSize(baseSize: number, sceneHeight: number): number {
+  return baseSize * (Number.isFinite(sceneHeight) && sceneHeight > 0 ? sceneHeight / 844 : 1);
+}
+
 const DEPTH_REFERENCE_Y = 0.72;
 const DEPTH_MIN_Y = 0.05;
 const DEPTH_MAX_Y = 0.92;

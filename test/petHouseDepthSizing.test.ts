@@ -6,6 +6,7 @@ import {
   PET_HOUSE_OUTDOOR_PET_BASE_SIZE,
   petHouseDepthScale,
   petHouseDepthSize,
+  petHouseScenePetSize,
 } from "../client/src/lib/petHouseSizing";
 
 test("Pet House perspective depends only on vertical depth", () => {
@@ -54,4 +55,16 @@ test("Home scene pets and items no longer change size automatically while moving
   assert.doesNotMatch(visitor, /petHouseDepthSize\(cfg\.size, yPct\)/);
   assert.doesNotMatch(owner, /petHouseDepthSize\(item\.size, item\.yPct\)/);
   assert.doesNotMatch(visitor, /petHouseDepthSize\(item\.size, item\.yPct\)/);
+});
+
+test("Home pets maintain their relative size against the authored background across viewport heights", () => {
+  assert.equal(petHouseScenePetSize(100, 844), 100);
+  assert.equal(petHouseScenePetSize(100, 1266), 150);
+  assert.equal(petHouseScenePetSize(100, 422), 50);
+  assert.equal(petHouseScenePetSize(100, 0), 100);
+  for (const path of ["client/src/pages/PetHousePage.tsx", "client/src/pages/VisitPetHousePage.tsx"]) {
+    const source = readFileSync(path, "utf8");
+    assert.match(source, /petHouseScenePetSize\(cfg\.size, containerH\)/);
+    assert.match(source, /petHouseScenePetSize\(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH\)/);
+  }
 });
