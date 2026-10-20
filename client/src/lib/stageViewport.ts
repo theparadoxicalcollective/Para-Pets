@@ -76,16 +76,18 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
 export function publishStageViewportCss(layout: StageLayout): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement.style;
-  const surface = calculateViewportSurfaceRect(layout);
+  const surface = layout.designWidth < layout.viewportWidth && layout.left > 0
+    ? { left: 0, top: 0, width: layout.designWidth, height: layout.designHeight }
+    : calculateViewportSurfaceRect(layout);
   const surfaceRight = layout.designWidth - (surface.left + surface.width);
   const surfaceBottom = layout.designHeight - (surface.top + surface.height);
 
   root.setProperty("--stage-scale", String(layout.scale));
   root.setProperty("--viewport-height", `${layout.viewportHeight}px`);
   root.setProperty("--viewport-width", `${layout.viewportWidth}px`);
-  root.setProperty("--fh", `${layout.viewportHeight}px`);
-  root.setProperty("--vh", `${layout.viewportHeight * 0.01}px`);
-  root.setProperty("--vw", `${layout.viewportWidth * 0.01}px`);
+  root.setProperty("--fh", `${layout.designHeight}px`);
+  root.setProperty("--vh", `${layout.designHeight * 0.01}px`);
+  root.setProperty("--vw", `${layout.designWidth * 0.01}px`);
   root.setProperty("--stage-logical-width", `${layout.designWidth}px`);
   root.setProperty("--stage-logical-height", `${layout.designHeight}px`);
   root.setProperty("--viewport-surface-left", `${surface.left}px`);
