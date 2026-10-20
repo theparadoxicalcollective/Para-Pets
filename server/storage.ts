@@ -1,3 +1,4 @@
+import { reconcileLegacyFishInventory } from "./legacyFishInventory";
 import { withPetStillImage } from "../shared/petStillImage";
 import { petHatchedImageSql } from "./petStillImage";
 import { AccountConflictError } from "./accounts/errors";
@@ -2125,6 +2126,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]> {
+    await reconcileLegacyFishInventory(db, userId);
     const rows = await db.select().from(playerFishInventory)
       .leftJoin(shopItems, eq(playerFishInventory.shopItemId, shopItems.id))
       .where(eq(playerFishInventory.userId, userId))
