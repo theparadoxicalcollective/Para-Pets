@@ -11,7 +11,7 @@ test("unanchored quest guides use viewport HUD on migrated gameplay routes", () 
   assert.match(guide, /const rect = hud\.getBoundingClientRect\(\)/);
   assert.match(guide, /width = hud\.clientWidth \|\| rect\.width/);
   assert.match(guide, /height = hud\.clientHeight \|\| rect\.height/);
-  assert.match(guide, /target: hud,[\s\S]*?inStage: false/);
+  assert.match(guide, /target: hud,[\s\S]*?inStage: true/);
   assert.match(guide, /scale: Math\.max\(rect\.width \/ Math\.max\(1, width\), 0\.0001\)/);
 });
 
