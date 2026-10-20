@@ -15,7 +15,7 @@ import PetHomeVisitRewardCue from "@/components/PetHomeVisitRewardCue";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
-import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseScenePetSize } from "@/lib/petHouseSizing";
 import { centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
@@ -464,7 +464,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
             data-testid={`visit-pet-interior-${pet.inventoryId}`}
             data-sleeping={isSleeping ? "true" : undefined}
             className="absolute"
-            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: PET_HOUSE_INTERIOR_PET_BASE_SIZE, height: PET_HOUSE_INTERIOR_PET_BASE_SIZE, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: petHouseScenePetSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH), height: petHouseScenePetSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH), transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onPetClick(pet); }}
           >
@@ -484,7 +484,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, effects = [], darkn
                   fireReaction={isOnFire}
                   mode={isOnFire ? "sleep" : isSleeping ? "sleep" : "house"}
                   expression={isRewardReacting ? "petted" : undefined}
-                  size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
+                  size={petHouseScenePetSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH)}
                   fillContainer
                   fitVisible
                   style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
@@ -915,7 +915,7 @@ export default function VisitPetHousePage() {
             key={pet.inventoryId}
             data-testid={`visit-pet-outdoor-${pet.inventoryId}`}
             className="absolute"
-            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: petHouseScenePetSize(cfg.size, containerH), height: petHouseScenePetSize(cfg.size, containerH), transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); handleVisitedPetClick(pet); }}
           >
@@ -934,7 +934,7 @@ export default function VisitPetHousePage() {
                   costumeAccess="public"
                   mode={isSleeping ? "sleep" : "static"}
                   expression={isRewardReacting ? "petted" : undefined}
-                  size={cfg.size}
+                  size={petHouseScenePetSize(cfg.size, containerH)}
                   fillContainer
                   fitVisible
                   className="pet-idle-squish"
