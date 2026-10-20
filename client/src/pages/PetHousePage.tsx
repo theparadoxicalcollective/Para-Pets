@@ -60,7 +60,7 @@ import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 import { HOME_SCENE_PLAYER_SIZE_DECREASE_STEP, HOME_SCENE_PLAYER_SIZE_INCREASE_STEP, HOUSE_INTERIOR_SLEEP_PET_Y_OFFSET_RATIO, PET_HOUSE_PLAYER_SCALE_DECREASE_STEP, PET_HOUSE_PLAYER_SCALE_INCREASE_STEP, clampHomeScenePlayerSize, clampPetHousePlayerScale, getHouseBuildingDecorLimit, getHouseBuildingPetLimit, getHouseInteriorPointDarkness, getHouseInteriorSleepSnapPosition, getHouseOutdoorDecorLimit, getHouseOutdoorPetLimit, homeSceneItemCountsTowardDecorLimit, isHouseInteriorPointOverActiveFire, isHouseInteriorSleepPosition, type BuildingSize, type HomeCatalogEffect, type HomeSceneItemType, type HouseBuildingType, type HouseInteriorEffect } from "@shared/housing";
-import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE } from "@/lib/petHouseSizing";
+import { defaultPetHouseGroundPosition, PET_HOUSE_INTERIOR_PET_BASE_SIZE, PET_HOUSE_OUTDOOR_PET_BASE_SIZE, petHouseScenePetSize } from "@/lib/petHouseSizing";
 import { HOME_DECOR_PLACEMENT_BOUNDS, HOME_INVENTORY_DROP_BOUNDS, dragHomePlacement, homeCameraDropToPlacement } from "@/lib/homeAuthoredPlacement";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -1020,7 +1020,7 @@ function InteriorViewer({
             key={pet.inventoryId}
             className="absolute"
             data-sleeping={isSleeping ? "true" : undefined}
-            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: PET_HOUSE_INTERIOR_PET_BASE_SIZE, height: PET_HOUSE_INTERIOR_PET_BASE_SIZE, transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
+            style={{ zIndex: isSelectedPet ? 180 : (topPetId === pet.inventoryId ? 30 : 7), left, top, width: petHouseScenePetSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH), height: petHouseScenePetSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH), transform: "translate(-50%, -50%)", touchAction: "none", cursor: "grab" }}
             onPointerDown={(e) => onPetDown(e, pet)}
             onPointerMove={onPetMove}
             onPointerUp={onPetUp}
@@ -1037,7 +1037,7 @@ function InteriorViewer({
                   petInventoryId={pet.inventoryId}
                   fireReaction={isOnFire}
                   mode={isOnFire ? "sleep" : isActivelyDragging ? "static" : isSleeping ? "sleep" : "house"}
-                  size={PET_HOUSE_INTERIOR_PET_BASE_SIZE}
+                  size={petHouseScenePetSize(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH)}
                   fillContainer
                   fitVisible
                   style={{ filter: `brightness(${petBrightness}) drop-shadow(0 3px 8px rgba(0,0,0,0.5))`, transition: "filter 260ms ease-out", transform: pet.homeFlipped ? "scaleX(-1)" : undefined }}
@@ -2502,7 +2502,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           <div
             key={pet.inventoryId}
             className="absolute"
-            style={{ zIndex: isSelectedPet || isDraggingThis ? 19 : (topOutdoorPetId === pet.inventoryId ? 18 : 12), left, top, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
+            style={{ zIndex: isSelectedPet || isDraggingThis ? 19 : (topOutdoorPetId === pet.inventoryId ? 18 : 12), left, top, width: petHouseScenePetSize(cfg.size, containerH), height: petHouseScenePetSize(cfg.size, containerH), transform: "translate(-50%, -50%)", pointerEvents: "none" }}
           >
             <div
               data-testid={`home-pet-visible-scale-${pet.inventoryId}`}
@@ -2513,7 +2513,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                   petTemplateId={pet.petTemplateId}
                   petInventoryId={pet.inventoryId}
                   mode={isSleeping ? "sleep" : "static"}
-                  size={cfg.size}
+                  size={petHouseScenePetSize(cfg.size, containerH)}
                   fillContainer
                   fitVisible
                   className={isDraggingThis ? undefined : "pet-idle-squish"}
