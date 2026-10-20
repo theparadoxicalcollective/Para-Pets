@@ -943,7 +943,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   disabled={isDisabled || isBuying}
                   className="relative rounded-xl flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
                   style={{
-                    padding: bonus ? "30px 16px 32px" : "16px",
+                    padding: bonus ? "30px 16px 16px" : "16px",
                     background: bonus
                       ? `linear-gradient(145deg, rgba(8,5,20,0.98) 0%, rgba(20,10,40,0.98) 50%, rgba(10,5,22,0.98) 100%)`
                       : `linear-gradient(145deg, rgba(5,15,8,0.98) 0%, rgba(10,28,14,0.98) 50%, rgba(5,18,10,0.98) 100%)`,
@@ -1005,17 +1005,18 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     </span>
                   </div>
 
-                  {/* Egg pop-piece: floating outside the card at bottom-right */}
+                  {/* This row reserves egg height; the artwork peeks past the side only. */}
                   {bonus?.eggUrl && (
-                    <>
+                    <div className="relative w-full flex flex-col items-center gap-1" data-testid={`limited-egg-row-${pack.id}`}>
                       <div
                         data-testid={`limited-egg-spotlight-${pack.id}`}
                         className="coin-shop-limited-egg"
                         style={{
-                          position: "absolute",
-                          bottom: -22,
-                          right: -12,
-                          width: "clamp(84px, 28vw, 110px)",
+                          position: "relative",
+                          width: "min(100%, 92px)",
+                          alignSelf: "flex-end",
+                          marginRight: -24,
+                          flexShrink: 0,
                           aspectRatio: "1",
                           pointerEvents: "none",
                           zIndex: 4,
@@ -1045,11 +1046,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       >
                         + {bonus.name}
                       </span>
-                    </>
+                    </div>
                   )}
 
                   <div
-                    className="w-full py-1.5 rounded-md font-fantasy text-[11px] tracking-wider text-center relative"
+                    data-testid={`pack-price-${pack.id}`}
+                    className="w-full mt-auto py-1.5 rounded-md font-fantasy text-[11px] tracking-wider text-center relative"
                     style={{
                       background: isBuying ? "rgba(74,222,128,0.15)" : "linear-gradient(135deg, rgba(34,197,94,0.3) 0%, rgba(74,222,128,0.2) 50%, rgba(34,197,94,0.25) 100%)",
                       border: "1px solid rgba(74,222,128,0.4)",

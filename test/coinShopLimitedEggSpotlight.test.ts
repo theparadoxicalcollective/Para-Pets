@@ -4,10 +4,13 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("client/src/pages/CoinShopPage.tsx", "utf8");
 
-test("only limited bundles display larger responsive egg previews", () => {
+test("limited egg previews reserve normal-flow space above unobstructed prices", () => {
   assert.ok(source.includes("bonus?.eggUrl && ("));
   assert.ok(source.includes("coin-shop-limited-egg"));
-  assert.ok(source.includes('width: "clamp(84px, 28vw, 110px)"'));
+  assert.ok(source.includes('width: "min(100%, 92px)"'));
+  const egg = source.slice(source.indexOf('data-testid={`limited-egg-spotlight-'), source.indexOf('data-testid={`pack-price-'));
+  assert.match(egg, /position: "relative"/);
+  assert.doesNotMatch(egg, /position: "absolute"|bottom: -22|right: -12/);
   assert.ok(source.includes('pointerEvents: "none"'));
 });
 
