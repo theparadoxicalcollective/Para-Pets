@@ -533,7 +533,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Hint label — always at top */}
       <div style={{
-        position: "fixed", top: 36, left: "50%", transform: "translateX(-50%)",
+        position: "absolute", top: 36, left: "50%", transform: "translateX(-50%)",
         zIndex: 99004, pointerEvents: "none", textAlign: "center",
         maxWidth: 300, width: "calc(90*var(--vw))",
       }}>
@@ -553,12 +553,12 @@ export default function BeginJourneyOverlay({ user }: Props) {
       {/* Circle spotlight — skip for free mode */}
       {!isFree && stepNum !== 6 && !step5TapMode && (pr ? (
         <div style={{
-          position: "fixed", inset: 0,
+          position: "absolute", inset: 0,
           background: `radial-gradient(circle ${radius}px at ${cx}px ${cy}px, transparent ${radius}px, ${OVERLAY_BG} ${radius + 1}px)`,
           zIndex: 99000, pointerEvents: "all",
         }} />
       ) : (
-        <div style={{ position: "fixed", inset: 0, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
+        <div style={{ position: "absolute", inset: 0, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
       ))}
 
       {/* Step-5 tap mode: spotlight egg + bouncing arrow so player knows to tap it */}
@@ -569,7 +569,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return (
           <>
             <div style={{
-              position: "fixed", inset: 0,
+              position: "absolute", inset: 0,
               background: `radial-gradient(circle ${eRad}px at ${epx}px ${epy}px, transparent ${eRad}px, rgba(0,0,0,0.62) ${eRad + 1}px)`,
               zIndex: 99000, pointerEvents: "none",
             }} />
@@ -577,7 +577,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
               src={tutorialArrow}
               alt=""
               style={{
-                position: "fixed",
+                position: "absolute",
                 top:  Math.max(8, eggGuideRect.top - 82),
                 left: epx - 28,
                 width: 56, height: 70,
@@ -593,7 +593,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       {/* Step 4 rescue: "Select Egg" button when no active egg is found */}
       {showRescue && (
         <div style={{
-          position: "fixed", bottom: "28%", left: "50%", transform: "translateX(-50%)",
+          position: "absolute", bottom: "28%", left: "50%", transform: "translateX(-50%)",
           zIndex: 99005, pointerEvents: "all",
         }}>
           <button
@@ -627,7 +627,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         <div
           onClick={handleForwarderClick}
           style={{
-            position: "fixed",
+            position: "absolute",
             top: cy - radius, left: cx - radius,
             width: radius * 2, height: radius * 2,
             borderRadius: "50%",
@@ -653,7 +653,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
           <div
             data-testid="tutorial-potion-drag-demo"
             style={{
-              position: "fixed",
+              position: "absolute",
               left: fromCx - 34,
               top: fromCy - 34,
               width: 68,
@@ -827,7 +827,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
           data-testid="tutorial-potion-drag-preview"
           aria-hidden="true"
           style={{
-            position: "fixed",
+            position: "absolute",
             left: dragPreviewPoint?.x ?? dragPotionPreview.x,
             top: dragPreviewPoint?.y ?? dragPotionPreview.y,
             width: 72,
@@ -856,7 +856,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
           src={tutorialArrow}
           alt=""
           style={{
-            position: "fixed",
+            position: "absolute",
             top:  arrowTop,
             left: arrowLeft,
             width: arrowW, height: arrowH,
@@ -870,7 +870,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Starter egg picker — the first required tutorial step */}
       {showGrantModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
           <div style={{
             background: "linear-gradient(160deg, rgba(8,18,8,0.99) 0%, rgba(15,30,15,0.99) 100%)",
             border: "1.5px solid rgba(212,168,67,0.5)", borderRadius: 20,
