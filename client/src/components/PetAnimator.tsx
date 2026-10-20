@@ -711,7 +711,7 @@ export default function PetAnimator({
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [fillContainer, fitVisible, lowMemory]);
+  }, [fillContainer, fitVisible, lowMemory, size]);
 
   const resolvedPetInventoryId = petInventoryId ?? null;
 
