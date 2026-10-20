@@ -73,7 +73,7 @@ test("Ginny quest UI attaches to the placed NPC and guides through stable cross-
   assert.match(source, /button-ginny-choose-\$\{choice\}/);
   assert.match(source, /button-floating-nav/);
   assert.match(source, /nav-item-home/);
-  assert.match(source, /button-open-pet-actions/);
+  assert.match(source, /button-open-pet-menu/);
   assert.match(source, /button-action-equip-accessories/);
   assert.match(source, /button-open-mini-pets/);
   assert.match(source, /mini-pet-option-/);

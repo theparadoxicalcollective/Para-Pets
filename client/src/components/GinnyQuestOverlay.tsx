@@ -87,9 +87,9 @@ function findGuideTarget(pathname: string, miniPetInventoryId: string | null): G
     if (isVisible(closetButton)) {
       return { element: closetButton, label: "Open The Closet", detail: "Mini Pets are equipped from your pet's Closet." };
     }
-    const petButton = document.querySelector<HTMLElement>('[data-testid="button-open-pet-actions"]');
-    if (isVisible(petButton)) {
-      return { element: petButton, label: "Tap your active pet", detail: "Open your pet's action wheel." };
+    const petMenuButton = document.querySelector<HTMLElement>('[data-testid="button-open-pet-menu"]');
+    if (isVisible(petMenuButton)) {
+      return { element: petMenuButton, label: "Open Pet Menu", detail: "Use the Pet Menu to open your pet's Closet." };
     }
   }
 
