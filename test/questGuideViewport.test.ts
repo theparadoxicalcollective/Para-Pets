@@ -97,3 +97,16 @@ test("Begin Journey portal layers use HUD-local positioning on desktop without c
   const phone = { left: 0, top: 0, scale: 1 };
   assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 300, bottom: 380 }, phone), { left: 100, right: 180, top: 300, bottom: 380 });
 });
+
+test("Ginny mini pet guide follows the current Pet Menu and Closet actions", () => {
+  const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+  const ginny = readFileSync("client/src/components/GinnyQuestOverlay.tsx", "utf8");
+  const lonelle = readFileSync("client/src/components/LonelleQuestOverlay.tsx", "utf8");
+  for (const id of ["button-open-pet-menu", "button-action-equip-accessories"]) {
+    assert.ok(home.includes(`data-testid="${id}"`));
+    assert.ok(ginny.includes(`[data-testid="${id}"]`));
+    assert.ok(lonelle.includes(`[data-testid="${id}"]`));
+  }
+  assert.doesNotMatch(ginny, /\[data-testid="button-open-pet-actions"\]/);
+  assert.match(ginny, /label: "Open Pet Menu"/);
+});
