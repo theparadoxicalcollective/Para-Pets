@@ -5,6 +5,8 @@ import {
   getVisibleViewport,
   isTouchFirstDevice,
   shouldBlockTouchLandscape,
+  usesDeviceGameplaySurface,
+  shouldUseDocumentLayout,
   type StageLayout,
 } from "@/lib/stage";
 
@@ -17,6 +19,27 @@ import {
 export type StageViewportLayout = StageLayout & {
   touchPortraitBlocked: boolean;
 };
+
+/** Desktop-only portrait presentation. This is a viewport-sized scene, never a
+ * scaled phone reference. Touch devices and document routes remain unchanged. */
+export function desktopPortraitGameplayLayout(
+  layout: StageLayout, pathname: string, touchFirst: boolean,
+): StageLayout {
+  if (touchFirst || !usesDeviceGameplaySurface(pathname) || shouldUseDocumentLayout(pathname, layout.viewportWidth)
+    || layout.viewportWidth < 1024 || layout.viewportWidth <= layout.viewportHeight) return layout;
+  const width = Math.min(layout.viewportWidth, Math.round(layout.viewportHeight * 0.72));
+  return {
+    ...layout,
+    designWidth: width,
+    designHeight: layout.viewportHeight,
+    renderedWidth: width,
+    renderedHeight: layout.viewportHeight,
+    left: layout.left + (layout.viewportWidth - width) / 2,
+    scale: 1,
+    coordinateOwner: "viewport",
+    referencePortrait: false,
+  };
+}
 
 export function readStageViewportLayout(pathname = ""): StageViewportLayout {
   const viewport = getVisibleViewport();
@@ -31,14 +54,15 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
     touchFirst,
     viewport.keyboardReduced,
   );
+  const layout = calculateStageLayout(
+    viewport.width,
+    viewport.height,
+    viewport.top,
+    viewport.left,
+    { viewportSurface },
+  );
   return {
-    ...calculateStageLayout(
-      viewport.width,
-      viewport.height,
-      viewport.top,
-      viewport.left,
-      { viewportSurface },
-    ),
+    ...desktopPortraitGameplayLayout(layout, pathname, touchFirst),
     touchPortraitBlocked,
   };
 }
@@ -52,16 +76,18 @@ export function readStageViewportLayout(pathname = ""): StageViewportLayout {
 export function publishStageViewportCss(layout: StageLayout): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement.style;
-  const surface = calculateViewportSurfaceRect(layout);
+  const surface = layout.designWidth < layout.viewportWidth && layout.left > 0
+    ? { left: 0, top: 0, width: layout.designWidth, height: layout.designHeight }
+    : calculateViewportSurfaceRect(layout);
   const surfaceRight = layout.designWidth - (surface.left + surface.width);
   const surfaceBottom = layout.designHeight - (surface.top + surface.height);
 
   root.setProperty("--stage-scale", String(layout.scale));
   root.setProperty("--viewport-height", `${layout.viewportHeight}px`);
   root.setProperty("--viewport-width", `${layout.viewportWidth}px`);
-  root.setProperty("--fh", `${layout.viewportHeight}px`);
-  root.setProperty("--vh", `${layout.viewportHeight * 0.01}px`);
-  root.setProperty("--vw", `${layout.viewportWidth * 0.01}px`);
+  root.setProperty("--fh", `${layout.designHeight}px`);
+  root.setProperty("--vh", `${layout.designHeight * 0.01}px`);
+  root.setProperty("--vw", `${layout.designWidth * 0.01}px`);
   root.setProperty("--stage-logical-width", `${layout.designWidth}px`);
   root.setProperty("--stage-logical-height", `${layout.designHeight}px`);
   root.setProperty("--viewport-surface-left", `${surface.left}px`);
