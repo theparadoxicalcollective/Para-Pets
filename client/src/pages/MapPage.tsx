@@ -398,8 +398,9 @@ export default function MapPage({ user }: MapPageProps) {
                 aspectRatio: "1 / 2.05",
                 // Expand the single authored scene to cover narrow and wide cameras.
                 // Its children use percentages of this same artwork, not viewport pixels.
-                width: "max(100%, calc(100dvh / 2.05))",
-                minHeight: "100%",
+                width: "max(100%, calc((100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2.05))",
+                // Let the image aspect ratio own height; stretching to the scroll
+                // viewport creates excess blank artwork on short phone cameras.
                 touchAction: "pan-x pan-y",
                 backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
                 backgroundSize: "100% 100%",
