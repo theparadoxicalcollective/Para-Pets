@@ -1535,10 +1535,7 @@ function BagView({
                   {/* Match the player-detail card's fitVisible portrait, but reserve
                       breathing room for tall ears, horns, wings and adornments. */}
                   <div className="absolute inset-[12%] flex items-center justify-center" style={{ minWidth: 0, minHeight: 0 }}>
-                    {pet.isHatched && pet.petTemplateId ? (
-                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={portrait} name={petName} isEvolved={pet.isEvolved} />
-                    ) : portrait ? <VisibleAssetImage src={portrait} alt={petName} className="w-full h-full object-contain" />
-                      : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
+                    {portrait ? <img src={portrait} alt={petName} className="w-full h-full object-contain" loading="lazy" decoding="async" draggable={false} /> : <img src={petPawIcon} alt="" className="w-12 h-12 object-contain" />}
                   </div>
                 </div>
                 <span className="font-fantasy text-[#f0c040] text-xs font-semibold truncate w-full">{petName}</span>
@@ -1687,11 +1684,7 @@ function BagView({
               >✕</button>
               <div className="w-28 h-28 rounded-lg flex items-center justify-center"
                 style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(212,160,23,.2)" }}>
-                {selectedBagPet.isHatched && selectedBagPet.petTemplateId ? (
-                  <InventoryPetPortrait petInventoryId={selectedBagPet.inventoryId} petTemplateId={selectedBagPet.petTemplateId} imageUrl={selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl} name={selectedBagPet.petNickname || selectedBagPet.name} isEvolved={selectedBagPet.isEvolved} />
-                ) : (
-                  <img src={selectedBagPet.eggImageUrl || selectedBagPet.imageUrl || eggMagicIcon} alt={selectedBagPet.petNickname || selectedBagPet.name} className="w-full h-full object-contain" />
-                )}
+                <img src={selectedBagPet.isHatched ? (selectedBagPet.hatchedImageUrl || selectedBagPet.imageUrl || petPawIcon) : (selectedBagPet.eggImageUrl || selectedBagPet.imageUrl || eggMagicIcon)} alt={selectedBagPet.petNickname || selectedBagPet.name} className="w-full h-full object-contain" />
               </div>
               <h3 className="font-fantasy text-[#f0c040] text-lg">{selectedBagPet.petNickname || selectedBagPet.name}</h3>
               <div aria-label={`${selectedBagPet.rarity ?? 1} of 5 rarity stars`}>

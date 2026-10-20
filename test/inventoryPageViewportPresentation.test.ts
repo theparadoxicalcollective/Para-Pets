@@ -43,11 +43,13 @@ test("Bag Pets displays compact, view-only tiles with a pet detail modal", () =>
   assert.ok(inventory.includes('category === "pets" ? pets.length : 0'));
 });
 
-test("Bag pet cards and detail reuse the evolved, adorned and mini-pet inventory renderer", () => {
-  assert.match(inventory, /data-testid="bag-full-pets"[\s\S]*<InventoryPetPortrait petInventoryId=\{pet\.inventoryId\}/);
-  assert.match(inventory, /selectedBagPet\.isHatched && selectedBagPet\.petTemplateId[\s\S]*<InventoryPetPortrait petInventoryId=\{selectedBagPet\.inventoryId\}/);
-  assert.match(inventory, /<PetAnimator petTemplateId=\{petTemplateId\} petInventoryId=\{petInventoryId\}/);
-  assert.match(inventory, /<MiniPetRenderer petInventoryId=\{petInventoryId\} animated=\{false\}/);
+test("Bag pets use lightweight static artwork while dedicated Pet inventory keeps composited appearances", () => {
+  const bag = inventory.slice(inventory.indexOf("function BagView("));
+  assert.match(bag, /data-testid="bag-full-pets"/);
+  assert.match(bag, /loading="lazy" decoding="async"/);
+  assert.match(bag, /selectedBagPet\.isHatched \? \(selectedBagPet\.hatchedImageUrl/);
+  assert.doesNotMatch(bag, /<InventoryPetPortrait/);
+  assert.match(inventory.slice(0, inventory.indexOf("function BagView(")), /<PetAnimator/);
 });
 
 test("Pet inventory keeps appearance renderers mounted after first becoming visible", () => {
