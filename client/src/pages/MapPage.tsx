@@ -374,10 +374,9 @@ export default function MapPage({ user }: MapPageProps) {
         data-testid="world-map-viewport-camera"
         className="absolute inset-0 z-10 flex flex-col"
         style={{
-          paddingTop: "env(safe-area-inset-top, 0px)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-          // The viewport camera owns scrolling, not the artwork. The map image
-          // belongs to the same scroll content as admin-authored world nodes.
+          // The stage already owns the measured visible viewport. Avoid a
+          // second safe-area inset that shortens the map camera on phones.
+          // The camera owns scrolling; artwork and nodes share its scene.
         }}
       >
         <div className="flex-1 min-h-0 relative overflow-auto map-scroll" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-x pan-y" }}>
@@ -398,8 +397,9 @@ export default function MapPage({ user }: MapPageProps) {
                 aspectRatio: "1 / 2.05",
                 // Expand the single authored scene to cover narrow and wide cameras.
                 // Its children use percentages of this same artwork, not viewport pixels.
-                width: "max(100%, calc(100dvh / 2.05))",
-                minHeight: "100%",
+                // Use the stage's measured viewport height instead of a competing
+                // CSS 100dvh measurement. Keep artwork geometry proportional.
+                width: "max(100%, calc(var(--viewport-height) / 2.05))",
                 touchAction: "pan-x pan-y",
                 backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
                 backgroundSize: "100% 100%",
