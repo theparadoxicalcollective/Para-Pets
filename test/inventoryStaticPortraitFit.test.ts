@@ -22,5 +22,7 @@ test("inventory portraits stay static, preserve equipped appearance and use the 
   assert.match(portrait, /overflow: "hidden"/);
   assert.match(portrait, /<MiniPetRenderer petInventoryId=\{petInventoryId\} animated=\{false\}/);
   assert.match(portrait, /<VisibleAssetImage src=\{imageUrl\}/);
-  assert.match(inventory, /portrait \? <VisibleAssetImage src=\{portrait\}/);
+  const bag = inventory.slice(inventory.indexOf("function BagView("));
+  assert.match(bag, /portrait \? <img src=\{portrait\}/);
+  assert.doesNotMatch(bag, /<InventoryPetPortrait/);
 });
