@@ -85,3 +85,15 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   assert.match(appSource, /data-testid="modal-haunted-world-welcome"/);
   assert.match(appSource, /data-quest-guide-blocker="true"/);
 });
+
+test("Begin Journey portal layers use HUD-local positioning on desktop without changing phone coordinates", () => {
+  const source = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
+  assert.match(source, /createPortal\(/);
+  assert.match(source, /surface\.target/);
+  assert.doesNotMatch(source, /position: "fixed"/);
+  assert.match(source, /position: "absolute", inset: 0/);
+  const desktop = { left: 396, top: 0, scale: 1 };
+  assert.deepEqual(guideBoundsInSurface({ left: 496, right: 576, top: 300, bottom: 380 }, desktop), { left: 100, right: 180, top: 300, bottom: 380 });
+  const phone = { left: 0, top: 0, scale: 1 };
+  assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 300, bottom: 380 }, phone), { left: 100, right: 180, top: 300, bottom: 380 });
+});
