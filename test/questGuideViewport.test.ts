@@ -97,3 +97,18 @@ test("Begin Journey portal layers use HUD-local positioning on desktop without c
   const phone = { left: 0, top: 0, scale: 1 };
   assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 300, bottom: 380 }, phone), { left: 100, right: 180, top: 300, bottom: 380 });
 });
+
+test("shared quest and NPC guides position overlays inside their HUD portal on centered desktop", () => {
+  const viewport = readFileSync("client/src/lib/questGuideViewport.ts", "utf8");
+  assert.match(viewport, /target: hud,\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*inStage: true,/);
+  const spotlight = readFileSync("client/src/components/QuestGuideSpotlight.tsx", "utf8");
+  const npc = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
+  assert.match(spotlight, /const position = surface\.inStage \? "absolute" : "fixed"/);
+  assert.match(npc, /surface\.inStage \? "absolute" : "fixed"/);
+  const desktopHud = { left: 396, top: 0, scale: 1 };
+  const desktopBounds = guideBoundsInSurface({ left: 496, right: 576, top: 320, bottom: 400 }, desktopHud);
+  assert.deepEqual(desktopBounds, { left: 100, right: 180, top: 320, bottom: 400 });
+  assert.equal(guideTargetOnScreen(desktopBounds, 648, 900), true);
+  const phoneHud = { left: 0, top: 0, scale: 1 };
+  assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 320, bottom: 400 }, phoneHud), desktopBounds);
+});
