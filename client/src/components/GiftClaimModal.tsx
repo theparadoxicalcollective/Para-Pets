@@ -42,6 +42,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/gifts/pending"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-house/decor/inventory"] });
       toast({ title: "Gift accepted!", description: "It's been added to your account." });
     },

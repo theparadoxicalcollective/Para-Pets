@@ -1,3 +1,4 @@
+import { fishBagItems, type FishBagRecord } from "@/lib/fishBagInventory";
 import { useState, useEffect, useRef } from "react";
 import { bjGetStatus } from "@/lib/beginJourney";
 import { playSpeedUp, playPowerUp } from "@/lib/sounds";
@@ -219,6 +220,12 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
     queryKey: ["/api/inventory"],
     staleTime: 0,
   });
+  const { data: fishInventory = [], isError: fishInventoryError } = useQuery<FishBagRecord[]>({
+    queryKey: ["/api/fishing/inventory"],
+    staleTime: 30000,
+    enabled: showBag,
+  });
+
   const { data: equippedAccessoryIds = [] } = useQuery<string[]>({
     queryKey: ["/api/user/equipped-accessory-ids"],
     staleTime: 0,
@@ -409,11 +416,12 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
   const equippedAccessoryIdSet = new Set(equippedAccessoryIds);
   const pets = inventory.filter((item) => item.type === "pet" && !item.isListed);
-  const bagItems = inventory.filter((item) =>
+  const bagItems: InventoryItem[] = [...inventory.filter((item) =>
     !item.isListed &&
     item.type !== "pet" &&
+    item.fishingType !== "fish" &&
     (item.type !== "accessory" || !equippedAccessoryIdSet.has(item.inventoryId)),
-  );
+  ), ...fishBagItems(fishInventory)];
   const hatchTimeItems = bagItems.filter(i => i.type === "special" && i.specialType === "hatch_time");
   const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
@@ -572,7 +580,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
               </div>
             ) : showBag ? (
-              <BagView items={bagItems} pets={pets} activePetId={user.activePetId} onPetToggle={handlePetToggle} onEggSpeedUp={(id) => setSpeedUpTargetId(id)} petTogglePending={setActivePetMutation.isPending} pendingPetId={setActivePetMutation.variables ?? null} userId={user.id} pageMode={!!pageMode} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
+              <BagView items={bagItems} pets={pets} fishInventoryError={fishInventoryError} activePetId={user.activePetId} onPetToggle={handlePetToggle} onEggSpeedUp={(id) => setSpeedUpTargetId(id)} petTogglePending={setActivePetMutation.isPending} pendingPetId={setActivePetMutation.variables ?? null} userId={user.id} pageMode={!!pageMode} onItemPointerDown={pageMode ? undefined : handleItemPointerDown} />
             ) : (
               <PetView
                 pets={pets}
@@ -1284,6 +1292,7 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 const POTION_STACK_MAX = 50;
 
 function BagView({
+  fishInventoryError,
   items,
   pets,
   activePetId,
@@ -1295,6 +1304,7 @@ function BagView({
   pageMode,
   onItemPointerDown,
 }: {
+  fishInventoryError: boolean;
   items: InventoryItem[];
   pets: InventoryItem[];
   activePetId: string | null;
@@ -1539,7 +1549,9 @@ function BagView({
           })}
         </div>
       )}
-      {isEmpty ? (
+      {activeBagCategory === "fish" && fishInventoryError ? (
+        <p role="alert" className="font-fantasy text-[#e07070] text-xs text-center py-8">Unable to load fish. Please reopen your bag to try again.</p>
+      ) : isEmpty ? (
         <div className="text-center py-16">
           <div
             className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"
@@ -1864,7 +1876,7 @@ function BagView({
               })()}
 
 
-              <div className="w-full pt-2 border-t" style={{ borderColor: "rgba(212,160,23,0.15)" }}>
+              {selectedItem.fishingType !== "fish" && <div className="w-full pt-2 border-t" style={{ borderColor: "rgba(212,160,23,0.15)" }}>
                 {!confirmDelete ? (
                   <button
                     className="w-full py-2.5 rounded-lg font-fantasy text-xs tracking-wider transition-transform active:scale-95"
@@ -1915,7 +1927,7 @@ function BagView({
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
         </div>
