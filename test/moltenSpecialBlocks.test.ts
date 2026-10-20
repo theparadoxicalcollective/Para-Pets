@@ -270,3 +270,17 @@ test("Molten canvas preloads all eight formations and keeps textured artwork vis
   assert.ok(!page.includes('const spin = nt2 / 1250'));
   assert.ok(!page.includes('const spin = nt2 / 1000'));
 });
+
+test("Molten tile outlines derive from their uploaded artwork, not old piece-id colors", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("client/src/pages/MoltenBlocksPage.tsx", "utf8");
+  assert.ok(page.includes("function tileOutlineColor(img: HTMLImageElement | undefined)"));
+  assert.ok(page.includes("PIECE_GLOW_CACHE.get(img)"));
+  assert.ok(page.includes("ctx.getImageData(0, 0, 24, 24)"));
+  assert.ok(page.includes("const outlineColor = tileOutlineColor(img)"));
+  assert.ok(page.includes("ctx.strokeStyle = outlineColor"));
+  assert.ok(page.includes("ctx.shadowColor = outlineColor"));
+  assert.ok(!page.includes("PIECE_GLOW[type]"));
+  // The landing ghost intentionally retains its high-contrast gold guide.
+  assert.ok(page.includes('ctx.strokeStyle = "rgba(255,224,151,0.85)"'));
+});
