@@ -31,18 +31,47 @@ const SHAPES = MOLTEN_FORMATIONS;
 const COLS = 10;
 const ROWS = 18;
 
-// Per-piece coloured glow rim drawn around each cell so the player can
-// quickly tell pieces apart at a glance.
-const PIECE_GLOW: Record<Piece, string> = {
-  I: "rgba(255,140,40,0.9)",   // bubbly orange
-  O: "rgba(255,200,40,0.95)",  // bright amber
-  T: "rgba(200,90,255,0.9)",   // purple
-  S: "rgba(120,255,90,0.9)",   // green
-  Z: "rgba(255,60,60,0.95)",   // red lava
-  L: "rgba(255,150,30,0.9)",   // black-orange lava
-  J: "rgba(80,255,220,0.9)",   // teal swirl
-  K: "rgba(255,184,75,0.95)", // Cinder Line
-};
+// Artwork-driven glow colors. The uploaded texture palette can change independently
+// of formation IDs, so sample each loaded tile rather than assigning a contrasting
+// hard-coded outline (for example, a purple rim around a green tile).
+// Fall back to a warm neutral rim until an image is ready or canvas is unreadable.
+const FALLBACK_PIECE_GLOW = "rgba(255,190,112,0.9)";
+const PIECE_GLOW_CACHE = new WeakMap<HTMLImageElement, string>();
+
+function tileOutlineColor(img: HTMLImageElement | undefined): string {
+  if (!img?.complete || !img.naturalWidth || !img.naturalHeight) return FALLBACK_PIECE_GLOW;
+  const cached = PIECE_GLOW_CACHE.get(img);
+  if (cached) return cached;
+  try {
+    const sample = document.createElement("canvas");
+    sample.width = sample.height = 24;
+    const ctx = sample.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return FALLBACK_PIECE_GLOW;
+    ctx.drawImage(img, 0, 0, 24, 24);
+    const pixels = ctx.getImageData(0, 0, 24, 24).data;
+    let red = 0, green = 0, blue = 0, weightTotal = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const alpha = pixels[i + 3] / 255;
+      if (alpha < 0.2) continue;
+      const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      // Focus on bright, saturated artwork colors rather than dark cracks.
+      const weight = alpha * (0.15 + (max - min) / 255) * (0.2 + max / 255);
+      red += r * weight; green += g * weight; blue += b * weight;
+      weightTotal += weight;
+    }
+    if (!weightTotal) return FALLBACK_PIECE_GLOW;
+    const r = Math.min(255, Math.round(red / weightTotal * 1.18 + 12));
+    const g = Math.min(255, Math.round(green / weightTotal * 1.18 + 12));
+    const b = Math.min(255, Math.round(blue / weightTotal * 1.18 + 12));
+    const glow = `rgba(${r},${g},${b},0.92)`;
+    PIECE_GLOW_CACHE.set(img, glow);
+    return glow;
+  } catch {
+    // Keep rendering if sampling is blocked by canvas security or an image error.
+    return FALLBACK_PIECE_GLOW;
+  }
+}
 
 // Solid base colour painted UNDER each tile texture so any transparent
 // pixels at the rounded corners of the source PNG can never bleed through
@@ -883,6 +912,7 @@ export default function MoltenBlocksPage() {
   // ── Drawing ────────────────────────────────────────────────────────────
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
     const img = imgsRef.current[type];
+    const outlineColor = tileOutlineColor(img);
     // Round only the artwork, not the board geometry. Keep the radius small
     // so adjacent occupied cells still read as a solid falling shape.
     const radius = Math.max(2, Math.min(5, size * 0.12));
@@ -904,7 +934,7 @@ export default function MoltenBlocksPage() {
     cellPath();
     ctx.clip();
     if (!ghost && img && img.complete && img.naturalWidth > 0) {
-      ctx.shadowColor = PIECE_GLOW[type];
+      ctx.shadowColor = outlineColor;
     }
     if (img && img.complete && img.naturalWidth > 0) {
       // Fill behind the uploaded texture so the corners never
@@ -921,7 +951,7 @@ export default function MoltenBlocksPage() {
       ctx.imageSmoothingEnabled = previousSmoothing;
     } else {
       if (ghost) ctx.globalAlpha = 0.32;
-      ctx.fillStyle = PIECE_GLOW[type];
+      ctx.fillStyle = outlineColor;
       ctx.fillRect(x, y, size, size);
     }
     ctx.restore();
@@ -929,9 +959,9 @@ export default function MoltenBlocksPage() {
     ctx.save();
     cellPath();
     if (!ghost) {
-      ctx.shadowColor = PIECE_GLOW[type];
+      ctx.shadowColor = outlineColor;
       ctx.shadowBlur = Math.max(5, size * 0.34);
-      ctx.strokeStyle = PIECE_GLOW[type];
+      ctx.strokeStyle = outlineColor;
     } else {
       ctx.strokeStyle = "rgba(255,224,151,0.85)";
       ctx.shadowColor = "#ffc05b";
