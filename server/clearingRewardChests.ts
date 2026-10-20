@@ -164,8 +164,24 @@ export async function claimClearingRewardChest(
 
     const balances = await tx.execute(sql`UPDATE users SET coins=coins+${rewards.coins},essence=essence+${rewards.essence},total_coins_earned=total_coins_earned+${rewards.coins} WHERE id=${input.userId} RETURNING coins,essence`);
     for (const item of rewards.items) {
-      const granted = await tx.execute(sql`INSERT INTO user_inventory(user_id,shop_item_id,quantity) SELECT ${input.userId},id,${Math.max(1, Number(item.quantity || 1))} FROM shop_items WHERE id=${item.shopItemId} RETURNING id`);
-      if (!granted.rows.length) {
+      const quantity = Math.max(1, Number(item.quantity || 1));
+      // Fish are individual aquarium-owned records, not stackable bag items.
+      // Keep the grant in the same chest-claim transaction to avoid double rewards.
+      const granted = await tx.execute(sql`
+        WITH catalog AS (SELECT id, fishing_type FROM shop_items WHERE id=${item.shopItemId}),
+        fish_grant AS (
+          INSERT INTO player_fish_inventory(user_id, shop_item_id)
+          SELECT ${input.userId}, catalog.id FROM catalog, generate_series(1, ${quantity}::integer)
+          WHERE catalog.fishing_type = 'fish' RETURNING id
+        ),
+        regular_grant AS (
+          INSERT INTO user_inventory(user_id,shop_item_id,quantity)
+          SELECT ${input.userId}, catalog.id, ${quantity} FROM catalog
+          WHERE catalog.fishing_type IS DISTINCT FROM 'fish' RETURNING id
+        )
+        SELECT (SELECT count(*) FROM fish_grant) + (SELECT count(*) FROM regular_grant) AS granted
+      `);
+      if (!granted.rows.length || Number((granted.rows[0] as any).granted) < 1) {
         throw new ClearingChestError("invalid_reward", "Reward item is no longer available");
       }
     }
