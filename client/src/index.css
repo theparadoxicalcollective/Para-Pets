@@ -3728,7 +3728,7 @@ img[data-interactive], button img, a img {
 @keyframes fishFinDown   { from { transform: rotate(0deg);  } to { transform: rotate(2.5deg); } }
 @keyframes fishHeadFin   { from { transform: rotate(-3deg) translateY(-1px); } to { transform: rotate(2deg) translateY(2px); } }
 @keyframes fishTopFinSway { from { transform: rotate(-1deg); } to { transform: rotate(0.5deg); } }
-@keyframes fishSideFin    { from { transform: rotate(-6deg); } to { transform: rotate(8deg);  } }
+@keyframes fishSideFin    { from { transform: rotate(-1deg); } to { transform: rotate(1deg);  } }
 @keyframes fishLimbSwayA  { from { transform: rotate(-7deg); } to { transform: rotate(7deg);  } }
 @keyframes fishLimbSwayB  { from { transform: rotate(6deg);  } to { transform: rotate(-6deg); } }
 @keyframes fishTailSegA   { from { transform: rotate(-5deg); } to { transform: rotate(5deg);  } }

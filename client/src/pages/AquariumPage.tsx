@@ -106,7 +106,7 @@ const FISH_RENDER_SIZE = 220;
 const FISH_PART_ANIM: Record<string, { anim: string; duration: string; origin: string }> = {
   tail:           { anim: "fishTailWag",    duration: "0.55s", origin: "15% 50%" },
   top_fin:        { anim: "fishTopFinSway", duration: "2.6s",  origin: "50% 95%" },
-  side_fin:       { anim: "fishSideFin",    duration: "1.5s",  origin: "10% 50%" },
+  side_fin:       { anim: "fishSideFin",    duration: "3.2s",  origin: "10% 50%" },
   bottom_fin_1:   { anim: "fishFinDown",    duration: "1.4s",  origin: "50% 5%"  },
   bottom_fin_2:   { anim: "fishFinDown",    duration: "1.6s",  origin: "50% 5%"  },
   bottom_fin:     { anim: "fishFinDown",    duration: "1.4s",  origin: "50% 5%"  },
