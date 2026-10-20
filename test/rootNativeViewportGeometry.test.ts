@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { calculateStageLayout, getStageTransform } from "../client/src/lib/stage";
+import { desktopPortraitGameplayLayout } from "../client/src/lib/stageViewport";
 
 test("native root surface occupies the measured viewport on phone, tablet, and desktop", () => {
   for (const [width, height] of [
@@ -53,4 +54,22 @@ test("viewport root does not reintroduce a scaled iPhone stage in its runtime ow
   assert.match(app, /data-coordinate-owner="viewport"/);
   assert.match(app, /id="game-viewport-hud"/);
   assert.match(app, /id="game-viewport-scene"/);
+});
+
+test("desktop gameplay is a centered native portrait surface without altering mobile, tablet or document geometry", () => {
+  const desktop = desktopPortraitGameplayLayout(calculateStageLayout(1440, 900, 0, 0, { viewportSurface: true }), "/map", false);
+  assert.equal(desktop.designWidth, 648);
+  assert.equal(desktop.designHeight, 900);
+  assert.equal(desktop.left, 396);
+  assert.equal(desktop.scale, 1);
+  assert.equal(desktop.coordinateOwner, "viewport");
+  assert.equal(desktop.referencePortrait, false);
+  for (const [w, h, touch, path] of [
+    [390, 844, true, "/map"], [834, 1194, true, "/map"],
+    [1440, 900, true, "/map"], [1440, 900, false, "/hub"],
+    [900, 1100, false, "/map"],
+  ] as const) {
+    const base = calculateStageLayout(w, h, 0, 0, { viewportSurface: true });
+    assert.deepEqual(desktopPortraitGameplayLayout(base, path, touch), base);
+  }
 });
