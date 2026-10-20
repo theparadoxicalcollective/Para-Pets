@@ -359,7 +359,9 @@ test("Home pet size controls keep a 100px start and allow growth through 250px",
   assert.match(sizing, /PET_HOUSE_INTERIOR_PET_BASE_SIZE = 100/);
   assert.match(owner, /data-testid=\{`home-pet-visible-scale-\$\{pet\.inventoryId\}`\}/);
   assert.match(owner, /transform: \`scale\(\$\{petScale\}\)\`/);
-  assert.match(owner, /width: PET_HOUSE_INTERIOR_PET_BASE_SIZE/);
+  assert.match(owner, /width: petHouseScenePetSize\(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH\)/);
+  assert.match(visitor, /width: petHouseScenePetSize\(PET_HOUSE_INTERIOR_PET_BASE_SIZE, containerH\)/);
+  assert.match(sizing, /export function petHouseScenePetSize\(/);
   assert.match(visitor, /data-testid=\{`visit-pet-visible-scale-\$\{pet\.inventoryId\}`\}/);
   assert.match(visitor, /transform: \`scale\(\$\{petScale\}\)\`/);
   assert.match(owner, /Returning…/);
