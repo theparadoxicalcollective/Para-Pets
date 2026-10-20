@@ -50,8 +50,9 @@ test("Bag pet cards and detail reuse the evolved, adorned and mini-pet inventory
   assert.match(inventory, /<MiniPetRenderer petInventoryId=\{petInventoryId\} animated=\{false\}/);
 });
 
-test("Pet inventory keeps appearance renderers mounted after first becoming visible", () => {
-  assert.match(inventory, /if \(entry\.isIntersecting\) \{ setVisible\(true\); observer\.disconnect\(\); \}/);
-  assert.doesNotMatch(inventory, /setVisible\(entry\.isIntersecting\)/);
-  assert.match(inventory, /data-testid=\{\x60inventory-pet-portrait-\$\{petInventoryId\}\x60\}/);
+test("Bag portraits release offscreen layered renderers instead of retaining every pet", () => {
+  assert.match(inventory, /setVisible\(entry\.isIntersecting\)/);
+  assert.match(inventory, /rootMargin: "0px"/);
+  assert.match(inventory, /<ErrorBoundary context="PetInventory\.PetPortrait"/);
+  assert.match(inventory, /<MiniPetRenderer petInventoryId=\{petInventoryId\} animated=\{false\}/);
 });
