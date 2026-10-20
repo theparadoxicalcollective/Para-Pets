@@ -60,7 +60,10 @@ export function getQuestGuideSurface(anchor?: Element | null): QuestGuideSurface
       const height = hud.clientHeight || rect.height;
       return {
         target: hud,
-        inStage: false,
+        // A portal into the HUD must use HUD-local absolute positioning.
+        // Fixed positioning uses the browser window and shifts desktop guides
+        // outside the centered portrait gameplay surface.
+        inStage: true,
         left: rect.left,
         top: rect.top,
         width,
