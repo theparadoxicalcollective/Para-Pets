@@ -54,3 +54,17 @@ test("desktop centering preserves an existing viewport offset", () => {
   assert.equal(result.viewportWidth, input.viewportWidth);
   assert.equal(result.viewportHeight, input.viewportHeight);
 });
+
+test("pre-game auth and loading use the full desktop viewport rather than portrait gameplay offset", () => {
+  for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080], [2560, 1440]] as const) {
+    const layout = native(width, height);
+    const auth = desktopPortraitGameplayLayout(layout, "/auth", false);
+    assert.deepEqual(auth, layout);
+    assert.equal(auth.left, 0);
+    assert.equal(auth.designWidth, width);
+    assert.equal(auth.renderedWidth, width);
+    const gameplay = desktopPortraitGameplayLayout(layout, "/map", false);
+    assert.ok(gameplay.left > 0, "authenticated gameplay must still be centered");
+    assert.ok(gameplay.designWidth < width, "authenticated gameplay remains portrait");
+  }
+});
