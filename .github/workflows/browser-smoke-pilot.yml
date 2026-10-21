@@ -1,0 +1,40 @@
+name: Browser smoke pilot
+
+# Opt-in until the isolated fixture and browser runtime have been validated.
+on:
+  workflow_dispatch:
+
+jobs:
+  public-route-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install isolated browser runner (no lockfile or manifest changes)
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise public route at phone, tablet and desktop sizes
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vite --host 127.0.0.1 --port 4173 --strictPort > /tmp/para-pets-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:4173/privacy > /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/para-pets-vite.log
+            exit 1
+          fi
+          node script/browser-smoke.mjs
