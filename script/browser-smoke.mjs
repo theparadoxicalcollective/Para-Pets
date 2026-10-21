@@ -46,7 +46,25 @@ try {
       }));
       assert.equal(result.policyVisible, true, `${name}: policy should render`);
       assert.ok(result.scrollWidth <= result.width + 2, `${name}: unexpected horizontal overflow ${JSON.stringify(result)}`);
-      console.log(`PASS ${name}: public route renders at ${width}x${height} without horizontal overflow`);
+      // Exercise a real user interaction without requiring an authenticated
+      // account or a live backend. Seed a same-origin history entry, then use
+      // the existing Privacy Policy back button (mouse/touch as appropriate).
+      await page.evaluate(() => {
+        history.replaceState(null, "", "/hub");
+        history.pushState(null, "", "/privacy");
+      });
+      const backButton = page.getByTestId("button-back-privacy");
+      await backButton.waitFor({ state: "visible" });
+      const bounds = await backButton.boundingBox();
+      assert.ok(bounds && bounds.width >= 24 && bounds.height >= 24, `${name}: back button must have a usable hit area`);
+      if (hasTouch) {
+        await backButton.tap();
+      } else {
+        await backButton.click();
+      }
+      await page.waitForURL("**/hub", { timeout: 10000 });
+      assert.equal(new URL(page.url()).pathname, "/hub", `${name}: back navigation should respond to input`);
+      console.log(`PASS ${name}: public route renders, avoids horizontal overflow and back navigation responds`);
     } finally {
       await context.close();
     }
