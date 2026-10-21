@@ -45,7 +45,7 @@ test("App and root auth stages consume the shared viewport controller instead of
   const root = read("client/src/RootEntry.tsx");
 
   for (const source of [app, root]) {
-    assert.match(source, /useStageViewportLayout\((?:location|"\/")?\)/);
+    assert.match(source, /useStageViewportLayout\((?:location|"\/"|"\/auth")?\)/);
     assert.doesNotMatch(source, /calculateStageLayout/);
     assert.doesNotMatch(source, /getVisibleViewport/);
     assert.doesNotMatch(source, /--stage-scale/);
