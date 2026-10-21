@@ -7,7 +7,7 @@ const entry = readFileSync("client/src/RootEntry.tsx", "utf8");
 
 test("loading, sign-in and verification share native viewport root ownership", () => {
   assert.match(entry, /function RootStage/);
-  assert.match(entry, /useStageViewportLayout\("\/"\)/);
+  assert.match(entry, /useStageViewportLayout\("\/auth"\)/);
   assert.match(entry, /data-coordinate-owner="viewport"/);
   assert.match(entry, /data-reference-portrait="false"/);
   assert.doesNotMatch(entry, /root-stage-reference-plane/);
