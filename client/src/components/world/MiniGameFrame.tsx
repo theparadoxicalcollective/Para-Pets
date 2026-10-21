@@ -14,11 +14,10 @@ const worldBackgrounds: Record<string, string> = {
 /**
  * Shared locked-page wrapper for world mini-games.
  *
- * The game content never owns a second scale transform. Native iPhone-12-style
- * viewport ownership still renders inline at the canonical stage size, while
- * stage-owned tablets/desktop can use the shared ViewportScenePortal to occupy
- * the larger device camera. World artwork fills any newly revealed area with
- * aspect-ratio-preserving cover rather than stretching gameplay coordinates.
+ * The game content never owns a second scale transform. The root gameplay
+ * renderer is viewport-owned on phones, tablets and desktop; the shared
+ * ViewportScenePortal places artwork in that scene without a 390x844 stage.
+ * World artwork covers the available scene without stretching coordinates.
  */
 export default function MiniGameFrame({ children, worldId, backgroundUrl }: {
   children: ReactNode;
