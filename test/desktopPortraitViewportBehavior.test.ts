@@ -38,7 +38,7 @@ test("narrow, portrait and document routes retain their original viewport geomet
     { width: 390, height: 844, route: "/" },
     { width: 834, height: 1194, route: "/pet-level-up/pet-1" },
     { width: 1000, height: 700, route: "/map" },
-    { width: 1440, height: 900, route: "/privacy-policy" },
+    { width: 1440, height: 900, route: "/privacy" },
   ];
   for (const { width, height, route } of cases) {
     const input = native(width, height);
