@@ -38,6 +38,17 @@ try {
         return route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
       });
       await page.goto(`${base}/privacy`, { waitUntil: "domcontentloaded" });
+      // Mobile/tablet landscape is intentionally blocked: assert the real
+      // orientation dialog instead of expecting hidden gameplay content.
+      if (isMobile && width > height) {
+        const blocker = page.getByTestId("portrait-orientation-blocker");
+        await blocker.waitFor({ state: "visible", timeout: 30000 });
+        await page.getByText("Rotate to Portrait").waitFor({ state: "visible" });
+        assert.equal(await blocker.getAttribute("aria-modal"), "true", `${name}: orientation blocker must be modal`);
+        assert.equal(await page.getByText("Privacy policy browser smoke fixture.").isVisible(), false, `${name}: underlying page should not be visible`);
+        console.log(`PASS ${name}: landscape correctly requires portrait and hides the underlying page`);
+        continue;
+      }
       await page.getByText("Privacy policy browser smoke fixture.").waitFor({ timeout: 30000 });
       const result = await page.evaluate(() => ({
         width: document.documentElement.clientWidth,
@@ -46,7 +57,25 @@ try {
       }));
       assert.equal(result.policyVisible, true, `${name}: policy should render`);
       assert.ok(result.scrollWidth <= result.width + 2, `${name}: unexpected horizontal overflow ${JSON.stringify(result)}`);
-      console.log(`PASS ${name}: public route renders at ${width}x${height} without horizontal overflow`);
+      // Exercise a real user interaction without requiring an authenticated
+      // account or a live backend. Seed a same-origin history entry, then use
+      // the existing Privacy Policy back button (mouse/touch as appropriate).
+      await page.evaluate(() => {
+        history.replaceState(null, "", "/hub");
+        history.pushState(null, "", "/privacy");
+      });
+      const backButton = page.getByTestId("button-back-privacy");
+      await backButton.waitFor({ state: "visible" });
+      const bounds = await backButton.boundingBox();
+      assert.ok(bounds && bounds.width >= 24 && bounds.height >= 24, `${name}: back button must have a usable hit area`);
+      if (hasTouch) {
+        await backButton.tap();
+      } else {
+        await backButton.click();
+      }
+      await page.waitForURL("**/hub", { timeout: 10000 });
+      assert.equal(new URL(page.url()).pathname, "/hub", `${name}: back navigation should respond to input`);
+      console.log(`PASS ${name}: public route renders, avoids horizontal overflow and back navigation responds`);
     } finally {
       await context.close();
     }
