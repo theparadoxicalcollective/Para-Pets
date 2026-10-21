@@ -38,6 +38,17 @@ try {
         return route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
       });
       await page.goto(`${base}/privacy`, { waitUntil: "domcontentloaded" });
+      // Mobile/tablet landscape is intentionally blocked: assert the real
+      // orientation dialog instead of expecting hidden gameplay content.
+      if (isMobile && width > height) {
+        const blocker = page.getByTestId("portrait-orientation-blocker");
+        await blocker.waitFor({ state: "visible", timeout: 30000 });
+        await page.getByText("Rotate to Portrait").waitFor({ state: "visible" });
+        assert.equal(await blocker.getAttribute("aria-modal"), "true", `${name}: orientation blocker must be modal`);
+        assert.equal(await page.getByText("Privacy policy browser smoke fixture.").isVisible(), false, `${name}: underlying page should not be visible`);
+        console.log(`PASS ${name}: landscape correctly requires portrait and hides the underlying page`);
+        continue;
+      }
       await page.getByText("Privacy policy browser smoke fixture.").waitFor({ timeout: 30000 });
       const result = await page.evaluate(() => ({
         width: document.documentElement.clientWidth,
