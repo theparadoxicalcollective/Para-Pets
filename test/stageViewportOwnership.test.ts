@@ -113,3 +113,27 @@ test("this foundation PR keeps current phone tablet and desktop geometry unchang
     assert.ok(Math.abs(layout.top - target.top) < 1e-9);
   });
 });
+
+
+test("root gameplay never opts back into the legacy 390 by 844 reference stage", () => {
+  const controller = read("client/src/lib/stageViewport.ts");
+  const app = read("client/src/App.tsx");
+  const root = read("client/src/RootEntry.tsx");
+  assert.match(controller, /const viewportSurface = true;/);
+  assert.match(controller, /calculateStageLayout\([\s\S]*?\{ viewportSurface \}/);
+  for (const source of [app, root]) {
+    assert.match(source, /useStageViewportLayout\(/);
+    assert.doesNotMatch(source, /fitPortraitReference\s*:/);
+    assert.doesNotMatch(source, /calculateMiniGamePage\(/);
+  }
+});
+
+test("desktop portrait presentation does not introduce a scaled reference stage", () => {
+  const controller = read("client/src/lib/stageViewport.ts");
+  assert.match(controller, /if \(touchFirst \|\| !usesDeviceGameplaySurface\(pathname\)/);
+  assert.match(controller, /layout\.viewportWidth < 1024 \|\| layout\.viewportWidth <= layout\.viewportHeight/);
+  assert.match(controller, /Math\.round\(layout\.viewportHeight \* 0\.72\)/);
+  assert.match(controller, /coordinateOwner: "viewport"/);
+  assert.match(controller, /referencePortrait: false/);
+  assert.match(controller, /scale: 1/);
+});
