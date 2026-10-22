@@ -27,6 +27,7 @@ const NAV_HIDDEN_EXACT = new Set([
   "/bag",
   "/badges",
   "/pets",
+  "/pet-park",
   "/explore/elysian-bayou-clearing",
 ]);
 
