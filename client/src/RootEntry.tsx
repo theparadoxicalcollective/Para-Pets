@@ -14,8 +14,10 @@ import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker"
 
 function RootStage({ children }: { children: ReactNode }) {
   // Loading, sign-in and verification are viewport UI, not authored game scenes.
-  // The explicit native route prevents the legacy 390×844 fit on all devices.
-  const layout = useStageViewportLayout("/");
+  // Use the document-route viewport policy for pre-game UI. Passing "/" here
+  // applies the desktop gameplay portrait centering offset to a full-width
+  // loading/auth surface, shifting it off-screen on wide monitors.
+  const layout = useStageViewportLayout("/auth");
 
   return (
     <div className="game-stage-shell" style={{ position: "fixed", inset: 0, background: "#020806" }}>

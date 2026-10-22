@@ -14,7 +14,7 @@ test("gameplay root uses a native viewport without a centered reference plane", 
 });
 
 test("auth loading and verification root use a native viewport without a reference plane", () => {
-  assert.match(root, /useStageViewportLayout\("\/"\)/);
+  assert.match(root, /useStageViewportLayout\("\/auth"\)/);
   assert.match(root, /data-coordinate-owner="viewport"/);
   assert.match(root, /data-reference-portrait="false"/);
   assert.match(root, /width: layout\.viewportWidth/);
