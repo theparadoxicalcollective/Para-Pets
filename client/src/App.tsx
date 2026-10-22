@@ -51,6 +51,7 @@ const WorldPage          = lazy(() => import("@/pages/WorldPage"));
 const CoinShopPage       = lazy(() => import("@/pages/CoinShopPage"));
 const ResetPasswordPage  = lazy(() => import("@/pages/ResetPasswordPage"));
 const PetHousePage       = lazy(() => import("@/pages/PetHousePage"));
+const PetParkPage        = lazy(() => import("@/pages/PetParkPage"));
 const VisitPetHousePage  = lazy(() => import("@/pages/VisitPetHousePage"));
 const PrivacyPolicyPage  = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const ParaPetsHubPage    = lazy(() => import("@/pages/ParaPetsHubPage"));
@@ -528,6 +529,11 @@ function AppRouter() {
         {location === "/coins" && (
           <StagePageSurface layout="viewport">
             <CoinShopPage user={user} />
+          </StagePageSurface>
+        )}
+        {location === "/pet-park" && (
+          <StagePageSurface layout="viewport">
+            <PetParkPage />
           </StagePageSurface>
         )}
         {location === "/pet-house" && (
