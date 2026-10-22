@@ -55,3 +55,15 @@ Status: **planning / no production cutover**. Keeper's Central currently display
 - Recheck availability at mutation time to avoid races with the admin switch; invalidate/refetch availability in clients after admin updates. Require existing admin authorization and audit setting changes.
 - For future game pages, prefer a small reusable availability-gate contract (enabled flag, closed message, admin override, server mutation policy) after the Pet Park implementation proves it works. Avoid a broad feature-flag framework or changes to other pages in this phase.
 - Acceptance tests: defaults closed; closed player sees message; admin can edit/preview; opening grants access; closing blocks new deposits/unlocks; existing deposits/rewards remain safe; unauthorized clients cannot toggle; toggling during a claim cannot double-award.
+
+## Player park camera and artwork contract — home-bundle parity
+- **The player must be able to drag/pan the park scene to see background artwork beyond the viewport**, matching the player Home Bundle experience. Do not force-fit the whole background or use the retired 390 × 844 stage.
+- Reuse existing scene camera pointer-coordinate handling from `client/src/lib/homeCrossDevice.ts` / `sceneCameraCoordinates.ts`, plus the home scene's clamp/centering policy. Extend the bounds calculation to **both axes** when the park artwork is taller and/or wider than the visible camera; do not copy the entire home page implementation.
+- A pan gesture changes only the camera offset. Background, decor, pets, shadows and interactive spots all share **one scene transform** and stay registered to their saved artwork-relative positions.
+- Use stable scene-relative positions for admin editing and persisted placements; the player's viewport size and camera pan must never rewrite them.
+- Clamp to real artwork edges. If the image is smaller than the viewport on an axis, center it on that axis rather than allowing a drag into empty black space. Support wide and tall background artwork without distortion.
+- Keep player controls, park availability/under-construction message, rewards UI, slot management, and close/back button in viewport-owned HUD/modal layers, **outside** the panning scene.
+- Distinguish scene pan from tapping pets or interactive spots: use a movement threshold and pointer capture/cancel handling similar to Home; no accidental interactions during drag. Touch dragging must not scroll the document; mouse dragging must work on PC.
+- Keep depth sizing a function of the pet/decor's **vertical scene position only**; horizontal motion must not change visual size. Avoid double scaling and transform conflicts with pet idle/hop/float animation.
+- Validate portrait phones, tablets and centered portrait PC viewport geometry, including resize and orientation changes. Check camera edges, scene registration, taps versus drags, pointer cancellation and admin placement stability.
+- This is an explicit acceptance gate for the player-shell phase; **do not enable Pet Park to players before it passes**.
