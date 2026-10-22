@@ -1357,3 +1357,59 @@ export const fishingLeaderboard = pgTable("fishing_leaderboard", {
   points: integer("points").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
+
+
+// Pet Park is independent of legacy Keeper's Central world data.
+// All server mutations remain disabled until a later audited service/API PR.
+export const petParkSettings = pgTable("pet_park_settings", {
+  id: varchar("id").primaryKey().default("main"),
+  enabledForPlayers: boolean("enabled_for_players").notNull().default(false),
+  backgroundUrl: text("background_url"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const petParkSceneItems = pgTable("pet_park_scene_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  kind: text("kind").notNull(), // decor | sleep_spot
+  imageUrl: text("image_url"),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(100),
+  flipped: boolean("flipped").notNull().default(false),
+  layer: integer("layer").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const petParkPlayerSlots = pgTable("pet_park_player_slots", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  unlockedSlots: integer("unlocked_slots").notNull().default(1),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const petParkDeposits = pgTable("pet_park_deposits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  petInventoryId: varchar("pet_inventory_id").notNull().references(() => userInventory.id, { onDelete: "cascade" }),
+  slotNumber: integer("slot_number").notNull(),
+  checkpointAt: timestamp("checkpoint_at").notNull().default(sql`now()`),
+  pausedAt: timestamp("paused_at"),
+  pausedDurationMs: integer("paused_duration_ms").notNull().default(0),
+  withdrawnAt: timestamp("withdrawn_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => [
+  uniqueIndex("pet_park_deposits_slot_active_uidx").on(t.userId, t.slotNumber).where(sql`${t.withdrawnAt} IS NULL`),
+  uniqueIndex("pet_park_deposits_pet_active_uidx").on(t.petInventoryId).where(sql`${t.withdrawnAt} IS NULL`),
+]);
+
+export const petParkRewardClaims = pgTable("pet_park_reward_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  depositId: varchar("deposit_id").notNull().references(() => petParkDeposits.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  intervalStartAt: timestamp("interval_start_at").notNull(),
+  intervalEndAt: timestamp("interval_end_at").notNull(),
+  earnedDurationMs: integer("earned_duration_ms").notNull(),
+  coins: integer("coins").notNull().default(0),
+  essence: integer("essence").notNull().default(0),
+  petXp: integer("pet_xp").notNull().default(0),
+  claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
+}, (t) => [uniqueIndex("pet_park_claim_interval_uidx").on(t.depositId, t.intervalStartAt, t.intervalEndAt)]);
