@@ -20,6 +20,7 @@ import type { CardDefinition } from "@/lib/cardCatalog";
 import RedeemCodeAdminPanel from "@/components/RedeemCodeAdminPanel";
 import DailyRewardsAdminPanel from "@/components/DailyRewardsAdminPanel";
 import MaintenanceSection from "@/components/admin/MaintenanceSection";
+import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards_new.png";
@@ -93,7 +94,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "pet_park" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "mini_pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -207,6 +208,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "messages"      as const, label: "Messages",        icon: adminIconMessages,      desc: "Support inbox",  count: unreadSupportCount || undefined, color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
     { key: "metrics"       as const, label: "Metrics",         icon: adminIconPurchases,     desc: "Player login analytics",       color: "#7dd3fc", glow: "rgba(125,211,252,0.30)",  bg: "linear-gradient(145deg, rgba(8,36,60,0.92) 0%, rgba(12,56,90,0.88) 100%)",   border: "rgba(125,211,252,0.45)" },
     { key: "molten_blocks" as const, label: "Molten Blocks",   icon: adminIconItems,         desc: "Item drops in Molten Blocks",  color: "#fdba74", glow: "rgba(253,186,116,0.35)",  bg: "linear-gradient(145deg, rgba(72,32,4,0.92) 0%, rgba(110,50,10,0.88) 100%)",  border: "rgba(253,186,116,0.5)"  },
+    { key: "pet_park"      as const, label: "Pet Park", icon: adminIconHouseBundle, desc: "Park background, decor & rest spots", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
     { key: "purchases"     as const, label: "Purchases",       icon: adminIconPurchases,     desc: "Coin shop history",            color: "#86efac", glow: "rgba(134,239,172,0.30)",  bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)",   border: "rgba(134,239,172,0.45)" },
     { key: "quest"         as const, label: "Quests",          icon: adminIconQuest,         desc: "Manage quests",                color: "#6ee7b7", glow: "rgba(110,231,183,0.35)",  bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)",   border: "rgba(110,231,183,0.45)" },
     { key: "recipe_items"  as const, label: "Recipes",         icon: adminIconItems,         desc: "Mixing Tree brew recipes",     color: "#4ade80", glow: "rgba(74,222,128,0.35)",   bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(74,222,128,0.5)"   },
@@ -819,6 +821,8 @@ export default function AdminPage({ user }: AdminPageProps) {
                   <HomeBundleSection />
                 </AdminEditorLoader>
               )}
+
+              {activeSection === "pet_park" && <PetParkAdminPanel />}
 
               {activeSection === "purchases" && (
                 <CoinPurchasesSection />
