@@ -99,6 +99,7 @@ import { registerInventoryReadRoutes } from "./routes/inventoryRead.routes";
 import { registerPetProgressionItemRoutes } from "./routes/petProgressionItem.routes";
 import { registerPetFeedingRoute, registerPetGiftLoyaltyRoutes, registerPetPettingRewardRoute } from "./routes/petCare.routes";
 import { registerPetStateRoutes } from "./routes/petState.routes";
+import { registerPetParkSlotRoutes } from "./routes/petParkSlots.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
@@ -1414,6 +1415,8 @@ export async function registerRoutes(
     applyPetXp,
     incrementQuestProgress,
   });
+
+  registerPetParkSlotRoutes(app, isAuthenticated);
 
   registerPetStateRoutes(app, {
     storage,
