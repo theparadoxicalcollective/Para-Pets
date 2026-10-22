@@ -1,0 +1,70 @@
+import { db } from "../../db";
+import { sql } from "drizzle-orm";
+
+/**
+ * Idempotent, additive Pet Park storage migration. Runs before routes listen.
+ * Park defaults closed. This migration never touches legacy Central tables,
+ * credits rewards, or unlocks player slots.
+ */
+export async function ensurePetParkStorage(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS pet_park_settings (
+      id varchar PRIMARY KEY DEFAULT 'main' CHECK (id = 'main'),
+      enabled_for_players boolean NOT NULL DEFAULT false,
+      background_url text,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+    INSERT INTO pet_park_settings (id, enabled_for_players)
+    VALUES ('main', false) ON CONFLICT (id) DO NOTHING;
+
+    CREATE TABLE IF NOT EXISTS pet_park_scene_items (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      kind text NOT NULL CHECK (kind IN ('decor', 'sleep_spot')),
+      image_url text,
+      x_pct real NOT NULL DEFAULT 0.5 CHECK (x_pct BETWEEN 0 AND 1),
+      y_pct real NOT NULL DEFAULT 0.5 CHECK (y_pct BETWEEN 0 AND 1),
+      size integer NOT NULL DEFAULT 100 CHECK (size BETWEEN 1 AND 1000),
+      flipped boolean NOT NULL DEFAULT false,
+      layer integer NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS pet_park_player_slots (
+      user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      unlocked_slots integer NOT NULL DEFAULT 1 CHECK (unlocked_slots BETWEEN 1 AND 3),
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS pet_park_deposits (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      pet_inventory_id varchar NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
+      slot_number integer NOT NULL CHECK (slot_number BETWEEN 1 AND 3),
+      checkpoint_at timestamp NOT NULL DEFAULT now(),
+      paused_at timestamp,
+      paused_duration_ms integer NOT NULL DEFAULT 0 CHECK (paused_duration_ms >= 0),
+      withdrawn_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS pet_park_deposits_slot_active_uidx
+      ON pet_park_deposits (user_id, slot_number) WHERE withdrawn_at IS NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS pet_park_deposits_pet_active_uidx
+      ON pet_park_deposits (pet_inventory_id) WHERE withdrawn_at IS NULL;
+
+    CREATE TABLE IF NOT EXISTS pet_park_reward_claims (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      deposit_id varchar NOT NULL REFERENCES pet_park_deposits(id) ON DELETE CASCADE,
+      user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      interval_start_at timestamp NOT NULL,
+      interval_end_at timestamp NOT NULL,
+      earned_duration_ms integer NOT NULL CHECK (earned_duration_ms >= 0 AND earned_duration_ms <= 86400000),
+      coins integer NOT NULL DEFAULT 0 CHECK (coins >= 0),
+      essence integer NOT NULL DEFAULT 0 CHECK (essence >= 0),
+      pet_xp integer NOT NULL DEFAULT 0 CHECK (pet_xp >= 0),
+      claimed_at timestamp NOT NULL DEFAULT now(),
+      CONSTRAINT pet_park_claim_interval_order CHECK (interval_end_at >= interval_start_at)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS pet_park_claim_interval_uidx
+      ON pet_park_reward_claims (deposit_id, interval_start_at, interval_end_at);
+  `);
+}
