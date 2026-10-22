@@ -45,3 +45,13 @@ Status: **planning / no production cutover**. Keeper's Central currently display
 - Test admin editing, zero/one/three pets, concurrent spot reservation, coin insufficiency, repeated claims, server restart, offline accrual, keyboard and orientation, pointer drag, modal close, and responsive viewports.
 - Distinguish automated tests from actual device verification; CI passing is not proof that Central's black-screen issue is fixed.
 - Product parameters still pending: slot 2/3 unlock prices; coins/essence/XP rates; accrual cap; pet retrieval claim policy; whether pet XP can level automatically.
+
+## Admin-controlled availability / under-construction gate
+- Pet Park has a persisted, server-authoritative `enabledForPlayers` setting, **false by default** until explicitly published by an admin.
+- The player navigation entry stays visible when closed. Opening it displays a themed **"Pet Park — Under Construction"** view, not the old black-screen Central or a broken empty scene.
+- Admins can access the full editor and preview the unpublished park regardless of the player gate. Admin preview is not a substitute for production authorization.
+- All player mutations (slot purchases, deposits, withdrawals and reward claims) must validate availability on the server. A hidden button alone is insufficient.
+- When a live park is closed for maintenance, **do not discard deposits or accrued rewards**. Define and test whether accrual pauses at the closure timestamp or continues; preserve claim checkpoints and provide a safe way to retrieve pets. Do not implement a blanket API denial that traps deposited pets.
+- Recheck availability at mutation time to avoid races with the admin switch; invalidate/refetch availability in clients after admin updates. Require existing admin authorization and audit setting changes.
+- For future game pages, prefer a small reusable availability-gate contract (enabled flag, closed message, admin override, server mutation policy) after the Pet Park implementation proves it works. Avoid a broad feature-flag framework or changes to other pages in this phase.
+- Acceptance tests: defaults closed; closed player sees message; admin can edit/preview; opening grants access; closing blocks new deposits/unlocks; existing deposits/rewards remain safe; unauthorized clients cannot toggle; toggling during a claim cannot double-award.
