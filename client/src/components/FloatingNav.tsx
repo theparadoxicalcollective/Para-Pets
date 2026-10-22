@@ -85,7 +85,7 @@ const RIGHT_ITEMS = [
   { id: "pethouse", label: "House",   icon: petHouseIcon   },
   { id: "market",   label: "Market",  icon: marketIcon     },
   { id: "aquarium", label: "Aquarium",icon: fishbowlIcon   },
-  { id: "keepers",  label: "Central", icon: globeIcon      },
+  { id: "keepers",  label: "Pet Park", icon: globeIcon      },
   { id: "home",     label: "Main",    icon: activePetIcon  },
 ];
 
@@ -306,7 +306,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "pethouse") { setTimeout(() => navigate("/pet-house"), NAV_DELAY); return; }
     if (id === "market")   { setTimeout(() => navigate("/market"), NAV_DELAY); return; }
     if (id === "aquarium") { setTimeout(() => openPanel(() => setShowAquarium(true)), NAV_DELAY); return; }
-    if (id === "keepers")  { setTimeout(() => openPanel(() => setShowKeepers(true)), NAV_DELAY); return; }
+    if (id === "keepers")  { setTimeout(() => navigate("/pet-park"), NAV_DELAY); return; }
     if (id === "cards")    { setTimeout(() => navigate("/cards"), NAV_DELAY); return; }
     if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
   };
