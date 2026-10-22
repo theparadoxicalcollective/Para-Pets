@@ -4,9 +4,9 @@
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
 export const WIDE_BREAKPOINT = 768;
-// Tablets and desktops keep the exact authored 390×844 composition as one
-// uniformly scaled logical stage. The cap limits coordinate-plane scaling on
-// very large monitors; it is not a visible phone-window treatment.
+// Legacy reference-layout helper cap only. The runtime gameplay root uses
+// viewport-owned geometry (scale 1); desktop portrait width is calculated
+// separately in stageViewport.ts. Retain until reference callers are retired.
 export const MAX_STAGE_SCALE = 1.5;
 export const MOBILE_KEYBOARD_MIN_DELTA = 180;
 
@@ -15,7 +15,7 @@ export function usesNativeMiniGamePage(width: number): boolean {
   return Math.round(width) === DESIGN_W;
 }
 
-/** Other screens fit the 390×844 reference without cropping its controls. */
+/** Legacy mini-game reference sizing; runtime MiniGameFrame uses ViewportScenePortal. */
 export function calculateMiniGameScale(width: number, height: number): number {
   return Math.min(Math.max(0, width) / DESIGN_W, Math.max(0, height) / DESIGN_H);
 }
@@ -98,10 +98,9 @@ export function calculateStageLayout(
   const viewportSurface = options.viewportSurface === true;
   const referencePortrait = !viewportSurface && options.fitPortraitReference === true;
 
-  // PR #574/#576 made the stage and all important player interactions share one
-  // coordinate contract. Portrait touch devices can therefore use the exact
-  // 390×844 reference composition as one uniformly scaled unit. Other layouts
-  // retain their existing ownership until their own focused follow-up.
+  // Reference-stage geometry is retained for legacy callers and regression
+  // tests only. Runtime root callers explicitly pass viewportSurface: true;
+  // do not treat the reference branch as the current phone/tablet/PC policy.
   const coordinateOwner: StageCoordinateOwner = !viewportSurface && (referencePortrait || !narrow) ? "stage" : "viewport";
   const designWidth = viewportSurface ? viewportWidth : referencePortrait ? DESIGN_W : getDesignWidth(viewportWidth);
   const designHeight = coordinateOwner === "stage" ? DESIGN_H : viewportHeight;
