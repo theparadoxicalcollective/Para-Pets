@@ -36,7 +36,8 @@ export default function PetParkPage() {
     return () => observer.disconnect();
   }, []);
 
-  const scale = Math.max(viewportSize.width / SCENE_W, viewportSize.height / SCENE_H);
+  // Overscan lets players pan both axes on phones, tablets and portrait desktop.
+  const scale = Math.max(viewportSize.width / SCENE_W, viewportSize.height / SCENE_H) * 1.18;
   const sceneWidth = SCENE_W * scale;
   const sceneHeight = SCENE_H * scale;
   const limits = { x: Math.max(0, sceneWidth - viewportSize.width), y: Math.max(0, sceneHeight - viewportSize.height) };
@@ -99,7 +100,7 @@ export default function PetParkPage() {
     </div>
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
-      !scene?.enabledForPlayers ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6">
+      !scene?.enabledForPlayers ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
         <div className="rounded-xl border border-amber-500/50 bg-[#152d23] p-6 text-center shadow-xl">
           <h2 className="text-xl font-semibold text-amber-300">Pet Park — Under Construction</h2>
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
