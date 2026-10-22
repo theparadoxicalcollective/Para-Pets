@@ -8,7 +8,7 @@ import PetAnimator from "@/components/PetAnimator";
 type ParkItem = { id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number };
 type ParkScene = { enabledForPlayers: boolean; preview?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number };
-type InventoryPet = { id: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
+type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
 const SCENE_W = 1100;
 const SCENE_H = 1700;
@@ -53,7 +53,7 @@ export default function PetParkPage() {
 
   const deposits = scene?.deposits ?? [];
   const occupied = new Set(deposits.map(d => d.petInventoryId));
-  const availablePets = inventory.filter(p => p.isHatched && !p.isListed && !occupied.has(p.id) && (p.type == null || p.type === "pet"));
+  const availablePets = inventory.filter(p => p.isHatched && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
 
   return <div className="absolute inset-0 overflow-hidden bg-[#13291e] text-amber-100" data-testid="pet-park-page">
     <div ref={viewport} className="absolute inset-0 overflow-hidden touch-none"
@@ -84,7 +84,7 @@ export default function PetParkPage() {
           const x = spot?.xPct ?? 0.25 + index * 0.25;
           const y = spot?.yPct ?? 0.6;
           return <div key={pet.id} className="absolute pointer-events-none" style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: "translate(-50%, -75%)", width: 180 * scale, height: 180 * scale, zIndex: 11000 + index }}>
-            <PetAnimator petTemplateId={pet.petTemplateId} inventoryId={pet.petInventoryId} />
+            <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId} mode="idle" size={180 * scale} fillContainer />
           </div>;
         })}
       </div>}
@@ -125,7 +125,7 @@ export default function PetParkPage() {
                 <select aria-label={`Choose pet for spot ${slot}`} className="min-w-0 flex-1 rounded bg-slate-900 p-2" value={selectedPet}
                   onChange={e => setSelectedPet(e.target.value)}>
                   <option value="">Choose a pet</option>
-                  {availablePets.map(p => <option key={p.id} value={p.id}>{p.petNickname || p.name || p.shopItemId}</option>)}
+                  {availablePets.map(p => <option key={p.inventoryId} value={p.inventoryId}>{p.petNickname || p.name || p.shopItemId}</option>)}
                 </select>
                 <button type="button" disabled={!selectedPet || action.isPending} className="rounded bg-amber-800 px-3 py-2 disabled:opacity-50"
                   onClick={() => action.mutate({ path: "/api/pet-park/deposits", body: { petInventoryId: selectedPet, slotNumber: slot } })}>Deposit</button>
