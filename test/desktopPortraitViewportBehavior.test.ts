@@ -68,3 +68,38 @@ test("pre-game auth and loading use the full desktop viewport rather than portra
     assert.ok(gameplay.designWidth < width, "authenticated gameplay remains portrait");
   }
 });
+
+test("desktop gameplay routes use the same native centered portrait contract", () => {
+  const routes = [
+    "/", "/map", "/world/haunted-forest", "/pet-house",
+    "/pets", "/bag", "/pet-level-up/pet-1", "/pet-care/pet-1",
+    "/equip-accessories/pet-1", "/games/molten-blocks", "/games/lava-crawl",
+    "/explore/elysian-bayou-clearing", "/pvp", "/raid/battle",
+  ];
+  for (const [width, height] of [[1024, 768], [1366, 768], [1440, 900], [1920, 1080], [2560, 1440]] as const) {
+    for (const route of routes) {
+      const layout = desktopPortraitGameplayLayout(native(width, height), route, false);
+      const portraitWidth = Math.round(height * 0.72);
+      assert.equal(layout.designWidth, portraitWidth, route);
+      assert.equal(layout.designHeight, height, route);
+      assert.equal(layout.left, (width - portraitWidth) / 2, route);
+      assert.equal(layout.scale, 1, route);
+      assert.equal(layout.coordinateOwner, "viewport", route);
+      assert.equal(layout.referencePortrait, false, route);
+    }
+  }
+});
+
+test("touch-first portrait gameplay never inherits desktop centering or 390x844 reference sizing", () => {
+  const routes = ["/map", "/pets", "/games/molten-blocks", "/pet-level-up/pet-1"];
+  for (const [width, height] of [[320, 568], [360, 800], [390, 844], [412, 915], [834, 1194]] as const) {
+    for (const route of routes) {
+      const layout = desktopPortraitGameplayLayout(native(width, height), route, true);
+      assert.equal(layout.designWidth, width, route);
+      assert.equal(layout.designHeight, height, route);
+      assert.equal(layout.left, 0, route);
+      assert.equal(layout.scale, 1, route);
+      assert.equal(layout.referencePortrait, false, route);
+    }
+  }
+});
