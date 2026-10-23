@@ -18,7 +18,7 @@ const admin: RequestHandler = (_req, _res, next) => next();
 function setup({ occupants = 0, exists = true }: { occupants?: number; exists?: boolean } = {}) {
   const app = new RouteRecorder();
   const calls = { transaction: 0, locked: false, checkedOccupants: false, updateCount: 0, patches: [] as any[] };
-  const building = { id: "building-1", name: "Cottage", maxPets: 3 };
+  const building = { id: "building-1", name: "Cottage", maxPets: 10 };
   const tx = {
     select: () => ({
       from: (table: unknown) => {
@@ -81,49 +81,71 @@ function setup({ occupants = 0, exists = true }: { occupants?: number; exists?: 
 }
 
 test("admin capacity cannot be reduced below active occupancy", async () => {
-  const { invoke, calls, building } = setup({ occupants: 3 });
-  const result = await invoke({ name: "New Name", maxPets: 2 });
+  const { invoke, calls, building } = setup({ occupants: 15 });
+  const result = await invoke({ name: "New Name", maxPets: 10 });
   assert.equal(result.statusCode, 409);
-  assert.match(result.body.message, /3 active pets/);
+  assert.match(result.body.message, /15 active pets/);
   assert.equal(calls.transaction, 1);
   assert.equal(calls.locked, true);
   assert.equal(calls.checkedOccupants, true);
   assert.equal(calls.updateCount, 0);
   assert.equal(building.name, "Cottage", "reject the entire patch, including name");
-  assert.equal(building.maxPets, 3);
 });
 
-test("capacity equal to active occupancy is permitted in the same transaction", async () => {
-  const { invoke, calls, building } = setup({ occupants: 2 });
-  const result = await invoke({ name: "Updated", maxPets: 2 });
+test("capacity equal to active occupancy is permitted in same locked transaction", async () => {
+  const { invoke, calls, building } = setup({ occupants: 10 });
+  const result = await invoke({ name: "Updated", maxPets: 10 });
   assert.equal(result.statusCode, 200);
-  assert.equal(result.body.maxPets, 2);
+  assert.equal(result.body.maxPets, 10);
   assert.equal(building.name, "Updated");
   assert.equal(calls.transaction, 1);
   assert.equal(calls.locked, true);
   assert.equal(calls.updateCount, 1);
-  assert.deepEqual(calls.patches[0], { name: "Updated", maxPets: 2 });
+  assert.deepEqual(calls.patches[0], { name: "Updated", maxPets: 10 });
 });
 
-test("empty buildings can lower capacity without affecting deposits", async () => {
+test("empty buildings can set minimum capacity without affecting deposits", async () => {
   const { invoke, calls } = setup({ occupants: 0 });
-  const result = await invoke({ maxPets: 1 });
+  const result = await invoke({ maxPets: 10 });
   assert.equal(result.statusCode, 200);
-  assert.equal(result.body.maxPets, 1);
+  assert.equal(result.body.maxPets, 10);
   assert.equal(calls.updateCount, 1);
 });
 
 test("missing building returns 404 without checking occupancy or writing", async () => {
   const { invoke, calls } = setup({ exists: false });
-  const result = await invoke({ maxPets: 2 });
+  const result = await invoke({ maxPets: 10 });
   assert.equal(result.statusCode, 404);
   assert.equal(calls.checkedOccupants, false);
   assert.equal(calls.updateCount, 0);
 });
 
+test("capacity can be raised to 25 while retaining locks and occupants", async () => {
+  const { invoke, calls } = setup({ occupants: 10 });
+  const result = await invoke({ maxPets: 25 });
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.maxPets, 25);
+  assert.equal(calls.transaction, 1);
+  assert.equal(calls.locked, true);
+  assert.equal(calls.updateCount, 1);
+});
+
+test("large buildings cannot reduce capacity below their active occupancy", async () => {
+  const { invoke, calls } = setup({ occupants: 25 });
+  const rejected = await invoke({ maxPets: 20 });
+  assert.equal(rejected.statusCode, 409);
+  assert.equal(calls.updateCount, 0);
+  const accepted = await invoke({ maxPets: 25 });
+  assert.equal(accepted.statusCode, 200);
+  assert.equal(accepted.body.maxPets, 25);
+  assert.equal(calls.updateCount, 1);
+});
+
 test("invalid capacity is rejected before starting transaction", async () => {
   const { invoke, calls } = setup({ occupants: 0 });
-  const result = await invoke({ maxPets: 4 });
-  assert.equal(result.statusCode, 400);
+  for (const invalid of [0, 1, 3, 9, -1, 26, 101, 10.5, "20", null]) {
+    const error = await invoke({ maxPets: invalid });
+    assert.equal(error.statusCode, 400, `capacity ${String(invalid)} must be rejected`);
+  }
   assert.equal(calls.transaction, 0);
 });

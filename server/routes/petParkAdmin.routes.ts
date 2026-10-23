@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
+import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
 import type { db as database } from "../db";
 
@@ -106,13 +107,13 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
-    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 120, flipped = false, layer = 0, maxPets = 3 } = req.body ?? {};
+    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 120, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN } = req.body ?? {};
     if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
         typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000 ||
         (interiorImageData != null && (typeof interiorImageData !== "string" || !interiorImageData.startsWith("data:image/") || interiorImageData.length > 12_000_000)) ||
         !validPosition(xPct) || !validPosition(yPct) || !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
-        !Number.isInteger(maxPets) || maxPets < 1 || maxPets > 3) {
-      return res.status(400).json({ message: "Provide a name, exterior image, valid placement and a pet capacity from 1 to 3" });
+        !isValidPetParkBuildingCapacity(maxPets)) {
+      return res.status(400).json({ message: `Provide a name, exterior image, valid placement and a pet capacity from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
     }
     try {
       const imageUrl = await processWorldImage(imageData, 1200);
@@ -143,7 +144,7 @@ export function registerPetParkAdminRoutes(
       try { updates.interiorImageUrl = body.interiorImageData ? await processWorldImage(body.interiorImageData, 2000) : null; } catch { return res.status(400).json({ message: "Unable to process interior image" }); }
     }
     if (body.maxPets !== undefined) {
-      if (!Number.isInteger(body.maxPets) || body.maxPets < 1 || body.maxPets > 3) return res.status(400).json({ message: "Building capacity must be from 1 to 3" });
+      if (!isValidPetParkBuildingCapacity(body.maxPets)) return res.status(400).json({ message: `Building capacity must be from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
       updates.maxPets = body.maxPets;
     }
     if (body.interiorEffects !== undefined) updates.interiorEffects = sanitizeHouseInteriorEffects(body.interiorEffects);

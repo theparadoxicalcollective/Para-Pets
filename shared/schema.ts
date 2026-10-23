@@ -1394,7 +1394,7 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   size: integer("size").notNull().default(120),
   flipped: boolean("flipped").notNull().default(false),
   layer: integer("layer").notNull().default(0),
-  maxPets: integer("max_pets").notNull().default(3),
+  maxPets: integer("max_pets").notNull().default(10),
   interiorEffects: jsonb("interior_effects").$type<HouseInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
