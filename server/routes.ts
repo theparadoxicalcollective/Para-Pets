@@ -1419,7 +1419,7 @@ export async function registerRoutes(
   });
 
   registerPetParkSlotRoutes(app, isAuthenticated);
-  registerPetParkPlayerRoutes(app, isAuthenticated);
+  registerPetParkPlayerRoutes(app, isAuthenticated, applyPetXp);
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
 
   registerPetStateRoutes(app, {
