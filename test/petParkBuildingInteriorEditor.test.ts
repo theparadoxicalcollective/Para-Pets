@@ -30,7 +30,7 @@ test("player and admin effects share natural-image room coordinates and Home eff
   assert.match(room, /observeHomeViewport\(element, measure, "artwork-scene"\)/);
   assert.match(room, /imgWidth=\{dimensions\.width\} sceneHeight=\{dimensions\.height\}/);
   assert.match(room, /<HomeInteriorEffectsLayer/);
-  assert.match(homeEffects, /onEffectPointerDown=/);
+  assert.match(homeEffects, /onPointerDown=\{interactive && onEffectPointerDown/);
   assert.doesNotMatch(page, /aspectRatio: "4 \/ 3"/);
   assert.doesNotMatch(page, /Math\.min\(900, viewportSize\.width - 24\)/);
 });
