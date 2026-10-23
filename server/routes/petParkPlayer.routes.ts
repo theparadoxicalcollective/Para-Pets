@@ -26,11 +26,28 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)));
+      // Public park roster is read-only; never expose wallet, private inventory,
+      // reward checkpoints or another player's deposit mutation identifiers.
+      const sharedPets = await db.select({
+        petInventoryId: petParkDeposits.petInventoryId,
+        petTemplateId: userInventory.shopItemId,
+        petName: shopItems.name,
+        petNickname: userInventory.petNickname,
+        petLevel: userInventory.petLevel,
+        ownerName: users.username,
+        ownerId: users.id,
+        depositedAt: petParkDeposits.createdAt,
+      }).from(petParkDeposits)
+        .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
+        .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .innerJoin(users, eq(petParkDeposits.userId, users.id))
+        .where(isNull(petParkDeposits.withdrawnAt))
+        .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
         backgroundUrl: settings?.backgroundUrl ?? null,
         rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
-        items, deposits, unlockedSlots: slots?.unlockedSlots ?? 1,
+        items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
       });
     } catch (error) {
