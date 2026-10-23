@@ -7,6 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
 import { parkWorldHeight, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
+import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
 type ParkDraft = {
   settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
@@ -163,21 +164,25 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <input aria-label="Building name" placeholder="e.g. Woodland Cottage" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)}
             className="w-full rounded-xl border bg-[#302701] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
         </label>
-        <div className="space-y-1">
-          <div className="text-sm">Building pet capacity</div>
-          <div className="grid grid-cols-3 gap-2">
-            {[1, 2, 3].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
-              className="rounded-xl border px-2 py-3 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
+        <div className="space-y-2">
+          <label htmlFor="pet-park-new-building-capacity" className="block text-sm">Building pet capacity (1–{PET_PARK_BUILDING_CAPACITY_MAX})</label>
+          <input id="pet-park-new-building-capacity" type="number" inputMode="numeric"
+            aria-label="Building pet capacity" min={PET_PARK_BUILDING_CAPACITY_MIN} max={PET_PARK_BUILDING_CAPACITY_MAX} step={1}
+            value={buildingCapacity} onChange={event => setBuildingCapacity(Number(event.target.value))}
+            className="w-full rounded-xl border bg-[#302701] p-3 text-[#f5cf64]" style={{ borderColor: GOLD_BORDER }} />
+          <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacities">
+            {[1, 3, 5, 10, 20, 50].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
+              className="rounded-xl border px-2 py-2 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
               {capacity} {capacity === 1 ? "pet" : "pets"}
             </button>)}
           </div>
-          <p className="text-xs text-amber-100/60">Capacity is shared by all visitors. Each player can deposit up to three pets in the park.</p>
+          <p className="text-xs text-amber-100/60">Capacity is shared by all visitors. Each player can still deposit up to three pets in the park.</p>
         </div>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
           {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
           <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
         </label>
-        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage}
+        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage || !isValidPetParkBuildingCapacity(buildingCapacity)}
           data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(255,215,0,.15)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
