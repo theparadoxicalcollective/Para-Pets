@@ -8,16 +8,17 @@ const server = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 test("closed Pet Park does not block admins, but keeps normal players behind under construction", () => {
   assert.match(page, /!scene\?\.enabledForPlayers && !scene\?\.canEditPark/);
   assert.match(page, /Admin preview · Park closed to players/);
-  assert.match(page, /scene\?\.canEditPark && showEditor/);
-  assert.match(page, /fixed inset-0 z-\[100\]/);
+  assert.match(page, /scene\?\.canEditPark && showCreator/);
+  assert.match(page, /scene\?\.canEditPark && detailsBuilding/);
   assert.match(page, /Add Effects/);
-  assert.match(page, /initialMode=\{editorMode\} mode="editor"/);
+  assert.match(page, /initialMode=\{editorMode\} mode="create"/);
+  assert.doesNotMatch(page, /Advanced edit/);
 });
-test("admin editor has direct effects section, visible player access and explicit preset", () => {
-  assert.match(editor, /mode !== "editor"/);
-  assert.match(editor, /setKind\(initialMode === "effects" \? "effect" : "decor"\)/);
-  assert.match(editor, /editorTop\.current\?\.scrollIntoView/);
-  assert.match(editor, /onPointerMove=/);
+test("admin settings and direct creation retain water effects, player access and explicit reward preset", () => {
+  assert.match(editor, /mode: "create" \| "settings"/);
+  assert.match(editor, /initialMode === "effects" \? "effect" : "decor"/);
+  assert.match(editor, /Interactive rest spot/);
+  assert.match(page, /onPointerMove=\{movePlacement\}/);
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
   assert.match(editor, /mode === "settings"/);
   assert.match(page, /Add Buildings/);

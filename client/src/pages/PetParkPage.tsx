@@ -35,7 +35,6 @@ export default function PetParkPage() {
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
   const [showCreator, setShowCreator] = useState(false);
   const [creationPosition, setCreationPosition] = useState({ xPct: 0.5, yPct: 0.5 });
   const [placementMode, setPlacementMode] = useState(false);
@@ -256,7 +255,6 @@ export default function PetParkPage() {
         {scene?.canEditPark ? <div className="pointer-events-auto flex flex-wrap justify-end gap-1">
           <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }} className={`rounded-lg px-2 py-2 text-xs ${placementMode ? "bg-teal-700" : "bg-amber-800"}`}>{placementMode ? "Done positioning" : "Move park objects"}</button>
           {([{ mode: "effects", label: "Add Effects" }, { mode: "scene", label: "Add Buildings" }, { mode: "decor", label: "Add Decor" }] as const).map(action => <button key={action.mode} type="button" onClick={() => beginCreate(action.mode)} className="rounded-lg bg-amber-800 px-2 py-2 text-xs">{action.label}</button>)}
-          <button type="button" onClick={() => { setShowCreator(false); setShowEditor(true); }} className="rounded-lg bg-slate-800 px-2 py-2 text-xs">Advanced edit</button>
         </div> : <span className="w-12" />}
       </div>
     </div>
@@ -273,6 +271,27 @@ export default function PetParkPage() {
         <button type="button" aria-label="Move park object back one layer" className="rounded bg-slate-700 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, layer: Math.max(-10000, draft.layer - 1) }))}>Layer −</button>
         <button type="button" aria-label="Move park object forward one layer" className="rounded bg-slate-700 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, layer: Math.min(10000, draft.layer + 1) }))}>Layer +</button>
       </div>
+      <details className="rounded-lg border border-amber-800/50 bg-black/30 px-2 py-1 text-xs">
+        <summary className="cursor-pointer py-1 text-amber-200">Fine-tune exact placement</summary>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {(["xPct", "yPct", "size", "layer"] as const).map(field => <label key={field} className="flex flex-col gap-1">
+            <span>{field === "xPct" ? "World X (0–1)" : field === "yPct" ? "World Y (0–1)" : field === "size" ? "Size" : "Layer"}</span>
+            <input type="number" aria-label={`Park object ${field}`} className="w-full rounded bg-slate-900 p-2"
+              min={field === "size" ? 1 : field === "layer" ? -10000 : 0}
+              max={field === "size" ? 1000 : field === "layer" ? 10000 : 1}
+              step={field === "xPct" || field === "yPct" ? 0.01 : 1}
+              value={placementDraft[field]}
+              onChange={event => {
+                const number = Number(event.target.value);
+                if (!Number.isFinite(number)) return;
+                const min = field === "size" ? 1 : field === "layer" ? -10000 : 0;
+                const max = field === "size" ? 1000 : field === "layer" ? 10000 : 1;
+                const safe = Math.max(min, Math.min(max, field === "size" || field === "layer" ? Math.round(number) : number));
+                setPlacementDraft(previous => previous && ({ ...previous, [field]: safe }));
+              }} />
+          </label>)}
+        </div>
+      </details>
       <div className="flex flex-wrap items-center gap-2">
         {selectedPlacement.kind === "building" && <button type="button" className="rounded bg-teal-800 px-3 py-2 text-sm" onClick={() => setDetailsBuildingId(selectedPlacement.id)}>Edit building</button>}
         <button type="button" disabled={placementSave.isPending || placementDelete.isPending} onClick={() => placementSave.mutate({ ...selectedPlacement, ...placementDraft })} className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50">Save position</button>
@@ -295,15 +314,6 @@ export default function PetParkPage() {
       building={detailsBuilding}
       occupantCount={(scene.sharedPets ?? []).filter(pet => pet.buildingId === detailsBuilding.id).length}
       onClose={() => setDetailsBuildingId(null)} onUpdated={invalidate} />}
-    {scene?.canEditPark && showEditor && <div className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[#0b2119] px-3 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))]">
-      <div className="sticky top-0 z-10 mb-3 flex justify-end bg-[#0b2119] py-2">
-        <button type="button" className="rounded bg-amber-800 px-4 py-2" onClick={() => {
-          setShowEditor(false);
-          qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
-        }}>Close editor & refresh park</button>
-      </div>
-      <PetParkAdminPanel initialMode={editorMode} mode="editor" />
-    </div>}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
       !scene?.enabledForPlayers && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">

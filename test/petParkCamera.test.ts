@@ -23,13 +23,14 @@ test("camera preserves landscape, portrait and fallback source ratios", () => {
 test("player and admin use one aspect-preserving world coordinate system", () => {
   const player = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
   const editor = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8");
+  const room = readFileSync("client/src/components/PetParkInteriorRoom.tsx", "utf8");
   assert.match(player, /parkCameraGeometry\(viewportSize.width, viewportSize.height, backgroundAspect\)/);
   assert.match(player, /parkImageAspect\(image.naturalWidth, image.naturalHeight\)/);
-  assert.match(editor, /parkImageAspect\(image.naturalWidth, image.naturalHeight\)/);
-  assert.match(editor, /aspectRatio: `1 \/ \$\{backgroundAspect\}`/);
+  assert.match(room, /naturalWidth \/ naturalHeight/);
+  assert.match(room, /imgWidth=\{dimensions.width\} sceneHeight=\{dimensions.height\}/);
   assert.ok(player.includes('left: `${shownPosition("item", item).xPct * 100}%`'), 'park objects keep normalized X coordinates while dragging');
   assert.ok(player.includes('top: `${shownPosition("item", item).yPct * 100}%`'), 'park objects keep normalized Y coordinates while dragging');
-  assert.match(editor, /left: `\$\{shown.xPct \* 100\}%`/);
+  assert.match(player, /Fine-tune exact placement/);
   assert.doesNotMatch(player, /const SCENE_H = 1700/);
-  assert.doesNotMatch(editor, /aspect-\[11\/17\]/);
+  assert.doesNotMatch(editor, /aspect-\[11\/17\]|Pet Park — Scene Editor/);
 });

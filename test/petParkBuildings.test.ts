@@ -7,6 +7,8 @@ const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.t
 const adminRoutes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 const playerRoutes = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 const adminPanel = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8");
+const interiorRoom = readFileSync("client/src/components/PetParkInteriorRoom.tsx", "utf8");
+const buildingDetails = readFileSync("client/src/components/PetParkBuildingDetails.tsx", "utf8");
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 
 test("Pet Park buildings persist exterior, interior, capacity, normalized placement and shared interior effects", () => {
@@ -20,7 +22,9 @@ test("Pet Park buildings persist exterior, interior, capacity, normalized placem
   assert.match(adminPanel, /Building exterior image/);
   assert.match(adminPanel, /Building interior image/);
   assert.match(adminPanel, /Building pet capacity/);
-  assert.match(adminPanel, /HomeInteriorEffectsLayer/);
+  assert.match(interiorRoom, /HomeInteriorEffectsLayer/);
+  assert.match(buildingDetails, /HOME_INTERIOR_EFFECT_OPTIONS/);
+  assert.match(buildingDetails, /Edit building:/);
 });
 
 test("saved buildings reach the scene and can open their configured interior", () => {

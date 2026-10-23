@@ -25,19 +25,20 @@ test("water effects use admin-only persistence and three supported types", () =>
     assert.ok(visual.includes(kind));
   }
   assert.match(sceneApi, /canEditPark: !!player\?\.isAdmin/);
-  assert.match(page, /scene\?\.canEditPark && showEditor/);
-  assert.match(page, /<PetParkAdminPanel initialMode=/);
+  assert.match(page, /scene\?\.canEditPark && showCreator/);
+  assert.match(page, /<PetParkAdminPanel key=\{editorMode\} initialMode=/);
   assert.match(page, /<ParkEffectVisual type=\{item\.effectType\}/);
 });
 
-test("existing admin controls still allow movable, resizable, flippable decor and rest spots", () => {
-  assert.match(panel, /onPointerDown/);
-  assert.match(panel, /onPointerUp/);
-  assert.match(panel, /savePlacement\(\{ \.\.\.shown, xPct, yPct \}\)/);
-  assert.match(panel, /\+ Size/);
-  assert.match(panel, /− Size/);
-  assert.match(panel, /Flip horizontally/);
+test("in-park editor still moves, resizes, flips and layers water effects, decor and rest spots", () => {
+  assert.match(page, /onPointerDown=\{e => startPlacement\(e, "item", item\)\}/);
+  assert.match(page, /onPointerUp=\{endPlacement\}/);
+  assert.match(page, /placementSave.mutate\(\{ \.\.\.selectedPlacement, \.\.\.placementDraft \}\)/);
+  assert.match(page, /\+ Size/);
+  assert.match(page, /− Size/);
+  assert.match(page, /flipped: !draft.flipped/);
+  assert.match(page, /Fine-tune exact placement/);
   assert.match(panel, /Interactive rest spot/);
-  assert.match(panel, /aspectRatio: `1 \/ \$\{backgroundAspect\}`/);
+  assert.match(page, /parkCameraGeometry\(viewportSize.width, viewportSize.height, backgroundAspect\)/);
   assert.match(visual, /prefers-reduced-motion: reduce/);
 });
