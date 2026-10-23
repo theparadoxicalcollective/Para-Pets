@@ -25,7 +25,13 @@ async function imageData(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-export default function PetParkAdminPanel({ initialMode = "scene", mode = "editor" }: { initialMode?: "scene" | "effects" | "decor"; mode?: "editor" | "settings" }) {
+type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number };
+export default function PetParkAdminPanel({ initialMode = "scene", mode = "editor", creationPosition, onCreated }: {
+  initialMode?: "scene" | "effects" | "decor";
+  mode?: "editor" | "settings" | "create";
+  creationPosition?: { xPct: number; yPct: number };
+  onCreated?: (object: CreatedParkObject) => void;
+}) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
@@ -75,10 +81,22 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
     },
     onSuccess: (result, variables) => {
       refresh();
-      if (variables.method === "POST" && variables.url === "/api/admin/pet-park/items") {
-        const created = result?.item ?? result;
-        if (typeof created?.id === "string") setSelected(created.id);
-        requestAnimationFrame(() => scene.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+      if (variables.method === "POST") {
+        const isBuilding = variables.url === "/api/admin/pet-park/buildings";
+        const isItem = variables.url === "/api/admin/pet-park/items";
+        if (isBuilding || isItem) {
+          const created = result?.building ?? result?.item ?? result;
+          if (isBuilding) { setBuildingImage(null); setInteriorImage(null); }
+          if (isItem) setPendingImage(null);
+          qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
+          if (typeof created?.id === "string") {
+            if (mode === "create") onCreated?.({ kind: isBuilding ? "building" : "item", id: created.id, xPct: created.xPct, yPct: created.yPct });
+            else if (isItem) {
+              setSelected(created.id);
+              requestAnimationFrame(() => scene.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+            }
+          }
+        }
       }
       // Routine placement updates are confirmed in the scene; avoid an interrupting toast.
     },
@@ -137,6 +155,11 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
         </label>
       </div>
       </> : <>
+      {mode === "create" && <div className="space-y-1">
+        <h2 className="text-lg font-semibold text-amber-300">{initialMode === "scene" ? "Add building" : initialMode === "effects" ? "Add park effect" : "Add decoration"}</h2>
+        <p className="text-xs text-amber-100/80">Create an object at the center of your current park view, then drag it into place on the actual map. Nothing is published by opening this panel.</p>
+      </div>}
+      {mode === "editor" && <>
         <h2 ref={editorTop} className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
         <p className="text-sm text-amber-100/75">Drag items on the scene, then save their placement. The park stays closed to players until enabled in the Administration Realm.</p>
       <p className="text-xs text-amber-200/80">Select an effect, decoration or rest spot on the background. Drag to position; use the controls immediately below to resize, flip or save.</p>
@@ -207,15 +230,16 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
           }}>Remove item</button>
         </div>
       </div>}
-      <section className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3" aria-label="Pet Park buildings">
+      </>}
+      {(mode === "editor" || initialMode === "scene") && <section className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3" aria-label="Pet Park buildings">
         <h3 className="text-lg font-semibold">Add Buildings</h3>
         <p className="text-sm text-amber-100/75">Create a building with its own interior scene. Capacity is limited to three pets; the separate park-wide limit of three pets per player still applies.</p>
         <label className="block text-sm">Building name<input aria-label="Building name" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)} className="mt-1 w-full rounded bg-slate-900 p-2" /></label>
         <label className="block text-sm">Exterior artwork<input aria-label="Building exterior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { setBuildingImage(await imageData(file)); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
         <label className="block text-sm">Interior background<input aria-label="Building interior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { setInteriorImage(await imageData(file)); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
         <label className="block text-sm">Building pet capacity<select aria-label="Building pet capacity" className="mt-1 w-full rounded bg-slate-900 p-2" value={buildingCapacity} onChange={e => setBuildingCapacity(Number(e.target.value))}><option value={1}>1 pet</option><option value={2}>2 pets</option><option value={3}>3 pets</option></select></label>
-        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage} className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: { name: buildingName, imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity, xPct: 0.5, yPct: 0.5, size: 120, flipped: false, layer: buildings.length } }); setBuildingImage(null); setInteriorImage(null); }}>Create building</button>
-        <div className="space-y-2">{buildings.map(building => <div key={building.id} className="rounded border border-amber-800/60 p-2 space-y-2">
+        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage} className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: { name: buildingName, imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity, xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: buildings.length } }); }}>Create building</button>
+        {mode === "editor" && <div className="space-y-2">{buildings.map(building => <div key={building.id} className="rounded border border-amber-800/60 p-2 space-y-2">
           <button type="button" className="flex w-full items-center gap-3 text-left" onClick={() => { const next = selectedBuildingId === building.id ? null : building.id; setSelectedBuildingId(next); setBuildingNameDraft(next ? building.name : ""); }}><img src={building.imageUrl} alt="" className="h-14 w-14 rounded object-contain" /><span className="min-w-0 flex-1"><strong>{building.name}</strong><span className="block text-xs text-amber-100/70">{building.interiorImageUrl ? "Interior uploaded" : "Interior background not set"} · capacity {building.maxPets}</span></span></button>
           {selectedBuildingId === building.id && <div className="space-y-2">
             <label className="block text-sm">Name<input aria-label="Edit building name" maxLength={80} className="mt-1 w-full rounded bg-slate-900 p-2" value={buildingNameDraft} onChange={e => setBuildingNameDraft(e.target.value)} /><button type="button" className="mt-1 rounded bg-amber-800 px-3 py-2" disabled={!buildingNameDraft.trim() || mutation.isPending} onClick={() => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { name: buildingNameDraft.trim() } })}>Save name</button></label>
@@ -229,9 +253,9 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={building.flipped} onChange={e => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { flipped: e.target.checked } })}/>Flip exterior</label>
             <button type="button" className="rounded bg-red-900 px-3 py-2 text-sm" onClick={() => { if(window.confirm(`Delete ${building.name}?`)) { mutation.mutate({ method: "DELETE", url: `/api/admin/pet-park/buildings/${building.id}` }); setSelectedBuildingId(null); } }}>Delete building</button>
           </div>}
-        </div>)}</div>
-      </section>
-      <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
+        </div>)}</div>}
+      </section>}
+      {(mode === "editor" || initialMode !== "scene") && <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <h3 className="font-semibold">{initialMode === "effects" ? "Add effects & rest spots" : initialMode === "decor" ? "Add decoration" : "Add park scenery"}</h3>
         <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
           <option value="decor">Decoration</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
@@ -252,10 +276,10 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
           }} />}
         <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
           className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50"
-          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, effectType: kind === "effect" ? effectType : null, imageData: kind === "effect" ? null : pendingImage, xPct: 0.5, yPct: 0.5, size: 100, flipped: false, layer: items.length } }); setPendingImage(null); }}>
+          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, effectType: kind === "effect" ? effectType : null, imageData: kind === "effect" ? null : pendingImage, xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 100, flipped: false, layer: items.length } }); }}>
           Add to park
         </button>
-      </div>
+      </div>}
 
       </>}
     </div>
