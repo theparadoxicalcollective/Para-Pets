@@ -38,9 +38,26 @@ export function arrangeParkVisitors(visitors: ParkVisitor[], objects: ParkObstac
   const occupied = new Set<number>();
   const positions = new Map<string, ParkPoint>();
   const sorted = [...visitors].sort((a, b) => a.petInventoryId.localeCompare(b.petInventoryId));
+  const restSpots = objects.filter(object => object.kind === "sleep_spot");
   for (const visitor of sorted) {
     const seed = parkPetSeed(visitor.petInventoryId);
-    const start = seed % CELLS;
+    let start = seed % CELLS;
+    // Resting visitors preferentially occupy the nearest free cell to an admin rest spot.
+    // The shared occupancy set ensures each cell has at most one visitor.
+    if (restSpots.length && seed % 5 === 0) {
+      const spot = restSpots[Math.floor(seed / 5) % restSpots.length];
+      let nearest = start;
+      let distance = Infinity;
+      for (let cell = 0; cell < CELLS; cell++) {
+        const point = cellPosition(cell);
+        const nextDistance = (point.x - spot.xPct) ** 2 + (point.y - spot.yPct) ** 2;
+        if (!occupied.has(cell) && !blocked(point, objects) && nextDistance < distance) {
+          nearest = cell;
+          distance = nextDistance;
+        }
+      }
+      start = nearest;
+    }
     let chosen = -1;
     for (let step = 0; step < CELLS; step++) {
       const cell = (start + step) % CELLS;
