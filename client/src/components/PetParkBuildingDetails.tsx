@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -25,9 +25,10 @@ export type ParkBuildingDetails = {
 
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
-  building, onClose, onUpdated,
+  building, occupantCount = 0, onClose, onUpdated,
 }: {
   building: ParkBuildingDetails;
+  occupantCount?: number;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -36,7 +37,18 @@ export default function PetParkBuildingDetails({
   const [name, setName] = useState(building.name);
   const [capacity, setCapacity] = useState(building.maxPets);
   const [effects, setEffects] = useState<HouseInteriorEffect[]>(building.interiorEffects ?? []);
+  // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
+  const savedEffects = useRef<HouseInteriorEffect[]>(building.interiorEffects ?? []);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const latest = building.interiorEffects ?? [];
+    // The scene refreshes periodically. Preserve local unsaved edits instead of
+    // overwriting them, but update clean drafts when server data changes.
+    const previousSaved = savedEffects.current;
+    setEffects(current => JSON.stringify(current) === JSON.stringify(previousSaved) ? latest : current);
+    savedEffects.current = latest;
+  }, [building.interiorEffects]);
   const [imagePreview, setImagePreview] = useState(building.interiorImageUrl);
   const dragRef = useRef<{
     id: string; pointerId: number; startX: number; startY: number; x: number; y: number;
@@ -46,10 +58,19 @@ export default function PetParkBuildingDetails({
       const res = await apiRequest("PATCH", `/api/admin/pet-park/buildings/${building.id}`, updates);
       return res.json();
     },
-    onSuccess: updated => {
+    onSuccess: (updated, variables) => {
+      // The PATCH response is authoritative (and may sanitize uploaded effects).
+      if (variables.interiorEffects !== undefined) {
+        const confirmed = (updated.interiorEffects ?? []) as HouseInteriorEffect[];
+        savedEffects.current = confirmed;
+        setEffects(confirmed);
+        setSelectedEffectId(null);
+      }
+      if (typeof updated.name === "string") setName(updated.name);
+      if (typeof updated.maxPets === "number") setCapacity(updated.maxPets);
+      if (updated.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
-      if (updated?.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       onUpdated();
     },
     onError: (error: Error) => toast({ title: "Could not update building", description: error.message, variant: "destructive" }),
@@ -72,7 +93,7 @@ export default function PetParkBuildingDetails({
       : effect));
   };
   const onEffectPointerDown = (event: ReactPointerEvent<HTMLDivElement>, effect: HouseInteriorEffect) => {
-    if (!event.isPrimary) return;
+    if (!event.isPrimary || mutation.isPending) return;
     event.stopPropagation();
     safeSetPointerCapture(event.currentTarget, event.pointerId);
     dragRef.current = {
@@ -129,11 +150,12 @@ export default function PetParkBuildingDetails({
           <label className="block text-sm">Shared indoor capacity
             <select aria-label="Park building capacity" className="mt-1 w-full rounded bg-slate-900 p-2"
               value={capacity} onChange={event => setCapacity(Number(event.target.value))}>
-              {[1, 2, 3].map(value => <option key={value} value={value}>{value} {value === 1 ? "pet" : "pets"}</option>)}
+              {[1, 2, 3].map(value => <option key={value} value={value} disabled={value < occupantCount}>{value} {value === 1 ? "pet" : "pets"}</option>)}
             </select>
           </label>
+          <p className="text-xs text-amber-100/70">{occupantCount} active {occupantCount === 1 ? "pet" : "pets"} inside. Move pets outside before lowering capacity.</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
-            disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
+            disabled={mutation.isPending || !name.trim() || name.trim().length > 80 || capacity < occupantCount}
             onClick={() => mutation.mutate({ name: name.trim(), maxPets: capacity })}>Save building details</button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">Replace exterior artwork
@@ -167,12 +189,12 @@ export default function PetParkBuildingDetails({
             <p className="text-xs text-amber-100/70">{effects.length}/{HOUSE_INTERIOR_EFFECT_MAX_COUNT} effects</p>
             {selectedEffect && <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-semibold">{selectedEffect.type.replaceAll("_", " ")}</span>
-              <button type="button" aria-label="Decrease interior effect size" className="rounded bg-amber-800 px-3 py-2"
+              <button type="button" disabled={mutation.isPending} aria-label="Decrease interior effect size" className="rounded bg-amber-800 px-3 py-2"
                 onClick={() => changeSize(-2)}>− Size</button>
               <span>{selectedEffect.size}%</span>
-              <button type="button" aria-label="Increase interior effect size" className="rounded bg-amber-800 px-3 py-2"
+              <button type="button" disabled={mutation.isPending} aria-label="Increase interior effect size" className="rounded bg-amber-800 px-3 py-2"
                 onClick={() => changeSize(2)}>+ Size</button>
-              <button type="button" className="rounded bg-red-900 px-3 py-2" onClick={() => {
+              <button type="button" disabled={mutation.isPending} className="rounded bg-red-900 px-3 py-2" onClick={() => {
                 setEffects(previous => previous.filter(effect => effect.id !== selectedEffect.id)); setSelectedEffectId(null);
               }}>Remove effect</button>
             </div>}
@@ -180,7 +202,7 @@ export default function PetParkBuildingDetails({
               <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
                 disabled={mutation.isPending} onClick={() => mutation.mutate({ interiorEffects: effects })}>Save interior effects</button>
               <button type="button" className="rounded bg-slate-700 px-3 py-2 text-sm"
-                disabled={mutation.isPending} onClick={() => { setEffects(building.interiorEffects ?? []); setSelectedEffectId(null); }}>Cancel effect changes</button>
+                disabled={mutation.isPending} onClick={() => { setEffects(savedEffects.current); setSelectedEffectId(null); }}>Cancel effect changes</button>
             </div>
           </>}
         </div>

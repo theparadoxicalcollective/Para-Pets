@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import type { db as database } from "../db";
@@ -158,6 +158,29 @@ export function registerPetParkAdminRoutes(
     }
     if (!Object.keys(updates).length) return res.status(400).json({ message: "No valid building changes provided" });
     try {
+      if (updates.maxPets !== undefined) {
+        // The player placement route also locks the building before counting occupants.
+        // Serialize capacity reductions with incoming placements so deposited pets cannot
+        // be stranded inside a building whose new capacity is already exceeded.
+        const result = await db.transaction(async tx => {
+          const [existing] = await tx.select({ id: petParkBuildings.id }).from(petParkBuildings)
+            .where(eq(petParkBuildings.id, String(req.params.id))).for("update");
+          if (!existing) return { status: 404 as const };
+          const occupants = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
+            .where(and(eq(petParkDeposits.buildingId, existing.id), isNull(petParkDeposits.withdrawnAt)));
+          if (occupants.length > (updates.maxPets as number)) {
+            return { status: 409 as const, occupants: occupants.length };
+          }
+          const [building] = await tx.update(petParkBuildings).set(updates)
+            .where(eq(petParkBuildings.id, existing.id)).returning();
+          return { status: 200 as const, building };
+        });
+        if (result.status === 404) return res.status(404).json({ message: "Building not found" });
+        if (result.status === 409) return res.status(409).json({
+          message: `This building has ${result.occupants} active pets. Move pets outside before lowering capacity.`,
+        });
+        return res.json(result.building);
+      }
       const [building] = await db.update(petParkBuildings).set(updates).where(eq(petParkBuildings.id, String(req.params.id))).returning();
       return building ? res.json(building) : res.status(404).json({ message: "Building not found" });
     } catch (error) {
