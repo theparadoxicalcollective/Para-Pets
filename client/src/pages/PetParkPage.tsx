@@ -35,7 +35,8 @@ export default function PetParkPage() {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
-  const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);\n  const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
+  const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);
+  const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
 
   useEffect(() => {
@@ -87,7 +88,8 @@ export default function PetParkPage() {
   });
 
   const deposits = scene?.deposits ?? [];
-  const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);\n  const parkPositions = useMemo(() => arrangeParkVisitors(outdoorPets, scene?.items ?? []), [scene?.sharedPets, scene?.items]);
+  const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);
+  const parkPositions = useMemo(() => arrangeParkVisitors(outdoorPets, scene?.items ?? []), [scene?.sharedPets, scene?.items]);
   const occupied = new Set(deposits.map(d => d.petInventoryId));
   const availablePets = inventory.filter(p => p.isHatched && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
 
