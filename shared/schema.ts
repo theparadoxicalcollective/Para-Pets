@@ -1384,6 +1384,21 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const petParkBuildings = pgTable("pet_park_buildings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().default("Building"),
+  imageUrl: text("image_url").notNull(),
+  interiorImageUrl: text("interior_image_url"),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(120),
+  flipped: boolean("flipped").notNull().default(false),
+  layer: integer("layer").notNull().default(0),
+  maxPets: integer("max_pets").notNull().default(3),
+  interiorEffects: jsonb("interior_effects").$type<HouseInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const petParkPlayerSlots = pgTable("pet_park_player_slots", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   unlockedSlots: integer("unlocked_slots").notNull().default(1),
