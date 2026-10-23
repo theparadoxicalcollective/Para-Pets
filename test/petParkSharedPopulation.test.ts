@@ -23,7 +23,7 @@ test("shared pet scene has stable placement, public cosmetics, pet inspection an
   assert.match(client, /refetchInterval: 30_000/);
   assert.match(client, /const outdoorPets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => !pet\.buildingId\)/);
   assert.match(client, /outdoorPets\.map/);
-  assert.match(client, /filter\(pet => pet\.buildingId === enteredBuilding\.id\)\.map/);
+  assert.match(client, /filter\(pet => pet\.buildingId === activeBuilding\.id\)\.map/);
   assert.match(client, /\(scene\?\.sharedPets \?\? \[\]\)\.length/);
   assert.match(client, /scene && <div/);
 });
