@@ -196,9 +196,9 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
         </div>
       </div>}
       <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
-        <h3 className="font-semibold">Add decoration, building, interactive rest spot or water effect</h3>
+        <h3 className="font-semibold">{initialMode === "effects" ? "Add effects & rest spots" : initialMode === "decor" ? "Add decoration" : "Add park scenery"}</h3>
         <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
-          <option value="decor">Decoration / building</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
+          <option value="decor">Decoration</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
         </select>
         {kind === "effect" && <label className="block text-sm">Water effect
           <select aria-label="Water effect type" value={effectType} onChange={e => setEffectType(e.target.value as ParkWaterEffect)}
