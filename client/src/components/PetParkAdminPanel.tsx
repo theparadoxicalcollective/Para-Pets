@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectVisual";
 import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 
 type ParkItem = {
   id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null;
@@ -16,15 +17,6 @@ type ParkDraft = {
   settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
   items: ParkItem[];
 };
-async function imageData(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Choose an image file");
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Unable to read image"));
-    reader.readAsDataURL(file);
-  });
-}
 type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 export default function PetParkAdminPanel({ initialMode = "scene", mode = "editor", creationPosition, onCreated }: {
   initialMode?: "scene" | "effects" | "decor";
