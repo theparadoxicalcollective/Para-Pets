@@ -6,6 +6,7 @@ import { HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
+import { scenePointToPlacement } from "@/lib/coordinateContracts";
 import {
   HOUSE_INTERIOR_EFFECT_MAX_COUNT,
   HOUSE_INTERIOR_EFFECT_MIN_SIZE,
@@ -86,13 +87,13 @@ export default function PetParkBuildingDetails({
     event.stopPropagation();
     const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
+    const point = scenePointToPlacement({
+      x: drag.x * bounds.width + (event.clientX - drag.startX),
+      y: drag.y * bounds.height + (event.clientY - drag.startY),
+    }, { left: 0, top: 0, width: bounds.width, height: bounds.height });
+    if (!point) return;
     setEffects(previous => previous.map(effect => effect.id === drag.id
-      ? {
-        ...effect,
-        x: Math.max(0, Math.min(1, drag.x + (event.clientX - drag.startX) / bounds.width)),
-        y: Math.max(0, Math.min(1, drag.y + (event.clientY - drag.startY) / bounds.height)),
-      }
-      : effect));
+      ? { ...effect, x: point.xPct, y: point.yPct } : effect));
   };
   const onEffectPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
