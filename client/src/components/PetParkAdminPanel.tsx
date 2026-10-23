@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectVisual";
 
 type ParkItem = {
-  id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null;
+  id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
 };
 type ParkDraft = {
@@ -27,7 +28,8 @@ export default function PetParkAdminPanel() {
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [kind, setKind] = useState<"decor" | "sleep_spot">("decor");
+  const [kind, setKind] = useState<"decor" | "sleep_spot" | "effect">("decor");
+  const [effectType, setEffectType] = useState<ParkWaterEffect>("waterfall_mist");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [editing, setEditing] = useState<ParkItem | null>(null);
   const dragStart = useRef<{ x: number; y: number; id: string } | null>(null);
@@ -91,7 +93,7 @@ export default function PetParkAdminPanel() {
         </label>
       </div>
       {isLoading ? <p>Loading park draft…</p> : (
-        <div ref={scene} className="relative w-full aspect-[9/16] max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
+        <div ref={scene} className="relative w-full aspect-[11/17] max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
           style={{ backgroundImage: data?.settings.backgroundUrl ? `url("${data.settings.backgroundUrl}")` : undefined, backgroundSize: "100% 100%", backgroundPosition: "center" }}
           aria-label="Pet Park scene preview">
           {items.map(item => {
@@ -108,37 +110,45 @@ export default function PetParkAdminPanel() {
               }}
               style={{
                 position: "absolute", left: `${shown.xPct * 100}%`, top: `${shown.yPct * 100}%`,
-                width: `${Math.max(25, shown.size / 2)}px`, height: `${Math.max(25, shown.size / 2)}px`,
+                width: `${shown.size / 1100 * 100}%`, aspectRatio: "1 / 1",
                 transform: "translate(-50%, -50%)", zIndex: shown.layer + 10001,
                 border: selected === item.id ? "2px solid gold" : "1px dashed rgba(255,255,255,.5)",
                 borderRadius: 8, background: shown.kind === "sleep_spot" ? "rgba(217,119,6,.45)" : "transparent",
                 touchAction: "none",
               }}>
-              {shown.imageUrl ? <img src={shown.imageUrl} alt="" draggable={false} className="w-full h-full object-contain pointer-events-none" style={{ transform: shown.flipped ? "scaleX(-1)" : undefined }} /> : <span className="text-xs">Rest</span>}
+              {shown.kind === "effect" && shown.effectType ? <ParkEffectVisual type={shown.effectType} /> : shown.imageUrl ? <img src={shown.imageUrl} alt="" draggable={false} className="w-full h-full object-contain pointer-events-none" style={{ transform: shown.flipped ? "scaleX(-1)" : undefined }} /> : <span className="text-xs">Rest</span>}
             </button>;
           })}
           {!data?.settings.backgroundUrl && <p className="absolute bottom-2 left-2 text-xs">Upload a background to begin.</p>}
         </div>
       )}
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
-        <h3 className="font-semibold">Add park decoration or rest spot</h3>
-        <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot")}>
-          <option value="decor">Decoration</option><option value="sleep_spot">Rest spot</option>
+        <h3 className="font-semibold">Add decoration, building, interactive rest spot or water effect</h3>
+        <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
+          <option value="decor">Decoration / building</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
         </select>
-        <input aria-label="Scene item artwork" type="file" accept="image/*" className="w-full text-xs"
+        {kind === "effect" && <label className="block text-sm">Water effect
+          <select aria-label="Water effect type" value={effectType} onChange={e => setEffectType(e.target.value as ParkWaterEffect)}
+            className="mt-1 w-full rounded bg-slate-900 p-2">
+            <option value="waterfall_mist">Waterfall base mist</option>
+            <option value="water_ripple">Expanding water ripples</option>
+            <option value="water_shimmer">Water shimmer</option>
+          </select>
+        </label>}
+        {kind !== "effect" && <input aria-label="Scene item artwork" type="file" accept="image/*" className="w-full text-xs"
           onChange={async e => {
             const file = e.target.files?.[0]; if (!file) return;
             try { setPendingImage(await imageData(file)); } catch (error) { toast({ title: String(error), variant: "destructive" }); }
             e.target.value = "";
-          }} />
+          }} />}
         <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
           className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50"
-          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, imageData: pendingImage, xPct: 0.5, yPct: 0.5, size: 100, flipped: false, layer: items.length } }); setPendingImage(null); }}>
+          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, effectType: kind === "effect" ? effectType : null, imageData: kind === "effect" ? null : pendingImage, xPct: 0.5, yPct: 0.5, size: 100, flipped: false, layer: items.length } }); setPendingImage(null); }}>
           Add to park
         </button>
       </div>
       {current && <div className="rounded-lg border border-amber-600 bg-black/60 p-3 space-y-3">
-        <h3 className="font-semibold">Selected {current.kind === "decor" ? "decoration" : "rest spot"}</h3>
+        <h3 className="font-semibold">Selected {current.kind === "decor" ? "decoration / building" : current.kind === "effect" ? "water effect" : "rest spot"}</h3>
         {(["xPct", "yPct", "size", "layer"] as const).map(field => <label key={field} className="flex items-center gap-3 text-sm">
           <span className="w-16">{field}</span>
           <input aria-label={field} className="min-w-0 flex-1 rounded bg-slate-900 p-2" type="number"
@@ -147,6 +157,12 @@ export default function PetParkAdminPanel() {
             step={field === "xPct" || field === "yPct" ? 0.01 : 1}
             value={current[field]} onChange={e => setEditing({ ...current, [field]: Number(e.target.value) })} />
         </label>)}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" aria-label="Decrease selected park item size" className="rounded bg-amber-800 px-3 py-2"
+            onClick={() => setEditing({ ...current, size: Math.max(1, current.size - 20) })}>− Size</button>
+          <button type="button" aria-label="Increase selected park item size" className="rounded bg-amber-800 px-3 py-2"
+            onClick={() => setEditing({ ...current, size: Math.min(1000, current.size + 20) })}>+ Size</button>
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={current.flipped} onChange={e => setEditing({ ...current, flipped: e.target.checked })} /> Flip horizontally
         </label>

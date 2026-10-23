@@ -49,6 +49,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
+        canEditPark: !!player?.isAdmin,
       });
     } catch (error) {
       console.error("[pet-park] scene read failed", error);

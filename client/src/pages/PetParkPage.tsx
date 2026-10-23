@@ -4,13 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
+import PetParkAdminPanel from "@/components/PetParkAdminPanel";
+import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectVisual";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string };
-type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
+type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
 const SCENE_W = 1100;
@@ -27,6 +29,7 @@ export default function PetParkPage() {
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
 
@@ -110,7 +113,7 @@ export default function PetParkPage() {
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`, backgroundImage: scene.backgroundUrl ? `url("${scene.backgroundUrl}")` : undefined, backgroundSize: "100% 100%" }}>
         {scene.items.map(item => <div key={item.id} className="absolute pointer-events-none"
           style={{ left: `${item.xPct * 100}%`, top: `${item.yPct * 100}%`, width: item.size * scale, height: item.size * scale, transform: `translate(-50%, -50%) ${item.flipped ? "scaleX(-1)" : ""}`, zIndex: item.layer + 10001 }}>
-          {item.imageUrl ? <img alt="" src={item.imageUrl} draggable={false} className="w-full h-full object-contain" /> :
+          {item.kind === "effect" && item.effectType ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} /> : item.imageUrl ? <img alt="" src={item.imageUrl} draggable={false} className="w-full h-full object-contain" /> :
             <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
         </div>)}
         {(scene.sharedPets ?? []).map((pet, index) => {
@@ -146,9 +149,19 @@ export default function PetParkPage() {
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={() => navigate("/")} className="pointer-events-auto rounded-lg bg-black/75 px-3 py-2">← Back</button>
         <h1 className="rounded-lg bg-black/70 px-4 py-2 text-lg font-semibold text-amber-300">Pet Park</h1>
-        <span className="w-12" />
+        {scene?.canEditPark ? <button type="button" onClick={() => setShowEditor(true)} className="pointer-events-auto rounded-lg bg-amber-800 px-3 py-2 text-xs">Edit Park</button> : <span className="w-12" />}
       </div>
     </div>
+
+    {scene?.canEditPark && showEditor && <div className="absolute inset-0 z-50 overflow-y-auto bg-[#0b2119]/95 p-3 pb-12">
+      <div className="sticky top-0 z-10 mb-3 flex justify-end bg-[#0b2119] py-2">
+        <button type="button" className="rounded bg-amber-800 px-4 py-2" onClick={() => {
+          setShowEditor(false);
+          qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
+        }}>Close editor & refresh park</button>
+      </div>
+      <PetParkAdminPanel />
+    </div>}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
       !scene?.enabledForPlayers ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">

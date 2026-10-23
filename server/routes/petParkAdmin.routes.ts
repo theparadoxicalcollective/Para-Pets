@@ -3,9 +3,13 @@ import { asc, eq, isNull, sql } from "drizzle-orm";
 import { petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import type { db as database } from "../db";
 
-type ParkKind = "decor" | "sleep_spot";
+type ParkKind = "decor" | "sleep_spot" | "effect";
+type ParkEffect = "waterfall_mist" | "water_ripple" | "water_shimmer";
+function isEffect(value: unknown): value is ParkEffect {
+  return value === "waterfall_mist" || value === "water_ripple" || value === "water_shimmer";
+}
 function isKind(value: unknown): value is ParkKind {
-  return value === "decor" || value === "sleep_spot";
+  return value === "decor" || value === "sleep_spot" || value === "effect";
 }
 function validPosition(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -103,17 +107,18 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
-    const { kind, imageData, xPct, yPct, size, flipped, layer } = req.body ?? {};
+    const { kind, effectType, imageData, xPct, yPct, size, flipped, layer } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||
         !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000))) {
       return res.status(400).json({ message: "Invalid Pet Park item" });
     }
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
+    if (kind === "effect" && !isEffect(effectType)) return res.status(400).json({ message: "Choose a supported water effect" });
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind, imageUrl, xPct, yPct, size, flipped, layer }).returning();
+        .values({ kind, effectType: kind === "effect" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer) }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] item create failed", error);
