@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
-import { claimablePetParkDurationMs, checkpointPetParkClaim, petParkRewardUnits } from "@shared/petParkAccrual";
+import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   app.get("/api/pet-park/scene", isAuthenticated, async (req, res) => {
@@ -117,9 +117,19 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         pausedDurationMs: deposit.pausedDurationMs,
       };
       const duration = claimablePetParkDurationMs(state, now.getTime());
-      const coins = petParkRewardUnits(duration, settings?.coinsPerHour ?? 0);
-      const essence = petParkRewardUnits(duration, settings?.essencePerHour ?? 0);
-      const petXp = petParkRewardUnits(duration, settings?.petXpPerHour ?? 0);
+      // Use the existing reward ledger to retain fractional earning progress.
+      // Otherwise frequent collections would reset the checkpoint and players
+      // could permanently lose slow rewards (e.g. 2 essence every 5 minutes).
+      const [history] = await tx.select({
+        duration: sql<number>`COALESCE(SUM(${petParkRewardClaims.earnedDurationMs}), 0)`,
+        coins: sql<number>`COALESCE(SUM(${petParkRewardClaims.coins}), 0)`,
+        essence: sql<number>`COALESCE(SUM(${petParkRewardClaims.essence}), 0)`,
+        petXp: sql<number>`COALESCE(SUM(${petParkRewardClaims.petXp}), 0)`,
+      }).from(petParkRewardClaims).where(eq(petParkRewardClaims.depositId, depositId));
+      const totalDuration = Number(history?.duration ?? 0) + duration;
+      const coins = Math.max(0, Math.floor(totalDuration * (settings?.coinsPerHour ?? 0) / 3_600_000) - Number(history?.coins ?? 0));
+      const essence = Math.max(0, ((settings?.essencePerHour ?? 0) === 24 ? Math.floor(totalDuration / 300_000) * 2 : Math.floor(totalDuration * (settings?.essencePerHour ?? 0) / 3_600_000)) - Number(history?.essence ?? 0));
+      const petXp = Math.max(0, Math.floor(totalDuration * (settings?.petXpPerHour ?? 0) / 3_600_000) - Number(history?.petXp ?? 0));
       if (duration > 0) {
         await tx.insert(petParkRewardClaims).values({
           depositId, userId, intervalStartAt: deposit.checkpointAt,

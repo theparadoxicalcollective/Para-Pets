@@ -35,5 +35,5 @@ test("draft editor supports background upload, decor, rest spots, reposition, fl
 test("draft editor never opens Pet Park or touches coins and reward claims", () => {
   assert.doesNotMatch(api, /enabledForPlayers: true|petParkRewardClaims|update\(users\)|update\(userInventory\)/);
   assert.doesNotMatch(api, /keepers_central|kc_doors|DROP TABLE/i);
-  assert.match(panel, /under construction for players/);
+  assert.match(panel, /closed to players/);
 });

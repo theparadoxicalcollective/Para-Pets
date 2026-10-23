@@ -30,6 +30,7 @@ export default function PetParkPage() {
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [editorMode, setEditorMode] = useState<"scene" | "effects">("scene");
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
 
@@ -165,28 +166,28 @@ export default function PetParkPage() {
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={() => navigate("/")} className="pointer-events-auto rounded-lg bg-black/75 px-3 py-2">← Back</button>
         <h1 className="rounded-lg bg-black/70 px-4 py-2 text-lg font-semibold text-amber-300">Pet Park</h1>
-        {scene?.canEditPark ? <button type="button" onClick={() => setShowEditor(true)} className="pointer-events-auto rounded-lg bg-amber-800 px-3 py-2 text-xs">Edit Park</button> : <span className="w-12" />}
+        {scene?.canEditPark ? <div className="pointer-events-auto flex gap-1"><button type="button" onClick={() => { setEditorMode("effects"); setShowEditor(true); }} className="rounded-lg bg-teal-800 px-2 py-2 text-xs">Add Effects</button><button type="button" onClick={() => { setEditorMode("scene"); setShowEditor(true); }} className="rounded-lg bg-amber-800 px-2 py-2 text-xs">Edit Park</button></div> : <span className="w-12" />}
       </div>
     </div>
 
-    {scene?.canEditPark && showEditor && <div className="absolute inset-0 z-50 overflow-y-auto bg-[#0b2119]/95 p-3 pb-12">
+    {scene?.canEditPark && showEditor && <div className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[#0b2119] px-3 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))]">
       <div className="sticky top-0 z-10 mb-3 flex justify-end bg-[#0b2119] py-2">
         <button type="button" className="rounded bg-amber-800 px-4 py-2" onClick={() => {
           setShowEditor(false);
           qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         }}>Close editor & refresh park</button>
       </div>
-      <PetParkAdminPanel />
+      <PetParkAdminPanel initialMode={editorMode} />
     </div>}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
-      !scene?.enabledForPlayers ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
+      !scene?.enabledForPlayers && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
         <div className="rounded-xl border border-amber-500/50 bg-[#152d23] p-6 text-center shadow-xl">
           <h2 className="text-xl font-semibold text-amber-300">Pet Park — Under Construction</h2>
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
-          {scene?.preview && <p className="mt-3 text-sm text-amber-300">Admin preview: drag the background to inspect the draft scene.</p>}
+
         </div>
-      </div> : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <p className="mb-2 text-xs text-amber-200/80">Drag the park in any direction to explore. Rewards accumulate for up to 24 hours. Collect anytime without removing your pet.</p>
         <div className="space-y-2">
           {Array.from({ length: 3 }, (_, index) => {
