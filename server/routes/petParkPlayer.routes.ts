@@ -22,6 +22,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         petTemplateId: userInventory.shopItemId,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
+        buildingId: petParkDeposits.buildingId, interiorXPct: petParkDeposits.interiorXPct, interiorYPct: petParkDeposits.interiorYPct, pose: petParkDeposits.pose,
         checkpointAt: petParkDeposits.checkpointAt, pausedAt: petParkDeposits.pausedAt, pausedDurationMs: petParkDeposits.pausedDurationMs,
       }).from(petParkDeposits)
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
