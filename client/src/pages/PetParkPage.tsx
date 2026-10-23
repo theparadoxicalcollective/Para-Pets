@@ -5,7 +5,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
-import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectVisual";
+import { ParkEffectVisual } from "@/components/ParkEffectVisual";
+import type { ParkEffectType } from "@shared/petParkEffects";
+import { readPetParkImageData } from "@/lib/petParkImageData";
+import { Image as ImageIcon, Check, X } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
@@ -14,7 +17,7 @@ import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulat
 import { parkCameraGeometry, parkClampCamera, parkImageAspect, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkEffectType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: HouseInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -36,6 +39,7 @@ export default function PetParkPage() {
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showCreator, setShowCreator] = useState(false);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
   const [creationPosition, setCreationPosition] = useState({ xPct: 0.5, yPct: 0.5 });
   const [placementMode, setPlacementMode] = useState(false);
   const [selectedPlacement, setSelectedPlacement] = useState<{ kind: "building" | "item"; id: string } | null>(null);
@@ -93,6 +97,21 @@ export default function PetParkPage() {
     onSuccess: () => { invalidate(); setSelectedPet(""); },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
+
+  const uploadBackground = async (file?: File) => {
+    if (!file || !scene?.canEditPark || uploadingBackground) return;
+    setUploadingBackground(true);
+    try {
+      const imageData = await readPetParkImageData(file);
+      await apiRequest("PUT", "/api/admin/pet-park/background", { imageData });
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
+    } catch (error) {
+      toast({ title: "Could not change park background", description: String(error), variant: "destructive" });
+    } finally {
+      setUploadingBackground(false);
+    }
+  };
 
   const selectedObject = selectedPlacement?.kind === "building"
     ? scene?.buildings?.find(building => building.id === selectedPlacement.id)
@@ -248,17 +267,31 @@ export default function PetParkPage() {
       <p className="mt-2 text-sm">Level {inspectedPet.petLevel} · Keeper: {inspectedPet.ownerName}</p>
       <button type="button" className="mt-3 rounded bg-amber-800 px-4 py-2" onClick={() => setInspectedPet(null)}>Close</button>
     </div>}
-    <div className="absolute top-0 left-0 right-0 z-20 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-none">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-[max(12px,env(safe-area-inset-top))]">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={() => navigate("/")} className="pointer-events-auto rounded-lg bg-black/75 px-3 py-2">← Back</button>
-        <h1 className="rounded-lg bg-black/70 px-4 py-2 text-lg font-semibold text-amber-300">Pet Park</h1>
-        {scene?.canEditPark ? <div className="pointer-events-auto flex flex-wrap justify-end gap-1">
-          <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }} className={`rounded-lg px-2 py-2 text-xs ${placementMode ? "bg-teal-700" : "bg-amber-800"}`}>{placementMode ? "Done positioning" : "Move park objects"}</button>
-          {([{ mode: "effects", label: "Add Effects" }, { mode: "scene", label: "Add Buildings" }, { mode: "decor", label: "Add Decor" }] as const).map(action => <button key={action.mode} type="button" onClick={() => beginCreate(action.mode)} className="rounded-lg bg-amber-800 px-2 py-2 text-xs">{action.label}</button>)}
-        </div> : <span className="w-12" />}
+        <button type="button" onClick={() => navigate("/")}
+          className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64]">← Back</button>
+        <h1 className="rounded-full bg-black/65 px-3 py-2 text-sm font-semibold tracking-wider text-[#f5cf64]">Pet Park</h1>
+        {scene?.canEditPark ? <label className="pointer-events-auto cursor-pointer rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64]">
+          <ImageIcon size={15} className="mr-1 inline" />{uploadingBackground ? "Uploading…" : "Change BG"}
+          <input aria-label="Change Pet Park background" type="file" accept="image/*" className="sr-only" disabled={uploadingBackground}
+            onChange={event => { void uploadBackground(event.target.files?.[0]); event.target.value = ""; }} />
+        </label> : <span className="w-16" />}
       </div>
+      {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-2 gap-2">
+        <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
+        <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Decor / Objects</button>
+      </div>}
     </div>
-
+    {scene?.canEditPark && !showCreator && !selectedPlacement && <div
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers ? "bottom-[calc(42%+14px)]" : "bottom-[max(67px,calc(env(safe-area-inset-bottom)+57px))]"}`}
+      aria-label="Park editing toolbar">
+      <button type="button" onClick={() => beginCreate("scene")} className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#221902]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-[#f5cf64]">+ Add Buildings</button>
+      <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }}
+        className="min-w-0 flex-1 rounded-2xl border border-emerald-500/45 bg-[#14281c]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-emerald-200">
+        {placementMode ? <>Finish editing <Check size={15} className="inline" /></> : "Move park objects"}
+      </button>
+    </div>}
     {scene?.canEditPark && placementMode && selectedPlacement && selectedObject && placementDraft && <div
       className={`pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-amber-600 bg-[#10271e]/95 p-3 shadow-xl max-h-[34dvh] overflow-y-auto ${scene.enabledForPlayers ? "bottom-[44%]" : "bottom-[max(12px,env(safe-area-inset-bottom))]"}`}
       aria-label="Edit selected park object">
@@ -299,16 +332,27 @@ export default function PetParkPage() {
         <button type="button" disabled={placementSave.isPending || placementDelete.isPending} onClick={() => { if (window.confirm("Remove this object from Pet Park?")) placementDelete.mutate(selectedPlacement); }} className="ml-auto rounded bg-red-900 px-3 py-2 text-sm">Remove</button>
       </div>
     </div>}
-    {scene?.canEditPark && showCreator && <div
-      className="pointer-events-auto absolute top-[max(85px,env(safe-area-inset-top))] left-3 right-3 sm:left-auto z-30 mx-auto sm:mx-0 sm:w-80 max-w-sm max-h-[min(64dvh,540px)] overflow-y-auto overscroll-contain rounded-xl border border-amber-600 bg-[#10271e]/95 p-3 shadow-xl"
-      role="dialog" aria-label="Add Pet Park object">
-      <div className="flex justify-end"><button type="button" className="rounded bg-slate-700 px-3 py-2 text-xs" onClick={() => setShowCreator(false)}>Close</button></div>
-      <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} onCreated={object => {
-        setShowCreator(false);
-        setPlacementMode(true);
-        setSelectedPlacement({ kind: object.kind, id: object.id });
-        setPlacementDraft({ xPct: object.xPct, yPct: object.yPct, size: object.size, flipped: object.flipped, layer: object.layer });
-      }} />
+    {scene?.canEditPark && showCreator && <div className="fixed inset-0 z-[70] flex items-end justify-center"
+      role="dialog" aria-modal="true" aria-label="Add Pet Park object">
+      <button type="button" aria-label="Close add object" onClick={() => setShowCreator(false)} className="absolute inset-0 bg-black/65" />
+      <div onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
+        className="relative z-10 flex max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#0d0a04] shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
+          <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
+            {editorMode === "effects" ? "Outdoor Effects" : editorMode === "scene" ? "Add Building" : "Decor / Objects"}
+          </h2>
+          <button type="button" aria-label="Close editor" onClick={() => setShowCreator(false)}
+            className="rounded-full border border-amber-500/35 bg-amber-500/15 p-2 text-[#f5cf64]"><X size={17} /></button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} onCreated={object => {
+            setShowCreator(false);
+            setPlacementMode(true);
+            setSelectedPlacement({ kind: object.kind, id: object.id });
+            setPlacementDraft({ xPct: object.xPct, yPct: object.yPct, size: object.size, flipped: object.flipped, layer: object.layer });
+          }} />
+        </div>
+      </div>
     </div>}
     {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={detailsBuilding.id}
       building={detailsBuilding}
