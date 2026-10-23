@@ -15,7 +15,7 @@ test("park scene shares active pets across owners while preserving private depos
 });
 
 test("shared pet scene has stable placement, public cosmetics, pet inspection and refresh", () => {
-  assert.match(client, /sharedPetPosition\(index, all\.length\)/);
+  assert.match(client, /parkPetPosition\(index, all\.length, pet\.petInventoryId, restSpots\)/);
   assert.match(client, /costumeAccess=\{isMine \? "owner" : "public"\}/);
   assert.match(client, /Keeper: \{inspectedPet\.ownerName\}/);
   assert.match(client, /refetchInterval: 30_000/);
