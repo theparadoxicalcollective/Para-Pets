@@ -18,7 +18,7 @@ test("Pet Park replaces Central nav but retains legacy implementation for safe r
 test("closed park has under-construction view and admin-only scene preview", () => {
   assert.match(page, /Pet Park — Under Construction/);
   assert.match(route, /!settings\?\.enabledForPlayers && !player\?\.isAdmin/);
-  assert.match(page, /scene\?\.preview/);
+  assert.match(page, /scene\?\.canEditPark/);
   assert.match(route, /if \(!park\?\.enabled\) return \{ status: 403/);
 });
 
