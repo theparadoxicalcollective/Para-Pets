@@ -22,7 +22,7 @@ async function imageData(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-export default function PetParkAdminPanel() {
+export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMode?: "scene" | "effects" }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
@@ -36,6 +36,13 @@ export default function PetParkAdminPanel() {
   const [editing, setEditing] = useState<ParkItem | null>(null);
   const dragStart = useRef<{ x: number; y: number; id: string } | null>(null);
   const scene = useRef<HTMLDivElement>(null);
+  const effectsSection = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (initialMode !== "effects") return;
+    setKind("effect");
+    // Defer until the panel has mounted and its scroll container is measurable.
+    requestAnimationFrame(() => effectsSection.current?.scrollIntoView({ block: "start", behavior: "instant" }));
+  }, [initialMode]);
 
   useEffect(() => {
     let active = true;
@@ -67,12 +74,13 @@ export default function PetParkAdminPanel() {
   return (
     <div className="space-y-4 pb-8 text-amber-100" data-testid="pet-park-admin">
       <h2 className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
-      <p className="text-sm text-amber-100/75">Draft only. Pet Park stays under construction for players until deposits and rewards are ready. Place items by dragging them; use the controls below to fine-tune placement.</p>
+      <p className="text-sm text-amber-100/75">Admins can preview and edit the park while it is closed to players. Drag items on the scene, then save their placement.</p>
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <div className="text-sm">Player access: <strong>{data?.settings.enabledForPlayers ? "Open (check readiness)" : "Closed — Under Construction"}</strong></div>
         <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
           <h3 className="font-semibold">Park rewards & player access</h3>
-          <p className="text-xs">Configure whole reward units per hour, then publish when ready. Closing pauses earning but preserves deposited pets and their accrued rewards.</p>
+          <p className="text-xs">Rates are stored per hour. The recommended preset equals 1 coin/minute, 5 pet XP/minute and 2 essence/5 minutes. Closing pauses earning but preserves deposits and rewards.</p>
+          <button type="button" className="rounded bg-teal-800 px-3 py-2 text-sm" onClick={() => setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 })}>Use recommended reward rates</button>
           {(["coinsPerHour", "essencePerHour", "petXpPerHour"] as const).map(key => <label key={key} className="flex items-center justify-between gap-2 text-sm">
             <span>{key === "coinsPerHour" ? "Coins / hour" : key === "essencePerHour" ? "Essence / hour" : "Pet XP / hour"}</span>
             <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-slate-900 p-2"
@@ -81,8 +89,8 @@ export default function PetParkAdminPanel() {
                 essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
                 petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) })} />
           </label>)}
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={publish ?? data?.settings.enabledForPlayers ?? false}
+          <label className="flex items-center gap-3 rounded-lg border border-amber-500/50 bg-amber-950/30 p-3 text-sm font-semibold">
+            <input type="checkbox" aria-label="Allow players into Pet Park" className="h-5 w-5 accent-amber-500" checked={publish ?? data?.settings.enabledForPlayers ?? false}
               onChange={e => setPublish(e.target.checked)} /> Open Pet Park to players
           </label>
           <button type="button" className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
@@ -135,7 +143,7 @@ export default function PetParkAdminPanel() {
           {!data?.settings.backgroundUrl && <p className="absolute bottom-2 left-2 text-xs">Upload a background to begin.</p>}
         </div>
       )}
-      <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
+      <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <h3 className="font-semibold">Add decoration, building, interactive rest spot or water effect</h3>
         <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
           <option value="decor">Decoration / building</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
