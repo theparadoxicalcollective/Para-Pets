@@ -73,7 +73,7 @@ export default function PetParkPage() {
       @keyframes petParkWander {
         0%, 18%, 100% { transform: translate(0, 0); }
         42% { transform: translate(var(--pet-drift-x), var(--pet-drift-y)); }
-        72% { transform: translate(calc(var(--pet-drift-x) * -0.6), 0); }
+        72% { transform: translate(-8px, 0); }
       }
       @keyframes petParkRest {
         0%, 100% { transform: translateY(0); }
