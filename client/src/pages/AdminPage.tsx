@@ -822,7 +822,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                 </AdminEditorLoader>
               )}
 
-              {activeSection === "pet_park" && <PetParkAdminPanel />}
+              {activeSection === "pet_park" && <PetParkAdminPanel mode="settings" />}
 
               {activeSection === "purchases" && (
                 <CoinPurchasesSection />
