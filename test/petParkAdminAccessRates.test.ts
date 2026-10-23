@@ -11,15 +11,17 @@ test("closed Pet Park does not block admins, but keeps normal players behind und
   assert.match(page, /scene\?\.canEditPark && showEditor/);
   assert.match(page, /fixed inset-0 z-\[100\]/);
   assert.match(page, /Add Effects/);
-  assert.match(page, /initialMode=\{editorMode\}/);
+  assert.match(page, /initialMode=\{editorMode\} mode="editor"/);
 });
 test("admin editor has direct effects section, visible player access and explicit preset", () => {
-  assert.match(editor, /initialMode !== "effects"/);
-  assert.match(editor, /setKind\("effect"\)/);
+  assert.match(editor, /mode !== "editor"/);
+  assert.match(editor, /setKind\(initialMode === "effects" \? "effect" : "decor"\)/);
   assert.match(editor, /editorTop\.current\?\.scrollIntoView/);
-  assert.match(editor, /setKind\("effect"\)/);
   assert.match(editor, /onPointerMove=/);
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
+  assert.match(editor, /mode === "settings"/);
+  assert.match(page, /Add Buildings/);
+  assert.match(page, /Add Decor/);
   assert.match(editor, /coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300/);
   assert.match(editor, /Save reward rates & park availability/);
 });

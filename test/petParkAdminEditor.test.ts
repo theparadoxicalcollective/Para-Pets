@@ -9,7 +9,7 @@ const routes = readFileSync("server/routes.ts", "utf8");
 
 test("Pet Park has its own visible Admin Realm section", () => {
   assert.match(admin, /key: "pet_park"/);
-  assert.match(admin, /activeSection === "pet_park" && <PetParkAdminPanel/);
+  assert.match(admin, /activeSection === "pet_park" && <PetParkAdminPanel mode="settings"/);
   assert.match(panel, /Pet Park — Scene Editor/);
 });
 test("park draft editing routes require admin authentication", () => {
@@ -24,6 +24,8 @@ test("park draft editing routes require admin authentication", () => {
 });
 test("draft editor supports background upload, decor, rest spots, reposition, flip, layering and deletion", () => {
   assert.match(panel, /Upload park background/);
+  assert.match(panel, /mode === "settings"/);
+  assert.match(panel, /mode = "editor"/);
   assert.match(panel, /sleep_spot/);
   assert.match(panel, /onPointerDown/);
   assert.match(panel, /onPointerUp/);
@@ -35,5 +37,5 @@ test("draft editor supports background upload, decor, rest spots, reposition, fl
 test("draft editor never opens Pet Park or touches coins and reward claims", () => {
   assert.doesNotMatch(api, /enabledForPlayers: true|petParkRewardClaims|update\(users\)|update\(userInventory\)/);
   assert.doesNotMatch(api, /keepers_central|kc_doors|DROP TABLE/i);
-  assert.match(panel, /closed to players/);
+  assert.match(panel, /closed to players|park stays closed to players/i);
 });
