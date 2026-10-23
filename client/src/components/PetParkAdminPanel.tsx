@@ -41,7 +41,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [buildingName, setBuildingName] = useState("");
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
-  const [buildingCapacity, setBuildingCapacity] = useState(3);
+  const [buildingCapacity, setBuildingCapacity] = useState(PET_PARK_BUILDING_CAPACITY_MIN);
 
   const items = data?.items ?? [];
   const buildings = data?.buildings ?? [];
@@ -165,13 +165,13 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             className="w-full rounded-xl border bg-[#302701] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
         </label>
         <div className="space-y-2">
-          <label htmlFor="pet-park-new-building-capacity" className="block text-sm">Building pet capacity (1–{PET_PARK_BUILDING_CAPACITY_MAX})</label>
+          <label htmlFor="pet-park-new-building-capacity" className="block text-sm">Building pet capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})</label>
           <input id="pet-park-new-building-capacity" type="number" inputMode="numeric"
             aria-label="Building pet capacity" min={PET_PARK_BUILDING_CAPACITY_MIN} max={PET_PARK_BUILDING_CAPACITY_MAX} step={1}
             value={buildingCapacity} onChange={event => setBuildingCapacity(Number(event.target.value))}
             className="w-full rounded-xl border bg-[#302701] p-3 text-[#f5cf64]" style={{ borderColor: GOLD_BORDER }} />
           <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacities">
-            {[1, 3, 5, 10, 20, 50].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
+            {[10, 15, 20, 25].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
               className="rounded-xl border px-2 py-2 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
               {capacity} {capacity === 1 ? "pet" : "pets"}
             </button>)}
