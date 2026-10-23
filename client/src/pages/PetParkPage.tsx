@@ -7,12 +7,24 @@ import PetAnimator from "@/components/PetAnimator";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
-type ParkScene = { enabledForPlayers: boolean; preview?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
+type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string };
+type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
 const SCENE_W = 1100;
 const SCENE_H = 1700;
 function clamp(value: number, low: number, high: number) { return Math.max(low, Math.min(high, value)); }
+/** Stable scene placement independent of each viewer's own inventory. */
+function sharedPetPosition(index: number, count: number) {
+  const columns = Math.max(3, Math.ceil(Math.sqrt(count * 0.7)));
+  const rows = Math.max(3, Math.ceil(count / columns));
+  const col = index % columns;
+  const row = Math.floor(index / columns);
+  return {
+    x: 0.10 + 0.80 * ((col + 0.5) / columns),
+    y: 0.24 + 0.62 * ((row + 0.5) / rows),
+  };
+}
 
 export default function PetParkPage() {
   const [, navigate] = useLocation();
@@ -20,10 +32,11 @@ export default function PetParkPage() {
   const { toast } = useToast();
   const viewport = useRef<HTMLDivElement>(null);
   const pointer = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
-  const [viewportSize, setViewportSize] = useState({ width: 390, height: 750 });
+  const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedPet, setSelectedPet] = useState("");
-  const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"] });
+  const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
+  const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
 
   useEffect(() => {
@@ -79,18 +92,31 @@ export default function PetParkPage() {
           {item.imageUrl ? <img alt="" src={item.imageUrl} draggable={false} className="w-full h-full object-contain" /> :
             <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
         </div>)}
-        {deposits.map((pet, index) => {
-          const spots = scene.items.filter(item => item.kind === "sleep_spot");
-          const spot = spots[index % Math.max(1, spots.length)];
-          const x = spot?.xPct ?? 0.25 + index * 0.25;
-          const y = spot?.yPct ?? 0.6;
-          return <div key={pet.id} className="absolute pointer-events-none" style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: "translate(-50%, -75%)", width: 180 * scale, height: 180 * scale, zIndex: 11000 + index }}>
-            <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId} mode="idle" size={180 * scale} fillContainer />
+        {(scene.sharedPets ?? []).map((pet, index, all) => {
+          const position = sharedPetPosition(index, all.length);
+          const isMine = deposits.some(d => d.petInventoryId === pet.petInventoryId);
+          return <div key={pet.petInventoryId} className="absolute"
+            style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
+              transform: "translate(-50%, -75%)", width: 140 * scale, height: 165 * scale, zIndex: 11000 + index }}>
+            <div className="pointer-events-none h-[80%]">
+              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
+                costumeAccess={isMine ? "owner" : "public"} mode="idle" size={140 * scale} fillContainer />
+            </div>
+            <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
+              onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>
           </div>;
-        })}
+        })}}
       </div>}
     </div>
 
+    {scene?.enabledForPlayers && <div className="absolute right-3 top-16 z-20 rounded bg-black/70 px-3 py-1 text-xs">
+      {(scene.sharedPets ?? []).length} pets visiting
+    </div>}
+    {inspectedPet && <div className="absolute left-1/2 top-1/3 z-30 w-[min(85%,300px)] -translate-x-1/2 rounded-xl border border-amber-500 bg-[#152d23] p-4 text-center shadow-xl">
+      <h2 className="font-semibold text-amber-300">{inspectedPet.petNickname || inspectedPet.petName}</h2>
+      <p className="mt-2 text-sm">Level {inspectedPet.petLevel} · Keeper: {inspectedPet.ownerName}</p>
+      <button type="button" className="mt-3 rounded bg-amber-800 px-4 py-2" onClick={() => setInspectedPet(null)}>Close</button>
+    </div>}
     <div className="absolute top-0 left-0 right-0 z-20 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-none">
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={() => navigate("/")} className="pointer-events-auto rounded-lg bg-black/75 px-3 py-2">← Back</button>
