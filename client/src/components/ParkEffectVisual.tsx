@@ -1,5 +1,8 @@
-export type ParkWaterEffect = "waterfall_mist" | "water_ripple" | "water_shimmer";
-export function ParkEffectVisual({ type, reducedMotion = false }: { type: ParkWaterEffect; reducedMotion?: boolean }) {
+import { HomeOutdoorEffectVisual } from "@/components/HomeInteriorEffect";
+import { isParkOutdoorEffect, type ParkEffectType } from "@shared/petParkEffects";
+export type { ParkWaterEffect } from "@shared/petParkEffects";
+export function ParkEffectVisual({ type, reducedMotion = false }: { type: ParkEffectType; reducedMotion?: boolean }) {
+  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} />;
   return <div aria-hidden="true" className={`park-water-effect park-water-effect--${type} ${reducedMotion ? "park-water-effect--still" : ""}`}>
     <style>{`
       .park-water-effect { width: 100%; height: 100%; position: relative; overflow: hidden; pointer-events: none; isolation: isolate; }
