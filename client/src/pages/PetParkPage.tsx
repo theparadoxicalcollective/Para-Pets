@@ -28,7 +28,8 @@ export default function PetParkPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
-  const [reduceMotion, setReduceMotion] = useState(false);\n  const [showEditor, setShowEditor] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
 
