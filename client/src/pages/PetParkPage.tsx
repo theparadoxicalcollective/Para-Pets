@@ -284,7 +284,7 @@ export default function PetParkPage() {
       </div>}
     </div>
     {scene?.canEditPark && !showCreator && !selectedPlacement && <div
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers ? "bottom-[calc(42%+14px)]" : "bottom-[max(67px,calc(env(safe-area-inset-bottom)+57px))]"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
       <button type="button" onClick={() => beginCreate("scene")} className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#221902]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-[#f5cf64]">+ Add Buildings</button>
       <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }}
