@@ -38,6 +38,6 @@ test("existing admin controls still allow movable, resizable, flippable decor an
   assert.match(panel, /− Size/);
   assert.match(panel, /Flip horizontally/);
   assert.match(panel, /Interactive rest spot/);
-  assert.match(panel, /aspect-\[11\/17\]/);
+  assert.match(panel, /aspectRatio: `1 \/ \$\{backgroundAspect\}`/);
   assert.match(visual, /prefers-reduced-motion: reduce/);
 });
