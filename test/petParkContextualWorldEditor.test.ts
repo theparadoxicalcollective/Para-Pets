@@ -20,8 +20,9 @@ test("Pet Park creates buildings, decor, rest spots and effects in the real worl
   assert.ok(panel.includes('creationPosition?.yPct ?? 0.5'));
   assert.ok(panel.includes('url: "/api/admin/pet-park/buildings"'));
   assert.ok(panel.includes('url: "/api/admin/pet-park/items"'));
-  assert.ok(panel.includes('<option value="sleep_spot">Interactive rest spot</option>'));
-  assert.ok(panel.includes('<option value="water_ripple">Expanding water ripples</option>'));
+  assert.ok(panel.includes('label: "Rest Spot"'), "Rest Spot is available in the decor picker");
+  assert.ok(panel.includes('type: "water_ripple"'), "Water ripples remain available in the effect picker");
+  assert.ok(panel.includes('HOME_OUTDOOR_EFFECT_OPTIONS.map'), "Home Bundle outdoor effects are offered without duplication");
   assert.ok(page.includes('setSelectedPlacement({ kind: object.kind, id: object.id })'));
   assert.ok(page.includes('setPlacementMode(true)'));
 });
