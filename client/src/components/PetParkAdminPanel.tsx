@@ -83,7 +83,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   };
 
   return (
-    <div className={mode === "create" ? "space-y-4 text-[#f5cf64]" : "space-y-4 pb-8 text-amber-100"} data-testid="pet-park-admin">
+    <div className={mode === "create" ? "space-y-4 font-fantasy text-[#f5cf64]" : "space-y-4 pb-8 text-amber-100"} data-testid="pet-park-admin">
       {mode === "settings" ? <>
         <h2 className="text-xl font-semibold text-amber-300">Pet Park — Administration</h2>
         <p className="text-sm text-amber-100/75">Player access and earning rates are managed here. Scene placement is managed directly from Pet Park.</p>
