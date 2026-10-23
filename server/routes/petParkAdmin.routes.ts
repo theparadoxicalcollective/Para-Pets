@@ -3,7 +3,11 @@ import { asc, eq, isNull, sql } from "drizzle-orm";
 import { petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import type { db as database } from "../db";
 
-type ParkKind = "decor" | "sleep_spot" | "effect";\ntype ParkEffect = "waterfall_mist" | "water_ripple" | "water_shimmer";\nfunction isEffect(value: unknown): value is ParkEffect {\n  return value === "waterfall_mist" || value === "water_ripple" || value === "water_shimmer";\n}
+type ParkKind = "decor" | "sleep_spot" | "effect";
+type ParkEffect = "waterfall_mist" | "water_ripple" | "water_shimmer";
+function isEffect(value: unknown): value is ParkEffect {
+  return value === "waterfall_mist" || value === "water_ripple" || value === "water_shimmer";
+}
 function isKind(value: unknown): value is ParkKind {
   return value === "decor" || value === "sleep_spot" || value === "effect";
 }
@@ -109,7 +113,8 @@ export function registerPetParkAdminRoutes(
         (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000))) {
       return res.status(400).json({ message: "Invalid Pet Park item" });
     }
-    if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });\n    if (kind === "effect" && !isEffect(effectType)) return res.status(400).json({ message: "Choose a supported water effect" });
+    if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
+    if (kind === "effect" && !isEffect(effectType)) return res.status(400).json({ message: "Choose a supported water effect" });
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
