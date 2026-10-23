@@ -157,6 +157,12 @@ export default function PetParkAdminPanel() {
             step={field === "xPct" || field === "yPct" ? 0.01 : 1}
             value={current[field]} onChange={e => setEditing({ ...current, [field]: Number(e.target.value) })} />
         </label>)}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" aria-label="Decrease selected park item size" className="rounded bg-amber-800 px-3 py-2"
+            onClick={() => setEditing({ ...current, size: Math.max(1, current.size - 20) })}>− Size</button>
+          <button type="button" aria-label="Increase selected park item size" className="rounded bg-amber-800 px-3 py-2"
+            onClick={() => setEditing({ ...current, size: Math.min(1000, current.size + 20) })}>+ Size</button>
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={current.flipped} onChange={e => setEditing({ ...current, flipped: e.target.checked })} /> Flip horizontally
         </label>
