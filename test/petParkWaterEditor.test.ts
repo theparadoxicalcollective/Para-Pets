@@ -26,7 +26,7 @@ test("water effects use admin-only persistence and three supported types", () =>
   }
   assert.match(sceneApi, /canEditPark: !!player\?\.isAdmin/);
   assert.match(page, /scene\?\.canEditPark && showEditor/);
-  assert.match(page, /<PetParkAdminPanel \/>/);
+  assert.match(page, /<PetParkAdminPanel initialMode=/);
   assert.match(page, /<ParkEffectVisual type=\{item\.effectType\}/);
 });
 
