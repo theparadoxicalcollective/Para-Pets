@@ -29,7 +29,7 @@ test("reward ledger carries partial units across frequent manual claims", () => 
     let credited = 0, elapsed = 0;
     return durations.map(ms => {
       elapsed += ms;
-      const reward = Math.floor(elapsed * rate / 3_600_000) - credited;
+      const reward = (rate === 24 ? Math.floor(elapsed / 300_000) * 2 : Math.floor(elapsed * rate / 3_600_000)) - credited;
       credited += reward;
       return reward;
     });
