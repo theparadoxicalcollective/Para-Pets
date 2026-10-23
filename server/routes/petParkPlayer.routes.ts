@@ -47,7 +47,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
         backgroundUrl: settings?.backgroundUrl ?? null,
-        rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
+        buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
         canEditPark: !!player?.isAdmin,
