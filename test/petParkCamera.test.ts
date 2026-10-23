@@ -27,8 +27,8 @@ test("player and admin use one aspect-preserving world coordinate system", () =>
   assert.match(player, /parkImageAspect\(image.naturalWidth, image.naturalHeight\)/);
   assert.match(editor, /parkImageAspect\(image.naturalWidth, image.naturalHeight\)/);
   assert.match(editor, /aspectRatio: `1 \/ \$\{backgroundAspect\}`/);
-  assert.ok(player.includes('left: `${shownPosition("item", item.id, item.xPct, item.yPct).xPct * 100}%`'), 'park objects keep normalized X coordinates while dragging');
-  assert.ok(player.includes('top: `${shownPosition("item", item.id, item.xPct, item.yPct).yPct * 100}%`'), 'park objects keep normalized Y coordinates while dragging');
+  assert.ok(player.includes('left: `${shownPosition("item", item).xPct * 100}%`'), 'park objects keep normalized X coordinates while dragging');
+  assert.ok(player.includes('top: `${shownPosition("item", item).yPct * 100}%`'), 'park objects keep normalized Y coordinates while dragging');
   assert.match(editor, /left: `\$\{shown.xPct \* 100\}%`/);
   assert.doesNotMatch(player, /const SCENE_H = 1700/);
   assert.doesNotMatch(editor, /aspect-\[11\/17\]/);
