@@ -16,8 +16,9 @@ test("closed Pet Park does not block admins, but keeps normal players behind und
 });
 test("admin settings and direct creation retain water effects, player access and explicit reward preset", () => {
   assert.match(editor, /mode: "create" \| "settings"/);
-  assert.match(editor, /initialMode === "effects" \? "effect" : "decor"/);
-  assert.match(editor, /Interactive rest spot/);
+  assert.match(editor, /HOME_OUTDOOR_EFFECT_OPTIONS\.map\(option/);
+  assert.match(editor, /WATER_EFFECT_OPTIONS\.map\(option/);
+  assert.match(editor, /value: "sleep_spot", label: "Rest Spot"/);
   assert.match(page, /onPointerMove=\{movePlacement\}/);
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
   assert.match(editor, /mode === "settings"/);

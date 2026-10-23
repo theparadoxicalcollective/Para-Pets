@@ -1,5 +1,5 @@
 import { useId, type PointerEvent as ReactPointerEvent } from "react";
-import { HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_DARKNESS_MIN, getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, type HouseInteriorEffect, type HouseInteriorEffectType } from "@shared/housing";
+import { HOUSE_INTERIOR_DARKNESS_MAX, HOUSE_INTERIOR_DARKNESS_MIN, getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, type HouseInteriorEffect, type HouseInteriorEffectType, type HouseOutdoorEffectType } from "@shared/housing";
 
 export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
   type: HouseInteriorEffectType;
@@ -18,7 +18,7 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
 ];
 
 export const HOME_OUTDOOR_EFFECT_OPTIONS = HOME_INTERIOR_EFFECT_OPTIONS.filter(
-  option => option.type !== "sleep",
+  (option): option is typeof option & { type: HouseOutdoorEffectType } => option.type !== "sleep",
 );
 
 type EffectPointerHandler = (
@@ -469,6 +469,21 @@ function EffectVisual({ type, adminPreview }: { type: HouseInteriorEffectType; a
   if (type === "dust_motes") return <DustMotesVisual />;
   if (type === "soft_mist") return <SoftMistVisual />;
   return adminPreview ? <SleepSquareVisual /> : <SleepSpotHintVisual />;
+}
+
+/** Reuse the Home Bundle effect artwork for world-scene effect objects.
+ * Placement, sizing, and hit targets remain owned by each scene editor. */
+export function HomeOutdoorEffectVisual({ type, reducedMotion = false }: { type: HouseOutdoorEffectType; reducedMotion?: boolean }) {
+  return <div className={`relative h-full w-full pointer-events-none ${reducedMotion ? "home-outdoor-effect-still" : ""}`} data-testid={`home-outdoor-effect-${type}`}>
+    <style>{EFFECT_STYLES}</style>
+    <style>{`
+      .home-outdoor-effect-still *, .home-outdoor-effect-still *::before, .home-outdoor-effect-still *::after { animation: none !important; }
+      @media (prefers-reduced-motion: reduce) {
+        [data-testid^="home-outdoor-effect-"] *, [data-testid^="home-outdoor-effect-"] *::before, [data-testid^="home-outdoor-effect-"] *::after { animation: none !important; }
+      }
+    `}</style>
+    <EffectVisual type={type} adminPreview={false} />
+  </div>;
 }
 
 export function HomeInteriorDarknessLayer({
