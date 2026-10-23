@@ -25,7 +25,7 @@ async function imageData(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number };
+type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 export default function PetParkAdminPanel({ initialMode = "scene", mode = "editor", creationPosition, onCreated }: {
   initialMode?: "scene" | "effects" | "decor";
   mode?: "editor" | "settings" | "create";
@@ -90,7 +90,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
           if (isItem) setPendingImage(null);
           qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
           if (typeof created?.id === "string") {
-            if (mode === "create") onCreated?.({ kind: isBuilding ? "building" : "item", id: created.id, xPct: created.xPct, yPct: created.yPct });
+            if (mode === "create") onCreated?.({ kind: isBuilding ? "building" : "item", id: created.id, xPct: created.xPct, yPct: created.yPct, size: created.size, flipped: created.flipped, layer: created.layer });
             else if (isItem) {
               setSelected(created.id);
               requestAnimationFrame(() => scene.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
