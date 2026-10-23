@@ -54,10 +54,17 @@ export async function ensurePetParkStorage(): Promise<void> {
       size integer NOT NULL DEFAULT 120 CHECK (size BETWEEN 1 AND 1000),
       flipped boolean NOT NULL DEFAULT false,
       layer integer NOT NULL DEFAULT 0,
-      max_pets integer NOT NULL DEFAULT 3 CHECK (max_pets BETWEEN 1 AND 3),
+      max_pets integer NOT NULL DEFAULT 3 CHECK (max_pets BETWEEN 1 AND 100),
       interior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
       created_at timestamp NOT NULL DEFAULT now()
     );
+
+    -- Expand the *existing* building constraint too. CREATE TABLE IF NOT EXISTS
+    -- does not update constraints for parks provisioned before this release.
+    -- Keep the per-player slot check below at 1..3 (a separate rule).
+    ALTER TABLE pet_park_buildings DROP CONSTRAINT IF EXISTS pet_park_buildings_max_pets_check;
+    ALTER TABLE pet_park_buildings ADD CONSTRAINT pet_park_buildings_max_pets_check
+      CHECK (max_pets BETWEEN 1 AND 100);
 
     CREATE TABLE IF NOT EXISTS pet_park_player_slots (
       user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
