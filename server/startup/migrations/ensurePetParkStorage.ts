@@ -76,6 +76,11 @@ export async function ensurePetParkStorage(): Promise<void> {
       withdrawn_at timestamp,
       created_at timestamp NOT NULL DEFAULT now()
     );
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS building_id varchar REFERENCES pet_park_buildings(id) ON DELETE SET NULL;
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_x_pct real NOT NULL DEFAULT 0.5 CHECK (interior_x_pct BETWEEN 0 AND 1);
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_y_pct real NOT NULL DEFAULT 0.72 CHECK (interior_y_pct BETWEEN 0 AND 1);
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS pose text NOT NULL DEFAULT 'idle' CHECK (pose IN ('idle', 'sit', 'sleep'));
+
     CREATE UNIQUE INDEX IF NOT EXISTS pet_park_deposits_slot_active_uidx
       ON pet_park_deposits (user_id, slot_number) WHERE withdrawn_at IS NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS pet_park_deposits_pet_active_uidx
