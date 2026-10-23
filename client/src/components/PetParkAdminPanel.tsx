@@ -93,7 +93,7 @@ export default function PetParkAdminPanel() {
         </label>
       </div>
       {isLoading ? <p>Loading park draft…</p> : (
-        <div ref={scene} className="relative w-full aspect-[9/16] max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
+        <div ref={scene} className="relative w-full aspect-[11/17] max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
           style={{ backgroundImage: data?.settings.backgroundUrl ? `url("${data.settings.backgroundUrl}")` : undefined, backgroundSize: "100% 100%", backgroundPosition: "center" }}
           aria-label="Pet Park scene preview">
           {items.map(item => {
@@ -110,7 +110,7 @@ export default function PetParkAdminPanel() {
               }}
               style={{
                 position: "absolute", left: `${shown.xPct * 100}%`, top: `${shown.yPct * 100}%`,
-                width: `${Math.max(25, shown.size / 2)}px`, height: `${Math.max(25, shown.size / 2)}px`,
+                width: `${shown.size / 1100 * 100}%`, aspectRatio: "1 / 1",
                 transform: "translate(-50%, -50%)", zIndex: shown.layer + 10001,
                 border: selected === item.id ? "2px solid gold" : "1px dashed rgba(255,255,255,.5)",
                 borderRadius: 8, background: shown.kind === "sleep_spot" ? "rgba(217,119,6,.45)" : "transparent",
