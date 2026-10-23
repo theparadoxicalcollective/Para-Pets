@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 export type ParkWaterEffect = "waterfall_mist" | "water_ripple" | "water_shimmer";
 export function ParkEffectVisual({ type, reducedMotion = false }: { type: ParkWaterEffect; reducedMotion?: boolean }) {
   return <div aria-hidden="true" className={`park-water-effect park-water-effect--${type} ${reducedMotion ? "park-water-effect--still" : ""}`}>
