@@ -121,9 +121,35 @@ test("missing building returns 404 without checking occupancy or writing", async
   assert.equal(calls.updateCount, 0);
 });
 
+test("capacity can be raised above three while maintaining building lock and existing occupants", async () => {
+  const { invoke, calls } = setup({ occupants: 3 });
+  const result = await invoke({ maxPets: 50 });
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.maxPets, 50);
+  assert.equal(calls.transaction, 1);
+  assert.equal(calls.locked, true);
+  assert.equal(calls.updateCount, 1);
+});
+
+test("large buildings cannot reduce capacity below their active occupancy", async () => {
+  const { invoke, calls } = setup({ occupants: 25 });
+  const rejected = await invoke({ maxPets: 20 });
+  assert.equal(rejected.statusCode, 409);
+  assert.equal(calls.updateCount, 0);
+  const accepted = await invoke({ maxPets: 25 });
+  assert.equal(accepted.statusCode, 200);
+  assert.equal(accepted.body.maxPets, 25);
+  assert.equal(calls.updateCount, 1);
+});
+
 test("invalid capacity is rejected before starting transaction", async () => {
   const { invoke, calls } = setup({ occupants: 0 });
-  const result = await invoke({ maxPets: 4 });
+  const result = await invoke({ maxPets: 101 });
   assert.equal(result.statusCode, 400);
+  assert.equal(calls.transaction, 0);
+  for (const invalid of [0, -1, 101, 1.5, "50", null]) {
+    const error = await invoke({ maxPets: invalid });
+    assert.equal(error.statusCode, 400, `capacity ${String(invalid)} must be rejected`);
+  }
   assert.equal(calls.transaction, 0);
 });
