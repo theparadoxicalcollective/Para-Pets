@@ -21,7 +21,7 @@ test("shared pet scene has stable placement, public cosmetics, pet inspection an
   assert.match(client, /costumeAccess=\{isMine \? "owner" : "public"\}/);
   assert.match(client, /Keeper: \{inspectedPet\.ownerName\}/);
   assert.match(client, /refetchInterval: 30_000/);
-  assert.match(client, /\(scene\.sharedPets \?\? \[\]\)\.map/);
-  assert.match(client, /\(scene\.sharedPets \?\? \[\]\)\.length/);
+  assert.match(client, /const outdoorPets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => !pet\.buildingId\)/);\n  assert.match(client, /outdoorPets\.map/);\n  assert.match(client, /filter\(pet => pet\.buildingId === enteredBuilding\.id\)\.map/);
+  assert.match(client, /\(scene\?\.sharedPets \?\? \[\]\)\.length/);
   assert.match(client, /scene && <div/);
 });
