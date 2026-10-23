@@ -36,12 +36,14 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
   const [editing, setEditing] = useState<ParkItem | null>(null);
   const dragStart = useRef<{ x: number; y: number; id: string } | null>(null);
   const scene = useRef<HTMLDivElement>(null);
+  const editorTop = useRef<HTMLDivElement>(null);
   const effectsSection = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (initialMode !== "effects") return;
     setKind("effect");
     // Defer until the panel has mounted and its scroll container is measurable.
-    requestAnimationFrame(() => effectsSection.current?.scrollIntoView({ block: "start", behavior: "instant" }));
+    // Keep the scene visible; scrolling straight to the form hid the drag canvas.
+    requestAnimationFrame(() => editorTop.current?.scrollIntoView({ block: "start", behavior: "instant" }));
   }, [initialMode]);
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
 
   return (
     <div className="space-y-4 pb-8 text-amber-100" data-testid="pet-park-admin">
-      <h2 className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
+      <h2 ref={editorTop} className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
       <p className="text-sm text-amber-100/75">Admins can preview and edit the park while it is closed to players. Drag items on the scene, then save their placement.</p>
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <div className="text-sm">Player access: <strong>{data?.settings.enabledForPlayers ? "Open (check readiness)" : "Closed — Under Construction"}</strong></div>
@@ -120,13 +122,24 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
           {items.map(item => {
             const shown = editing?.id === item.id ? editing : item;
             return <button key={item.id} type="button" aria-label={`Select ${item.kind}`}
-              onPointerDown={e => { dragStart.current = { x: e.clientX, y: e.clientY, id: item.id }; e.currentTarget.setPointerCapture(e.pointerId); setSelected(item.id); setEditing(shown); }}
+              onPointerDown={e => { dragStart.current = { x: e.clientX, y: e.clientY, id: item.id, xPct: shown.xPct, yPct: shown.yPct }; e.currentTarget.setPointerCapture(e.pointerId); setSelected(item.id); setEditing(shown); }}
+              onPointerMove={e => {
+                const start = dragStart.current;
+                if (!start || start.id !== item.id || !scene.current) return;
+                const rect = scene.current.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                setEditing(previous => previous?.id === item.id ? { ...previous,
+                  xPct: Math.max(0, Math.min(1, start.xPct + (e.clientX - start.x) / rect.width)),
+                  yPct: Math.max(0, Math.min(1, start.yPct + (e.clientY - start.y) / rect.height)),
+                } : previous);
+              }}
+              onPointerCancel={() => { dragStart.current = null; }}
               onPointerUp={e => {
                 const start = dragStart.current; dragStart.current = null;
                 if (!start || start.id !== item.id || !scene.current) return;
                 const rect = scene.current.getBoundingClientRect();
-                const xPct = Math.max(0, Math.min(1, shown.xPct + (e.clientX - start.x) / rect.width));
-                const yPct = Math.max(0, Math.min(1, shown.yPct + (e.clientY - start.y) / rect.height));
+                const xPct = Math.max(0, Math.min(1, start.xPct + (e.clientX - start.x) / rect.width));
+                const yPct = Math.max(0, Math.min(1, start.yPct + (e.clientY - start.y) / rect.height));
                 if (xPct !== shown.xPct || yPct !== shown.yPct) savePlacement({ ...shown, xPct, yPct });
               }}
               style={{
