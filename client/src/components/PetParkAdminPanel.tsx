@@ -22,14 +22,14 @@ async function imageData(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMode?: "scene" | "effects" }) {
+export default function PetParkAdminPanel({ initialMode = "scene", mode = "editor" }: { initialMode?: "scene" | "effects" | "decor"; mode?: "editor" | "settings" }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [kind, setKind] = useState<"decor" | "sleep_spot" | "effect">("decor");
+  const [kind, setKind] = useState<"decor" | "sleep_spot" | "effect">(initialMode === "effects" ? "effect" : "decor");
   const [effectType, setEffectType] = useState<ParkWaterEffect>("waterfall_mist");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
@@ -39,12 +39,12 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
   const editorTop = useRef<HTMLDivElement>(null);
   const effectsSection = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (initialMode !== "effects") return;
-    setKind("effect");
+    if (mode !== "editor") return;
+    setKind(initialMode === "effects" ? "effect" : "decor");
     // Defer until the panel has mounted and its scroll container is measurable.
     // Keep the scene visible; scrolling straight to the form hid the drag canvas.
     requestAnimationFrame(() => editorTop.current?.scrollIntoView({ block: "start", behavior: "instant" }));
-  }, [initialMode]);
+  }, [initialMode, mode]);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +70,7 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
         if (typeof created?.id === "string") setSelected(created.id);
         requestAnimationFrame(() => scene.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
       }
-      toast({ title: "Pet Park draft saved" });
+      // Routine placement updates are confirmed in the scene; avoid an interrupting toast.
     },
     onError: (error: Error) => toast({ title: "Could not save", description: error.message, variant: "destructive" }),
   });
@@ -83,8 +83,9 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
 
   return (
     <div className="space-y-4 pb-8 text-amber-100" data-testid="pet-park-admin">
-      <h2 ref={editorTop} className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
-      <p className="text-sm text-amber-100/75">Admins can preview and edit the park while it is closed to players. Drag items on the scene, then save their placement.</p>
+      {mode === "settings" ? <>
+        <h2 className="text-xl font-semibold text-amber-300">Pet Park — Administration</h2>
+        <p className="text-sm text-amber-100/75">Player access and earning rates are managed here. Scene placement is managed directly from Pet Park.</p>
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <div className="text-sm">Player access: <strong>{data?.settings.enabledForPlayers ? "Open (check readiness)" : "Closed — Under Construction"}</strong></div>
         <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
@@ -123,6 +124,9 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
             }} />
         </label>
       </div>
+      </> : <>
+        <h2 ref={editorTop} className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
+        <p className="text-sm text-amber-100/75">Drag items on the scene, then save their placement. The park stays closed to players until enabled in the Administration Realm.</p>
       <p className="text-xs text-amber-200/80">Select an effect, decoration or rest spot on the background. Drag to position; use the controls immediately below to resize, flip or save.</p>
       {isLoading ? <p>Loading park draft…</p> : (
         <div ref={scene} className="sticky top-2 z-20 relative w-full max-w-full max-h-[48vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
@@ -217,6 +221,7 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
         </button>
       </div>
 
+      </>
     </div>
   );
 }
