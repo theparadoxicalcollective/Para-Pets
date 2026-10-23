@@ -9,7 +9,9 @@ type ParkItem = {
   id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
 };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: { id: string; type: "fire" | "candle_light" | "lamp_light" | "warm_glow" | "sparkles" | "dust_motes" | "soft_mist" | "sleep"; x: number; y: number; size: number }[] };
 type ParkDraft = {
+  buildings: ParkBuilding[];
   settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
   items: ParkItem[];
 };
@@ -32,6 +34,12 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
   const [kind, setKind] = useState<"decor" | "sleep_spot" | "effect">(initialMode === "effects" ? "effect" : "decor");
   const [effectType, setEffectType] = useState<ParkWaterEffect>("waterfall_mist");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [buildingName, setBuildingName] = useState("Park Cottage");
+  const [buildingImage, setBuildingImage] = useState<string | null>(null);
+  const [interiorImage, setInteriorImage] = useState<string | null>(null);
+  const [buildingCapacity, setBuildingCapacity] = useState(3);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [interiorEffectType, setInteriorEffectType] = useState<ParkBuilding["interiorEffects"][number]["type"]>("fire");
   const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
   const [editing, setEditing] = useState<ParkItem | null>(null);
   const dragStart = useRef<{ x: number; y: number; id: string; xPct: number; yPct: number } | null>(null);
@@ -80,6 +88,8 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
   });
   const current = editing ?? data?.items.find(item => item.id === selected) ?? null;
   const items = data?.items ?? [];
+  const buildings = data?.buildings ?? [];
+  const selectedBuilding = buildings.find(building => building.id === selectedBuildingId) ?? null;
 
   return (
     <div className="space-y-4 pb-8 text-amber-100" data-testid="pet-park-admin">
@@ -195,6 +205,30 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
           }}>Remove item</button>
         </div>
       </div>}
+      <section className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3" aria-label="Pet Park buildings">
+        <h3 className="text-lg font-semibold">Add Buildings</h3>
+        <p className="text-sm text-amber-100/75">Create a building with its own interior scene. Capacity is limited to three pets; the separate park-wide limit of three pets per player still applies.</p>
+        <label className="block text-sm">Building name<input aria-label="Building name" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)} className="mt-1 w-full rounded bg-slate-900 p-2" /></label>
+        <label className="block text-sm">Exterior artwork<input aria-label="Building exterior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { setBuildingImage(await imageData(file)); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
+        <label className="block text-sm">Interior background<input aria-label="Building interior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { setInteriorImage(await imageData(file)); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
+        <label className="block text-sm">Building pet capacity<select aria-label="Building pet capacity" className="mt-1 w-full rounded bg-slate-900 p-2" value={buildingCapacity} onChange={e => setBuildingCapacity(Number(e.target.value))}><option value={1}>1 pet</option><option value={2}>2 pets</option><option value={3}>3 pets</option></select></label>
+        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage} className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: { name: buildingName, imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity, xPct: 0.5, yPct: 0.5, size: 120, flipped: false, layer: buildings.length } }); setBuildingImage(null); setInteriorImage(null); }}>Create building</button>
+        <div className="space-y-2">{buildings.map(building => <div key={building.id} className="rounded border border-amber-800/60 p-2 space-y-2">
+          <button type="button" className="flex w-full items-center gap-3 text-left" onClick={() => setSelectedBuildingId(selectedBuildingId === building.id ? null : building.id)}><img src={building.imageUrl} alt="" className="h-14 w-14 rounded object-contain" /><span className="min-w-0 flex-1"><strong>{building.name}</strong><span className="block text-xs text-amber-100/70">{building.interiorImageUrl ? "Interior uploaded" : "Interior background not set"} · capacity {building.maxPets}</span></span></button>
+          {selectedBuildingId === building.id && <div className="space-y-2">
+            <label className="block text-sm">Name<input aria-label="Edit building name" className="mt-1 w-full rounded bg-slate-900 p-2" value={building.name} onChange={e => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { name: e.target.value } })} /></label>
+            <label className="block text-sm">Capacity<select aria-label="Edit building capacity" className="mt-1 w-full rounded bg-slate-900 p-2" value={building.maxPets} onChange={e => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { maxPets: Number(e.target.value) } })}><option value={1}>1 pet</option><option value={2}>2 pets</option><option value={3}>3 pets</option></select></label>
+            <label className="block text-sm">Replace interior background<input aria-label="Replace building interior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { interiorImageData: await imageData(file) } }); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
+            <div className="flex flex-wrap items-center gap-2"><label className="text-sm">Interior effect<select aria-label="Interior effect type" className="ml-2 rounded bg-slate-900 p-2" value={interiorEffectType} onChange={e => setInteriorEffectType(e.target.value as typeof interiorEffectType)}>{["fire","candle_light","lamp_light","warm_glow","sparkles","dust_motes","soft_mist","sleep"].map(type => <option key={type} value={type}>{type.replaceAll("_"," ")}</option>)}</select></label>
+            <button type="button" className="rounded bg-teal-800 px-3 py-2 text-sm" onClick={() => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { interiorEffects: [...building.interiorEffects, { id: `park-effect-${Date.now()}`, type: interiorEffectType, x: 0.5, y: 0.5, size: 12 }] } })}>Add interior effect</button></div>
+            <div className="flex flex-wrap gap-2">{building.interiorEffects.map(effect => <button key={effect.id} type="button" className="rounded bg-slate-800 px-2 py-1 text-xs" onClick={() => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { interiorEffects: building.interiorEffects.filter(item => item.id !== effect.id) } })}>Remove {effect.type.replaceAll("_"," ")}</button>)}</div>
+            {building.interiorImageUrl && <div className="relative overflow-hidden rounded border border-amber-800"><img src={building.interiorImageUrl} alt={`${building.name} interior preview`} className="block max-h-64 w-full object-contain" />{building.interiorEffects.map(effect => <span key={effect.id} aria-label={effect.type} className="absolute" style={{ left: `${effect.x*100}%`, top: `${effect.y*100}%`, transform: "translate(-50%,-50%)", fontSize: `${Math.max(12,effect.size*2)}px` }}>{effect.type === "fire" ? "🔥" : effect.type === "candle_light" ? "🕯️" : effect.type === "lamp_light" ? "💡" : effect.type === "sleep" ? "💤" : "✦"}</span>)}</div>}
+            <div className="grid grid-cols-2 gap-2">{(["xPct","yPct","size","layer"] as const).map(field => <label key={field} className="text-xs">{field}<input type="number" className="mt-1 w-full rounded bg-slate-900 p-2" value={building[field]} min={field === "size" ? 1 : field === "layer" ? -10000 : 0} max={field === "size" ? 1000 : field === "layer" ? 10000 : 1} step={field === "xPct" || field === "yPct" ? 0.01 : 1} onChange={e => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { [field]: Number(e.target.value) } })} /></label>)}</div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={building.flipped} onChange={e => mutation.mutate({ method: "PATCH", url: `/api/admin/pet-park/buildings/${building.id}`, body: { flipped: e.target.checked } })}/>Flip exterior</label>
+            <button type="button" className="rounded bg-red-900 px-3 py-2 text-sm" onClick={() => { if(window.confirm(`Delete ${building.name}?`)) { mutation.mutate({ method: "DELETE", url: `/api/admin/pet-park/buildings/${building.id}` }); setSelectedBuildingId(null); } }}>Delete building</button>
+          </div>}
+        </div>)}</div>
+      </section>
       <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <h3 className="font-semibold">{initialMode === "effects" ? "Add effects & rest spots" : initialMode === "decor" ? "Add decoration" : "Add park scenery"}</h3>
         <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
