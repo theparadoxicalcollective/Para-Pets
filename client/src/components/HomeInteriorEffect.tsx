@@ -18,7 +18,7 @@ export const HOME_INTERIOR_EFFECT_OPTIONS: Array<{
 ];
 
 export const HOME_OUTDOOR_EFFECT_OPTIONS = HOME_INTERIOR_EFFECT_OPTIONS.filter(
-  option => option.type !== "sleep",
+  (option): option is typeof option & { type: HouseOutdoorEffectType } => option.type !== "sleep",
 );
 
 type EffectPointerHandler = (
