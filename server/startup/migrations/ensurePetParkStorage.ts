@@ -44,6 +44,21 @@ export async function ensurePetParkStorage(): Promise<void> {
     ALTER TABLE pet_park_scene_items ADD CONSTRAINT pet_park_scene_items_kind_check
       CHECK (kind IN ('decor', 'sleep_spot', 'effect'));
 
+    CREATE TABLE IF NOT EXISTS pet_park_buildings (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      name text NOT NULL DEFAULT 'Building',
+      image_url text NOT NULL,
+      interior_image_url text,
+      x_pct real NOT NULL DEFAULT 0.5 CHECK (x_pct BETWEEN 0 AND 1),
+      y_pct real NOT NULL DEFAULT 0.5 CHECK (y_pct BETWEEN 0 AND 1),
+      size integer NOT NULL DEFAULT 120 CHECK (size BETWEEN 1 AND 1000),
+      flipped boolean NOT NULL DEFAULT false,
+      layer integer NOT NULL DEFAULT 0,
+      max_pets integer NOT NULL DEFAULT 3 CHECK (max_pets BETWEEN 1 AND 3),
+      interior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS pet_park_player_slots (
       user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       unlocked_slots integer NOT NULL DEFAULT 1 CHECK (unlocked_slots BETWEEN 1 AND 3),

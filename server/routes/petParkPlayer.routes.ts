@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
+import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 
@@ -15,6 +15,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       }
       const [slots] = await db.select().from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
       const items = await db.select().from(petParkSceneItems);
+      const buildings = await db.select().from(petParkBuildings);
       const deposits = await db.select({
         id: petParkDeposits.id, slotNumber: petParkDeposits.slotNumber,
         petInventoryId: petParkDeposits.petInventoryId, petName: shopItems.name,
@@ -46,7 +47,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
         backgroundUrl: settings?.backgroundUrl ?? null,
-        rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
+        buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
         canEditPark: !!player?.isAdmin,

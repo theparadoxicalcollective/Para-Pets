@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { asc, eq, isNull, sql } from "drizzle-orm";
-import { petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
+import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
+import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import type { db as database } from "../db";
 
 type ParkKind = "decor" | "sleep_spot" | "effect";
@@ -34,7 +35,8 @@ export function registerPetParkAdminRoutes(
     try {
       const [settings] = await db.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
       const items = await db.select().from(petParkSceneItems).orderBy(asc(petParkSceneItems.layer));
-      return res.json({ settings: settings ?? { enabledForPlayers: false, backgroundUrl: null }, items });
+      const buildings = await db.select().from(petParkBuildings).orderBy(asc(petParkBuildings.layer));
+      return res.json({ settings: settings ?? { enabledForPlayers: false, backgroundUrl: null }, items, buildings });
     } catch (error) {
       console.error("[pet-park] admin read failed", error);
       return res.status(500).json({ message: "Unable to load Pet Park" });
@@ -103,6 +105,74 @@ export function registerPetParkAdminRoutes(
     } catch (error) {
       console.error("[pet-park] background save failed", error);
       return res.status(500).json({ message: "Unable to save background" });
+    }
+  });
+
+  app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
+    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 120, flipped = false, layer = 0, maxPets = 3 } = req.body ?? {};
+    if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
+        typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000 ||
+        (interiorImageData != null && (typeof interiorImageData !== "string" || !interiorImageData.startsWith("data:image/") || interiorImageData.length > 12_000_000)) ||
+        !validPosition(xPct) || !validPosition(yPct) || !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
+        !Number.isInteger(maxPets) || maxPets < 1 || maxPets > 3) {
+      return res.status(400).json({ message: "Provide a name, exterior image, valid placement and a pet capacity from 1 to 3" });
+    }
+    try {
+      const imageUrl = await processWorldImage(imageData, 1200);
+      const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2000) : null;
+      const [building] = await db.insert(petParkBuildings).values({
+        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, interiorEffects: [],
+      }).returning();
+      return res.status(201).json(building);
+    } catch (error) {
+      console.error("[pet-park] building create failed", error);
+      return res.status(500).json({ message: "Unable to create Pet Park building" });
+    }
+  });
+
+  app.patch("/api/admin/pet-park/buildings/:id", isAdmin, async (req, res) => {
+    const body = req.body ?? {};
+    const updates: Record<string, unknown> = {};
+    if (body.name !== undefined) {
+      if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 80) return res.status(400).json({ message: "Building name must be 1–80 characters" });
+      updates.name = body.name.trim();
+    }
+    if (body.imageData !== undefined) {
+      if (typeof body.imageData !== "string" || !body.imageData.startsWith("data:image/") || body.imageData.length > 8_000_000) return res.status(400).json({ message: "Valid exterior image required" });
+      try { updates.imageUrl = await processWorldImage(body.imageData, 1200); } catch { return res.status(400).json({ message: "Unable to process exterior image" }); }
+    }
+    if (body.interiorImageData !== undefined) {
+      if (body.interiorImageData !== null && (typeof body.interiorImageData !== "string" || !body.interiorImageData.startsWith("data:image/") || body.interiorImageData.length > 12_000_000)) return res.status(400).json({ message: "Valid interior image required" });
+      try { updates.interiorImageUrl = body.interiorImageData ? await processWorldImage(body.interiorImageData, 2000) : null; } catch { return res.status(400).json({ message: "Unable to process interior image" }); }
+    }
+    if (body.maxPets !== undefined) {
+      if (!Number.isInteger(body.maxPets) || body.maxPets < 1 || body.maxPets > 3) return res.status(400).json({ message: "Building capacity must be from 1 to 3" });
+      updates.maxPets = body.maxPets;
+    }
+    if (body.interiorEffects !== undefined) updates.interiorEffects = sanitizeHouseInteriorEffects(body.interiorEffects);
+    for (const key of ["xPct", "yPct", "size", "flipped", "layer"] as const) {
+      if (body[key] === undefined) continue;
+      const valid = key === "xPct" || key === "yPct" ? validPosition(body[key]) : key === "size" ? validSize(body[key]) : key === "flipped" ? typeof body[key] === "boolean" : validLayer(body[key]);
+      if (!valid) return res.status(400).json({ message: "Invalid building placement" });
+      updates[key] = body[key];
+    }
+    if (!Object.keys(updates).length) return res.status(400).json({ message: "No valid building changes provided" });
+    try {
+      const [building] = await db.update(petParkBuildings).set(updates).where(eq(petParkBuildings.id, String(req.params.id))).returning();
+      return building ? res.json(building) : res.status(404).json({ message: "Building not found" });
+    } catch (error) {
+      console.error("[pet-park] building update failed", error);
+      return res.status(500).json({ message: "Unable to update Pet Park building" });
+    }
+  });
+
+  app.delete("/api/admin/pet-park/buildings/:id", isAdmin, async (req, res) => {
+    try {
+      const [building] = await db.delete(petParkBuildings).where(eq(petParkBuildings.id, String(req.params.id))).returning({ id: petParkBuildings.id });
+      return building ? res.json({ deleted: true }) : res.status(404).json({ message: "Building not found" });
+    } catch (error) {
+      console.error("[pet-park] building delete failed", error);
+      return res.status(500).json({ message: "Unable to delete Pet Park building" });
     }
   });
 
