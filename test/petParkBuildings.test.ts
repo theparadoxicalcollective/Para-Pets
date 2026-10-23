@@ -30,5 +30,6 @@ test("saved buildings reach the scene and can open their configured interior", (
   assert.match(page, /Enter \$\{building\.name\}/);
   assert.match(page, /enteredBuilding\.interiorImageUrl/);
   assert.match(page, /enteredBuilding\.interiorEffects/);
-  assert.match(page, /Park-wide deposit limit remains three pets per player/);
+  assert.match(page, /Park-wide limit remains three per player/);
+  assert.match(page, /enteredBuilding\.maxPets/);
 });
