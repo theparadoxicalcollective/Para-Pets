@@ -37,7 +37,7 @@ function blocked(position: ParkPoint, objects: ParkObstacle[]): boolean {
 export function arrangeParkVisitors(visitors: ParkVisitor[], objects: ParkObstacle[]): Map<string, ParkPoint> {
   const occupied = new Set<number>();
   const positions = new Map<string, ParkPoint>();
-  const sorted = [...visitors].sort((a, b) => a.petInventoryId.localeCompare(b.petInventoryId));
+  const sorted = [...visitors].sort((a, b) => parkPetSeed(a.petInventoryId) - parkPetSeed(b.petInventoryId) || a.petInventoryId.localeCompare(b.petInventoryId));
   const restSpots = objects.filter(object => object.kind === "sleep_spot");
   for (const visitor of sorted) {
     const seed = parkPetSeed(visitor.petInventoryId);
