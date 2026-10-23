@@ -128,7 +128,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       }).from(petParkRewardClaims).where(eq(petParkRewardClaims.depositId, depositId));
       const totalDuration = Number(history?.duration ?? 0) + duration;
       const coins = Math.max(0, Math.floor(totalDuration * (settings?.coinsPerHour ?? 0) / 3_600_000) - Number(history?.coins ?? 0));
-      const essence = Math.max(0, Math.floor(totalDuration * (settings?.essencePerHour ?? 0) / 3_600_000) - Number(history?.essence ?? 0));
+      const essence = Math.max(0, ((settings?.essencePerHour ?? 0) === 24 ? Math.floor(totalDuration / 300_000) * 2 : Math.floor(totalDuration * (settings?.essencePerHour ?? 0) / 3_600_000)) - Number(history?.essence ?? 0));
       const petXp = Math.max(0, Math.floor(totalDuration * (settings?.petXpPerHour ?? 0) / 3_600_000) - Number(history?.petXp ?? 0));
       if (duration > 0) {
         await tx.insert(petParkRewardClaims).values({
