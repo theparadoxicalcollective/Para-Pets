@@ -118,7 +118,7 @@ export function registerPetParkAdminRoutes(
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind, effectType: kind === "effect" ? effectType : null, imageUrl, xPct, yPct, size, flipped, layer }).returning();
+        .values({ kind, effectType: kind === "effect" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer) }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] item create failed", error);
