@@ -46,21 +46,23 @@ export function arrangeParkVisitors(visitors: ParkVisitor[], objects: ParkObstac
     // The shared occupancy set ensures each cell has at most one visitor.
     if (restSpots.length && seed % 5 === 0) {
       const spot = restSpots[Math.floor(seed / 5) % restSpots.length];
-      let nearest = start;
-      let distance = Infinity;
-      for (let cell = 0; cell < CELLS; cell++) {
-        const point = cellPosition(cell);
-        const nextDistance = (point.x - spot.xPct) ** 2 + (point.y - spot.yPct) ** 2;
-        if (!occupied.has(cell) && !blocked(point, objects) && nextDistance < distance) {
-          nearest = cell;
-          distance = nextDistance;
-        }
-      }
-      start = nearest;
+      // Choose a stable nearby candidate from the closest 24 available terrain cells.
+      // Never select the current nearest unoccupied cell: that cascades positions
+      // whenever a new visitor arrives at a rest spot.
+      const nearby = Array.from({ length: CELLS }, (_, cell) => cell)
+        .filter(cell => !blocked(cellPosition(cell), objects))
+        .sort((left, right) => {
+          const a = cellPosition(left);
+          const b = cellPosition(right);
+          return ((a.x - spot.xPct) ** 2 + (a.y - spot.yPct) ** 2) -
+            ((b.x - spot.xPct) ** 2 + (b.y - spot.yPct) ** 2) || left - right;
+        });
+      if (nearby.length) start = nearby[Math.floor(seed / 5) % Math.min(24, nearby.length)];
     }
     let chosen = -1;
     for (let step = 0; step < CELLS; step++) {
-      const cell = (start + step) % CELLS;
+      // Prime-to-grid stride avoids clustering and minimizes displacement on arrival.
+      const cell = (start + step * 73) % CELLS;
       if (occupied.has(cell) || blocked(cellPosition(cell), objects)) continue;
       chosen = cell;
       break;
