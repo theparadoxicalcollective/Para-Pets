@@ -292,7 +292,9 @@ export default function PetParkPage() {
       }} />
     </div>}
     {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={detailsBuilding.id}
-      building={detailsBuilding} onClose={() => setDetailsBuildingId(null)} onUpdated={invalidate} />}
+      building={detailsBuilding}
+      occupantCount={(scene.sharedPets ?? []).filter(pet => pet.buildingId === detailsBuilding.id).length}
+      onClose={() => setDetailsBuildingId(null)} onUpdated={invalidate} />}
     {scene?.canEditPark && showEditor && <div className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[#0b2119] px-3 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))]">
       <div className="sticky top-0 z-10 mb-3 flex justify-end bg-[#0b2119] py-2">
         <button type="button" className="rounded bg-amber-800 px-4 py-2" onClick={() => {
