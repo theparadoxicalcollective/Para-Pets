@@ -40,10 +40,10 @@ test("withdrawal is owner-bound, serialized and works while park is closed", () 
 });
 
 test("scene pans both axes with viewport clamping and uses existing pet artwork renderer", () => {
-  assert.match(page, /ResizeObserver/);
+  assert.match(page, /observeHomeViewport\(element, measure, "artwork-scene"\)/);
   assert.match(page, /onPointerMove/);
-  assert.match(page, /panX \+ e\.clientX/);
-  assert.match(page, /panY \+ e\.clientY/);
+  assert.match(page, /drag\.panX \+ delta\.x/);
+  assert.match(page, /drag\.panY \+ delta\.y/);
   assert.match(page, /petInventoryId=\{pet\.petInventoryId\}/);
   assert.match(page, /activity\.kind === "rest" \? "sleep" : "idle"/);
   assert.match(page, /reduceMotion \? "static"/);
