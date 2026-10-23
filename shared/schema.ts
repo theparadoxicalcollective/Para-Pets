@@ -1373,7 +1373,7 @@ export const petParkSettings = pgTable("pet_park_settings", {
 
 export const petParkSceneItems = pgTable("pet_park_scene_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  kind: text("kind").notNull(), // decor | sleep_spot
+  kind: text("kind").notNull(), // decor | sleep_spot | effect\n  effectType: text("effect_type"), // waterfall_mist | water_ripple | water_shimmer
   imageUrl: text("image_url"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
