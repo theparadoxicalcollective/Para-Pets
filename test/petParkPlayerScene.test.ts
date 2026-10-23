@@ -36,7 +36,7 @@ test("withdrawal is owner-bound, serialized and works while park is closed", () 
   assert.match(route, /eq\(petParkDeposits\.userId, userId\)/);
   const withdrawal = route.split('app.post("/api/pet-park/deposits/:id/withdraw"')[1];
   assert.doesNotMatch(withdrawal, /enabledForPlayers/);
-  assert.match(withdrawal, /withdrawnAt: new Date\(\)/);
+  assert.match(withdrawal, /settleDeposit\(/);
 });
 
 test("scene pans both axes with viewport clamping and uses existing pet artwork renderer", () => {

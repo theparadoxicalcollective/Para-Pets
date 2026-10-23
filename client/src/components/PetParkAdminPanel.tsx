@@ -8,7 +8,7 @@ type ParkItem = {
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
 };
 type ParkDraft = {
-  settings: { enabledForPlayers: boolean; backgroundUrl: string | null };
+  settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
   items: ParkItem[];
 };
 async function imageData(file: File): Promise<string> {
@@ -24,6 +24,8 @@ export default function PetParkAdminPanel() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
+  const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
+  const [publish, setPublish] = useState<boolean | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [kind, setKind] = useState<"decor" | "sleep_spot">("decor");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -53,6 +55,31 @@ export default function PetParkAdminPanel() {
       <p className="text-sm text-amber-100/75">Draft only. Pet Park stays under construction for players until deposits and rewards are ready. Place items by dragging them; use the controls below to fine-tune placement.</p>
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <div className="text-sm">Player access: <strong>{data?.settings.enabledForPlayers ? "Open (check readiness)" : "Closed — Under Construction"}</strong></div>
+        <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
+          <h3 className="font-semibold">Park rewards & player access</h3>
+          <p className="text-xs">Configure whole reward units per hour, then publish when ready. Closing pauses earning but preserves deposited pets and their accrued rewards.</p>
+          {(["coinsPerHour", "essencePerHour", "petXpPerHour"] as const).map(key => <label key={key} className="flex items-center justify-between gap-2 text-sm">
+            <span>{key === "coinsPerHour" ? "Coins / hour" : key === "essencePerHour" ? "Essence / hour" : "Pet XP / hour"}</span>
+            <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-slate-900 p-2"
+              value={(rates ?? data?.settings)?.[key] ?? 0}
+              onChange={e => setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
+                essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
+                petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) })} />
+          </label>)}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={publish ?? data?.settings.enabledForPlayers ?? false}
+              onChange={e => setPublish(e.target.checked)} /> Open Pet Park to players
+          </label>
+          <button type="button" className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
+            onClick={() => {
+              mutation.mutate({ method: "PUT", url: "/api/admin/pet-park/publishing",
+                body: { enabledForPlayers: publish ?? data!.settings.enabledForPlayers,
+                  coinsPerHour: (rates ?? data!.settings).coinsPerHour,
+                  essencePerHour: (rates ?? data!.settings).essencePerHour,
+                  petXpPerHour: (rates ?? data!.settings).petXpPerHour } });
+              setRates(null); setPublish(null);
+            }}>Save reward rates & park availability</button>
+        </div>
         <label className="block text-sm font-semibold">Park background image
           <input aria-label="Upload park background" type="file" accept="image/*" className="mt-2 block w-full text-xs" disabled={mutation.isPending}
             onChange={async e => {

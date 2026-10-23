@@ -6,8 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number };
-type ParkScene = { enabledForPlayers: boolean; preview?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number };
+type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
+type ParkScene = { enabledForPlayers: boolean; preview?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
 const SCENE_W = 1100;
@@ -107,7 +107,7 @@ export default function PetParkPage() {
           {scene?.preview && <p className="mt-3 text-sm text-amber-300">Admin preview: drag the background to inspect the draft scene.</p>}
         </div>
       </div> : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-        <p className="mb-2 text-xs text-amber-200/80">Drag the park in any direction to explore. Pet Park earnings are not active yet.</p>
+        <p className="mb-2 text-xs text-amber-200/80">Drag the park in any direction to explore. Rewards accumulate for up to 24 hours. Collect anytime without removing your pet.</p>
         <div className="space-y-2">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
@@ -117,6 +117,8 @@ export default function PetParkPage() {
               <span className="font-semibold">Spot {slot}</span>
               {pet ? <>
                 <span className="flex-1">{pet.petNickname || pet.petName} · Lv {pet.petLevel}</span>
+                <button type="button" disabled={action.isPending} className="rounded bg-emerald-800 px-3 py-2"
+                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/claim` })}>Collect rewards</button>
                 <button type="button" disabled={action.isPending} className="rounded bg-amber-800 px-3 py-2"
                   onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/withdraw` })}>Retrieve</button>
               </> : !unlocked ? <button type="button" disabled={action.isPending} className="rounded bg-amber-800 px-3 py-2"

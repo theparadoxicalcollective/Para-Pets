@@ -1365,6 +1365,9 @@ export const petParkSettings = pgTable("pet_park_settings", {
   id: varchar("id").primaryKey().default("main"),
   enabledForPlayers: boolean("enabled_for_players").notNull().default(false),
   backgroundUrl: text("background_url"),
+  coinsPerHour: integer("coins_per_hour").notNull().default(0),
+  essencePerHour: integer("essence_per_hour").notNull().default(0),
+  petXpPerHour: integer("pet_xp_per_hour").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 

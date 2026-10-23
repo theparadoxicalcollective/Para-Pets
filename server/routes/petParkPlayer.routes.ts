@@ -1,9 +1,10 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { petParkDeposits, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
+import { petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
+import { claimablePetParkDurationMs, checkpointPetParkClaim, petParkRewardUnits } from "@shared/petParkAccrual";
 
-export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler): void {
+export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   app.get("/api/pet-park/scene", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as { id: string }).id;
@@ -20,6 +21,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         petTemplateId: userInventory.shopItemId,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
+        checkpointAt: petParkDeposits.checkpointAt, pausedAt: petParkDeposits.pausedAt, pausedDurationMs: petParkDeposits.pausedDurationMs,
       }).from(petParkDeposits)
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
@@ -27,6 +29,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
         backgroundUrl: settings?.backgroundUrl ?? null,
+        rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         items, deposits, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
       });
@@ -77,21 +80,71 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
     }
   });
 
-  // Retrieval is deliberately allowed while closed. No rewards are credited
-  // until an audited atomic claim/withdraw settlement service is introduced.
+
+  // Collection and withdrawal share one transaction and owner lock.
+  // The caller may collect without removing the pet.
+  async function settleDeposit(userId: string, depositId: string, withdraw: boolean) {
+    return db.transaction(async tx => {
+      const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+      if (!owner) return null;
+      const [deposit] = await tx.select().from(petParkDeposits)
+        .where(and(eq(petParkDeposits.id, depositId), eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)))
+        .for("update");
+      if (!deposit) return null;
+      const [settings] = await tx.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
+      const now = new Date();
+      const state = {
+        checkpointMs: deposit.checkpointAt.getTime(),
+        pausedAtMs: deposit.pausedAt?.getTime() ?? null,
+        pausedDurationMs: deposit.pausedDurationMs,
+      };
+      const duration = claimablePetParkDurationMs(state, now.getTime());
+      const coins = petParkRewardUnits(duration, settings?.coinsPerHour ?? 0);
+      const essence = petParkRewardUnits(duration, settings?.essencePerHour ?? 0);
+      const petXp = petParkRewardUnits(duration, settings?.petXpPerHour ?? 0);
+      if (duration > 0) {
+        await tx.insert(petParkRewardClaims).values({
+          depositId, userId, intervalStartAt: deposit.checkpointAt,
+          intervalEndAt: now, earnedDurationMs: duration, coins, essence, petXp,
+        });
+        if (coins || essence) await tx.update(users).set({
+          coins: sql`${users.coins} + ${coins}`,
+          totalCoinsEarned: sql`${users.totalCoinsEarned} + ${coins}`,
+          essence: sql`${users.essence} + ${essence}`,
+        }).where(eq(users.id, userId));
+        if (petXp > 0) {
+          const [pet] = await tx.select({ petLevel: userInventory.petLevel, petLevelPoints: userInventory.petLevelPoints })
+            .from(userInventory).where(and(eq(userInventory.id, deposit.petInventoryId), eq(userInventory.userId, userId))).for("update");
+          if (!pet) throw new Error("Deposited pet no longer belongs to player");
+          const xp = applyPetXp(pet.petLevel ?? 1, pet.petLevelPoints ?? 0, petXp);
+          await tx.update(userInventory).set({ petLevel: xp.newLevel, petLevelPoints: xp.newPoints })
+            .where(and(eq(userInventory.id, deposit.petInventoryId), eq(userInventory.userId, userId)));
+        }
+      }
+      const next = checkpointPetParkClaim(state, now.getTime());
+      await tx.update(petParkDeposits).set({
+        checkpointAt: new Date(next.checkpointMs), pausedAt: next.pausedAtMs == null ? null : new Date(next.pausedAtMs),
+        pausedDurationMs: next.pausedDurationMs, ...(withdraw ? { withdrawnAt: now } : {}),
+      }).where(eq(petParkDeposits.id, depositId));
+      return { coins, essence, petXp, earnedDurationMs: duration, withdrawn: withdraw };
+    });
+  }
+
+  app.post("/api/pet-park/deposits/:id/claim", isAuthenticated, async (req, res) => {
+    try {
+      const result = await settleDeposit((req.user as { id: string }).id, String(req.params.id), false);
+      return result ? res.json(result) : res.status(404).json({ message: "Active deposit not found" });
+    } catch (error) {
+      console.error("[pet-park] claim failed", error);
+      return res.status(500).json({ message: "Unable to collect park rewards" });
+    }
+  });
+
+  // Retrieval remains available during closure and settles accrued rewards.
   app.post("/api/pet-park/deposits/:id/withdraw", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as { id: string }).id;
-      const result = await db.transaction(async tx => {
-        const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
-        if (!owner) return null;
-        const [withdrawn] = await tx.update(petParkDeposits).set({ withdrawnAt: new Date() })
-          .where(and(eq(petParkDeposits.id, String(req.params.id)),
-            eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)))
-          .returning({ id: petParkDeposits.id });
-        return withdrawn ?? null;
-      });
-      return result ? res.json({ withdrawn: true }) : res.status(404).json({ message: "Active deposit not found" });
+      const result = await settleDeposit((req.user as { id: string }).id, String(req.params.id), true);
+      return result ? res.json(result) : res.status(404).json({ message: "Active deposit not found" });
     } catch (error) {
       console.error("[pet-park] withdrawal failed", error);
       return res.status(500).json({ message: "Unable to retrieve pet" });
