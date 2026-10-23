@@ -8,6 +8,7 @@ import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectVisual";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
+import { parkCameraGeometry, parkClampCamera, parkImageAspect, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
@@ -15,9 +16,6 @@ type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: s
 type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
-const SCENE_W = 1100;
-const SCENE_H = 1700;
-function clamp(value: number, low: number, high: number) { return Math.max(low, Math.min(high, value)); }
 export default function PetParkPage() {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
@@ -25,7 +23,8 @@ export default function PetParkPage() {
   const viewport = useRef<HTMLDivElement>(null);
   const pointer = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
+  const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -51,12 +50,22 @@ export default function PetParkPage() {
     return () => observer.disconnect();
   }, []);
 
-  // Overscan lets players pan both axes on phones, tablets and portrait desktop.
-  const scale = Math.max(viewportSize.width / SCENE_W, viewportSize.height / SCENE_H) * 1.18;
-  const sceneWidth = SCENE_W * scale;
-  const sceneHeight = SCENE_H * scale;
-  const limits = { x: Math.max(0, sceneWidth - viewportSize.width), y: Math.max(0, sceneHeight - viewportSize.height) };
-  const camera = { x: clamp(pan.x, -limits.x, 0), y: clamp(pan.y, -limits.y, 0) };
+  useEffect(() => {
+    let active = true;
+    const url = scene?.backgroundUrl;
+    if (!url) { setBackgroundAspect(PARK_FALLBACK_ASPECT); return; }
+    const image = new Image();
+    image.onload = () => { if (active) setBackgroundAspect(parkImageAspect(image.naturalWidth, image.naturalHeight)); };
+    image.onerror = () => { if (active) setBackgroundAspect(PARK_FALLBACK_ASPECT); };
+    image.src = url;
+    return () => { active = false; };
+  }, [scene?.backgroundUrl]);
+
+  // Camera uses the image's actual proportions. All scene placements remain
+  // normalized 0–1 coordinates, independent of phone/tablet/desktop pixels.
+  const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, backgroundAspect);
+  const { scale, sceneWidth, sceneHeight } = geometry;
+  const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }); qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] }); };
   const action = useMutation({
     mutationFn: async ({ path, body }: { path: string; body?: object }) => {
@@ -103,8 +112,8 @@ export default function PetParkPage() {
       onPointerMove={e => {
         if (!pointer.current) return;
         setPan({
-          x: clamp(pointer.current.panX + e.clientX - pointer.current.x, -limits.x, 0),
-          y: clamp(pointer.current.panY + e.clientY - pointer.current.y, -limits.y, 0),
+          x: parkClampCamera({ x: pointer.current.panX + e.clientX - pointer.current.x, y: 0 }, geometry).x,
+          y: parkClampCamera({ x: 0, y: pointer.current.panY + e.clientY - pointer.current.y }, geometry).y,
         });
       }}
       onPointerUp={() => { pointer.current = null; }}
