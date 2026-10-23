@@ -148,13 +148,13 @@ export default function PetParkBuildingDetails({
             <input aria-label="Park building name" className="mt-1 w-full rounded bg-slate-900 p-2" maxLength={80}
               value={name} onChange={event => setName(event.target.value)} />
           </label>
-          <label className="block text-sm">Shared indoor capacity (1–{PET_PARK_BUILDING_CAPACITY_MAX})
+          <label className="block text-sm">Shared indoor capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})
             <input type="number" inputMode="numeric" aria-label="Park building capacity" min={PET_PARK_BUILDING_CAPACITY_MIN}
               max={PET_PARK_BUILDING_CAPACITY_MAX} step={1} className="mt-1 w-full rounded bg-slate-900 p-3"
               value={capacity} onChange={event => setCapacity(Number(event.target.value))} />
           </label>
           <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacity choices">
-            {[1, 3, 5, 10, 20, 50].map(value => <button type="button" key={value}
+            {[10, 15, 20, 25].map(value => <button type="button" key={value}
               aria-pressed={capacity === value} disabled={value < occupantCount}
               onClick={() => setCapacity(value)}
               className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-2 py-2 text-xs disabled:opacity-30">
