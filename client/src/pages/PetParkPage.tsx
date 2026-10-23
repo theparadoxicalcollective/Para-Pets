@@ -105,7 +105,7 @@ export default function PetParkPage() {
             <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
               onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>
           </div>;
-        })}}
+        })}
       </div>}
     </div>
 
