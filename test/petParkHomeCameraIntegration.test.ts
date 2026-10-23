@@ -33,7 +33,7 @@ test("scaled ancestor touch movement is converted into local camera pixels", () 
 test("existing pet, effect and admin scene remain unchanged", () => {
   assert.match(source, /<ParkEffectVisual type=\{item.effectType\}/);
   assert.match(source, /<PetAnimator petTemplateId=\{pet.petTemplateId\}/);
-  assert.match(source, /<PetParkAdminPanel \/>/);
+  assert.match(source, /<PetParkAdminPanel initialMode=/);
   assert.match(source, /scene\?\.canEditPark && showEditor/);
   assert.match(source, /parkCameraGeometry\(viewportSize.width, viewportSize.height, backgroundAspect\)/);
 });
