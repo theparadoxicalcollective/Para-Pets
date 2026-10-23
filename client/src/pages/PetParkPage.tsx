@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
+import { parkPetActivity, parkPetPosition } from "@/lib/petParkActivity";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
@@ -14,18 +15,6 @@ type InventoryPet = { inventoryId: string; shopItemId: string; name: string; pet
 const SCENE_W = 1100;
 const SCENE_H = 1700;
 function clamp(value: number, low: number, high: number) { return Math.max(low, Math.min(high, value)); }
-/** Stable scene placement independent of each viewer's own inventory. */
-function sharedPetPosition(index: number, count: number) {
-  const columns = Math.max(3, Math.ceil(Math.sqrt(count * 0.7)));
-  const rows = Math.max(3, Math.ceil(count / columns));
-  const col = index % columns;
-  const row = Math.floor(index / columns);
-  return {
-    x: 0.10 + 0.80 * ((col + 0.5) / columns),
-    y: 0.24 + 0.62 * ((row + 0.5) / rows),
-  };
-}
-
 export default function PetParkPage() {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
@@ -36,8 +25,17 @@ export default function PetParkPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     if (!viewport.current) return;
@@ -66,10 +64,32 @@ export default function PetParkPage() {
   });
 
   const deposits = scene?.deposits ?? [];
+  const restSpots = (scene?.items ?? []).filter(item => item.kind === "sleep_spot");
   const occupied = new Set(deposits.map(d => d.petInventoryId));
   const availablePets = inventory.filter(p => p.isHatched && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
 
   return <div className="absolute inset-0 overflow-hidden bg-[#13291e] text-amber-100" data-testid="pet-park-page">
+    <style>{`
+      @keyframes petParkWander {
+        0%, 18%, 100% { transform: translate(0, 0); }
+        42% { transform: translate(var(--pet-drift-x), var(--pet-drift-y)); }
+        72% { transform: translate(calc(var(--pet-drift-x) * -0.6), 0); }
+      }
+      @keyframes petParkRest {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(3px); }
+      }
+      @keyframes petParkIdle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+      .pet-park-wander { animation: petParkWander 12s ease-in-out infinite; }
+      .pet-park-rest { animation: petParkRest 10s ease-in-out infinite; }
+      .pet-park-idle { animation: petParkIdle 9s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) {
+        .pet-park-wander, .pet-park-rest, .pet-park-idle { animation: none !important; }
+      }
+    `}</style>
     <div ref={viewport} className="absolute inset-0 overflow-hidden touch-none"
       onPointerDown={e => {
         if (e.target !== e.currentTarget && (e.target as HTMLElement).closest("button")) return;
@@ -93,14 +113,17 @@ export default function PetParkPage() {
             <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
         </div>)}
         {(scene.sharedPets ?? []).map((pet, index, all) => {
-          const position = sharedPetPosition(index, all.length);
+          const position = parkPetPosition(index, all.length, pet.petInventoryId, restSpots);
+          const activity = parkPetActivity(pet.petInventoryId);
           const isMine = deposits.some(d => d.petInventoryId === pet.petInventoryId);
           return <div key={pet.petInventoryId} className="absolute"
             style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
               transform: "translate(-50%, -75%)", width: 140 * scale, height: 165 * scale, zIndex: 11000 + index }}>
-            <div className="pointer-events-none h-[80%]">
+            <div className={`pointer-events-none h-[80%] ${reduceMotion ? "" : activity.kind === "wander" ? "pet-park-wander" : activity.kind === "rest" ? "pet-park-rest" : "pet-park-idle"}`}
+              style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
+                ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
               <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
-                costumeAccess={isMine ? "owner" : "public"} mode="idle" size={140 * scale} fillContainer />
+                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : activity.kind === "rest" ? "sleep" : "idle"} size={140 * scale} fillContainer />
             </div>
             <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
               onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>
