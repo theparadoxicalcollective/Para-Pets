@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
-import { parkPetActivity, parkPetPosition } from "@/lib/petParkActivity";
+import { parkPetActivity } from "@/lib/petParkActivity";
+import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot"; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
@@ -64,7 +65,7 @@ export default function PetParkPage() {
   });
 
   const deposits = scene?.deposits ?? [];
-  const restSpots = (scene?.items ?? []).filter(item => item.kind === "sleep_spot");
+  const parkPositions = useMemo(() => arrangeParkVisitors(scene?.sharedPets ?? [], scene?.items ?? []), [scene?.sharedPets, scene?.items]);
   const occupied = new Set(deposits.map(d => d.petInventoryId));
   const availablePets = inventory.filter(p => p.isHatched && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
 
@@ -112,8 +113,9 @@ export default function PetParkPage() {
           {item.imageUrl ? <img alt="" src={item.imageUrl} draggable={false} className="w-full h-full object-contain" /> :
             <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
         </div>)}
-        {(scene.sharedPets ?? []).map((pet, index, all) => {
-          const position = parkPetPosition(index, all.length, pet.petInventoryId, restSpots);
+        {(scene.sharedPets ?? []).map((pet, index) => {
+          const position = parkPositions.get(pet.petInventoryId);
+          if (!position || !isParkPetNearViewport(position, sceneWidth, sceneHeight, camera.x, camera.y, viewportSize.width, viewportSize.height)) return null;
           const activity = parkPetActivity(pet.petInventoryId);
           const isMine = deposits.some(d => d.petInventoryId === pet.petInventoryId);
           return <div key={pet.petInventoryId} className="absolute"
