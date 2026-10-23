@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
+import { parkWorldHeight, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
 
 type ParkDraft = {
   settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
@@ -22,10 +23,11 @@ const WATER_EFFECT_OPTIONS: Array<{ type: ParkEffectType; label: string; descrip
 const GOLD_BORDER = "rgba(255,215,0,0.38)";
 const GOLD = "#f5cf64";
 
-export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, onCreated }: {
+export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, worldHeight, onCreated }: {
   initialMode?: "scene" | "effects" | "decor";
   mode: "create" | "settings";
   creationPosition?: { xPct: number; yPct: number };
+  worldHeight?: number;
   onCreated?: (object: CreatedParkObject) => void;
 }) {
   const { toast } = useToast();
@@ -130,7 +132,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         <div className="grid grid-cols-2 gap-2">
           {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
             data-testid={`add-park-effect-${option.type}`}
-            disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.round(option.defaultSize / 100 * 760)))}
+            disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (worldHeight ?? parkWorldHeight(PARK_FALLBACK_ASPECT))))))}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
             style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
             <span className="block text-sm text-[#f5cf64]">{option.label}</span>
