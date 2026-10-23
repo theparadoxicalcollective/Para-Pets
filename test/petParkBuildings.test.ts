@@ -14,9 +14,11 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 test("Pet Park buildings persist exterior, interior, capacity, normalized placement and shared interior effects", () => {
   assert.match(schema, /export const petParkBuildings = pgTable\("pet_park_buildings"/);
   for (const field of ["image_url", "interior_image_url", "max_pets", "interior_effects", "x_pct", "y_pct"]) assert.ok(migration.includes(field), `missing migration field ${field}`);
-  assert.match(migration, /max_pets BETWEEN 1 AND 100/);
+  assert.match(migration, /max_pets BETWEEN 10 AND 25/);
   assert.match(migration, /DROP CONSTRAINT IF EXISTS pet_park_buildings_max_pets_check/);
   assert.match(migration, /ADD CONSTRAINT pet_park_buildings_max_pets_check/);
+  assert.match(migration, /UPDATE pet_park_buildings SET max_pets = 10 WHERE max_pets < 10/);
+  assert.match(migration, /ALTER COLUMN max_pets SET DEFAULT 10/);
   assert.match(migration, /unlocked_slots BETWEEN 1 AND 3/, "the separate per-player slot limit stays unchanged");
   assert.match(adminRoutes, /app\.post\("\/api\/admin\/pet-park\/buildings"/);
   assert.match(adminRoutes, /app\.patch\("\/api\/admin\/pet-park\/buildings\/:id"/);
