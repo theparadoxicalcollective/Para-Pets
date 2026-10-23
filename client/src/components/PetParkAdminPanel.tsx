@@ -221,7 +221,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode = "edito
         </button>
       </div>
 
-      </>
+      </>}
     </div>
   );
 }
