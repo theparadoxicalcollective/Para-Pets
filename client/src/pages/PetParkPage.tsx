@@ -30,7 +30,7 @@ export default function PetParkPage() {
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
-  const [editorMode, setEditorMode] = useState<"scene" | "effects">("scene");
+  const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
 
@@ -78,7 +78,7 @@ export default function PetParkPage() {
       const res = await apiRequest("POST", path, body ?? {});
       return res.json();
     },
-    onSuccess: () => { invalidate(); toast({ title: "Pet Park updated" }); setSelectedPet(""); },
+    onSuccess: () => { invalidate(); setSelectedPet(""); },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
 
@@ -166,7 +166,7 @@ export default function PetParkPage() {
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={() => navigate("/")} className="pointer-events-auto rounded-lg bg-black/75 px-3 py-2">← Back</button>
         <h1 className="rounded-lg bg-black/70 px-4 py-2 text-lg font-semibold text-amber-300">Pet Park</h1>
-        {scene?.canEditPark ? <div className="pointer-events-auto flex gap-1"><button type="button" onClick={() => { setEditorMode("effects"); setShowEditor(true); }} className="rounded-lg bg-teal-800 px-2 py-2 text-xs">Add Effects</button><button type="button" onClick={() => { setEditorMode("scene"); setShowEditor(true); }} className="rounded-lg bg-amber-800 px-2 py-2 text-xs">Edit Park</button></div> : <span className="w-12" />}
+        {scene?.canEditPark ? <div className="pointer-events-auto flex flex-wrap justify-end gap-1">{([{ mode: "effects", label: "Add Effects" }, { mode: "scene", label: "Add Buildings" }, { mode: "decor", label: "Add Decor" }] as const).map(action => <button key={action.mode} type="button" onClick={() => { setEditorMode(action.mode); setShowEditor(true); }} className="rounded-lg bg-amber-800 px-2 py-2 text-xs">{action.label}</button>)}</div> : <span className="w-12" />}
       </div>
     </div>
 
@@ -177,7 +177,7 @@ export default function PetParkPage() {
           qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         }}>Close editor & refresh park</button>
       </div>
-      <PetParkAdminPanel initialMode={editorMode} />
+      <PetParkAdminPanel initialMode={editorMode} mode="editor" />
     </div>}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
