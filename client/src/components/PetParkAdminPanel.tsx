@@ -34,14 +34,16 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
   const [editing, setEditing] = useState<ParkItem | null>(null);
-  const dragStart = useRef<{ x: number; y: number; id: string } | null>(null);
+  const dragStart = useRef<{ x: number; y: number; id: string; xPct: number; yPct: number } | null>(null);
   const scene = useRef<HTMLDivElement>(null);
+  const editorTop = useRef<HTMLDivElement>(null);
   const effectsSection = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (initialMode !== "effects") return;
     setKind("effect");
     // Defer until the panel has mounted and its scroll container is measurable.
-    requestAnimationFrame(() => effectsSection.current?.scrollIntoView({ block: "start", behavior: "instant" }));
+    // Keep the scene visible; scrolling straight to the form hid the drag canvas.
+    requestAnimationFrame(() => editorTop.current?.scrollIntoView({ block: "start", behavior: "instant" }));
   }, [initialMode]);
 
   useEffect(() => {
@@ -61,7 +63,15 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
       const response = await apiRequest(method, url, body);
       return response.json();
     },
-    onSuccess: () => { refresh(); toast({ title: "Pet Park draft saved" }); },
+    onSuccess: (result, variables) => {
+      refresh();
+      if (variables.method === "POST" && variables.url === "/api/admin/pet-park/items") {
+        const created = result?.item ?? result;
+        if (typeof created?.id === "string") setSelected(created.id);
+        requestAnimationFrame(() => scene.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+      }
+      toast({ title: "Pet Park draft saved" });
+    },
     onError: (error: Error) => toast({ title: "Could not save", description: error.message, variant: "destructive" }),
   });
   const savePlacement = (item: ParkItem) => mutation.mutate({
@@ -73,7 +83,7 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
 
   return (
     <div className="space-y-4 pb-8 text-amber-100" data-testid="pet-park-admin">
-      <h2 className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
+      <h2 ref={editorTop} className="text-xl font-semibold text-amber-300">Pet Park — Scene Editor</h2>
       <p className="text-sm text-amber-100/75">Admins can preview and edit the park while it is closed to players. Drag items on the scene, then save their placement.</p>
       <div className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
         <div className="text-sm">Player access: <strong>{data?.settings.enabledForPlayers ? "Open (check readiness)" : "Closed — Under Construction"}</strong></div>
@@ -113,21 +123,33 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
             }} />
         </label>
       </div>
+      <p className="text-xs text-amber-200/80">Select an effect, decoration or rest spot on the background. Drag to position; use the controls immediately below to resize, flip or save.</p>
       {isLoading ? <p>Loading park draft…</p> : (
-        <div ref={scene} className="relative w-full max-w-full max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
-          style={{ aspectRatio: `1 / ${backgroundAspect}`, width: `min(100%, ${65 / backgroundAspect}vh)`, backgroundImage: data?.settings.backgroundUrl ? `url("${data.settings.backgroundUrl}")` : undefined, backgroundSize: "100% 100%", backgroundPosition: "center" }}
+        <div ref={scene} className="sticky top-2 z-20 relative w-full max-w-full max-h-[48vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
+          style={{ aspectRatio: `1 / ${backgroundAspect}`, width: `min(100%, ${48 / backgroundAspect}vh)`, backgroundImage: data?.settings.backgroundUrl ? `url("${data.settings.backgroundUrl}")` : undefined, backgroundSize: "100% 100%", backgroundPosition: "center" }}
           aria-label="Pet Park scene preview">
           {items.map(item => {
             const shown = editing?.id === item.id ? editing : item;
             return <button key={item.id} type="button" aria-label={`Select ${item.kind}`}
-              onPointerDown={e => { dragStart.current = { x: e.clientX, y: e.clientY, id: item.id }; e.currentTarget.setPointerCapture(e.pointerId); setSelected(item.id); setEditing(shown); }}
+              onPointerDown={e => { dragStart.current = { x: e.clientX, y: e.clientY, id: item.id, xPct: shown.xPct, yPct: shown.yPct }; e.currentTarget.setPointerCapture(e.pointerId); setSelected(item.id); setEditing(shown); }}
+              onPointerMove={e => {
+                const start = dragStart.current;
+                if (!start || start.id !== item.id || !scene.current) return;
+                const rect = scene.current.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                setEditing(previous => previous?.id === item.id ? { ...previous,
+                  xPct: Math.max(0, Math.min(1, start.xPct + (e.clientX - start.x) / rect.width)),
+                  yPct: Math.max(0, Math.min(1, start.yPct + (e.clientY - start.y) / rect.height)),
+                } : previous);
+              }}
+              onPointerCancel={() => { dragStart.current = null; setEditing(null); }}
               onPointerUp={e => {
                 const start = dragStart.current; dragStart.current = null;
                 if (!start || start.id !== item.id || !scene.current) return;
                 const rect = scene.current.getBoundingClientRect();
-                const xPct = Math.max(0, Math.min(1, shown.xPct + (e.clientX - start.x) / rect.width));
-                const yPct = Math.max(0, Math.min(1, shown.yPct + (e.clientY - start.y) / rect.height));
-                if (xPct !== shown.xPct || yPct !== shown.yPct) savePlacement({ ...shown, xPct, yPct });
+                const xPct = Math.max(0, Math.min(1, start.xPct + (e.clientX - start.x) / rect.width));
+                const yPct = Math.max(0, Math.min(1, start.yPct + (e.clientY - start.y) / rect.height));
+                if (xPct !== start.xPct || yPct !== start.yPct) savePlacement({ ...shown, xPct, yPct });
               }}
               style={{
                 position: "absolute", left: `${shown.xPct * 100}%`, top: `${shown.yPct * 100}%`,
@@ -143,31 +165,6 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
           {!data?.settings.backgroundUrl && <p className="absolute bottom-2 left-2 text-xs">Upload a background to begin.</p>}
         </div>
       )}
-      <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
-        <h3 className="font-semibold">Add decoration, building, interactive rest spot or water effect</h3>
-        <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
-          <option value="decor">Decoration / building</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
-        </select>
-        {kind === "effect" && <label className="block text-sm">Water effect
-          <select aria-label="Water effect type" value={effectType} onChange={e => setEffectType(e.target.value as ParkWaterEffect)}
-            className="mt-1 w-full rounded bg-slate-900 p-2">
-            <option value="waterfall_mist">Waterfall base mist</option>
-            <option value="water_ripple">Expanding water ripples</option>
-            <option value="water_shimmer">Water shimmer</option>
-          </select>
-        </label>}
-        {kind !== "effect" && <input aria-label="Scene item artwork" type="file" accept="image/*" className="w-full text-xs"
-          onChange={async e => {
-            const file = e.target.files?.[0]; if (!file) return;
-            try { setPendingImage(await imageData(file)); } catch (error) { toast({ title: String(error), variant: "destructive" }); }
-            e.target.value = "";
-          }} />}
-        <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
-          className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50"
-          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, effectType: kind === "effect" ? effectType : null, imageData: kind === "effect" ? null : pendingImage, xPct: 0.5, yPct: 0.5, size: 100, flipped: false, layer: items.length } }); setPendingImage(null); }}>
-          Add to park
-        </button>
-      </div>
       {current && <div className="rounded-lg border border-amber-600 bg-black/60 p-3 space-y-3">
         <h3 className="font-semibold">Selected {current.kind === "decor" ? "decoration / building" : current.kind === "effect" ? "water effect" : "rest spot"}</h3>
         {(["xPct", "yPct", "size", "layer"] as const).map(field => <label key={field} className="flex items-center gap-3 text-sm">
@@ -194,6 +191,32 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
           }}>Remove item</button>
         </div>
       </div>}
+      <div ref={effectsSection} className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
+        <h3 className="font-semibold">Add decoration, building, interactive rest spot or water effect</h3>
+        <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
+          <option value="decor">Decoration / building</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
+        </select>
+        {kind === "effect" && <label className="block text-sm">Water effect
+          <select aria-label="Water effect type" value={effectType} onChange={e => setEffectType(e.target.value as ParkWaterEffect)}
+            className="mt-1 w-full rounded bg-slate-900 p-2">
+            <option value="waterfall_mist">Waterfall base mist</option>
+            <option value="water_ripple">Expanding water ripples</option>
+            <option value="water_shimmer">Water shimmer</option>
+          </select>
+        </label>}
+        {kind !== "effect" && <input aria-label="Scene item artwork" type="file" accept="image/*" className="w-full text-xs"
+          onChange={async e => {
+            const file = e.target.files?.[0]; if (!file) return;
+            try { setPendingImage(await imageData(file)); } catch (error) { toast({ title: String(error), variant: "destructive" }); }
+            e.target.value = "";
+          }} />}
+        <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
+          className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50"
+          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, effectType: kind === "effect" ? effectType : null, imageData: kind === "effect" ? null : pendingImage, xPct: 0.5, yPct: 0.5, size: 100, flipped: false, layer: items.length } }); setPendingImage(null); }}>
+          Add to park
+        </button>
+      </div>
+
     </div>
   );
 }
