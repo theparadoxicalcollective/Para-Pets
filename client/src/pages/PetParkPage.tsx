@@ -9,6 +9,7 @@ import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectV
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
 import { parkCameraGeometry, parkClampCamera, parkImageAspect, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
+import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
@@ -21,7 +22,7 @@ export default function PetParkPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const viewport = useRef<HTMLDivElement>(null);
-  const pointer = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const pointer = useRef<{ id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
@@ -41,13 +42,17 @@ export default function PetParkPage() {
   }, []);
 
   useEffect(() => {
-    if (!viewport.current) return;
-    const observer = new ResizeObserver(entries => {
-      const rect = entries[0]?.contentRect;
-      if (rect) setViewportSize({ width: rect.width, height: rect.height });
-    });
-    observer.observe(viewport.current);
-    return () => observer.disconnect();
+    const element = viewport.current;
+    if (!element) return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setViewportSize(previous => previous.width === element.clientWidth && previous.height === element.clientHeight
+          ? previous : { width: element.clientWidth, height: element.clientHeight });
+      }
+    };
+    // Reuse Pet House's resize, orientation and VisualViewport handling.
+    return observeHomeViewport(element, measure, "artwork-scene");
   }, []);
 
   useEffect(() => {
@@ -103,21 +108,23 @@ export default function PetParkPage() {
         .pet-park-wander, .pet-park-rest, .pet-park-idle { animation: none !important; }
       }
     `}</style>
-    <div ref={viewport} className="absolute inset-0 overflow-hidden touch-none"
+    <div ref={viewport} className="absolute inset-0 overflow-hidden" style={HOME_TOUCH_SURFACE_STYLE}
       onPointerDown={e => {
-        if (e.target !== e.currentTarget && (e.target as HTMLElement).closest("button")) return;
-        pointer.current = { x: e.clientX, y: e.clientY, panX: camera.x, panY: camera.y };
-        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* Safari pointer ownership */ }
+        if (!e.isPrimary || (e.target as HTMLElement).closest("button, input, select, textarea, a")) return;
+        pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY, panX: camera.x, panY: camera.y, moved: false };
+        safeSetPointerCapture(e.currentTarget, e.pointerId);
       }}
       onPointerMove={e => {
-        if (!pointer.current) return;
-        setPan({
-          x: parkClampCamera({ x: pointer.current.panX + e.clientX - pointer.current.x, y: 0 }, geometry).x,
-          y: parkClampCamera({ x: 0, y: pointer.current.panY + e.clientY - pointer.current.y }, geometry).y,
-        });
+        const drag = pointer.current;
+        if (!drag || drag.id !== e.pointerId) return;
+        const delta = homeCameraPointerDelta(e.clientX - drag.x, e.clientY - drag.y, viewport.current);
+        if (Math.hypot(delta.x, delta.y) > 7) drag.moved = true;
+        if (!drag.moved) return;
+        setPan(parkClampCamera({ x: drag.panX + delta.x, y: drag.panY + delta.y }, geometry));
       }}
-      onPointerUp={() => { pointer.current = null; }}
-      onPointerCancel={() => { pointer.current = null; }}>
+      onPointerUp={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}
+      onPointerCancel={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}
+      onLostPointerCapture={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}>
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`, backgroundImage: scene.backgroundUrl ? `url("${scene.backgroundUrl}")` : undefined, backgroundSize: "100% 100%" }}>
         {scene.items.map(item => <div key={item.id} className="absolute pointer-events-none"
