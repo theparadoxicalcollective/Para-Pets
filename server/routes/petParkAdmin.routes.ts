@@ -54,10 +54,16 @@ export function registerPetParkAdminRoutes(
           .where(eq(petParkSettings.id, "main")).for("update");
         if (!current) throw new Error("Pet Park settings not initialized");
         const now = new Date();
+        const [activeDeposit] = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
+          .where(isNull(petParkDeposits.withdrawnAt)).limit(1);
+        if (activeDeposit && (coinsPerHour !== current.coinsPerHour ||
+            essencePerHour !== current.essencePerHour || petXpPerHour !== current.petXpPerHour)) {
+          return { conflict: true as const };
+        }
         if (current.enabledForPlayers !== enabledForPlayers) {
           if (enabledForPlayers) {
             await tx.update(petParkDeposits).set({
-              pausedDurationMs: sql`${petParkDeposits.pausedDurationMs} + GREATEST(0, EXTRACT(EPOCH FROM (${now}::timestamp - ${petParkDeposits.pausedAt})) * 1000)::integer`,
+              pausedDurationMs: sql`${petParkDeposits.pausedDurationMs} + COALESCE(GREATEST(0, EXTRACT(EPOCH FROM (${now}::timestamp - ${petParkDeposits.pausedAt})) * 1000)::integer, 0)`,
               pausedAt: null,
             }).where(isNull(petParkDeposits.withdrawnAt));
           } else {
@@ -70,6 +76,7 @@ export function registerPetParkAdminRoutes(
         }).where(eq(petParkSettings.id, "main")).returning();
         return settings;
       });
+      if ("conflict" in updated) return res.status(409).json({ message: "Retrieve all deposited pets before changing earning rates" });
       return res.json(updated);
     } catch (error) {
       console.error("[pet-park] publishing failed", error);
