@@ -85,8 +85,8 @@ export default function PetParkPage() {
       }}
       onPointerUp={() => { pointer.current = null; }}
       onPointerCancel={() => { pointer.current = null; }}>
-      {scene?.backgroundUrl && <div className="absolute top-0 left-0 pointer-events-none"
-        style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`, backgroundImage: `url("${scene.backgroundUrl}")`, backgroundSize: "100% 100%" }}>
+      {scene && <div className="absolute top-0 left-0 pointer-events-none"
+        style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`, backgroundImage: scene.backgroundUrl ? `url("${scene.backgroundUrl}")` : undefined, backgroundSize: "100% 100%" }}>
         {scene.items.map(item => <div key={item.id} className="absolute pointer-events-none"
           style={{ left: `${item.xPct * 100}%`, top: `${item.yPct * 100}%`, width: item.size * scale, height: item.size * scale, transform: `translate(-50%, -50%) ${item.flipped ? "scaleX(-1)" : ""}`, zIndex: item.layer + 10001 }}>
           {item.imageUrl ? <img alt="" src={item.imageUrl} draggable={false} className="w-full h-full object-contain" /> :
