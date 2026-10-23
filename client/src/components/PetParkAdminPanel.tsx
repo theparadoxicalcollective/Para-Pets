@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { parkImageAspect, PARK_FALLBACK_ASPECT, PARK_WORLD_WIDTH } from "@/lib/petParkCamera";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -31,9 +32,21 @@ export default function PetParkAdminPanel() {
   const [kind, setKind] = useState<"decor" | "sleep_spot" | "effect">("decor");
   const [effectType, setEffectType] = useState<ParkWaterEffect>("waterfall_mist");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
   const [editing, setEditing] = useState<ParkItem | null>(null);
   const dragStart = useRef<{ x: number; y: number; id: string } | null>(null);
   const scene = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    const url = data?.settings.backgroundUrl;
+    if (!url) { setBackgroundAspect(PARK_FALLBACK_ASPECT); return; }
+    const image = new Image();
+    image.onload = () => { if (active) setBackgroundAspect(parkImageAspect(image.naturalWidth, image.naturalHeight)); };
+    image.onerror = () => { if (active) setBackgroundAspect(PARK_FALLBACK_ASPECT); };
+    image.src = url;
+    return () => { active = false; };
+  }, [data?.settings.backgroundUrl]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
   const mutation = useMutation({
@@ -93,8 +106,8 @@ export default function PetParkAdminPanel() {
         </label>
       </div>
       {isLoading ? <p>Loading park draft…</p> : (
-        <div ref={scene} className="relative w-full aspect-[11/17] max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
-          style={{ backgroundImage: data?.settings.backgroundUrl ? `url("${data.settings.backgroundUrl}")` : undefined, backgroundSize: "100% 100%", backgroundPosition: "center" }}
+        <div ref={scene} className="relative w-full max-w-full max-h-[65vh] overflow-hidden rounded-xl border border-amber-600 bg-emerald-950 touch-none"
+          style={{ aspectRatio: `1 / ${backgroundAspect}`, width: `min(100%, ${65 / backgroundAspect}vh)`, backgroundImage: data?.settings.backgroundUrl ? `url("${data.settings.backgroundUrl}")` : undefined, backgroundSize: "100% 100%", backgroundPosition: "center" }}
           aria-label="Pet Park scene preview">
           {items.map(item => {
             const shown = editing?.id === item.id ? editing : item;
@@ -110,7 +123,7 @@ export default function PetParkAdminPanel() {
               }}
               style={{
                 position: "absolute", left: `${shown.xPct * 100}%`, top: `${shown.yPct * 100}%`,
-                width: `${shown.size / 1100 * 100}%`, aspectRatio: "1 / 1",
+                width: `${shown.size / PARK_WORLD_WIDTH * 100}%`, aspectRatio: "1 / 1",
                 transform: "translate(-50%, -50%)", zIndex: shown.layer + 10001,
                 border: selected === item.id ? "2px solid gold" : "1px dashed rgba(255,255,255,.5)",
                 borderRadius: 8, background: shown.kind === "sleep_spot" ? "rgba(217,119,6,.45)" : "transparent",
