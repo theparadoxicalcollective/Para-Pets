@@ -25,9 +25,10 @@ export type ParkBuildingDetails = {
 
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
-  building, onClose, onUpdated,
+  building, occupantCount = 0, onClose, onUpdated,
 }: {
   building: ParkBuildingDetails;
+  occupantCount?: number;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -149,11 +150,12 @@ export default function PetParkBuildingDetails({
           <label className="block text-sm">Shared indoor capacity
             <select aria-label="Park building capacity" className="mt-1 w-full rounded bg-slate-900 p-2"
               value={capacity} onChange={event => setCapacity(Number(event.target.value))}>
-              {[1, 2, 3].map(value => <option key={value} value={value}>{value} {value === 1 ? "pet" : "pets"}</option>)}
+              {[1, 2, 3].map(value => <option key={value} value={value} disabled={value < occupantCount}>{value} {value === 1 ? "pet" : "pets"}</option>)}
             </select>
           </label>
+          <p className="text-xs text-amber-100/70">{occupantCount} active {occupantCount === 1 ? "pet" : "pets"} inside. Move pets outside before lowering capacity.</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
-            disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
+            disabled={mutation.isPending || !name.trim() || name.trim().length > 80 || capacity < occupantCount}
             onClick={() => mutation.mutate({ name: name.trim(), maxPets: capacity })}>Save building details</button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">Replace exterior artwork
