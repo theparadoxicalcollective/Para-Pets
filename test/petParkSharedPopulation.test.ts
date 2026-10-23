@@ -21,7 +21,7 @@ test("shared pet scene has stable placement, public cosmetics, pet inspection an
   assert.match(client, /costumeAccess=\{isMine \? "owner" : "public"\}/);
   assert.match(client, /Keeper: \{inspectedPet\.ownerName\}/);
   assert.match(client, /refetchInterval: 30_000/);
-  assert.match(client, /sharedPets[\\s\\S]{0,120}\.map/);
-  assert.match(client, /sharedPets[\\s\\S]{0,120}\.length/);
+  assert.match(client, /sharedPets[\s\S]{0,120}\.map/);
+  assert.match(client, /sharedPets[\s\S]{0,120}\.length/);
   assert.match(client, /scene && <div/);
 });
