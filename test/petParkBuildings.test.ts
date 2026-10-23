@@ -25,7 +25,7 @@ test("Pet Park buildings persist exterior, interior, capacity, normalized placem
 
 test("saved buildings reach the scene and can open their configured interior", () => {
   assert.match(playerRoutes, /from\(petParkBuildings\)/);
-  assert.match(playerRoutes, /items, buildings, deposits/);
+  assert.match(playerRoutes, /buildings, rates:/);\n  assert.match(playerRoutes, /items, deposits, sharedPets/);
   assert.match(page, /Enter \$\{building\.name\}/);
   assert.match(page, /enteredBuilding\.interiorImageUrl/);
   assert.match(page, /enteredBuilding\.interiorEffects/);
