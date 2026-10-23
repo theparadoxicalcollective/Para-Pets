@@ -63,7 +63,15 @@ export default function PetParkAdminPanel({ initialMode = "scene" }: { initialMo
       const response = await apiRequest(method, url, body);
       return response.json();
     },
-    onSuccess: () => { refresh(); toast({ title: "Pet Park draft saved" }); },
+    onSuccess: (result, variables) => {
+      refresh();
+      if (variables.method === "POST" && variables.url === "/api/admin/pet-park/items") {
+        const created = result?.item ?? result;
+        if (typeof created?.id === "string") setSelected(created.id);
+        requestAnimationFrame(() => scene.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+      }
+      toast({ title: "Pet Park draft saved" });
+    },
     onError: (error: Error) => toast({ title: "Could not save", description: error.message, variant: "destructive" }),
   });
   const savePlacement = (item: ParkItem) => mutation.mutate({
