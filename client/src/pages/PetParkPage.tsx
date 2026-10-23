@@ -6,15 +6,18 @@ import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import { ParkEffectVisual, type ParkWaterEffect } from "@/components/ParkEffectVisual";
+import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import type { HouseInteriorEffect } from "@shared/housing";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
 import { parkCameraGeometry, parkClampCamera, parkImageAspect, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkWaterEffect | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: HouseInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string };
-type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; items: ParkItem[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
+type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
 export default function PetParkPage() {
@@ -28,6 +31,7 @@ export default function PetParkPage() {
   const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
+  const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
@@ -128,6 +132,7 @@ export default function PetParkPage() {
       onLostPointerCapture={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}>
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`, backgroundImage: scene.backgroundUrl ? `url("${scene.backgroundUrl}")` : undefined, backgroundSize: "100% 100%" }}>
+        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); setEnteredBuilding(building); }} className="absolute pointer-events-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300" style={{ left: `${building.xPct * 100}%`, top: `${building.yPct * 100}%`, width: building.size * scale, height: building.size * scale, transform: `translate(-50%, -50%) ${building.flipped ? "scaleX(-1)" : ""}`, zIndex: building.layer + 10002 }}><img src={building.imageUrl} alt={building.name} draggable={false} className="h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
         {scene.items.map(item => <div key={item.id} className="absolute pointer-events-none"
           style={{ left: `${item.xPct * 100}%`, top: `${item.yPct * 100}%`, width: item.size * scale, height: item.size * scale, transform: `translate(-50%, -50%) ${item.flipped ? "scaleX(-1)" : ""}`, zIndex: item.layer + 10001 }}>
           {item.kind === "effect" && item.effectType ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} /> : item.imageUrl ? <img alt="" src={item.imageUrl} draggable={false} className="w-full h-full object-contain" /> :
@@ -156,6 +161,13 @@ export default function PetParkPage() {
 
     {scene?.enabledForPlayers && <div className="absolute right-3 top-16 z-20 rounded bg-black/70 px-3 py-1 text-xs">
       {(scene.sharedPets ?? []).length} pets visiting
+    </div>}
+    {enteredBuilding && <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/85 p-3" role="dialog" aria-modal="true" aria-label={enteredBuilding.name}>
+      <div className="relative flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#13291e]">
+        <div className="flex items-center justify-between gap-3 p-3"><h2 className="text-lg font-semibold text-amber-300">{enteredBuilding.name}</h2><button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => setEnteredBuilding(null)}>Leave building</button></div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">{enteredBuilding.interiorImageUrl ? <div className="relative mx-auto max-h-[70dvh] w-full" style={{ aspectRatio: "4 / 3" }}><img src={enteredBuilding.interiorImageUrl} alt={`${enteredBuilding.name} interior`} className="absolute inset-0 h-full w-full object-contain" /><HomeInteriorEffectsLayer effects={enteredBuilding.interiorEffects ?? []} panX={0} imgWidth={Math.min(900, viewportSize.width - 24)} sceneHeight={Math.min(675, viewportSize.height * 0.7)} /></div> : <p className="p-8 text-center text-sm">This building needs an interior background. An admin can add one in the scene editor.</p>}</div>
+        <p className="p-3 text-xs text-amber-100/70">Building capacity: {enteredBuilding.maxPets} pets. Park-wide deposit limit remains three pets per player.</p>
+      </div>
     </div>}
     {inspectedPet && <div className="absolute left-1/2 top-1/3 z-30 w-[min(85%,300px)] -translate-x-1/2 rounded-xl border border-amber-500 bg-[#152d23] p-4 text-center shadow-xl">
       <h2 className="font-semibold text-amber-300">{inspectedPet.petNickname || inspectedPet.petName}</h2>
