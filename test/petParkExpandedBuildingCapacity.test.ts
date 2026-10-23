@@ -14,21 +14,22 @@ const details = readFileSync("client/src/components/PetParkBuildingDetails.tsx",
 const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.ts", "utf8");
 const player = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 
-test("building capacity accepts every integer from 1 through 100, never exceeding 100", () => {
-  assert.equal(PET_PARK_BUILDING_CAPACITY_MIN, 1);
-  assert.equal(PET_PARK_BUILDING_CAPACITY_MAX, 100);
-  for (const capacity of [1, 2, 3, 4, 5, 10, 20, 50, 75, 100]) {
+test("building capacity accepts every integer from 10 through 25", () => {
+  assert.equal(PET_PARK_BUILDING_CAPACITY_MIN, 10);
+  assert.equal(PET_PARK_BUILDING_CAPACITY_MAX, 25);
+  for (const capacity of [10, 11, 15, 20, 24, 25]) {
     assert.equal(isValidPetParkBuildingCapacity(capacity), true, String(capacity));
   }
-  for (const bad of [0, -1, 101, 3.5, 99.9, NaN, Infinity, "10", null, undefined]) {
+  for (const bad of [0, -1, 1, 3, 9, 26, 101, 10.5, 24.5, NaN, Infinity, "10", null, undefined]) {
     assert.equal(isValidPetParkBuildingCapacity(bad), false, String(bad));
   }
 });
 
 test("existing building schema restriction is migrated, per-player three slots stay separate", () => {
-  assert.match(migration, /max_pets BETWEEN 1 AND 100/);
+  assert.match(migration, /max_pets BETWEEN 10 AND 25/);
   assert.match(migration, /DROP CONSTRAINT IF EXISTS pet_park_buildings_max_pets_check/);
   assert.match(migration, /ADD CONSTRAINT pet_park_buildings_max_pets_check/);
+  assert.match(migration, /UPDATE pet_park_buildings SET max_pets = 10 WHERE max_pets < 10/);
   assert.match(migration, /unlocked_slots BETWEEN 1 AND 3/);
   assert.match(migration, /slot_number BETWEEN 1 AND 3/);
   assert.match(player, /slotNumber > 3/);
@@ -38,14 +39,14 @@ test("creation and editing forms allow typed capacities and respect the validate
   assert.match(form, /type="number" inputMode="numeric"/);
   assert.match(form, /aria-label="Building pet capacity"/);
   assert.match(form, /isValidPetParkBuildingCapacity\(buildingCapacity\)/);
-  assert.match(form, /\[1, 3, 5, 10, 20, 50\]/);
+  assert.match(form, /\[10, 15, 20, 25\]/);
   assert.match(details, /aria-label="Park building capacity"/);
   assert.match(details, /type="number" inputMode="numeric"/);
   assert.match(details, /isValidPetParkBuildingCapacity\(capacity\)/);
   assert.match(details, /capacity < occupantCount/);
 });
 
-test("the real building creation route accepts 20 and 100 pets and rejects invalid values", async () => {
+test("the building creation route accepts 10 to 25 pets and rejects invalid values", async () => {
   const handlers: Record<string, RequestHandler> = {};
   const app = {
     get() {}, post(path: string, ...actions: RequestHandler[]) { handlers[path] = actions.at(-1)!; },
@@ -77,13 +78,13 @@ test("the real building creation route accepts 20 and 100 pets and rejects inval
       response, (() => {}) as any);
     return response;
   };
-  for (const capacity of [4, 20, 100]) {
+  for (const capacity of [10, 20, 25]) {
     const response = await invoke(capacity);
     assert.equal(response.statusCode, 201);
     assert.equal(response.data.maxPets, capacity);
   }
   assert.equal(values.length, 3);
-  for (const invalid of [0, 101, 2.5, "50"]) {
+  for (const invalid of [0, 3, 9, 26, 101, 15.5, "20"]) {
     const response = await invoke(invalid);
     assert.equal(response.statusCode, 400);
   }
