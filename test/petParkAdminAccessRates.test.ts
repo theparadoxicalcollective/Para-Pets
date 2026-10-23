@@ -18,7 +18,7 @@ test("admin settings and direct creation retain water effects, player access and
   assert.match(editor, /mode: "create" \| "settings"/);
   assert.match(editor, /HOME_OUTDOOR_EFFECT_OPTIONS\.map\(option/);
   assert.match(editor, /WATER_EFFECT_OPTIONS\.map\(option/);
-  assert.match(editor, /Interactive rest spot/);
+  assert.match(editor, /value: "sleep_spot", label: "Rest Spot"/);
   assert.match(page, /onPointerMove=\{movePlacement\}/);
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
   assert.match(editor, /mode === "settings"/);
