@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from "express";
-import { asc, eq } from "drizzle-orm";
-import { petParkSceneItems, petParkSettings } from "@shared/schema";
+import { asc, eq, isNull, sql } from "drizzle-orm";
+import { petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import type { db as database } from "../db";
 
 type ParkKind = "decor" | "sleep_spot";
@@ -34,6 +34,46 @@ export function registerPetParkAdminRoutes(
     } catch (error) {
       console.error("[pet-park] admin read failed", error);
       return res.status(500).json({ message: "Unable to load Pet Park" });
+    }
+  });
+
+
+  app.put("/api/admin/pet-park/publishing", isAdmin, async (req, res) => {
+    const { enabledForPlayers, coinsPerHour, essencePerHour, petXpPerHour } = req.body ?? {};
+    const validRate = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 10000;
+    if (typeof enabledForPlayers !== "boolean" || !validRate(coinsPerHour) ||
+        !validRate(essencePerHour) || !validRate(petXpPerHour)) {
+      return res.status(400).json({ message: "Invalid park settings or reward rates" });
+    }
+    if (enabledForPlayers && (coinsPerHour + essencePerHour + petXpPerHour) === 0) {
+      return res.status(400).json({ message: "Set at least one reward rate before opening" });
+    }
+    try {
+      const updated = await db.transaction(async tx => {
+        const [current] = await tx.select().from(petParkSettings)
+          .where(eq(petParkSettings.id, "main")).for("update");
+        if (!current) throw new Error("Pet Park settings not initialized");
+        const now = new Date();
+        if (current.enabledForPlayers !== enabledForPlayers) {
+          if (enabledForPlayers) {
+            await tx.update(petParkDeposits).set({
+              pausedDurationMs: sql`${petParkDeposits.pausedDurationMs} + GREATEST(0, EXTRACT(EPOCH FROM (${now}::timestamp - ${petParkDeposits.pausedAt})) * 1000)::integer`,
+              pausedAt: null,
+            }).where(isNull(petParkDeposits.withdrawnAt));
+          } else {
+            await tx.update(petParkDeposits).set({ pausedAt: now })
+              .where(isNull(petParkDeposits.withdrawnAt));
+          }
+        }
+        const [settings] = await tx.update(petParkSettings).set({
+          enabledForPlayers, coinsPerHour, essencePerHour, petXpPerHour, updatedAt: now,
+        }).where(eq(petParkSettings.id, "main")).returning();
+        return settings;
+      });
+      return res.json(updated);
+    } catch (error) {
+      console.error("[pet-park] publishing failed", error);
+      return res.status(500).json({ message: "Unable to update Pet Park availability" });
     }
   });
 
