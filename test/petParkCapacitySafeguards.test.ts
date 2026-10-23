@@ -58,7 +58,7 @@ function setup({ occupants = 0, exists = true }: { occupants?: number; exists?: 
     },
   };
   const db = {
-    transaction: async (callback: (tx: typeof tx) => Promise<any>) => {
+    transaction: async (callback: (transaction: any) => Promise<any>) => {
       calls.transaction++;
       return callback(tx);
     },
