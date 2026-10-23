@@ -405,8 +405,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
         {/* RIGHT items – fan up on the right side */}
         {RIGHT_ITEMS.map((item, i) => {
-          const isStaff = user.isAdmin || user.isModerator === true;
-          const isLocked = item.id === "keepers" && !isStaff;
+          const isLocked = false;
           return (
             <NavButton
               key={item.id}

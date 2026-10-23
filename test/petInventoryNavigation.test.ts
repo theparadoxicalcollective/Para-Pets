@@ -23,7 +23,7 @@ test("the navigation bag opens the actual bag page and Cards retains its own rou
   assert.match(nav, /id: "bag",\s+label: "Bag",\s+icon: bagNavIcon/);
   assert.doesNotMatch(nav, /id: "friends",\s+label: "Friends"/);
   assert.match(nav, /if \(id === "bag"\)\s+\{ setTimeout\(\(\) => navigate\("\/bag"\)/);
-  assert.match(nav, /const isLocked = item\.id === "keepers" && !isStaff/);
+  assert.match(nav, /const isLocked = false/);
   assert.match(app, /location === "\/bag"[\s\S]*?<BagInventoryPage \/>/);
   assert.match(app, /location === "\/cards"[\s\S]*?<CardsCollectionPage \/>/);
 });
