@@ -1,16 +1,26 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Image, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { ParkWaterEffect } from "@/components/ParkEffectVisual";
+import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
+import { type ParkEffectType } from "@shared/petParkEffects";
 
 type ParkDraft = {
   settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
-  items: { id: string }[];
+  items: { id: string; kind: "decor" | "sleep_spot" | "effect" }[];
   buildings: { id: string }[];
 };
 type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+
+const WATER_EFFECT_OPTIONS: Array<{ type: ParkEffectType; label: string; description: string; defaultSize: number }> = [
+  { type: "waterfall_mist", label: "Waterfall Mist", description: "Soft mist at waterfalls and cascades", defaultSize: 130 },
+  { type: "water_ripple", label: "Water Ripples", description: "Expanding rings over water", defaultSize: 110 },
+  { type: "water_shimmer", label: "Water Shimmer", description: "Gentle highlights on water", defaultSize: 140 },
+];
+const GOLD_BORDER = "rgba(255,215,0,0.38)";
+const GOLD = "#f5cf64";
 
 export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, onCreated }: {
   initialMode?: "scene" | "effects" | "decor";
@@ -23,10 +33,9 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const { data } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
-  const [kind, setKind] = useState<"decor" | "sleep_spot" | "effect">(initialMode === "effects" ? "effect" : "decor");
-  const [effectType, setEffectType] = useState<ParkWaterEffect>("waterfall_mist");
+  const [kind, setKind] = useState<"decor" | "sleep_spot">( "decor" );
   const [pendingImage, setPendingImage] = useState<string | null>(null);
-  const [buildingName, setBuildingName] = useState("Park Cottage");
+  const [buildingName, setBuildingName] = useState("");
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
   const [buildingCapacity, setBuildingCapacity] = useState(3);
@@ -57,9 +66,22 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
     },
     onError: (error: Error) => toast({ title: "Could not save", description: error.message, variant: "destructive" }),
   });
+  const addEffect = (type: ParkEffectType, size: number) => {
+    if (mutation.isPending) return;
+    mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
+      kind: "effect", effectType: type, imageData: null,
+      xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
+      size, flipped: false, layer: items.length,
+    } });
+  };
+  const selectFile = async (file: File | undefined, apply: (value: string) => void) => {
+    if (!file) return;
+    try { apply(await imageData(file)); }
+    catch (error) { toast({ title: "Unable to read image", description: String(error), variant: "destructive" }); }
+  };
 
   return (
-    <div className="space-y-4 pb-8 text-amber-100" data-testid="pet-park-admin">
+    <div className={mode === "create" ? "space-y-4 text-[#f5cf64]" : "space-y-4 pb-8 text-amber-100"} data-testid="pet-park-admin">
       {mode === "settings" ? <>
         <h2 className="text-xl font-semibold text-amber-300">Pet Park — Administration</h2>
         <p className="text-sm text-amber-100/75">Player access and earning rates are managed here. Scene placement is managed directly from Pet Park.</p>
@@ -101,46 +123,88 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             }} />
         </label>
       </div>
-      </> : <>
-      {mode === "create" && <div className="space-y-1">
-        <h2 className="text-lg font-semibold text-amber-300">{initialMode === "scene" ? "Add building" : initialMode === "effects" ? "Add park effect" : "Add decoration"}</h2>
-        <p className="text-xs text-amber-100/80">Create an object at the center of your current park view, then drag it into place on the actual map. Nothing is published by opening this panel.</p>
-      </div>}
-      {initialMode === "scene" && <section className="rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3" aria-label="Pet Park buildings">
-        <h3 className="text-lg font-semibold">Add Buildings</h3>
-        <p className="text-sm text-amber-100/75">Create a building with its own interior scene. Capacity is limited to three pets; the separate park-wide limit of three pets per player still applies.</p>
-        <label className="block text-sm">Building name<input aria-label="Building name" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)} className="mt-1 w-full rounded bg-slate-900 p-2" /></label>
-        <label className="block text-sm">Exterior artwork<input aria-label="Building exterior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { setBuildingImage(await imageData(file)); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
-        <label className="block text-sm">Interior background<input aria-label="Building interior image" type="file" accept="image/*" className="mt-1 block w-full text-xs" onChange={async e => { const file=e.target.files?.[0]; if(file) { try { setInteriorImage(await imageData(file)); } catch(error) { toast({ title: String(error), variant: "destructive" }); } } e.target.value=""; }} /></label>
-        <label className="block text-sm">Building pet capacity<select aria-label="Building pet capacity" className="mt-1 w-full rounded bg-slate-900 p-2" value={buildingCapacity} onChange={e => setBuildingCapacity(Number(e.target.value))}><option value={1}>1 pet</option><option value={2}>2 pets</option><option value={3}>3 pets</option></select></label>
-        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage} className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: { name: buildingName, imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity, xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: buildings.length } }); }}>Create building</button>
-      </section>}
-      {initialMode !== "scene" && <div className="scroll-mt-24 rounded-lg border border-amber-700/60 bg-black/50 p-3 space-y-3">
-        <h3 className="font-semibold">{initialMode === "effects" ? "Add effects & rest spots" : initialMode === "decor" ? "Add decoration" : "Add park scenery"}</h3>
-        <select aria-label="Scene item type" className="w-full rounded bg-slate-900 p-2" value={kind} onChange={e => setKind(e.target.value as "decor" | "sleep_spot" | "effect")}>
-          <option value="decor">Decoration</option><option value="sleep_spot">Interactive rest spot</option><option value="effect">Water effect</option>
-        </select>
-        {kind === "effect" && <label className="block text-sm">Water effect
-          <select aria-label="Water effect type" value={effectType} onChange={e => setEffectType(e.target.value as ParkWaterEffect)}
-            className="mt-1 w-full rounded bg-slate-900 p-2">
-            <option value="waterfall_mist">Waterfall base mist</option>
-            <option value="water_ripple">Expanding water ripples</option>
-            <option value="water_shimmer">Water shimmer</option>
-          </select>
-        </label>}
-        {kind !== "effect" && <input aria-label="Scene item artwork" type="file" accept="image/*" className="w-full text-xs"
-          onChange={async e => {
-            const file = e.target.files?.[0]; if (!file) return;
-            try { setPendingImage(await imageData(file)); } catch (error) { toast({ title: String(error), variant: "destructive" }); }
-            e.target.value = "";
-          }} />}
-        <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
-          className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50"
-          onClick={() => { mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: { kind, effectType: kind === "effect" ? effectType : null, imageData: kind === "effect" ? null : pendingImage, xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 100, flipped: false, layer: items.length } }); }}>
-          Add to park
-        </button>
-      </div>}
 
+      </> : <>
+      {initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
+        <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Outdoor Effects</div>
+        <div className="grid grid-cols-2 gap-2">
+          {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
+            data-testid={`add-park-effect-${option.type}`}
+            disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.round(option.defaultSize / 100 * 760)))}
+            className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
+            style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
+            <span className="block text-sm text-[#f5cf64]">{option.label}</span>
+            <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
+          </button>)}
+        </div>
+        <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Water Effects</div>
+        <div className="grid grid-cols-2 gap-2">
+          {WATER_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
+            data-testid={`add-park-effect-${option.type}`}
+            disabled={mutation.isPending} onClick={() => addEffect(option.type, option.defaultSize)}
+            className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
+            style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
+            <span className="block text-sm text-[#f5cf64]">{option.label}</span>
+            <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
+          </button>)}
+        </div>
+        <p className="text-center text-xs text-amber-100/60">{mutation.isPending ? "Adding effect…" : "Tap to add an effect, then drag it to the right spot on the park."} · {items.filter(item => item.kind === "effect").length} effects</p>
+      </section> : initialMode === "scene" ? <section aria-label="Add Pet Park building" className="space-y-4">
+        {buildingImage ? <div className="relative h-32 rounded-xl border bg-black/40" style={{ borderColor: GOLD_BORDER }}>
+          <img src={buildingImage} alt="New building preview" className="h-full w-full object-contain" />
+          <button type="button" aria-label="Clear building image" onClick={() => setBuildingImage(null)} className="absolute right-2 top-2 rounded-full bg-black/80 p-2"><X size={16} /></button>
+        </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-4 text-center text-sm" style={{ background: "rgba(255,215,0,.08)", borderColor: GOLD_BORDER }}>
+          <Image className="mr-2 inline h-4 w-4" /> Upload Building Image (PNG/JPEG)
+          <input aria-label="Building exterior image" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setBuildingImage); e.target.value = ""; }} />
+        </label>}
+        <label className="block space-y-1 text-sm">Building Name
+          <input aria-label="Building name" placeholder="e.g. Woodland Cottage" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)}
+            className="w-full rounded-xl border bg-[#302701] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
+        </label>
+        <div className="space-y-1">
+          <div className="text-sm">Building pet capacity</div>
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
+              className="rounded-xl border px-2 py-3 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
+              {capacity} {capacity === 1 ? "pet" : "pets"}
+            </button>)}
+          </div>
+          <p className="text-xs text-amber-100/60">Capacity is shared by all visitors. Each player can deposit up to three pets in the park.</p>
+        </div>
+        <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
+          {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
+          <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
+        </label>
+        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage}
+          data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
+          style={{ background: "rgba(255,215,0,.15)", borderColor: GOLD_BORDER }}
+          onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
+            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity,
+            xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: buildings.length,
+          } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
+      </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {([{ value: "decor", label: "Decoration / Object" }, { value: "sleep_spot", label: "Rest Spot" }] as const).map(option => <button type="button" key={option.value}
+            aria-pressed={kind === option.value} onClick={() => { setKind(option.value); setPendingImage(null); }}
+            className="rounded-xl border px-2 py-3 text-sm" style={{ background: kind === option.value ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: kind === option.value ? GOLD : GOLD_BORDER }}>{option.label}</button>)}
+        </div>
+        {pendingImage ? <div className="relative h-36 rounded-xl border" style={{ borderColor: GOLD_BORDER }}>
+          <img src={pendingImage} alt="New park object preview" className="h-full w-full object-contain" />
+          <button type="button" aria-label="Clear park object image" onClick={() => setPendingImage(null)} className="absolute right-2 top-2 rounded-full bg-black/80 p-2"><X size={16} /></button>
+        </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-5 text-center text-sm" style={{ background: "rgba(255,215,0,.08)", borderColor: GOLD_BORDER }}>
+          <Image className="mr-2 inline h-4 w-4" /> Upload Image (PNG/JPEG)
+          <input aria-label="Scene item artwork" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setPendingImage); e.target.value = ""; }} />
+        </label>}
+        {kind === "sleep_spot" && <p className="text-xs text-amber-100/60">Rest spots help pets find places to rest. An image is optional.</p>}
+        <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
+          data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
+          style={{ background: "rgba(255,215,0,.15)", borderColor: GOLD_BORDER }}
+          onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
+            kind, imageData: pendingImage, effectType: null,
+            xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
+            size: 100, flipped: false, layer: items.length,
+          } })}>{mutation.isPending ? "Adding…" : kind === "decor" ? "Add Decoration" : "Add Rest Spot"}</button>
+      </section>}
       </>}
     </div>
   );
