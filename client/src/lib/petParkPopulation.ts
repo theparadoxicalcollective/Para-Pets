@@ -1,6 +1,6 @@
 import { parkPetSeed, type ParkPoint } from "./petParkActivity";
 
-export type ParkObstacle = { kind: "decor" | "sleep_spot" | "effect"; xPct: number; yPct: number; size: number };
+export type ParkObstacle = { kind: "decor" | "sleep_spot" | "effect" | "terrain"; xPct: number; yPct: number; size: number };
 export type ParkVisitor = { petInventoryId: string };
 
 const COLUMNS = 14;
