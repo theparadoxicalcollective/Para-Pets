@@ -2,7 +2,7 @@ import { parkGroundSize } from "@shared/petParkGround";
 
 /** Camera uses world coordinates, never background image size or a device reference stage. */
 const PARK_BASE_VIEW_WIDTH = 1100;
-const PARK_BASE_VIEW_HEIGHT = 1700;
+export const PARK_BASE_VIEW_HEIGHT = 1700;
 export const PARK_ZOOM_MIN = 0.7;
 export const PARK_ZOOM_MAX = 1.6;
 export const PARK_ZOOM_STEP = 0.15;
