@@ -40,7 +40,7 @@ test("admin settings and in-park editor retain grass expansion, assets and objec
   assert.match(park, /Remove this object from Pet Park/);
   assert.match(building, /Replace park building exterior/);
   assert.match(building, /Save interior effects/);
-  assert.match(api, /processWorldImage\(imageData, 1600\)/);
+  assert.match(api, /processWorldImage\(imageData, 1200\)/);
   assert.match(api, /parkGroundSize\(groundLevel\)/);
   assert.doesNotMatch(api, /app.put\("\/api\/admin\/pet-park\/background"/);
 });
