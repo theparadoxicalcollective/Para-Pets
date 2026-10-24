@@ -122,7 +122,7 @@ test("legacy map placement is remapped once, with reward and asset data untouche
   assert.doesNotMatch(migration, /UPDATE pet_park_settings SET background_url = '\/world-assets/);
   assert.doesNotMatch(migration, /DROP TABLE pet_park/);
   assert.match(scene, /groundLevel: settings\?\.groundLevel \?\? 1/);
-  assert.match(page, /backgroundColor: "#61864a"/);
+  assert.match(page, /<PetParkTerrain /);
   assert.match(page, /parkExpansionCameraPan\(/);
   assert.match(page, /parkZoomAnchorPan\(/);
 });
