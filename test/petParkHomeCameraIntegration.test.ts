@@ -37,5 +37,7 @@ test("existing pet, effect and admin scene remain unchanged", () => {
   assert.match(source, /scene\?\.canEditPark && showCreator/);
   assert.match(source, /startPlacement\(e, "building"/);
   assert.doesNotMatch(source, /Advanced edit/);
-  assert.match(source, /parkCameraGeometry\(viewportSize.width, viewportSize.height, backgroundAspect\)/);
+  assert.match(source, /parkCameraGeometry\(viewportSize.width, viewportSize.height, groundLevel, zoom\)/);
+  assert.match(source, /touchPoints.current.size === 2/);
+  assert.match(source, /onWheel=\{e =>/);
 });

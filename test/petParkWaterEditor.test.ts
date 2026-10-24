@@ -10,10 +10,10 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const visual = readFileSync("client/src/components/ParkEffectVisual.tsx", "utf8");
 const shared = readFileSync("shared/petParkEffects.ts", "utf8");
 
-test("uploaded PetPark.JPG becomes default only when background is unset", () => {
-  assert.match(migration, /background_url = '\/world-assets\/uploads\/PetPark\.JPG'/);
-  assert.match(migration, /WHERE id = 'main' AND background_url IS NULL/);
-  assert.match(api, /app.put\("\/api\/admin\/pet-park\/background", isAdmin/);
+test("park uses expandable grass without requiring uploaded terrain art", () => {
+  assert.match(migration, /ground_level integer NOT NULL DEFAULT 1/);
+  assert.match(api, /app.patch\("\/api\/admin\/pet-park\/ground", isAdmin/);
+  assert.doesNotMatch(api, /app.put\("\/api\/admin\/pet-park\/background"/);
   assert.match(migration, /'decor', 'sleep_spot', 'effect'/);
 });
 
@@ -40,6 +40,6 @@ test("in-park editor still moves, resizes, flips and layers water effects, decor
   assert.match(page, /flipped: !draft.flipped/);
   assert.match(page, /Fine-tune exact placement/);
   assert.match(panel, /Rest Spot/);
-  assert.match(page, /parkCameraGeometry\(viewportSize.width, viewportSize.height, backgroundAspect\)/);
+  assert.match(page, /parkCameraGeometry\(viewportSize.width, viewportSize.height, groundLevel, zoom\)/);
   assert.match(visual, /prefers-reduced-motion: reduce/);
 });

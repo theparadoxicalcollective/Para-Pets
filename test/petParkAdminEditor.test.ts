@@ -18,15 +18,17 @@ test("Pet Park has its own visible Admin Realm section", () => {
 test("park draft editing routes require admin authentication", () => {
   for (const endpoint of [
     'app.get("/api/admin/pet-park", isAdmin',
-    'app.put("/api/admin/pet-park/background", isAdmin',
+    'app.patch("/api/admin/pet-park/ground", isAdmin',
     'app.post("/api/admin/pet-park/items", isAdmin',
     'app.patch("/api/admin/pet-park/items/:id", isAdmin',
     'app.delete("/api/admin/pet-park/items/:id", isAdmin',
   ]) assert.ok(api.includes(endpoint), endpoint);
   assert.match(routes, /registerPetParkAdminRoutes\(app, \{ db, isAdmin, processWorldImage \}\)/);
 });
-test("admin settings and in-park editor retain background upload, all item types and object manipulation", () => {
-  assert.match(panel, /Upload park background/);
+test("admin settings and in-park editor retain grass expansion, assets and object manipulation", () => {
+  assert.match(panel, /Pet Park starts with grassy ground/);
+  assert.match(park, /Expand Ground/);
+  assert.doesNotMatch(panel, /Upload park background/);
   assert.match(panel, /mode === "settings"/);
   assert.match(panel, /mode: "create" \| "settings"/);
   assert.match(panel, /sleep_spot/);
@@ -38,7 +40,9 @@ test("admin settings and in-park editor retain background upload, all item types
   assert.match(park, /Remove this object from Pet Park/);
   assert.match(building, /Replace park building exterior/);
   assert.match(building, /Save interior effects/);
-  assert.match(api, /processWorldImage\(imageData, 2560\)/);
+  assert.match(api, /processWorldImage\(imageData, 1200\)/);
+  assert.match(api, /parkGroundSize\(groundLevel\)/);
+  assert.doesNotMatch(api, /app.put\("\/api\/admin\/pet-park\/background"/);
 });
 test("draft editor never opens Pet Park or touches coins and reward claims", () => {
   assert.doesNotMatch(api, /enabledForPlayers: true|petParkRewardClaims|update\(users\)|update\(userInventory\)/);

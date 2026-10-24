@@ -7,21 +7,21 @@ import PetAnimator from "@/components/PetAnimator";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
-import { readPetParkImageData } from "@/lib/petParkImageData";
-import { Image as ImageIcon, Check, X } from "lucide-react";
+import { Check, X, ZoomIn, ZoomOut, Expand } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
-import { parkCameraGeometry, parkClampCamera, parkImageAspect, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
+import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan, PARK_ZOOM_MIN, PARK_ZOOM_MAX, PARK_ZOOM_STEP } from "@/lib/petParkCamera";
+import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkEffectType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: HouseInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
-type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
+type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
 export default function PetParkPage() {
@@ -32,14 +32,16 @@ export default function PetParkPage() {
   const pointer = useRef<{ id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
-  const [backgroundAspect, setBackgroundAspect] = useState(PARK_FALLBACK_ASPECT);
+  const [zoom, setZoom] = useState(1);
+  const touchPoints = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showCreator, setShowCreator] = useState(false);
-  const [uploadingBackground, setUploadingBackground] = useState(false);
+  const [expandingGround, setExpandingGround] = useState(false);
   const [creationPosition, setCreationPosition] = useState({ xPct: 0.5, yPct: 0.5 });
   const [placementMode, setPlacementMode] = useState(false);
   const [selectedPlacement, setSelectedPlacement] = useState<{ kind: "building" | "item"; id: string } | null>(null);
@@ -72,20 +74,10 @@ export default function PetParkPage() {
     return observeHomeViewport(element, measure, "artwork-scene");
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    const url = scene?.backgroundUrl;
-    if (!url) { setBackgroundAspect(PARK_FALLBACK_ASPECT); return; }
-    const image = new Image();
-    image.onload = () => { if (active) setBackgroundAspect(parkImageAspect(image.naturalWidth, image.naturalHeight)); };
-    image.onerror = () => { if (active) setBackgroundAspect(PARK_FALLBACK_ASPECT); };
-    image.src = url;
-    return () => { active = false; };
-  }, [scene?.backgroundUrl]);
-
-  // Camera uses the image's actual proportions. All scene placements remain
-  // normalized 0–1 coordinates, independent of phone/tablet/desktop pixels.
-  const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, backgroundAspect);
+  // Ground extent comes from an admin-set tier. Camera zoom is viewport-only.
+  // Saved placement coordinates remain normalized to the whole grass world.
+  const groundLevel = scene?.groundLevel ?? 1;
+  const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }); qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] }); };
@@ -98,19 +90,29 @@ export default function PetParkPage() {
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
 
-  const uploadBackground = async (file?: File) => {
-    if (!file || !scene?.canEditPark || uploadingBackground) return;
-    setUploadingBackground(true);
+  const expandGround = async () => {
+    if (!scene?.canEditPark || expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL) return;
+    setExpandingGround(true);
     try {
-      const imageData = await readPetParkImageData(file);
-      await apiRequest("PUT", "/api/admin/pet-park/background", { imageData });
+      const nextLevel = groundLevel + 1;
+      await apiRequest("PATCH", "/api/admin/pet-park/ground", { groundLevel: nextLevel });
+      const nextGeometry = parkCameraGeometry(viewportSize.width, viewportSize.height, nextLevel, zoom);
+      setPan(parkExpansionCameraPan(camera, scale, parkGroundSize(groundLevel), parkGroundSize(nextLevel), nextGeometry));
       invalidate();
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
     } catch (error) {
-      toast({ title: "Could not change park background", description: String(error), variant: "destructive" });
+      toast({ title: "Could not expand the park", description: String(error), variant: "destructive" });
     } finally {
-      setUploadingBackground(false);
+      setExpandingGround(false);
     }
+  };
+
+  const changeZoom = (requested: number, anchor = { x: viewportSize.width / 2, y: viewportSize.height / 2 }) => {
+    const nextZoom = parkClampZoom(requested);
+    if (nextZoom === zoom) return;
+    const nextGeometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, nextZoom);
+    setPan(parkZoomAnchorPan(camera, scale, nextGeometry.scale, anchor, nextGeometry));
+    setZoom(nextZoom);
   };
 
   const selectedObject = selectedPlacement?.kind === "building"
@@ -208,11 +210,45 @@ export default function PetParkPage() {
     `}</style>
     <div ref={viewport} className="absolute inset-0 overflow-hidden" style={HOME_TOUCH_SURFACE_STYLE}
       onPointerDown={e => {
-        if (!e.isPrimary || (e.target as HTMLElement).closest("button, input, select, textarea, a")) return;
+        const isControl = !!(e.target as HTMLElement).closest("button, input, select, textarea, a");
+        if (e.pointerType === "touch" && !isControl) {
+          touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (touchPoints.current.size === 2) {
+            const points = Array.from(touchPoints.current.values());
+            const bounds = viewport.current?.getBoundingClientRect();
+            pinch.current = {
+              distance: Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y),
+              zoom, pan: { ...camera },
+              midpoint: { x: (points[0].x + points[1].x) / 2 - (bounds?.left ?? 0),
+                y: (points[0].y + points[1].y) / 2 - (bounds?.top ?? 0) },
+            };
+            pointer.current = null;
+          }
+        }
+        if (!e.isPrimary || isControl || pinch.current) return;
         pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY, panX: camera.x, panY: camera.y, moved: false };
         safeSetPointerCapture(e.currentTarget, e.pointerId);
       }}
       onPointerMove={e => {
+        if (touchPoints.current.has(e.pointerId)) {
+          touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pinch.current && touchPoints.current.size === 2) {
+            const points = Array.from(touchPoints.current.values());
+            const bounds = viewport.current?.getBoundingClientRect();
+            const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+            const nextZoom = parkClampZoom(pinch.current.zoom * distance / Math.max(1, pinch.current.distance));
+            const nextGeometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, nextZoom);
+            const center = { x: (points[0].x + points[1].x) / 2 - (bounds?.left ?? 0),
+              y: (points[0].y + points[1].y) / 2 - (bounds?.top ?? 0) };
+            const zoomRatio = nextZoom / pinch.current.zoom;
+            setPan(parkClampCamera({
+              x: center.x - (pinch.current.midpoint.x - pinch.current.pan.x) * zoomRatio,
+              y: center.y - (pinch.current.midpoint.y - pinch.current.pan.y) * zoomRatio,
+            }, nextGeometry));
+            setZoom(nextZoom);
+            return;
+          }
+        }
         const drag = pointer.current;
         if (!drag || drag.id !== e.pointerId) return;
         const delta = homeCameraPointerDelta(e.clientX - drag.x, e.clientY - drag.y, viewport.current);
@@ -220,11 +256,38 @@ export default function PetParkPage() {
         if (!drag.moved) return;
         setPan(parkClampCamera({ x: drag.panX + delta.x, y: drag.panY + delta.y }, geometry));
       }}
-      onPointerUp={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}
-      onPointerCancel={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}
-      onLostPointerCapture={e => { if (pointer.current?.id === e.pointerId) pointer.current = null; }}>
+      onPointerUp={e => {
+        touchPoints.current.delete(e.pointerId);
+        if (touchPoints.current.size < 2) pinch.current = null;
+        if (pointer.current?.id === e.pointerId) pointer.current = null;
+      }}
+      onPointerCancel={e => {
+        touchPoints.current.delete(e.pointerId);
+        if (touchPoints.current.size < 2) pinch.current = null;
+        if (pointer.current?.id === e.pointerId) pointer.current = null;
+      }}
+      onLostPointerCapture={e => {
+        touchPoints.current.delete(e.pointerId);
+        if (touchPoints.current.size < 2) pinch.current = null;
+        if (pointer.current?.id === e.pointerId) pointer.current = null;
+      }}
+      onWheel={e => {
+        e.preventDefault();
+        const bounds = viewport.current?.getBoundingClientRect();
+        changeZoom(zoom * (e.deltaY > 0 ? 0.91 : 1.09),
+          { x: e.clientX - (bounds?.left ?? 0), y: e.clientY - (bounds?.top ?? 0) });
+      }}>
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
-        style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`, backgroundImage: scene.backgroundUrl ? `url("${scene.backgroundUrl}")` : undefined, backgroundSize: "100% 100%" }}>
+        style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)`,
+          backgroundColor: "#61864a",
+          backgroundImage: [
+            "radial-gradient(ellipse at 24% 40%, rgba(49,95,32,.36) 0%, transparent 60%)",
+            "radial-gradient(ellipse at 76% 69%, rgba(155,171,87,.23) 0%, transparent 64%)",
+            "radial-gradient(ellipse at 42% 26%, rgba(31,76,28,.32) 0%, transparent 48%)",
+            "radial-gradient(circle at 60% 67%, rgba(171,178,98,.20) 0%, transparent 28%)",
+          ].join(","),
+          backgroundSize: [`${390 * scale}px ${310 * scale}px`, `${510 * scale}px ${450 * scale}px`,
+            `${33 * scale}px ${43 * scale}px`, `${47 * scale}px ${61 * scale}px`].join(",") }}>
         {(scene.buildings ?? []).map(building => <button key={building.id} type="button" aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!placementMode) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementMode ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementMode ? 20000 : shownPosition("building", building).layer + 10002 }}><img src={building.imageUrl} alt={building.name} draggable={false} className="h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
         {scene.items.map(item => <div key={item.id} onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute ${placementMode && scene.canEditPark ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
           style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale, transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? 20000 : shownPosition("item", item).layer + 10001 }}>
@@ -273,17 +336,26 @@ export default function PetParkPage() {
         <button type="button" onClick={() => navigate("/")}
           className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64]">← Back</button>
         <h1 className="rounded-full bg-black/65 px-3 py-2 text-sm font-semibold tracking-wider text-[#f5cf64]">Pet Park</h1>
-        {scene?.canEditPark ? <label className="pointer-events-auto cursor-pointer rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64]">
-          <ImageIcon size={15} className="mr-1 inline" />{uploadingBackground ? "Uploading…" : "Change BG"}
-          <input aria-label="Change Pet Park background" type="file" accept="image/*" className="sr-only" disabled={uploadingBackground}
-            onChange={event => { void uploadBackground(event.target.files?.[0]); event.target.value = ""; }} />
-        </label> : <span className="w-16" />}
+        {scene?.canEditPark ? <button type="button" aria-label="Expand Ground" title="Add more grassy park area"
+          onClick={() => void expandGround()}
+          disabled={expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+          className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
+          <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "Expand"}
+        </button> : <span className="w-16" />}
       </div>
       {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-2 gap-2">
         <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
         <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Decor / Objects</button>
       </div>}
     </div>
+    {!activeBuilding && <div aria-label="Park camera zoom controls"
+      className="pointer-events-auto absolute right-2 top-[42%] z-20 flex flex-col items-center gap-1 rounded-xl border border-amber-600/40 bg-black/65 p-1 text-amber-100">
+      <button type="button" aria-label="Zoom in to Pet Park" disabled={zoom >= PARK_ZOOM_MAX}
+        className="rounded-lg p-2 disabled:opacity-35" onClick={() => changeZoom(zoom + PARK_ZOOM_STEP)}><ZoomIn size={19} /></button>
+      <span aria-label="Current Pet Park zoom" className="text-[10px] tabular-nums">{Math.round(zoom * 100)}%</span>
+      <button type="button" aria-label="Zoom out of Pet Park" disabled={zoom <= PARK_ZOOM_MIN}
+        className="rounded-lg p-2 disabled:opacity-35" onClick={() => changeZoom(zoom - PARK_ZOOM_STEP)}><ZoomOut size={19} /></button>
+    </div>}
     {scene?.canEditPark && !showCreator && !selectedPlacement && <div
       className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers && (!scene.canEditPark || deposits.length > 0) ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
@@ -346,7 +418,7 @@ export default function PetParkPage() {
             className="rounded-full border border-amber-500/35 bg-amber-500/15 p-2 text-[#f5cf64]"><X size={17} /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-          <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} worldHeight={geometry.worldHeight} onCreated={object => {
+          <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} onCreated={object => {
             setShowCreator(false);
             setPlacementMode(true);
             setSelectedPlacement({ kind: object.kind, id: object.id });

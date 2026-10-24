@@ -13,7 +13,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       const [settings] = await db.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
       const [player] = await db.select({ isAdmin: users.isAdmin }).from(users).where(eq(users.id, userId));
       if (!settings?.enabledForPlayers && !player?.isAdmin) {
-        return res.json({ enabledForPlayers: false, backgroundUrl: null, items: [], deposits: [], unlockedSlots: 1 });
+        return res.json({ enabledForPlayers: false, groundLevel: 1, backgroundUrl: null, items: [], deposits: [], unlockedSlots: 1 });
       }
       const [slots] = await db.select().from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
       const items = await db.select().from(petParkSceneItems);
@@ -56,7 +56,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
-        backgroundUrl: settings?.backgroundUrl ?? null,
+        backgroundUrl: settings?.backgroundUrl ?? null, // Legacy only; the live park draws grass instead.
+        groundLevel: settings?.groundLevel ?? 1,
         buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
