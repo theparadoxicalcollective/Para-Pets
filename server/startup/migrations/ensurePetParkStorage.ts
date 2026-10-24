@@ -12,6 +12,7 @@ export async function ensurePetParkStorage(): Promise<void> {
       id varchar PRIMARY KEY DEFAULT 'main' CHECK (id = 'main'),
       enabled_for_players boolean NOT NULL DEFAULT false,
       background_url text,
+      ground_level integer NOT NULL DEFAULT 1 CHECK (ground_level BETWEEN 1 AND 4),
       coins_per_hour integer NOT NULL DEFAULT 0,
       essence_per_hour integer NOT NULL DEFAULT 0,
       pet_xp_per_hour integer NOT NULL DEFAULT 0,
@@ -22,9 +23,6 @@ export async function ensurePetParkStorage(): Promise<void> {
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS pet_xp_per_hour integer NOT NULL DEFAULT 0;
     INSERT INTO pet_park_settings (id, enabled_for_players)
     VALUES ('main', false) ON CONFLICT (id) DO NOTHING;
-
-    UPDATE pet_park_settings SET background_url = '/world-assets/uploads/PetPark.JPG'
-      WHERE id = 'main' AND background_url IS NULL;
 
     CREATE TABLE IF NOT EXISTS pet_park_scene_items (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -120,5 +118,31 @@ export async function ensurePetParkStorage(): Promise<void> {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS pet_park_claim_interval_uidx
       ON pet_park_reward_claims (deposit_id, interval_start_at, interval_end_at);
+
+    -- One-time upgrade: retain the center-relative placement of existing
+    -- buildings, decor and positioned pets from the earlier reference-art stage.
+    -- Legacy background URLs are retained for rollback, but not displayed.
+    DO $migration$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'pet_park_settings' AND column_name = 'ground_level'
+      ) THEN
+        ALTER TABLE pet_park_settings
+          ADD COLUMN ground_level integer NOT NULL DEFAULT 1 CHECK (ground_level BETWEEN 1 AND 4);
+        UPDATE pet_park_scene_items
+          SET x_pct = 0.5 + (x_pct - 0.5) * 1100.0 / 1800.0,
+              y_pct = 0.5 + (y_pct - 0.5) * 1700.0 / 2700.0;
+        UPDATE pet_park_buildings
+          SET x_pct = 0.5 + (x_pct - 0.5) * 1100.0 / 1800.0,
+              y_pct = 0.5 + (y_pct - 0.5) * 1700.0 / 2700.0;
+        UPDATE pet_park_deposits
+          SET park_x_pct = 0.5 + (park_x_pct - 0.5) * 1100.0 / 1800.0,
+              park_y_pct = 0.5 + (park_y_pct - 0.5) * 1700.0 / 2700.0
+          WHERE park_x_pct IS NOT NULL AND park_y_pct IS NOT NULL;
+      END IF;
+    END
+    $migration$;
   `);
 }
