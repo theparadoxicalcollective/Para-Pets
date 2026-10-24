@@ -143,5 +143,6 @@ test("current on-screen slot UI can place or return a pet without withdrawing it
   assert.match(page, /Idle — earning/);
   assert.match(page, /\$\{pet\.id\}\/display/);
   assert.match(page, /pet\.parkXPct != null && pet\.parkYPct != null/);
-  assert.match(page, /scene\.canEditPark \? null : <div/);
+  assert.match(page, /scene\.canEditPark && deposits\.length === 0 \? null : <div/);
+  assert.match(page, /if \(scene\.canEditPark && !pet\) return null/);
 });
