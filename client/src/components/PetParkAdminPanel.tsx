@@ -6,12 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_TERRAIN_DETAIL_OPTIONS, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
 type ParkDraft = {
   settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
-  items: { id: string; kind: "decor" | "sleep_spot" | "effect" }[];
+  items: { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain" }[];
   buildings: { id: string }[];
 };
 type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -25,7 +26,7 @@ const GOLD_BORDER = "rgba(255,215,0,0.38)";
 const GOLD = "#f5cf64";
 
 export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, onCreated }: {
-  initialMode?: "scene" | "effects" | "decor";
+  initialMode?: "scene" | "effects" | "decor" | "terrain";
   mode: "create" | "settings";
   creationPosition?: { xPct: number; yPct: number };
   onCreated?: (object: CreatedParkObject) => void;
@@ -76,6 +77,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       size, flipped: false, layer: items.length,
     } });
   };
+  const addTerrain = (type: ParkTerrainDetailType, size: number) => {
+    if (mutation.isPending) return;
+    mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
+      kind: "terrain", effectType: type, imageData: null,
+      xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
+      size, flipped: false, layer: 0,
+    } });
+  };
   const selectFile = async (file: File | undefined, apply: (value: string) => void) => {
     if (!file) return;
     try { apply(await imageData(file)); }
@@ -122,7 +131,20 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       </div>
 
       </> : <>
-      {initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
+      {initialMode === "terrain" ? <section aria-label="Park terrain details" className="space-y-3">
+        <p className="text-center text-xs text-amber-100/75">Add a soft-edged ground patch, then move, resize or remove it directly in Pet Park. Overlap path patches for trails.</p>
+        <div className="grid grid-cols-2 gap-2">
+          {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
+            data-testid={`add-park-terrain-${option.type}`} disabled={mutation.isPending}
+            onClick={() => addTerrain(option.type, option.size)}
+            className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
+            style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
+            <span className="block text-sm text-[#f5cf64]">{option.label}</span>
+            <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
+          </button>)}
+        </div>
+        <p className="text-center text-xs text-amber-100/60">{mutation.isPending ? "Adding terrain…" : "Select a patch to move it, change size, or remove it."} · {items.filter(item => item.kind === "terrain").length} patches</p>
+      </section> : initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
         <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Outdoor Effects</div>
         <div className="grid grid-cols-2 gap-2">
           {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"

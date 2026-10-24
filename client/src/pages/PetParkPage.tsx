@@ -6,6 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import PetParkTerrain from "@/components/PetParkTerrain";
+import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
+import { isParkTerrainDetail, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
+import { isParkEffect } from "@shared/petParkEffects";
 import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, PARK_SELECTED_DEPTH_Z } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
@@ -20,7 +23,7 @@ import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, 
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkEffectType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: HouseInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -50,7 +53,7 @@ export default function PetParkPage() {
   const [selectedPlacement, setSelectedPlacement] = useState<{ kind: "building" | "item"; id: string } | null>(null);
   const [placementDraft, setPlacementDraft] = useState<{ xPct: number; yPct: number; size: number; flipped: boolean; layer: number } | null>(null);
   const placementPointer = useRef<{ id: number; startX: number; startY: number; xPct: number; yPct: number } | null>(null);
-  const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
+  const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor" | "terrain">("scene");
   const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers && !scene?.canEditPark });
@@ -167,7 +170,7 @@ export default function PetParkPage() {
     placementPointer.current = null;
     // Same explicit save/cancel contract as the existing world-map and Home editors.
   };
-  const beginCreate = (mode: "scene" | "effects" | "decor") => {
+  const beginCreate = (mode: "scene" | "effects" | "decor" | "terrain") => {
     setEditorMode(mode);
     setCreationPosition({
       xPct: Math.max(0, Math.min(1, (viewportSize.width / 2 - camera.x) / sceneWidth)),
@@ -287,8 +290,8 @@ export default function PetParkPage() {
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
         {(scene.buildings ?? []).map(building => <button key={building.id} type="button" aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!placementMode) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementMode ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementMode ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", layer: shownPosition("building", building).layer }) }}><PetParkGroundShadow kind="building" /><img src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
         {scene.items.map(item => <div key={item.id} onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute ${placementMode && scene.canEditPark ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
-          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale, transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
-          {item.kind === "effect" && item.effectType ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} /> : item.imageUrl ? <><PetParkGroundShadow kind="decor" /><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
+          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? 0.54 : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
+          {item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} /> : item.imageUrl ? <><PetParkGroundShadow kind="decor" /><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
             <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
         </div>)}
         {outdoorPets.map(pet => {
@@ -341,9 +344,10 @@ export default function PetParkPage() {
           <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "Expand"}
         </button> : <span className="w-16" />}
       </div>
-      {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-2 gap-2">
+      {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-3 gap-2">
         <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
-        <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Decor / Objects</button>
+        <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Add Decor / Objects</button>
+        <button type="button" onClick={() => beginCreate("terrain")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Terrain</button>
       </div>}
     </div>
     {!activeBuilding && <div aria-label="Park camera zoom controls"
@@ -410,7 +414,7 @@ export default function PetParkPage() {
         className="relative z-10 flex font-fantasy max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#0d0a04] shadow-2xl">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
           <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
-            {editorMode === "effects" ? "Outdoor Effects" : editorMode === "scene" ? "Add Building" : "Decor / Objects"}
+            {editorMode === "effects" ? "Outdoor Effects" : editorMode === "terrain" ? "Terrain Details" : editorMode === "scene" ? "Add Building" : "Decor / Objects"}
           </h2>
           <button type="button" aria-label="Close editor" onClick={() => setShowCreator(false)}
             className="rounded-full border border-amber-500/35 bg-amber-500/15 p-2 text-[#f5cf64]"><X size={17} /></button>

@@ -41,3 +41,13 @@ test("visibility culling preserves the full roster but skips offscreen pet rende
   assert.equal(isParkPetNearViewport(point, 1000, 1600, 0, 0, 390, 400, 1000), true);
   assert.equal(arrangeParkVisitors(visitors, buildings).size, visitors.length);
 });
+
+test("terrain patches decorate the ground without changing visitor occupancy", () => {
+  const baseline = arrangeParkVisitors(visitors, buildings);
+  const withTerrain = arrangeParkVisitors(visitors, [
+    ...buildings,
+    { kind: "terrain", xPct: 0.5, yPct: 0.52, size: 1000 },
+    { kind: "terrain", xPct: 0.2, yPct: 0.75, size: 600 },
+  ]);
+  assert.deepEqual([...withTerrain], [...baseline], "ground patches must not behave like blocking decor or rest spots");
+});
