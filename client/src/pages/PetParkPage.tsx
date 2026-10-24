@@ -285,7 +285,7 @@ export default function PetParkPage() {
       </div>}
     </div>
     {scene?.canEditPark && !showCreator && !selectedPlacement && <div
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers && !scene.canEditPark ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers && (!scene.canEditPark || deposits.length > 0) ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
       <button type="button" onClick={() => beginCreate("scene")} className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#221902]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-[#f5cf64]">+ Add Buildings</button>
       <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }}
@@ -367,13 +367,16 @@ export default function PetParkPage() {
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
 
         </div>
-      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : scene.canEditPark ? null : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : scene.canEditPark && deposits.length === 0 ? null : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <p className="mb-2 text-xs text-amber-200/80">Drag the park in any direction to explore. Rewards accumulate for up to 24 hours. Collect anytime without removing your pet.</p>
         <div className="space-y-2">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
             const pet = deposits.find(d => d.slotNumber === slot);
             const unlocked = slot <= scene.unlockedSlots;
+            // Older admin accounts may have deposited pets before the admin UI split.
+            // Keep their Claim and Retrieve controls without permitting new admin slots.
+            if (scene.canEditPark && !pet) return null;
             return <div key={slot} className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-700/50 p-2 text-sm">
               <span className="font-semibold">Spot {slot}</span>
               {pet ? <>
