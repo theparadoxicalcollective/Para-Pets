@@ -136,26 +136,6 @@ export function registerPetParkAdminRoutes(
     }
   });
 
-  // Legacy upload endpoint stays for older clients, but the ground renderer
-  // no longer reads uploaded artwork. No background is needed to build a park.
-  app.put("/api/admin/pet-park/background", isAdmin, async (req, res) => {
-    const imageData = req.body?.imageData;
-    if (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 12_000_000) {
-      return res.status(400).json({ message: "Valid image upload required (max 12 MB)" });
-    }
-    try {
-      const imageUrl = await processWorldImage(imageData, 2560);
-      const [settings] = await db.insert(petParkSettings)
-        .values({ id: "main", enabledForPlayers: false, backgroundUrl: imageUrl, updatedAt: new Date() })
-        .onConflictDoUpdate({ target: petParkSettings.id, set: { backgroundUrl: imageUrl, updatedAt: new Date() } })
-        .returning();
-      return res.json(settings);
-    } catch (error) {
-      console.error("[pet-park] background save failed", error);
-      return res.status(500).json({ message: "Unable to save background" });
-    }
-  });
-
   app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
     const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 120, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN } = req.body ?? {};
     if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
