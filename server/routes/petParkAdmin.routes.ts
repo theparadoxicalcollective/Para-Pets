@@ -5,11 +5,12 @@ import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings }
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
+import { isParkTerrainDetail } from "@shared/petParkTerrainDetails";
 import type { db as database } from "../db";
 
-type ParkKind = "decor" | "sleep_spot" | "effect";
+type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain";
 function isKind(value: unknown): value is ParkKind {
-  return value === "decor" || value === "sleep_spot" || value === "effect";
+  return value === "decor" || value === "sleep_spot" || value === "effect" || value === "terrain";
 }
 function validPosition(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -236,10 +237,12 @@ export function registerPetParkAdminRoutes(
     }
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
+    if (kind === "terrain" && !isParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
+    if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind, effectType: kind === "effect" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer) }).returning();
+        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer) }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] item create failed", error);
