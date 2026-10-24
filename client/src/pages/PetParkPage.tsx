@@ -240,11 +240,10 @@ export default function PetParkPage() {
             const nextGeometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, nextZoom);
             const center = { x: (points[0].x + points[1].x) / 2 - (bounds?.left ?? 0),
               y: (points[0].y + points[1].y) / 2 - (bounds?.top ?? 0) };
-            const anchorPan = parkZoomAnchorPan(pinch.current.pan, scale / zoom * pinch.current.zoom,
-              nextGeometry.scale, pinch.current.midpoint, nextGeometry);
+            const zoomRatio = nextZoom / pinch.current.zoom;
             setPan(parkClampCamera({
-              x: anchorPan.x + center.x - pinch.current.midpoint.x,
-              y: anchorPan.y + center.y - pinch.current.midpoint.y,
+              x: center.x - (pinch.current.midpoint.x - pinch.current.pan.x) * zoomRatio,
+              y: center.y - (pinch.current.midpoint.y - pinch.current.pan.y) * zoomRatio,
             }, nextGeometry));
             setZoom(nextZoom);
             return;
