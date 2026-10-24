@@ -349,12 +349,12 @@ export default function PetParkPage() {
         <h1 className="rounded-full bg-black/65 px-3 py-2 text-sm font-semibold tracking-wider text-[#f5cf64]">Pet Park</h1>
         {scene?.canEditPark ? <button type="button" aria-label="Expand Ground" title="Add more grassy park area"
           onClick={() => void expandGround()}
-          disabled={expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+          disabled={paintMode || expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
           className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
           <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "Expand"}
         </button> : <span className="w-16" />}
       </div>
-      {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-3 gap-2">
+      {scene?.canEditPark && !paintMode && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-3 gap-2">
         <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
         <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Add Decor / Objects</button>
         <button type="button" onClick={() => beginCreate("terrain")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Terrain</button>
