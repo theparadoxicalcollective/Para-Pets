@@ -34,7 +34,7 @@ test("in-scene edits preview all fields, save complete item payloads and preserv
   assert.ok(page.includes('size: Math.max(1, draft.size - 20)'));
   assert.ok(page.includes('flipped: !draft.flipped'));
   assert.ok(page.includes('shownPosition("building", building).size * scale'));
-  assert.ok(page.includes('shownPosition("item", item).layer + 10001'));
+  assert.ok(page.includes('kind: "item", layer: shownPosition("item", item).layer'), "item layering now combines ground depth and admin override");
   assert.ok(page.includes('return apiRequest("PATCH", path, placement)'), "PATCH includes coordinates, size, flip and layer");
   assert.ok(page.includes('placementSave.mutate({ ...selectedPlacement, ...placementDraft })'));
   assert.ok(page.includes('setSelectedPlacement(null); setPlacementDraft(null);'), "cancel must discard edits");
