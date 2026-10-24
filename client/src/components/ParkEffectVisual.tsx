@@ -1,3 +1,4 @@
+import * as React from "react";
 import { HomeOutdoorEffectVisual } from "@/components/HomeInteriorEffect";
 import { isParkOutdoorEffect, type ParkEffectType } from "@shared/petParkEffects";
 export type { ParkWaterEffect } from "@shared/petParkEffects";
