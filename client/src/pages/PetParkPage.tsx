@@ -344,8 +344,8 @@ export default function PetParkPage() {
     </div>}
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 font-fantasy px-3 pt-[max(12px,env(safe-area-inset-top))]">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={() => navigate("/")}
-          className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64]">← Back</button>
+        <button type="button" disabled={paintMode} onClick={() => navigate("/")}
+          className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64] disabled:opacity-40">← Back</button>
         <h1 className="rounded-full bg-black/65 px-3 py-2 text-sm font-semibold tracking-wider text-[#f5cf64]">Pet Park</h1>
         {scene?.canEditPark ? <button type="button" aria-label="Expand Ground" title="Add more grassy park area"
           onClick={() => void expandGround()}
