@@ -5,9 +5,9 @@ import test from "node:test";
 const server = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 const client = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 
-test("park scene shares active pets across owners while preserving private deposit actions", () => {
+test("park scene shares publicly displayed pets, preserving idle private deposits and reward records", () => {
   assert.match(server, /const sharedPets = await db\.select/);
-  assert.match(server, /\.where\(isNull\(petParkDeposits\.withdrawnAt\)\)/);
+  assert.match(server, /\.where\(and\(isNull\(petParkDeposits\.withdrawnAt\), eq\(petParkDeposits\.showInPark, true\)\)\)/);
   assert.match(server, /items, deposits, sharedPets, unlockedSlots/);
   assert.match(server, /eq\(petParkDeposits\.userId, userId\)/);
   assert.match(server, /!settings\?\.enabledForPlayers && !player\?\.isAdmin/);

@@ -1410,6 +1410,11 @@ export const petParkDeposits = pgTable("pet_park_deposits", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   petInventoryId: varchar("pet_inventory_id").notNull().references(() => userInventory.id, { onDelete: "cascade" }),
   slotNumber: integer("slot_number").notNull(),
+  // Legacy deposits remain visible; new deposits explicitly start in idle slots.
+  // Public visibility NEVER controls checkpoint or reward-claim accrual.
+  showInPark: boolean("show_in_park").notNull().default(true),
+  parkXPct: real("park_x_pct"),
+  parkYPct: real("park_y_pct"),
   buildingId: varchar("building_id").references(() => petParkBuildings.id, { onDelete: "set null" }),
   interiorXPct: real("interior_x_pct").notNull().default(0.5),
   interiorYPct: real("interior_y_pct").notNull().default(0.72),

@@ -19,8 +19,8 @@ import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, 
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect"; effectType?: ParkEffectType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: HouseInteriorEffect[] };
-type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
-type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
+type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
+type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
@@ -48,7 +48,7 @@ export default function PetParkPage() {
   const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
   const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
-  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
+  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers && !scene?.canEditPark });
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -232,7 +232,8 @@ export default function PetParkPage() {
             <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
         </div>)}
         {outdoorPets.map((pet, index) => {
-          const position = parkPositions.get(pet.petInventoryId);
+          const position = pet.parkXPct != null && pet.parkYPct != null
+            ? { x: pet.parkXPct, y: pet.parkYPct } : parkPositions.get(pet.petInventoryId);
           if (!position || !isParkPetNearViewport(position, sceneWidth, sceneHeight, camera.x, camera.y, viewportSize.width, viewportSize.height)) return null;
           const activity = parkPetActivity(pet.petInventoryId);
           const isMine = deposits.some(d => d.petInventoryId === pet.petInventoryId);
@@ -284,7 +285,7 @@ export default function PetParkPage() {
       </div>}
     </div>
     {scene?.canEditPark && !showCreator && !selectedPlacement && <div
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers && (!scene.canEditPark || deposits.length > 0) ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
       <button type="button" onClick={() => beginCreate("scene")} className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#221902]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-[#f5cf64]">+ Add Buildings</button>
       <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }}
@@ -366,17 +367,25 @@ export default function PetParkPage() {
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
 
         </div>
-      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : scene.canEditPark && deposits.length === 0 ? null : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <p className="mb-2 text-xs text-amber-200/80">Drag the park in any direction to explore. Rewards accumulate for up to 24 hours. Collect anytime without removing your pet.</p>
         <div className="space-y-2">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
             const pet = deposits.find(d => d.slotNumber === slot);
             const unlocked = slot <= scene.unlockedSlots;
+            // Older admin accounts may have deposited pets before the admin UI split.
+            // Keep their Claim and Retrieve controls without permitting new admin slots.
+            if (scene.canEditPark && !pet) return null;
             return <div key={slot} className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-700/50 p-2 text-sm">
               <span className="font-semibold">Spot {slot}</span>
               {pet ? <>
-                <span className="flex-1">{pet.petNickname || pet.petName} · Lv {pet.petLevel}</span>
+                <span className="flex-1">{pet.petNickname || pet.petName} · Lv {pet.petLevel} · {pet.showInPark ? "In park" : "Idle — earning"}</span>
+                <button type="button" disabled={action.isPending} className="rounded bg-amber-700 px-3 py-2"
+                  onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${pet.id}/display`,
+                    body: { display: pet.showInPark ? "idle" : "park" } })}>
+                  {pet.showInPark ? "Return to idle" : "Show in park"}
+                </button>
                 <button type="button" disabled={action.isPending} className="rounded bg-emerald-800 px-3 py-2"
                   onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/claim` })}>Collect rewards</button>
                 <button type="button" disabled={action.isPending} className="rounded bg-amber-800 px-3 py-2"

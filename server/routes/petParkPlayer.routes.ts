@@ -3,8 +3,10 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
+import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
+  registerPetParkDisplayRoutes(app, isAuthenticated);
   app.get("/api/pet-park/scene", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as { id: string }).id;
@@ -22,7 +24,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         petTemplateId: userInventory.shopItemId,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
-        buildingId: petParkDeposits.buildingId, interiorXPct: petParkDeposits.interiorXPct, interiorYPct: petParkDeposits.interiorYPct, pose: petParkDeposits.pose,
+        buildingId: petParkDeposits.buildingId, showInPark: petParkDeposits.showInPark, parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
+        interiorXPct: petParkDeposits.interiorXPct, interiorYPct: petParkDeposits.interiorYPct, pose: petParkDeposits.pose,
         checkpointAt: petParkDeposits.checkpointAt, pausedAt: petParkDeposits.pausedAt, pausedDurationMs: petParkDeposits.pausedDurationMs,
       }).from(petParkDeposits)
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
@@ -32,6 +35,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       // reward checkpoints or another player's deposit mutation identifiers.
       const sharedPets = await db.select({
         petInventoryId: petParkDeposits.petInventoryId,
+        parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
         buildingId: petParkDeposits.buildingId,
         interiorXPct: petParkDeposits.interiorXPct,
         interiorYPct: petParkDeposits.interiorYPct,
@@ -47,7 +51,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
-        .where(isNull(petParkDeposits.withdrawnAt))
+        // Idle deposits keep accruing rewards but are private to their owner.
+        .where(and(isNull(petParkDeposits.withdrawnAt), eq(petParkDeposits.showInPark, true)))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
@@ -89,7 +94,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
         if (existing) return { status: 409 as const };
-        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber }).returning();
+        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false }).returning();
         return { status: 201 as const, deposit };
       });
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });
@@ -128,7 +133,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
             .where(and(eq(petParkDeposits.buildingId, buildingId), isNull(petParkDeposits.withdrawnAt), sql`${petParkDeposits.id} <> ${deposit.id}`));
           if (occupants.length >= building.maxPets) return { status: 409 as const };
         }
-        const [updated] = await tx.update(petParkDeposits).set({ buildingId, interiorXPct: xPct, interiorYPct: yPct, pose }).where(eq(petParkDeposits.id, deposit.id)).returning();
+        const [updated] = await tx.update(petParkDeposits).set({ buildingId, interiorXPct: xPct, interiorYPct: yPct, pose, showInPark: true }).where(eq(petParkDeposits.id, deposit.id)).returning();
         return { status: 200 as const, deposit: updated };
       });
       if (result.status === 404) return res.status(404).json({ message: "Active deposit not found" });
