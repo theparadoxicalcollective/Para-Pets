@@ -73,7 +73,7 @@ test("player and admin use world coords, not an old image-sized reference stage"
   assert.match(player, /parkCameraGeometry\(viewportSize.width, viewportSize.height, groundLevel, zoom\)/);
   assert.match(player, /touchPoints.current.size === 2/);
   assert.match(player, /onWheel=\{e =>/);
-  assert.match(player, /backgroundColor: "#61864a"/);
+  assert.match(player, /<PetParkTerrain /);
   assert.match(player, /Expand Ground/);
   assert.doesNotMatch(player, /backgroundImage: scene.backgroundUrl/);
   assert.match(room, /naturalWidth \/ naturalHeight/);
