@@ -94,7 +94,7 @@ export default function PetParkTerrainBrush(props: Props) {
       onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm">Paint ground · {draft.length}/{PARK_BRUSH_MAX_STAMPS} patches</strong>
-        <button type="button" disabled={saving} onClick={props.onExit} className="rounded bg-slate-700 px-3 py-2 text-xs">Finish</button>
+        <button type="button" disabled={saving || draft.length > 0} onClick={props.onExit} className="rounded bg-slate-700 px-3 py-2 text-xs">Finish</button>
       </div>
       <p className="text-xs text-amber-100/75">Drag to preview terrain. Save or discard a stroke before drawing another.</p>
       <div className="grid grid-cols-2 gap-1.5">
