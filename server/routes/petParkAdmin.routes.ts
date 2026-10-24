@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { isParkGroundLevel, parkGroundSize } from "@shared/petParkGround";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
@@ -88,6 +89,55 @@ export function registerPetParkAdminRoutes(
     }
   });
 
+  // Expand the real grass world. Reposition all saved objects and public pet
+  // coordinates in ONE transaction so their center-anchored locations stay put.
+  app.patch("/api/admin/pet-park/ground", isAdmin, async (req, res) => {
+    const { groundLevel } = req.body ?? {};
+    if (!isParkGroundLevel(groundLevel)) {
+      return res.status(400).json({ message: "Choose a valid ground expansion level" });
+    }
+    try {
+      const result = await db.transaction(async tx => {
+        const [current] = await tx.select().from(petParkSettings)
+          .where(eq(petParkSettings.id, "main")).for("update");
+        if (!current) return { status: 404 as const };
+        const oldLevel = current.groundLevel;
+        if (groundLevel !== oldLevel + 1) {
+          return { status: 409 as const };
+        }
+        const oldSize = parkGroundSize(oldLevel);
+        const nextSize = parkGroundSize(groundLevel);
+        const ratioX = oldSize.width / nextSize.width;
+        const ratioY = oldSize.height / nextSize.height;
+        await tx.update(petParkSceneItems).set({
+          xPct: sql`0.5 + (${petParkSceneItems.xPct} - 0.5) * ${ratioX}`,
+          yPct: sql`0.5 + (${petParkSceneItems.yPct} - 0.5) * ${ratioY}`,
+        });
+        await tx.update(petParkBuildings).set({
+          xPct: sql`0.5 + (${petParkBuildings.xPct} - 0.5) * ${ratioX}`,
+          yPct: sql`0.5 + (${petParkBuildings.yPct} - 0.5) * ${ratioY}`,
+        });
+        await tx.update(petParkDeposits).set({
+          parkXPct: sql`0.5 + (${petParkDeposits.parkXPct} - 0.5) * ${ratioX}`,
+          parkYPct: sql`0.5 + (${petParkDeposits.parkYPct} - 0.5) * ${ratioY}`,
+        }).where(and(isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct)));
+        const [updated] = await tx.update(petParkSettings)
+          .set({ groundLevel, updatedAt: new Date() })
+          .where(eq(petParkSettings.id, "main")).returning();
+        return { status: 200 as const, groundLevel: updated.groundLevel };
+      });
+      if (result.status !== 200) return res.status(result.status).json({
+        message: result.status === 409 ? "Park size changed; reload before expanding again" : "Pet Park settings not found",
+      });
+      return res.json({ groundLevel: result.groundLevel });
+    } catch (error) {
+      console.error("[pet-park] expanding ground failed", error);
+      return res.status(500).json({ message: "Unable to expand park ground" });
+    }
+  });
+
+  // Legacy upload endpoint stays for older clients, but the ground renderer
+  // no longer reads uploaded artwork. No background is needed to build a park.
   app.put("/api/admin/pet-park/background", isAdmin, async (req, res) => {
     const imageData = req.body?.imageData;
     if (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 12_000_000) {
