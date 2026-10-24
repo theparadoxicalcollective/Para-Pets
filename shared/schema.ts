@@ -1364,7 +1364,8 @@ export const fishingLeaderboard = pgTable("fishing_leaderboard", {
 export const petParkSettings = pgTable("pet_park_settings", {
   id: varchar("id").primaryKey().default("main"),
   enabledForPlayers: boolean("enabled_for_players").notNull().default(false),
-  backgroundUrl: text("background_url"),
+  backgroundUrl: text("background_url"), // Legacy uploads retained, no longer used as park terrain.
+  groundLevel: integer("ground_level").notNull().default(1),
   coinsPerHour: integer("coins_per_hour").notNull().default(0),
   essencePerHour: integer("essence_per_hour").notNull().default(0),
   petXpPerHour: integer("pet_xp_per_hour").notNull().default(0),
