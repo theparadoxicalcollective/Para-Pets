@@ -228,6 +228,27 @@ export function registerPetParkAdminRoutes(
     }
   });
 
+  // A brush stroke saves existing terrain item records in one atomic INSERT.
+  // No new terrain storage, per-pointer network writes or payout mutations.
+  app.post("/api/admin/pet-park/terrain-strokes", isAdmin, async (req, res) => {
+    const { type, size, points } = req.body ?? {};
+    if (!isParkTerrainDetail(type) || !validSize(size) ||
+        !Array.isArray(points) || points.length < 1 || points.length > 60 ||
+        !points.every(point => point && validPosition(point.xPct) && validPosition(point.yPct))) {
+      return res.status(400).json({ message: "Invalid terrain brush stroke (1–60 points required)" });
+    }
+    try {
+      const created = await db.insert(petParkSceneItems).values(points.map(point => ({
+        kind: "terrain", effectType: type, imageUrl: null,
+        xPct: point.xPct, yPct: point.yPct, size, flipped: false, layer: 0,
+      }))).returning();
+      return res.status(201).json({ items: created });
+    } catch (error) {
+      console.error("[pet-park] brush save failed", error);
+      return res.status(500).json({ message: "Could not save terrain stroke" });
+    }
+  });
+
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
     const { kind, effectType, imageData, xPct, yPct, size, flipped, layer } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||

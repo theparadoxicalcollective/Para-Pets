@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import PetParkTerrain from "@/components/PetParkTerrain";
+import PetParkTerrainBrush from "@/components/PetParkTerrainBrush";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkTerrainDetail, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { isParkEffect } from "@shared/petParkEffects";
@@ -50,6 +51,7 @@ export default function PetParkPage() {
   const [expandingGround, setExpandingGround] = useState(false);
   const [creationPosition, setCreationPosition] = useState({ xPct: 0.5, yPct: 0.5 });
   const [placementMode, setPlacementMode] = useState(false);
+  const [paintMode, setPaintMode] = useState(false);
   const [selectedPlacement, setSelectedPlacement] = useState<{ kind: "building" | "item"; id: string } | null>(null);
   const [placementDraft, setPlacementDraft] = useState<{ xPct: number; yPct: number; size: number; flipped: boolean; layer: number } | null>(null);
   const placementPointer = useRef<{ id: number; startX: number; startY: number; xPct: number; yPct: number } | null>(null);
@@ -171,6 +173,7 @@ export default function PetParkPage() {
     // Same explicit save/cancel contract as the existing world-map and Home editors.
   };
   const beginCreate = (mode: "scene" | "effects" | "decor" | "terrain") => {
+    setPaintMode(false);
     setEditorMode(mode);
     setCreationPosition({
       xPct: Math.max(0, Math.min(1, (viewportSize.width / 2 - camera.x) / sceneWidth)),
@@ -315,6 +318,13 @@ export default function PetParkPage() {
           </div>;
         })}
       </div>}
+      {paintMode && scene?.canEditPark && <PetParkTerrainBrush
+        viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
+        sceneWidth={sceneWidth} sceneHeight={sceneHeight}
+        worldWidth={geometry.worldWidth} worldHeight={geometry.worldHeight}
+        panX={camera.x} panY={camera.y} scale={scale}
+        raised={scene.enabledForPlayers && deposits.length > 0}
+        onSaved={invalidate} onExit={() => setPaintMode(false)} />}
     </div>
 
     {scene?.enabledForPlayers && <div className="absolute right-3 top-16 z-20 rounded bg-black/70 px-3 py-1 text-xs">
@@ -334,17 +344,17 @@ export default function PetParkPage() {
     </div>}
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 font-fantasy px-3 pt-[max(12px,env(safe-area-inset-top))]">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={() => navigate("/")}
-          className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64]">← Back</button>
+        <button type="button" disabled={paintMode} onClick={() => navigate("/")}
+          className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64] disabled:opacity-40">← Back</button>
         <h1 className="rounded-full bg-black/65 px-3 py-2 text-sm font-semibold tracking-wider text-[#f5cf64]">Pet Park</h1>
         {scene?.canEditPark ? <button type="button" aria-label="Expand Ground" title="Add more grassy park area"
           onClick={() => void expandGround()}
-          disabled={expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+          disabled={paintMode || expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
           className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
           <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "Expand"}
         </button> : <span className="w-16" />}
       </div>
-      {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-3 gap-2">
+      {scene?.canEditPark && !paintMode && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-3 gap-2">
         <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
         <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Add Decor / Objects</button>
         <button type="button" onClick={() => beginCreate("terrain")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Terrain</button>
@@ -358,7 +368,7 @@ export default function PetParkPage() {
       <button type="button" aria-label="Zoom out of Pet Park" disabled={zoom <= PARK_ZOOM_MIN}
         className="rounded-lg p-2 disabled:opacity-35" onClick={() => changeZoom(zoom - PARK_ZOOM_STEP)}><ZoomOut size={19} /></button>
     </div>}
-    {scene?.canEditPark && !showCreator && !selectedPlacement && <div
+    {scene?.canEditPark && !showCreator && !selectedPlacement && !paintMode && <div
       className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers && (!scene.canEditPark || deposits.length > 0) ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
       <button type="button" onClick={() => beginCreate("scene")} className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#221902]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-[#f5cf64]">+ Add Buildings</button>
@@ -366,6 +376,8 @@ export default function PetParkPage() {
         className="min-w-0 flex-1 rounded-2xl border border-emerald-500/45 bg-[#14281c]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-emerald-200">
         {placementMode ? <>Finish editing <Check size={15} className="inline" /></> : "Move park objects"}
       </button>
+      <button type="button" onClick={() => { setPaintMode(true); setPlacementMode(false); setSelectedPlacement(null); setPlacementDraft(null); setShowCreator(false); }}
+        className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#352712]/90 px-2 py-3 text-sm font-semibold text-amber-100">Paint terrain</button>
     </div>}
     {scene?.canEditPark && placementMode && selectedPlacement && selectedObject && placementDraft && <div
       className={`pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-amber-600 bg-[#10271e]/95 p-3 shadow-xl max-h-[34dvh] overflow-y-auto ${scene.enabledForPlayers ? "bottom-[44%]" : "bottom-[max(12px,env(safe-area-inset-bottom))]"}`}
