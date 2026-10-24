@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
-import { parkWorldHeight, PARK_FALLBACK_ASPECT } from "@/lib/petParkCamera";
+import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
 type ParkDraft = {
@@ -24,11 +24,10 @@ const WATER_EFFECT_OPTIONS: Array<{ type: ParkEffectType; label: string; descrip
 const GOLD_BORDER = "rgba(255,215,0,0.38)";
 const GOLD = "#f5cf64";
 
-export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, worldHeight, onCreated }: {
+export default function PetParkAdminPanel({ initialMode = "scene", mode, creationPosition, onCreated }: {
   initialMode?: "scene" | "effects" | "decor";
   mode: "create" | "settings";
   creationPosition?: { xPct: number; yPct: number };
-  worldHeight?: number;
   onCreated?: (object: CreatedParkObject) => void;
 }) {
   const { toast } = useToast();
@@ -116,15 +115,10 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
               setRates(null); setPublish(null);
             }}>Save reward rates & park availability</button>
         </div>
-        <label className="block text-sm font-semibold">Park background image
-          <input aria-label="Upload park background" type="file" accept="image/*" className="mt-2 block w-full text-xs" disabled={mutation.isPending}
-            onChange={async e => {
-              const file = e.target.files?.[0]; if (!file) return;
-              try { mutation.mutate({ method: "PUT", url: "/api/admin/pet-park/background", body: { imageData: await imageData(file) } }); }
-              catch (error) { toast({ title: String(error), variant: "destructive" }); }
-              e.target.value = "";
-            }} />
-        </label>
+        <p className="rounded-lg border border-emerald-700/45 bg-emerald-950/35 p-3 text-sm text-emerald-100">
+          Pet Park starts with grassy ground. Build your scene using the existing Building, Decor, and Effects controls.
+          Expand the ground from Pet Park itself whenever you need more space.
+        </p>
       </div>
 
       </> : <>
@@ -133,7 +127,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         <div className="grid grid-cols-2 gap-2">
           {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
             data-testid={`add-park-effect-${option.type}`}
-            disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (worldHeight ?? parkWorldHeight(PARK_FALLBACK_ASPECT))))))}
+            disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (PARK_BASE_VIEW_HEIGHT)))))}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
             style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
             <span className="block text-sm text-[#f5cf64]">{option.label}</span>
