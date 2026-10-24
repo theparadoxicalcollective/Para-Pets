@@ -81,12 +81,20 @@ export async function ensurePetParkStorage(): Promise<void> {
       user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       pet_inventory_id varchar NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
       slot_number integer NOT NULL CHECK (slot_number BETWEEN 1 AND 3),
+      show_in_park boolean NOT NULL DEFAULT true,
+      park_x_pct real CHECK (park_x_pct BETWEEN 0 AND 1),
+      park_y_pct real CHECK (park_y_pct BETWEEN 0 AND 1),
       checkpoint_at timestamp NOT NULL DEFAULT now(),
       paused_at timestamp,
       paused_duration_ms integer NOT NULL DEFAULT 0 CHECK (paused_duration_ms >= 0),
       withdrawn_at timestamp,
       created_at timestamp NOT NULL DEFAULT now()
     );
+    -- Existing deposited pets keep their prior public visibility after upgrade.
+    -- New deposits explicitly set false when equipped into an idle earning slot.
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS show_in_park boolean NOT NULL DEFAULT true;
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS park_x_pct real CHECK (park_x_pct BETWEEN 0 AND 1);
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS park_y_pct real CHECK (park_y_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS building_id varchar REFERENCES pet_park_buildings(id) ON DELETE SET NULL;
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_x_pct real NOT NULL DEFAULT 0.5 CHECK (interior_x_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_y_pct real NOT NULL DEFAULT 0.72 CHECK (interior_y_pct BETWEEN 0 AND 1);
