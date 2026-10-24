@@ -42,8 +42,10 @@ test("mobile Pet Park editor matches the Home Bundle layout while keeping actual
   assert.match(page, /\+ Add Decor \/ Objects/);
   assert.match(page, /\+ Add Buildings/);
   assert.match(page, /Move park objects/);
-  assert.match(page, /Change BG/);
-  assert.match(page, /api\/admin\/pet-park\/background/);
+  assert.match(page, /Expand Ground/);
+  assert.match(page, /Zoom in to Pet Park/);
+  assert.match(page, /Zoom out of Pet Park/);
+  assert.match(page, /api\/admin\/pet-park\/ground/);
   assert.match(page, /role="dialog" aria-modal="true"/);
   assert.match(page, /max-h-\[min\(78dvh,780px\)\]/);
   assert.match(page, /pb-\[max\(24px,env\(safe-area-inset-bottom\)\)\]/);
