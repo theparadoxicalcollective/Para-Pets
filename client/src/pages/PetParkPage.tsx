@@ -418,7 +418,7 @@ export default function PetParkPage() {
             className="rounded-full border border-amber-500/35 bg-amber-500/15 p-2 text-[#f5cf64]"><X size={17} /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-          <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} worldHeight={geometry.worldHeight} onCreated={object => {
+          <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} onCreated={object => {
             setShowCreator(false);
             setPlacementMode(true);
             setSelectedPlacement({ kind: object.kind, id: object.id });
