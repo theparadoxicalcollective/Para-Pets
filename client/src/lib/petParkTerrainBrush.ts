@@ -24,19 +24,19 @@ export function parkBrushWorldPoint(
 /** Space stamps in world units, not screen pixels. One fast drag cannot create
  * unbounded items and different screen sizes or zoom levels yield the same trail. */
 export function parkExtendBrushStroke(
-  existing: readonly ParkBrushPoint[], target: ParkBrushPoint,
+  existing: ParkBrushPoint[], target: ParkBrushPoint,
   world: { width: number; height: number }, brushSize: number,
   maxStamps = PARK_BRUSH_MAX_STAMPS,
 ): ParkBrushPoint[] {
   if (!existing.length) return [{ xPct: clamp(target.xPct), yPct: clamp(target.yPct) }];
-  if (existing.length >= maxStamps) return [...existing];
+  if (existing.length >= maxStamps) return existing;
   const last = existing[existing.length - 1];
   const dx = (target.xPct - last.xPct) * world.width;
   const dy = (target.yPct - last.yPct) * world.height;
   const distance = Math.hypot(dx, dy);
   const gap = Math.max(18, brushSize * 0.42);
   const needed = Math.min(Math.floor(distance / gap), maxStamps - existing.length);
-  if (needed <= 0) return [...existing];
+  if (needed <= 0) return existing;
   const next = [...existing];
   for (let i = 1; i <= needed; i++) {
     const portion = Math.min(1, (i * gap) / distance);
