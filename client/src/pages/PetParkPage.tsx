@@ -336,10 +336,11 @@ export default function PetParkPage() {
         <button type="button" onClick={() => navigate("/")}
           className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-4 py-2 text-sm text-[#f5cf64]">← Back</button>
         <h1 className="rounded-full bg-black/65 px-3 py-2 text-sm font-semibold tracking-wider text-[#f5cf64]">Pet Park</h1>
-        {scene?.canEditPark ? <button type="button" onClick={() => void expandGround()}
+        {scene?.canEditPark ? <button type="button" aria-label="Expand Ground" title="Add more grassy park area"
+          onClick={() => void expandGround()}
           disabled={expandingGround || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
           className="pointer-events-auto rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
-          <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Max Ground" : "Expand Ground"}
+          <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "Expand"}
         </button> : <span className="w-16" />}
       </div>
       {scene?.canEditPark && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-2 gap-2">
