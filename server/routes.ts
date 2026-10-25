@@ -22,6 +22,7 @@ import { FishSaleError, sellFish } from "./fishSale";
 import { db } from "./db";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
+import { encodeSceneBackground } from "./sceneBackgroundImage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { COIN_PACKAGES } from "./payments/config";
 import { fulfillStripePurchase } from "./payments/fulfillStripePurchase";
@@ -1919,7 +1920,7 @@ export async function registerRoutes(
         ]);
         return res.json({ bgUrl: null });
       }
-      const processed = await processWorldImage(imageData, 2000);
+      const processed = await processWorldImage(imageData, 2000, "background");
       await Promise.all([
         storage.setGameSetting("map_background", processed),
         storage.setGameSetting("map_background_asset_version", MAP_BACKGROUND_ASSET_VERSION),
@@ -1975,7 +1976,7 @@ export async function registerRoutes(
         iconUrl = await processWorldImage(iconData, 500);
       }
       if (bgData) {
-        bgUrl = await processWorldImage(bgData, 2000);
+        bgUrl = await processWorldImage(bgData, 2000, "background");
       }
 
       const world = await storage.createWorld({
@@ -2016,13 +2017,13 @@ export async function registerRoutes(
         updates.iconUrl = await processWorldImage(iconData, 500);
       }
       if (bgData) {
-        updates.bgUrl = await processWorldImage(bgData, 2000);
+        updates.bgUrl = await processWorldImage(bgData, 2000, "background");
       }
       if (skyImageData) {
-        updates.skyImageUrl = await processWorldImage(skyImageData, 2000);
+        updates.skyImageUrl = await processWorldImage(skyImageData, 2000, "background");
       }
       if (groundImageData) {
-        updates.groundImageUrl = await processWorldImage(groundImageData, 2000);
+        updates.groundImageUrl = await processWorldImage(groundImageData, 2000, "background");
       }
 
       if (Object.keys(updates).length === 0) {
@@ -2083,7 +2084,7 @@ export async function registerRoutes(
         iconUrl = await processWorldImage(iconData, 1000);
       }
       if (bgData) {
-        bgUrl = await processWorldImage(bgData, 2000);
+        bgUrl = await processWorldImage(bgData, 2000, "background");
       }
       if (ownerImageData) {
         ownerImageUrl = await processWorldImage(ownerImageData, 1000);
@@ -2438,7 +2439,7 @@ export async function registerRoutes(
         sanitized.iconUrl = await processWorldImage(iconData, 1000);
       }
       if (bgData) {
-        sanitized.bgUrl = await processWorldImage(bgData, 2000);
+        sanitized.bgUrl = await processWorldImage(bgData, 2000, "background");
       }
       if (ownerImageData) {
         sanitized.ownerImageUrl = await processWorldImage(ownerImageData, 1000);
@@ -2481,7 +2482,7 @@ export async function registerRoutes(
       }
       const buf = fs.readFileSync(assetPath);
       const dataUrl = `data:image/png;base64,${buf.toString("base64")}`;
-      const bgUrl = await processWorldImage(dataUrl, 2000);
+      const bgUrl = await processWorldImage(dataUrl, 2000, "background");
       const updated = await storage.updateWorldLocation(locationId, { bgUrl });
       return res.json(updated);
     } catch (err) {
@@ -3044,7 +3045,9 @@ export async function registerRoutes(
     }
   });
 
-  async function processWorldImage(imageData: string, maxSize: number): Promise<string> {
+  // Still scenery has its own high-detail bound; maxSize remains the legacy
+  // item/GIF limit so opting in never expands animated background textures.
+  async function processWorldImage(imageData: string, maxSize: number, purpose?: "background"): Promise<string> {
     const mimeMatch = imageData.match(/^data:(image\/[\w+.-]+);base64,/);
     if (!mimeMatch) {
       throw new Error("Invalid image format.");
@@ -3065,6 +3068,10 @@ export async function registerRoutes(
         .toBuffer();
       resizedBase64 = resized.toString("base64");
       finalMime = "image/gif";
+    } else if (purpose === "background") {
+      const encoded = await encodeSceneBackground(imageBuffer);
+      resizedBase64 = encoded.toString("base64");
+      finalMime = "image/webp";
     } else {
       const resized = await sharp(imageBuffer)
         .resize(maxSize, maxSize, { fit: "inside", withoutEnlargement: true })
