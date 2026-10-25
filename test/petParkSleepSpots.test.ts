@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { isParkSleepPosition } from "../client/src/lib/petParkSleepSpots";
 import { getHouseInteriorSleepSnapPosition, isHouseInteriorSleepPosition, isHouseOutdoorEffectType } from "../shared/housing";
 
@@ -32,4 +33,15 @@ test("Home Bundle outdoor sleep squares reuse the existing sleep snapping rules"
   assert.equal(isHouseInteriorSleepPosition(exterior, 0.4, 0.65, 1), true);
   assert.deepEqual(getHouseInteriorSleepSnapPosition(exterior, 0.42, 0.66, 1), { effectId: "outdoor-sleep", x: 0.4, y: 0.65 });
   assert.equal(isHouseInteriorSleepPosition(exterior, 0.65, 0.65, 1), false);
+});
+
+test("both player scenes actually connect their outdoor sleep regions to pet modes", () => {
+  const park = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
+  const house = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const editor = readFileSync("client/src/components/HomeInteriorEffect.tsx", "utf8");
+  assert.match(park, /isParkSleepPosition\(position, scene.items/);
+  assert.match(park, /sleeping \? "sleep" : "idle"/);
+  assert.match(house, /activeBundle\?\.exteriorEffects \?\? \[\]\)\.filter\(effect => effect.type === "sleep"\)/);
+  assert.match(house, /getHouseInteriorSleepSnapPosition\(\s*outdoorSleepDecorEffects/);
+  assert.match(editor, /isHouseOutdoorEffectType\(option.type\)/);
 });
