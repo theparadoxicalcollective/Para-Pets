@@ -12,7 +12,7 @@ export interface HouseBundleRouteDependencies {
   storage: IStorage;
   isAuthenticated: RequestHandler;
   isAdmin: RequestHandler;
-  processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
+  processWorldImage: (imageData: string, maxSize: number, purpose?: "background") => Promise<string>;
   storeAllHomeScene?: (userId: string) => Promise<{ returnedDecor: number; returnedObjects: number; returnedPets: number }>;
   ensureIncludedItemsGranted?: (userId: string) => Promise<unknown>;
   applyIncludedItemTemplates?: (userId: string, bundleId?: string) => Promise<unknown>;
@@ -22,7 +22,7 @@ export interface HouseBundleRouteDependencies {
  * Player + admin house bundle routes.
  *
  * This module preserves the legacy URLs, public/auth boundaries, status codes,
- * response shapes, image processing limits, purchase/refund behavior, and
+ * response shapes, purchase/refund behavior, and
  * bundle-building editing rules.
  */
 export function registerHouseBundleRoutes(
@@ -193,7 +193,7 @@ export function registerHouseBundleRoutes(
       let shopImageUrl: string | undefined;
       let bgImageUrl: string | undefined;
       if (shopImageData) shopImageUrl = await processWorldImage(shopImageData, 1000);
-      if (bgImageData) bgImageUrl = await processWorldImage(bgImageData, 3000);
+      if (bgImageData) bgImageUrl = await processWorldImage(bgImageData, 3000, "background");
       const bundle = await storage.createHouseBundle({
         name,
         price: price ?? 0,
@@ -215,7 +215,7 @@ export function registerHouseBundleRoutes(
       if (name !== undefined) updates.name = name;
       if (price !== undefined) updates.price = price;
       if (shopImageData) updates.shopImageUrl = await processWorldImage(shopImageData, 1000);
-      if (bgImageData) updates.bgImageUrl = await processWorldImage(bgImageData, 3000);
+      if (bgImageData) updates.bgImageUrl = await processWorldImage(bgImageData, 3000, "background");
       if (giftNotificationX !== undefined) updates.giftNotificationX = giftNotificationX;
       if (giftNotificationY !== undefined) updates.giftNotificationY = giftNotificationY;
       if (maxOutdoorPets !== undefined) updates.maxOutdoorPets = Math.max(0, Number(maxOutdoorPets));
@@ -467,7 +467,7 @@ export function registerHouseBundleRoutes(
       if (width !== undefined) updates.width = Math.max(20, Math.min(600, Number(width)));
       if (flippedX !== undefined) updates.flippedX = Boolean(flippedX);
       if (imageData) updates.imageUrl = await processWorldImage(imageData, 1000);
-      if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 2000);
+      if (interiorImageData) updates.interiorImageUrl = await processWorldImage(interiorImageData, 2000, "background");
       if (clearInterior) updates.interiorImageUrl = null;
       if (size !== undefined) {
         if (!isBuildingSize(size)) return res.status(400).json({ message: "size must be small, medium, or large" });

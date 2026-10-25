@@ -136,8 +136,8 @@ function setup(options: { activeBundleId?: string | null; ownsBundle?: boolean; 
     },
   };
 
-  const processWorldImage = async (data: string, maxSize: number) => {
-    calls.images.push([data, maxSize]);
+  const processWorldImage = async (data: string, maxSize: number, purpose?: "background") => {
+    calls.images.push(purpose ? [data, maxSize, purpose] : [data, maxSize]);
     return `processed-${maxSize}`;
   };
 
@@ -388,7 +388,7 @@ test("house bundle shop stock keeps admin mutations and authenticated player lis
   assert.deepEqual(calls.unassignedBundles, [["bayou-shop", "bundle-2"]]);
 });
 
-test("admin bundle creation keeps the existing image processing limits", async () => {
+test("admin bundle creation requests high-detail scenery without changing shop thumbnails", async () => {
   const { app, calls } = setup();
   const res = await call(app, "POST", "/api/admin/house-bundles", {
     body: {
@@ -401,7 +401,7 @@ test("admin bundle creation keeps the existing image processing limits", async (
 
   assert.deepEqual(calls.images, [
     ["shop-data", 1000],
-    ["bg-data", 3000],
+    ["bg-data", 3000, "background"],
   ]);
   assert.deepEqual(calls.createdBundles, [
     {
@@ -506,7 +506,7 @@ test("building editing keeps current size and placement clamps", async () => {
 
   assert.deepEqual(calls.images, [
     ["outside", 1000],
-    ["inside", 2000],
+    ["inside", 2000, "background"],
   ]);
   assert.deepEqual(calls.updatedBuildings, [
     [
