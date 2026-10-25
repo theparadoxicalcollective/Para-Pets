@@ -38,3 +38,4 @@ jobs:
             exit 1
           fi
           node script/browser-smoke.mjs
+          node script/npc-discovery-smoke.mjs
