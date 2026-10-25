@@ -12,27 +12,29 @@ const visual = readFileSync("client/src/components/ParkEffectVisual.tsx", "utf8"
 const home = readFileSync("client/src/components/HomeInteriorEffect.tsx", "utf8");
 const routes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 
-test("Pet Park supports all seven Home Bundle outdoor effects and retains three water effects", () => {
+test("Pet Park supports all eight Home Bundle outdoor effects and retains three water effects", () => {
   assert.deepEqual([...HOUSE_OUTDOOR_EFFECT_TYPES].sort(), [
-    "candle_light", "dust_motes", "fire", "lamp_light", "soft_mist", "sparkles", "warm_glow",
+    "candle_light", "dust_motes", "fire", "lamp_light", "sleep", "soft_mist", "sparkles", "warm_glow",
   ]);
-  assert.equal(HOUSE_OUTDOOR_EFFECT_TYPES.length + PARK_WATER_EFFECT_TYPES.length, 10);
+  assert.equal(HOUSE_OUTDOOR_EFFECT_TYPES.length + PARK_WATER_EFFECT_TYPES.length, 11);
   for (const type of [...HOUSE_OUTDOOR_EFFECT_TYPES, ...PARK_WATER_EFFECT_TYPES]) {
     assert.equal(isParkEffect(type), true, `unsupported ${type}`);
   }
-  for (const invalid of ["sleep", "arbitrary", "", null, 1]) {
+  for (const invalid of ["arbitrary", "", null, 1]) {
     assert.equal(isParkEffect(invalid), false);
   }
   assert.equal(isParkOutdoorEffect("fire"), true);
+  assert.equal(isParkOutdoorEffect("sleep"), true);
+  assert.equal(isParkEffect("sleep"), true);
   assert.equal(isParkWaterEffect("fire"), false);
   assert.match(routes, /kind === "effect" && !isParkEffect\(effectType\)/);
   assert.match(routes, /isAdmin/);
 });
 
 test("home outdoor artwork is reused, not duplicated, for Pet Park visuals", () => {
-  assert.match(visual, /<HomeOutdoorEffectVisual type=\{type\} reducedMotion=\{reducedMotion\}/);
+  assert.match(visual, /<HomeOutdoorEffectVisual type=\{type\} reducedMotion=\{reducedMotion\} adminPreview=\{adminPreview\}/);
   assert.match(home, /export function HomeOutdoorEffectVisual/);
-  assert.match(home, /<EffectVisual type=\{type\} adminPreview=\{false\}/);
+  assert.match(home, /<EffectVisual type=\{type\} adminPreview=\{adminPreview\}/);
   assert.match(home, /prefers-reduced-motion: reduce/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
 });
@@ -63,7 +65,10 @@ test("effect picker exposes Home effect cards and existing water options", () =>
   for (const type of PARK_WATER_EFFECT_TYPES) assert.ok(panel.includes(type));
   assert.match(panel, /onClick=\{\(\) => addEffect\(option.type/);
   assert.match(panel, /disabled=\{mutation.isPending\}/);
-  assert.match(panel, /Interactive rest spot|Rest Spot/);
+  assert.match(panel, /Rest Spot/);
+  assert.match(panel, /Pet Park decor size preview/);
+  assert.match(panel, /size: itemSize/);
+  assert.match(page, /isParkSleepPosition\(position, scene.items/);
   assert.match(panel, /aria-pressed=\{buildingCapacity === capacity\}/);
   assert.match(panel, /data-testid="button-create-park-building"/);
   assert.match(panel, /data-testid="button-create-park-item"/);
