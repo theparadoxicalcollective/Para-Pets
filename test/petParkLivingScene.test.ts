@@ -27,7 +27,9 @@ test("park placement is deterministic, bounded and supports admin rest spots", (
 test("offline activity is stable per pet, honors reduced motion and preserves inspection", () => {
   assert.deepEqual(parkPetActivity("visitor-a"), parkPetActivity("visitor-a"));
   assert.match(park, /prefers-reduced-motion: reduce/);
-  assert.match(park, /activity\.kind === "rest" \? "sleep" : "idle"/);
+  assert.match(park, /isParkSleepPosition\(position, scene\.items/);
+  assert.match(park, /pet\.pose === "sleep"/);
+  assert.match(park, /sleeping \? "sleep" : "idle"/);
   assert.match(park, /setInspectedPet\(pet\)/);
   assert.match(park, /refetchInterval: 30_000/);
 });
