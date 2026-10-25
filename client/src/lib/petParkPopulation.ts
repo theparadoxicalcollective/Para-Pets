@@ -1,6 +1,6 @@
 import { parkPetSeed, type ParkPoint } from "./petParkActivity";
 
-export type ParkObstacle = { kind: "decor" | "sleep_spot" | "effect" | "terrain"; xPct: number; yPct: number; size: number };
+export type ParkObstacle = { kind: "decor" | "sleep_spot" | "effect" | "terrain"; effectType?: string | null; xPct: number; yPct: number; size: number };
 export type ParkVisitor = { petInventoryId: string };
 
 const COLUMNS = 14;
@@ -38,7 +38,7 @@ export function arrangeParkVisitors(visitors: ParkVisitor[], objects: ParkObstac
   const occupied = new Set<number>();
   const positions = new Map<string, ParkPoint>();
   const sorted = [...visitors].sort((a, b) => parkPetSeed(a.petInventoryId) - parkPetSeed(b.petInventoryId) || a.petInventoryId.localeCompare(b.petInventoryId));
-  const restSpots = objects.filter(object => object.kind === "sleep_spot");
+  const restSpots = objects.filter(object => object.kind === "sleep_spot" || (object.kind === "effect" && object.effectType === "sleep"));
   for (const visitor of sorted) {
     const seed = parkPetSeed(visitor.petInventoryId);
     let start = seed % CELLS;
@@ -57,7 +57,15 @@ export function arrangeParkVisitors(visitors: ParkVisitor[], objects: ParkObstac
           return ((a.x - spot.xPct) ** 2 + (a.y - spot.yPct) ** 2) -
             ((b.x - spot.xPct) ** 2 + (b.y - spot.yPct) ** 2) || left - right;
         });
-      if (nearby.length) start = nearby[Math.floor(seed / 5) % Math.min(24, nearby.length)];
+      if (nearby.length) {
+        const availableInside = nearby.find(cell => {
+          const point = cellPosition(cell);
+          return !occupied.has(cell) &&
+            Math.abs((point.x - spot.xPct) * 1100) <= spot.size / 2 &&
+            Math.abs((point.y - spot.yPct) * 1700) <= spot.size / 2;
+        });
+        start = availableInside ?? nearby[Math.floor(seed / 5) % Math.min(24, nearby.length)];
+      }
     }
     let chosen = -1;
     for (let step = 0; step < CELLS; step++) {
