@@ -317,7 +317,7 @@ export default function PetParkPage() {
             style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
               transform: "translate(-50%, -75%)", width: 140 * scale, height: 165 * scale, zIndex: parkDepthIndex({ yPct: position.y, worldHeight: geometry.worldHeight, size: 165, kind: "pet" }) }}>
             <PetParkGroundShadow kind="pet" />
-            <div className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : activity.kind === "wander" ? "pet-park-wander" : sleeping ? "pet-park-rest" : "pet-park-idle"}`}
+            <div className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
               <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
