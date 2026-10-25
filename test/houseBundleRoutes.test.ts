@@ -416,7 +416,7 @@ test("admin bundle creation requests high-detail scenery without changing shop t
   assert.equal(res.statusCode, 201);
 });
 
-test("bundle outdoor effects are sanitized and Sleep Square cannot be saved outside", async () => {
+test("bundle outdoor effects sanitize coordinates and preserve Sleep Square interaction regions", async () => {
   const { app, calls } = setup();
 
   const res = await call(app, "PATCH", "/api/admin/house-bundles/:id", {
@@ -436,6 +436,7 @@ test("bundle outdoor effects are sanitized and Sleep Square cannot be saved outs
     {
       exteriorEffects: [
         { id: "fire", type: "fire", x: 0, y: 1, size: 40 },
+        { id: "sleep", type: "sleep", x: 0.5, y: 0.5, size: 18 },
         { id: "mist", type: "soft_mist", x: 0.4, y: 0.6, size: 20 },
       ],
     },
