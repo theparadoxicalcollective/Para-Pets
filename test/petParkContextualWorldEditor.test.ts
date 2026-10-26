@@ -26,19 +26,20 @@ test("Pet Park creates buildings, decor, rest spots and effects in the real worl
   assert.ok(panel.includes('type: "water_ripple"'), "Water ripples remain available in the effect picker");
   assert.ok(panel.includes('HOME_OUTDOOR_EFFECT_OPTIONS.map'), "Home Bundle outdoor effects are offered without duplication");
   assert.ok(page.includes('setSelectedPlacement({ kind: object.kind, id: object.id })'));
-  assert.ok(page.includes('setPlacementMode(true)'));
+  assert.ok(!page.includes('placementMode'), "objects edit directly without a separate Move mode");
 });
 
-test("in-scene edits preview all fields, save complete item payloads and preserve cancellation", () => {
-  assert.ok(page.includes('size: Math.min(1000, draft.size + 20)'));
-  assert.ok(page.includes('size: Math.max(1, draft.size - 20)'));
-  assert.ok(page.includes('flipped: !draft.flipped'));
+test("in-scene edits autosave positions, keep optional exact fields and allow deselection", () => {
+  assert.ok(page.includes('size: Math.min(1000, placementDraft.size + 20)'));
+  assert.ok(page.includes('size: Math.max(1, placementDraft.size - 20)'));
+  assert.ok(page.includes('flipped: !placementDraft.flipped'));
   assert.ok(page.includes('shownPosition("building", building).size * scale'));
   assert.ok(page.includes('kind: "item", layer: shownPosition("item", item).layer'), "item layering now combines ground depth and admin override");
   assert.ok(page.includes('return apiRequest("PATCH", path, placement)'), "PATCH includes coordinates, size, flip and layer");
   assert.ok(page.includes('placementSave.mutate({ ...selectedPlacement, ...placementDraft })'));
-  assert.ok(page.includes('setSelectedPlacement(null); setPlacementDraft(null);'), "cancel must discard edits");
-  assert.ok(page.includes('window.confirm("Remove this object from Pet Park?")'));
+  assert.ok(page.includes('setSelectedPlacement(null); setPlacementDraft(null);'), "tapping Done or blank ground deselects");
+  assert.ok(page.includes('window.confirm("Remove this object from Pet Park?")'), "confirmation remains for non-terrain objects");
+  assert.ok(page.includes('(selectedObject as ParkItem).kind === "terrain"'), "terrain removes without confirmation");
   assert.ok(routes.includes('app.patch("/api/admin/pet-park/items/:id", isAdmin'));
   assert.ok(routes.includes('!validSize(size)'));
   assert.ok(routes.includes('typeof flipped !== "boolean"'));
