@@ -10,7 +10,7 @@ test("closed Pet Park does not block admins, but keeps normal players behind und
   assert.match(page, /Admin preview · Park closed to players/);
   assert.match(page, /scene\?\.canEditPark && showCreator/);
   assert.match(page, /scene\?\.canEditPark && detailsBuilding/);
-  assert.match(page, /Add Effects/);
+  assert.match(page, /\["effects", "\+ Effects"\]/);
   assert.match(page, /initialMode=\{editorMode\} mode="create"/);
   assert.doesNotMatch(page, /Advanced edit/);
 });
@@ -22,7 +22,7 @@ test("admin settings and direct creation retain water effects, player access and
   assert.match(page, /onPointerMove=\{movePlacement\}/);
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
   assert.match(editor, /mode === "settings"/);
-  assert.match(page, /Add Buildings/);
+  assert.match(page, /\["scene", "\+ Building"\]/);
   assert.match(page, /Add Decor/);
   assert.match(editor, /coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300/);
   assert.match(editor, /Save reward rates & park availability/);
