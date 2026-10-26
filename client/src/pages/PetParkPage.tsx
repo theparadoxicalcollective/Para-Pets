@@ -289,7 +289,7 @@ export default function PetParkPage() {
         changeZoom(zoom * (e.deltaY > 0 ? 0.91 : 1.09),
           { x: e.clientX - (bounds?.left ?? 0), y: e.clientY - (bounds?.top ?? 0) });
       }}>
-      {scene && <PetParkTerrain grassMode={grassMode} viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
+      {scene && <PetParkTerrain viewportWidth={viewportSize.width} grassMode={grassMode} viewportHeight={viewportSize.height}
         worldWidth={geometry.worldWidth} worldHeight={geometry.worldHeight}
         scale={scale} panX={camera.x} panY={camera.y} />}
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
