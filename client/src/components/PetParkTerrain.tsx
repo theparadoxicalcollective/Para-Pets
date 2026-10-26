@@ -1,8 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import grassTileUrl from "@assets/uploads/GrassTile.png";
 import {
   parkTerrainCellWindow, parkTerrainNoise, parkVisibleTerrainBounds,
   type ParkTerrainViewport, type ParkTerrainBounds,
 } from "@/lib/petParkTerrain";
+
+export type ParkGrassMode = "tile" | "procedural";
 
 /**
  * One camera-aligned visual canvas; there is no second game stage or placement
@@ -10,8 +13,19 @@ import {
  * Organic washes and restrained 2:1 diamond highlights create a painterly,
  * isometric-inspired ground, not a new projection of gameplay coordinates.
  */
-export default function PetParkTerrain(view: ParkTerrainViewport) {
+export default function PetParkTerrain(view: ParkTerrainViewport & { grassMode?: ParkGrassMode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [grassImage, setGrassImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const image = new window.Image();
+    image.decoding = "async";
+    image.onload = () => setGrassImage(image);
+    image.onerror = () => setGrassImage(null);
+    image.src = grassTileUrl;
+    return () => { image.onload = null; image.onerror = null; };
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || view.viewportWidth < 2 || view.viewportHeight < 2) return;
@@ -25,13 +39,47 @@ export default function PetParkTerrain(view: ParkTerrainViewport) {
     if (canvas.height !== height) canvas.height = height;
     const frame = window.requestAnimationFrame(() => {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      paintTerrain(ctx, view);
+      if (view.grassMode !== "procedural" && grassImage) {
+        paintGrassTile(ctx, view, grassImage);
+      } else {
+        // The original remains an exact comparison mode and a safe load fallback.
+        paintTerrain(ctx, view);
+      }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight, view.scale, view.panX, view.panY]);
+  }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight, view.scale, view.panX, view.panY, view.grassMode, grassImage]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
     className="pointer-events-none absolute inset-0 h-full w-full" style={{ backgroundColor: "#6d8754" }} />;
+}
+
+// Fixed world-space footprint; camera movement, zoom, and ground expansion never
+// reset the tile origin or change its scale relative to park objects.
+const GRASS_TILE_WORLD_SIZE = 512;
+
+function paintGrassTile(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport, image: HTMLImageElement) {
+  const bounds = parkVisibleTerrainBounds(view);
+  ctx.fillStyle = "#244421";
+  ctx.fillRect(0, 0, view.viewportWidth, view.viewportHeight);
+  if (bounds.left >= bounds.right || bounds.top >= bounds.bottom) return;
+
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.scale(view.scale, view.scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, view.worldWidth, view.worldHeight);
+  ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Draw only tiles intersecting the viewport; no enormous world-size bitmap.
+  const visible = parkTerrainCellWindow(bounds, GRASS_TILE_WORLD_SIZE, GRASS_TILE_WORLD_SIZE, 0);
+  for (let y = visible.minY; y <= visible.maxY; y++) {
+    for (let x = visible.minX; x <= visible.maxX; x++) {
+      ctx.drawImage(image, x * GRASS_TILE_WORLD_SIZE, y * GRASS_TILE_WORLD_SIZE, GRASS_TILE_WORLD_SIZE, GRASS_TILE_WORLD_SIZE);
+    }
+  }
+  ctx.restore();
 }
 
 function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) {
