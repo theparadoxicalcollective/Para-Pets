@@ -73,6 +73,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
+  const [starterGrantError, setStarterGrantError] = useState(false);
+  const [completionRetryTick, setCompletionRetryTick] = useState(0);
   const [potionsGranted, setPotionsGranted]   = useState(false);
   const [showRescue, setShowRescue]           = useState(false);
   const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
@@ -93,6 +95,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const potionGrantAttemptedRef = useRef(false);
   const dragPotionCleanupRef = useRef<(() => void) | null>(null);
   const completionRetryAfterRef = useRef(0);
+  const completionInFlightRef = useRef(false);
 
   useEffect(() => () => {
     dragPotionCleanupRef.current?.();
@@ -122,6 +125,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       completionRetryAfterRef.current = Date.now() + 5000;
+      completionInFlightRef.current = false;
     },
   });
 
@@ -138,7 +142,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     },
   });
 
-  const { data: starterPets = [], isLoading: starterPetsLoading, isError: starterPetsError } = useQuery<StarterPetChoice[]>({
+  const { data: starterPets = [], isLoading: starterPetsLoading, isError: starterPetsError, refetch: refetchStarterPets } = useQuery<StarterPetChoice[]>({
     queryKey: ["/api/tutorial/starter-pets"],
     enabled: showGrantModal,
     staleTime: 30_000,
@@ -222,7 +226,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   }, [step, location]);
 
   // ── Check for the chosen egg at step 3 ────────────────────────────────────
-  const { data: invCheck } = useQuery<any[]>({
+  const { data: invCheck, isError: invCheckError, refetch: refetchInvCheck } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
     enabled: step === 3 && location === "/pets",
     staleTime: 0,
@@ -270,7 +274,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
   // ── Poll inventory for hatch at step 5 ────────────────────────────────────
   const isHatchCompletionStep = step === 5 || step === 6;
-  const { data: invHatch } = useQuery<any[]>({
+  const { data: invHatch, isError: invHatchError, refetch: refetchInvHatch } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
     enabled: isHatchCompletionStep,
     refetchInterval: isHatchCompletionStep ? 1000 : false,
@@ -278,7 +282,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (!isHatchCompletionStep || !invHatch || completeTutorialMutation.isPending) return;
+    if (!isHatchCompletionStep || !invHatch || completeTutorialMutation.isPending || completionInFlightRef.current) return;
     const starterId = bjGetStarterInventoryId();
     // If a reload lost the active pet selection, return to the actual starter
     // rather than waiting forever on an empty finishing step.
@@ -313,9 +317,32 @@ export default function BeginJourneyOverlay({ user }: Props) {
         bjSetStep(6);
         setStep(6);
       }
-      if (Date.now() >= completionRetryAfterRef.current) completeTutorialMutation.mutate();
+      if (Date.now() >= completionRetryAfterRef.current) {
+        // Polling, timer and step transitions may run before mutation state has
+        // rendered. Own the request synchronously to avoid duplicate dispatch.
+        completionInFlightRef.current = true;
+        completeTutorialMutation.mutate();
+      }
     }
-  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, navigate]);
+  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, completionRetryTick, navigate]);
+
+  // Query results can remain referentially identical on every poll. Schedule
+  // a real retry instead of waiting for inventory data to happen to change.
+  useEffect(() => {
+    if (step !== 6 || !completeTutorialMutation.isError) return;
+    const timer = window.setTimeout(
+      () => setCompletionRetryTick(value => value + 1),
+      Math.max(0, completionRetryAfterRef.current - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [step, completeTutorialMutation.isError]);
+
+  useEffect(() => {
+    if (step === 0) {
+      completionInFlightRef.current = false;
+      completionRetryAfterRef.current = 0;
+    }
+  }, [step]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
@@ -421,6 +448,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (grantLoading) return;
     setSelectedStarterId(petId);
     setGrantLoading(true);
+    setStarterGrantError(false);
     try {
       const response = await apiRequest("POST", "/api/tutorial/grant-starter-egg", { petId });
       const result = await response.json();
@@ -431,6 +459,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       setStep(1);
       navigate("/");
     } catch {
+      setStarterGrantError(true);
       queryClient.invalidateQueries({ queryKey: ["/api/tutorial/starter-pets"] });
     } finally {
       setGrantLoading(false);
@@ -625,6 +654,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       {/* Circular click forwarder over spotlight — skip for free mode and step 5 (potions are the target) */}
       {!isFree && stepNum !== 5 && stepNum !== 6 && pr && (
         <div
+          data-testid="begin-journey-forwarder"
           onClick={handleForwarderClick}
           style={{
             position: "absolute",
@@ -712,6 +742,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
         const onPotionDown = (e: React.PointerEvent<HTMLDivElement>) => {
           e.preventDefault();
+          e.stopPropagation();
           const pid = e.pointerId;
           dragPotionCleanupRef.current?.();
 
@@ -755,7 +786,14 @@ export default function BeginJourneyOverlay({ user }: Props) {
           const onUp = (ev: PointerEvent) => {
             if (ev.pointerId !== pid) return;
             cleanup();
-            finishUse();
+            setDragPotionPreview(null);
+            // Use physical client coordinates for both pointer and egg. A tap
+            // or a drop elsewhere must not consume the player's potion.
+            const egg = document.querySelector<HTMLElement>('[data-testid="button-egg-tap"]');
+            const bounds = egg?.getBoundingClientRect();
+            if (bounds && bounds.width > 0 && bounds.height > 0
+              && ev.clientX >= bounds.left && ev.clientX <= bounds.right
+              && ev.clientY >= bounds.top && ev.clientY <= bounds.bottom) finishUse();
           };
           const onCancel = (ev: PointerEvent) => {
             if (ev.pointerId !== pid) return;
@@ -774,7 +812,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
             key="tutorial-potion"
             data-testid="button-speedup-tutorial"
             style={{
-              position:  "fixed",
+              position:  "absolute",
               bottom:    48,
               left:      "50%",
               transform: "translateX(-50%)",
@@ -782,6 +820,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
               touchAction: "none",
               userSelect:  "none",
               cursor:      "grab",
+              pointerEvents: "auto",
             }}
             onPointerDown={onPotionDown}
           >
@@ -820,6 +859,17 @@ export default function BeginJourneyOverlay({ user }: Props) {
           </div>
         );
       })()}
+
+      {((stepNum === 3 && invCheckError) || (isHatchCompletionStep && invHatchError) || (stepNum === 5 && grantPotionsMutation.isError)) && (
+        <div role="alert" style={{ position: "absolute", bottom: 24, left: "5%", width: "90%", zIndex: 99009, pointerEvents: "auto", background: "#17251b", color: "#ffefc6", padding: 12, borderRadius: 12, textAlign: "center" }}>
+          {invCheckError || invHatchError ? "Your inventory could not load." : "Your hatching potions could not load."}
+          <button type="button" data-testid="button-retry-journey-items" onClick={() => {
+            if (stepNum === 3) void refetchInvCheck();
+            else if (invHatchError) void refetchInvHatch();
+            else grantPotionsMutation.mutate();
+          }} style={{ marginLeft: 12, textDecoration: "underline" }}>Retry</button>
+        </div>
+      )}
 
       {/* While the player drags, this copy follows their finger all the way to the egg. */}
       {stepNum === 5 && dragPotionPreview && (
@@ -877,6 +927,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
             padding: "28px 24px", maxWidth: 320, width: "100%",
             boxShadow: "0 0 40px rgba(212,168,67,0.15), 0 24px 60px rgba(0,0,0,0.85)",
             textAlign: "center", pointerEvents: "auto",
+            maxHeight: Math.max(120, surface.height - 48), overflowY: "auto", boxSizing: "border-box",
           }}>
             <div style={{ fontSize: 42, marginBottom: 8 }}>🥚</div>
             <h3 style={{ fontFamily: "Lora, Georgia, serif", color: "#f0d060", fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>
@@ -887,7 +938,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
             </p>
             <div style={{ maxHeight: Math.max(180, surface.height * 0.46), overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
               {starterPetsLoading && <p style={{ gridColumn: "1 / -1", color: "#d8c58a", fontSize: 12 }}>Loading companions…</p>}
-              {starterPetsError && <p style={{ gridColumn: "1 / -1", color: "#e7a0a0", fontSize: 12 }}>Companions could not load. Tap outside and try again.</p>}
+              {starterPetsError && <div role="alert" style={{ gridColumn: "1 / -1", color: "#e7a0a0", fontSize: 12 }}>
+                Companions could not load. <button type="button" data-testid="button-retry-starter-pets" onClick={() => void refetchStarterPets()} style={{ textDecoration: "underline" }}>Retry</button>
+              </div>}
+              {starterGrantError && <p role="alert" style={{ gridColumn: "1 / -1", color: "#e7a0a0", fontSize: 12 }}>Your egg could not be selected. Choose your companion again to retry.</p>}
               {!starterPetsLoading && !starterPetsError && starterPets.length === 0 && (
                 <p style={{ gridColumn: "1 / -1", color: "#d8c58a", fontSize: 12 }}>No complete 3-star pet eggs are available yet.</p>
               )}
