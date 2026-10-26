@@ -50,7 +50,7 @@ test("tile positions are world anchored, viewport bounded, and consistent across
 
 test("admin can compare GrassTile with the unchanged original without moving saved park items", () => {
   assert.match(park, /useState<ParkGrassMode>\("tile"\)/);
-  assert.match(park, /<PetParkTerrain grassMode=\{grassMode\}/);
+  assert.match(park, /<PetParkTerrain viewportWidth=\{viewportSize\.width\} grassMode=\{grassMode\}/);
   assert.match(park, /scene\?\.canEditPark && !activeBuilding && !paintMode && !showCreator/);
   assert.match(park, /aria-label="Compare Pet Park grass"/);
   assert.match(park, /aria-pressed=\{grassMode === "tile"\}/);
