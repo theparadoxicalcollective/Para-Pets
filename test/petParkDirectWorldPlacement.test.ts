@@ -18,3 +18,12 @@ test("Pet Park uses existing world scene to move buildings, decor and effects wi
   assert.match(admin, /app\.patch\("\/api\/admin\/pet-park\/buildings\/:id"/);
   assert.match(admin, /app\.patch\("\/api\/admin\/pet-park\/items\/:id"/);
 });
+
+test("touch gestures keep drag selection separate from the existing two-finger park camera", () => {
+  assert.match(page, /data-park-draggable/, "draggable objects bypass viewport panning");
+  assert.match(page, /if \(e.pointerType !== "touch"\) e.stopPropagation\(\)/, "touch-down still reaches pinch tracking");
+  assert.match(page, /touchPoints\.current\.set\(e.pointerId, \{ x: e.clientX, y: e.clientY \}\)/);
+  assert.match(page, /setPlacementDraft\(placementPointer.current.placement\)/, "pinch cancels any unsaved object movement");
+  assert.match(page, /placementPointer\.current = null;/);
+  assert.match(page, /if \(pinch.current\) return;/);
+});
