@@ -102,10 +102,10 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
           <h3 className="font-semibold">Park rewards & player access</h3>
           <p className="text-xs">Rates are stored per hour. The recommended preset equals 1 coin/minute, 5 pet XP/minute and 2 essence/5 minutes. Closing pauses earning but preserves deposits and rewards.</p>
-          <button type="button" className="rounded bg-teal-800 px-3 py-2 text-sm" onClick={() => setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 })}>Use recommended reward rates</button>
+          <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 })}>Use recommended reward rates</button>
           {(["coinsPerHour", "essencePerHour", "petXpPerHour"] as const).map(key => <label key={key} className="flex items-center justify-between gap-2 text-sm">
             <span>{key === "coinsPerHour" ? "Coins / hour" : key === "essencePerHour" ? "Essence / hour" : "Pet XP / hour"}</span>
-            <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-slate-900 p-2"
+            <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-[#0b2016] p-2"
               value={(rates ?? data?.settings)?.[key] ?? 0}
               onChange={e => setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
                 essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
@@ -115,7 +115,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             <input type="checkbox" aria-label="Allow players into Pet Park" className="h-5 w-5 accent-amber-500" checked={publish ?? data?.settings.enabledForPlayers ?? false}
               onChange={e => setPublish(e.target.checked)} /> Open Pet Park to players
           </label>
-          <button type="button" className="rounded bg-amber-700 px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
+          <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
             onClick={() => {
               mutation.mutate({ method: "PUT", url: "/api/admin/pet-park/publishing",
                 body: { enabledForPlayers: publish ?? data!.settings.enabledForPlayers,
@@ -139,7 +139,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             data-testid={`add-park-terrain-${option.type}`} disabled={mutation.isPending}
             onClick={() => addTerrain(option.type, option.size)}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
-            style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
+            style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
             <span className="block text-sm text-[#f5cf64]">{option.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
           </button>)}
@@ -152,7 +152,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             data-testid={`add-park-effect-${option.type}`}
             disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (PARK_BASE_VIEW_HEIGHT)))))}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
-            style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
+            style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
             <span className="block text-sm text-[#f5cf64]">{option.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
           </button>)}
@@ -163,7 +163,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             data-testid={`add-park-effect-${option.type}`}
             disabled={mutation.isPending} onClick={() => addEffect(option.type, option.defaultSize)}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
-            style={{ background: "rgba(255,215,0,0.10)", borderColor: GOLD_BORDER }}>
+            style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
             <span className="block text-sm text-[#f5cf64]">{option.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
           </button>)}
@@ -173,23 +173,23 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         {buildingImage ? <div className="relative h-32 rounded-xl border bg-black/40" style={{ borderColor: GOLD_BORDER }}>
           <img src={buildingImage} alt="New building preview" className="h-full w-full object-contain" />
           <button type="button" aria-label="Clear building image" onClick={() => setBuildingImage(null)} className="absolute right-2 top-2 rounded-full bg-black/80 p-2"><X size={16} /></button>
-        </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-4 text-center text-sm" style={{ background: "rgba(255,215,0,.08)", borderColor: GOLD_BORDER }}>
+        </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-4 text-center text-sm" style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
           <Image className="mr-2 inline h-4 w-4" /> Upload Building Image (PNG/JPEG)
           <input aria-label="Building exterior image" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setBuildingImage); e.target.value = ""; }} />
         </label>}
         <label className="block space-y-1 text-sm">Building Name
           <input aria-label="Building name" placeholder="e.g. Woodland Cottage" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)}
-            className="w-full rounded-xl border bg-[#302701] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
+            className="w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
         </label>
         <div className="space-y-2">
           <label htmlFor="pet-park-new-building-capacity" className="block text-sm">Building pet capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})</label>
           <input id="pet-park-new-building-capacity" type="number" inputMode="numeric"
             aria-label="Building pet capacity" min={PET_PARK_BUILDING_CAPACITY_MIN} max={PET_PARK_BUILDING_CAPACITY_MAX} step={1}
             value={buildingCapacity} onChange={event => setBuildingCapacity(Number(event.target.value))}
-            className="w-full rounded-xl border bg-[#302701] p-3 text-[#f5cf64]" style={{ borderColor: GOLD_BORDER }} />
+            className="w-full rounded-xl border bg-[#10291d] p-3 text-[#f5cf64]" style={{ borderColor: GOLD_BORDER }} />
           <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacities">
             {[10, 15, 20, 25].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
-              className="rounded-xl border px-2 py-2 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
+              className="rounded-xl border px-2 py-2 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(48,95,62,0.9)" : "rgba(23,54,36,0.82)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
               {capacity} {capacity === 1 ? "pet" : "pets"}
             </button>)}
           </div>
@@ -201,7 +201,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         </label>
         <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage || !isValidPetParkBuildingCapacity(buildingCapacity)}
           data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
-          style={{ background: "rgba(255,215,0,.15)", borderColor: GOLD_BORDER }}
+          style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
             name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: buildings.length,
@@ -210,14 +210,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         <div className="grid grid-cols-2 gap-2">
           {([{ value: "decor", label: "Decoration / Object" }, { value: "sleep_spot", label: "Rest Spot" }] as const).map(option => <button type="button" key={option.value}
             aria-pressed={kind === option.value} onClick={() => setKind(option.value)}
-            className="rounded-xl border px-2 py-3 text-sm" style={{ background: kind === option.value ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: kind === option.value ? GOLD : GOLD_BORDER }}>{option.label}</button>)}
+            className="rounded-xl border px-2 py-3 text-sm" style={{ background: kind === option.value ? "rgba(48,95,62,0.9)" : "rgba(23,54,36,0.82)", borderColor: kind === option.value ? GOLD : GOLD_BORDER }}>{option.label}</button>)}
         </div>
         {pendingImage ? <div aria-label="Pet Park decor size preview" className="relative flex h-48 items-center justify-center overflow-hidden rounded-xl border bg-[#263e29]" style={{ borderColor: GOLD_BORDER }}>
           <img src={pendingImage} alt="New park object preview" draggable={false} className="max-h-full object-contain drop-shadow-lg"
             style={{ width: Math.min(180, Math.max(42, itemSize * 0.7)), height: Math.min(180, Math.max(42, itemSize * 0.7)) }} />
           <span className="absolute bottom-2 left-3 text-[10px] text-amber-100/80">Starting size preview · {itemSize} world units</span>
           <button type="button" aria-label="Clear park object image" onClick={() => setPendingImage(null)} className="absolute right-2 top-2 rounded-full bg-black/80 p-2"><X size={16} /></button>
-        </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-5 text-center text-sm" style={{ background: "rgba(255,215,0,.08)", borderColor: GOLD_BORDER }}>
+        </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-5 text-center text-sm" style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
           <Image className="mr-2 inline h-4 w-4" /> Upload Image (PNG/JPEG)
           <input aria-label="Scene item artwork" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setPendingImage); e.target.value = ""; }} />
         </label>}
@@ -239,7 +239,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         </div>
         <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
-          style={{ background: "rgba(255,215,0,.15)", borderColor: GOLD_BORDER }}
+          style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
             kind, imageData: pendingImage, effectType: null,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,

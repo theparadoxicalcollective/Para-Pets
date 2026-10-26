@@ -23,7 +23,7 @@ test("only supported ground detail types may be created; unrelated effects stay 
 });
 
 test("terrain controls reuse admin-authenticated real-world item editing, not a second editor", () => {
-  assert.match(page, /beginCreate\("terrain"\)/);
+  assert.match(page, /\["terrain", "\+ Terrain"\]/);
   assert.match(page, /initialMode=\{editorMode\}/);
   assert.match(panel, /PARK_TERRAIN_DETAIL_OPTIONS\.map\(/);
   assert.match(panel, /addTerrain\(option.type, option.size\)/);

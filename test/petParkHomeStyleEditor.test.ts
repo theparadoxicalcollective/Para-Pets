@@ -40,10 +40,10 @@ test("home outdoor artwork is reused, not duplicated, for Pet Park visuals", () 
 });
 
 test("mobile Pet Park editor matches the Home Bundle layout while keeping actual park placement", () => {
-  assert.match(page, /\+ Add Effects/);
-  assert.match(page, /\+ Add Decor \/ Objects/);
-  assert.match(page, /\+ Add Buildings/);
-  assert.match(page, /Move park objects/);
+  assert.match(page, /\["effects", "\+ Effects"\]/);
+  assert.match(page, /\["decor", "\+ Decor"\]/);
+  assert.match(page, /\["scene", "\+ Building"\]/);
+  assert.match(page, /Drag to move · auto-saves/);
   assert.match(page, /Expand Ground/);
   assert.match(page, /Zoom in to Pet Park/);
   assert.match(page, /Zoom out of Pet Park/);
@@ -51,9 +51,9 @@ test("mobile Pet Park editor matches the Home Bundle layout while keeping actual
   assert.match(page, /role="dialog" aria-modal="true"/);
   assert.match(page, /max-h-\[min\(78dvh,780px\)\]/);
   assert.match(page, /pb-\[max\(24px,env\(safe-area-inset-bottom\)\)\]/);
-  assert.match(page, /beginCreate\("effects"\)/);
-  assert.match(page, /beginCreate\("decor"\)/);
-  assert.match(page, /beginCreate\("scene"\)/);
+  assert.match(page, /beginCreate\(mode\)/);
+  assert.match(page, /\["decor", "\+ Decor"\]/);
+  assert.match(page, /\["scene", "\+ Building"\]/);
   assert.match(page, /xPct: Math.max\(0, Math.min\(1, \(viewportSize.width \/ 2 - camera.x\) \/ sceneWidth\)\)/);
   assert.match(page, /setSelectedPlacement\(\{ kind: object.kind, id: object.id \}\)/);
   assert.doesNotMatch(page, /Advanced edit/);

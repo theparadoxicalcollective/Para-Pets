@@ -14,7 +14,7 @@ test("Pet Park reuses Pet House touch, viewport and pointer primitives", () => {
   assert.match(source, /onLostPointerCapture/);
   assert.match(source, /drag.id !== e.pointerId/);
   assert.match(source, /Math.hypot\(delta.x, delta.y\) > 7/);
-  assert.match(source, /closest\("button, input, select, textarea, a"\)/);
+  assert.match(source, /closest\("button, input, select, textarea, a, \[data-park-draggable\]"\)/);
   assert.doesNotMatch(source, /new ResizeObserver/);
 });
 

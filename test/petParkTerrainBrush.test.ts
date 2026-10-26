@@ -123,8 +123,9 @@ test("brush only overlays the existing Pet Park viewport; camera, effects and ed
   assert.match(brush, /onPointerCancel=\{cancel\}/);
   assert.match(brush, /onLostPointerCapture=\{cancel\}/);
   assert.match(brush, /onPointerUp=\{finish\}/);
-  assert.match(brush, /Save stroke/);
-  assert.match(brush, /Discard stroke/);
+  assert.match(brush, /void saveStroke\(completed\)/, "release automatically persists the stroke");
+  assert.match(brush, /Retry save/);
+  assert.match(brush, /Clear stroke/);
   assert.match(brush, /PARK_BRUSH_MAX_STAMPS/);
   assert.match(brush, /safeSetPointerCapture/);
   assert.match(server, /app\.post\("\/api\/admin\/pet-park\/terrain-strokes", isAdmin/);

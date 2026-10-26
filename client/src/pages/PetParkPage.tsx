@@ -15,7 +15,7 @@ import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, PARK_SELECTED_DEPTH_Z } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
-import { Check, X, ZoomIn, ZoomOut, Expand } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Expand } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
@@ -30,6 +30,7 @@ type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: HouseInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
+type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
 type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
 
@@ -53,11 +54,10 @@ export default function PetParkPage() {
   const [showCreator, setShowCreator] = useState(false);
   const [expandingGround, setExpandingGround] = useState(false);
   const [creationPosition, setCreationPosition] = useState({ xPct: 0.5, yPct: 0.5 });
-  const [placementMode, setPlacementMode] = useState(false);
   const [paintMode, setPaintMode] = useState(false);
   const [selectedPlacement, setSelectedPlacement] = useState<{ kind: "building" | "item"; id: string } | null>(null);
-  const [placementDraft, setPlacementDraft] = useState<{ xPct: number; yPct: number; size: number; flipped: boolean; layer: number } | null>(null);
-  const placementPointer = useRef<{ id: number; startX: number; startY: number; xPct: number; yPct: number } | null>(null);
+  const [placementDraft, setPlacementDraft] = useState<ParkPlacement | null>(null);
+  const placementPointer = useRef<{ id: number; kind: "building" | "item"; objectId: string; startX: number; startY: number; placement: ParkPlacement } | null>(null);
   const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor" | "terrain">("scene");
   const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
@@ -137,8 +137,11 @@ export default function PetParkPage() {
       const path = kind === "building" ? `/api/admin/pet-park/buildings/${id}` : `/api/admin/pet-park/items/${id}`;
       return apiRequest("PATCH", path, placement);
     },
-    onSuccess: () => { invalidate(); setSelectedPlacement(null); setPlacementDraft(null); },
-    onError: (error: Error) => toast({ title: "Could not save placement", description: error.message, variant: "destructive" }),
+    onSuccess: invalidate,
+    onError: (error: Error) => {
+      setSelectedPlacement(null); setPlacementDraft(null);
+      toast({ title: "Could not save placement", description: error.message, variant: "destructive" });
+    },
   });
   const placementDelete = useMutation({
     mutationFn: async ({ kind, id }: { kind: "building" | "item"; id: string }) => {
@@ -148,32 +151,67 @@ export default function PetParkPage() {
     onSuccess: () => { invalidate(); setSelectedPlacement(null); setPlacementDraft(null); },
     onError: (error: Error) => toast({ title: "Could not remove park object", description: error.message, variant: "destructive" }),
   });
+  const updatePlacement = (changes: Partial<ParkPlacement>) => {
+    if (!selectedPlacement || !placementDraft || placementSave.isPending || placementDelete.isPending) return;
+    const next = { ...placementDraft, ...changes };
+    setPlacementDraft(next);
+    placementSave.mutate({ ...selectedPlacement, ...next });
+  };
+  // Admins can select and drag an existing object directly. The world coordinates
+  // and existing authenticated PATCH route remain the single placement system.
   const startPlacement = (e: React.PointerEvent<HTMLElement>, kind: "building" | "item", object: ParkBuilding | ParkItem) => {
-    if (!placementMode || !scene?.canEditPark || !e.isPrimary) return;
-    e.stopPropagation();
+    if (!scene?.canEditPark || paintMode || showCreator || activeBuilding ||
+        placementSave.isPending || placementDelete.isPending || !e.isPrimary) return;
+    // Allow touch pointer-down to reach the viewport's pinch tracker, while
+    // preventing mouse drags from also starting a camera pan.
+    if (e.pointerType !== "touch") e.stopPropagation();
     const current = selectedPlacement?.kind === kind && selectedPlacement.id === object.id && placementDraft
       ? placementDraft : { xPct: object.xPct, yPct: object.yPct, size: object.size, flipped: object.flipped, layer: object.layer };
     setSelectedPlacement({ kind, id: object.id });
     setPlacementDraft({ ...current });
-    placementPointer.current = { id: e.pointerId, startX: e.clientX, startY: e.clientY, xPct: current.xPct, yPct: current.yPct };
+    placementPointer.current = { id: e.pointerId, kind, objectId: object.id,
+      startX: e.clientX, startY: e.clientY, placement: { ...current } };
     safeSetPointerCapture(e.currentTarget, e.pointerId);
+  };
+  const placementAt = (drag: NonNullable<typeof placementPointer.current>, clientX: number, clientY: number) => {
+    const delta = homeCameraPointerDelta(clientX - drag.startX, clientY - drag.startY, viewport.current);
+    return {
+      delta,
+      placement: {
+        ...drag.placement,
+        xPct: Math.max(0, Math.min(1, drag.placement.xPct + delta.x / sceneWidth)),
+        yPct: Math.max(0, Math.min(1, drag.placement.yPct + delta.y / sceneHeight)),
+      },
+    };
   };
   const movePlacement = (e: React.PointerEvent<HTMLElement>) => {
     const drag = placementPointer.current;
     if (!drag || drag.id !== e.pointerId) return;
+    if (e.pointerType === "touch") {
+      touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch.current) return; // let the viewport control a two-finger zoom
+    }
     e.stopPropagation();
-    const delta = homeCameraPointerDelta(e.clientX - drag.startX, e.clientY - drag.startY, viewport.current);
-    setPlacementDraft(previous => previous && ({
-      ...previous,
-      xPct: Math.max(0, Math.min(1, drag.xPct + delta.x / sceneWidth)),
-      yPct: Math.max(0, Math.min(1, drag.yPct + delta.y / sceneHeight)),
-    }));
+    const { delta, placement } = placementAt(drag, e.clientX, e.clientY);
+    if (Math.hypot(delta.x, delta.y) < 5) return;
+    setPlacementDraft(placement);
   };
   const endPlacement = (e: React.PointerEvent<HTMLElement>) => {
+    const drag = placementPointer.current;
+    if (!drag || drag.id !== e.pointerId) return;
+    e.stopPropagation();
+    placementPointer.current = null;
+    const { delta, placement } = placementAt(drag, e.clientX, e.clientY);
+    if (Math.hypot(delta.x, delta.y) < 5) return; // tap selects; it never silently moves
+    setPlacementDraft(placement);
+    placementSave.mutate({ kind: drag.kind, id: drag.objectId, ...placement });
+  };
+  const cancelPlacement = (e: React.PointerEvent<HTMLElement>) => {
     if (placementPointer.current?.id !== e.pointerId) return;
     e.stopPropagation();
     placementPointer.current = null;
-    // Same explicit save/cancel contract as the existing world-map and Home editors.
+    setSelectedPlacement(null);
+    setPlacementDraft(null);
   };
   const beginCreate = (mode: "scene" | "effects" | "decor" | "terrain") => {
     setPaintMode(false);
@@ -183,7 +221,6 @@ export default function PetParkPage() {
       yPct: Math.max(0, Math.min(1, (viewportSize.height / 2 - camera.y) / sceneHeight)),
     });
     setShowCreator(true);
-    setPlacementMode(false);
     setSelectedPlacement(null);
     setPlacementDraft(null);
   };
@@ -222,10 +259,18 @@ export default function PetParkPage() {
     `}</style>
     <div ref={viewport} className="absolute inset-0 overflow-hidden" style={HOME_TOUCH_SURFACE_STYLE}
       onPointerDown={e => {
-        const isControl = !!(e.target as HTMLElement).closest("button, input, select, textarea, a");
+        if (scene?.canEditPark && !paintMode && !showCreator && e.target === e.currentTarget) {
+          setSelectedPlacement(null); setPlacementDraft(null);
+        }
+        const isControl = !!(e.target as HTMLElement).closest("button, input, select, textarea, a, [data-park-draggable]");
         if (e.pointerType === "touch" && !isControl) {
           touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
           if (touchPoints.current.size === 2) {
+            // Switching to a pinch must never commit an in-progress item drag.
+            if (placementPointer.current) {
+              setPlacementDraft(placementPointer.current.placement);
+              placementPointer.current = null;
+            }
             const points = Array.from(touchPoints.current.values());
             const bounds = viewport.current?.getBoundingClientRect();
             pinch.current = {
@@ -294,15 +339,15 @@ export default function PetParkPage() {
         scale={scale} panX={camera.x} panY={camera.y} />}
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
-        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!placementMode) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementMode ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementMode ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", layer: shownPosition("building", building).layer }) }}><PetParkGroundShadow kind="building" /><img src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
+        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", layer: shownPosition("building", building).layer }) }}><PetParkGroundShadow kind="building" /><img src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
         {scene.items.map(item => {
           const position = shownPosition("item", item);
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
             position, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
-          return <div key={item.id} onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute ${placementMode && scene.canEditPark ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
-          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? 0.54 : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
+          return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
+          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? 0.54 : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
           {item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><PetParkGroundShadow kind="decor" /><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
         </div>;
@@ -343,9 +388,9 @@ export default function PetParkPage() {
     </div>}
     {activeBuilding && <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/85 p-3" role="dialog" aria-modal="true" aria-label={activeBuilding.name}>
       <div className="relative flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#13291e]">
-        <div className="flex items-center justify-between gap-3 p-3"><h2 className="text-lg font-semibold text-amber-300">{activeBuilding.name}</h2>{scene?.canEditPark && <button type="button" className="rounded bg-teal-800 px-3 py-2" onClick={() => setDetailsBuildingId(activeBuilding.id)}>Edit building</button>}<button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => setEnteredBuilding(null)}>Leave building</button></div>
+        <div className="flex items-center justify-between gap-3 p-3"><h2 className="text-lg font-semibold text-amber-300">{activeBuilding.name}</h2>{scene?.canEditPark && <button type="button" className="rounded bg-[#245037] px-3 py-2" onClick={() => setDetailsBuildingId(activeBuilding.id)}>Edit building</button>}<button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => setEnteredBuilding(null)}>Leave building</button></div>
         <div className="relative min-h-0 flex-1 overflow-y-auto">{activeBuilding.interiorImageUrl ? <PetParkInteriorRoom imageUrl={activeBuilding.interiorImageUrl} name={activeBuilding.name} effects={activeBuilding.interiorEffects ?? []} onPointerMove={e => { if (!indoorDrag) return; const rect = e.currentTarget.getBoundingClientRect(); setIndoorDrag({ ...indoorDrag, x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)) }); }} onPointerUp={() => { if (!indoorDrag) return; const deposit = deposits.find(item => item.petInventoryId === indoorDrag.petId); if (deposit) action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: indoorDrag.x, yPct: indoorDrag.y, pose: "idle" } }); setIndoorDrag(null); }} onPointerCancel={() => setIndoorDrag(null)}>{(scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).map(pet => { const ownDeposit = deposits.find(item => item.petInventoryId === pet.petInventoryId); const x = indoorDrag?.petId === pet.petInventoryId ? indoorDrag.x : pet.interiorXPct; const y = indoorDrag?.petId === pet.petInventoryId ? indoorDrag.y : pet.interiorYPct; return <div key={pet.petInventoryId} className="absolute z-10" style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: "translate(-50%, -70%)", width: 90, height: 105 }}><div className="h-[80%]"><PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId} costumeAccess={ownDeposit ? "owner" : "public"} mode={pet.pose === "sleep" ? "sleep" : pet.pose === "sit" ? "house" : "idle"} size={90} fillContainer /></div>{ownDeposit ? <button type="button" aria-label={`Move ${pet.petNickname || pet.petName}`} className="rounded bg-black/75 px-2 py-1 text-xs" onPointerDown={e => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setIndoorDrag({ petId: pet.petInventoryId, x, y }); }} onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${ownDeposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: x, yPct: y, pose: pet.pose } })}>{pet.petNickname || pet.petName} · drag</button> : <span className="rounded bg-black/70 px-1 text-[10px]">{pet.petNickname || pet.petName}</span>}</div>; })}</PetParkInteriorRoom> : <p className="p-8 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}</div>
-        <div className="flex flex-wrap items-center justify-between gap-2 p-3 text-xs text-amber-100/70"><span>{(scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).length}/{activeBuilding.maxPets} pets · Park-wide limit remains three per player.</span>{deposits.filter(deposit => deposit.buildingId === activeBuilding.id).map(deposit => <div key={deposit.id} className="flex flex-wrap gap-1"><button type="button" className="rounded bg-amber-800 px-2 py-2 text-amber-50" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: null, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} outside</button>{(["idle","sit","sleep"] as const).map(pose => <button key={pose} type="button" className="rounded bg-teal-900 px-2 py-2" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: deposit.interiorXPct, yPct: deposit.interiorYPct, pose } })}>{pose === "idle" ? "Bounce" : pose === "sit" ? "Sit" : "Sleep"}</button>)}</div>)}{deposits.filter(deposit => deposit.buildingId !== activeBuilding.id).map(deposit => <button key={deposit.id} type="button" className="rounded bg-emerald-800 px-3 py-2" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} inside</button>)}</div>
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 text-xs text-amber-100/70"><span>{(scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).length}/{activeBuilding.maxPets} pets · Park-wide limit remains three per player.</span>{deposits.filter(deposit => deposit.buildingId === activeBuilding.id).map(deposit => <div key={deposit.id} className="flex flex-wrap gap-1"><button type="button" className="rounded bg-amber-800 px-2 py-2 text-amber-50" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: null, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} outside</button>{(["idle","sit","sleep"] as const).map(pose => <button key={pose} type="button" className="rounded bg-[#245037] px-2 py-2" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: deposit.interiorXPct, yPct: deposit.interiorYPct, pose } })}>{pose === "idle" ? "Bounce" : pose === "sit" ? "Sit" : "Sleep"}</button>)}</div>)}{deposits.filter(deposit => deposit.buildingId !== activeBuilding.id).map(deposit => <button key={deposit.id} type="button" className="rounded bg-emerald-800 px-3 py-2" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} inside</button>)}</div>
       </div>
     </div>}
     {inspectedPet && <div className="absolute left-1/2 top-1/3 z-30 w-[min(85%,300px)] -translate-x-1/2 rounded-xl border border-amber-500 bg-[#152d23] p-4 text-center shadow-xl">
@@ -365,16 +410,11 @@ export default function PetParkPage() {
           <Expand size={15} className="mr-1 inline" />{expandingGround ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "Expand"}
         </button> : <span className="w-16" />}
       </div>
-      {scene?.canEditPark && !paintMode && <div className="pointer-events-auto mx-auto mt-3 grid max-w-sm grid-cols-3 gap-2">
-        <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
-        <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Add Decor / Objects</button>
-        <button type="button" onClick={() => beginCreate("terrain")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Terrain</button>
-      </div>}
       {scene?.canEditPark && !activeBuilding && !paintMode && !showCreator && <div
         aria-label="Compare Pet Park grass" className="pointer-events-auto mx-auto mt-2 flex w-fit max-w-full items-center gap-1 rounded-full border border-amber-500/35 bg-black/75 px-2 py-1 text-[11px] text-amber-100">
         <span className="mr-1 text-amber-200/80">Grass:</span>
         <button type="button" aria-pressed={grassMode === "tile"} onClick={() => setGrassMode("tile")}
-          className={`rounded-full px-2 py-1 ${grassMode === "tile" ? "bg-emerald-800 text-white" : "text-amber-100/75"}`}>GrassTile</button>
+          className={`rounded-full px-2 py-1 ${grassMode === "tile" ? "bg-[#245037] text-[#f5d77b]" : "text-amber-100/75"}`}>GrassTile</button>
         <button type="button" aria-pressed={grassMode === "procedural"} onClick={() => setGrassMode("procedural")}
           className={`rounded-full px-2 py-1 ${grassMode === "procedural" ? "bg-emerald-800 text-white" : "text-amber-100/75"}`}>Original</button>
       </div>}
@@ -387,35 +427,43 @@ export default function PetParkPage() {
       <button type="button" aria-label="Zoom out of Pet Park" disabled={zoom <= PARK_ZOOM_MIN}
         className="rounded-lg p-2 disabled:opacity-35" onClick={() => changeZoom(zoom - PARK_ZOOM_STEP)}><ZoomOut size={19} /></button>
     </div>}
-    {scene?.canEditPark && !showCreator && !selectedPlacement && !paintMode && <div
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-lg gap-2 ${scene.enabledForPlayers && (!scene.canEditPark || deposits.length > 0) ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(72px,env(safe-area-inset-bottom))]"}`}
+    {scene?.canEditPark && !showCreator && !selectedPlacement && !paintMode && !activeBuilding && <div
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto grid max-w-lg grid-cols-3 gap-1.5 sm:grid-cols-5 ${scene.enabledForPlayers && deposits.length > 0 ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
-      <button type="button" onClick={() => beginCreate("scene")} className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#221902]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-[#f5cf64]">+ Add Buildings</button>
-      <button type="button" aria-pressed={placementMode} onClick={() => { setShowCreator(false); setPlacementMode(value => !value); setSelectedPlacement(null); setPlacementDraft(null); }}
-        className="min-w-0 flex-1 rounded-2xl border border-emerald-500/45 bg-[#14281c]/85 px-3 py-4 text-center text-sm font-semibold tracking-wide text-emerald-200">
-        {placementMode ? <>Finish editing <Check size={15} className="inline" /></> : "Move park objects"}
-      </button>
-      <button type="button" onClick={() => { setPaintMode(true); setPlacementMode(false); setSelectedPlacement(null); setPlacementDraft(null); setShowCreator(false); }}
-        className="min-w-0 flex-1 rounded-2xl border border-amber-500/45 bg-[#352712]/90 px-2 py-3 text-sm font-semibold text-amber-100">Paint terrain</button>
+      {([
+        ["scene", "+ Building"], ["decor", "+ Decor"], ["terrain", "+ Terrain"], ["effects", "+ Effects"],
+      ] as const).map(([mode, label]) => <button key={mode} type="button" onClick={() => beginCreate(mode)}
+        className="min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg">
+        {label}
+      </button>)}
+      <button type="button" aria-label="Paint terrain" onClick={() => {
+        setPaintMode(true); setSelectedPlacement(null); setPlacementDraft(null); setShowCreator(false);
+      }} className="min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#20442e]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg">Paint terrain</button>
     </div>}
-    {scene?.canEditPark && placementMode && selectedPlacement && selectedObject && placementDraft && <div
-      className={`pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-amber-600 bg-[#10271e]/95 p-3 shadow-xl max-h-[34dvh] overflow-y-auto ${scene.enabledForPlayers ? "bottom-[44%]" : "bottom-[max(12px,env(safe-area-inset-bottom))]"}`}
+    {scene?.canEditPark && selectedPlacement && selectedObject && placementDraft && !paintMode && !showCreator && <div
+      className={`pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl max-h-[32dvh] overflow-y-auto ${scene.enabledForPlayers && deposits.length > 0 ? "bottom-[44%]" : "bottom-[max(12px,env(safe-area-inset-bottom))]"}`}
       aria-label="Edit selected park object">
-      <div className="flex items-center justify-between gap-2"><strong className="truncate text-sm">{selectedPlacement.kind === "building" ? (selectedObject as ParkBuilding).name : (selectedObject as ParkItem).kind} selected</strong><span className="text-xs text-amber-200/80">Drag on the park to move</span></div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <button type="button" aria-label="Decrease park object size" className="rounded bg-amber-800 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, size: Math.max(1, draft.size - 20) }))}>− Size</button>
-        <span>Size {placementDraft.size}</span>
-        <button type="button" aria-label="Increase park object size" className="rounded bg-amber-800 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, size: Math.min(1000, draft.size + 20) }))}>+ Size</button>
-        <button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, flipped: !draft.flipped }))}>Flip</button>
-        <button type="button" aria-label="Move park object back one layer" className="rounded bg-slate-700 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, layer: Math.max(-10000, draft.layer - 1) }))}>Layer −</button>
-        <button type="button" aria-label="Move park object forward one layer" className="rounded bg-slate-700 px-3 py-2" onClick={() => setPlacementDraft(draft => draft && ({ ...draft, layer: Math.min(10000, draft.layer + 1) }))}>Layer +</button>
+      <div className="flex items-center justify-between gap-2">
+        <strong className="truncate text-sm capitalize">{selectedPlacement.kind === "building" ? (selectedObject as ParkBuilding).name : ((selectedObject as ParkItem).effectType ?? (selectedObject as ParkItem).kind).replace(/_/g, " ")}</strong>
+        <span className="text-[11px] text-amber-100/80">{placementSave.isPending ? "Saving…" : "Drag to move · auto-saves"}</span>
       </div>
-      <details className="rounded-lg border border-amber-800/50 bg-black/30 px-2 py-1 text-xs">
-        <summary className="cursor-pointer py-1 text-amber-200">Fine-tune exact placement</summary>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <button type="button" aria-label="Decrease park object size" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ size: Math.max(1, placementDraft.size - 20) })}>− Size</button>
+        <span className="tabular-nums">Size {placementDraft.size}</span>
+        <button type="button" aria-label="Increase park object size" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ size: Math.min(1000, placementDraft.size + 20) })}>+ Size</button>
+        <button type="button" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ flipped: !placementDraft.flipped })}>Flip</button>
+      </div>
+      <details className="rounded-lg border border-[#b99a4c]/45 bg-[#0b2016]/80 px-3 py-2 text-xs">
+        <summary className="cursor-pointer text-[#f5d77b]">More options · layers and exact placement</summary>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" aria-label="Move park object back one layer" disabled={placementSave.isPending} className="rounded bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ layer: Math.max(-10000, placementDraft.layer - 1) })}>Layer −</button>
+          <button type="button" aria-label="Move park object forward one layer" disabled={placementSave.isPending} className="rounded bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ layer: Math.min(10000, placementDraft.layer + 1) })}>Layer +</button>
+        </div>
+        <div className="mt-2 border-t border-[#b99a4c]/30 pt-2">Fine-tune exact placement</div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {(["xPct", "yPct", "size", "layer"] as const).map(field => <label key={field} className="flex flex-col gap-1">
             <span>{field === "xPct" ? "World X (0–1)" : field === "yPct" ? "World Y (0–1)" : field === "size" ? "Size" : "Layer"}</span>
-            <input type="number" aria-label={`Park object ${field}`} className="w-full rounded bg-slate-900 p-2"
+            <input type="number" aria-label={`Park object ${field}`} className="w-full rounded border border-[#b99a4c]/30 bg-[#0a1d14] p-2"
               min={field === "size" ? 1 : field === "layer" ? -10000 : 0}
               max={field === "size" ? 1000 : field === "layer" ? 10000 : 1}
               step={field === "xPct" || field === "yPct" ? 0.01 : 1}
@@ -430,19 +478,32 @@ export default function PetParkPage() {
               }} />
           </label>)}
         </div>
+        <button type="button" disabled={placementSave.isPending || placementDelete.isPending}
+          onClick={() => placementSave.mutate({ ...selectedPlacement, ...placementDraft })}
+          className="mt-2 rounded-lg border border-[#e5c66a]/60 bg-[#245037] px-3 py-2 text-xs disabled:opacity-50">Apply exact values</button>
       </details>
       <div className="flex flex-wrap items-center gap-2">
-        {selectedPlacement.kind === "building" && <button type="button" className="rounded bg-teal-800 px-3 py-2 text-sm" onClick={() => setDetailsBuildingId(selectedPlacement.id)}>Edit building</button>}
-        <button type="button" disabled={placementSave.isPending || placementDelete.isPending} onClick={() => placementSave.mutate({ ...selectedPlacement, ...placementDraft })} className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50">Save position</button>
-        <button type="button" disabled={placementSave.isPending || placementDelete.isPending} onClick={() => { setSelectedPlacement(null); setPlacementDraft(null); }} className="rounded bg-slate-700 px-3 py-2 text-sm">Cancel</button>
-        <button type="button" disabled={placementSave.isPending || placementDelete.isPending} onClick={() => { if (window.confirm("Remove this object from Pet Park?")) placementDelete.mutate(selectedPlacement); }} className="ml-auto rounded bg-red-900 px-3 py-2 text-sm">Remove</button>
+        {selectedPlacement.kind === "building" && <>
+          <button type="button" className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 text-xs" onClick={() => setEnteredBuilding(selectedObject as ParkBuilding)}>Enter building</button>
+          <button type="button" className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 text-xs" onClick={() => setDetailsBuildingId(selectedPlacement.id)}>Edit building</button>
+        </>}
+        <button type="button" disabled={placementSave.isPending || placementDelete.isPending}
+          onClick={() => { setSelectedPlacement(null); setPlacementDraft(null); }}
+          className="rounded-lg border border-[#b99a4c]/60 bg-[#245037] px-3 py-2 text-sm disabled:opacity-50">Done</button>
+        <button type="button" disabled={placementSave.isPending || placementDelete.isPending}
+          onClick={() => {
+            if (selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "terrain") {
+              placementDelete.mutate(selectedPlacement);
+            } else if (window.confirm("Remove this object from Pet Park?")) placementDelete.mutate(selectedPlacement);
+          }}
+          className="ml-auto rounded-lg border border-[#be8d62]/65 bg-[#463028] px-3 py-2 text-sm text-[#f9d6a6] disabled:opacity-50">Remove</button>
       </div>
     </div>}
-    {scene?.canEditPark && showCreator && <div className="fixed inset-0 z-[70] flex items-end justify-center"
+        {scene?.canEditPark && showCreator && <div className="fixed inset-0 z-[70] flex items-end justify-center"
       role="dialog" aria-modal="true" aria-label="Add Pet Park object">
       <button type="button" aria-label="Close add object" onClick={() => setShowCreator(false)} className="absolute inset-0 bg-black/65" />
       <div onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
-        className="relative z-10 flex font-fantasy max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#0d0a04] shadow-2xl">
+        className="relative z-10 flex font-fantasy max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] shadow-2xl">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
           <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
             {editorMode === "effects" ? "Outdoor Effects" : editorMode === "terrain" ? "Terrain Details" : editorMode === "scene" ? "Add Building" : "Decor / Objects"}
@@ -453,7 +514,6 @@ export default function PetParkPage() {
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
           <PetParkAdminPanel key={editorMode} initialMode={editorMode} mode="create" creationPosition={creationPosition} onCreated={object => {
             setShowCreator(false);
-            setPlacementMode(true);
             setSelectedPlacement({ kind: object.kind, id: object.id });
             setPlacementDraft({ xPct: object.xPct, yPct: object.yPct, size: object.size, flipped: object.flipped, layer: object.layer });
           }} />
@@ -499,7 +559,7 @@ export default function PetParkPage() {
                 onClick={() => action.mutate({ path: "/api/pet-park/slots/unlock", body: { slot } })}>
                 Unlock · {slot === 2 ? "2,500" : "5,000"} coins
               </button> : <>
-                <select aria-label={`Choose pet for spot ${slot}`} className="min-w-0 flex-1 rounded bg-slate-900 p-2" value={selectedPet}
+                <select aria-label={`Choose pet for spot ${slot}`} className="min-w-0 flex-1 rounded bg-[#0b2016] p-2" value={selectedPet}
                   onChange={e => setSelectedPet(e.target.value)}>
                   <option value="">Choose a pet</option>
                   {availablePets.map(p => <option key={p.inventoryId} value={p.inventoryId}>{p.petNickname || p.name || p.shopItemId}</option>)}
