@@ -23,7 +23,7 @@ test("admin settings and direct creation retain water effects, player access and
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
   assert.match(editor, /mode === "settings"/);
   assert.match(page, /\["scene", "\+ Building"\]/);
-  assert.match(page, /Add Decor/);
+  assert.match(page, /\["decor", "\+ Decor"\]/);
   assert.match(editor, /coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300/);
   assert.match(editor, /Save reward rates & park availability/);
 });
