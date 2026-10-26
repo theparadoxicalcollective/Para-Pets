@@ -8,7 +8,7 @@ const routes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 
 test("Pet Park creates buildings, decor, rest spots and effects in the real world scene", () => {
   for (const mode of ["effects", "decor", "scene"]) {
-    assert.ok(page.includes(`beginCreate("${mode}")`), `toolbar opens contextual ${mode} creation`);
+    assert.ok(page.includes(`["${mode}", `), `toolbar offers contextual ${mode} creation`);
   }
   assert.ok(page.includes('mode="create" creationPosition={creationPosition}'));
   assert.ok(page.includes('(viewportSize.width / 2 - camera.x) / sceneWidth'));
