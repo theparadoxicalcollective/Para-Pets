@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
-import PetParkTerrain from "@/components/PetParkTerrain";
+import PetParkTerrain, { type ParkGrassMode } from "@/components/PetParkTerrain";
 import PetParkTerrainBrush from "@/components/PetParkTerrainBrush";
 import { isParkTerrainNearViewport } from "@/lib/petParkTerrainVisibility";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
@@ -42,6 +42,7 @@ export default function PetParkPage() {
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [grassMode, setGrassMode] = useState<ParkGrassMode>("tile");
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [selectedPet, setSelectedPet] = useState("");
@@ -288,7 +289,7 @@ export default function PetParkPage() {
         changeZoom(zoom * (e.deltaY > 0 ? 0.91 : 1.09),
           { x: e.clientX - (bounds?.left ?? 0), y: e.clientY - (bounds?.top ?? 0) });
       }}>
-      {scene && <PetParkTerrain viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
+      {scene && <PetParkTerrain viewportWidth={viewportSize.width} grassMode={grassMode} viewportHeight={viewportSize.height}
         worldWidth={geometry.worldWidth} worldHeight={geometry.worldHeight}
         scale={scale} panX={camera.x} panY={camera.y} />}
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
@@ -368,6 +369,14 @@ export default function PetParkPage() {
         <button type="button" onClick={() => beginCreate("effects")} className="rounded-full border border-amber-500/35 bg-black/80 px-3 py-2 text-sm text-[#f5cf64]">+ Add Effects</button>
         <button type="button" onClick={() => beginCreate("decor")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Add Decor / Objects</button>
         <button type="button" onClick={() => beginCreate("terrain")} className="rounded-full border border-amber-500/35 bg-black/80 px-2 py-2 text-xs text-[#f5cf64]">+ Terrain</button>
+      </div>}
+      {scene?.canEditPark && !activeBuilding && !paintMode && !showCreator && <div
+        aria-label="Compare Pet Park grass" className="pointer-events-auto mx-auto mt-2 flex w-fit max-w-full items-center gap-1 rounded-full border border-amber-500/35 bg-black/75 px-2 py-1 text-[11px] text-amber-100">
+        <span className="mr-1 text-amber-200/80">Grass:</span>
+        <button type="button" aria-pressed={grassMode === "tile"} onClick={() => setGrassMode("tile")}
+          className={`rounded-full px-2 py-1 ${grassMode === "tile" ? "bg-emerald-800 text-white" : "text-amber-100/75"}`}>GrassTile</button>
+        <button type="button" aria-pressed={grassMode === "procedural"} onClick={() => setGrassMode("procedural")}
+          className={`rounded-full px-2 py-1 ${grassMode === "procedural" ? "bg-emerald-800 text-white" : "text-amber-100/75"}`}>Original</button>
       </div>}
     </div>
     {!activeBuilding && <div aria-label="Park camera zoom controls"
