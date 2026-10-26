@@ -21,6 +21,7 @@ import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
+import { isParkSleepPosition } from "@/lib/petParkSleepSpots";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan, PARK_ZOOM_MIN, PARK_ZOOM_MAX, PARK_ZOOM_STEP } from "@/lib/petParkCamera";
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
@@ -301,8 +302,8 @@ export default function PetParkPage() {
           )) return null;
           return <div key={item.id} onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={endPlacement} className={`absolute ${placementMode && scene.canEditPark ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
           style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? 0.54 : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementMode ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
-          {item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} /> : item.imageUrl ? <><PetParkGroundShadow kind="decor" /><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
-            <div className="w-full h-full rounded-full border border-amber-300/60 bg-amber-900/20" />}
+          {item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><PetParkGroundShadow kind="decor" /><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
+            item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
         </div>;
         })}
         {outdoorPets.map(pet => {
@@ -310,16 +311,17 @@ export default function PetParkPage() {
             ? { x: pet.parkXPct, y: pet.parkYPct } : parkPositions.get(pet.petInventoryId);
           if (!position || !isParkPetNearViewport(position, sceneWidth, sceneHeight, camera.x, camera.y, viewportSize.width, viewportSize.height)) return null;
           const activity = parkPetActivity(pet.petInventoryId);
+          const sleeping = pet.pose === "sleep" || isParkSleepPosition(position, scene.items, { width: geometry.worldWidth, height: geometry.worldHeight });
           const isMine = deposits.some(d => d.petInventoryId === pet.petInventoryId);
           return <div key={pet.petInventoryId} className="absolute"
             style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
               transform: "translate(-50%, -75%)", width: 140 * scale, height: 165 * scale, zIndex: parkDepthIndex({ yPct: position.y, worldHeight: geometry.worldHeight, size: 165, kind: "pet" }) }}>
             <PetParkGroundShadow kind="pet" />
-            <div className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : activity.kind === "wander" ? "pet-park-wander" : activity.kind === "rest" ? "pet-park-rest" : "pet-park-idle"}`}
+            <div className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
               <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
-                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : activity.kind === "rest" ? "sleep" : "idle"} size={140 * scale} fillContainer />
+                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : sleeping ? "sleep" : "idle"} size={140 * scale} fillContainer />
             </div>
             <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
               onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>

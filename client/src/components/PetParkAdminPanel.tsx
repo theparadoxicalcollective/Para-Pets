@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, X } from "lucide-react";
+import { Image, Minus, Plus, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { HOME_OUTDOOR_EFFECT_OPTIONS, HomeOutdoorEffectVisual } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_TERRAIN_DETAIL_OPTIONS, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
@@ -38,6 +38,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [publish, setPublish] = useState<boolean | null>(null);
   const [kind, setKind] = useState<"decor" | "sleep_spot">( "decor" );
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
@@ -208,24 +209,41 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           {([{ value: "decor", label: "Decoration / Object" }, { value: "sleep_spot", label: "Rest Spot" }] as const).map(option => <button type="button" key={option.value}
-            aria-pressed={kind === option.value} onClick={() => { setKind(option.value); setPendingImage(null); }}
+            aria-pressed={kind === option.value} onClick={() => setKind(option.value)}
             className="rounded-xl border px-2 py-3 text-sm" style={{ background: kind === option.value ? "rgba(255,215,0,.2)" : "rgba(255,215,0,.07)", borderColor: kind === option.value ? GOLD : GOLD_BORDER }}>{option.label}</button>)}
         </div>
-        {pendingImage ? <div className="relative h-36 rounded-xl border" style={{ borderColor: GOLD_BORDER }}>
-          <img src={pendingImage} alt="New park object preview" className="h-full w-full object-contain" />
+        {pendingImage ? <div aria-label="Pet Park decor size preview" className="relative flex h-48 items-center justify-center overflow-hidden rounded-xl border bg-[#263e29]" style={{ borderColor: GOLD_BORDER }}>
+          <img src={pendingImage} alt="New park object preview" draggable={false} className="max-h-full object-contain drop-shadow-lg"
+            style={{ width: Math.min(180, Math.max(42, itemSize * 0.7)), height: Math.min(180, Math.max(42, itemSize * 0.7)) }} />
+          <span className="absolute bottom-2 left-3 text-[10px] text-amber-100/80">Starting size preview · {itemSize} world units</span>
           <button type="button" aria-label="Clear park object image" onClick={() => setPendingImage(null)} className="absolute right-2 top-2 rounded-full bg-black/80 p-2"><X size={16} /></button>
         </div> : <label className="block cursor-pointer rounded-xl border border-dashed px-4 py-5 text-center text-sm" style={{ background: "rgba(255,215,0,.08)", borderColor: GOLD_BORDER }}>
           <Image className="mr-2 inline h-4 w-4" /> Upload Image (PNG/JPEG)
           <input aria-label="Scene item artwork" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setPendingImage); e.target.value = ""; }} />
         </label>}
-        {kind === "sleep_spot" && <p className="text-xs text-amber-100/60">Rest spots help pets find places to rest. An image is optional.</p>}
+        {kind === "sleep_spot" && <>
+          <p className="text-xs text-amber-100/70">Rest spots are sleep interaction areas: pets resting inside the spot sleep. An image is optional; without one the editor shows a Sleep Square.</p>
+          {!pendingImage && <div aria-label="Sleep Square preview" className="mx-auto h-28 w-28"><HomeOutdoorEffectVisual type="sleep" adminPreview /></div>}
+        </>}
+        <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: GOLD_BORDER, background: "rgba(255,215,0,.04)" }}>
+          <div className="flex items-center justify-between text-sm"><label htmlFor="park-decor-size">Starting size</label><span className="font-semibold">{itemSize} world units</span></div>
+          <div className="flex items-center gap-3">
+            <button type="button" aria-label="Decrease park item size" disabled={itemSize <= 40} onClick={() => setItemSize(size => Math.max(40, size - 10))}
+              className="rounded-xl border p-2 disabled:opacity-40" style={{ borderColor: GOLD_BORDER }}><Minus size={17} /></button>
+            <input id="park-decor-size" type="range" min={40} max={500} step={10} value={itemSize}
+              onChange={event => setItemSize(Number(event.target.value))} className="min-w-0 flex-1" />
+            <button type="button" aria-label="Increase park item size" disabled={itemSize >= 500} onClick={() => setItemSize(size => Math.min(500, size + 10))}
+              className="rounded-xl border p-2 disabled:opacity-40" style={{ borderColor: GOLD_BORDER }}><Plus size={17} /></button>
+          </div>
+          <p className="text-[11px] text-amber-100/60">Size is saved when the object is created. Use Move park objects to position, resize, flip or layer it afterward.</p>
+        </div>
         <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(255,215,0,.15)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
             kind, imageData: pendingImage, effectType: null,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
-            size: 100, flipped: false, layer: items.length,
+            size: itemSize, flipped: false, layer: items.length,
           } })}>{mutation.isPending ? "Adding…" : kind === "decor" ? "Add Decoration" : "Add Rest Spot"}</button>
       </section>}
       </>}

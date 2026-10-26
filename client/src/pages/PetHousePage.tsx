@@ -1562,8 +1562,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     [placedDecor, containerH, imgWidth],
   );
   const outdoorSleepDecorEffects = useMemo(
-    () => buildHomeSleepDecorEffects(placedDecor, containerH, imgWidth),
-    [placedDecor, containerH, imgWidth],
+    () => [
+      ...buildHomeSleepDecorEffects(placedDecor, containerH, imgWidth),
+      ...(activeBundle?.exteriorEffects ?? []).filter(effect => effect.type === "sleep"),
+    ],
+    [placedDecor, containerH, imgWidth, activeBundle?.exteriorEffects],
   );
   const outdoorLampIlluminationEffects = useMemo(
     () => broadenHomeAttachedLampIllumination(outdoorLampEffects),

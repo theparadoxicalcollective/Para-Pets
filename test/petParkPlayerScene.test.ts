@@ -45,7 +45,8 @@ test("scene pans both axes with viewport clamping and uses existing pet artwork 
   assert.match(page, /drag\.panX \+ delta\.x/);
   assert.match(page, /drag\.panY \+ delta\.y/);
   assert.match(page, /petInventoryId=\{pet\.petInventoryId\}/);
-  assert.match(page, /activity\.kind === "rest" \? "sleep" : "idle"/);
+  assert.match(page, /isParkSleepPosition\(position, scene\.items/);
+  assert.match(page, /sleeping \? "sleep" : "idle"/);
   assert.match(page, /reduceMotion \? "static"/);
   assert.match(page, /Drag the park in any direction/);
 });

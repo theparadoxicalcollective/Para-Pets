@@ -129,7 +129,7 @@ export function isHomeOutdoorLightingMode(value: unknown): value is HomeOutdoorL
   return value === "auto" || value === "day" || value === "night";
 }
 
-export const HOUSE_OUTDOOR_EFFECT_TYPES = ["fire", "candle_light", "lamp_light", "warm_glow", "sparkles", "dust_motes", "soft_mist"] as const;
+export const HOUSE_OUTDOOR_EFFECT_TYPES = ["fire", "candle_light", "lamp_light", "warm_glow", "sparkles", "dust_motes", "soft_mist", "sleep"] as const;
 export type HouseOutdoorEffectType = (typeof HOUSE_OUTDOOR_EFFECT_TYPES)[number];
 
 export interface HouseInteriorEffect {
