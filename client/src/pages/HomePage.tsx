@@ -645,6 +645,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       setShowSpeedEffect(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "Hatching potion could not be used", description: "Please drag it onto your egg again to retry.", variant: "destructive" });
+    },
   });
 
   // ── Tutorial: close speed-up sheet when tutorial signals egg is ready ────────
