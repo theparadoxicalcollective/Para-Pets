@@ -7,12 +7,16 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const app = readFileSync("client/src/App.tsx", "utf8");
 const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
 
-test("Pet Park replaces Central nav but retains legacy implementation for safe rollback", () => {
+test("Pet Park is the only reachable Central nav destination; legacy page remains for rollback", () => {
   assert.match(nav, /navigate\("\/pet-park"\)/);
   assert.match(nav, /label: "Pet Park"/);
-  assert.match(nav, /import PetWorldPage/);
   assert.match(app, /location === "\/pet-park"/);
   assert.match(app, /<PetParkPage/);
+
+  // The old overlay was unreachable (showKeepers was never set true) but its
+  // eager page import still pulled an obsolete game world into the nav bundle.
+  assert.doesNotMatch(nav, /import PetWorldPage|showKeepers|setShowKeepers|keepers-nav-viewport-overlay/);
+  assert.match(readFileSync("client/src/pages/PetWorldPage.tsx", "utf8"), /export default function PetWorldPage/);
 });
 
 test("closed park has under-construction view and admin-only scene preview", () => {

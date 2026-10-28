@@ -22,7 +22,6 @@ import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
-import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
@@ -78,7 +77,7 @@ const LEFT_ITEMS = [
   { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
-// ── Right column: Cards, Bag, Pet House, Market, Aquarium, Central, Main
+// ── Right column: Cards, Bag, Pet House, Market, Aquarium, Pet Park, Main
 const RIGHT_ITEMS = [
   { id: "cards",    label: "Cards",   icon: cardsIcon      },
   { id: "bag",      label: "Bag",     icon: bagNavIcon     },
@@ -144,7 +143,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showQuest, setShowQuest]       = useState(false);
   const [showPvpNote, setShowPvpNote]   = useState(false);
   const [showAquarium, setShowAquarium] = useState(false);
-  const [showKeepers, setShowKeepers]   = useState(false);
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [bjStatus, setBjStatus] = useState(() => bjGetStatus());
@@ -193,7 +191,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     setShowQuest(false);
     setShowPvpNote(false);
     setShowAquarium(false);
-    setShowKeepers(false);
   };
 
   const NAV_DELAY = 360;
@@ -313,7 +310,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   if (navHidden) return null;
 
-  const anyPanelOpen = showQuest || showPvpNote || showAquarium || showKeepers;
+  const anyPanelOpen = showQuest || showPvpNote || showAquarium;
 
   return (
     <>
@@ -803,14 +800,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         </ViewportModalPortal>
       )}
 
-      {/* ── Keeper's Central overlay ─────────────────────────────────────── */}
-      {showKeepers && (
-        <ViewportModalPortal>
-          <div data-testid="keepers-nav-viewport-overlay" className="absolute inset-0" style={{ zIndex: panelZ, pointerEvents: "auto" }}>
-            <PetWorldPage user={user} onClose={() => setShowKeepers(false)} />
-          </div>
-        </ViewportModalPortal>
-      )}
     </>
   );
 }
