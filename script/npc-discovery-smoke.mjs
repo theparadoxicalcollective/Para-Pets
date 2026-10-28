@@ -87,11 +87,16 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => { errors.push(error.message); console.error(error.message); });
+    // Reproduce both a partially missing NPC and a completely empty world
+    // response without touching live admin placements or player data.
+    let missingLocation = name === 'Android phone' ? 'janson' : name === 'tablet' ? 'all' : null;
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname;
       const locations = path.includes('haunted_woods') ? [{id:'ginny',name:'Ginny',type:'npc'}]
         : [{id:'janson',name:'Janson',type:'npc'},{id:'lonelle',name:'Lonelle',type:'npc'}];
-      return route.fulfill({json:locations});
+      return route.fulfill({json:missingLocation === 'all'
+        ? []
+        : locations.filter(npc => npc.id !== missingLocation)});
     });
     const activate = async locator => touch ? locator.tap() : locator.click();
     const expectPointer = async () => {
@@ -107,6 +112,15 @@ try {
       assert.ok(box && frame && box.x >= frame.x-30 && box.x+box.width <= frame.x+frame.width+30, name+': ring must stay inside portrait frame');
     };
     await page.goto('http://127.0.0.1:4174/__guide-test');
+    if (missingLocation) {
+      await page.getByRole('button', {name:'Retry'}).waitFor({state:'visible'});
+      assert.equal(await page.evaluate(() => localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')), null,
+        'missing NPC must not advance the persisted tour');
+      assert.equal(await page.getByTestId('npc-discovery-guide').count(), 0,
+        'missing NPC must show retry instead of silently skipping');
+      missingLocation = null;
+      await activate(page.getByRole('button', {name:'Retry'}));
+    }
     await page.getByTestId('npc-discovery-guide').waitFor({state:'visible'});
     // The fixture URL is treated as the initial non-map route by wouter.
     await expectPointer();
