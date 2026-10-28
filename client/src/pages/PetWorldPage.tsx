@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
-import { DESIGN_H, getDesignW, getStageSurface } from "@/lib/stage";
+import { DESIGN_H, getDesignW } from "@/lib/stage";
 import { dragScenePercentage } from "@/lib/coordinateContracts";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
@@ -20,7 +20,7 @@ import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
-import { calculateExpandedWorldCameraScale, calculateWorldFitScale, clampWorldMapOffset, worldCameraPointerDelta } from "@/lib/worldViewport";
+import { calculateExpandedWorldCameraScale, clampWorldMapOffset, worldCameraPointerDelta } from "@/lib/worldViewport";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.webp";
 import cardStarImg from "@assets/uploads/CardStar.png";
@@ -1099,23 +1099,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     setMapH(KC_MAP_H);
   }, []);
 
-  const getPetCentralCameraScale = useCallback(() => {
-    const expandedCamera = !getStageSurface().viewportOwned;
-    return expandedCamera
-      ? calculateExpandedWorldCameraScale(
-          frameWRef.current,
-          frameHRef.current,
-          mapHRef.current,
-          MAP_W,
-        )
-      : calculateWorldFitScale(
-          frameWRef.current,
-          frameHRef.current,
-          mapHRef.current,
-          false,
-          MAP_W,
-        );
-  }, []);
+  // Native viewport ownership is now universal, so it cannot decide whether
+  // a camera needs exploration margin. The shared policy uses the actual
+  // measured frame: compact phones retain their cover fit while larger
+  // tablet/desktop cameras gain enough overscan to pan in both axes.
+  const getPetCentralCameraScale = useCallback(() => calculateExpandedWorldCameraScale(
+    frameWRef.current,
+    frameHRef.current,
+    mapHRef.current,
+    MAP_W,
+  ), []);
 
   // ── initial centering on mount / mapH / camera-size change ─────────────────
   useEffect(() => {
@@ -1475,7 +1468,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       className="relative w-full h-screen-frame overflow-hidden"
       style={{ background: "#060e06" }}
     >
-      {/* ══ Map canvas — full-device camera on stage-owned devices ════════ */}
+      {/* ══ Map canvas — measured native-viewport camera ════════ */}
       <ViewportScenePortal enabled={!petCentralCameraBlocked}>
       <div
         ref={vpRef}
