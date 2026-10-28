@@ -101,8 +101,21 @@ test("Pet Home tutorial follows the authoritative game stage across phones table
   assert.doesNotMatch(overlay, /navigator\.userAgent|Android|iPhone|iPad|Chrome|Safari/);
 });
 
-test("Pet Care menu sparkle origins convert rendered client pixels into logical stage coordinates", () => {
+test("Pet House does not retain unreachable Care popup or legacy phone-stage coordinate imports", () => {
   const page = fs.readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
-  assert.match(page, /const center = clientToStage\(r\.left \+ r\.width \/ 2, r\.top \+ r\.height \/ 2\)/);
-  assert.match(page, /burst\(center\.x, center\.y, colors, 16\)/);
+  const app = fs.readFileSync("client/src/App.tsx", "utf8");
+
+  // The old decorative CarePopup was never mounted. Its fixed particles
+  // and stage conversion therefore do not belong in active Pet House code.
+  assert.doesNotMatch(page, /CarePopup|CareSparkle|careWreathImg|ring-sparkle/);
+  assert.doesNotMatch(page, /from "@\/lib\/stage"|clientToStage|clientDeltaToStage|getStageScale|DESIGN_H/);
+
+  // Retain current viewport-based Pet House interactions, tutorial and the
+  // separate Pet Care gameplay route instead of reintroducing the popup.
+  assert.match(page, /data-testid="pet-home-stage"/);
+  assert.match(page, /<ViewportScenePortal enabled=\{!homeOutdoorCameraBlocked\}>/);
+  assert.match(page, /HOME_TOUCH_SURFACE_STYLE/);
+  assert.match(page, /<PetHomeTutorialOverlay/);
+  assert.match(app, /location\.startsWith\("\/pet-care\/"\)/);
+  assert.match(app, /<PetCarePage \/>/);
 });
