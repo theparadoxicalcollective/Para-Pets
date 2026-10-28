@@ -192,7 +192,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   };
   const advance = () => finish(worlds.findIndex(world => world.worldId === current?.worldId && world.name === current?.name) + 1);
   if (isError) return createPortal(
-    <div role="status" className={`${surface.inStage ? "absolute" : "fixed"} bottom-28 left-3 z-[9000] rounded-xl p-3 text-[#f5d98a]`} style={{ background: "#1e2417", border: "1px solid #b58b35" }}>
+    <div role="status" className={`${surface.inStage ? "absolute" : "fixed"} bottom-28 left-3 z-[9000] rounded-xl p-3 text-[#f5d98a]`} style={{ background: "#1e2417", border: "1px solid #b58b35", pointerEvents: "auto" }}>
       World guide could not load. <button type="button" onClick={() => void refetch()} className="underline ml-2">Retry</button>
       <button type="button" onClick={() => finish(worlds.length)} className="underline ml-3">Skip guide</button>
     </div>, surface.target,
