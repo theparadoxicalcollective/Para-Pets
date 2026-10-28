@@ -6,7 +6,6 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, homeCameraPointerDelta, HOME_TOUCH_SURFACE_STYLE, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientDeltaToStage, clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -16,7 +15,6 @@ import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import friendsNavIcon from "@assets/uploads/FriendIcon.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
-import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { QuillBadge } from "@/components/QuillBadge";
 import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
@@ -153,200 +151,6 @@ function isMailboxBuilding(building: ActiveBundle["buildings"][number]): boolean
     || (!building.buildingType && building.name.toLowerCase().includes("mailbox"));
 }
 
-// Clamp helper for Y drag limits — reserves the bottom toolbar area.
-// ── Care wreath popup ────────────────────────────────────────────────────────
-// Replaces the old "Feed / Cancel / Return to Inventory" pet popup with a
-// decorative wreath image. The buttons baked into the artwork are matched by
-// invisible hotspots: the central fruit bowl triggers Care (was "Feed"), the
-// left tablet is Cancel, the right tablet is Return-to-Inventory. Each tap
-// fires a sparkle burst whose colour matches the button it came from.
-type CareSparkle = { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number };
-function CarePopup({
-  petName, onCare, onCancel, onReturn, zIndex = 40,
-}: {
-  petName: string;
-  onCare: () => void;
-  onCancel: () => void;
-  onReturn: () => void;
-  zIndex?: number;
-}) {
-  const [sparks, setSparks] = useState<CareSparkle[]>([]);
-  const idRef = useRef(0);
-  const burst = useCallback((cx: number, cy: number, colors: string[], count = 16) => {
-    const newOnes: CareSparkle[] = Array.from({ length: count }, () => {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 40 + Math.random() * 80;
-      return {
-        id: ++idRef.current,
-        x: cx, y: cy,
-        dx: Math.cos(angle) * dist,
-        dy: Math.sin(angle) * dist,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size: 6 + Math.random() * 10,
-        delay: Math.random() * 0.12,
-      };
-    });
-    setSparks((s) => [...s, ...newOnes]);
-    const ids = new Set(newOnes.map((n) => n.id));
-    setTimeout(() => setSparks((s) => s.filter((x) => !ids.has(x.id))), 1100);
-  }, []);
-  const handle = (
-    e: React.PointerEvent<HTMLButtonElement>,
-    colors: string[],
-    action: () => void,
-  ) => {
-    e.stopPropagation();
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const center = clientToStage(r.left + r.width / 2, r.top + r.height / 2);
-    burst(center.x, center.y, colors, 16);
-    setTimeout(action, 280);
-  };
-
-  // Rainbow palette for the multicolored fruit bowl.
-  const fruitColors = ["#ff5f6d", "#ffba08", "#3ed598", "#22d3ee", "#a78bfa", "#f472b6"];
-  const cancelColors = ["#c5e0a0", "#9bc16a", "#6f9b3d"];      // mossy green tablet
-  const returnColors = ["#e89261", "#c95d2c", "#9b3a14"];      // wood-brown tablet
-
-  return (
-    <div
-      className="absolute inset-0 flex flex-col items-center justify-center"
-      style={{ zIndex, background: "transparent" }}
-      onPointerDown={(e) => { e.stopPropagation(); onCancel(); }}
-      data-testid="care-popup-backdrop"
-    >
-      {/* Pet name above the wreath */}
-      <div
-        style={{
-          fontFamily: "Lora, serif",
-          color: "#ffd700",
-          fontSize: 16,
-          fontWeight: 700,
-          marginBottom: 6,
-          textShadow: "0 2px 8px rgba(0,0,0,0.85)",
-          letterSpacing: "0.04em",
-        }}
-      >
-        {petName}
-      </div>
-
-      {/* Wreath artwork with invisible hotspots */}
-      <div
-        className="relative"
-        style={{
-          width: "min(calc(86*var(--vw)), 440px)",
-          aspectRatio: "1 / 1",
-          backgroundImage: `url(${careWreathImg})`,
-          backgroundSize: "contain",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.85))",
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {/* Subtle dark-green glow tucked INSIDE the wreath ring — sits behind
-            the menu artwork only, never spilling onto the pet/scene around
-            it. Tight inset + low alpha keeps it as a hint, not a tint. */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: "22%",
-            borderRadius: "50%",
-            background: "radial-gradient(circle at center, rgba(20,55,30,0.32) 0%, rgba(15,40,22,0.18) 55%, rgba(0,0,0,0) 90%)",
-            pointerEvents: "none",
-            zIndex: -1,
-            filter: "blur(3px)",
-          }}
-        />
-        {/* Living forest orbs — confined to the wreath ring (28–72%) so they
-            decorate the menu without scattering green dots over the scene. */}
-        {[
-          { left: "30%", top: "26%", size: 14, hue: "rgba(150,230,140,0.45)", delay: "0s",   dur: "5.4s" },
-          { left: "68%", top: "30%", size: 10, hue: "rgba(110,200,120,0.4)",  delay: "0.8s", dur: "4.6s" },
-          { left: "72%", top: "52%", size: 16, hue: "rgba(70,170,90,0.35)",   delay: "1.4s", dur: "6.1s" },
-          { left: "30%", top: "55%", size: 12, hue: "rgba(190,255,170,0.45)", delay: "0.4s", dur: "5.0s" },
-          { left: "44%", top: "30%", size: 8,  hue: "rgba(170,240,160,0.45)", delay: "1.1s", dur: "4.8s" },
-          { left: "56%", top: "55%", size: 10, hue: "rgba(120,210,130,0.4)",  delay: "0.6s", dur: "5.3s" },
-        ].map((o, i) => (
-          <div
-            key={`care-orb-${i}`}
-            aria-hidden
-            className="absolute pointer-events-none feed-orb-float"
-            style={{
-              left: o.left, top: o.top,
-              width: o.size, height: o.size,
-              borderRadius: "50%",
-              background: `radial-gradient(circle, ${o.hue} 0%, ${o.hue.replace(/0?\.\d+\)/, "0.05)")} 65%, transparent 100%)`,
-              boxShadow: `0 0 ${o.size * 1.6}px ${o.hue}`,
-              animationDelay: o.delay,
-              animationDuration: o.dur,
-              zIndex: -1,
-            }}
-          />
-        ))}
-        {/* Care hotspot — centered paw print */}
-        <button
-          data-testid="button-care-care"
-          onPointerDown={(e) => handle(e, fruitColors, onCare)}
-          aria-label="Care"
-          className="absolute"
-          style={{
-            left: "29%", top: "31%", width: "42%", height: "40%",
-            background: "transparent", border: "none", cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-          }}
-        />
-        {/* Cancel hotspot — left orb (scroll) */}
-        <button
-          data-testid="button-care-cancel"
-          onPointerDown={(e) => handle(e, cancelColors, onCancel)}
-          aria-label="Cancel"
-          className="absolute"
-          style={{
-            left: "0%", top: "36%", width: "22%", height: "22%",
-            background: "transparent", border: "none", cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-            borderRadius: "50%",
-          }}
-        />
-        {/* Return-to-inventory hotspot — right orb (level-up arrows) */}
-        <button
-          data-testid="button-care-return"
-          onPointerDown={(e) => handle(e, returnColors, onReturn)}
-          aria-label="Return to Inventory"
-          className="absolute"
-          style={{
-            left: "78%", top: "36%", width: "22%", height: "22%",
-            background: "transparent", border: "none", cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-            borderRadius: "50%",
-          }}
-        />
-      </div>
-
-      {/* Sparkle burst layer (rendered fixed over everything) */}
-      {sparks.map((s) => (
-        <div
-          key={s.id}
-          className="fixed pointer-events-none ring-sparkle"
-          style={{
-            left: s.x, top: s.y, width: s.size, height: s.size,
-            color: s.color,
-            ["--dx" as any]: `${s.dx}px`,
-            ["--dy" as any]: `${s.dy}px`,
-            animationDelay: `${s.delay}s`,
-            zIndex: zIndex + 5,
-          }}
-        >
-          <svg viewBox="0 0 24 24" width={s.size} height={s.size} style={{ filter: `drop-shadow(0 0 6px ${s.color})` }}>
-            <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" fill={s.color} />
-          </svg>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const HOME_EDIT_DOUBLE_TAP_MS = 360;
 const HOME_EDIT_DRAG_THRESHOLD_PX = 8;
 
@@ -358,6 +162,7 @@ function isSecondHomeEditTap(
   return !!previous && previous.id === id && now - previous.at <= HOME_EDIT_DOUBLE_TAP_MS;
 }
 
+// Clamp Y drag limits so objects stay above the bottom inventory toolbar.
 function maxYForHeight(containerH: number, reservePx = BOTTOM_TOOLBAR_RESERVE_PX): number {
   if (containerH <= 0) return 0.82;
   return Math.min(0.92, (containerH - reservePx) / containerH);

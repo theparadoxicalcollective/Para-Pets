@@ -127,7 +127,11 @@ test("Pet Home keeps authored placements while player cameras measure actual art
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
   const homeViewport = read("client/src/lib/homeCrossDevice.ts");
 
-  assert.match(owner, /clientDeltaToStage/);
+  // This scene no longer imports the obsolete phone-stage helper from the
+  // retired Care popup; active drags use rendered camera-local deltas.
+  assert.doesNotMatch(owner, /clientDeltaToStage|clientToStage|getStageScale|DESIGN_H/);
+  assert.match(owner, /homeCameraPointerDelta\(/);
+  assert.match(owner, /dragHomePlacement\(/);
   assert.match(owner, /homeCameraDropToPlacement/);
   assert.match(owner, /HOME_INVENTORY_DROP_BOUNDS/);
   assert.doesNotMatch(owner, /clientPointInStageElement/);
