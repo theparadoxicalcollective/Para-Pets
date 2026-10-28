@@ -77,7 +77,7 @@ const LEFT_ITEMS = [
   { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
-// ── Right column: Cards, Bag, Pet House, Market, Aquarium, Central, Main
+// ── Right column: Cards, Bag, Pet House, Market, Aquarium, Pet Park, Main
 const RIGHT_ITEMS = [
   { id: "cards",    label: "Cards",   icon: cardsIcon      },
   { id: "bag",      label: "Bag",     icon: bagNavIcon     },
