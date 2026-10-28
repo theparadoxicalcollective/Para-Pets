@@ -90,17 +90,21 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
       if (responses.some(response => !response.ok)) throw new Error("Quest locations are unavailable");
       const locations = await Promise.all(responses.map(response => response.json() as Promise<Location[]>));
       const byWorld = new Map(worldIds.map((worldId, position) => [worldId, locations[position]]));
-      return worlds.flatMap(world => {
+      // Every step has a fixed position in the discovery tour. If an NPC is
+      // temporarily missing from world data, retry instead of filtering it
+      // out: filtering can skip that NPC or silently finish the whole tour.
+      return worlds.map(world => {
         const match = (byWorld.get(world.worldId) ?? []).find(
           row => row.type === "npc" && npcNamesMatch(row.name, world.name),
         );
-        return match ? [{ id: match.id, name: world.name, worldId: world.worldId, worldName: world.worldName }] : [];
+        if (!match) throw new Error("NPC discovery location is missing");
+        return { id: match.id, name: world.name, worldId: world.worldId, worldName: world.worldName };
       });
     },
   });
 
-  // Save a position in the stable world registry, not the filtered list:
-  // a quest may be claimed between visits and disappear from the results.
+  // Keep progress in the stable world registry, never in the live NPC query.
+  // A temporarily missing location must not advance or complete a tour step.
   const current = npcs?.find(npc => worlds.findIndex(world => world.worldId === npc.worldId && world.name === npc.name) >= index);
   useEffect(() => {
     if (!eligible || !npcs || current) return;
