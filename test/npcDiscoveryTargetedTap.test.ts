@@ -26,4 +26,7 @@ test("missing NPC data cannot silently skip a world or complete discovery", () =
   // Keep the existing explicit retry / skip UI instead of fabricating progress.
   assert.match(discovery, /onClick=\{\(\) => void refetch\(\)\}/);
   assert.match(discovery, /onClick=\{\(\) => finish\(worlds\.length\)\}/);
+  // The HUD portal is intentionally pass-through. Recovery controls must
+  // explicitly restore pointer input so the map pan surface cannot intercept taps.
+  assert.match(discovery, /if \(isError\) return createPortal\([\s\S]*?pointerEvents: "auto"/);
 });
