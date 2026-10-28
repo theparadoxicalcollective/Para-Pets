@@ -123,7 +123,10 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
   if(path==='/api/friends/requests/count')return fulfill(route,{count:0});
   if(path.includes('pet-page-placement'))return fulfill(route,{x:0,y:0,scale:1});
   if(path==='/api/active-pet-anchor')return fulfill(route,{x:0,y:0});
-  if(path.startsWith('/api/world/'))return fulfill(route,[{id:'ginny',name:'Ginny',type:'npc'}]);
+  // Real NPC discovery starts after tutorial completion. Supply each world
+  // with its actual tour NPCs: missing-data recovery has its own dedicated smoke.
+  if(path==='/api/world/haunted_woods/locations')return fulfill(route,[{id:'ginny',name:'Ginny',type:'npc'}]);
+  if(path==='/api/world/swamp/locations')return fulfill(route,[{id:'janson',name:'Janson',type:'npc'},{id:'lonelle',name:'Lonelle',type:'npc'}]);
   return fulfill(route,[]);
  });
  const step=async n=>page.waitForFunction(n=>localStorage.getItem('bj_step:journey-fixture')===String(n),n);
@@ -232,7 +235,10 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
  await activate(page.getByTestId('button-egg-tap'));await step('done');
  assert.equal(user.tutorial_quest_completed,true);
  assert.equal(counts.complete,recovery?2:1,'failed completion must retry even when inventory does not change');
- await page.getByTestId('npc-discovery-guide').waitFor({state:'visible'});
+ const npcGuide=page.getByTestId('npc-discovery-guide');
+ await npcGuide.waitFor({state:'visible'});
+ assert.match(await npcGuide.textContent(), /Explore quests\\s*·\\s*1\\/3/,
+   'Begin Journey handoff must load the complete Ginny, Janson and Lonelle tour');
  await activate(page.getByTestId('button-skip-npc-guide'));
  await activate(page.getByTestId('button-floating-nav'));
  await activate(page.getByTestId('nav-item-quest'));
