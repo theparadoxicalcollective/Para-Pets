@@ -237,7 +237,7 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
  assert.equal(counts.complete,recovery?2:1,'failed completion must retry even when inventory does not change');
  const npcGuide=page.getByTestId('npc-discovery-guide');
  await npcGuide.waitFor({state:'visible'});
- assert.match(await npcGuide.textContent(), /Explore quests\\s*·\\s*1\\/3/,
+ assert.match(await npcGuide.textContent(), /Explore quests\s*·\s*1\/3/,
    'Begin Journey handoff must load the complete Ginny, Janson and Lonelle tour');
  await activate(page.getByTestId('button-skip-npc-guide'));
  await activate(page.getByTestId('button-floating-nav'));
