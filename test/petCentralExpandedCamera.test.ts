@@ -65,10 +65,13 @@ test("Pet Central uses the expanded scene portal while persistent controls use t
 test("Pet Central expanded camera uses the shared explorable World framing policy", () => {
   const source = read("client/src/pages/PetWorldPage.tsx");
 
-  assert.match(source, /calculateExpandedWorldCameraScale\(/);
-  assert.match(source, /calculateWorldFitScale\(/);
+  // Native root ownership is now universal: the camera mode must be chosen
+  // from the measured frame, not from obsolete stage ownership.
+  assert.match(source, /const getPetCentralCameraScale = useCallback\(\(\) => calculateExpandedWorldCameraScale\(/);
+  assert.match(source, /frameWRef\.current,\s*frameHRef\.current,\s*mapHRef\.current,\s*MAP_W,/);
+  assert.doesNotMatch(source, /getStageSurface\(\)\.viewportOwned/);
+  assert.doesNotMatch(source, /calculateWorldFitScale\(/);
   assert.match(source, /clampWorldMapOffset\(/);
-  assert.match(source, /const expandedCamera = !getStageSurface\(\)\.viewportOwned/);
   assert.match(source, /worldCameraPointerDelta\(/);
   assert.doesNotMatch(source, /const dx = \(e\.clientX - mapPanStartRef\.current\.x\) \/ getStageScale\(\)/);
 
@@ -96,22 +99,31 @@ test("iPhone 12 Pet Central keeps the exact existing cover scale and no vertical
   assert.ok(Math.abs(centered.y) < 1e-9);
 });
 
-test("tablet Pet Central fills the device and keeps real map available in both drag axes", () => {
-  const frameW = 683;
-  const frameH = 911;
-  const margin = calculateExpandedWorldCameraPanMargin(frameW, frameH);
-  const scale = calculateExpandedWorldCameraScale(frameW, frameH, MAP_H, MAP_W);
+test("tablet and portrait desktop cameras retain real map travel in both axes", () => {
+  for (const [frameW, frameH] of [[683, 911], [800, 1280], [648, 900]] as const) {
+    const margin = calculateExpandedWorldCameraPanMargin(frameW, frameH);
+    const scale = calculateExpandedWorldCameraScale(frameW, frameH, MAP_H, MAP_W);
 
-  assert.ok(MAP_W * scale >= frameW + margin * 2 - 1e-9);
-  assert.ok(MAP_H * scale >= frameH + margin * 2 - 1e-9);
+    assert.ok(MAP_W * scale >= frameW + margin * 2 - 1e-9);
+    assert.ok(MAP_H * scale >= frameH + margin * 2 - 1e-9);
 
-  const first = clampWorldMapOffset(9999, 9999, scale, frameW, frameH, MAP_H, MAP_W);
-  const last = clampWorldMapOffset(-9999, -9999, scale, frameW, frameH, MAP_H, MAP_W);
+    const first = clampWorldMapOffset(9999, 9999, scale, frameW, frameH, MAP_H, MAP_W);
+    const last = clampWorldMapOffset(-9999, -9999, scale, frameW, frameH, MAP_H, MAP_W);
 
-  assert.equal(first.x, 0);
-  assert.equal(first.y, 0);
-  assert.ok(last.x < 0);
-  assert.ok(last.y < 0);
+    assert.equal(first.x, 0);
+    assert.equal(first.y, 0);
+    assert.ok(last.x < 0);
+    assert.ok(last.y < 0);
+  }
+});
+
+test("other compact phone viewports continue using the same cover framing", () => {
+  for (const [frameW, frameH] of [[320, 568], [360, 800], [430, 932]] as const) {
+    assert.equal(
+      calculateExpandedWorldCameraScale(frameW, frameH, MAP_H, MAP_W),
+      calculateWorldFitScale(frameW, frameH, MAP_H, false, MAP_W),
+    );
+  }
 });
 
 test("roaming-pet camera follow now clamps both axes without changing saved pet percentages", () => {
