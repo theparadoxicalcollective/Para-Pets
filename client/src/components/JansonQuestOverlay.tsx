@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { chooseNpcMessage, npcNamesMatch, parseNpcMetadata } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_WORLD_ID } from "@shared/worlds/elysianBayou";
-import { getQuestGuideSurface } from "@/lib/questGuideViewport";
+import { getQuestGuideSurface, guideDialogMaxHeight } from "@/lib/questGuideViewport";
 
 type QuestStatus = "locked" | "available" | "accepted" | "completed" | "claimed";
 interface Quest {
@@ -145,6 +145,7 @@ export default function JansonQuestOverlay() {
   const surface = getQuestGuideSurface();
   const overlayPosition = surface.inStage ? "absolute" : "fixed";
   const dialogWidth = Math.min(410, Math.max(280, surface.width - 24));
+  const dialogMaxHeight = guideDialogMaxHeight(surface.height, 48);
   const firstTime = state.quests.find(quest => quest.status !== "claimed" && quest.status !== "locked");
   const repeatable = state.marketUnlocked ? state.dailyQuest : null;
   const current = firstTime ?? (repeatable?.status !== "locked" && repeatable?.status !== "claimed" ? repeatable : null);
@@ -240,7 +241,7 @@ export default function JansonQuestOverlay() {
     {questListMount && logQuest && createPortal(<QuestCard quest={logQuest} busy={claim.isPending} onGo={() => onQuestGo(logQuest)} onClaim={() => claim.mutate(logQuest.questKey)} />, questListMount)}
     {dialogOpen && inBayou && createPortal(<div className={`${overlayPosition} inset-0 z-[2147482000] flex items-center justify-center p-3`} style={{ background: "rgba(2,10,7,.82)", pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()} onClick={() => setDialogOpen(false)}>
       <section role="dialog" aria-modal="true" aria-label="Janson's fishing quests" data-testid="janson-quest-dialog" onClick={event => event.stopPropagation()}
-        style={{ width: dialogWidth, padding: 18, borderRadius: 18, border: "1px solid rgba(184,219,142,.65)", background: "linear-gradient(#163528,#081b16)", boxShadow: "0 16px 45px #000a", color: "#f5ead0", fontFamily: "Lora,serif" }}>
+        style={{ width: dialogWidth, maxHeight: dialogMaxHeight, overflowY: "auto", padding: 18, borderRadius: 18, border: "1px solid rgba(184,219,142,.65)", background: "linear-gradient(#163528,#081b16)", boxShadow: "0 16px 45px #000a", color: "#f5ead0", fontFamily: "Lora,serif" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {janson?.iconUrl && <img src={janson.iconUrl} alt="" style={{ width: 66, height: 66, objectFit: "contain" }} />}
           <div style={{ flex: 1 }}><strong style={{ color: "#f3d88b", fontSize: 18 }}>Janson</strong>
