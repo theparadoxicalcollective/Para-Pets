@@ -57,3 +57,4 @@ jobs:
           node script/npc-discovery-smoke.mjs
           node script/begin-journey-smoke.mjs
           node script/janson-quest-smoke.mjs
+          node script/lonelle-quest-smoke.mjs
