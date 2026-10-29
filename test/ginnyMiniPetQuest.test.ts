@@ -118,4 +118,4 @@ test("Ginny guide resume is player-specific and never reuses shared-browser prog
   assert.match(overlay, /sessionStorage\.removeItem\(guideStorageKey\)/);
   assert.doesNotMatch(overlay, /sessionStorage\.(?:getItem|setItem|removeItem)\(GUIDE_STORAGE_KEY[,\)]/);
   assert.match(overlay, /state\?\.status !== "accepted"/);
-}
+});
