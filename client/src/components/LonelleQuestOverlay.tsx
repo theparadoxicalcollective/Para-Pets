@@ -59,7 +59,6 @@ export default function LonelleQuestOverlay() {
   const [questLogMount, setQuestLogMount] = useState<HTMLElement | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [prize, setPrize] = useState<ClaimResult | null>(null);
-  const [showReturnHome, setShowReturnHome] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   useEffect(() => {
     // The left-side Pet Menu is owned by HomePage, so opening its rollout does
@@ -77,7 +76,6 @@ export default function LonelleQuestOverlay() {
     queryFn: async () => (await apiRequest("GET", API)).json(),
   });
   const inBayou = pathname.startsWith(WORLD);
-  useEffect(() => { if (pathname !== CLEARING) setShowReturnHome(false); }, [pathname]);
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ["/api/world", "swamp", "locations"], enabled: Boolean(user && inBayou), staleTime: 5_000,
     queryFn: async () => (await apiRequest("GET", "/api/world/swamp/locations")).json(),
@@ -115,7 +113,7 @@ export default function LonelleQuestOverlay() {
   });
   const take = useMutation({
     mutationFn: async () => (await apiRequest("POST", `${API}/take`, {})).json() as Promise<QuestState>,
-    onSuccess: next => { refresh(next); setMessage(null); if (pathname === CLEARING) setShowReturnHome(true); },
+    onSuccess: next => { refresh(next); setMessage(null); },
     onError: (error: Error) => setMessage(error.message),
   });
   const claim = useMutation({
@@ -186,6 +184,9 @@ export default function LonelleQuestOverlay() {
   const overlayPosition = surface.inStage ? "absolute" : "fixed";
   const dialogMaxHeight = guideDialogMaxHeight(surface.height);
   const finding = pathname === CLEARING && state.status === "found";
+  // This return-home prompt must survive reloads: quest progress is persisted
+  // by the server, unlike the old local showReturnHome flag.
+  const returnHomeWithScarf = pathname === CLEARING && state.status === "taken" && state.scarfOwned && !state.scarfEquipped;
   const heading = state.status === "available" ? "I've lost my scarf!" : state.status === "claimed" ? "Thank you, dear friend!" : state.scarfEquipped ? "You found my scarf!" : "My scarf is still out there.";
   const speech = state.status === "available"
     ? "Adornments are simply a way to decorate your pet and make them your own. I lost my favorite scarf in the Bayou Clearing! Will you defeat five monsters, find it, and bring it back to me?"
@@ -205,7 +206,7 @@ export default function LonelleQuestOverlay() {
       <p className="mt-1 text-[10px]">{state.status === "accepted" ? `${state.kills}/${state.requiredKills} Clearing monsters defeated` : state.status === "found" ? "Take Lonelle's Scarf from the Clearing" : state.status === "taken" ? state.scarfEquipped ? "Return to Lonelle in the Bayou" : "Equip the scarf in the third adornment space" : "Talk to Lonelle in the Bayou"}</p>
     </div>, questLogMount)}
     {state.status === "accepted" && pathname === CLEARING && createPortal(<div data-testid="lonelle-clearing-progress" className={`${overlayPosition} left-1/2 top-[8%] -translate-x-1/2 rounded-xl border border-[#eed486] bg-[#10291f]/95 px-4 py-2 text-center font-fantasy text-[#fff0c7] shadow-lg`} style={{ zIndex: 2147481000, pointerEvents: "none" }}>Lonelle's Scarf · {state.kills}/{state.requiredKills} monsters</div>, surface.target)}
-    {!primaryGuideActive && !dialogOpen && !prize && !finding && !(pathname === CLEARING && showReturnHome && state.status === "taken") && target && <QuestGuideSpotlight
+    {!primaryGuideActive && !dialogOpen && !prize && !finding && !returnHomeWithScarf && target && <QuestGuideSpotlight
       selector={target}
       label={instruction}
       focus={focus}
@@ -213,7 +214,7 @@ export default function LonelleQuestOverlay() {
       blockingGuide={false}
       testId="lonelle-guide-spotlight"
     />}
-    {(finding || (pathname === CLEARING && showReturnHome && state.status === "taken")) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000, pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()}>
+    {(finding || returnHomeWithScarf) && createPortal(<div className={`${overlayPosition} inset-0 grid place-items-center bg-black/75 p-4`} style={{ zIndex: 2147482000, pointerEvents: "auto" }} onPointerDown={event => event.stopPropagation()}>
       <section role="dialog" aria-modal="true" aria-label="Scarf found" className="w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#eccc78] bg-[#173126] p-5 text-center font-fantasy text-[#ffefc6] shadow-2xl" style={{ maxHeight: dialogMaxHeight }}>
         {state.scarf?.imageUrl && <img src={state.scarf.imageUrl} alt="Lonelle's Scarf" className="mx-auto h-24 w-24 object-contain" />}
         <h2 className="mt-2 text-xl text-[#ffe38a]">You found Lonelle's Scarf!</h2>
