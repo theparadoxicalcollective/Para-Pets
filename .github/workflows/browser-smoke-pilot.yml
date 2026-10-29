@@ -58,5 +58,6 @@ jobs:
           # Exercise the PR-specific Lonelle flow before the longer, occasionally
           # timing-sensitive Begin Journey suite, while retaining every gate.
           node script/lonelle-quest-smoke.mjs
+          node script/ginny-guide-smoke.mjs
           node script/begin-journey-smoke.mjs
           node script/janson-quest-smoke.mjs
