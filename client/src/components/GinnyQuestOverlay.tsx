@@ -251,9 +251,8 @@ export default function GinnyQuestOverlay() {
   const primaryGuideActive = usePrimaryQuestGuideActive();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [guideActive, setGuideActive] = useState(() => {
-    try { return sessionStorage.getItem(GUIDE_STORAGE_KEY) === "1"; } catch { return false; }
-  });
+  // An unscoped browser flag may belong to a different signed-in player.
+  const [guideActive, setGuideActive] = useState(false);
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
   const [ginnyMount, setGinnyMount] = useState<HTMLElement | null>(null);
   const [questListMount, setQuestListMount] = useState<HTMLElement | null>(null);
@@ -273,6 +272,8 @@ export default function GinnyQuestOverlay() {
     },
   });
 
+  const guideStorageKey = user?.id ? `${GUIDE_STORAGE_KEY}:${user.id}` : null;
+
   const { data: state } = useQuery<GinnyQuestState>({
     queryKey: ["/api/quests/ginny-mini-pet"],
     enabled: Boolean(user),
@@ -281,6 +282,18 @@ export default function GinnyQuestOverlay() {
     refetchInterval: query => query.state.data?.status === "accepted" ? 1500 : false,
     queryFn: async () => (await apiRequest("GET", "/api/quests/ginny-mini-pet")).json(),
   });
+
+  // Restore only the authenticated player's accepted quest guide. The
+  // legacy unscoped key is intentionally not migrated across accounts.
+  useEffect(() => {
+    if (!guideStorageKey || state?.status !== "accepted") {
+      setGuideActive(false);
+      return;
+    }
+    let saved = false;
+    try { saved = sessionStorage.getItem(guideStorageKey) === "1"; } catch {}
+    setGuideActive(saved);
+  }, [guideStorageKey, state?.status]);
 
   const inGinnyWorld = pathname.startsWith(`/world/${GINNY_WORLD_ID}`);
   const { data: hauntedLocations = [] } = useQuery<WorldLocationRow[]>({
@@ -332,18 +345,22 @@ export default function GinnyQuestOverlay() {
     previousStatus.current = state.status;
     if (state.status === "completed" || state.status === "claimed" || state.status === "available") {
       setGuideActive(false);
-      try { sessionStorage.removeItem(GUIDE_STORAGE_KEY); } catch {}
+      if (guideStorageKey) {
+        try { sessionStorage.removeItem(guideStorageKey); } catch {}
+      }
     }
-  }, [state?.status]);
+  }, [guideStorageKey, state?.status]);
 
   const resumeGuide = useCallback(() => {
     if (!state || state.status !== "accepted") return;
     setGuideActive(true);
     setMessage(null);
-    try { sessionStorage.setItem(GUIDE_STORAGE_KEY, "1"); } catch {}
+    if (guideStorageKey) {
+      try { sessionStorage.setItem(guideStorageKey, "1"); } catch {}
+    }
     const supported = pathname.startsWith(`/world/${GINNY_WORLD_ID}`) || pathname === "/" || pathname.startsWith("/equip-accessories");
     if (!supported) navigate(`/world/${GINNY_WORLD_ID}`);
-  }, [navigate, pathname, state]);
+  }, [guideStorageKey, navigate, pathname, state]);
 
   useEffect(() => {
     if (!guideActive || !state || state.status !== "accepted") {
@@ -373,7 +390,9 @@ export default function GinnyQuestOverlay() {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setDialogOpen(false);
       setGuideActive(true);
-      try { sessionStorage.setItem(GUIDE_STORAGE_KEY, "1"); } catch {}
+      if (guideStorageKey) {
+      try { sessionStorage.setItem(guideStorageKey, "1"); } catch {}
+    }
     },
     onError: (error: any) => setMessage(error?.message || "Ginny could not give you that Mini Pet. Please try again."),
   });
