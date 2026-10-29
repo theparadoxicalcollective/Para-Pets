@@ -232,7 +232,25 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
  }
  if(recovery)failures.complete=1;
  await page.getByText('Your egg is ready — tap it to hatch!').waitFor({state:'visible'});
- await activate(page.getByTestId('button-egg-tap'));await step('done');
+ await activate(page.getByTestId('button-egg-tap'));
+ try {
+   await step('done');
+ } catch (error) {
+   // Distinguish a real hatch/completion regression from a slow viewport
+   // transition without changing the tutorial or masking its failure.
+   const browserState=await page.evaluate(()=>({
+     step:localStorage.getItem('bj_step:journey-fixture'),
+     inventory:window.fixtureInventory()?.filter(p=>p.inventoryId==='starter-owned'||p.inventoryId==='potions')
+       .map(p=>({id:p.inventoryId,isHatched:p.isHatched,hatchStartedAt:p.hatchStartedAt,quantity:p.quantity})),
+     tapModeLabel:document.body.textContent?.includes('Your egg is ready — tap it to hatch!'),
+     eggVisible:!!document.querySelector('[data-testid="button-egg-tap"]'),
+   })).catch(e=>({captureError:String(e)}));
+   console.error('Begin Journey completion diagnosis',JSON.stringify({
+     profile:name,counts,activePetId:user.activePetId,serverCompleted:user.tutorial_quest_completed,
+     serverEgg:inventory.find(p=>p.inventoryId==='starter-owned'),browserState,errors,
+   }));
+   throw error;
+ }
  assert.equal(user.tutorial_quest_completed,true);
  assert.equal(counts.complete,recovery?2:1,'failed completion must retry even when inventory does not change');
  const npcGuide=page.getByTestId('npc-discovery-guide');
