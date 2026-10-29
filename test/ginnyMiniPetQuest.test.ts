@@ -109,3 +109,13 @@ test("Janson quest marker matches Ginny's quest exclamation styling", async () =
   assert.match(janson, /data-testid="janson-quest-marker-badge"/);
   assert.match(janson, /current\?\.status === "completed" \? "✓" : "!"/);
 });
+
+test("Ginny guide resume is player-specific and never reuses shared-browser progress", async () => {
+  const overlay = await readFile(overlayPath, "utf8");
+  assert.match(overlay, /const guideStorageKey = user\?\.id/);
+  assert.match(overlay, /sessionStorage\.getItem\(guideStorageKey\)/);
+  assert.match(overlay, /sessionStorage\.setItem\(guideStorageKey, "1"\)/);
+  assert.match(overlay, /sessionStorage\.removeItem\(guideStorageKey\)/);
+  assert.doesNotMatch(overlay, /sessionStorage\.(?:getItem|setItem|removeItem)\(GUIDE_STORAGE_KEY[,\)]/);
+  assert.match(overlay, /state\?\.status !== "accepted"/);
+}
