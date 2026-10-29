@@ -5,7 +5,7 @@ import {chromium} from 'playwright';
 // Run the real Lonelle overlay through saved-quest-state transitions. The
 // isolated API fixtures never alter production users, monsters, or rewards.
 const fixtureId='/__lonelle-quest-fixture.tsx';
-const fixture = "import React, { useEffect } from 'react';\nimport { createRoot } from 'react-dom/client';\nimport { createPortal } from 'react-dom';\nimport { QueryClient, QueryClientProvider } from '@tanstack/react-query';\nimport { getQueryFn } from '@/lib/queryClient';\nimport { useLocation } from 'wouter';\nimport { readStageViewportLayout } from '@/lib/stageViewport';\nimport LonelleQuestOverlay from '@/components/LonelleQuestOverlay';\nimport '@/index.css';\nconst client = new QueryClient({defaultOptions:{queries:{queryFn:getQueryFn({on401:'returnNull'}),retry:false,refetchOnWindowFocus:false}}});\nfunction Fixture(){\n  const [pathname]=useLocation();\n  const layout=readStageViewportLayout(pathname);\n  useEffect(()=>{\n    const stage=document.getElementById('game-stage');\n    Object.assign(stage.style,{position:'absolute',left:layout.left+'px',top:layout.top+'px',\n      width:layout.designWidth+'px',height:layout.designHeight+'px',overflow:'hidden'});\n  },[layout.left,layout.top,layout.designWidth,layout.designHeight]);\n  return <>\n    {pathname.startsWith('/world/swamp') && createPortal(<div data-testid=\"location-lonelle\"\n      style={{position:'absolute',left:'38%',top:'28%',width:96,height:102,pointerEvents:'auto',\n        background:'rgba(36,78,41,.4)'}} />,document.getElementById('game-viewport-scene'))}\n    <LonelleQuestOverlay />\n  </>;\n}\ncreateRoot(document.getElementById('root')).render(\n  <QueryClientProvider client={client}><Fixture/></QueryClientProvider>\n);";
+const fixture = "import React, { useEffect } from 'react';\nimport { createRoot } from 'react-dom/client';\nimport { createPortal } from 'react-dom';\nimport { QueryClient, QueryClientProvider } from '@tanstack/react-query';\nimport { getQueryFn } from '@/lib/queryClient';\nimport { useLocation } from 'wouter';\nimport { readStageViewportLayout } from '@/lib/stageViewport';\nimport LonelleQuestOverlay from '@/components/LonelleQuestOverlay';\nimport PetCostumeEquipmentSection from '@/components/PetCostumeEquipmentSection';\nimport '@/index.css';\nconst client = new QueryClient({defaultOptions:{queries:{queryFn:getQueryFn({on401:'returnNull'}),retry:false,refetchOnWindowFocus:false}}});\nfunction Fixture(){\n  const [pathname,navigate]=useLocation();\n  const layout=readStageViewportLayout(pathname);\n  useEffect(()=>{\n    const stage=document.getElementById('game-stage');\n    Object.assign(stage.style,{position:'absolute',left:layout.left+'px',top:layout.top+'px',\n      width:layout.designWidth+'px',height:layout.designHeight+'px',overflow:'hidden'});\n  },[layout.left,layout.top,layout.designWidth,layout.designHeight]);\n  return <>\n    {pathname.startsWith('/world/swamp') && createPortal(<div data-testid=\"location-lonelle\"\n      style={{position:'absolute',left:'38%',top:'28%',width:96,height:102,pointerEvents:'auto',\n        background:'rgba(36,78,41,.4)'}} />,document.getElementById('game-viewport-scene'))}\n    {pathname.startsWith('/equip-accessories') && <div style={{position:'absolute',inset:0,pointerEvents:'auto'}}>\n      <button data-testid=\"button-close-equip-accessories\" type=\"button\"\n        style={{position:'absolute',right:8,top:8,zIndex:180,pointerEvents:'auto'}}\n        onClick={()=>navigate('/')}>Close Closet</button>\n      <PetCostumeEquipmentSection petInventoryId=\"pet-qa\" petName=\"QA Pet\"\n        rarityColor=\"#e5bf67\" userCoins={0} closetMode deviceSurface />\n    </div>}\n    <LonelleQuestOverlay />\n  </>;\n}\ncreateRoot(document.getElementById('root')).render(\n  <QueryClientProvider client={client}><Fixture/></QueryClientProvider>\n);";
 
 const server=await createServer({
   server:{host:'127.0.0.1',port:4177,strictPort:true},
@@ -42,7 +42,7 @@ try{
   const page=await context.newPage(); page.setDefaultTimeout(12000);
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  const counts={starts:0,takes:0,claims:0};
+  const counts={starts:0,takes:0,equips:0,claims:0};
   let state={
     status:'available', kills:0, requiredKills:5, scarfInventoryId:null,
     scarfOwned:false, scarfEquipped:false, scarf:{name:"Lonelle's Scarf",imageUrl:null},
@@ -51,7 +51,26 @@ try{
   };
   await page.route('**/api/**',route=>{
     const path=new URL(route.request().url()).pathname;
-    if(path==='/api/auth/me')return route.fulfill({json:{id:'lonelle-fixture',username:'QA'}});
+    if(path==='/api/auth/me')return route.fulfill({json:{id:'lonelle-fixture',username:'QA',coins:0}});
+    if(path==='/api/inventory')return route.fulfill({json:[{
+      inventoryId:'scarf-qa',shopItemId:'scarf-shop',name:"Lonelle's Scarf",
+      type:'costume',adornmentSlot:null,quantity:1,imageUrl:null,isListed:false,
+    }]});
+    if(path==='/api/user/equipped-costume-counts')return route.fulfill({json:{}});
+    if(path==='/api/pet/pet-qa/costumes'&&route.request().method()==='GET')
+      return route.fulfill({json:{extraSlots:0,fittedShopItemIds:['scarf-shop'],
+        equipped:state.scarfEquipped?[{
+          id:'equip-qa',slot:3,copyIndex:0,costumeInventoryId:'scarf-qa',
+          name:"Lonelle's Scarf",imageUrl:null,placements:[],
+        }]:[],
+      }});
+    if(path==='/api/pet/pet-qa/costumes/equip'){
+      const body=route.request().postDataJSON();
+      assert.deepEqual(body,{costumeInventoryId:'scarf-qa',slot:3},'equip in third adornment space');
+      counts.equips++;
+      state={...state,scarfEquipped:true};
+      return route.fulfill({json:{success:true}});
+    }
     if(path==='/api/quests/lonelle-lost-adornment'&&route.request().method()==='GET')
       return route.fulfill({json:state});
     if(path==='/api/quests/lonelle-lost-adornment/start'){
@@ -105,9 +124,23 @@ try{
   await activate(returnHome);
   await page.waitForURL('http://127.0.0.1:4177/');
 
-  // The Closet action belongs to HomePage. Only simulate the server-side
-  // equipment confirmation here, then exercise the real Lonelle claim UI.
-  state={...state,scarfEquipped:true};
+  // Exercise the actual adornment slot/picker/equip component, not an
+  // artificial quest-state jump. Both Closet URLs are supported by App.
+  const closetPath=name==='Android phone'||name==='desktop portrait frame'
+    ? '/equip-accessories/pet-qa' : '/equip-accessories';
+  await page.goto('http://127.0.0.1:4177'+closetPath);
+  const thirdSlot=page.getByTestId('slot-costume-3');
+  await thirdSlot.waitFor({state:'visible'});
+  await page.getByTestId('lonelle-guide-spotlight-hint').getByText('Choose the third adornment space').waitFor({state:'visible'});
+  await activate(thirdSlot);
+  const picker=page.getByTestId('adornment-inventory-picker');
+  await picker.waitFor({state:'visible'});
+  await activate(page.getByTestId('bag-costume-scarf-qa'));
+  await picker.waitFor({state:'hidden'});
+  assert.equal(counts.equips,1,name+': scarf equipped once in the third adornment space');
+  await page.getByTestId('lonelle-guide-spotlight-hint').getByText('Close the Closet').waitFor({state:'visible'});
+  await activate(page.getByTestId('button-close-equip-accessories'));
+  await page.waitForURL('http://127.0.0.1:4177/');
   await page.goto('http://127.0.0.1:4177/world/swamp');
   await activate(page.getByTestId('button-talk-lonelle'));
   await activate(page.getByTestId('button-claim-lonelle-quest'));
@@ -115,7 +148,7 @@ try{
   await activate(page.getByTestId('button-close-lonelle-rewards'));
   assert.equal(counts.claims,1,name+': exactly one final claim');
   assert.deepEqual(errors,[],name+': no uncaught browser errors');
-  console.log('PASS '+name+': Lonelle accept, Clearing pickup, reload-proof Return Home, and reward claim');
+  console.log('PASS '+name+': Lonelle accept, Clearing pickup, reload-proof Return Home, real third-slot scarf equip, and reward claim');
   await context.close();
  }
 }finally{

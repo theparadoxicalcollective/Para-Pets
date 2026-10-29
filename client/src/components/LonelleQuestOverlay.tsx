@@ -76,6 +76,9 @@ export default function LonelleQuestOverlay() {
     queryFn: async () => (await apiRequest("GET", API)).json(),
   });
   const inBayou = pathname.startsWith(WORLD);
+  // Both the active pet's Closet and the pet-specific Closet use the same
+  // adornment controls; the quest guide must follow either supported route.
+  const inCloset = pathname === "/equip-accessories" || pathname.startsWith("/equip-accessories/");
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ["/api/world", "swamp", "locations"], enabled: Boolean(user && inBayou), staleTime: 5_000,
     queryFn: async () => (await apiRequest("GET", "/api/world/swamp/locations")).json(),
@@ -147,7 +150,7 @@ export default function LonelleQuestOverlay() {
     target = actionMenuOpen ? '[data-testid="button-action-equip-accessories"]' : '[data-testid="button-open-pet-menu"]';
     instruction = actionMenuOpen ? "Open your pet's Closet" : "Open the Pet Menu";
     focus = "control";
-  } else if (guiding && state.status === "taken" && pathname === "/equip-accessories") {
+  } else if (guiding && state.status === "taken" && inCloset) {
     if (state.scarfEquipped) { target = '[data-testid="button-close-equip-accessories"]'; instruction = "Close the Closet"; }
     else if (visible(document.querySelector<HTMLElement>('[data-testid="button-confirm-unequip-adornment"]'))) {
       target = '[data-testid="button-confirm-unequip-adornment"]'; instruction = "Make room for Lonelle's Scarf"; focus = "control";
