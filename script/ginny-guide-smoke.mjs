@@ -95,6 +95,9 @@ try{
   await guide.waitFor({state:'visible'});
   assert.equal(await getKey('player-a'),'1',name+': A resumes after reload');
 
+  // Even a leftover unscoped flag from an old deployment must not be
+  // mistaken for player B's saved instruction state.
+  await page.evaluate(()=>sessionStorage.setItem('para:ginny-mini-pet-guide','1'));
   // Player B has an accepted quest too, but must not inherit A's opt-in guide.
   player='player-b';
   await page.reload();
