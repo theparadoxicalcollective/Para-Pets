@@ -391,8 +391,8 @@ export default function GinnyQuestOverlay() {
       setDialogOpen(false);
       setGuideActive(true);
       if (guideStorageKey) {
-      try { sessionStorage.setItem(guideStorageKey, "1"); } catch {}
-    }
+        try { sessionStorage.setItem(guideStorageKey, "1"); } catch {}
+      }
     },
     onError: (error: any) => setMessage(error?.message || "Ginny could not give you that Mini Pet. Please try again."),
   });
