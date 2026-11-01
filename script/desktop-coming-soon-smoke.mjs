@@ -41,15 +41,15 @@ try {
     await context.close();
   }
 
-  // Public information and admin/account-recovery routes remain accessible.
+  // Public information and sign-in routes remain accessible. The admin\n  // policy is covered by the pure test, since anonymous /admin redirects to /.
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  for (const path of ["/privacy", "/auth", "/admin"]) {
+  for (const path of ["/privacy", "/auth"]) {
     await page.goto("http://127.0.0.1:4173" + path, { waitUntil: "domcontentloaded" });
     await page.locator("#game-stage").waitFor({ state: "attached" });
     assert.equal(await page.getByTestId("desktop-coming-soon").count(), 0, path + ": keep non-gameplay routes available");
   }
-  console.log("PASS PC support routes: notice does not block privacy, auth or admin");
+  console.log("PASS PC support routes: notice does not block privacy or auth");
   await context.close();
 } finally {
   await browser.close();
