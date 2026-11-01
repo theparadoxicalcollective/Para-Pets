@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
-// Exercise the real App entry. The temporary PC gate must render before auth,
-// tutorials, or other gameplay mounts; mobile and tablet paths stay untouched.
+// Exercise the real RootEntry -> authenticated App path. RootEntry owns
+// sign-in at / for anonymous visitors, so desktop player notice is verified
+// with an isolated signed-in user rather than bypassing the auth boundary.
 const browser = await chromium.launch({ headless: true });
 try {
   const profiles = [
@@ -20,6 +21,12 @@ try {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
+    // RootEntry keeps the anonymous home route as sign-in. A verified player
+    // reaches App/GameStage, where the desktop-only gameplay gate lives.
+    await page.route("**/api/auth/me", route => route.fulfill({
+      json: { id: "desktop-notice-fixture", username: "QA", emailVerified: true,
+        tutorial_quest_completed: true, tutorial_reward_claimed: true },
+    }));
     await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
     if (touch) {
       await page.locator("#game-stage").waitFor({ state: "attached" });
@@ -41,15 +48,17 @@ try {
     await context.close();
   }
 
-  // Public information and sign-in routes remain accessible. The admin\n  // policy is covered by the pure test, since anonymous /admin redirects to /.
+  // Anonymous desktop players must still reach sign-in at / (including the
+  // legacy /auth redirect), while /privacy stays public. Administration and
+  // other exempt routes are covered by the pure route policy test.
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  for (const path of ["/privacy", "/auth"]) {
+  for (const path of ["/", "/privacy", "/auth"]) {
     await page.goto("http://127.0.0.1:4173" + path, { waitUntil: "domcontentloaded" });
     await page.locator("#game-stage").waitFor({ state: "attached" });
     assert.equal(await page.getByTestId("desktop-coming-soon").count(), 0, path + ": keep non-gameplay routes available");
   }
-  console.log("PASS PC support routes: notice does not block privacy or auth");
+  console.log("PASS PC support routes: anonymous sign-in and privacy remain accessible");
   await context.close();
 } finally {
   await browser.close();
