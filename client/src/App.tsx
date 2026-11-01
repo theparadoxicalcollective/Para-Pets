@@ -707,6 +707,7 @@ function GameStage({ children }: { children: ReactNode }) {
   if (usesDeviceGameplaySurface(location)) {
     return (
       <div key="device-gameplay" className="game-stage-shell" data-stage-coordinate-owner="viewport"
+        data-desktop-portrait={layout.designWidth < layout.viewportWidth ? "true" : "false"}
         style={{ position: "fixed", inset: 0, background: "#050c08" }}>
         <div id="game-stage" data-design-width={layout.designWidth} data-design-height={layout.designHeight}
           data-coordinate-owner="viewport" data-reference-portrait="false"
