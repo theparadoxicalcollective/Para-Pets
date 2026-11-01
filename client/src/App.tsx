@@ -14,7 +14,8 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { shouldUseDocumentLayout, usesDeviceGameplaySurface } from "@/lib/stage";
+import { isTouchFirstDevice, shouldUseDocumentLayout, usesDeviceGameplaySurface } from "@/lib/stage";
+import { shouldShowDesktopComingSoon } from "@/lib/desktopComingSoon";
 import { useStageViewportLayout } from "@/lib/stageViewport";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
@@ -28,6 +29,7 @@ import { isIsolatedPlayerRoute, shouldHideFloatingNav } from "@/lib/playerPagePr
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
 import LoadingScreen from "@/components/LoadingScreen";
+import DesktopComingSoonScreen from "@/components/DesktopComingSoonScreen";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
@@ -701,6 +703,17 @@ function CrashReporter() {
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const layout = useStageViewportLayout(location);
+
+  // Player gameplay is temporarily phone/tablet-only. Gate before mounting the
+  // router, worlds and quests; leave PC admin, auth and legal routes usable.
+  if (shouldShowDesktopComingSoon(location, {
+    userAgent: typeof navigator === "undefined" ? "" : navigator.userAgent,
+    platform: typeof navigator === "undefined" ? "" : navigator.platform,
+    maxTouchPoints: typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints,
+    touchFirst: isTouchFirstDevice(),
+  })) {
+    return <DesktopComingSoonScreen />;
+  }
 
   // Audited gameplay routes use real device pixels. They have no reference plane,
   // stage transform, or centering offsets; authored scenes remain page-owned.
