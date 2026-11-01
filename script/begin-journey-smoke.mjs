@@ -232,6 +232,10 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
  }
  if(recovery)failures.complete=1;
  await page.getByText('Your egg is ready — tap it to hatch!').waitFor({state:'visible'});
+ // The overlay and HomePage subscribe to inventory separately. Do not race
+ // the real egg click handler while its hatch-ready render is still pending.
+ // This asserts the gameplay UI is ready instead of retrying or faking a tap.
+ await page.getByTestId('display-egg-hatch-ready').waitFor({state:'visible'});
  await activate(page.getByTestId('button-egg-tap'));
  try {
    await step('done');
