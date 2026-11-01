@@ -16,10 +16,10 @@ try{
   const context=await browser.newContext({viewport:{width,height},hasTouch:touch,isMobile:touch});
   const page=await context.newPage();page.setDefaultTimeout(12000);
   await page.goto('http://127.0.0.1:4173/privacy');
-  await page.addStyleTag({url:'http://127.0.0.1:4173/client/src/tabletStageShell.css'});
+  await page.addStyleTag({url:'http://127.0.0.1:4173/src/tabletStageShell.css'});
   const result=await page.evaluate(async({width,height,touch})=>{
-   const {calculateStageLayout}=await import('/client/src/lib/stage.ts');
-   const {desktopPortraitGameplayLayout}=await import('/client/src/lib/stageViewport.ts');
+   const {calculateStageLayout}=await import('/src/lib/stage.ts');
+   const {desktopPortraitGameplayLayout}=await import('/src/lib/stageViewport.ts');
    const native=calculateStageLayout(width,height,0,0,{viewportSurface:true});
    const layout=desktopPortraitGameplayLayout(native,'/world/haunted_woods',touch);
    const portrait=layout.designWidth<layout.viewportWidth;
