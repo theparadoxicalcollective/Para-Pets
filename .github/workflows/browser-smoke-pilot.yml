@@ -55,6 +55,7 @@ jobs:
             exit 1
           fi
           node script/browser-smoke.mjs
+          node script/desktop-coming-soon-smoke.mjs
           node script/desktop-portrait-shell-smoke.mjs
           node script/npc-discovery-smoke.mjs
           # Exercise the PR-specific Lonelle flow before the longer, occasionally

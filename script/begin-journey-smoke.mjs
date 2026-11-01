@@ -236,6 +236,24 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
  // the real egg click handler while its hatch-ready render is still pending.
  // This asserts the gameplay UI is ready instead of retrying or faking a tap.
  await page.getByTestId('display-egg-hatch-ready').waitFor({state:'visible'});
+ // Inspect the real touch/click target on intermittent Android tablet failures.
+ // We must not hide an undelivered hatch click with automatic retries.
+ await page.evaluate(() => {
+   window.__bjEggInput = [];
+   const egg = document.querySelector('[data-testid="button-egg-tap"]');
+   for (const type of ['pointerdown','pointerup','touchstart','touchend','click']) {
+     egg?.addEventListener(type, ev => window.__bjEggInput.push({
+       type,phase:'egg',trusted:ev.isTrusted,target:ev.target?.getAttribute?.('data-testid'),
+     }),{capture:true});
+     document.addEventListener(type, ev => {
+       const t=ev.target;
+       window.__bjEggInput.push({
+         type,phase:'document',trusted:ev.isTrusted,target:t?.getAttribute?.('data-testid'),
+         ancestor:t?.closest?.('[data-testid]')?.getAttribute('data-testid'),
+       });
+     },{capture:true,once:true});
+   }
+ });
  await activate(page.getByTestId('button-egg-tap'));
  try {
    await step('done');
@@ -248,6 +266,17 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
        .map(p=>({id:p.inventoryId,isHatched:p.isHatched,hatchStartedAt:p.hatchStartedAt,quantity:p.quantity})),
      tapModeLabel:document.body.textContent?.includes('Your egg is ready — tap it to hatch!'),
      eggVisible:!!document.querySelector('[data-testid="button-egg-tap"]'),
+     input:window.__bjEggInput,
+     eggHit:(()=>{
+       const egg=document.querySelector('[data-testid="button-egg-tap"]');
+       if(!egg)return null;
+       const box=egg.getBoundingClientRect(),x=box.x+box.width/2,y=box.y+box.height/2;
+       const top=document.elementFromPoint(x,y);
+       return {eggBounds:{x:box.x,y:box.y,w:box.width,h:box.height},
+         topTag:top?.tagName,topTestid:top?.closest?.('[data-testid]')?.getAttribute('data-testid'),
+         topPointerEvents:top?getComputedStyle(top).pointerEvents:null,
+         eggPointerEvents:getComputedStyle(egg).pointerEvents};
+     })(),
    })).catch(e=>({captureError:String(e)}));
    console.error('Begin Journey completion diagnosis',JSON.stringify({
      profile:name,counts,activePetId:user.activePetId,serverCompleted:user.tutorial_quest_completed,
