@@ -40,7 +40,10 @@
 }
 
 
-/* Shared desktop/tablet presentation. */
+/* Shared desktop/tablet presentation.
+ * Scene/backdrop portals fill #game-stage, not the whole desktop monitor.
+ * Preserve the current world's surrounding artwork on centered PC portrait
+ * views; fullscreen device-owned scenes still suppress duplicate artwork. */
 @media (min-width: 768px) {
   .game-stage-shell {
     background-color: var(--stage-surrounding-color, #050c08) !important;
@@ -50,14 +53,14 @@
         rgba(2, 8, 5, 0.06),
         rgba(2, 8, 5, var(--stage-surrounding-overlay-alpha, 0.24))
       ),
-      var(--stage-surrounding-image, var(--desktop-stage-background-image)) !important;
+      var(--stage-surrounding-image, var(--desktop-stage-background-image, radial-gradient(ellipse at 50% 35%, #1d352b, #07100d 72%))) !important;
     background-position: var(--stage-surrounding-position, center center) !important;
     background-size: cover !important;
     background-repeat: no-repeat !important;
   }
 
-  .game-stage-shell[data-viewport-scene-active="true"],
-  .game-stage-shell[data-viewport-backdrop-active="true"] {
+  .game-stage-shell[data-viewport-scene-active="true"]:not([data-desktop-portrait="true"]),
+  .game-stage-shell[data-viewport-backdrop-active="true"]:not([data-desktop-portrait="true"]) {
     background-image: none !important;
     background-color: #050c08 !important;
   }
@@ -82,14 +85,14 @@
         rgba(2, 8, 5, 0.06),
         rgba(2, 8, 5, var(--stage-surrounding-overlay-alpha, 0.24))
       ),
-      var(--stage-surrounding-image, var(--desktop-stage-background-image)) !important;
+      var(--stage-surrounding-image, var(--desktop-stage-background-image, radial-gradient(ellipse at 50% 35%, #1d352b, #07100d 72%))) !important;
     background-position: var(--stage-surrounding-position, center center) !important;
     background-size: cover !important;
     background-repeat: no-repeat !important;
   }
 
-  .game-stage-shell[data-viewport-scene-active="true"],
-  .game-stage-shell[data-viewport-backdrop-active="true"] {
+  .game-stage-shell[data-viewport-scene-active="true"]:not([data-desktop-portrait="true"]),
+  .game-stage-shell[data-viewport-backdrop-active="true"]:not([data-desktop-portrait="true"]) {
     background-image: none !important;
     background-color: #050c08 !important;
   }
