@@ -9,7 +9,7 @@ test("tablet and desktop shell use page surroundings with cover instead of disto
   const app = read("client/src/App.tsx");
 
   assert.match(css, /--stage-surrounding-image/);
-  assert.match(css, /var\(--stage-surrounding-image, var\(--desktop-stage-background-image\)\)/);
+  assert.match(css, /var\(--stage-surrounding-image, var\(--desktop-stage-background-image, radial-gradient/);
   assert.match(css, /background-position: var\(--stage-surrounding-position, center center\)/);
   assert.match(css, /background-size: cover/);
   assert.doesNotMatch(css, /background-size:\s*100% 100%/);
@@ -92,4 +92,13 @@ test("context-aware surroundings never change the iPhone 12 stage geometry contr
   assert.match(stage, /export const DESIGN_H = 844/);
   assert.match(stage, /if \(Math\.round\(viewportWidth\) === DESIGN_W\) return false/);
   assert.doesNotMatch(surroundings, /calculateStageLayout|shouldFitPortraitReference|getStageTransform/);
+});
+
+test("centered PC portrait scene retains themed shell surroundings behind scene portals", () => {
+  const css = read("client/src/tabletStageShell.css");
+  const app = read("client/src/App.tsx");
+  assert.match(app, /data-desktop-portrait=\{layout\.designWidth < layout\.viewportWidth/);
+  assert.match(css, /data-viewport-scene-active="true"\]:not\(\[data-desktop-portrait="true"\]\)/);
+  assert.match(css, /data-viewport-backdrop-active="true"\]:not\(\[data-desktop-portrait="true"\]\)/);
+  assert.doesNotMatch(app, /style=\{\{[^}]*scale\(/);
 });
