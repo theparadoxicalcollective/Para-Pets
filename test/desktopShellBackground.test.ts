@@ -15,6 +15,6 @@ test("desktop shell uses MainGameBG only in the large-screen presentation", () =
   assert.match(app, /className="game-stage-shell"/);
   assert.match(app, /data-stage-coordinate-owner="viewport"/);
   assert.match(css, /@media \(min-width: 768px\)/);
-  assert.match(css, /var\(--desktop-stage-background-image\)/);
+  assert.match(css, /var\(--desktop-stage-background-image, radial-gradient/);
   assert.match(css, /background-size: cover/);
 });
