@@ -5,7 +5,7 @@ import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings }
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
-import { isParkTerrainDetail } from "@shared/petParkTerrainDetails";
+import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
 import type { db as database } from "../db";
 
 type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain";
@@ -230,9 +230,23 @@ export function registerPetParkAdminRoutes(
 
   // A brush stroke saves existing terrain item records in one atomic INSERT.
   // No new terrain storage, per-pointer network writes or payout mutations.
+  // Clear only saved terrain stamps; leave uploaded decor, effects, buildings,
+  // player deposits, ground size and reward settings untouched.
+  app.delete("/api/admin/pet-park/terrain", isAdmin, async (_req, res) => {
+    try {
+      const removed = await db.delete(petParkSceneItems)
+        .where(eq(petParkSceneItems.kind, "terrain"))
+        .returning({ id: petParkSceneItems.id });
+      return res.json({ deleted: removed.length });
+    } catch (error) {
+      console.error("[pet-park] clear terrain failed", error);
+      return res.status(500).json({ message: "Unable to clear Pet Park terrain" });
+    }
+  });
+
   app.post("/api/admin/pet-park/terrain-strokes", isAdmin, async (req, res) => {
     const { type, size, points } = req.body ?? {};
-    if (!isParkTerrainDetail(type) || !validSize(size) ||
+    if (!isPaintableParkTerrainDetail(type) || !validSize(size) ||
         !Array.isArray(points) || points.length < 1 || points.length > 60 ||
         !points.every(point => point && validPosition(point.xPct) && validPosition(point.yPct))) {
       return res.status(400).json({ message: "Invalid terrain brush stroke (1–60 points required)" });
@@ -258,7 +272,7 @@ export function registerPetParkAdminRoutes(
     }
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
-    if (kind === "terrain" && !isParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
+    if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
     if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
