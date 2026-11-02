@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { isParkTerrainDetail, PARK_TERRAIN_DETAIL_OPTIONS } from "../shared/petParkTerrainDetails";
+import { isParkTerrainDetail, isPaintableParkTerrainDetail, PARK_TERRAIN_DETAIL_OPTIONS } from "../shared/petParkTerrainDetails";
 import { parkExpandPoint, parkGroundSize } from "../shared/petParkGround";
 import { parkCameraGeometry } from "../client/src/lib/petParkCamera";
 
@@ -12,10 +12,14 @@ const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.t
 const artwork = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
 
 test("only supported ground detail types may be created; unrelated effects stay distinct", () => {
-  assert.deepEqual(PARK_TERRAIN_DETAIL_OPTIONS.map(x=>x.type), ["dirt_path", "stone_patch", "wildflowers", "wild_grass"]);
-  for(const option of PARK_TERRAIN_DETAIL_OPTIONS) assert.equal(isParkTerrainDetail(option.type), true);
+  assert.deepEqual(PARK_TERRAIN_DETAIL_OPTIONS.map(x=>x.type), ["dirt_path", "stone_patch"]);
+  for(const option of PARK_TERRAIN_DETAIL_OPTIONS) assert.equal(isPaintableParkTerrainDetail(option.type), true);
+  for(const legacy of ["wildflowers", "wild_grass"]) {
+    assert.equal(isParkTerrainDetail(legacy), true, "saved legacy stamps must stay readable until cleared");
+    assert.equal(isPaintableParkTerrainDetail(legacy), false, "do not allow creating more stock grass or flowers");
+  }
   for(const invalid of ["water_shimmer","fire","",null,7,"<script>"]) assert.equal(isParkTerrainDetail(invalid), false);
-  assert.match(routes, /kind === "terrain" && !isParkTerrainDetail\(effectType\)/);
+  assert.match(routes, /kind === "terrain" && !isPaintableParkTerrainDetail\(effectType\)/);
   assert.match(routes, /kind === "effect" && !isParkEffect\(effectType\)/);
   assert.match(routes, /kind === "terrain" && imageData != null/);
   assert.match(routes, /kind === "effect" \|\| kind === "terrain"/);
@@ -23,11 +27,12 @@ test("only supported ground detail types may be created; unrelated effects stay 
 });
 
 test("terrain controls reuse admin-authenticated real-world item editing, not a second editor", () => {
-  assert.match(page, /\["terrain", "\+ Terrain"\]/);
+  assert.doesNotMatch(page, /\+ Terrain/);
+  assert.match(page, /Paint terrain/);
   assert.match(page, /initialMode=\{editorMode\}/);
-  assert.match(panel, /PARK_TERRAIN_DETAIL_OPTIONS\.map\(/);
-  assert.match(panel, /addTerrain\(option.type, option.size\)/);
-  assert.match(panel, /kind: "terrain", effectType: type, imageData: null/);
+  assert.doesNotMatch(panel, /initialMode === "terrain"/);
+  assert.doesNotMatch(panel, /addTerrain/);
+  assert.match(routes, /app\.post\("\/api\/admin\/pet-park\/terrain-strokes"/);
   assert.match(page, /<PetParkTerrainDetail type=\{item.effectType\}/);
   assert.match(page, /onPointerDown=\{e => startPlacement\(e, "item", item\)\}/);
   assert.match(page, /placementSave\.mutate\(\{ \.\.\.selectedPlacement, \.\.\.placementDraft \}\)/);
