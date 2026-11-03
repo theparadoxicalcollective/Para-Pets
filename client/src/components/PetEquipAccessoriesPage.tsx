@@ -219,7 +219,6 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       setUnlockConfirm(false);
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       refreshAccessories();
-      toast({ title: "Slot unlocked!", description: "A new accessory slot has been added for this pet." });
     },
     onError: (error: any) => {
       setUnlockConfirm(false);
