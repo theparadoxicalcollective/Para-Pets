@@ -15,14 +15,14 @@ import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, PARK_SELECTED_DEPTH_Z } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
-import { X, ZoomIn, ZoomOut, Expand } from "lucide-react";
+import { X, Expand } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
 import { isParkSleepPosition } from "@/lib/petParkSleepSpots";
-import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan, PARK_ZOOM_MIN, PARK_ZOOM_MAX, PARK_ZOOM_STEP } from "@/lib/petParkCamera";
+import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan } from "@/lib/petParkCamera";
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
@@ -426,14 +426,6 @@ export default function PetParkPage() {
         </button> : <span className="w-16" />}
       </div>
     </div>
-    {!activeBuilding && <div aria-label="Park camera zoom controls"
-      className="pointer-events-auto absolute right-2 top-[42%] z-20 flex flex-col items-center gap-1 rounded-xl border border-amber-600/40 bg-black/65 p-1 text-amber-100">
-      <button type="button" aria-label="Zoom in to Pet Park" disabled={zoom >= PARK_ZOOM_MAX}
-        className="rounded-lg p-2 disabled:opacity-35" onClick={() => changeZoom(zoom + PARK_ZOOM_STEP)}><ZoomIn size={19} /></button>
-      <span aria-label="Current Pet Park zoom" className="text-[10px] tabular-nums">{Math.round(zoom * 100)}%</span>
-      <button type="button" aria-label="Zoom out of Pet Park" disabled={zoom <= PARK_ZOOM_MIN}
-        className="rounded-lg p-2 disabled:opacity-35" onClick={() => changeZoom(zoom - PARK_ZOOM_STEP)}><ZoomOut size={19} /></button>
-    </div>}
     {scene?.canEditPark && !showCreator && !selectedPlacement && !paintMode && !activeBuilding && <div
       className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto grid max-w-lg grid-cols-3 gap-1.5 sm:grid-cols-5 ${scene.enabledForPlayers && deposits.length > 0 ? "bottom-[calc(42%_+_14px)]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
       aria-label="Park editing toolbar">
