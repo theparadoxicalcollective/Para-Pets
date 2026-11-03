@@ -90,7 +90,7 @@ test("inventory page prepares metadata before revealing the pet grid with a boun
   assert.match(page, /onClick=\{\(\) => navigate\("\/"\)\}/);
   assert.match(page, /defaultTab="pets"[\s\S]*pageMode/);
 
-  assert.match(inventory, /rootMargin: "960px"/);
+  assert.match(inventory, /rootMargin: "480px"/);
   assert.match(inventory, /if \(entry\.isIntersecting\) \{ setVisible\(true\); observer\.disconnect\(\); \}/);
   assert.match(inventory, /<VisibleAssetImage src=\{imageUrl\}/);
   assert.match(inventory, /<\/ErrorBoundary> : <span aria-hidden="true" data-testid="inventory-pet-portrait-pending" \/>/);
