@@ -62,7 +62,7 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, i
     // already warms their renderer metadata before showing the grid.
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) { setVisible(true); observer.disconnect(); }
-    }, { rootMargin: "960px" });
+    }, { rootMargin: "480px" });
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
