@@ -57,11 +57,12 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, i
     const node = host.current;
     if (!node) return;
     if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
-    // Once a portrait has entered view, keep its renderer mounted. Toggling it
-    // on every scroll boundary flashes the fallback and refetches appearance data.
+    // Prepare portraits ahead of scrolling and never unmount a renderer once
+    // shown. Avoid offscreen fallback image analysis for every pet; the page
+    // already warms their renderer metadata before showing the grid.
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) { setVisible(true); observer.disconnect(); }
-    }, { rootMargin: "240px" });
+    }, { rootMargin: "480px" });
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
@@ -76,7 +77,7 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, i
       >
         <MiniPetRenderer petInventoryId={petInventoryId} animated={false} />
       </div>
-    </ErrorBoundary> : fallback}
+    </ErrorBoundary> : <span aria-hidden="true" data-testid="inventory-pet-portrait-pending" />}
   </div>;
 }
 

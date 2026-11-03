@@ -722,7 +722,7 @@ export default function PetAnimator({
       return (await apiRequest("GET", `/api/pet/${resolvedPetInventoryId}/costumes${suffix}`)).json();
     },
     enabled: !!resolvedPetInventoryId,
-    staleTime: costumeAccess === "public" ? 60_000 : 0,
+    staleTime: costumeAccess === "public" || performanceStatic ? 60_000 : 0,
     refetchOnWindowFocus: false,
   });
 

@@ -113,3 +113,46 @@ export async function prepareActivePetVisualState({
     miniPetData,
   };
 }
+
+export interface InventoryVisualTarget extends ActivePetVisualTarget {
+  type: string;
+  isHatched: boolean;
+  rarity?: number | null;
+  petLevel?: number | null;
+}
+
+/**
+ * Warm the existing pet renderer's metadata cache before revealing Pet
+ * Inventory. This reuses the Active Pet cache keys rather than inventing a
+ * second renderer, and limits concurrent requests on mobile networks.
+ * Full-size part image decoding remains with the visible renderer so opening
+ * a large collection cannot exhaust Safari/Android memory.
+ */
+export async function prepareInventoryPetVisualState({
+  pets, cache, signal, fetcher = fetch, concurrency = 3,
+}: {
+  pets: readonly InventoryVisualTarget[];
+  cache: ActivePetVisualCache;
+  signal: AbortSignal;
+  fetcher?: typeof fetch;
+  concurrency?: number;
+}): Promise<number> {
+  const targets = pets
+    .filter(pet => pet.type === "pet" && pet.isHatched && !!pet.inventoryId && !!pet.petTemplateId)
+    .sort((a, b) => (b.rarity ?? 0) - (a.rarity ?? 0) || (b.petLevel ?? 0) - (a.petLevel ?? 0));
+  const count = Math.min(targets.length, Math.max(1, Math.min(3, Math.floor(concurrency) || 1)));
+  let next = 0;
+  let ready = 0;
+
+  await Promise.all(Array.from({ length: count }, async () => {
+    while (!signal.aborted) {
+      const target = targets[next++];
+      if (!target) return;
+      const result = await prepareActivePetVisualState({
+        pet: target, cache, signal, fetcher,
+      }).catch(() => null);
+      if (result && !signal.aborted) ready++;
+    }
+  }));
+  return ready;
+}

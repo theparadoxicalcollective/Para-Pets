@@ -781,10 +781,15 @@
 .pet-care-inventory-section .pet-care-hunger {
   position: relative;
   inset: auto;
-  width: min(calc(78% - var(--pet-care-usable-left) - var(--pet-care-scene-right)), 312px);
+  width: min(calc(74% - var(--pet-care-usable-left) - var(--pet-care-scene-right)), 296px);
   margin: 0 auto clamp(3px, 0.7dvh, 7px);
   padding: 0;
-  transform: translateX(calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2));
+  /* Slightly smaller and lower over the jars without moving the jars,
+     pet, or meter fill's own artwork-relative geometry. */
+  transform: translate(
+    calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2),
+    6px
+  );
 }
 
 .pet-care-inventory-section .pet-care-hunger .pet-care-meter {
