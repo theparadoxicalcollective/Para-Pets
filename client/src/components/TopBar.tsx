@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 
 import coinBarImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
+import mainGameCoinImg from "@assets/uploads/MainGameCoinImage.PNG";
 import coinBagIconImg from "@assets/uploads/CoinBundleIcon.png";
 import essenceBarImg from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
@@ -448,6 +449,24 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 }}
               >
                 <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain" }} />
+                {/* The uploaded coin is a standalone emblem, not the full balance bar.
+                    Overlay only the emblem so the existing counter layout stays intact. */}
+                <img
+                  src={mainGameCoinImg}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 30,
+                    height: 30,
+                    objectFit: "contain",
+                    pointerEvents: "none",
+                  }}
+                />
                 <span
                   className="font-fantasy text-[#f5d060] font-semibold"
                   style={{
