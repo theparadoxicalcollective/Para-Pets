@@ -39,3 +39,18 @@ test("Closet Mini Pet stays below its drawers and confirmation dialogs", () => {
   assert.ok(miniButtonZ < dialogZ);
   assert.match(css, /button-open-mini-pets[\s\S]*?isolation:\s*isolate/);
 });
+
+test("active companion is slightly larger and four points lower in its existing relative pet-stage anchor", () => {
+  const renderer = readFileSync(resolve(here, "../client/src/components/MiniPetRenderer.tsx"), "utf8");
+  const portal = renderer.split('data-testid="active-pet-mini-pet-stage-layer"')[1]?.split("activePetStage,")[0];
+  assert.ok(portal, "Active Pet companion must remain portaled into the measured pet scene");
+  assert.match(renderer, /closest<HTMLElement>\("\[data-testid=\\"display-active-pet\\"\]"\)/);
+  assert.match(portal, /left: "9%"/);
+  assert.match(portal, /top: "62%"/);
+  assert.match(portal, /width: "31%"/);
+  assert.match(portal, /aspectRatio: "1"/);
+  assert.match(portal, /pointerEvents: "none"/);
+  // Avoid changing Mini Pets in Closet, inventory or player-detail layouts.
+  assert.match(renderer, /if \(activePetStage\)/);
+  assert.match(renderer, /return \([\s\S]*?\{anchor\}[\s\S]*?\{visual\}/);
+});
