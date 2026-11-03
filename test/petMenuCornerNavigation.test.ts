@@ -40,8 +40,8 @@ test("Pet Menu uses uploaded artwork and preserves existing quest button targets
   assert.ok(statSync("attached_assets/uploads/MainGameCoinImage.PNG").size > 1024);
   assert.match(topBar, /<img src=\{coinBarImg\} alt="Coins"/, "Retain the coin counter frame");
   const standaloneCoins = readFileSync("client/src/lib/coinAssets.ts", "utf8");
-  assert.match(standaloneCoins, /@assets\\/uploads\\/MainGameCoinImage\\.PNG/, "Use the new coin for standalone reward/shop images");
-  assert.match(topBar, /src=\\{coinBarImg\\}/, "Keep the full original balance frame, including its original emblem");
+  assert.match(standaloneCoins, /@assets\/uploads\/MainGameCoinImage\.PNG/, "Use the new coin for standalone reward/shop images");
+  assert.match(topBar, /src=\{coinBarImg\}/, "Keep the full original balance frame, including its original emblem");
   assert.match(topBar, /data-testid="text-coins"/, "Keep the current coin balance display");
   assert.match(topBar, /data-testid="button-coin-bag"/);
 });
