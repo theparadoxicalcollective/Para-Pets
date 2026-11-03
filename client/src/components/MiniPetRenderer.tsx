@@ -158,10 +158,10 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", anim
               position: "absolute",
               // Sit partially over the main pet's lower-left side so the Mini Pet
               // reads as a companion. Keep the proven anchor from the placement
-              // fix and only increase the companion slightly.
+              // fix and place the slightly larger companion four percentage points lower.
               left: "9%",
-              top: "58%",
-              width: "28%",
+              top: "62%",
+              width: "31%",
               aspectRatio: "1",
               zIndex: 560,
               pointerEvents: "none",
