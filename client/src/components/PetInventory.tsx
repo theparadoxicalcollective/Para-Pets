@@ -77,7 +77,7 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, i
       >
         <MiniPetRenderer petInventoryId={petInventoryId} animated={false} />
       </div>
-    </ErrorBoundary> : <span aria-hidden="true" data-testid="inventory-pet-portrait-pending" />
+    </ErrorBoundary> : <span aria-hidden="true" data-testid="inventory-pet-portrait-pending" />}
   </div>;
 }
 
