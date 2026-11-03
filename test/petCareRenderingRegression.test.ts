@@ -93,6 +93,18 @@ test("Pet Care hunger follows the server care-stat scale and updates from feed r
   assert.match(feed, /return await res\.json\(\)/);
   assert.match(feed, /qc\.setQueryData\(\["\/api\/inventory"\]/);
   assert.match(feed, /totalFeedPoints/);
-  assert.match(css, /width: min\(calc\(78% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 312px\)/);
-  assert.match(css, /transform: translateX\(calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\)\)/);
+  assert.match(css, /width: min\(calc\(74% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 296px\)/);
+  assert.match(css, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*6px\s*\)/);
+});
+
+test("Pet Care Hunger meter is slightly smaller and lower while retaining its responsive jar layout", () => {
+  const css = readFileSync("client/src/index.css", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  const region = css.slice(css.indexOf(".pet-care-inventory-section .pet-care-hunger {"), css.indexOf(".pet-care-inventory-section .pet-care-hunger .pet-care-meter"));
+  assert.match(region, /position: relative;/);
+  assert.match(region, /width: min\(calc\(74% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 296px\)/);
+  assert.match(region, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*6px\s*\)/);
+  assert.match(css, /\.pet-care-inventory-section \.pet-care-hunger \.pet-care-meter \{\s*width: 100%/);
+  assert.match(page, /<PetCareHungerMeter[\s\S]*hungerPct=\{hungerPct\}/);
+  assert.match(page, /data-testid="pet-care-hunger-zone"/);
 });
