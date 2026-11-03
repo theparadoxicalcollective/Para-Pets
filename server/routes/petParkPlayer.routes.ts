@@ -7,6 +7,19 @@ import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   registerPetParkDisplayRoutes(app, isAuthenticated);
+  // Lightweight availability read for the main navigation. Do not load or
+  // expose the scene, player deposits or other users' pets just to check access.
+  app.get("/api/pet-park/status", isAuthenticated, async (_req, res) => {
+    try {
+      const [settings] = await db.select({ enabledForPlayers: petParkSettings.enabledForPlayers })
+        .from(petParkSettings).where(eq(petParkSettings.id, "main"));
+      return res.json({ enabledForPlayers: settings?.enabledForPlayers ?? false });
+    } catch (error) {
+      console.error("[pet-park] availability read failed", error);
+      return res.status(500).json({ message: "Unable to check Pet Park availability" });
+    }
+  });
+
   app.get("/api/pet-park/scene", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as { id: string }).id;
