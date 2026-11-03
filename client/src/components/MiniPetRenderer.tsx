@@ -59,9 +59,9 @@ export default function MiniPetRenderer({ petInventoryId, access = "owner", anim
     // An equip/unequip happens on the Closet page and this renderer can remain
     // mounted behind it. Always treat the equipped-companion lookup as live
     // state so returning to the Active Pet page cannot reuse a stale `null`.
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+    staleTime: animated ? 0 : 60_000,
+    refetchOnMount: animated ? "always" : true,
+    refetchOnWindowFocus: animated,
     refetchOnReconnect: true,
   });
 
