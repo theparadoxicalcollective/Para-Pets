@@ -1,4 +1,5 @@
 import * as React from "react"
+import { queryClient } from "@/lib/queryClient"
 
 import type {
   ToastActionElement,
@@ -139,6 +140,19 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+/**
+ * A generic "Failed" with raw HTTP/JSON details is an admin diagnostic, not
+ * useful player feedback. Keep specific actionable errors (e.g. insufficient
+ * coins, invalid input) visible to everyone. This is independent of viewport.
+ */
+export function shouldShowToastToPlayer(
+  title: React.ReactNode,
+  variant: Toast["variant"],
+  isAdmin: boolean,
+): boolean {
+  return !(variant === "destructive" && title === "Failed" && !isAdmin)
+}
+
 function showFlash(isError: boolean) {
   const color = isError ? "#ef4444" : "#4ade80";
   const colorAlt = isError ? "#dc2626" : "#22c55e";
@@ -157,6 +171,13 @@ function showFlash(isError: boolean) {
 function toast({ ...props }: Toast) {
   const id = genId()
   const isError = props.variant === "destructive";
+  // Check current authenticated user, not an admin flag from a previous screen.
+  // Suppression happens BEFORE the flash or toast dispatch, so it cannot cover
+  // gameplay on phones/tablets or evict another useful notification.
+  const isAdmin = queryClient.getQueryData<{ isAdmin?: boolean }>(["/api/auth/me"])?.isAdmin === true
+  if (!shouldShowToastToPlayer(props.title, props.variant, isAdmin)) {
+    return { id, dismiss: () => {}, update: (_nextProps: Partial<ToasterToast>) => {} }
+  }
   showFlash(isError);
   // The flash is supplemental feedback; the existing Toaster must also
   // receive the message so titles and descriptions are visible to players.
