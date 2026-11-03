@@ -93,7 +93,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const equip = useMutation({
     mutationFn: async ({ costumeInventoryId, slot }: { costumeInventoryId: string; slot: number }) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/equip`, { costumeInventoryId, slot })).json(),
-    onSuccess: () => { setEquipError(null); setSelectedSlot(null); refresh(); toast({ title: "Adornment equipped!" }); },
+    onSuccess: () => { setEquipError(null); setSelectedSlot(null); refresh(); },
     onError: (error: unknown) => setEquipError(equipErrorMessage(error)),
   });
 
@@ -116,7 +116,6 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
       setUnlockSlot(null);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       refresh();
-      toast({ title: "Adornment slot unlocked for this pet!" });
     },
     onError: (error: any) => toast({ title: "Could not unlock adornment slot", description: error?.message || "The slot could not be unlocked.", variant: "destructive" }),
   });

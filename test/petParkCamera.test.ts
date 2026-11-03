@@ -83,3 +83,19 @@ test("player and admin use world coords, not an old image-sized reference stage"
   assert.match(player, /Fine-tune exact placement/);
   assert.doesNotMatch(editor, /aspect-\[11\/17\]|Pet Park — Scene Editor/);
 });
+
+test("Pet Park uses gesture and wheel zoom without visual zoom controls", () => {
+  const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
+  // Two-finger touch zoom and mouse/trackpad-wheel zoom retain the same
+  // viewport-aware camera geometry and bounds after the button removal.
+  assert.match(page, /touchPoints\.current\.size === 2/);
+  assert.match(page, /parkClampZoom\(pinch\.current\.zoom \* distance \/ Math\.max\(1, pinch\.current\.distance\)\)/);
+  assert.match(page, /setZoom\(nextZoom\)/);
+  assert.match(page, /onWheel=\{e =>/);
+  assert.match(page, /changeZoom\(zoom \* \(e\.deltaY > 0 \? 0\.91 : 1\.09\)/);
+  assert.match(page, /parkZoomAnchorPan\(camera, scale, nextGeometry\.scale, anchor, nextGeometry\)/);
+  assert.match(page, /onPointerMove=\{movePlacement\}/);
+  // No floating controls obscure scenery or overlap the Pet Park editor.
+  assert.doesNotMatch(page, /Park camera zoom controls|Zoom in to Pet Park|Zoom out of Pet Park|Current Pet Park zoom/);
+  assert.doesNotMatch(page, /<ZoomIn\b|<ZoomOut\b|PARK_ZOOM_STEP/);
+});

@@ -26,9 +26,16 @@ test("existing Aquarium and PvP subpage close behavior remains intact", () => {
   assert.match(nav, /onClick=\{\(\) => setShowPvpNote\(false\)\}/);
 });
 
-test("the former Keeper's Central nav entry opens Pet Park as a route, not a modal", () => {
+test("the former Keeper's Central nav entry only enters an open Pet Park or admin preview", () => {
   const app = readFileSync("client/src/App.tsx", "utf8");
-  assert.match(nav, /id === "keepers"[\s\S]*?navigate\("\/pet-park"\)/);
+  assert.match(nav, /if \(id === "keepers"\) \{[\s\S]*?openPetPark\(\)/);
+  const gate = nav.split("const openPetPark = async () => {")[1]?.split("const handleRight =")[0];
+  assert.ok(gate, "navigation must have an availability gate");
+  assert.match(gate, /if \(user\.isAdmin\) \{ navigate\("\/pet-park"\); return; \}/);
+  assert.match(gate, /apiRequest\("GET", "\/api\/pet-park\/status"\)/);
+  assert.match(gate, /if \(status\.enabledForPlayers\)/);
+  assert.match(gate, /toast\(\{ title: "Pet Park is under construction" \}\)/);
+  assert.match(gate, /navigate\("\/pet-park"\)/);
   assert.match(app, /location === "\/pet-park"/);
   assert.match(app, /<PetParkPage/);
   assert.doesNotMatch(nav, /keepers-nav-viewport-overlay|showKeepers|setShowKeepers|<PetWorldPage/);

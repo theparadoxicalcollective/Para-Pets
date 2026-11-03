@@ -13,14 +13,16 @@ test("pet rarity stars and nameplate follow measured scene and shared admin anch
   assert.match(home, /activePetChromeOffset\.y/);
 });
 
-test("pet menu uses native HUD corner and matching circular navigation treatment", () => {
+test("pet menu stays in native HUD corner with unframed icon buttons", () => {
   assert.match(home, /<ViewportHudPortal>/);
   assert.match(home, /data-testid="active-pet-side-menu"/);
   assert.match(home, /h-\[56px\] w-\[56px\]/);
   assert.match(home, /width=\{58\}/);
   assert.match(home, /height=\{58\}/);
   assert.equal((home.match(/relative flex h-\[48px\] w-\[48px\]/g) || []).length, 4);
-  assert.match(home, /border-\[#d4a017\]\/70/);
+  const petMenu = home.slice(home.indexOf("{/* Screen-relative Pet Menu:"), home.indexOf("{/* Daily quest hints follow"));
+  assert.equal((petMenu.match(/border-0 bg-transparent p-0/g) || []).length, 5);
+  assert.doesNotMatch(petMenu, /border-2|bg-\[#142819\]|shadow-\[0_0/);
   assert.match(nav, /const BUTTON_SIZE = 58/);
   assert.doesNotMatch(home, /getStageScale\(|clientToStage\(|DESIGN_W|DESIGN_H/);
 });

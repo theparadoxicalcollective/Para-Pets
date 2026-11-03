@@ -1,7 +1,6 @@
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { fishBagItems, type FishBagRecord } from "@/lib/fishBagInventory";
 import { useState, useEffect, useRef } from "react";
-import { bjGetStatus } from "@/lib/beginJourney";
 import { playSpeedUp, playPowerUp } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -271,14 +270,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       // apiRequest already acknowledged the confirmed switch in the shared auth
       // cache. Avoid an immediate background auth refetch during this render-
       // intensive transition; the normal auth interval will reconcile later.
-      // Suppress toast during tutorial — the overlay guides the player and a
-      // "Pet Selected" popup mid-quest is jarring / breaks immersion.
-      if (bjGetStatus() !== "active") {
-        toast({
-          title: data.activePetId ? "Pet Selected" : "Pet Deselected",
-          description: data.activePetId ? "Your companion has been chosen!" : "No active pet",
-        });
-      }
+      // The selected pet and active marker update in place; an extra popup
+      // obscures the collection on mobile and is redundant outside tutorials.
     },
     onError: () => {
       toast({ title: "Failed", description: "Could not update active pet", variant: "destructive" });

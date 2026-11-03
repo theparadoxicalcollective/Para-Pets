@@ -45,8 +45,10 @@ test("mobile Pet Park editor matches the Home Bundle layout while keeping actual
   assert.match(page, /\["scene", "\+ Building"\]/);
   assert.match(page, /Drag to move · auto-saves/);
   assert.match(page, /Expand Ground/);
-  assert.match(page, /Zoom in to Pet Park/);
-  assert.match(page, /Zoom out of Pet Park/);
+  assert.doesNotMatch(page, /Zoom in to Pet Park|Zoom out of Pet Park|Park camera zoom controls/);
+  assert.match(page, /touchPoints.current.size === 2/);
+  assert.match(page, /parkClampZoom\(pinch.current.zoom \* distance/);
+  assert.match(page, /onWheel=\{e =>/);
   assert.match(page, /api\/admin\/pet-park\/ground/);
   assert.match(page, /role="dialog" aria-modal="true"/);
   assert.match(page, /max-h-\[min\(78dvh,780px\)\]/);
