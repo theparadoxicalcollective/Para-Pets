@@ -4,13 +4,25 @@ import {
   type ParkTerrainViewport,
 } from "@/lib/petParkTerrain";
 
+export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
+
+// Use the same normalized item coordinates and 2.5D ground footprint as the editor.
+export function dirtPatchWorldRect(patch: ParkDirtPatch, width: number, height: number) {
+  return {
+    x: patch.xPct * width - patch.size / 2,
+    y: patch.yPct * height - patch.size * 0.27,
+    width: patch.size,
+    height: patch.size * 0.54,
+  };
+}
+
 /**
  * One camera-aligned visual canvas; there is no second game stage or placement
  * surface. Viewport-sized backing pixels avoid enormous canvases on level 4.
  * Organic washes and restrained 2:1 diamond highlights create a painterly,
  * isometric-inspired ground, not a new projection of gameplay coordinates.
  */
-export default function PetParkTerrain(view: ParkTerrainViewport) {
+export default function PetParkTerrain(view: ParkTerrainViewport & { dirtPatches?: readonly ParkDirtPatch[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -26,9 +38,10 @@ export default function PetParkTerrain(view: ParkTerrainViewport) {
     const frame = window.requestAnimationFrame(() => {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       paintTerrain(ctx, view);
+      if (view.dirtPatches?.length) paintDirtPaths(ctx, view, view.dirtPatches);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight, view.scale, view.panX, view.panY]);
+  }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight, view.scale, view.panX, view.panY, view.dirtPatches]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
     className="pointer-events-none absolute inset-0 h-full w-full" style={{ backgroundColor: "#34553c" }} />;
@@ -126,5 +139,71 @@ function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) 
     ctx.stroke();
   });
 
+  ctx.restore();
+}
+
+/**
+ * Dirt stamps form ONE path in the existing viewport canvas. Their rectangles
+ * are filled once and the world-space grain is clipped to their union. Painting
+ * the old translucent DOM stamps separately caused the stacked oval artifacts.
+ * No new stage, stored stroke format, asset URL or hit-testing layer is needed.
+ */
+function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport, stamps: readonly ParkDirtPatch[]) {
+  const visible = parkVisibleTerrainBounds(view);
+  if (visible.left >= visible.right || visible.top >= visible.bottom) return;
+
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.scale(view.scale, view.scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, view.worldWidth, view.worldHeight);
+  ctx.clip();
+
+  ctx.beginPath();
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  let count = 0;
+  for (const patch of stamps) {
+    if (!Number.isFinite(patch.size) || patch.size <= 0) continue;
+    const rect = dirtPatchWorldRect(patch, view.worldWidth, view.worldHeight);
+    if (rect.x > visible.right || rect.x + rect.width < visible.left ||
+        rect.y > visible.bottom || rect.y + rect.height < visible.top) continue;
+    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    left = Math.min(left, rect.x);
+    top = Math.min(top, rect.y);
+    right = Math.max(right, rect.x + rect.width);
+    bottom = Math.max(bottom, rect.y + rect.height);
+    count++;
+  }
+  if (!count) { ctx.restore(); return; }
+
+  // One opaque, softly shadowed fill means overlapping tiles are seamless.
+  // Adjacent stamps can overlap freely without dark or bright rings.
+  ctx.fillStyle = "#846d4e";
+  ctx.shadowColor = "rgba(32, 36, 21, .33)";
+  ctx.shadowBlur = 6;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.clip();
+
+  // Grain is sampled in WORLD space; panning, zooming and expanding ground
+  // never change the texture's origin or reveal per-stamp seams.
+  const grainBounds = {
+    left: Math.max(visible.left, left), top: Math.max(visible.top, top),
+    right: Math.min(visible.right, right), bottom: Math.min(visible.bottom, bottom),
+  };
+  const grain = parkTerrainCellWindow(grainBounds, 29, 25, 1);
+  for (let row = grain.minY; row <= grain.maxY; row++) {
+    for (let col = grain.minX; col <= grain.maxX; col++) {
+      const tone = parkTerrainNoise(col, row, 41);
+      if (tone < 0.18) continue;
+      const x = (col + 0.15 + parkTerrainNoise(col, row, 42) * 0.7) * 29;
+      const y = (row + 0.12 + parkTerrainNoise(col, row, 43) * 0.7) * 25;
+      const size = 2 + parkTerrainNoise(col, row, 44) * 9;
+      ctx.fillStyle = tone > 0.59 ? "rgba(213, 183, 129, .20)" : "rgba(60, 43, 29, .18)";
+      ctx.beginPath();
+      ctx.ellipse(x, y, size, Math.max(1, size * 0.33), -0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.restore();
 }
