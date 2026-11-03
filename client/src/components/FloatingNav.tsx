@@ -297,13 +297,37 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "badges")    { setTimeout(() => navigate("/badges"), NAV_DELAY); return; }
   };
 
+  const openPetPark = async () => {
+    // Administrators must always be able to preview and edit a closed park.
+    if (user.isAdmin) { navigate("/pet-park"); return; }
+    try {
+      // Check the current publishing state when tapped, rather than fetching
+      // the full park scene or relying on a stale nav-time snapshot.
+      const status = await queryClient.fetchQuery<{ enabledForPlayers: boolean }>({
+        queryKey: ["/api/pet-park/status"],
+        queryFn: async () => (await apiRequest("GET", "/api/pet-park/status")).json(),
+        staleTime: 0,
+      });
+      if (status.enabledForPlayers) {
+        navigate("/pet-park");
+      } else {
+        toast({ title: "Pet Park is under construction" });
+      }
+    } catch {
+      toast({ title: "Unable to check Pet Park availability", description: "Please try again shortly.", variant: "destructive" });
+    }
+  };
+
   const handleRight = (id: string) => {
     closeAll();
     if (id === "home")     { setTimeout(() => navigate("/"), NAV_DELAY); return; }
     if (id === "pethouse") { setTimeout(() => navigate("/pet-house"), NAV_DELAY); return; }
     if (id === "market")   { setTimeout(() => navigate("/market"), NAV_DELAY); return; }
     if (id === "aquarium") { setTimeout(() => openPanel(() => setShowAquarium(true)), NAV_DELAY); return; }
-    if (id === "keepers")  { setTimeout(() => navigate("/pet-park"), NAV_DELAY); return; }
+    if (id === "keepers") {
+      setTimeout(() => { void openPetPark(); }, NAV_DELAY);
+      return;
+    }
     if (id === "cards")    { setTimeout(() => navigate("/cards"), NAV_DELAY); return; }
     if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
   };
