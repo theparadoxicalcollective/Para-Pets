@@ -148,7 +148,7 @@ function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) 
  * the old translucent DOM stamps separately caused the stacked oval artifacts.
  * No new stage, stored stroke format, asset URL or hit-testing layer is needed.
  */
-function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport, stamps: readonly ParkDirtPatch[]) {
+export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport, stamps: readonly ParkDirtPatch[]) {
   const visible = parkVisibleTerrainBounds(view);
   if (visible.left >= visible.right || visible.top >= visible.bottom) return;
 
