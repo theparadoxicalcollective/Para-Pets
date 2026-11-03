@@ -1,7 +1,6 @@
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { fishBagItems, type FishBagRecord } from "@/lib/fishBagInventory";
 import { useState, useEffect, useRef } from "react";
-import { bjGetStatus } from "@/lib/beginJourney";
 import { playSpeedUp, playPowerUp } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
