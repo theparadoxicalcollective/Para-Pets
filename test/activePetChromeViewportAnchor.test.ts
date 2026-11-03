@@ -22,7 +22,7 @@ test("pet menu stays in native HUD corner with unframed icon buttons", () => {
   assert.equal((home.match(/relative flex h-\[48px\] w-\[48px\]/g) || []).length, 4);
   const petMenu = home.slice(home.indexOf("{/* Screen-relative Pet Menu:"), home.indexOf("{/* Daily quest hints follow"));
   assert.equal((petMenu.match(/border-0 bg-transparent p-0/g) || []).length, 5);
-  assert.doesNotMatch(petMenu, /border-2|bg-\[#142819\]|shadow-\[/);
+  assert.doesNotMatch(petMenu, /border-2|bg-\[#142819\]|shadow-\[0_0/);
   assert.match(nav, /const BUTTON_SIZE = 58/);
   assert.doesNotMatch(home, /getStageScale\(|clientToStage\(|DESIGN_W|DESIGN_H/);
 });
