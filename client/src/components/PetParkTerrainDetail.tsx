@@ -6,10 +6,13 @@ import type { ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
  */
 export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetailType }) {
   const base = "pointer-events-none absolute inset-0 overflow-hidden rounded-[50%]";
-  if (type === "dirt_path") return <div aria-hidden="true" className={base}
-    style={{ background: [
-      "radial-gradient(ellipse at 52% 50%, rgba(122,91,58,.76) 0%, rgba(152,118,77,.77) 47%, rgba(159,130,88,.37) 72%, rgba(157,132,93,0) 100%)",
-      "radial-gradient(ellipse at 24% 34%, rgba(211,184,126,.34) 0%, transparent 43%)",
+  // The brush preview shows an opaque, square-ended dirt tile. Once saved,
+  // adjoining tiles merge into one textured path in PetParkTerrain's canvas.
+  if (type === "dirt_path") return <div aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden rounded-[3%]"
+    style={{ backgroundColor: "#846d4e", backgroundImage: [
+      "radial-gradient(ellipse at 22% 34%, rgba(210,180,126,.13), transparent 33%)",
+      "radial-gradient(ellipse at 78% 66%, rgba(64,45,30,.15), transparent 40%)",
     ].join(",") }} />;
   if (type === "stone_patch") return <div aria-hidden="true" className={base}>
     <div className="absolute inset-[6%] rounded-[50%]" style={{ background: "radial-gradient(ellipse,rgba(74,96,61,.22),transparent 70%)" }} />
