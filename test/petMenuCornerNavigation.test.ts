@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
@@ -26,13 +26,22 @@ test("main navigation and pet menu close each other when opened", () => {
 });
 
 test("Pet Menu uses uploaded artwork and preserves existing quest button targets", () => {
-  for (const image of ["Pet Menu.png", "PowerUpIcon.png", "LevelUpIcon.png", "ClosetIcon.png", "PetCareIcon.png"]) {
-    assert.ok(home.includes(image), image);
+  for (const image of ["NewPetMenuButton.PNG", "NewPowerUpButton.PNG", "NewLevelUpButton.PNG", "NewClosetBotton.PNG", "NewPetCareButton.PNG"]) {
+    assert.ok(home.includes(`@assets/uploads/${image}`), `Missing Pet Menu import: ${image}`);
+    const asset = statSync(`attached_assets/uploads/${image}`);
+    assert.ok(asset.isFile() && asset.size > 1024, `Pet Menu icon must exist: ${image}`);
   }
   for (const id of ["button-open-pet-menu", "button-action-power-up", "button-action-level-up", "button-action-equip-accessories", "button-action-care-feed"]) {
     assert.ok(home.includes(`data-testid="${id}"`), id);
   }
   const topBar = readFileSync("client/src/components/TopBar.tsx", "utf8");
   assert.match(topBar, /@assets\/uploads\/CoinBundleIcon\.png/);
+  assert.doesNotMatch(topBar, /@assets\/uploads\/MainGameCoinImage\.PNG/, "Do not replace the original coin balance bar");
+  assert.ok(statSync("attached_assets/uploads/MainGameCoinImage.PNG").size > 1024);
+  assert.match(topBar, /<img src=\{coinBarImg\} alt="Coins"/, "Retain the coin counter frame");
+  const standaloneCoins = readFileSync("client/src/lib/coinAssets.ts", "utf8");
+  assert.match(standaloneCoins, /@assets\/uploads\/MainGameCoinImage\.PNG/, "Use the new coin for standalone reward/shop images");
+  assert.match(topBar, /src=\{coinBarImg\}/, "Keep the full original balance frame, including its original emblem");
+  assert.match(topBar, /data-testid="text-coins"/, "Keep the current coin balance display");
   assert.match(topBar, /data-testid="button-coin-bag"/);
 });

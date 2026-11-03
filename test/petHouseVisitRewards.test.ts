@@ -20,7 +20,8 @@ test("visitor pets expose the canonical Para Pets coin and reuse Pet Care hearts
   const heart = read("client/src/components/PetHeartParticle.tsx");
   const care = read("client/src/features/pet-care/FeedingOverlay.tsx");
 
-  assert.match(coinAssets, /PARA_PETS_COIN_IMAGE = "\/paw-print-coin\.webp"/);
+  assert.match(coinAssets, /import mainGameCoinImage from "@assets\/uploads\/MainGameCoinImage\.PNG\?url"/);
+  assert.match(coinAssets, /export const PARA_PETS_COIN_IMAGE = mainGameCoinImage/);
   assert.match(cue, /PARA_PETS_COIN_IMAGE/);
   assert.doesNotMatch(cue, /@assets\/icon_coin/);
   assert.match(cue, /para-visit-pet-coin-spin/);

@@ -17,7 +17,7 @@ test("Lonelle guide tracks the current pet menu button and closet icon target", 
   assert.match(lonelle, /button-open-pet-menu/);
   assert.match(lonelle, /button-action-equip-accessories/);
   assert.match(home, /data-testid="active-pet-side-menu"/);
-  for (const asset of ["Pet Menu.png", "ClosetIcon.png", "PowerUpIcon.png", "LevelUpIcon.png", "PetCareIcon.png"]) {
-    assert.ok(home.includes(asset), asset);
+  for (const asset of ["NewPetMenuButton.PNG", "NewClosetBotton.PNG", "NewPowerUpButton.PNG", "NewLevelUpButton.PNG", "NewPetCareButton.PNG"]) {
+    assert.ok(home.includes(`@assets/uploads/${asset}?url`), `Missing pet menu artwork: ${asset}`);
   }
 });
