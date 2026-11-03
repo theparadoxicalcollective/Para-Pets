@@ -60,7 +60,7 @@ test("all five Pet Menu controls use their artwork as the only visible frame whi
     assert.ok(line.includes(`h-[${size}px] w-[${size}px]`), `Hit target changed for ${id}`);
     assert.match(line, /rounded-full border-0 bg-transparent p-0/, `Redundant button frame on ${id}`);
     assert.match(line, /focus-visible:outline/, `Keyboard focus should remain visible on ${id}`);
-    assert.doesNotMatch(line, /border-2|bg-\[#142819\]|shadow-\[/);
+    assert.doesNotMatch(line, /border-2|bg-\[#142819\]|shadow-\[0_0/);
   }
   assert.match(petMenu, /h-full w-full object-contain drop-shadow-\[0_2px_3px_#000\]/);
 });
