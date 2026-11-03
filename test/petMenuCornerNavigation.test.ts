@@ -67,11 +67,12 @@ test("all five Pet Menu controls use their artwork as the only visible frame whi
 
 test("pet-action labels remain readable and anchored to their original menu buttons", () => {
   const petMenu = home.slice(home.indexOf("{/* Screen-relative Pet Menu:"), home.indexOf("{/* Daily quest hints follow"));
-  const labelLines = petMenu.split("\n").filter(line => line.includes('className="pointer-events-none absolute -top-5'));
+  const labelLines = petMenu.split("\n").filter(line => line.includes('className="pointer-events-none absolute -bottom-4'));
   assert.equal(labelLines.length, 4);
   for (const label of ["Power-Up", "Level Up", "Closet", "Pet Care"]) {
     const line = labelLines.find(line => line.includes(`>${label}</span>`));
     assert.ok(line, `Missing menu label: ${label}`);
+    assert.match(line, /-bottom-4 left-1\/2 -translate-x-1\/2/);
     assert.match(line, /text-\[12px\] font-extrabold/);
     assert.match(line, /text-\[#ffe7ab\]/);
     assert.match(line, /textShadow: "0 2px 2px #000, 0 0 7px #000/);
