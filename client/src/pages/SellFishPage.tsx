@@ -55,8 +55,9 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: fishInventory = [], isLoading } = useQuery<CaughtFish[]>({
+  const { data: fishInventory = [], isLoading, isError, refetch: retryFishInventory } = useQuery<CaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
+    staleTime: 2_000,
   });
 
   const sellMutation = useMutation({
@@ -82,7 +83,10 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
       });
     },
     onError: () => {
-      toast({ title: "Sale failed", description: "Could not sell fish.", variant: "destructive" });
+      // A failed sale must not discard the selected fish. Refresh the bag
+      // state so players can retry without losing progress or their selection.
+      void queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+      toast({ title: "Sale failed", description: "Fish could not be sold. Please try again.", variant: "destructive" });
     },
   });
 
@@ -152,8 +156,13 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
   }, []);
 
   const handleConfirmSell = () => {
-    if (cartIds.size === 0) return;
+    if (cartIds.size === 0 || sellMutation.isPending) return;
     sellMutation.mutate([...cartIds]);
+  };
+
+  const showFishingSpots = () => {
+    onClose();
+    window.dispatchEvent(new Event("para:show-fishing-spots"));
   };
 
   return (
@@ -174,7 +183,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
           <img src={fishBarrelImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
           <div>
             <h2 className="font-fantasy text-base tracking-widest" style={{ color: ACCENT }}>Fish Market</h2>
-            <p className="font-fantasy text-[10px]" style={{ color: `${ACCENT}60` }}>Drag or tap fish to sell</p>
+            <p className="font-fantasy text-[10px]" style={{ color: `${ACCENT}60` }}>Tap a fish below, then Confirm Sale</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -219,7 +228,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
         data-testid="sell-drop-zone"
       >
         <p className="font-fantasy text-[10px] text-center mb-2" style={{ color: `${ACCENT}60` }}>
-          {cartFish.length === 0 ? "Drop fish here to sell" : `${cartFish.length} fish queued`}
+          {cartFish.length === 0 ? "Select fish below to prepare a sale" : `${cartFish.length} fish selected`}
         </p>
         {cartFish.length > 0 && (
           <div
@@ -329,6 +338,12 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
         </div>
         {isLoading ? (
           <p className="font-fantasy text-xs text-center py-8" style={{ color: `${ACCENT}50` }}>Loading...</p>
+        ) : isError ? (
+          <div role="alert" className="flex flex-col items-center gap-3 py-8">
+            <p className="font-fantasy text-sm" style={{ color: ACCENT }}>Fish inventory could not load.</p>
+            <button type="button" data-testid="button-retry-fish-inventory" onClick={() => void retryFishInventory()}
+              className="rounded-lg border border-[#a7bd7c] bg-[#193b29] px-4 py-2 text-sm text-[#ffecb2]">Retry loading fish</button>
+          </div>
         ) : inventoryFish.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <img src={fishRodIcon} alt="" style={{ width: 64, height: 64, objectFit: "contain", opacity: 0.6 }} />
@@ -337,8 +352,15 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
                 ? "All your fish are in the aquarium!"
                 : bagFish.length === 0
                 ? "No fish to sell. Go fishing!"
-                : "All fish queued for sale!"}
+                : "All fish selected. Confirm Sale above!"}
             </p>
+            {bagFish.length === 0 && (
+              <button type="button" data-testid="button-find-fishing-spots-from-market" onClick={showFishingSpots}
+                className="rounded-lg border border-[#d8b760] bg-[#193b29] px-4 py-2 font-fantasy text-sm text-[#ffe7a0]"
+                style={{ minHeight: 44, touchAction: "manipulation" }}>
+                Find a fishing spot
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-2.5">
