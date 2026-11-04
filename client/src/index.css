@@ -784,11 +784,11 @@
   width: min(calc(74% - var(--pet-care-usable-left) - var(--pet-care-scene-right)), 296px);
   margin: 0 auto clamp(3px, 0.7dvh, 7px);
   padding: 0;
-  /* Slightly smaller and lower over the jars without moving the jars,
-     pet, or meter fill's own artwork-relative geometry. */
+  /* Keep Hunger below the pet's paws without shifting the jar controls.
+     Scale the visual nudge with viewport height for short phones and tablets. */
   transform: translate(
     calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2),
-    6px
+    clamp(14px, 2.6dvh, 24px)
   );
 }
 
