@@ -3,9 +3,10 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { BJ_EVENT, bjGetStatus } from "@/lib/beginJourney";
+import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { getQuestGuideSurface, guideBoundsInSurface, guideCardShouldMoveUp, guideTargetOnScreen } from "@/lib/questGuideViewport";
-import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
+import { shouldPauseNpcDiscoveryTour, usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
 import { useMainNavOpen } from "@/lib/mainNavState";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
@@ -45,8 +46,31 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const guideCardRef = useRef<HTMLDivElement>(null);
   const recentTourTap = useRef<{ x: number; y: number; until: number } | null>(null);
   const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
-  const shouldLoadTour = eligible;
-  usePrimaryQuestGuideOwner("npc-discovery", eligible && index < worlds.length);
+  const questDataEnabled = eligible && index < worlds.length;
+  // Reuse the other overlays' exact React Query keys. A real accepted quest
+  // must not compete with this optional, input-blocking NPC location tour.
+  const ginnyQuest = useQuery<{ status: string }>({
+    queryKey: ["/api/quests/ginny-mini-pet"], enabled: questDataEnabled, staleTime: 2_000,
+    queryFn: async () => (await apiRequest("GET", "/api/quests/ginny-mini-pet")).json(),
+  });
+  const lonelleQuest = useQuery<{ status: string }>({
+    queryKey: ["/api/quests/lonelle-lost-adornment"], enabled: questDataEnabled, staleTime: 2_000,
+    queryFn: async () => (await apiRequest("GET", "/api/quests/lonelle-lost-adornment")).json(),
+  });
+  const jansonQuest = useQuery<{ quests: { status: string }[]; dailyQuest?: { status: string } }>({
+    queryKey: ["/api/quests/janson"], enabled: questDataEnabled, staleTime: 2_000,
+    queryFn: async () => (await apiRequest("GET", "/api/quests/janson")).json(),
+  });
+  const activeQuest = shouldPauseNpcDiscoveryTour({
+    ginnyStatus: ginnyQuest.data?.status,
+    lonelleStatus: lonelleQuest.data?.status,
+    jansonStatuses: [...(jansonQuest.data?.quests ?? []).map(quest => quest.status), jansonQuest.data?.dailyQuest?.status],
+  });
+  // Never start locking a newly loaded page until the real quest statuses
+  // are known. Errors still allow the non-critical discovery tour to recover.
+  const waitingForQuestState = [ginnyQuest, lonelleQuest, jansonQuest].some(query => query.isPending && !query.isError);
+  const shouldLoadTour = eligible && !activeQuest && !waitingForQuestState;
+  usePrimaryQuestGuideOwner("npc-discovery", shouldLoadTour && index < worlds.length);
 
   useEffect(() => { setIndex(savedIndex(user.id)); }, [user.id]);
 
@@ -187,7 +211,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     const style = getComputedStyle(node);
     return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0.1;
   });
-  if (!eligible || blockingOverlay || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
+  if (!shouldLoadTour || blockingOverlay || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
   const finish = (next: number) => {
     saveIndex(user.id, next);
     setIndex(next);
