@@ -94,7 +94,7 @@ test("Pet Care hunger follows the server care-stat scale and updates from feed r
   assert.match(feed, /qc\.setQueryData\(\["\/api\/inventory"\]/);
   assert.match(feed, /totalFeedPoints/);
   assert.match(css, /width: min\(calc\(74% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 296px\)/);
-  assert.match(css, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*6px\s*\)/);
+  assert.match(css, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*clamp\(14px, 2\.6dvh, 24px\)\s*\)/);
 });
 
 test("Pet Care Hunger meter is slightly smaller and lower while retaining its responsive jar layout", () => {
@@ -103,7 +103,7 @@ test("Pet Care Hunger meter is slightly smaller and lower while retaining its re
   const region = css.slice(css.indexOf(".pet-care-inventory-section .pet-care-hunger {"), css.indexOf(".pet-care-inventory-section .pet-care-hunger .pet-care-meter"));
   assert.match(region, /position: relative;/);
   assert.match(region, /width: min\(calc\(74% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 296px\)/);
-  assert.match(region, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*6px\s*\)/);
+  assert.match(region, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*clamp\(14px, 2\.6dvh, 24px\)\s*\)/);
   assert.match(css, /\.pet-care-inventory-section \.pet-care-hunger \.pet-care-meter \{\s*width: 100%/);
   assert.match(page, /<PetCareHungerMeter[\s\S]*hungerPct=\{hungerPct\}/);
   assert.match(page, /data-testid="pet-care-hunger-zone"/);
