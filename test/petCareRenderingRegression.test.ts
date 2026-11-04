@@ -77,9 +77,9 @@ test("Pet Care meters clamp finite percentages and use separate responsive scene
   assert.match(page, /className="pet-care-hunger" data-testid="pet-care-hunger-zone"/);
   assert.doesNotMatch(page, /pet-care-status/);
   assert.match(css, /\.pet-care-mood \{[\s\S]*?top: var\(--pet-care-mood-top\)/);
-  assert.match(css, /\.pet-care-hunger \{[\s\S]*?bottom: var\(--pet-care-hunger-bottom\)/);
+  assert.doesNotMatch(css, /--pet-care-hunger-bottom|bottom: var\(--pet-care-hunger-bottom\)/);
+  assert.match(css, /\.pet-care-inventory-section \.pet-care-hunger \{[\s\S]*?position: relative;[\s\S]*?inset: auto;/);
   assert.match(css, /--pet-care-mood-top:[^;]*env\(safe-area-inset-top/);
-  assert.match(css, /--pet-care-hunger-bottom:[^;]*env\(safe-area-inset-bottom/);
   assert.match(css, /height: 100dvh/);
 });
 
