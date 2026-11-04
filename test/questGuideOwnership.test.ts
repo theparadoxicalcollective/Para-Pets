@@ -37,9 +37,9 @@ test("Begin Journey and NPC discovery are the only primary blocking guides", () 
   );
   assert.match(
     npcDiscovery,
-    /usePrimaryQuestGuideOwner\("npc-discovery", eligible && index < worlds\.length\)/,
+    /usePrimaryQuestGuideOwner\("npc-discovery", shouldLoadTour && index < worlds\.length\)/,
   );
-  assert.match(npcDiscovery, /const shouldLoadTour = eligible;/);
+  assert.match(npcDiscovery, /const shouldLoadTour = eligible && !activeQuest && !waitingForQuestState;/);
   assert.match(npcDiscovery, /blockingGuide/);
 
   assert.match(lonelle, /usePrimaryQuestGuideActive\(\)/);
