@@ -6,13 +6,14 @@ import { chromium } from "playwright";
 // layout, synthetic navigation/hotspots and API responses. No player or backend.
 const fixtureId = "/__npc-discovery-fixture.tsx";
 const fixture = `
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import NpcQuestDiscoveryGuide from '@/components/NpcQuestDiscoveryGuide';
 import { bjUsePlayer, bjSetStep } from '@/lib/beginJourney';
+import { setMainNavOpen } from '@/lib/mainNavState';
 import { readStageViewportLayout } from '@/lib/stageViewport';
 import '@/index.css';
 const user = { id: 'isolated-guide-fixture', tutorial_quest_completed: true };
@@ -25,6 +26,12 @@ Object.assign(stage.style, {position:'absolute', left:layout.left+'px', top:'0',
 function Fixture() {
   const [location, navigate] = useLocation();
   const [open, setOpen] = useState(false);
+  // The actual FloatingNav publishes its open state; mirror that contract in
+  // this isolated guide fixture so the spotlight follows the true menu state.
+  useEffect(() => {
+    setMainNavOpen(open);
+    return () => setMainNavOpen(false);
+  }, [open]);
   const [panned, setPanned] = useState(false);
   const [modal, setModal] = useState(false);
   const scene = document.getElementById('game-viewport-scene');
