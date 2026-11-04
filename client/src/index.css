@@ -412,7 +412,6 @@
   --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + clamp(62px, 9dvh, 84px));
   --pet-care-pet-size: clamp(210px, 39dvh, 350px);
   --pet-care-pet-center: clamp(245px, 43dvh, 400px);
-  --pet-care-hunger-bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(142px, 19dvh, 178px));
   height: 100%;
   overflow: hidden;
 }
@@ -486,7 +485,6 @@
 }
 
 .pet-care-hunger {
-  bottom: var(--pet-care-hunger-bottom);
   gap: clamp(1px, 0.4dvh, 5px);
 }
 
@@ -750,7 +748,6 @@
     --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + 58px);
     --pet-care-pet-size: clamp(184px, 34dvh, 218px);
     --pet-care-pet-center: clamp(238px, 42dvh, 270px);
-    --pet-care-hunger-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
   }
   .pet-care-loyalty { height: clamp(205px, 45vh, 285px); }
   .pet-care-item-shelf { margin-bottom: 3px; }
@@ -781,14 +778,19 @@
 .pet-care-inventory-section .pet-care-hunger {
   position: relative;
   inset: auto;
-  width: min(calc(74% - var(--pet-care-usable-left) - var(--pet-care-scene-right)), 296px);
+  /* Single responsive width source for phones and tablets. Earlier
+     petCarePolish.css declarations overrode this entire layout. */
+  width: min(
+    calc(94% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
+    clamp(296px, 45vw, 380px)
+  );
   margin: 0 auto clamp(3px, 0.7dvh, 7px);
   padding: 0;
-  /* Keep Hunger below the pet's paws without shifting the jar controls.
-     Scale the visual nudge with viewport height for short phones and tablets. */
+  /* Move the decorated frame BELOW the pet's paws, independently of the jars.
+     This is a visual offset only: item hit targets and feeding remain unchanged. */
   transform: translate(
     calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2),
-    clamp(14px, 2.6dvh, 24px)
+    clamp(48px, 6dvh, 72px)
   );
 }
 

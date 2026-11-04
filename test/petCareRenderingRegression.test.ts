@@ -77,9 +77,9 @@ test("Pet Care meters clamp finite percentages and use separate responsive scene
   assert.match(page, /className="pet-care-hunger" data-testid="pet-care-hunger-zone"/);
   assert.doesNotMatch(page, /pet-care-status/);
   assert.match(css, /\.pet-care-mood \{[\s\S]*?top: var\(--pet-care-mood-top\)/);
-  assert.match(css, /\.pet-care-hunger \{[\s\S]*?bottom: var\(--pet-care-hunger-bottom\)/);
+  assert.doesNotMatch(css, /--pet-care-hunger-bottom|bottom: var\(--pet-care-hunger-bottom\)/);
+  assert.match(css, /\.pet-care-inventory-section \.pet-care-hunger \{[\s\S]*?position: relative;[\s\S]*?inset: auto;/);
   assert.match(css, /--pet-care-mood-top:[^;]*env\(safe-area-inset-top/);
-  assert.match(css, /--pet-care-hunger-bottom:[^;]*env\(safe-area-inset-bottom/);
   assert.match(css, /height: 100dvh/);
 });
 
@@ -93,8 +93,9 @@ test("Pet Care hunger follows the server care-stat scale and updates from feed r
   assert.match(feed, /return await res\.json\(\)/);
   assert.match(feed, /qc\.setQueryData\(\["\/api\/inventory"\]/);
   assert.match(feed, /totalFeedPoints/);
-  assert.match(css, /width: min\(calc\(74% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 296px\)/);
-  assert.match(css, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*clamp\(14px, 2\.6dvh, 24px\)\s*\)/);
+  assert.match(css, /calc\(94% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\)/);
+  assert.match(css, /clamp\(296px, 45vw, 380px\)/);
+  assert.match(css, /clamp\(48px, 6dvh, 72px\)/);
 });
 
 test("Pet Care Hunger meter is slightly smaller and lower while retaining its responsive jar layout", () => {
@@ -102,8 +103,9 @@ test("Pet Care Hunger meter is slightly smaller and lower while retaining its re
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const region = css.slice(css.indexOf(".pet-care-inventory-section .pet-care-hunger {"), css.indexOf(".pet-care-inventory-section .pet-care-hunger .pet-care-meter"));
   assert.match(region, /position: relative;/);
-  assert.match(region, /width: min\(calc\(74% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 296px\)/);
-  assert.match(region, /transform: translate\(\s*calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\),\s*clamp\(14px, 2\.6dvh, 24px\)\s*\)/);
+  assert.match(region, /calc\(94% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\)/);
+  assert.match(region, /clamp\(296px, 45vw, 380px\)/);
+  assert.match(region, /clamp\(48px, 6dvh, 72px\)/);
   assert.match(css, /\.pet-care-inventory-section \.pet-care-hunger \.pet-care-meter \{\s*width: 100%/);
   assert.match(page, /<PetCareHungerMeter[\s\S]*hungerPct=\{hungerPct\}/);
   assert.match(page, /data-testid="pet-care-hunger-zone"/);
