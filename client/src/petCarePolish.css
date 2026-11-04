@@ -22,17 +22,6 @@
   width: min(72%, 380px);
 }
 
-.pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
-  width: min(
-    calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
-    360px
-  );
-  margin-bottom: clamp(12px, 2dvh, 18px);
-  transform:
-    translateX(calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2))
-    translateY(-7px);
-}
-
 /* The frame PNGs include small decorative tips beyond the live track. Keep
    those transparent edge pixels visible instead of clipping them to the
    meter's layout box on narrow screens. */
@@ -203,13 +192,6 @@
     width: min(70%, 350px);
   }
 
-  .pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
-    width: min(
-      calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
-      340px
-    );
-  }
-
   .pet-care-overlay
     .pet-care-item-shelf__quantity {
     left: 4px;
@@ -259,13 +241,6 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
-    width: min(
-      calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
-      420px
-    );
   }
 
   .pet-care-overlay .pet-care-inventory-jars {
