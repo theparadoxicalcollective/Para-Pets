@@ -412,7 +412,6 @@
   --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + clamp(62px, 9dvh, 84px));
   --pet-care-pet-size: clamp(210px, 39dvh, 350px);
   --pet-care-pet-center: clamp(245px, 43dvh, 400px);
-  --pet-care-hunger-bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(142px, 19dvh, 178px));
   height: 100%;
   overflow: hidden;
 }
@@ -486,7 +485,6 @@
 }
 
 .pet-care-hunger {
-  bottom: var(--pet-care-hunger-bottom);
   gap: clamp(1px, 0.4dvh, 5px);
 }
 
@@ -750,7 +748,6 @@
     --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + 58px);
     --pet-care-pet-size: clamp(184px, 34dvh, 218px);
     --pet-care-pet-center: clamp(238px, 42dvh, 270px);
-    --pet-care-hunger-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
   }
   .pet-care-loyalty { height: clamp(205px, 45vh, 285px); }
   .pet-care-item-shelf { margin-bottom: 3px; }
