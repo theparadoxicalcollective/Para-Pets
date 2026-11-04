@@ -781,14 +781,19 @@
 .pet-care-inventory-section .pet-care-hunger {
   position: relative;
   inset: auto;
-  width: min(calc(74% - var(--pet-care-usable-left) - var(--pet-care-scene-right)), 296px);
+  /* Single responsive width source for phones and tablets. Earlier
+     petCarePolish.css declarations overrode this entire layout. */
+  width: min(
+    calc(94% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
+    clamp(296px, 45vw, 380px)
+  );
   margin: 0 auto clamp(3px, 0.7dvh, 7px);
   padding: 0;
-  /* Keep Hunger below the pet's paws without shifting the jar controls.
-     Scale the visual nudge with viewport height for short phones and tablets. */
+  /* Move the decorated frame BELOW the pet's paws, independently of the jars.
+     This is a visual offset only: item hit targets and feeding remain unchanged. */
   transform: translate(
     calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2),
-    clamp(14px, 2.6dvh, 24px)
+    clamp(48px, 6dvh, 72px)
   );
 }
 
