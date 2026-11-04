@@ -331,25 +331,6 @@ function PetCareItemShelf({
         justifyContent: "flex-end",
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 6,
-          color: "#fff0b2",
-          fontFamily: "Lora, Georgia, serif",
-          fontSize: "clamp(9px, 2.6vw, 12px)",
-          fontWeight: 900,
-          letterSpacing: "0.14em",
-          textShadow: "0 2px 5px rgba(0,0,0,0.95), 0 0 8px rgba(255,215,120,0.55)",
-          pointerEvents: "none",
-        }}
-      >
-        {title}
-      </span>
       <div
         data-pet-care-jar-boundary="true"
         style={{
@@ -452,12 +433,34 @@ function PetCareItemShelf({
             width: "100%",
             height: "100%",
             objectFit: "contain",
-            opacity: 0.7,
+            opacity: 0.5,
             pointerEvents: "none",
             userSelect: "none",
           }}
         />
       </div>
+      {/* Labels sit BELOW the glass instead of obscuring the jar opening. */}
+      <span
+        aria-hidden="true"
+        data-testid={`pet-care-${kind}-jar-label`}
+        style={{
+          position: "relative",
+          display: "block",
+          flexShrink: 0,
+          marginTop: "clamp(2px, 0.4dvh, 5px)",
+          paddingBottom: 2,
+          color: "#fff0b2",
+          fontFamily: "Lora, Georgia, serif",
+          fontSize: "clamp(10px, 2.6vw, 13px)",
+          fontWeight: 900,
+          letterSpacing: "0.14em",
+          lineHeight: 1.2,
+          textShadow: "0 2px 5px rgba(0,0,0,0.95), 0 0 8px rgba(255,215,120,0.55)",
+          pointerEvents: "none",
+        }}
+      >
+        {title}
+      </span>
     </section>
   );
 }
