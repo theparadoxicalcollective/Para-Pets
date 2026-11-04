@@ -123,6 +123,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
     // (Previously every fish set touchAction:none + captured the pointer, which
     //  blocked vertical scrolling on phones/tablets.)
     if (e.pointerType !== "mouse") return;
+    // Capture on the fish button itself so mouse clicks still select it.
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragFishRef.current = fish;
     setDraggingFish(fish);
@@ -371,14 +372,14 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
                 <div
                   key={fish.id}
                   className="relative"
-                  onPointerDown={(e) => handleDragStart(e, fish)}
-                  onPointerMove={handleDragMove}
-                  onPointerUp={handleDragEnd}
-                  onPointerCancel={handleDragEnd}
                   style={{ touchAction: "pan-y" }}
                 >
                   <button
                     data-testid={`button-fish-item-${fish.id}`}
+                    onPointerDown={(e) => handleDragStart(e, fish)}
+                    onPointerMove={handleDragMove}
+                    onPointerUp={handleDragEnd}
+                    onPointerCancel={handleDragEnd}
                     onClick={() => toggleCart(fish)}
                     className="w-full flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all active:scale-95"
                     style={{

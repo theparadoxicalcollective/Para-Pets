@@ -5,7 +5,52 @@ import { chromium } from 'playwright';
 // Runs the REAL Janson overlay with isolated quest/world/auth fixtures.
 // No production account, database, inventory or fishing records are modified.
 const fixtureId = '/__janson-quest-fixture.tsx';
-const fixture = "import React, { useEffect } from 'react';\nimport { createRoot } from 'react-dom/client';\nimport { createPortal } from 'react-dom';\nimport { QueryClient, QueryClientProvider } from '@tanstack/react-query';\nimport { useLocation } from 'wouter';\nimport { readStageViewportLayout } from '@/lib/stageViewport';\nimport JansonQuestOverlay from '@/components/JansonQuestOverlay';\nimport '@/index.css';\n\nconst client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });\nwindow.fixtureRefetchJanson = () => client.invalidateQueries({ queryKey: ['/api/quests/janson'] });\nfunction Fixture() {\n  const [location] = useLocation();\n  const layout = readStageViewportLayout(location);\n  useEffect(() => {\n    const stage = document.getElementById('game-stage');\n    Object.assign(stage.style, {\n      position: 'absolute', left: layout.left + 'px', top: layout.top + 'px',\n      width: layout.designWidth + 'px', height: layout.designHeight + 'px', overflow: 'hidden',\n    });\n  }, [layout.left, layout.top, layout.designWidth, layout.designHeight]);\n  return <>\n    {createPortal(<div data-testid=\"location-janson\" style={{\n      position: 'absolute', left: '37%', top: '26%', width: 100, height: 104, pointerEvents: 'auto',\n    }}><div style={{ position: 'absolute', inset: 0, background: '#355d3a' }} /></div>,\n      document.getElementById('game-viewport-scene'))}\n    <JansonQuestOverlay />\n  </>;\n}\ncreateRoot(document.getElementById('root')).render(\n  <QueryClientProvider client={client}><Fixture /></QueryClientProvider>,\n);";
+const fixture = `
+import React, { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { createPortal } from 'react-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { readStageViewportLayout } from '@/lib/stageViewport';
+import JansonQuestOverlay from '@/components/JansonQuestOverlay';
+import SellFishPage from '@/pages/SellFishPage';
+import { getQueryFn } from '@/lib/queryClient';
+import '@/index.css';
+
+const client = new QueryClient({ defaultOptions: { queries: { queryFn:getQueryFn({on401:'returnNull'}), retry: false, refetchOnWindowFocus: false } } });
+window.fixtureRefetchJanson = () => client.invalidateQueries({ queryKey: ['/api/quests/janson'] });
+window.fixtureFishingHints=0;
+window.fixtureInvalidateFish=()=>client.invalidateQueries({queryKey:['/api/fishing/inventory'],refetchType:'none'});
+function Fixture() {
+  const [market,setMarket]=useState(false);
+  useEffect(()=>{
+    const open=()=>setMarket(true);
+    const spots=()=>window.fixtureFishingHints++;
+    window.addEventListener('para:open-fish-market',open);
+    window.addEventListener('para:show-fishing-spots',spots);
+    return ()=>{window.removeEventListener('para:open-fish-market',open);window.removeEventListener('para:show-fishing-spots',spots);};
+  },[]);
+  const [location] = useLocation();
+  const layout = readStageViewportLayout(location);
+  useEffect(() => {
+    const stage = document.getElementById('game-stage');
+    Object.assign(stage.style, {
+      position: 'absolute', left: layout.left + 'px', top: layout.top + 'px',
+      width: layout.designWidth + 'px', height: layout.designHeight + 'px', overflow: 'hidden',
+    });
+  }, [layout.left, layout.top, layout.designWidth, layout.designHeight]);
+  return <>
+    {createPortal(<div data-testid="location-janson" style={{
+      position: 'absolute', left: '37%', top: '26%', width: 100, height: 104, pointerEvents: 'auto',
+    }}><div style={{ position: 'absolute', inset: 0, background: '#355d3a' }} /></div>,
+      document.getElementById('game-viewport-scene'))}
+    <JansonQuestOverlay />
+    {market && createPortal(<SellFishPage user={{id:'janson-qa',username:'QA',isAdmin:false,coins:500}} worldId="swamp" onClose={()=>setMarket(false)} />,document.getElementById('game-viewport-hud'))}
+  </>;
+}
+createRoot(document.getElementById('root')).render(
+  <QueryClientProvider client={client}><Fixture /></QueryClientProvider>,
+);`;
 
 const server = await createServer({
   server: {host:'127.0.0.1',port:4176,strictPort:true},
@@ -51,7 +96,10 @@ try {
       quests:[quest('catch_fish','available','Gone Fishing'),quest('sell_fish','locked','Sell Fish')],
       dailyQuest:quest('daily_catch_fish','locked','Daily Gone Fishing'),marketUnlocked:false,
     };
-    const counts={starts:0,claims:0};
+    const counts={starts:0,claims:0,sellStarts:0,saleAttempts:0,sold:0};
+    let inventory=[{id:'fish-qa',shopItemId:'fish-shop',caughtAt:'2026-01-01',inAquarium:false,item:{id:'fish-shop',name:'QA Fish',starRarity:1}}];
+    let inventoryFails=false;
+    let saleFails=true;
     await page.route('**/api/**',route=>{
       const path=new URL(route.request().url()).pathname;
       if(path==='/api/auth/me')return route.fulfill({json:{id:'janson-qa',isAdmin:false,coins:0}});
@@ -65,6 +113,22 @@ try {
         counts.claims++;
         state={...state,quests:state.quests.map(q=>q.questKey==='catch_fish'?{...q,status:'claimed'}:{...q,status:'available'})};
         return route.fulfill({json:{...state,newCoinBalance:500,coinsGranted:500,itemGranted:null}});
+      }
+      if(path==='/api/quests/janson/sell_fish/start'){
+        counts.sellStarts++;
+        assert.equal(state.quests[0].status,'claimed','fishing reward must be claimed before sale chapter');
+        state={...state,marketUnlocked:true,quests:state.quests.map(q=>q.questKey==='sell_fish'?{...q,status:'accepted'}:q)};
+        return route.fulfill({json:state});
+      }
+      if(path==='/api/fishing/inventory')return inventoryFails
+        ? route.fulfill({status:503,json:{message:'Retry inventory'}}) : route.fulfill({json:inventory});
+      if(path==='/api/fishing/sell'){
+        counts.saleAttempts++;
+        assert.deepEqual(route.request().postDataJSON(),{fishIds:['fish-qa']});
+        if(saleFails)return route.fulfill({status:503,json:{message:'Try again'}});
+        counts.sold++; inventory=[];
+        state={...state,quests:state.quests.map(q=>q.questKey==='sell_fish'?{...q,status:'accepted',progress:1}:q)};
+        return route.fulfill({json:{sold:1,coinsEarned:5,newBalance:505}});
       }
       if(path==='/api/world/swamp/locations')return route.fulfill({json:[{id:'janson',name:'Janson',type:'npc'}]});
       if(path==='/api/shop/__npc_catalog__')return route.fulfill({json:[]});
@@ -109,8 +173,49 @@ try {
     await activate(page.getByTestId('button-claim-janson-at-npc-catch_fish'));
     await page.getByText(/Reward claimed!/).waitFor({state:'visible'});
     assert.equal(counts.claims,1,name+': first reward must be claimed exactly once');
+    // Accept the real sale chapter: its confirmed response must open the
+    // real market through the same event WorldPage consumes.
+    await activate(page.getByTestId('button-start-janson-sell_fish'));
+    await page.getByTestId('sell-fish-blocking-page').waitFor({state:'visible'});
+    assert.equal(counts.sellStarts,1);
+    await activate(page.getByTestId('button-fish-item-fish-qa'));
+    await page.getByTestId('button-remove-from-cart-fish-qa').waitFor({state:'visible'});
+    if (!touch) {
+      // Mouse capture must preserve both ordinary click selection and drag.
+      await activate(page.getByTestId('button-remove-from-cart-fish-qa'));
+      const fish=await page.getByTestId('button-fish-item-fish-qa').boundingBox();
+      const zone=await page.getByTestId('sell-drop-zone').boundingBox();
+      await page.mouse.move(fish.x+fish.width/2,fish.y+fish.height/2);
+      await page.mouse.down();
+      await page.mouse.move(zone.x+zone.width/2,zone.y+zone.height/2,{steps:8});
+      await page.mouse.up();
+      await page.getByTestId('button-remove-from-cart-fish-qa').waitFor({state:'visible'});
+    }
+    const confirm=page.getByTestId('button-confirm-sell');
+    await activate(confirm);
+    await page.waitForFunction(()=>!document.querySelector('[data-testid="button-confirm-sell"]')?.disabled);
+    assert.equal(counts.saleAttempts,1);
+    assert.equal(counts.sold,0);
+    await page.getByTestId('button-remove-from-cart-fish-qa').waitFor({state:'visible'});
+    saleFails=false;
+    await activate(confirm);
+    await page.getByTestId('button-find-fishing-spots-from-market').waitFor({state:'visible'});
+    assert.equal(counts.sold,1);
+    const hintsBefore=await page.evaluate(()=>window.fixtureFishingHints);
+    await activate(page.getByTestId('button-find-fishing-spots-from-market'));
+    await page.getByTestId('sell-fish-blocking-page').waitFor({state:'detached'});
+    assert.equal(await page.evaluate(()=>window.fixtureFishingHints),hintsBefore+1);
+    // A failed inventory request has its own retry, never a false empty bag.
+    inventoryFails=true;
+    await page.evaluate(()=>window.fixtureInvalidateFish());
+    await activate(talk);
+    await activate(page.getByTestId('button-janson-fish-market'));
+    await page.getByTestId('button-retry-fish-inventory').waitFor({state:'visible'});
+    inventoryFails=false;
+    await activate(page.getByTestId('button-retry-fish-inventory'));
+    await page.getByTestId('button-find-fishing-spots-from-market').waitFor({state:'visible'});
     assert.deepEqual(errors,[],name+': no React/browser errors');
-    console.log('PASS '+name+': real Janson dialog fits HUD, scrolls long copy, starts fishing and claims reward');
+    console.log('PASS '+name+': real Janson dialog fits HUD, scrolls long copy, starts fishing, claims reward, opens sale chapter, taps/ retries sale and recovers empty/error inventory');
     await context.close();
   }
 } finally {

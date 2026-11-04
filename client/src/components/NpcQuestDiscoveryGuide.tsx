@@ -44,7 +44,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   }, []);
   const [targetRect, setTargetRect] = useState<{ selector: string; rect: DOMRect } | null>(null);
   const guideCardRef = useRef<HTMLDivElement>(null);
-  const recentTourTap = useRef<{ x: number; y: number; until: number } | null>(null);
+  const recentTourTap = useRef<{ x: number; y: number; until: number; location: string } | null>(null);
   const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
   const questDataEnabled = eligible && index < worlds.length;
   // Reuse the other overlays' exact React Query keys. A real accepted quest
@@ -182,7 +182,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   // The NPC is a live world control. During this read-only tour, even a tap on
   // its visible edge must never start its actual quest.
   useEffect(() => {
-    if (!eligible || !atWorld || !npcSelector) return;
+    if (!shouldLoadTour || !atWorld || !npcSelector) return;
     const blockNpcClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element) || !event.target.closest(npcSelector)) return;
       event.preventDefault();
@@ -190,20 +190,23 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     };
     document.addEventListener("click", blockNpcClick, true);
     return () => document.removeEventListener("click", blockNpcClick, true);
-  }, [eligible, atWorld, npcSelector]);
+  }, [shouldLoadTour, atWorld, npcSelector]);
 
   // Some Android browsers send a second, delayed click at the same position
   // after a touch. Swallow that click if the tour has already advanced.
   useEffect(() => {
+    if (!shouldLoadTour) { recentTourTap.current = null; return; }
     const blockGhostClick = (event: MouseEvent) => {
       const tap = recentTourTap.current;
-      if (!tap || Date.now() > tap.until || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 24) return;
+      // A tap in a new world is a new action, even when its NPC occupies the
+      // same screen position. Only suppress delayed clicks on the same route.
+      if (!tap || tap.location !== location || Date.now() > tap.until || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 24) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
     document.addEventListener("click", blockGhostClick, true);
     return () => document.removeEventListener("click", blockGhostClick, true);
-  }, []);
+  }, [shouldLoadTour, location]);
 
   const blockingOverlay = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"], [data-quest-guide-blocker="true"]')).some(node => {
     const rect = node.getBoundingClientRect();
@@ -239,7 +242,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
       showHint={false}
       blockingGuide
       onTourAdvance={point => {
-        if (point) recentTourTap.current = { x: point.x, y: point.y, until: Date.now() + 450 };
+        if (point) recentTourTap.current = { x: point.x, y: point.y, until: Date.now() + 450, location };
         advance();
       }}
     />

@@ -17,6 +17,8 @@ import { setMainNavOpen } from '@/lib/mainNavState';
 import { readStageViewportLayout } from '@/lib/stageViewport';
 import '@/index.css';
 const user = { id: 'isolated-guide-fixture', tutorial_quest_completed: true };
+const client = new QueryClient();
+window.fixtureQuestStatus = status => client.setQueryData(['/api/quests/ginny-mini-pet'], {status});
 bjUsePlayer(user.id); bjSetStep('done');
 window.fixtureCounts = { quests: 0, unrelated: 0, pans: 0 };
 const layout = readStageViewportLayout('/map');
@@ -65,7 +67,7 @@ function Fixture() {
     <NpcQuestDiscoveryGuide user={user}/>
   </>;
 }
-createRoot(document.getElementById('root')).render(<QueryClientProvider client={new QueryClient()}><Fixture/></QueryClientProvider>);
+createRoot(document.getElementById('root')).render(<QueryClientProvider client={client}><Fixture/></QueryClientProvider>);
 `;
 
 const server = await createServer({
@@ -99,6 +101,8 @@ try {
     let missingLocation = name === 'Android phone' ? 'janson' : name === 'tablet' ? 'all' : null;
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname;
+      if (path === '/api/quests/janson') return route.fulfill({json:{quests:[],dailyQuest:{status:'locked'}}});
+      if (path.startsWith('/api/quests/')) return route.fulfill({json:{status:'available'}});
       const locations = path.includes('haunted_woods') ? [{id:'ginny',name:'Ginny',type:'npc'}]
         : [{id:'janson',name:'Janson',type:'npc'},{id:'lonelle',name:'Lonelle',type:'npc'}];
       return route.fulfill({json:missingLocation === 'all'
@@ -109,14 +113,19 @@ try {
     const expectPointer = async () => {
       const pointer = page.getByTestId('npc-discovery-spotlight');
       await pointer.waitFor({state:'attached',timeout:5000});
-      const ring = page.locator('#game-viewport-hud span[aria-hidden="true"]').first();
-      await ring.waitFor({state:'visible'});
       await page.waitForFunction(() => Array.from(document.querySelectorAll('#game-viewport-hud img'))
         .some(image => image.complete && image.naturalWidth > 0));
-      const box = await ring.boundingBox();
-      const hud = await page.getByTestId('game-viewport-hud').count() ? page.getByTestId('game-viewport-hud') : page.locator('#game-viewport-hud');
-      const frame = await hud.boundingBox();
-      assert.ok(box && frame && box.x >= frame.x-30 && box.x+box.width <= frame.x+frame.width+30, name+': ring must stay inside portrait frame');
+      // Parent and spotlight measure on separate intervals. Sample visibility
+      // and bounds together so a pan/route transition cannot detach the ring
+      // between waitFor(visible) and boundingBox(). Keep the geometry gate.
+      await page.waitForFunction(() => {
+        const ring = document.querySelector('#game-viewport-hud span[aria-hidden="true"]');
+        const hud = document.getElementById('game-viewport-hud');
+        if (!ring || !hud) return false;
+        const box = ring.getBoundingClientRect(), frame = hud.getBoundingClientRect();
+        return box.width > 0 && box.height > 0 && box.x >= frame.x-30
+          && box.x+box.width <= frame.x+frame.width+30;
+      }, null, {timeout:5000});
     };
     await page.goto('http://127.0.0.1:4174/__guide-test');
     if (missingLocation) {
@@ -164,11 +173,29 @@ try {
       }
       await page.waitForFunction(() => document.querySelector('[data-testid="npc-discovery-spotlight"]')?.getAttribute('role') === 'button');
       await expectPointer();
+      if (next === 1) {
+        // Pause AFTER NPC locations are cached. An invisible document guard
+        // must not keep eating the actual quest button's click while paused.
+        await page.evaluate(() => window.fixtureQuestStatus('accepted'));
+        await page.getByTestId('npc-discovery-guide').waitFor({state:'detached'});
+        await activate(page.getByTestId('player-location-hotspot-ginny'));
+        assert.equal(await page.evaluate(() => window.fixtureCounts.quests),1,
+          name+': pausing the tour must restore the real NPC control');
+        assert.equal(await page.evaluate(() => localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')),null,
+          name+': talking during a paused tour must not advance discovery');
+        await page.evaluate(() => { window.fixtureCounts.quests=0; window.fixtureQuestStatus('claimed'); });
+        await page.getByTestId('npc-discovery-guide').waitFor({state:'visible'});
+        await page.waitForFunction(() => document.querySelector('[data-testid="npc-discovery-spotlight"]')?.getAttribute('role') === 'button');
+      }
       // Tap unrelated scenery: never advance or invoke another control.
       await page.mouse.click(frame.x+20,frame.y+110);
       assert.equal(await page.evaluate(() => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture'))),next-1);
       const target = await page.getByTestId('player-location-hotspot-'+npc).boundingBox();
       assert.ok(target);
+      // Keep Date.now inside the delayed-click window on desktop while real
+      // timers/gestures run normally. The next world's NPC deliberately shares
+      // Ginny's screen position: navigation must make it a new legitimate tap.
+      if (!touch && next === 1) await page.clock.setFixedTime(new Date());
       if(touch) await page.touchscreen.tap(target.x+target.width/2,target.y+target.height/2);
       else await page.mouse.click(target.x+target.width/2,target.y+target.height/2);
       await page.waitForFunction(next => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')) === next,next);

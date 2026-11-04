@@ -136,7 +136,9 @@ export default function LonelleQuestOverlay() {
   });
 
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
-  const mapOpen = mainNavOpen && visible(navMap);
+  // The fan-out begins at opacity 0. Let the spotlight observe its animation
+  // instead of freezing this route choice on the first frame of menu opening.
+  const mapOpen = mainNavOpen && !!navMap;
   const adornmentPicker = document.querySelector<HTMLElement>('[data-testid="adornment-inventory-picker"]');
   const guiding = state && (["accepted", "found", "taken"].includes(state.status));
   let target: string | null = null;

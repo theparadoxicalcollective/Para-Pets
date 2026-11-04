@@ -28,7 +28,7 @@ test("the actual main menu exposes open, closed and unsubscribed changes to guid
   assert.match(nav, /return \(\) => setMainNavOpen\(false\)/);
   assert.match(nav, /aria-expanded=\{isOpen\}/);
   assert.match(lonelle, /const mainNavOpen = useMainNavOpen\(\)/);
-  assert.match(lonelle, /const mapOpen = mainNavOpen && visible\(navMap\)/);
+  assert.match(lonelle, /const mapOpen = mainNavOpen && !!navMap/);
   assert.match(tour, /const mapIsOpen = mainNavOpen && !!navMap/);
 });
 
