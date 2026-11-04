@@ -80,7 +80,7 @@ test("Janson's first sale journey accepts quest before opening real market and p
   assert.match(world, /window\.addEventListener\("para:open-fish-market", openFishMarket\)/);
   assert.match(world, /<SellFishPage/);
   assert.match(sell, /onClick=\{handleConfirmSell\}/);
-  assert.match(sell, /onClick=\{\(\) => toggleCart\(fish\)\}/);
+  assert.match(sell, /onClick=\{\(\) => addToCart\(fish\)\}/);
   assert.match(sell, /Tap a fish below, then Confirm Sale/);
   assert.match(sell, /data-testid="button-find-fishing-spots-from-market"/);
   assert.match(sell, /onClose\(\);\s*window\.dispatchEvent\(new Event\("para:show-fishing-spots"\)\)/);

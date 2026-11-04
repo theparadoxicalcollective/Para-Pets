@@ -100,13 +100,10 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
   const totalCoins = cartFish.reduce((sum, f) => sum + (SELL_PRICES[f.item?.starRarity ?? 1] ?? 5), 0);
   const aquariumCount = fishInventory.filter(f => f.inAquarium).length;
 
-  const toggleCart = useCallback((fish: CaughtFish) => {
-    setCartIds(prev => {
-      const next = new Set(prev);
-      if (next.has(fish.id)) next.delete(fish.id);
-      else next.add(fish.id);
-      return next;
-    });
+  const addToCart = useCallback((fish: CaughtFish) => {
+    // Inventory buttons only add; selected fish have a separate remove button.
+    // A mouse click following a successful drop must not undo that selection.
+    setCartIds(prev => new Set([...prev, fish.id]));
   }, []);
 
   const removeFromCart = useCallback((id: string) => {
@@ -380,7 +377,8 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
                     onPointerMove={handleDragMove}
                     onPointerUp={handleDragEnd}
                     onPointerCancel={handleDragEnd}
-                    onClick={() => toggleCart(fish)}
+                    onDragStart={event => event.preventDefault()}
+                    onClick={() => addToCart(fish)}
                     className="w-full flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all active:scale-95"
                     style={{
                       background: "rgba(255,255,255,0.04)",
