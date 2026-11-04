@@ -6,6 +6,7 @@ import { BJ_EVENT, bjGetStatus } from "@/lib/beginJourney";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { getQuestGuideSurface, guideBoundsInSurface, guideCardShouldMoveUp, guideTargetOnScreen } from "@/lib/questGuideViewport";
 import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
+import { useMainNavOpen } from "@/lib/mainNavState";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
 interface GuideNpc { id: string; name: string; worldId: string; worldName: string }
@@ -31,6 +32,7 @@ function saveIndex(userId: string, value: number) {
 /** A separate, read-only tour. It never starts or claims an NPC quest. */
 export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; tutorial_quest_completed?: boolean; tutorial_reward_claimed?: boolean; isModerator?: boolean } }) {
   const [location] = useLocation();
+  const mainNavOpen = useMainNavOpen();
   const [index, setIndex] = useState(() => savedIndex(user.id));
   const [tutorialStatus, setTutorialStatus] = useState(bjGetStatus);
   useEffect(() => {
@@ -116,7 +118,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const npcSelector = current && `[data-testid="location-${current.id}"]`;
   const npcElement = atWorld && npcSelector ? document.querySelector<HTMLElement>(npcSelector) : null;
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
-  const mapIsOpen = navMap && getComputedStyle(navMap).pointerEvents !== "none";
+  const mapIsOpen = mainNavOpen && !!navMap;
   const selector = atWorld && current ? `[data-testid="location-${current.id}"]`
     : atMap ? `[data-testid="button-location-${current?.worldId}"]`
     : mapIsOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
