@@ -7,6 +7,7 @@ import { npcNamesMatch } from "@/lib/npcMetadata";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import { getQuestGuideSurface, guideDialogMaxHeight } from "@/lib/questGuideViewport";
 import { usePrimaryQuestGuideActive } from "@/lib/questGuideOwnership";
+import { useMainNavOpen } from "@/lib/mainNavState";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 const API = "/api/quests/lonelle-lost-adornment";
@@ -53,6 +54,7 @@ function LonellePortrait({ state, mood }: { state: QuestState; mood: string }) {
 export default function LonelleQuestOverlay() {
   const [pathname, navigate] = useLocation();
   const primaryGuideActive = usePrimaryQuestGuideActive();
+  const mainNavOpen = useMainNavOpen();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mount, setMount] = useState<HTMLElement | null>(null);
@@ -134,7 +136,7 @@ export default function LonelleQuestOverlay() {
   });
 
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
-  const mapOpen = visible(navMap);
+  const mapOpen = mainNavOpen && visible(navMap);
   const adornmentPicker = document.querySelector<HTMLElement>('[data-testid="adornment-inventory-picker"]');
   const guiding = state && (["accepted", "found", "taken"].includes(state.status));
   let target: string | null = null;
@@ -172,7 +174,7 @@ export default function LonelleQuestOverlay() {
     target = `[data-testid="button-talk-lonelle"]`; instruction = "Talk to Lonelle";
   } else if (guiding && state.status === "taken" && state.scarfEquipped) {
     target = mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
-    instruction = mapOpen ? "Open the world map" : "Open main navigation";
+    instruction = mapOpen ? "Tap World Map to return to Lonelle" : "Open main navigation to return to Lonelle";
   } else if (guiding && state.status === "accepted" && !inBayou && pathname !== CLEARING) {
     target = pathname === "/map" ? '[data-testid="button-location-swamp"]' : mapOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
     instruction = "Travel to the Elysian Bayou";
@@ -209,6 +211,17 @@ export default function LonelleQuestOverlay() {
       <p className="mt-1 text-[10px]">{state.status === "accepted" ? `${state.kills}/${state.requiredKills} Clearing monsters defeated` : state.status === "found" ? "Take Lonelle's Scarf from the Clearing" : state.status === "taken" ? state.scarfEquipped ? "Return to Lonelle in the Bayou" : "Equip the scarf in the third adornment space" : "Talk to Lonelle in the Bayou"}</p>
     </div>, questLogMount)}
     {state.status === "accepted" && pathname === CLEARING && createPortal(<div data-testid="lonelle-clearing-progress" className={`${overlayPosition} left-1/2 top-[8%] -translate-x-1/2 rounded-xl border border-[#eed486] bg-[#10291f]/95 px-4 py-2 text-center font-fantasy text-[#fff0c7] shadow-lg`} style={{ zIndex: 2147481000, pointerEvents: "none" }}>Lonelle's Scarf · {state.kills}/{state.requiredKills} monsters</div>, surface.target)}
+    {/* A direct, non-blocking recovery path avoids multiple hidden menu steps
+        after the quest scarf is equipped, including after refresh on mobile. */}
+    {!primaryGuideActive && state.status === "taken" && state.scarfEquipped && !inBayou && !dialogOpen && !prize && !finding && !returnHomeWithScarf && (pathname === "/" || inCloset) && createPortal(
+      <div className={`${overlayPosition} bottom-[calc(env(safe-area-inset-bottom,0px)+104px)] left-1/2 -translate-x-1/2`} style={{ zIndex: 2147481600, pointerEvents: "none" }}>
+        <button type="button" data-testid="button-return-to-lonelle" onClick={() => navigate(WORLD)}
+          className="rounded-xl border border-[#e9c76b] bg-[#173c2b] px-4 py-2 font-fantasy text-sm font-semibold text-[#ffdf8e] shadow-xl"
+          style={{ pointerEvents: "auto", minHeight: 44, touchAction: "manipulation" }}>
+          Return to Lonelle in the Bayou
+        </button>
+      </div>, surface.target
+    )}
     {!primaryGuideActive && !dialogOpen && !prize && !finding && !returnHomeWithScarf && target && <QuestGuideSpotlight
       selector={target}
       label={instruction}
