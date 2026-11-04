@@ -171,7 +171,13 @@ try {
         await page.mouse.move(frame.x+frame.width*.8,frame.y+150);
         await page.mouse.down(); await page.mouse.move(frame.x+40,frame.y+150,{steps:8}); await page.mouse.up();
       }
-      await page.waitForFunction(() => document.querySelector('[data-testid="npc-discovery-spotlight"]')?.getAttribute('role') === 'button');
+      // Persisted progress changes before React commits the next target. Wait
+      // for this NPC's overlay, not the previous NPC's still-visible button.
+      await page.waitForFunction(npc => {
+        const spotlight = document.querySelector('[data-testid="npc-discovery-spotlight"]');
+        return spotlight?.getAttribute('role') === 'button'
+          && spotlight.getAttribute('aria-label')?.toLowerCase().includes('this is '+npc+'.');
+      }, npc);
       await expectPointer();
       if (next === 1) {
         // Pause AFTER NPC locations are cached. An invisible document guard
@@ -185,7 +191,11 @@ try {
           name+': talking during a paused tour must not advance discovery');
         await page.evaluate(() => { window.fixtureCounts.quests=0; window.fixtureQuestStatus('claimed'); });
         await page.getByTestId('npc-discovery-guide').waitFor({state:'visible'});
-        await page.waitForFunction(() => document.querySelector('[data-testid="npc-discovery-spotlight"]')?.getAttribute('role') === 'button');
+        await page.waitForFunction(npc => {
+          const spotlight = document.querySelector('[data-testid="npc-discovery-spotlight"]');
+          return spotlight?.getAttribute('role') === 'button'
+            && spotlight.getAttribute('aria-label')?.toLowerCase().includes('this is '+npc+'.');
+        }, npc);
       }
       // Tap unrelated scenery: never advance or invoke another control.
       await page.mouse.click(frame.x+20,frame.y+110);
@@ -196,12 +206,28 @@ try {
       // timers/gestures run normally. The next world's NPC deliberately shares
       // Ginny's screen position: navigation must make it a new legitimate tap.
       if (!touch && next === 1) await page.clock.setFixedTime(new Date());
-      if(touch) await page.touchscreen.tap(target.x+target.width/2,target.y+target.height/2);
-      else await page.mouse.click(target.x+target.width/2,target.y+target.height/2);
-      await page.waitForFunction(next => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')) === next,next);
+      const npcName = npc[0].toUpperCase()+npc.slice(1);
+      const tourButton = page.getByRole('button', {name:'This is '+npcName+'. Click to continue.',exact:true});
+      // Click the current tour control at the NPC position. Locator
+      // actionability keeps a route/target commit from turning a raw coordinate
+      // tap into a click on the underlying real quest button.
+      const position = {x:target.x+target.width/2-frame.x,y:target.y+target.height/2-frame.y};
+      if(touch) await tourButton.tap({position});
+      else await tourButton.click({position});
+      await page.waitForFunction(next => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')) === next,next).catch(async error => {
+        console.error('NPC tap did not advance', {profile:name,npc,...await page.evaluate(() => ({
+          route:location.pathname,
+          progress:localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture'),
+          guide:document.querySelector('[data-testid="npc-discovery-guide"]')?.textContent,
+        }))});
+        throw error;
+      });
       // Android delayed click must not open the quest or skip the next NPC.
       await page.mouse.click(target.x+target.width/2,target.y+target.height/2);
       assert.equal(await page.evaluate(() => window.fixtureCounts.quests),0);
+      // The fixed clock is only for the fast cross-world regression above.
+      // Resume normal wall time before the independent same-world NPC step.
+      if (!touch && next === 2) await page.clock.setSystemTime(new Date());
       if(next===1) {
         await activate(page.getByTestId('button-floating-nav'));
         await page.waitForFunction(() => document.querySelector('[data-testid="npc-discovery-guide"]')?.textContent.includes('Tap World Map.'));
