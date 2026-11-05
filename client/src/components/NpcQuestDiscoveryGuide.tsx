@@ -179,26 +179,18 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     };
   }, [eligible, current?.id, selector, location]);
 
-  // A moving HUD spotlight may briefly detach while the underlying NPC
-  // remains clickable. Treat a valid tap on that NPC as read-only tour
-  // progress, never as permission to open its actual quest.
+  // The NPC is a live world control. During this read-only tour, even a tap on
+  // its visible edge must never start its actual quest.
   useEffect(() => {
     if (!shouldLoadTour || !atWorld || !npcSelector) return;
     const blockNpcClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element) || !event.target.closest(npcSelector)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      if (!targetOnScreen || !current) return;
-      const bounds = document.querySelector<HTMLElement>(npcSelector)?.getBoundingClientRect();
-      if (!bounds || event.clientX < bounds.left || event.clientX > bounds.right
-        || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
-      recentTourTap.current = { x: event.clientX, y: event.clientY, until: Date.now() + 450, location };
-      saveIndex(user.id, index + 1);
-      setIndex(index + 1);
     };
     document.addEventListener("click", blockNpcClick, true);
     return () => document.removeEventListener("click", blockNpcClick, true);
-  }, [shouldLoadTour, atWorld, npcSelector, targetOnScreen, current?.id, index, location, user.id]);
+  }, [shouldLoadTour, atWorld, npcSelector]);
 
   // Some Android browsers send a second, delayed click at the same position
   // after a touch. Swallow that click if the tour has already advanced.

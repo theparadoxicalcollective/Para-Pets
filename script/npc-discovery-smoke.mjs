@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "vite";
 import { chromium } from "playwright";
 
+// Mobile/tablet gameplay only; desktop entry blocking is tested separately.
 // Isolated interaction fixture: real discovery/spotlight components and viewport
 // layout, synthetic navigation/hotspots and API responses. No player or backend.
 const fixtureId = "/__npc-discovery-fixture.tsx";
@@ -21,17 +22,6 @@ const client = new QueryClient();
 window.fixtureQuestStatus = status => client.setQueryData(['/api/quests/ginny-mini-pet'], {status});
 bjUsePlayer(user.id); bjSetStep('done');
 window.fixtureCounts = { quests: 0, unrelated: 0, pans: 0 };
-window.fixtureTapEvents = [];
-for (const type of ['pointerdown','pointerup','click']) window.addEventListener(type, event => {
-  const target = event.target;
-  const entry = {type, x:event.clientX, y:event.clientY,
-    target:target instanceof Element ? {testId:target.getAttribute('data-testid'),tag:target.tagName} : null,
-    route:location.pathname, time:Date.now()};
-  window.fixtureTapEvents.push(entry);
-  window.fixtureTapEvents = window.fixtureTapEvents.slice(-24);
-  queueMicrotask(() => Object.assign(entry, {prevented:event.defaultPrevented,
-    progress:localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')}));
-}, true);
 const layout = readStageViewportLayout('/map');
 const stage = document.getElementById('game-stage');
 Object.assign(stage.style, {position:'absolute', left:layout.left+'px', top:'0',
@@ -101,7 +91,6 @@ try {
     ['compact phone',320,568,true], ['Android phone',360,800,true],
     ['iPhone size',390,844,true], ['large phone',430,932,true],
     ['Android tablet',800,1280,true], ['tablet',834,1194,true],
-    ['desktop portrait frame',1440,900,false],
   ]) {
     const context = await browser.newContext({viewport:{width,height},isMobile:touch,hasTouch:touch});
     const page = await context.newPage();
@@ -224,20 +213,13 @@ try {
       // tap into a click on the underlying real quest button.
       const position = {x:target.x+target.width/2-frame.x,y:target.y+target.height/2-frame.y};
       if(touch) await tourButton.tap({position});
-      else {
-        // Exercise the real desktop pointer at the NPC's screen coordinate.
-        // Both the spotlight and underlying hotspot must advance only the tour.
-        await page.mouse.click(target.x+target.width/2,target.y+target.height/2);
-      }
+      else await tourButton.click({position});
       await page.waitForFunction(next => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')) === next,next).catch(async error => {
-        console.error('NPC tap did not advance', JSON.stringify({profile:name,npc,...await page.evaluate(() => ({
+        console.error('NPC tap did not advance', {profile:name,npc,...await page.evaluate(() => ({
           route:location.pathname,
           progress:localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture'),
           guide:document.querySelector('[data-testid="npc-discovery-guide"]')?.textContent,
-          events:window.fixtureTapEvents,
-          target:[...document.querySelectorAll('[data-testid^="player-location-hotspot-"]')].map(node=>({id:node.dataset.testid,rect:node.getBoundingClientRect().toJSON()})),
-          spotlight:document.querySelector('[data-testid="npc-discovery-spotlight"]')?.outerHTML.slice(0,650),
-        }))}));
+        }))});
         throw error;
       });
       // Android delayed click must not open the quest or skip the next NPC.
