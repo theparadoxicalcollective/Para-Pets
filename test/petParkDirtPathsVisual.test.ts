@@ -17,7 +17,7 @@ test("all saved dirt patches preserve their world positions and square-ended gro
       assert.ok(Math.abs(rect.x + rect.width / 2 - point.xPct * g.worldWidth) < 1e-8);
       assert.ok(Math.abs(rect.y + rect.height / 2 - point.yPct * g.worldHeight) < 1e-8);
       assert.equal(rect.width, 200);
-      assert.equal(rect.height, 108);
+      assert.equal(rect.height, 200);
     }
   }
 });

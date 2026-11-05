@@ -58,9 +58,9 @@ test("park shares one renderer for depth, shadows and original interactions", ()
   const shadow = readFileSync("client/src/components/PetParkGroundShadow.tsx", "utf8");
   assert.equal((page.match(/parkDepthIndex\(\{/g) ?? []).length, 3, "buildings, items and pets each use shared depth order");
   assert.match(page, /PARK_SELECTED_DEPTH_Z/);
-  assert.equal((page.match(/<PetParkGroundShadow /g) ?? []).length, 3);
+  assert.equal((page.match(/<PetParkGroundShadow /g) ?? []).length, 1, "only pets retain a ground shadow");
   assert.match(page, /kind="pet"/);
-  assert.match(page, /kind="building"/);
+  assert.doesNotMatch(page, /<PetParkGroundShadow kind="(?:building|decor)"/);
   assert.match(page, /<PetParkTerrain/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
   assert.match(page, /startPlacement\(e, "building"/);

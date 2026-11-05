@@ -9,7 +9,7 @@ import PetParkTerrain from "@/components/PetParkTerrain";
 import PetParkTerrainBrush from "@/components/PetParkTerrainBrush";
 import { isParkTerrainNearViewport } from "@/lib/petParkTerrainVisibility";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
-import { isParkTerrainDetail, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
+import { isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { isParkEffect } from "@shared/petParkEffects";
 import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, PARK_SELECTED_DEPTH_Z } from "@/lib/petParkDepth";
@@ -24,6 +24,7 @@ import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulat
 import { isParkSleepPosition } from "@/lib/petParkSleepSpots";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan } from "@/lib/petParkCamera";
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
+import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -185,12 +186,16 @@ export default function PetParkPage() {
   };
   const placementAt = (drag: NonNullable<typeof placementPointer.current>, clientX: number, clientY: number) => {
     const delta = homeCameraPointerDelta(clientX - drag.startX, clientY - drag.startY, viewport.current);
+    const dirt = drag.kind === "item" && scene?.items.some(item => item.id === drag.objectId && item.kind === "terrain" && item.effectType === "dirt_path");
+    const point = {
+      xPct: Math.max(0, Math.min(1, drag.placement.xPct + delta.x / sceneWidth)),
+      yPct: Math.max(0, Math.min(1, drag.placement.yPct + delta.y / sceneHeight)),
+    };
     return {
       delta,
       placement: {
         ...drag.placement,
-        xPct: Math.max(0, Math.min(1, drag.placement.xPct + delta.x / sceneWidth)),
-        yPct: Math.max(0, Math.min(1, drag.placement.yPct + delta.y / sceneHeight)),
+        ...(dirt ? parkSnapPathPoint(point, { width: geometry.worldWidth, height: geometry.worldHeight }, drag.placement.size) : point),
       },
     };
   };
@@ -354,16 +359,16 @@ export default function PetParkPage() {
         scale={scale} panX={camera.x} panY={camera.y} dirtPatches={dirtPatches} />}
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
-        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", layer: shownPosition("building", building).layer }) }}><PetParkGroundShadow kind="building" /><img src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
+        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", layer: shownPosition("building", building).layer }) }}><img src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
         {scene.items.map(item => {
           const position = shownPosition("item", item);
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
-            position, { width: viewportSize.width, height: viewportSize.height },
+            { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
           return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
-          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? 0.54 : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
-          {item.kind === "terrain" && item.effectType === "dirt_path" ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><PetParkGroundShadow kind="decor" /><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
+          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
+          {item.kind === "terrain" && item.effectType === "dirt_path" ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
         </div>;
         })}

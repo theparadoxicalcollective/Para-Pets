@@ -10,9 +10,9 @@ export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
 export function dirtPatchWorldRect(patch: ParkDirtPatch, width: number, height: number) {
   return {
     x: patch.xPct * width - patch.size / 2,
-    y: patch.yPct * height - patch.size * 0.27,
+    y: patch.yPct * height - patch.size / 2,
     width: patch.size,
-    height: patch.size * 0.54,
+    height: patch.size,
   };
 }
 
@@ -44,13 +44,13 @@ export default function PetParkTerrain(view: ParkTerrainViewport & { dirtPatches
   }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight, view.scale, view.panX, view.panY, view.dirtPatches]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
-    className="pointer-events-none absolute inset-0 h-full w-full" style={{ backgroundColor: "#34553c" }} />;
+    className="pointer-events-none absolute inset-0 h-full w-full" style={{ backgroundColor: "#2c4934" }} />;
 }
 
 function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) {
   const bounds = parkVisibleTerrainBounds(view);
   ctx.clearRect(0, 0, view.viewportWidth, view.viewportHeight);
-  ctx.fillStyle = "#34553c";
+  ctx.fillStyle = "#2c4934";
   ctx.fillRect(0, 0, view.viewportWidth, view.viewportHeight);
   if (bounds.left >= bounds.right || bounds.top >= bounds.bottom) return;
 

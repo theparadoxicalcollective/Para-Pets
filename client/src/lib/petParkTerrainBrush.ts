@@ -47,3 +47,40 @@ export function parkExtendBrushStroke(
   }
   return next;
 }
+
+/** Grid centers are anchored at the park center so expansion preserves alignment. */
+export function parkSnapPathPoint(point: ParkBrushPoint, world: { width: number; height: number }, size: number): ParkBrushPoint {
+  const snap = (value: number, extent: number) => {
+    const origin = extent / 2;
+    const cell = Math.round((clamp(value) * extent - origin) / size);
+    const min = Math.ceil((size / 2 - origin) / size);
+    const max = Math.floor((extent - size / 2 - origin) / size);
+    return (origin + Math.max(min, Math.min(max, cell)) * size) / extent;
+  };
+  return { xPct: snap(point.xPct, world.width), yPct: snap(point.yPct, world.height) };
+}
+
+/** Each dirt stroke is one aligned row/column; lift the pointer to make a turn. */
+export function parkExtendPathStroke(
+  existing: ParkBrushPoint[], target: ParkBrushPoint,
+  world: { width: number; height: number }, size: number, maxStamps = PARK_BRUSH_MAX_STAMPS,
+): ParkBrushPoint[] {
+  const snapped = parkSnapPathPoint(target, world, size);
+  if (!existing.length) return [snapped];
+  if (existing.length >= maxStamps) return existing;
+  const first = existing[0];
+  const horizontal = existing.length > 1
+    ? existing[1].xPct !== first.xPct
+    : Math.abs((snapped.xPct - first.xPct) * world.width) >= Math.abs((snapped.yPct - first.yPct) * world.height);
+  const axis = horizontal ? "xPct" : "yPct";
+  const extent = horizontal ? world.width : world.height;
+  const last = existing[existing.length - 1];
+  const cells = Math.round((snapped[axis] - last[axis]) * extent / size);
+  if (!cells) return existing;
+  const next = [...existing];
+  for (let i = 1; i <= Math.abs(cells) && next.length < maxStamps; i++) {
+    const point = { ...first, [axis]: last[axis] + Math.sign(cells) * i * size / extent };
+    if (!next.some(p => Math.abs(p.xPct - point.xPct) < 1e-8 && Math.abs(p.yPct - point.yPct) < 1e-8)) next.push(point);
+  }
+  return next;
+}

@@ -1,11 +1,11 @@
-/** Soft sprite contact shadow positioned inside the already placed artwork box. */
+/** Only pets cast an ambient ground shadow; buildings and decor use their artwork. */
 export default function PetParkGroundShadow({ kind }: { kind: "pet" | "building" | "decor" }) {
-  const isPet = kind === "pet";
-  return <span aria-hidden="true"
-    className={`pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full ${isPet ? "top-[74%]" : "bottom-[1%]"}`}
+  if (kind !== "pet") return null;
+  return <span aria-hidden="true" data-testid="pet-park-contact-shadow"
+    className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full top-[74%]"
     style={{
-      width: isPet ? "58%" : kind === "building" ? "64%" : "56%",
-      height: isPet ? "11%" : "12%",
+      width: "58%",
+      height: "11%",
       background: "radial-gradient(ellipse, rgba(13,29,17,.45) 0%, rgba(15,34,19,.22) 52%, rgba(15,34,19,0) 78%)",
       filter: "blur(2px)",
     }} />;

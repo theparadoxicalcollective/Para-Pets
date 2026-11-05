@@ -3,8 +3,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
-import { PARK_TERRAIN_DETAIL_OPTIONS, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
-import { parkBrushWorldPoint, parkExtendBrushStroke, PARK_BRUSH_MAX_STAMPS, type ParkBrushPoint } from "@/lib/petParkTerrainBrush";
+import { PARK_TERRAIN_DETAIL_OPTIONS, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
+import { parkBrushWorldPoint, parkExtendBrushStroke, parkExtendPathStroke, PARK_BRUSH_MAX_STAMPS, type ParkBrushPoint } from "@/lib/petParkTerrainBrush";
 
 type Props = {
   viewportWidth: number; viewportHeight: number;
@@ -54,11 +54,12 @@ export default function PetParkTerrainBrush(props: Props) {
       setSaving(false);
     }
   };
+  const extendStroke = type === "dirt_path" ? parkExtendPathStroke : parkExtendBrushStroke;
   const start = (event: PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     if (!event.isPrimary || savingRef.current || draftRef.current.length || activePointer.current !== null) return;
     activePointer.current = event.pointerId;
-    const first = [pointAt(event)];
+    const first = extendStroke([], pointAt(event), { width: props.worldWidth, height: props.worldHeight }, size);
     draftRef.current = first;
     setDraft(first);
     safeSetPointerCapture(event.currentTarget, event.pointerId);
@@ -66,7 +67,7 @@ export default function PetParkTerrainBrush(props: Props) {
   const move = (event: PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     if (activePointer.current !== event.pointerId) return;
-    const next = parkExtendBrushStroke(draftRef.current, pointAt(event),
+    const next = extendStroke(draftRef.current, pointAt(event),
       { width: props.worldWidth, height: props.worldHeight }, size);
     draftRef.current = next;
     setDraft(next);
@@ -75,7 +76,7 @@ export default function PetParkTerrainBrush(props: Props) {
     event.stopPropagation();
     if (activePointer.current !== event.pointerId) return;
     activePointer.current = null;
-    const completed = parkExtendBrushStroke(draftRef.current, pointAt(event),
+    const completed = extendStroke(draftRef.current, pointAt(event),
       { width: props.worldWidth, height: props.worldHeight }, size);
     draftRef.current = completed;
     setDraft(completed);
@@ -104,17 +105,17 @@ export default function PetParkTerrainBrush(props: Props) {
       style={{
         left: point.xPct * props.sceneWidth + props.panX,
         top: point.yPct * props.sceneHeight + props.panY,
-        width: size * props.scale, height: size * props.scale * 0.54,
+        width: size * props.scale, height: size * props.scale * parkTerrainHeightRatio(type),
         transform: "translate(-50%, -50%)",
       }}><PetParkTerrainDetail type={type} /></div>)}
     <div aria-label="Pet Park terrain brush controls"
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/70 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl max-h-[34dvh] ${props.raised ? "bottom-[44%]" : "bottom-[max(12px,env(safe-area-inset-bottom))]"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/70 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl max-h-[34dvh] ${props.raised ? "bottom-[44%]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
       onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm">Paint terrain</strong>
         <button type="button" disabled={saving || draft.length > 0} onClick={props.onExit} className="rounded-lg border border-[#b99a4c]/60 bg-[#245037] px-3 py-2 text-xs disabled:opacity-50">Done</button>
       </div>
-      <p className="text-xs text-amber-100/80">{saving ? "Saving terrain…" : saveFailed ? "Save failed. Retry or clear this stroke." : "Choose a terrain type, then drag to paint. Each stroke saves when you release."}</p>
+      <p className="text-xs text-amber-100/80">{saving ? "Saving terrain…" : saveFailed ? "Save failed. Retry or clear this stroke." : type === "dirt_path" ? "Drag to lay square tiles in a straight row or column. Lift to turn. Release to save." : "Drag to paint stones. Release to save."}</p>
       <div className="grid grid-cols-2 gap-1.5">
         {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
           disabled={!!draft.length || saving} aria-pressed={type === option.type}

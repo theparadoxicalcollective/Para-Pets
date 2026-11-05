@@ -75,5 +75,5 @@ test("culling only skips invisible terrain, preserving decor, effects, pet inter
   assert.match(page, /parkDepthIndex\(/);
   assert.match(page, /onWheel=\{e =>/);
   assert.match(page, /parkExpansionCameraPan\(/);
-  assert.match(helper, /size \* scene\.scale \* 0\.54 \/ 2/);
+  assert.match(helper, /size \* scene\.scale \* parkTerrainHeightRatio\(stamp\.effectType\) \/ 2/);
 });
