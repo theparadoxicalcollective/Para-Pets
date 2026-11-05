@@ -5,24 +5,10 @@ import { db } from "../db";
 import { nextPetParkSlotPurchase } from "../petPark/slotPolicy";
 
 /**
- * Player-facing endpoints remain closed until an admin explicitly publishes
- * Pet Park. This phase adds only slot purchases and a read-only status.
+ * Player-facing purchases remain closed until an admin enables public or moderator access to
+ * Pet Park. Status is provided by the player routes; this module owns only purchases.
  */
 export function registerPetParkSlotRoutes(app: Express, isAuthenticated: RequestHandler): void {
-  app.get("/api/pet-park/status", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req.user as { id: string }).id;
-      const [park] = await db.select({ enabled: petParkSettings.enabledForPlayers })
-        .from(petParkSettings).where(eq(petParkSettings.id, "main"));
-      const [slots] = await db.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
-        .from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
-      return res.json({ enabledForPlayers: park?.enabled ?? false, unlockedSlots: slots?.unlockedSlots ?? 1 });
-    } catch (error) {
-      console.error("[pet-park] status failed:", error);
-      return res.status(500).json({ message: "Unable to read Pet Park status" });
-    }
-  });
-
   app.post("/api/pet-park/slots/unlock", isAuthenticated, async (req, res) => {
     const slot = req.body?.slot;
     if (!Number.isInteger(slot) || slot < 2 || slot > 3) {
