@@ -71,7 +71,7 @@ export default function PetParkInteriorRoom({
       onClickCapture={event => {
         if (editEffects || !onToggleEffect) return;
         const target = (event.target as HTMLElement).closest<HTMLElement>("[data-player-toggle-effect-id]");
-        const effect = effects.find(item => item.id === target?.dataset.playerToggleEffectId);
+        const effect = effects.find((item): item is HouseInteriorEffect => !isParkRoomEffect(item) && item.id === target?.dataset.playerToggleEffectId);
         if (!effect) return;
         event.preventDefault();
         event.stopPropagation();
