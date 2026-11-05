@@ -31,7 +31,7 @@ try{
   const page=await context.newPage();page.setDefaultTimeout(10000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const art='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="40" y="20" width="120" height="120" fill="#c2ad74"/></svg>').toString('base64');
-  let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,items:[],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
+  let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,items:[{id:'decor',kind:'decor',effectType:null,imageUrl:art,xPct:0.72,yPct:0.58,size:100,flipped:false,layer:0}],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
   const strokes=[],patches=[];
   await page.route('**/api/**',route=>{
    const path=new URL(route.request().url()).pathname;
@@ -52,13 +52,8 @@ try{
   await page.goto('http://127.0.0.1:4180/park-fixture');
   const cottage=page.getByRole('button',{name:'Enter Fixture Cottage',exact:true});
   await cottage.waitFor({state:'visible'});
-  await page.waitForFunction(()=>{
-   const shadow=document.querySelector('[data-testid="pet-park-contact-shadow"]');
-   return shadow&&Math.abs(parseFloat(shadow.style.top)-68.5)<1;
-  });
-  const contact=await cottage.evaluate(el=>{const box=el.getBoundingClientRect(),shadow=el.querySelector('[data-testid="pet-park-contact-shadow"]').getBoundingClientRect();return {base:box.y+box.height*.7,center:shadow.y+shadow.height/2,top:box.y,height:box.height};});
-  assert.ok(Math.abs(contact.base-contact.center)<contact.height*.04,name+': shadow must touch visible base, not transparent box bottom');
-  assert.equal(patches.length,0,'loading/grounding must never move saved objects');
+  assert.equal(await page.getByTestId('pet-park-contact-shadow').count(),0,name+': buildings and decor must have no added ground shadows');
+  assert.equal(patches.length,0,'loading must never move saved objects');
   const box=await cottage.boundingBox();
   await page.mouse.move(box.x+box.width/2,box.y+box.height*.4);await page.mouse.down();
   await page.mouse.move(box.x+box.width/2+30,box.y+box.height*.4+20,{steps:6});await page.mouse.up();
@@ -86,7 +81,7 @@ try{
   assert.ok(controls.y+controls.height<=height-60,name+': brush controls must clear the preview status banner');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-'+name.replaceAll(' ','-')+'.png'});
-  console.log('PASS '+name+': visible-art contact shadow, unchanged saved placement, object drag, square preview, snapped touch/mouse path and one save');
+  console.log('PASS '+name+': shadow-free buildings/decor, unchanged saved placement, object drag, square preview, snapped touch/mouse path and one save');
   await context.close();
  }
 }finally{await browser.close();await server.close();}
