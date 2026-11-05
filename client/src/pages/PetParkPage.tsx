@@ -110,7 +110,7 @@ export default function PetParkPage() {
       const res = await apiRequest(method, path, body ?? {});
       return res.json();
     },
-    onSuccess: () => { invalidate(); setSelectedPet(""); },
+    onSuccess: (result: any) => { invalidate(); qc.invalidateQueries({ queryKey: ["/api/inventory"] }); setSelectedPet(""); setShowPetChoices(false); if (result?.rewards) toast({ title: "Pet swapped · rewards collected", description: `+${result.rewards.coins} coins · +${result.rewards.essence} essence · +${result.rewards.petXp} pet XP` }); },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
 
@@ -552,7 +552,22 @@ export default function PetParkPage() {
             if (pet) return <div className="space-y-2">
               <p>{pet.petNickname || pet.petName} · Level {pet.petLevel} · {pet.showInPark ? "In park" : "Idle — earning"}</p>
               <button type="button" className="rounded-lg border border-amber-500/60 bg-[#245037] px-3 py-2 text-xs" onClick={() => setShowPetChoices(value => !value)}>Change pet · double-tap spot</button>
-              {showPetChoices && <div className="space-y-2"><p className="text-xs text-amber-100/75">Retrieve your current pet before equipping a replacement in this spot.</p><div className="max-h-40 space-y-2 overflow-y-auto">{availablePets.map(candidate => <div key={candidate.inventoryId} className="flex items-center gap-2 rounded border border-amber-500/25 p-1"><div className="relative h-16 w-16 shrink-0"><PetAnimator petTemplateId={candidate.shopItemId} petInventoryId={candidate.inventoryId} costumeAccess="owner" mode="static" size={64} fillContainer fitVisible /><div className="pointer-events-none absolute bottom-0 left-0 h-6 w-6"><MiniPetRenderer petInventoryId={candidate.inventoryId} access="owner" animated={false} /></div></div><span className="text-xs">{candidate.petNickname || candidate.name} · Lv. {candidate.petLevel}</span></div>)}</div></div>}
+              {showPetChoices && <div className="space-y-2">
+                <p className="text-xs text-amber-100/75">Choose a replacement. Swapping automatically collects rewards and returns your current pet.</p>
+                <div className="max-h-[min(26dvh,220px)] space-y-2 overflow-y-auto">
+                  {availablePets.length === 0 && <p className="text-xs text-amber-100/65">No other eligible level 10+ pets available.</p>}
+                  {availablePets.map(candidate => <button type="button" key={candidate.inventoryId} aria-pressed={selectedPet === candidate.inventoryId}
+                    onClick={() => setSelectedPet(candidate.inventoryId)}
+                    className={`flex w-full items-center gap-2 rounded border p-2 text-left ${selectedPet === candidate.inventoryId ? "border-amber-300 bg-[#315e43]" : "border-amber-500/25 bg-[#0b2016]"}`}>
+                    <div className="relative h-16 w-16 shrink-0"><PetAnimator petTemplateId={candidate.shopItemId} petInventoryId={candidate.inventoryId} costumeAccess="owner" mode="static" size={64} fillContainer fitVisible /><div className="pointer-events-none absolute bottom-0 left-0 h-6 w-6"><MiniPetRenderer petInventoryId={candidate.inventoryId} access="owner" animated={false} /></div></div>
+                    <span className="text-xs">{candidate.petNickname || candidate.name} · Lv. {candidate.petLevel}</span>
+                  </button>)}
+                </div>
+                <button type="button" disabled={!selectedPet || action.isPending} className="rounded-lg border border-amber-400/60 bg-[#245037] px-4 py-2 font-semibold disabled:opacity-50"
+                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/swap`, body: { petInventoryId: selectedPet } })}>
+                  {action.isPending ? "Swapping…" : "Confirm swap · collect rewards"}
+                </button>
+              </div>}
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={action.isPending} className="rounded-lg bg-[#245037] px-3 py-2 disabled:opacity-50"
                   onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${pet.id}/display`, body: { display: pet.showInPark ? "idle" : "park" } })}>
