@@ -19,6 +19,7 @@ export function dirtPatchWorldRect(patch: ParkDirtPatch, width: number, height: 
 export type DirtExposedEdge = {
   ax: number; ay: number; bx: number; by: number;
   cx: number; cy: number; size: number;
+  inwardX: number; inwardY: number;
 };
 
 /** A shared diamond side has two owners and must never fade. Calculate in
@@ -67,7 +68,13 @@ export function exposedDirtEdges(
       const key = a < b ? a + "|" + b : b + "|" + a;
       const previous = edges.get(key);
       if (previous) previous.count += 1;
-      else edges.set(key, { edge: { ax, ay, bx, by, cx, cy, size: stamp.size }, count: 1 });
+      else {
+        const midpointX = (ax + bx) / 2, midpointY = (ay + by) / 2;
+        const inwardX = cx - midpointX, inwardY = cy - midpointY;
+        const normalLength = Math.hypot(inwardX, inwardY) || 1;
+        edges.set(key, { edge: { ax, ay, bx, by, cx, cy, size: stamp.size,
+          inwardX: inwardX / normalLength, inwardY: inwardY / normalLength }, count: 1 });
+      }
     }
   }
   const exposed: DirtExposedEdge[] = [];
@@ -76,8 +83,7 @@ export function exposedDirtEdges(
     const { ax, ay, bx, by, cx, cy, size } = edge;
     if (visible && (Math.max(ax, bx) < visible.left - 16 || Math.min(ax, bx) > visible.right + 16 ||
         Math.max(ay, by) < visible.top - 16 || Math.min(ay, by) > visible.bottom + 16)) continue;
-    const mx = (ax + bx) / 2, my = (ay + by) / 2;
-    const dx = mx - cx, dy = my - cy, length = Math.hypot(dx, dy) || 1;
+    const { inwardX, inwardY } = edge;
     // A legacy offset stamp can overlap only *part* of a diamond side.
     // Sample short spans and fade its exposed pieces; a full shared side
     // above has already been removed from consideration.
@@ -87,8 +93,8 @@ export function exposedDirtEdges(
       let covered = span === segments;
       if (!covered) {
         const t = (span + 0.5) / segments;
-        const outerX = ax + (bx - ax) * t + dx / length * 2;
-        const outerY = ay + (by - ay) * t + dy / length * 2;
+        const outerX = ax + (bx - ax) * t - inwardX * 2;
+        const outerY = ay + (by - ay) * t - inwardY * 2;
         const candidates = tilesByCell.get(cellKey(Math.floor(outerX / cellSize), Math.floor(outerY / cellSize))) ?? [];
         covered = candidates.some(tile => {
           if (tile.cx === cx && tile.cy === cy && tile.halfW * 2 === size) return false;
@@ -310,10 +316,8 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
   // The dark brown center and grain remain untouched.
   for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
     const mx = (edge.ax + edge.bx) / 2, my = (edge.ay + edge.by) / 2;
-    const dx = edge.cx - mx, dy = edge.cy - my;
-    const length = Math.hypot(dx, dy) || 1;
     const fade = Math.min(15, edge.size * 0.11);
-    const insetX = dx / length * fade, insetY = dy / length * fade;
+    const insetX = edge.inwardX * fade, insetY = edge.inwardY * fade;
     const gradient = ctx.createLinearGradient(mx, my, mx + insetX, my + insetY);
     gradient.addColorStop(0, "rgba(44,73,52,.88)");
     gradient.addColorStop(0.48, "rgba(44,73,52,.40)");
