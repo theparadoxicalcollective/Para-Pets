@@ -32,7 +32,9 @@ export function exposedDirtEdges(
   visible?: { left: number; top: number; right: number; bottom: number },
 ): DirtExposedEdge[] {
   const edges = new Map<string, { edge: DirtExposedEdge; count: number }>();
-  const tiles: Array<{ cx: number; cy: number; halfW: number; halfH: number }> = [];
+  const tilesByCell = new Map<string, Array<{ cx: number; cy: number; halfW: number; halfH: number }>>();
+  const cellSize = 200;
+  const cellKey = (x: number, y: number) => x + ":" + y;
   const seen = new Set<string>();
   const quantize = (value: number) => Math.round(value * 1000);
   for (const stamp of stamps) {
@@ -44,7 +46,16 @@ export function exposedDirtEdges(
     const tileKey = [quantize(cx), quantize(cy), quantize(stamp.size)].join(":");
     if (seen.has(tileKey)) continue;
     seen.add(tileKey);
-    tiles.push({ cx, cy, halfW, halfH });
+    const tile = { cx, cy, halfW, halfH };
+    // A sparse world-space lookup keeps exposed-edge tests local even after
+    // administrators paint hundreds of strokes across expanded park ground.
+    for (let cellY = Math.floor((cy - halfH) / cellSize); cellY <= Math.floor((cy + halfH) / cellSize); cellY++) {
+      for (let cellX = Math.floor((cx - halfW) / cellSize); cellX <= Math.floor((cx + halfW) / cellSize); cellX++) {
+        const key = cellKey(cellX, cellY);
+        const bin = tilesByCell.get(key);
+        if (bin) bin.push(tile); else tilesByCell.set(key, [tile]);
+      }
+    }
     const points = [
       [cx, cy - halfH], [cx + halfW, cy],
       [cx, cy + halfH], [cx - halfW, cy],
@@ -70,7 +81,8 @@ export function exposedDirtEdges(
     const outerX = mx + dx / length * 2, outerY = my + dy / length * 2;
     // If another diamond covers this boundary (including legacy overlapping
     // stamps), it belongs to the union's interior rather than an exposed edge.
-    const covered = tiles.some(tile => {
+    const candidates = tilesByCell.get(cellKey(Math.floor(outerX / cellSize), Math.floor(outerY / cellSize))) ?? [];
+    const covered = candidates.some(tile => {
       if (tile.cx === cx && tile.cy === cy && tile.halfW * 2 === size) return false;
       return Math.abs(outerX - tile.cx) / tile.halfW +
         Math.abs(outerY - tile.cy) / tile.halfH < 1 - 1e-5;
