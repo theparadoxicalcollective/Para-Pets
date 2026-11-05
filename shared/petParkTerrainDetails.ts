@@ -1,6 +1,6 @@
 /** Editable, ground-level Pet Park variations, stored as existing scene items. */
 export const PARK_TERRAIN_DETAIL_OPTIONS = [
-  { type: "dirt_path", label: "Dirt Path", description: "Isometric tiles that snap along the ground grid", size: 200 },
+  { type: "dirt_path", label: "Dirt Path", description: "Isometric tiles that snap along the ground grid", size: 150 },
   { type: "stone_patch", label: "Stones", description: "Low natural stones with mossy edges", size: 145 },
 ] as const;
 

@@ -83,7 +83,7 @@ try{
   const p=strokes[0].points;
   for(let i=1;i<p.length;i++){
    const dx=(p[i].xPct-p[i-1].xPct)*1800,dy=(p[i].yPct-p[i-1].yPct)*2700;
-   assert.ok(Math.abs(Math.abs(dx)-100)<1e-6&&Math.abs(Math.abs(dy)-50)<1e-6,'adjacent diamonds must share a slanted edge');
+   assert.ok(Math.abs(Math.abs(dx)-75)<1e-6&&Math.abs(Math.abs(dy)-37.5)<1e-6,'150-unit adjacent diamonds must share a slanted edge');
   }
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-isometric-'+name+'.png'});
