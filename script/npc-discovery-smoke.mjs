@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "vite";
 import { chromium } from "playwright";
 
+// Mobile/tablet gameplay only; desktop entry blocking is tested separately.
 // Isolated interaction fixture: real discovery/spotlight components and viewport
 // layout, synthetic navigation/hotspots and API responses. No player or backend.
 const fixtureId = "/__npc-discovery-fixture.tsx";
@@ -90,7 +91,6 @@ try {
     ['compact phone',320,568,true], ['Android phone',360,800,true],
     ['iPhone size',390,844,true], ['large phone',430,932,true],
     ['Android tablet',800,1280,true], ['tablet',834,1194,true],
-    ['desktop portrait frame',1440,900,false],
   ]) {
     const context = await browser.newContext({viewport:{width,height},isMobile:touch,hasTouch:touch});
     const page = await context.newPage();

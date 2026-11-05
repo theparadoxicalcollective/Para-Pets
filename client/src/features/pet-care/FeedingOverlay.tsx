@@ -433,7 +433,7 @@ function PetCareItemShelf({
             width: "100%",
             height: "100%",
             objectFit: "contain",
-            opacity: 0.5,
+            opacity: 0.38,
             pointerEvents: "none",
             userSelect: "none",
           }}

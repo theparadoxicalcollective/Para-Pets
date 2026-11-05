@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "vite";
 import { chromium } from "playwright";
 
+// Mobile/tablet gameplay only; desktop entry blocking is tested separately.
 // Real player-facing components; isolated API fixtures, never live player data.
 const fixtureId = "/__begin-journey-fixture.tsx";
 const fixture = `
@@ -58,12 +59,12 @@ const server=await createServer({server:{host:'127.0.0.1',port:4175,strictPort:t
 await server.listen();
 const browser=await chromium.launch({headless:true});
 const art='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><ellipse cx="100" cy="100" rx="70" ry="90" fill="#f1cf70"/></svg>').toString('base64');
-const profiles=[['compact phone',320,568,true],['Android phone',360,800,true],['iPhone size',390,844,true],['large phone',430,932,true],['Android tablet',800,1280,true],['tablet',834,1194,true],['desktop portrait',1440,900,false]];
+const profiles=[['compact phone',320,568,true],['Android phone',360,800,true],['iPhone size',390,844,true],['large phone',430,932,true],['Android tablet',800,1280,true],['tablet',834,1194,true]];
 const probe=process.argv.includes('--probe');
 const recoveryOnly=process.argv.includes('--recovery-only');
 try{
-for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profiles[1],profiles[6]]:profiles){
- const recovery=!probe && (width===360 || !touch);
+for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profiles[1],profiles[4]]:profiles){
+ const recovery=!probe && (width===360 || (recoveryOnly && width===800));
  const context=await browser.newContext({viewport:{width,height},isMobile:touch,hasTouch:touch});
  const page=await context.newPage();page.setDefaultTimeout(12000);
  const errors=[];page.on('pageerror',error=>{errors.push(error.message);console.error(error.message)});

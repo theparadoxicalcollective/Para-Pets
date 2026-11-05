@@ -60,7 +60,7 @@ test("both inventories render the repository jar asset with gifts first and unit
   assert.match(page, /data-pet-care-inventory-jar="true"/);
   assert.match(page, /data-testid=\{`pet-care-\$\{kind\}-jar`\}/);
   assert.match(page, /src=\{petCareJar\}/);
-  assert.match(page, /src=\{petCareJar\}[\s\S]*?opacity: 0\.5/);
+  assert.match(page, /src=\{petCareJar\}[\s\S]*?opacity: 0\.38/);
   assert.match(page, /width: "min\(calc\(100% \+ 14px\), clamp\(164px, 25dvh, 232px\)\)"/);
   const giftJar = page.indexOf('<PetCareItemShelf kind="gifts"');
   const edibleJar = page.indexOf('<PetCareItemShelf kind="edibles"');

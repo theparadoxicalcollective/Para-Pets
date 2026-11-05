@@ -19,8 +19,8 @@ test("Pet Care Hunger has one effective responsive layout and no obsolete higher
   assert.match(hunger, /inset: auto;/);
   assert.match(hunger, /calc\(94% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\)/);
   assert.match(hunger, /clamp\(296px, 45vw, 380px\)/);
-  assert.match(hunger, /transform: translate\([\s\S]*?clamp\(48px, 6dvh, 72px\)/);
-  assert.doesNotMatch(hunger, /translateY\(-7px\)|clamp\(14px, 2\.6dvh, 24px\)/);
+  assert.match(hunger, /transform: translate\([\s\S]*?clamp\(14px, 2.6dvh, 24px\)/);
+  assert.doesNotMatch(hunger, /translateY\(-7px\)|clamp\(48px, 6dvh, 72px\)/);
   // Responsive controls for tablet/short surfaces stay intact.
   assert.match(polish, /@media \(min-width: 768px\)/);
   assert.match(polish, /@container \(max-height: 650px\)/);
@@ -40,7 +40,7 @@ test("Gifts and Edibles names appear AFTER each jar, and glass alone is more tra
   assert.match(shelf, /justifyContent: "flex-end"/);
   assert.match(shelf, /data-pet-care-jar-boundary="true"/);
   assert.match(shelf, /data-testid=\{`pet-care-\$\{kind\}-jar`\}/);
-  assert.match(shelf, /src=\{petCareJar\}[\s\S]*?opacity: 0\.5/);
+  assert.match(shelf, /src=\{petCareJar\}[\s\S]*?opacity: 0\.38/);
   assert.match(shelf, /className="pet-care-item-jar__item"/);
   assert.match(shelf, /onPointerDown=\{dragEnabled \? \(event\) => beginJarMove\(event, visual\) : undefined\}/);
   assert.match(shelf, /\{visuals\.length === 0 &&/);
@@ -59,4 +59,24 @@ test("Hunger values and jars retain their existing feed controls and item physic
   assert.match(page, /stepPetCareJarPhysics/);
   assert.match(page, /onPointerMove=\{dragEnabled \? moveJarItem : undefined\}/);
   assert.match(css, /\.pet-care-inventory-section \.pet-care-hunger \.pet-care-meter \{\s*width: 100%/);
+});
+
+test("Pet Care Hunger remains raised by 24–48px with jars and tap targets unchanged", () => {
+  const css = read("client/src/index.css");
+  const page = read("client/src/features/pet-care/FeedingOverlay.tsx");
+  const start = css.indexOf(".pet-care-inventory-section .pet-care-hunger {");
+  const hunger = css.slice(start, css.indexOf("\n}", start) + 2);
+  // Compare the previous and updated responsive translations at real phone/tablet heights.
+  for (const height of [568, 667, 844, 915, 1024, 1194]) {
+    const clamp = (min: number, value: number, max: number) => Math.max(min, Math.min(value, max));
+    const before = clamp(48, height * 0.06, 72);
+    const after = clamp(14, height * 0.026, 24);
+    assert.ok(before - after >= 24 && before - after <= 48, `unexpected meter shift at ${height}px`);
+  }
+  assert.match(hunger, /position: relative;[\s\S]*?inset: auto;/);
+  assert.match(page, /className="absolute left-0 right-0 pet-care-inventory-section"/);
+  assert.match(page, /className="pet-care-inventory-jars"/);
+  assert.ok(page.includes('data-testid={`pet-care-${kind}-jar`}'));
+  assert.match(page, /data-pet-care-physics-body="true"/);
+  assert.match(page, /src=\{petCareJar\}[\s\S]*?opacity: 0\.38[\s\S]*?pointerEvents: "none"/);
 });

@@ -60,7 +60,7 @@ test("Pet Care Hunger artwork has responsive extra clearance below the pet and k
   assert.ok(start > -1);
   const hunger = css.slice(start, css.indexOf("}", start) + 1);
   assert.match(hunger, /width: min\(\s*calc\(94% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\),\s*clamp\(296px, 45vw, 380px\)\s*\)/);
-  assert.match(hunger, /clamp\(48px, 6dvh, 72px\)/);
+  assert.match(hunger, /clamp\(14px, 2.6dvh, 24px\)/);
   assert.match(hunger, /transform: translate\(/);
   assert.match(page, /<PetCareHungerMeter[\s\S]*hungerVal=\{hungerVal\}[\s\S]*hungerPct=\{hungerPct\}/);
   assert.match(page, /className="pet-care-inventory-jars"/);
