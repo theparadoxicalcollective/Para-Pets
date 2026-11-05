@@ -96,6 +96,7 @@ export async function ensurePetParkStorage(): Promise<void> {
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS park_x_pct real CHECK (park_x_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS park_y_pct real CHECK (park_y_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS building_id varchar REFERENCES pet_park_buildings(id) ON DELETE SET NULL;
+    ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS room_effect_id varchar;
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_x_pct real NOT NULL DEFAULT 0.5 CHECK (interior_x_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_y_pct real NOT NULL DEFAULT 0.72 CHECK (interior_y_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS pose text NOT NULL DEFAULT 'idle' CHECK (pose IN ('idle', 'sit', 'sleep'));
