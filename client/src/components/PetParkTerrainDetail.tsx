@@ -10,8 +10,8 @@ export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetail
   // adjoining tiles merge into one textured path in PetParkTerrain's canvas.
   if (type === "dirt_path") return <div aria-hidden="true"
     className="pointer-events-none absolute inset-0 overflow-hidden rounded-[3%]"
-    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)", backgroundColor: "#846d4e", backgroundImage: [
-      "radial-gradient(ellipse at 22% 34%, rgba(210,180,126,.13), transparent 33%)",
+    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)", backgroundColor: "#624832", backgroundImage: [
+      "radial-gradient(ellipse at 22% 34%, rgba(171,132,88,.13), transparent 33%)",
       "radial-gradient(ellipse at 78% 66%, rgba(64,45,30,.15), transparent 40%)",
     ].join(",") }} />;
   if (type === "stone_patch") return <div aria-hidden="true" className={base}>
