@@ -80,7 +80,7 @@ test("player and admin use world coords, not an old image-sized reference stage"
   assert.match(room, /imgWidth=\{dimensions.width\} sceneHeight=\{dimensions.height\}/);
   assert.ok(player.includes('left: `${shownPosition("item", item).xPct * 100}%`'));
   assert.ok(player.includes('top: `${shownPosition("item", item).yPct * 100}%`'));
-  assert.match(player, /Fine-tune exact placement/);
+  assert.doesNotMatch(player, /Fine-tune exact placement/);
   assert.doesNotMatch(editor, /aspect-\[11\/17\]|Pet Park — Scene Editor/);
 });
 

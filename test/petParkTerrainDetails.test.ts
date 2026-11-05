@@ -37,7 +37,7 @@ test("terrain controls reuse admin-authenticated real-world item editing, not a 
   assert.match(page, /onPointerDown=\{e => startPlacement\(e, "item", item\)\}/);
   assert.match(page, /placementSave\.mutate\(\{ \.\.\.selectedPlacement, \.\.\.placementDraft \}\)/);
   assert.match(page, /placementDelete\.mutate\(selectedPlacement\)/);
-  assert.match(page, /PARK_SELECTED_DEPTH_Z/);
+  assert.doesNotMatch(page, /PARK_SELECTED_DEPTH_Z/);
   assert.match(page, /parkDepthIndex\(/);
   assert.match(artwork, /pointer-events-none/);
   assert.match(artwork, /aria-hidden="true"/);

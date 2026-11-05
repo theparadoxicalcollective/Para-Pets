@@ -38,7 +38,7 @@ test("in-park editor still moves, resizes, flips and layers water effects, decor
   assert.match(page, /\+ Size/);
   assert.match(page, /− Size/);
   assert.match(page, /flipped: !placementDraft.flipped/);
-  assert.match(page, /Fine-tune exact placement/);
+  assert.doesNotMatch(page, /Fine-tune exact placement/);
   assert.match(panel, /Rest Spot/);
   assert.match(page, /parkCameraGeometry\(viewportSize.width, viewportSize.height, groundLevel, zoom\)/);
   assert.match(visual, /prefers-reduced-motion: reduce/);

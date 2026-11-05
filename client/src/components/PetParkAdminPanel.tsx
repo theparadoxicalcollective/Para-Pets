@@ -74,7 +74,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
     mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
       kind: "effect", effectType: type, imageData: null,
       xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
-      size, flipped: false, layer: items.length,
+      size, flipped: false, layer: 0,
     } });
   };
   const selectFile = async (file: File | undefined, apply: (value: string) => void) => {
@@ -182,7 +182,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
             name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity,
-            xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: buildings.length,
+            xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
@@ -213,7 +213,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             <button type="button" aria-label="Increase park item size" disabled={itemSize >= 500} onClick={() => setItemSize(size => Math.min(500, size + 10))}
               className="rounded-xl border p-2 disabled:opacity-40" style={{ borderColor: GOLD_BORDER }}><Plus size={17} /></button>
           </div>
-          <p className="text-[11px] text-amber-100/60">Size is saved when the object is created. Use Move park objects to position, resize, flip or layer it afterward.</p>
+          <p className="text-[11px] text-amber-100/60">Size is saved when the object is created. Use Move park objects to position, resize or flip it afterward. Depth follows ground position automatically.</p>
         </div>
         <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
@@ -221,7 +221,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
             kind, imageData: pendingImage, effectType: null,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
-            size: itemSize, flipped: false, layer: items.length,
+            size: itemSize, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding…" : kind === "decor" ? "Add Decoration" : "Add Rest Spot"}</button>
       </section>}
       </>}

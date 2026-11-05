@@ -115,7 +115,7 @@ export default function PetParkTerrainBrush(props: Props) {
         <strong className="text-sm">Paint terrain</strong>
         <button type="button" disabled={saving || draft.length > 0} onClick={props.onExit} className="rounded-lg border border-[#b99a4c]/60 bg-[#245037] px-3 py-2 text-xs disabled:opacity-50">Done</button>
       </div>
-      <p className="text-xs text-amber-100/80">{saving ? "Saving terrain…" : saveFailed ? "Save failed. Retry or clear this stroke." : type === "dirt_path" ? "Drag to lay square tiles in a straight row or column. Lift to turn. Release to save." : "Drag to paint stones. Release to save."}</p>
+      <p className="text-xs text-amber-100/80">{saving ? "Saving terrain…" : saveFailed ? "Save failed. Retry or clear this stroke." : type === "dirt_path" ? "Drag along either diagonal to lay a straight isometric path. Lift to turn. Release to save." : "Drag to paint stones. Release to save."}</p>
       <div className="grid grid-cols-2 gap-1.5">
         {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
           disabled={!!draft.length || saving} aria-pressed={type === option.type}

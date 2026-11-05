@@ -10,9 +10,9 @@ export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
 export function dirtPatchWorldRect(patch: ParkDirtPatch, width: number, height: number) {
   return {
     x: patch.xPct * width - patch.size / 2,
-    y: patch.yPct * height - patch.size / 2,
+    y: patch.yPct * height - patch.size / 4,
     width: patch.size,
-    height: patch.size,
+    height: patch.size / 2,
   };
 }
 
@@ -167,7 +167,11 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
     const rect = dirtPatchWorldRect(patch, view.worldWidth, view.worldHeight);
     if (rect.x > visible.right || rect.x + rect.width < visible.left ||
         rect.y > visible.bottom || rect.y + rect.height < visible.top) continue;
-    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    ctx.moveTo(rect.x + rect.width / 2, rect.y);
+    ctx.lineTo(rect.x + rect.width, rect.y + rect.height / 2);
+    ctx.lineTo(rect.x + rect.width / 2, rect.y + rect.height);
+    ctx.lineTo(rect.x, rect.y + rect.height / 2);
+    ctx.closePath();
     left = Math.min(left, rect.x);
     top = Math.min(top, rect.y);
     right = Math.max(right, rect.x + rect.width);
