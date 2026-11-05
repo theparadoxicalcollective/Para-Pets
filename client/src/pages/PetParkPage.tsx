@@ -68,6 +68,7 @@ export default function PetParkPage() {
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [openedRoomId, setOpenedRoomId] = useState<string | null>(null);
   const [focusedRoomEffectId, setFocusedRoomEffectId] = useState<string | null>(null);
+  const [openInteriorEffectChoices, setOpenInteriorEffectChoices] = useState(false);
   const [indoorSelectedPetId, setIndoorSelectedPetId] = useState<string | null>(null);
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -353,6 +354,7 @@ export default function PetParkPage() {
     if (!activeBuilding) return;
     if (scene?.canEditPark) {
       setFocusedRoomEffectId(room.id);
+      setOpenInteriorEffectChoices(false);
       setDetailsBuildingId(activeBuilding.id);
     } else if (room.imageUrl) {
       setOpenedRoomId(room.id);
@@ -534,7 +536,7 @@ export default function PetParkPage() {
         className="absolute right-3 z-50 rounded-full border border-amber-400/70 bg-[#10291d]/95 px-5 py-2.5 font-fantasy text-sm font-semibold text-[#f5cf64] shadow-xl"
         style={{ top: "max(64px, calc(env(safe-area-inset-top, 0px) + 12px))" }}>{fullPageRoom ? "Back" : "Exit"}</button>
       {scene?.canEditPark && !fullPageRoom && <button type="button" aria-label="Add effect inside building"
-        onClick={() => { setFocusedRoomEffectId(null); setDetailsBuildingId(activeBuilding.id); }}
+        onClick={() => { setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(true); setDetailsBuildingId(activeBuilding.id); }}
         className="absolute left-3 z-50 rounded-full border border-amber-400/70 bg-[#10291d]/95 px-4 py-2.5 text-sm font-semibold text-[#f5cf64]"
         style={{ top: "max(64px, calc(env(safe-area-inset-top, 0px) + 12px))" }}>+ Add effect</button>}
       {(fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl) ? <PetParkInteriorRoom key={currentRoomId ?? activeBuilding.id} expanded
@@ -746,10 +748,10 @@ export default function PetParkPage() {
       </div>
     </div>}
     {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={`${detailsBuilding.id}:${focusedRoomEffectId ?? ""}`}
-      building={detailsBuilding} initialSelectedEffectId={focusedRoomEffectId}
+      building={detailsBuilding} initialSelectedEffectId={focusedRoomEffectId} initialShowEffectChoices={openInteriorEffectChoices}
       occupantCount={(scene.sharedPets ?? []).filter(pet => pet.buildingId === detailsBuilding.id).length}
-      onPreview={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenedRoomId(null); setEnteredBuilding(detailsBuilding); }}
-      onClose={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); }} onUpdated={invalidate} />}
+      onPreview={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(false); setOpenedRoomId(null); setEnteredBuilding(detailsBuilding); }}
+      onClose={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(false); }} onUpdated={invalidate} />}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
       !scene?.canEnterPark && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
