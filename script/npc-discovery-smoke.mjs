@@ -21,6 +21,17 @@ const client = new QueryClient();
 window.fixtureQuestStatus = status => client.setQueryData(['/api/quests/ginny-mini-pet'], {status});
 bjUsePlayer(user.id); bjSetStep('done');
 window.fixtureCounts = { quests: 0, unrelated: 0, pans: 0 };
+window.fixtureTapEvents = [];
+for (const type of ['pointerdown','pointerup','click']) window.addEventListener(type, event => {
+  const target = event.target;
+  const entry = {type, x:event.clientX, y:event.clientY,
+    target:target instanceof Element ? {testId:target.getAttribute('data-testid'),tag:target.tagName} : null,
+    route:location.pathname, time:Date.now()};
+  window.fixtureTapEvents.push(entry);
+  window.fixtureTapEvents = window.fixtureTapEvents.slice(-24);
+  queueMicrotask(() => Object.assign(entry, {prevented:event.defaultPrevented,
+    progress:localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')}));
+}, true);
 const layout = readStageViewportLayout('/map');
 const stage = document.getElementById('game-stage');
 Object.assign(stage.style, {position:'absolute', left:layout.left+'px', top:'0',
@@ -219,11 +230,14 @@ try {
         await page.mouse.click(target.x+target.width/2,target.y+target.height/2);
       }
       await page.waitForFunction(next => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')) === next,next).catch(async error => {
-        console.error('NPC tap did not advance', {profile:name,npc,...await page.evaluate(() => ({
+        console.error('NPC tap did not advance', JSON.stringify({profile:name,npc,...await page.evaluate(() => ({
           route:location.pathname,
           progress:localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture'),
           guide:document.querySelector('[data-testid="npc-discovery-guide"]')?.textContent,
-        }))});
+          events:window.fixtureTapEvents,
+          target:[...document.querySelectorAll('[data-testid^="player-location-hotspot-"]')].map(node=>({id:node.dataset.testid,rect:node.getBoundingClientRect().toJSON()})),
+          spotlight:document.querySelector('[data-testid="npc-discovery-spotlight"]')?.outerHTML.slice(0,650),
+        }))}));
         throw error;
       });
       // Android delayed click must not open the quest or skip the next NPC.
