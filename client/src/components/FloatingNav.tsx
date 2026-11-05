@@ -310,12 +310,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     try {
       // Check the current publishing state when tapped, rather than fetching
       // the full park scene or relying on a stale nav-time snapshot.
-      const status = await queryClient.fetchQuery<{ enabledForPlayers: boolean }>({
+      const status = await queryClient.fetchQuery<{ enabledForPlayers: boolean; canEnterPark: boolean }>({
         queryKey: ["/api/pet-park/status"],
         queryFn: async () => (await apiRequest("GET", "/api/pet-park/status")).json(),
         staleTime: 0,
       });
-      if (status.enabledForPlayers) {
+      if (status.canEnterPark) {
         navigate("/pet-park");
       } else {
         toast({ title: "Pet Park is under construction" });

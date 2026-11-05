@@ -11,9 +11,12 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
   // expose the scene, player deposits or other users' pets just to check access.
   app.get("/api/pet-park/status", isAuthenticated, async (_req, res) => {
     try {
-      const [settings] = await db.select({ enabledForPlayers: petParkSettings.enabledForPlayers })
+      const userId = (_req.user as { id: string }).id;
+      const [settings] = await db.select({ enabledForPlayers: petParkSettings.enabledForPlayers, enabledForModerators: petParkSettings.enabledForModerators })
         .from(petParkSettings).where(eq(petParkSettings.id, "main"));
-      return res.json({ enabledForPlayers: settings?.enabledForPlayers ?? false });
+      const [role] = await db.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+      return res.json({ enabledForPlayers: settings?.enabledForPlayers ?? false,
+        canEnterPark: !!role?.isAdmin || !!settings?.enabledForPlayers || (!!settings?.enabledForModerators && !!role?.isModerator) });
     } catch (error) {
       console.error("[pet-park] availability read failed", error);
       return res.status(500).json({ message: "Unable to check Pet Park availability" });
@@ -24,8 +27,9 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
     try {
       const userId = (req.user as { id: string }).id;
       const [settings] = await db.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
-      const [player] = await db.select({ isAdmin: users.isAdmin }).from(users).where(eq(users.id, userId));
-      if (!settings?.enabledForPlayers && !player?.isAdmin) {
+      const [player] = await db.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+      const canEnterPark = !!player?.isAdmin || !!settings?.enabledForPlayers || (!!settings?.enabledForModerators && !!player?.isModerator);
+      if (!canEnterPark) {
         return res.json({ enabledForPlayers: false, groundLevel: 1, backgroundUrl: null, items: [], deposits: [], unlockedSlots: 1 });
       }
       const [slots] = await db.select().from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
@@ -69,6 +73,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
+        canEnterPark,
         backgroundUrl: settings?.backgroundUrl ?? null, // Legacy only; the live park draws grass instead.
         groundLevel: settings?.groundLevel ?? 1,
         buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
@@ -94,9 +99,10 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         // Serialize all deposit, retrieval and unlock actions for the same owner.
         const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         if (!owner) return { status: 404 as const };
-        const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers })
+        const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
           .from(petParkSettings).where(eq(petParkSettings.id, "main"));
-        if (!park?.enabled) return { status: 403 as const };
+        const [role] = await tx.select({ isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+        if (!park?.enabled && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
         const [slots] = await tx.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
           .from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
         if (slotNumber > (slots?.unlockedSlots ?? 1)) return { status: 409 as const };
@@ -108,7 +114,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
         if (existing) return { status: 409 as const };
-        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false }).returning();
+        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false, pausedAt: park.enabled ? null : new Date() }).returning();
         return { status: 201 as const, deposit };
       });
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });

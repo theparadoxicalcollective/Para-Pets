@@ -33,7 +33,7 @@ test("the former Keeper's Central nav entry only enters an open Pet Park or admi
   assert.ok(gate, "navigation must have an availability gate");
   assert.match(gate, /if \(user\.isAdmin\) \{ navigate\("\/pet-park"\); return; \}/);
   assert.match(gate, /apiRequest\("GET", "\/api\/pet-park\/status"\)/);
-  assert.match(gate, /if \(status\.enabledForPlayers\)/);
+  assert.match(gate, /if \(status\.canEnterPark\)/);
   assert.match(gate, /toast\(\{ title: "Pet Park is under construction" \}\)/);
   assert.match(gate, /navigate\("\/pet-park"\)/);
   assert.match(app, /location === "\/pet-park"/);

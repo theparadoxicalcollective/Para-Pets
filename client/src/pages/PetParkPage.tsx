@@ -33,8 +33,8 @@ type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageU
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
-type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
+type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
+type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; petLevel?: number; starRarity?: number; rarity?: number; isHatched: boolean; isListed?: boolean; type?: string };
 
 export default function PetParkPage() {
   const [, navigate] = useLocation();
@@ -56,6 +56,7 @@ export default function PetParkPage() {
     });
   };
   const [selectedPet, setSelectedPet] = useState("");
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export default function PetParkPage() {
   const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
   const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
-  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers && !scene?.canEditPark });
+  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -516,50 +517,80 @@ export default function PetParkPage() {
       onClose={() => setDetailsBuildingId(null)} onUpdated={invalidate} />}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
-      !scene?.enabledForPlayers && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
+      !scene?.canEnterPark && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
         <div className="rounded-xl border border-amber-500/50 bg-[#152d23] p-6 text-center shadow-xl">
           <h2 className="text-xl font-semibold text-amber-300">Pet Park — Under Construction</h2>
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
-
         </div>
-      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : scene.canEditPark && deposits.length === 0 ? null : <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[42%] overflow-y-auto rounded-t-xl border-t border-amber-500/40 bg-black/80 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-        <p className="mb-2 text-xs text-amber-200/80">Drag the park in any direction to explore. Rewards accumulate for up to 24 hours. Collect anytime without removing your pet.</p>
-        <div className="space-y-2">
+      </div> : scene?.canEditPark ? (!scene.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : null) : scene && !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto flex max-w-sm flex-col" data-testid="pet-park-player-slots">
+        <div className="order-2 grid grid-cols-3 gap-2" aria-label="Your three park pet spots">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
             const pet = deposits.find(d => d.slotNumber === slot);
             const unlocked = slot <= scene.unlockedSlots;
-            // Older admin accounts may have deposited pets before the admin UI split.
-            // Keep their Claim and Retrieve controls without permitting new admin slots.
-            if (scene.canEditPark && !pet) return null;
-            return <div key={slot} className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-700/50 p-2 text-sm">
-              <span className="font-semibold">Spot {slot}</span>
-              {pet ? <>
-                <span className="flex-1">{pet.petNickname || pet.petName} · Lv {pet.petLevel} · {pet.showInPark ? "In park" : "Idle — earning"}</span>
-                <button type="button" disabled={action.isPending} className="rounded bg-amber-700 px-3 py-2"
-                  onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${pet.id}/display`,
-                    body: { display: pet.showInPark ? "idle" : "park" } })}>
-                  {pet.showInPark ? "Return to idle" : "Show in park"}
-                </button>
-                <button type="button" disabled={action.isPending} className="rounded bg-emerald-800 px-3 py-2"
-                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/claim` })}>Collect rewards</button>
-                <button type="button" disabled={action.isPending} className="rounded bg-amber-800 px-3 py-2"
-                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/withdraw` })}>Retrieve</button>
-              </> : !unlocked ? <button type="button" disabled={action.isPending} className="rounded bg-amber-800 px-3 py-2"
-                onClick={() => action.mutate({ path: "/api/pet-park/slots/unlock", body: { slot } })}>
-                Unlock · {slot === 2 ? "2,500" : "5,000"} coins
-              </button> : <>
-                <select aria-label={`Choose pet for spot ${slot}`} className="min-w-0 flex-1 rounded bg-[#0b2016] p-2" value={selectedPet}
-                  onChange={e => setSelectedPet(e.target.value)}>
-                  <option value="">Choose a pet</option>
-                  {availablePets.map(p => <option key={p.inventoryId} value={p.inventoryId}>{p.petNickname || p.name || p.shopItemId}</option>)}
-                </select>
-                <button type="button" disabled={!selectedPet || action.isPending} className="rounded bg-amber-800 px-3 py-2 disabled:opacity-50"
-                  onClick={() => action.mutate({ path: "/api/pet-park/deposits", body: { petInventoryId: selectedPet, slotNumber: slot } })}>Deposit</button>
-              </>}
-            </div>;
+            return <button key={slot} type="button" aria-label={`Pet Park spot ${slot}`} data-testid={`pet-park-slot-${slot}`}
+              onClick={() => { setActiveSlot(slot); setSelectedPet(""); }}
+              className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-[50%] border bg-[#10291d]/95 px-2 py-2 text-center font-fantasy text-[#f5d77b] shadow-lg ${activeSlot === slot ? "border-amber-300 ring-2 ring-amber-300/45" : "border-[#c6a552]/75"}`}>
+              <span className="text-[10px] uppercase tracking-wide">Spot {slot}</span>
+              <span className="max-w-full truncate text-xs font-semibold">{pet ? pet.petNickname || pet.petName : unlocked ? "+ Equip" : "Locked"}</span>
+              {!pet && !unlocked && <span className="text-[10px]">{slot === 2 ? "2,500" : "5,000"} coins</span>}
+            </button>;
           })}
         </div>
+        {activeSlot != null && <div role="dialog" aria-label={`Park pet spot ${activeSlot}`}
+          className="order-1 mb-2 max-h-[min(50dvh,370px)] overflow-y-auto rounded-xl border border-[#c6a552]/75 bg-[#10291d]/95 p-3 text-sm text-amber-100 shadow-2xl">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <strong className="font-fantasy text-[#f5d77b]">Pet Spot {activeSlot}</strong>
+            <button type="button" aria-label="Close pet spot" onClick={() => setActiveSlot(null)} className="rounded-full border border-amber-700/60 px-3 py-1">×</button>
+          </div>
+          {(() => {
+            const pet = deposits.find(d => d.slotNumber === activeSlot);
+            if (pet) return <div className="space-y-2">
+              <p>{pet.petNickname || pet.petName} · Level {pet.petLevel} · {pet.showInPark ? "In park" : "Idle — earning"}</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={action.isPending} className="rounded-lg bg-[#245037] px-3 py-2 disabled:opacity-50"
+                  onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${pet.id}/display`, body: { display: pet.showInPark ? "idle" : "park" } })}>
+                  {pet.showInPark ? "Return to idle" : "Show in park"}
+                </button>
+                <button type="button" disabled={action.isPending} className="rounded-lg bg-emerald-800 px-3 py-2 disabled:opacity-50"
+                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/claim` })}>Collect rewards</button>
+                <button type="button" disabled={action.isPending} className="rounded-lg bg-amber-800 px-3 py-2 disabled:opacity-50"
+                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/withdraw` })}>Retrieve</button>
+              </div>
+            </div>;
+            if (activeSlot > scene.unlockedSlots) return <div className="space-y-2">
+              <p>{activeSlot > scene.unlockedSlots + 1 ? "Unlock the preceding pet spot first." : "Unlock this spot to equip another hatched pet."}</p>
+              <button type="button" disabled={action.isPending || activeSlot > scene.unlockedSlots + 1}
+                className="rounded-lg bg-amber-800 px-4 py-2 disabled:opacity-50"
+                onClick={() => action.mutate({ path: "/api/pet-park/slots/unlock", body: { slot: activeSlot } })}>
+                Unlock · {activeSlot === 2 ? "2,500" : "5,000"} coins
+              </button>
+            </div>;
+            return <div className="space-y-2">
+              <p className="text-xs text-amber-200/75">Choose one of your hatched, unlisted pets.</p>
+              <select aria-label={`Choose pet for spot ${activeSlot}`} className="w-full rounded-lg border border-amber-600/50 bg-[#0b2016] p-3"
+                value={selectedPet} onChange={e => setSelectedPet(e.target.value)}>
+                <option value="">Choose a pet</option>
+                {availablePets.map(p => <option key={p.inventoryId} value={p.inventoryId}>{p.petNickname || p.name || p.shopItemId}</option>)}
+              </select>
+              {availablePets.find(pet => pet.inventoryId === selectedPet) && (() => {
+                const chosen = availablePets.find(pet => pet.inventoryId === selectedPet)!;
+                return <div className="flex items-center gap-3 rounded-lg border border-amber-700/35 bg-black/30 p-2">
+                  <div className="h-20 w-20 shrink-0">
+                    <PetAnimator petTemplateId={chosen.shopItemId} petInventoryId={chosen.inventoryId}
+                      costumeAccess="owner" mode="static" size={80} fillContainer />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{chosen.petNickname || chosen.name}</p>
+                    <p className="text-xs text-amber-200/75">Level {chosen.petLevel ?? 1} · {chosen.starRarity ?? chosen.rarity ?? "?"}★</p>
+                  </div>
+                </div>;
+              })()}
+              <button type="button" disabled={!selectedPet || action.isPending} className="rounded-lg bg-[#245037] px-4 py-2 disabled:opacity-50"
+                onClick={() => action.mutate({ path: "/api/pet-park/deposits", body: { petInventoryId: selectedPet, slotNumber: activeSlot } })}>Equip pet</button>
+            </div>;
+          })()}
+        </div>}
       </div>}
   </div>;
 }

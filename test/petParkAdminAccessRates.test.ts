@@ -6,7 +6,7 @@ const editor = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8
 const server = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 
 test("closed Pet Park does not block admins, but keeps normal players behind under construction", () => {
-  assert.match(page, /!scene\?\.enabledForPlayers && !scene\?\.canEditPark/);
+  assert.match(page, /!scene\?\.canEnterPark && !scene\?\.canEditPark/);
   assert.match(page, /Admin preview · Park closed to players/);
   assert.match(page, /scene\?\.canEditPark && showCreator/);
   assert.match(page, /scene\?\.canEditPark && detailsBuilding/);
@@ -21,6 +21,7 @@ test("admin settings and direct creation retain water effects, player access and
   assert.match(editor, /value: "sleep_spot", label: "Rest Spot"/);
   assert.match(page, /onPointerMove=\{movePlacement\}/);
   assert.match(editor, /aria-label="Allow players into Pet Park"/);
+  assert.match(editor, /aria-label="Allow moderators into Pet Park"/);
   assert.match(editor, /mode === "settings"/);
   assert.match(page, /\["scene", "\+ Building"\]/);
   assert.match(page, /\["decor", "\+ Decor"\]/);

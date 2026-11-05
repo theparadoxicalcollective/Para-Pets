@@ -10,7 +10,7 @@ import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
 type ParkDraft = {
-  settings: { enabledForPlayers: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
+  settings: { enabledForPlayers: boolean; enabledForModerators: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
   items: { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain" }[];
   buildings: { id: string }[];
 };
@@ -35,6 +35,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const { data } = useQuery<ParkDraft>({ queryKey: ["/api/admin/pet-park"] });
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
+  const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
   const [kind, setKind] = useState<"decor" | "sleep_spot">( "decor" );
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [itemSize, setItemSize] = useState(100);
@@ -52,7 +53,12 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
     },
     onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
-      if (variables.method !== "POST") return;
+      if (variables.method !== "POST") {
+        setRates(null); setPublish(null); setModeratorPreview(null);
+        qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
+        qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
+        return;
+      }
       const isBuilding = variables.url === "/api/admin/pet-park/buildings";
       const isItem = variables.url === "/api/admin/pet-park/items";
       if (!isBuilding && !isItem) return;
@@ -106,14 +112,21 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             <input type="checkbox" aria-label="Allow players into Pet Park" className="h-5 w-5 accent-amber-500" checked={publish ?? data?.settings.enabledForPlayers ?? false}
               onChange={e => setPublish(e.target.checked)} /> Open Pet Park to players
           </label>
+          <label className="flex items-center gap-3 rounded-lg border border-amber-500/50 bg-emerald-950/25 p-3 text-sm font-semibold">
+            <input type="checkbox" aria-label="Allow moderators into Pet Park" className="h-5 w-5 accent-amber-500"
+              checked={moderatorPreview ?? data?.settings.enabledForModerators ?? false}
+              onChange={e => setModeratorPreview(e.target.checked)} /> Open Pet Park to moderators
+          </label>
+          <p className="text-xs text-amber-100/70">Moderator access allows staff to preview the normal player park without editing controls. It does not publish the park to everyone.</p>
           <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
             onClick={() => {
               mutation.mutate({ method: "PUT", url: "/api/admin/pet-park/publishing",
                 body: { enabledForPlayers: publish ?? data!.settings.enabledForPlayers,
+                  enabledForModerators: moderatorPreview ?? data!.settings.enabledForModerators,
                   coinsPerHour: (rates ?? data!.settings).coinsPerHour,
                   essencePerHour: (rates ?? data!.settings).essencePerHour,
                   petXpPerHour: (rates ?? data!.settings).petXpPerHour } });
-              setRates(null); setPublish(null);
+              // Keep local edits until the server confirms success; the response invalidates both park views.
             }}>Save reward rates & park availability</button>
         </div>
         <p className="rounded-lg border border-emerald-700/45 bg-emerald-950/35 p-3 text-sm text-emerald-100">

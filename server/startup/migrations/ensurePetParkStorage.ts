@@ -11,6 +11,7 @@ export async function ensurePetParkStorage(): Promise<void> {
     CREATE TABLE IF NOT EXISTS pet_park_settings (
       id varchar PRIMARY KEY DEFAULT 'main' CHECK (id = 'main'),
       enabled_for_players boolean NOT NULL DEFAULT false,
+      enabled_for_moderators boolean NOT NULL DEFAULT false,
       background_url text,
       ground_level integer NOT NULL DEFAULT 1 CHECK (ground_level BETWEEN 1 AND 4),
       coins_per_hour integer NOT NULL DEFAULT 0,
@@ -18,6 +19,7 @@ export async function ensurePetParkStorage(): Promise<void> {
       pet_xp_per_hour integer NOT NULL DEFAULT 0,
       updated_at timestamp NOT NULL DEFAULT now()
     );
+    ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS enabled_for_moderators boolean NOT NULL DEFAULT false;
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS coins_per_hour integer NOT NULL DEFAULT 0;
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS essence_per_hour integer NOT NULL DEFAULT 0;
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS pet_xp_per_hour integer NOT NULL DEFAULT 0;

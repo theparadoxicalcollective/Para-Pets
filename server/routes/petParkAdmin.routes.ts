@@ -36,7 +36,7 @@ export function registerPetParkAdminRoutes(
       const [settings] = await db.select().from(petParkSettings).where(eq(petParkSettings.id, "main"));
       const items = await db.select().from(petParkSceneItems).orderBy(asc(petParkSceneItems.layer));
       const buildings = await db.select().from(petParkBuildings).orderBy(asc(petParkBuildings.layer));
-      return res.json({ settings: settings ?? { enabledForPlayers: false, backgroundUrl: null }, items, buildings });
+      return res.json({ settings: settings ?? { enabledForPlayers: false, enabledForModerators: false, backgroundUrl: null }, items, buildings });
     } catch (error) {
       console.error("[pet-park] admin read failed", error);
       return res.status(500).json({ message: "Unable to load Pet Park" });
@@ -45,7 +45,8 @@ export function registerPetParkAdminRoutes(
 
 
   app.put("/api/admin/pet-park/publishing", isAdmin, async (req, res) => {
-    const { enabledForPlayers, coinsPerHour, essencePerHour, petXpPerHour } = req.body ?? {};
+    const { enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour } = req.body ?? {};
+    if (typeof enabledForModerators !== "boolean") return res.status(400).json({ message: "Invalid moderator park availability" });
     const validRate = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 10000;
     if (typeof enabledForPlayers !== "boolean" || !validRate(coinsPerHour) ||
         !validRate(essencePerHour) || !validRate(petXpPerHour)) {
@@ -78,7 +79,7 @@ export function registerPetParkAdminRoutes(
           }
         }
         const [settings] = await tx.update(petParkSettings).set({
-          enabledForPlayers, coinsPerHour, essencePerHour, petXpPerHour, updatedAt: now,
+          enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour, updatedAt: now,
         }).where(eq(petParkSettings.id, "main")).returning();
         return settings;
       });

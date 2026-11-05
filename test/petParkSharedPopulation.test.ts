@@ -10,7 +10,7 @@ test("park scene shares publicly displayed pets, preserving idle private deposit
   assert.match(server, /\.where\(and\(isNull\(petParkDeposits\.withdrawnAt\), eq\(petParkDeposits\.showInPark, true\)\)\)/);
   assert.match(server, /items, deposits, sharedPets, unlockedSlots/);
   assert.match(server, /eq\(petParkDeposits\.userId, userId\)/);
-  assert.match(server, /!settings\?\.enabledForPlayers && !player\?\.isAdmin/);
+  assert.match(server, /if \(!canEnterPark\)/);
   assert.doesNotMatch(server.split("const sharedPets = await db.select")[1].split("}).from(petParkDeposits)")[0], /coins|essence|checkpointAt|pausedDurationMs/);
 });
 
