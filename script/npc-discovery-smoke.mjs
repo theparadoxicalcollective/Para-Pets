@@ -213,7 +213,11 @@ try {
       // tap into a click on the underlying real quest button.
       const position = {x:target.x+target.width/2-frame.x,y:target.y+target.height/2-frame.y};
       if(touch) await tourButton.tap({position});
-      else await tourButton.click({position});
+      else {
+        // Exercise the real desktop pointer at the NPC's screen coordinate.
+        // Both the spotlight and underlying hotspot must advance only the tour.
+        await page.mouse.click(target.x+target.width/2,target.y+target.height/2);
+      }
       await page.waitForFunction(next => Number(localStorage.getItem('bj_npc_tour_v1:isolated-guide-fixture')) === next,next).catch(async error => {
         console.error('NPC tap did not advance', {profile:name,npc,...await page.evaluate(() => ({
           route:location.pathname,
