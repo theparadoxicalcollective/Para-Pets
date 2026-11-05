@@ -98,9 +98,10 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         // Serialize all deposit, retrieval and unlock actions for the same owner.
         const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         if (!owner) return { status: 404 as const };
-        const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers })
+        const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
           .from(petParkSettings).where(eq(petParkSettings.id, "main"));
-        if (!park?.enabled) return { status: 403 as const };
+        const [role] = await tx.select({ isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+        if (!park?.enabled && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
         const [slots] = await tx.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
           .from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
         if (slotNumber > (slots?.unlockedSlots ?? 1)) return { status: 409 as const };
