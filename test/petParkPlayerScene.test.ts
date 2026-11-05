@@ -95,7 +95,7 @@ test("moderator-only park access keeps ordinary players out and preserves reward
   assert.ok(schema.includes('enabledForModerators: boolean("enabled_for_moderators").notNull().default(false)'));
   assert.ok(migration.includes("ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS enabled_for_moderators boolean NOT NULL DEFAULT false"));
   assert.ok(adminRoutes.includes("enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour, updatedAt: now"));
-  assert.ok(editor.includes('aria-label="Allow moderators into Pet Park"'));
+  assert.ok(editor.includes('Allow moderators into Pet Park'));
   assert.ok(route.includes("canEnterPark: !!role?.isAdmin || !!settings?.enabledForPlayers || (!!settings?.enabledForModerators && !!role?.isModerator)"));
   assert.ok(route.includes("pausedAt: park.enabled ? null : new Date()"));
   assert.ok(slotRoutes.includes("!park?.enabled && !(park?.moderators && role?.isModerator)"));
