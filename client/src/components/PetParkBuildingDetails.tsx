@@ -27,7 +27,7 @@ export type ParkBuildingDetails = {
 
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
-  building, occupantCount = 0, onClose, onUpdated, onPreview, initialSelectedEffectId = null,
+  building, occupantCount = 0, onClose, onUpdated, onPreview, initialSelectedEffectId = null, initialShowEffectChoices = false,
 }: {
   building: ParkBuildingDetails;
   occupantCount?: number;
@@ -35,6 +35,7 @@ export default function PetParkBuildingDetails({
   onUpdated: () => void;
   onPreview?: () => void;
   initialSelectedEffectId?: string | null;
+  initialShowEffectChoices?: boolean;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -44,7 +45,7 @@ export default function PetParkBuildingDetails({
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(initialSelectedEffectId);
-  const [showEffectChoices, setShowEffectChoices] = useState(false);
+  const [showEffectChoices, setShowEffectChoices] = useState(initialShowEffectChoices);
 
   useEffect(() => {
     const latest = building.interiorEffects ?? [];
