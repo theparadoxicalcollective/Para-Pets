@@ -522,7 +522,7 @@ export default function PetParkPage() {
           <h2 className="text-xl font-semibold text-amber-300">Pet Park — Under Construction</h2>
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
         </div>
-      </div> : scene?.canEditPark ? (!scene.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : null) : !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto max-w-sm" data-testid="pet-park-player-slots">
+      </div> : scene?.canEditPark ? (!scene.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : null) : scene && !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto max-w-sm" data-testid="pet-park-player-slots">
         <div className="grid grid-cols-3 gap-2" aria-label="Your three park pet spots">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
