@@ -6,7 +6,7 @@ const editor = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8
 const server = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 
 test("closed Pet Park does not block admins, but keeps normal players behind under construction", () => {
-  assert.match(page, /!scene\?\.enabledForPlayers && !scene\?\.canEditPark/);
+  assert.match(page, /!scene\?\.canEnterPark && !scene\?\.canEditPark/);
   assert.match(page, /Admin preview · Park closed to players/);
   assert.match(page, /scene\?\.canEditPark && showCreator/);
   assert.match(page, /scene\?\.canEditPark && detailsBuilding/);
