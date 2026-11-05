@@ -26,7 +26,8 @@ test("park building details are admin-only, contextual and use existing storage"
 });
 
 test("player and admin effects share natural-image room coordinates and Home effect layer", () => {
-  assert.match(page, /<PetParkInteriorRoom expanded\s+imageUrl=\{activeBuilding\.interiorImageUrl\}/);
+  assert.match(page, /<PetParkInteriorRoom key=\{currentRoomId \?\? activeBuilding\.id\} expanded/);
+  assert.match(page, /imageUrl=\{fullPageRoom\?\.imageUrl \?\? activeBuilding\.interiorImageUrl/);
   assert.match(page, /offEffectIds=\{new Set\(offParkInteriorLights\[activeBuilding\.id\]/);
   assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight\(activeBuilding\.id, effect\)\}/);
   assert.match(details, /<PetParkInteriorRoom imageUrl=\{imagePreview\}/);
