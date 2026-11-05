@@ -559,8 +559,9 @@ export default function PetParkPage() {
               </div>
             </div>;
             if (activeSlot > scene.unlockedSlots) return <div className="space-y-2">
-              <p>Unlock this spot to equip another hatched pet.</p>
-              <button type="button" disabled={action.isPending} className="rounded-lg bg-amber-800 px-4 py-2 disabled:opacity-50"
+              <p>{activeSlot > scene.unlockedSlots + 1 ? "Unlock the preceding pet spot first." : "Unlock this spot to equip another hatched pet."}</p>
+              <button type="button" disabled={action.isPending || activeSlot > scene.unlockedSlots + 1}
+                className="rounded-lg bg-amber-800 px-4 py-2 disabled:opacity-50"
                 onClick={() => action.mutate({ path: "/api/pet-park/slots/unlock", body: { slot: activeSlot } })}>
                 Unlock · {activeSlot === 2 ? "2,500" : "5,000"} coins
               </button>
