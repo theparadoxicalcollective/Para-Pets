@@ -106,10 +106,10 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         const [slots] = await tx.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
           .from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
         if (slotNumber > (slots?.unlockedSlots ?? 1)) return { status: 409 as const };
-        const [pet] = await tx.select({ id: userInventory.id, isHatched: userInventory.isHatched, type: shopItems.type, isListed: userInventory.isListed })
+        const [pet] = await tx.select({ id: userInventory.id, isHatched: userInventory.isHatched, type: shopItems.type, isListed: userInventory.isListed, petLevel: userInventory.petLevel })
           .from(userInventory).innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
           .where(and(eq(userInventory.id, petInventoryId), eq(userInventory.userId, userId)));
-        if (!pet || !pet.isHatched || pet.type !== "pet" || pet.isListed) return { status: 422 as const };
+        if (!pet || !pet.isHatched || pet.type !== "pet" || pet.isListed || (pet.petLevel ?? 1) < 10) return { status: 422 as const };
         const [existing] = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
@@ -120,7 +120,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });
       if (result.status === 403) return res.status(403).json({ message: "Pet Park is under construction" });
       if (result.status === 409) return res.status(409).json({ message: "Slot unavailable or pet already deposited" });
-      if (result.status === 422) return res.status(422).json({ message: "Only your own hatched, unlisted pets can be deposited" });
+      if (result.status === 422) return res.status(422).json({ message: "Only your own hatched, unlisted level 10+ pets can be deposited" });
       return res.status(201).json(result.deposit);
     } catch (error: any) {
       if (error?.code === "23505") return res.status(409).json({ message: "Pet or slot already occupied" });
