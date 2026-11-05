@@ -21,10 +21,17 @@ test("slot purchase route requires authentication, park availability and seriali
   const route = readFileSync("server/routes/petParkSlots.routes.ts", "utf8");
   const registration = readFileSync("server/routes.ts", "utf8");
   assert.match(route, /app\.post\("\/api\/pet-park\/slots\/unlock", isAuthenticated/);
-  assert.match(route, /if \(!park\?\.enabled\)/);
+  assert.match(route, /if \(!park\?\.enabled && !\(park\?\.moderators && role\?\.isModerator\)\)/);
   assert.match(route, /\.for\("update"\)/);
   assert.match(route, /await db\.transaction/);
   assert.match(route, /gte\(users\.coins, decision\.cost\)/);
   assert.match(route, /decision\.kind === "already_unlocked"/);
   assert.match(registration, /registerPetParkSlotRoutes\(app, isAuthenticated\)/);
+});
+
+test("slot module never shadows the role-aware player status route", () => {
+  const slots = readFileSync("server/routes/petParkSlots.routes.ts", "utf8");
+  const player = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
+  assert.doesNotMatch(slots, /app\.get\("\/api\/pet-park\/status"/);
+  assert.match(player, /app\.get\("\/api\/pet-park\/status"/);
 });
