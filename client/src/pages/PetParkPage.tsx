@@ -294,6 +294,59 @@ export default function PetParkPage() {
     action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${petId}/display`, body: { display: "park", xPct, yPct } });
     setActiveSlot(null);
   };
+  const dropEquippedPetInside = (petId: string, clientX: number, clientY: number, building: ParkBuilding) => {
+    const room = document.querySelector<HTMLElement>('[data-testid="pet-park-interior-room"]');
+    const artwork = room?.querySelector<HTMLElement>("[data-park-interior-artwork]");
+    const footer = document.querySelector<HTMLElement>('[data-testid="pet-park-interior-slots"]');
+    if (!room || !artwork) return;
+    const viewportRect = room.getBoundingClientRect();
+    const footerRect = footer?.getBoundingClientRect();
+    const visibleHeight = footerRect
+      ? Math.min(viewportRect.height, Math.max(0, footerRect.top - viewportRect.top))
+      : viewportRect.height;
+    const point = petParkInteriorDropPoint({ x: clientX, y: clientY },
+      { left: viewportRect.left, top: viewportRect.top, width: viewportRect.width, height: visibleHeight },
+      artwork.getBoundingClientRect());
+    if (!point) return;
+    action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${petId}/placement`,
+      body: { buildingId: building.id, ...point, pose: "idle" } });
+  };
+  const startEquippedPetDrag = (event: React.PointerEvent<HTMLButtonElement>, pet: ParkDeposit) => {
+    if (!event.isPrimary || action.isPending) return;
+    slotDrag.current = { id: event.pointerId, petId: pet.id, x: event.clientX, y: event.clientY };
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+  };
+  const moveEquippedPetDrag = (event: React.PointerEvent<HTMLButtonElement>, slot: number) => {
+    const drag = slotDrag.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) <= 12) return;
+    setDraggingSlot(slot);
+    setSlotDragGhost({ petId: drag.petId, x: event.clientX, y: event.clientY });
+  };
+  const endEquippedPetDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = slotDrag.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    slotDrag.current = null;
+    const moved = Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 12;
+    setSlotDragGhost(null);
+    setDraggingSlot(null);
+    if (!moved) return;
+    suppressSlotClickUntil.current = Date.now() + 400;
+    if (activeBuilding) dropEquippedPetInside(drag.petId, event.clientX, event.clientY, activeBuilding);
+    else dropEquippedPet(drag.petId, event.clientX, event.clientY);
+  };
+  const cancelEquippedPetDrag = () => {
+    slotDrag.current = null;
+    setSlotDragGhost(null);
+    setDraggingSlot(null);
+  };
+  const toggleParkInteriorLight = (buildingId: string, effect: HouseInteriorEffect) =>
+    setOffParkInteriorLights(current => {
+      const off = new Set(current[buildingId] ?? []);
+      if (off.has(effect.id)) off.delete(effect.id);
+      else off.add(effect.id);
+      return { ...current, [buildingId]: Array.from(off) };
+    });
   const availablePets = inventory.filter(p => p.isHatched && (p.petLevel ?? 1) >= 10 && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
 
   return <div className="absolute inset-0 overflow-hidden bg-[#13291e] text-amber-100" data-testid="pet-park-page">
