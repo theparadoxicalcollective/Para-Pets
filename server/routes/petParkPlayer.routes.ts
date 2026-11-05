@@ -106,10 +106,10 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         const [slots] = await tx.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
           .from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
         if (slotNumber > (slots?.unlockedSlots ?? 1)) return { status: 409 as const };
-        const [pet] = await tx.select({ id: userInventory.id, isHatched: userInventory.isHatched, type: shopItems.type, isListed: userInventory.isListed })
+        const [pet] = await tx.select({ id: userInventory.id, isHatched: userInventory.isHatched, type: shopItems.type, isListed: userInventory.isListed, petLevel: userInventory.petLevel })
           .from(userInventory).innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
           .where(and(eq(userInventory.id, petInventoryId), eq(userInventory.userId, userId)));
-        if (!pet || !pet.isHatched || pet.type !== "pet" || pet.isListed) return { status: 422 as const };
+        if (!pet || !pet.isHatched || pet.type !== "pet" || pet.isListed || (pet.petLevel ?? 1) < 10) return { status: 422 as const };
         const [existing] = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
@@ -120,7 +120,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });
       if (result.status === 403) return res.status(403).json({ message: "Pet Park is under construction" });
       if (result.status === 409) return res.status(409).json({ message: "Slot unavailable or pet already deposited" });
-      if (result.status === 422) return res.status(422).json({ message: "Only your own hatched, unlisted pets can be deposited" });
+      if (result.status === 422) return res.status(422).json({ message: "Only your own hatched, unlisted level 10+ pets can be deposited" });
       return res.status(201).json(result.deposit);
     } catch (error: any) {
       if (error?.code === "23505") return res.status(409).json({ message: "Pet or slot already occupied" });
@@ -168,8 +168,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
 
   // Collection and withdrawal share one transaction and owner lock.
   // The caller may collect without removing the pet.
-  async function settleDeposit(userId: string, depositId: string, withdraw: boolean) {
-    return db.transaction(async tx => {
+  type ParkTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+  async function settleDepositInTransaction(tx: ParkTransaction, userId: string, depositId: string, withdraw: boolean) {
       const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
       if (!owner) return null;
       const [deposit] = await tx.select().from(petParkDeposits)
@@ -222,8 +222,57 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         pausedDurationMs: next.pausedDurationMs, ...(withdraw ? { withdrawnAt: now } : {}),
       }).where(eq(petParkDeposits.id, depositId));
       return { coins, essence, petXp, earnedDurationMs: duration, withdrawn: withdraw };
-    });
   }
+  async function settleDeposit(userId: string, depositId: string, withdraw: boolean) {
+    return db.transaction(tx => settleDepositInTransaction(tx, userId, depositId, withdraw));
+  }
+
+
+  // A swap is all-or-nothing: validate replacement, settle rewards and withdraw
+  // the previous pet, then deposit the replacement under one owner lock.
+  app.post("/api/pet-park/deposits/:id/swap", isAuthenticated, async (req, res) => {
+    const petInventoryId = req.body?.petInventoryId;
+    if (typeof petInventoryId !== "string" || petInventoryId.length < 1 || petInventoryId.length > 100)
+      return res.status(400).json({ message: "Choose a valid replacement pet" });
+    try {
+      const userId = (req.user as { id: string }).id;
+      const result = await db.transaction(async tx => {
+        const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+        if (!owner) return { status: 404 as const };
+        const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
+          .from(petParkSettings).where(eq(petParkSettings.id, "main"));
+        const [role] = await tx.select({ isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+        if (!park?.enabled && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
+        const [outgoing] = await tx.select().from(petParkDeposits)
+          .where(and(eq(petParkDeposits.id, String(req.params.id)), eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt))).for("update");
+        if (!outgoing) return { status: 404 as const };
+        if (outgoing.petInventoryId === petInventoryId) return { status: 409 as const };
+        const [replacement] = await tx.select({ id: userInventory.id, isHatched: userInventory.isHatched, isListed: userInventory.isListed, type: shopItems.type, petLevel: userInventory.petLevel })
+          .from(userInventory).innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+          .where(and(eq(userInventory.id, petInventoryId), eq(userInventory.userId, userId)));
+        if (!replacement || !replacement.isHatched || replacement.isListed || replacement.type !== "pet" || (replacement.petLevel ?? 1) < 10)
+          return { status: 422 as const };
+        const [alreadyDeposited] = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
+          .where(and(eq(petParkDeposits.petInventoryId, petInventoryId), isNull(petParkDeposits.withdrawnAt)));
+        if (alreadyDeposited) return { status: 409 as const };
+        const rewards = await settleDepositInTransaction(tx, userId, outgoing.id, true);
+        if (!rewards) throw new Error("Unable to settle outgoing pet");
+        const [deposit] = await tx.insert(petParkDeposits).values({
+          userId, petInventoryId, slotNumber: outgoing.slotNumber,
+          showInPark: false, pausedAt: park.enabled ? null : new Date(),
+        }).returning();
+        return { status: 200 as const, rewards, deposit };
+      });
+      if (result.status === 404) return res.status(404).json({ message: "Active deposit or player not found" });
+      if (result.status === 403) return res.status(403).json({ message: "Pet Park is under construction" });
+      if (result.status === 409) return res.status(409).json({ message: "Replacement is already in the park" });
+      if (result.status === 422) return res.status(422).json({ message: "Choose a hatched, unlisted level 10+ pet" });
+      return res.json(result);
+    } catch (error) {
+      console.error("[pet-park] swap failed", error);
+      return res.status(500).json({ message: "Unable to swap pets; original pet and rewards were preserved" });
+    }
+  });
 
   app.post("/api/pet-park/deposits/:id/claim", isAuthenticated, async (req, res) => {
     try {
