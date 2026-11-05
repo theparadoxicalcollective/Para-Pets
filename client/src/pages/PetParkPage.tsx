@@ -485,8 +485,12 @@ export default function PetParkPage() {
             <div className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
-              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
-                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : sleeping ? "sleep" : "idle"} size={petSize * scale} fillContainer />
+              {pet.petTemplateId ? <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
+                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : sleeping ? "sleep" : "idle"} size={petSize * scale} fillContainer /> :
+                pet.hatchedImageUrl ? <img src={pet.hatchedImageUrl} alt="" className="h-full w-full object-contain" /> : null}
+              <div className="pointer-events-none absolute bottom-0 left-0 h-[25%] w-[25%]">
+                <MiniPetRenderer petInventoryId={pet.petInventoryId} access={isMine ? "owner" : "public"} animated={!reduceMotion} />
+              </div>
             </div>
             <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
               onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>
@@ -721,13 +725,14 @@ export default function PetParkPage() {
             const pet = deposits.find(d => d.slotNumber === slot);
             const unlocked = slot <= scene.unlockedSlots;
             return <button key={slot} type="button" aria-label={`Pet Park spot ${slot}`} data-testid={`pet-park-slot-${slot}`}
-              onClick={() => { if (draggingSlot === slot) return; setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false); }}
-              onPointerDown={event => { if (!pet || !event.isPrimary) return; slotDrag.current = { id: event.pointerId, petId: pet.id, x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); }}
-              onPointerMove={event => { if (slotDrag.current?.id !== event.pointerId) return; if (Math.hypot(event.clientX - slotDrag.current.x, event.clientY - slotDrag.current.y) > 12) setDraggingSlot(slot); }}
-              onPointerUp={event => { const current = slotDrag.current; if (!current || current.id !== event.pointerId) return; slotDrag.current = null; if (Math.hypot(event.clientX - current.x, event.clientY - current.y) > 12) dropEquippedPet(current.petId, event.clientX, event.clientY); window.setTimeout(() => setDraggingSlot(null), 0); }}
-              onPointerCancel={() => { slotDrag.current = null; setDraggingSlot(null); }}
+              onClick={() => { if (Date.now() < suppressSlotClickUntil.current) return; setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false); }}
+              onPointerDown={event => { if (pet) startEquippedPetDrag(event, pet); }}
+              onPointerMove={event => moveEquippedPetDrag(event, slot)}
+              onPointerUp={endEquippedPetDrag}
+              onPointerCancel={cancelEquippedPetDrag}
+              onLostPointerCapture={cancelEquippedPetDrag}
               onDoubleClick={() => { if (pet) { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(true); } }}
-              className={`relative flex min-h-[76px] flex-col items-center justify-center gap-1 overflow-hidden rounded-[50%] border-2 bg-[radial-gradient(ellipse_at_50%_20%,#315e43_0%,#173b29_48%,#091e17_100%)] px-1 py-2 text-center font-fantasy text-[#f5d77b] shadow-[inset_0_2px_8px_rgba(245,206,105,0.15),0_5px_15px_rgba(0,0,0,0.45)] ${activeSlot === slot ? "border-amber-300 ring-2 ring-amber-300/45" : "border-[#c6a552]/75"}`}>
+              className={`relative flex min-h-[76px] touch-none flex-col items-center justify-center gap-1 overflow-hidden rounded-[50%] border-2 bg-[radial-gradient(ellipse_at_50%_20%,#315e43_0%,#173b29_48%,#091e17_100%)] px-1 py-2 text-center font-fantasy text-[#f5d77b] shadow-[inset_0_2px_8px_rgba(245,206,105,0.15),0_5px_15px_rgba(0,0,0,0.45)] ${activeSlot === slot ? "border-amber-300 ring-2 ring-amber-300/45" : "border-[#c6a552]/75"}`}>
               <span className="text-[10px] uppercase tracking-wide text-amber-200/80">Spot {slot}</span>
               <span className="max-w-full truncate text-xs font-semibold">{pet ? pet.petNickname || pet.petName : unlocked ? "+ Equip" : "Locked"}</span>
               {!pet && !unlocked && <span className="flex items-center gap-1 text-[11px]"><img src={coinImage} alt="Coins" className="h-5 w-5 object-contain" />{slot === 2 ? "2,500" : "5,000"}</span>}
@@ -796,6 +801,11 @@ export default function PetParkPage() {
             </div>;
           })()}
         </div>}
+      </div>}
+      {slotDragGhost && !activeBuilding && <div className="pointer-events-none fixed z-[70] rounded-full border border-amber-300 bg-[#1e452e]/95 px-3 py-2 text-xs font-semibold text-amber-100 shadow-xl"
+        style={{ left: slotDragGhost.x, top: slotDragGhost.y, transform: "translate(-50%, -110%)" }}>
+        {deposits.find(item => item.id === slotDragGhost.petId)?.petNickname ||
+          deposits.find(item => item.id === slotDragGhost.petId)?.petName || "Pet"}
       </div>}
   </div>;
 }
