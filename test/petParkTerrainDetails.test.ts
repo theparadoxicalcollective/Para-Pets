@@ -35,7 +35,7 @@ test("terrain controls reuse admin-authenticated real-world item editing, not a 
   assert.match(routes, /app\.post\("\/api\/admin\/pet-park\/terrain-strokes"/);
   assert.match(page, /<PetParkTerrainDetail type=\{item.effectType\}/);
   assert.match(page, /onPointerDown=\{e => startPlacement\(e, "item", item\)\}/);
-  assert.match(page, /placementSave\.mutate\(\{ \.\.\.selectedPlacement, \.\.\.placementDraft \}\)/);
+  assert.match(page, /placementSave\.mutate\(\{ \.\.\.selectedPlacement, \.\.\.next \}\)/);
   assert.match(page, /placementDelete\.mutate\(selectedPlacement\)/);
   assert.doesNotMatch(page, /PARK_SELECTED_DEPTH_Z/);
   assert.match(page, /parkDepthIndex\(/);
@@ -59,7 +59,7 @@ test("expanding ground preserves all saved terrain stamp locations relative to p
 });
 
 test("decor/effects/pets are preserved and terrain remains a ground-level detail", () => {
-  assert.match(page, /item\.kind === "terrain" \? 500/);
+  assert.match(page, /item\.kind === "terrain" \|\| item\.effectType === "water_ripple" \|\| item\.effectType === "water_shimmer" \? 500 : parkDepthIndex/);
   assert.match(page, /item\.kind === "effect" && item\.effectType/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
   assert.match(page, /<PetAnimator petTemplateId=\{pet.petTemplateId\}/);
