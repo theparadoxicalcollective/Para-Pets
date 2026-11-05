@@ -63,7 +63,7 @@ test("editing and brush previews use the same path stamps without introducing a 
   assert.match(page, /placementSave\.mutate/);
   assert.match(page, /onWheel=\{e =>/);
   assert.match(painter, /ctx\.closePath\(\)/);
-  assert.match(painter, /ctx\.fillStyle = "#846d4e"/);
+  assert.match(painter, /ctx\.fillStyle = "#624832"/);
   assert.match(preview, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
   assert.doesNotMatch(preview, /radial-gradient\(ellipse at 52% 50%/);
 });
