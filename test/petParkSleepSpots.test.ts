@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { isParkSleepPosition } from "../client/src/lib/petParkSleepSpots";
+import { isParkSleepPosition, parkSleepSpotAtPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot } from "../client/src/lib/petParkSleepSpots";
 import { getHouseInteriorSleepSnapPosition, isHouseInteriorSleepPosition, isHouseOutdoorEffectType } from "../shared/housing";
 
 const world = { width: 1100, height: 1700 };
@@ -44,4 +44,28 @@ test("both player scenes actually connect their outdoor sleep regions to pet mod
   assert.match(house, /activeBundle\?\.exteriorEffects \?\? \[\]\)\.filter\(effect => effect.type === "sleep"\)/);
   assert.match(house, /getHouseInteriorSleepSnapPosition\(\s*outdoorSleepDecorEffects/);
   assert.match(editor, /isHouseOutdoorEffectType\(option.type\)/);
+});
+
+test("outdoor resting pet fits the saved admin spot and returns to normal size when moved", () => {
+  assert.equal(parkPetSizeOnSleepSpot(point, spots, world), 120);
+  assert.equal(parkPetSizeOnSleepSpot({ x: 0.5, y: 0.5 }, spots, world), 180);
+  assert.equal(parkPetSizeOnSleepSpot({ x: 0.8, y: 0.75 }, spots, world), 200);
+  assert.equal(parkPetSizeOnSleepSpot(point, [{ ...spots[0], size: 400 }], world), 200, "never enlarge beyond base");
+  assert.equal(parkSleepSpotAtPosition(point, [{ kind: "decor", xPct: point.x, yPct: point.y, size: 40 }], world), null);
+});
+
+test("overlapping outdoor sleep spots follow the nearest admin area", () => {
+  const a = { kind: "sleep_spot" as const, xPct: 0.5, yPct: 0.5, size: 160 };
+  const b = { kind: "sleep_spot" as const, xPct: 0.51, yPct: 0.5, size: 70 };
+  assert.equal(parkSleepSpotAtPosition({ x: 0.51, y: 0.5 }, [a,b], world), b);
+  assert.equal(parkPetSizeOnSleepSpot({ x: 0.51, y: 0.5 }, [a,b], world), 70);
+});
+
+test("indoor sleeping pet uses the actual panned artwork size, not the device width", () => {
+  const effect = [{ type: "sleep", x: 0.55, y: 0.6, size: 20 }];
+  const image = { width: 1050, height: 700 };
+  assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.55, y: 0.6 }, effect, image), 140);
+  assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.72, y: 0.6 }, effect, image), 225);
+  assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.55, y: 0.6 }, effect, { width: 0, height: 0 }), 225);
+  assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.55, y: 0.6 }, [{ type: "fire", x: 0.55, y: 0.6, size: 20 }], image), 225);
 });
