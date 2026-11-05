@@ -307,9 +307,10 @@
     transform: translateX(-50%);
   }
   :is(#game-viewport-page [data-page-presentation="full-viewport"], [data-device-closet="true"]) .closet-mini-pet-trigger {
-    left: calc(50% - min(32vw, 300px)) !important;
+    /* Enlarge the companion while keeping its right edge clear of the centered pet preview. */
+    left: calc(50% - min(38vw, 365px)) !important;
     top: 55% !important;
-    width: clamp(52px, 7vw, 76px) !important;
+    width: clamp(92px, 13vw, 148px) !important;
   }
   :is(#game-viewport-page [data-page-presentation="full-viewport"], [data-device-closet="true"]) .closet-mini-pet-panel {
     left: 50% !important;
