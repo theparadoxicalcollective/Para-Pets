@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
+import coinImage from "@assets/uploads/MainGameCoinImage.PNG";
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import PetParkTerrain from "@/components/PetParkTerrain";
 import PetParkTerrainBrush from "@/components/PetParkTerrainBrush";
@@ -57,6 +59,7 @@ export default function PetParkPage() {
   };
   const [selectedPet, setSelectedPet] = useState("");
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [showPetChoices, setShowPetChoices] = useState(false);
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
@@ -263,7 +266,7 @@ export default function PetParkPage() {
   const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);
   const parkPositions = useMemo(() => arrangeParkVisitors(outdoorPets, scene?.items ?? []), [scene?.sharedPets, scene?.items]);
   const occupied = new Set(deposits.map(d => d.petInventoryId));
-  const availablePets = inventory.filter(p => p.isHatched && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
+  const availablePets = inventory.filter(p => p.isHatched && (p.petLevel ?? 1) >= 10 && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
 
   return <div className="absolute inset-0 overflow-hidden bg-[#13291e] text-amber-100" data-testid="pet-park-page">
     <style>{`
@@ -529,11 +532,12 @@ export default function PetParkPage() {
             const pet = deposits.find(d => d.slotNumber === slot);
             const unlocked = slot <= scene.unlockedSlots;
             return <button key={slot} type="button" aria-label={`Pet Park spot ${slot}`} data-testid={`pet-park-slot-${slot}`}
-              onClick={() => { setActiveSlot(slot); setSelectedPet(""); }}
-              className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-[50%] border bg-[#10291d]/95 px-2 py-2 text-center font-fantasy text-[#f5d77b] shadow-lg ${activeSlot === slot ? "border-amber-300 ring-2 ring-amber-300/45" : "border-[#c6a552]/75"}`}>
-              <span className="text-[10px] uppercase tracking-wide">Spot {slot}</span>
+              onClick={() => { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false); }}
+              onDoubleClick={() => { if (pet) { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(true); } }}
+              className={`relative flex min-h-[76px] flex-col items-center justify-center gap-1 overflow-hidden rounded-[50%] border-2 bg-[radial-gradient(ellipse_at_50%_20%,#315e43_0%,#173b29_48%,#091e17_100%)] px-1 py-2 text-center font-fantasy text-[#f5d77b] shadow-[inset_0_2px_8px_rgba(245,206,105,0.15),0_5px_15px_rgba(0,0,0,0.45)] ${activeSlot === slot ? "border-amber-300 ring-2 ring-amber-300/45" : "border-[#c6a552]/75"}`}>
+              <span className="text-[10px] uppercase tracking-wide text-amber-200/80">Spot {slot}</span>
               <span className="max-w-full truncate text-xs font-semibold">{pet ? pet.petNickname || pet.petName : unlocked ? "+ Equip" : "Locked"}</span>
-              {!pet && !unlocked && <span className="text-[10px]">{slot === 2 ? "2,500" : "5,000"} coins</span>}
+              {!pet && !unlocked && <span className="flex items-center gap-1 text-[11px]"><img src={coinImage} alt="Coins" className="h-5 w-5 object-contain" />{slot === 2 ? "2,500" : "5,000"}</span>}
             </button>;
           })}
         </div>
@@ -547,6 +551,8 @@ export default function PetParkPage() {
             const pet = deposits.find(d => d.slotNumber === activeSlot);
             if (pet) return <div className="space-y-2">
               <p>{pet.petNickname || pet.petName} · Level {pet.petLevel} · {pet.showInPark ? "In park" : "Idle — earning"}</p>
+              <button type="button" className="rounded-lg border border-amber-500/60 bg-[#245037] px-3 py-2 text-xs" onClick={() => setShowPetChoices(value => !value)}>Change pet · double-tap spot</button>
+              {showPetChoices && <div className="space-y-2"><p className="text-xs text-amber-100/75">Retrieve your current pet before equipping a replacement in this spot.</p><div className="max-h-40 space-y-2 overflow-y-auto">{availablePets.map(candidate => <div key={candidate.inventoryId} className="flex items-center gap-2 rounded border border-amber-500/25 p-1"><div className="relative h-16 w-16 shrink-0"><PetAnimator petTemplateId={candidate.shopItemId} petInventoryId={candidate.inventoryId} costumeAccess="owner" mode="static" size={64} fillContainer fitVisible /><div className="pointer-events-none absolute bottom-0 left-0 h-6 w-6"><MiniPetRenderer petInventoryId={candidate.inventoryId} access="owner" animated={false} /></div></div><span className="text-xs">{candidate.petNickname || candidate.name} · Lv. {candidate.petLevel}</span></div>)}</div></div>}
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={action.isPending} className="rounded-lg bg-[#245037] px-3 py-2 disabled:opacity-50"
                   onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${pet.id}/display`, body: { display: pet.showInPark ? "idle" : "park" } })}>
@@ -567,12 +573,15 @@ export default function PetParkPage() {
               </button>
             </div>;
             return <div className="space-y-2">
-              <p className="text-xs text-amber-200/75">Choose one of your hatched, unlisted pets.</p>
-              <select aria-label={`Choose pet for spot ${activeSlot}`} className="w-full rounded-lg border border-amber-600/50 bg-[#0b2016] p-3"
-                value={selectedPet} onChange={e => setSelectedPet(e.target.value)}>
-                <option value="">Choose a pet</option>
-                {availablePets.map(p => <option key={p.inventoryId} value={p.inventoryId}>{p.petNickname || p.name || p.shopItemId}</option>)}
-              </select>
+              <p className="text-xs text-amber-200/75">Choose a hatched, unlisted pet at level 10 or above.</p>
+              <div role="group" aria-label={`Choose pet for spot ${activeSlot}`} className="max-h-[min(28dvh,240px)] space-y-2 overflow-y-auto overscroll-contain rounded-lg border border-amber-600/40 p-2">
+                {availablePets.length === 0 && <p className="p-3 text-xs text-amber-100/70">No eligible pets. Hatch and level up a pet to level 10 first.</p>}
+                {availablePets.map(p => <button type="button" key={p.inventoryId} aria-pressed={selectedPet === p.inventoryId} onClick={() => setSelectedPet(p.inventoryId)}
+                  className={`flex w-full items-center gap-3 rounded-lg border p-2 text-left ${selectedPet === p.inventoryId ? "border-amber-300 bg-[#315e43]" : "border-amber-600/30 bg-[#0b2016]"}`}>
+                  <div className="relative h-20 w-20 shrink-0"><PetAnimator petTemplateId={p.shopItemId} petInventoryId={p.inventoryId} costumeAccess="owner" mode="static" size={80} fillContainer fitVisible /><div className="pointer-events-none absolute bottom-0 left-0 h-8 w-8"><MiniPetRenderer petInventoryId={p.inventoryId} access="owner" animated={false} /></div></div>
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold">{p.petNickname || p.name}</p><p className="text-xs text-amber-200/75">Level {p.petLevel} · {p.starRarity ?? p.rarity ?? "?"}★</p></div>
+                </button>)}
+              </div>
               {availablePets.find(pet => pet.inventoryId === selectedPet) && (() => {
                 const chosen = availablePets.find(pet => pet.inventoryId === selectedPet)!;
                 return <div className="flex items-center gap-3 rounded-lg border border-amber-700/35 bg-black/30 p-2">
