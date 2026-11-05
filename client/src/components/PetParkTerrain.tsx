@@ -78,16 +78,35 @@ export function exposedDirtEdges(
         Math.max(ay, by) < visible.top - 16 || Math.min(ay, by) > visible.bottom + 16)) continue;
     const mx = (ax + bx) / 2, my = (ay + by) / 2;
     const dx = mx - cx, dy = my - cy, length = Math.hypot(dx, dy) || 1;
-    const outerX = mx + dx / length * 2, outerY = my + dy / length * 2;
-    // If another diamond covers this boundary (including legacy overlapping
-    // stamps), it belongs to the union's interior rather than an exposed edge.
-    const candidates = tilesByCell.get(cellKey(Math.floor(outerX / cellSize), Math.floor(outerY / cellSize))) ?? [];
-    const covered = candidates.some(tile => {
-      if (tile.cx === cx && tile.cy === cy && tile.halfW * 2 === size) return false;
-      return Math.abs(outerX - tile.cx) / tile.halfW +
-        Math.abs(outerY - tile.cy) / tile.halfH < 1 - 1e-5;
-    });
-    if (!covered) exposed.push(edge);
+    // A legacy offset stamp can overlap only *part* of a diamond side.
+    // Sample short spans and fade its exposed pieces; a full shared side
+    // above has already been removed from consideration.
+    const segments = 6;
+    let openedAt = -1;
+    for (let span = 0; span <= segments; span++) {
+      let covered = span === segments;
+      if (!covered) {
+        const t = (span + 0.5) / segments;
+        const outerX = ax + (bx - ax) * t + dx / length * 2;
+        const outerY = ay + (by - ay) * t + dy / length * 2;
+        const candidates = tilesByCell.get(cellKey(Math.floor(outerX / cellSize), Math.floor(outerY / cellSize))) ?? [];
+        covered = candidates.some(tile => {
+          if (tile.cx === cx && tile.cy === cy && tile.halfW * 2 === size) return false;
+          return Math.abs(outerX - tile.cx) / tile.halfW +
+            Math.abs(outerY - tile.cy) / tile.halfH < 1 - 1e-5;
+        });
+      }
+      if (!covered && openedAt === -1) openedAt = span;
+      if (covered && openedAt !== -1) {
+        const t0 = openedAt / segments, t1 = span / segments;
+        exposed.push({
+          ...edge,
+          ax: ax + (bx - ax) * t0, ay: ay + (by - ay) * t0,
+          bx: ax + (bx - ax) * t1, by: ay + (by - ay) * t1,
+        });
+        openedAt = -1;
+      }
+    }
   }
   return exposed;
 }
