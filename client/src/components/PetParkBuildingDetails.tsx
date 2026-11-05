@@ -165,8 +165,8 @@ export default function PetParkBuildingDetails({
           <button type="button" onClick={onClose} className="rounded bg-slate-700 px-3 py-2 text-sm">Close</button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3">
-        <div className="space-y-2 rounded-lg border border-amber-800/60 p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-3">
+        <div className={`space-y-2 rounded-lg border border-amber-800/60 p-3 ${initialShowEffectChoices || initialSelectedEffectId ? "order-2" : "order-1"}`}>
           <label className="block text-sm">Name
             <input aria-label="Park building name" className="mt-1 w-full rounded bg-slate-900 p-2" maxLength={80}
               value={name} onChange={event => setName(event.target.value)} />
@@ -199,7 +199,7 @@ export default function PetParkBuildingDetails({
             </label>
           </div>
         </div>
-        <div className="space-y-3 rounded-lg border border-amber-800/60 p-3" aria-label="Edit building interior effects">
+        <div className={`space-y-3 rounded-lg border border-amber-800/60 p-3 ${initialShowEffectChoices || initialSelectedEffectId ? "order-1" : "order-2"}`} aria-label="Edit building interior effects">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold text-amber-300">Interior effects</h3>
             <button type="button" aria-label="Add effect inside building" onClick={() => setShowEffectChoices(value => !value)}
