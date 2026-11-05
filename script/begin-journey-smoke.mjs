@@ -218,7 +218,19 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
   const attemptsBefore=counts.useAttempts;
   await drag({x:egg.x+egg.width/2,y:egg.y+egg.height/2});
   if(recovery && n===1)await drag({x:egg.x+egg.width/2,y:egg.y+egg.height/2});
+  try {
   await page.waitForFunction(n=>(window.fixtureInventory()?.find(p=>p.inventoryId==='potions')?.quantity??0)===3-n,n);
+  } catch (error) {
+    const snapshot=await page.evaluate(()=>({
+      step:localStorage.getItem('bj_step:journey-fixture'),
+      potions:window.fixtureInventory()?.find(p=>p.inventoryId==='potions')?.quantity,
+      egg:window.fixtureInventory()?.find(p=>p.inventoryId==='starter-owned'),
+      potionVisible:!!document.querySelector('[data-testid="button-speedup-tutorial"]'),
+      alerts:[...document.querySelectorAll('[role="alert"]')].map(x=>x.textContent?.slice(0,180)),
+    }));
+    console.error('BEGIN JOURNEY POTION FAILURE DIAGNOSTIC',JSON.stringify({profile:name,recovery,n,counts,failures,snapshot,errors}));
+    throw error;
+  }
   assert.equal(counts.uses,n);
   assert.equal(counts.useAttempts,attemptsBefore+1,'pending potion use must not send a duplicate request');
   if(recovery && n===1){
