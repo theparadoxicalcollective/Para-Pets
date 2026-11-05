@@ -745,10 +745,11 @@ export default function PetParkPage() {
         </div>
       </div>
     </div>}
-    {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={detailsBuilding.id}
-      building={detailsBuilding}
+    {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={`${detailsBuilding.id}:${focusedRoomEffectId ?? ""}`}
+      building={detailsBuilding} initialSelectedEffectId={focusedRoomEffectId}
       occupantCount={(scene.sharedPets ?? []).filter(pet => pet.buildingId === detailsBuilding.id).length}
-      onClose={() => setDetailsBuildingId(null)} onUpdated={invalidate} />}
+      onPreview={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenedRoomId(null); setEnteredBuilding(detailsBuilding); }}
+      onClose={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); }} onUpdated={invalidate} />}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
       !scene?.canEnterPark && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
