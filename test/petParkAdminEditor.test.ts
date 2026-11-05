@@ -31,7 +31,8 @@ test("admin settings and in-park editor retain grass expansion, assets and objec
   assert.doesNotMatch(panel, /Upload park background/);
   assert.match(panel, /mode === "settings"/);
   assert.match(panel, /mode: "create" \| "settings"/);
-  assert.match(panel, /sleep_spot/);
+  assert.doesNotMatch(panel, /setKind\(|value: "sleep_spot"/);
+  assert.match(panel, /option.type === "sleep" \? "Rest Spot/);
   assert.match(park, /startPlacement\(e, "item"/);
   assert.match(park, /onPointerUp=\{endPlacement\}/);
   assert.doesNotMatch(park, /Fine-tune exact placement/);
