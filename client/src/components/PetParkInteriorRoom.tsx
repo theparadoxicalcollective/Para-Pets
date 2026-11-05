@@ -29,10 +29,10 @@ export default function PetParkInteriorRoom({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(4 / 3);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [panX, setPanX] = useState(0);
+  const [panX, setPanX] = useState<number | null>(null);
   const drag = useRef<{ id: number; startX: number; panX: number } | null>(null);
   const imageWidth = expanded ? dimensions.height * aspect : dimensions.width;
-  const cameraX = expanded ? clampHomeCameraPanX(panX || centeredHomeCameraPanX(dimensions.width, imageWidth), dimensions.width, imageWidth) : 0;
+  const cameraX = expanded ? clampHomeCameraPanX(panX ?? centeredHomeCameraPanX(dimensions.width, imageWidth), dimensions.width, imageWidth) : 0;
 
   useEffect(() => { setAspect(4 / 3); }, [imageUrl]);
   useEffect(() => {
