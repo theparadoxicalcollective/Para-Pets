@@ -14,7 +14,8 @@ export default function PetParkInteriorRoom({
   imageUrl: string;
   name: string;
   effects: HouseInteriorEffect[];
-  children?: ReactNode;
+  /** Use measured image geometry for pets resting on admin-sized indoor spots. */
+  children?: ReactNode | ((layout: { imageWidth: number; sceneHeight: number }) => ReactNode);
   expanded?: boolean;
   offEffectIds?: ReadonlySet<string>;
   onToggleEffect?: (effect: HouseInteriorEffect) => void;
@@ -98,7 +99,7 @@ export default function PetParkInteriorRoom({
       selectedId={selectedEffectId} interactive={editEffects}
       onEffectPointerDown={onEffectPointerDown} onEffectPointerMove={onEffectPointerMove}
       onEffectPointerUp={onEffectPointerUp} onEffectPointerCancel={onEffectPointerCancel} />
-    {children}
+    {typeof children === "function" ? children({ imageWidth, sceneHeight: dimensions.height }) : children}
     </div>
   </div>;
 }
