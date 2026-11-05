@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { dirtPatchWorldRect, paintDirtPaths } from "../client/src/components/PetParkTerrain";
+import { dirtPatchWorldRect, exposedDirtEdges, paintDirtPaths } from "../client/src/components/PetParkTerrain";
 import { parkCameraGeometry, parkClampCamera } from "../client/src/lib/petParkCamera";
 
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
@@ -36,6 +36,7 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
     moveTo(...values: number[]) { trace.push({ rect: values }); },
     lineTo(...values: number[]) { trace.push({ rect: values }); },
     closePath() {},
+    createLinearGradient() { trace.push("gradient"); return { addColorStop() {} }; },
     fillStyle: "", shadowColor: "", shadowBlur: 0,
   } as unknown as CanvasRenderingContext2D;
   const view = { viewportWidth: 600, viewportHeight: 800,
@@ -45,7 +46,7 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
   paintDirtPaths(ctx, view, [first, second]);
   const expected = [dirtPatchWorldRect(first, 1200, 1600), dirtPatchWorldRect(second, 1200, 1600)];
   const rects = trace.filter((x): x is { rect: number[] } => typeof x !== "string" && "rect" in x);
-  assert.deepEqual(rects.slice(1).map(x => x.rect), expected.flatMap(r => [
+  assert.deepEqual(rects.slice(1, 9).map(x => x.rect), expected.flatMap(r => [
     [r.x + r.width / 2, r.y], [r.x + r.width, r.y + r.height / 2],
     [r.x + r.width / 2, r.y + r.height], [r.x, r.y + r.height / 2],
   ]));
@@ -54,6 +55,7 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
   assert.ok(firstFill > lastRect, "both tiles enter one common path before the base fill");
   assert.ok(trace.indexOf("clip", firstFill) > firstFill, "world-anchored dirt grain is clipped to the merged fill");
   assert.ok(trace.includes("restore"));
+  assert.equal(trace.filter(x => x === "gradient").length, 8, "separated sample tiles expose 8 edges");
 });
 
 test("editing and brush previews use the same path stamps without introducing a new hit-test surface", () => {
@@ -66,4 +68,42 @@ test("editing and brush previews use the same path stamps without introducing a 
   assert.match(painter, /ctx\.fillStyle = "#624832"/);
   assert.match(preview, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
   assert.doesNotMatch(preview, /radial-gradient\(ellipse at 52% 50%/);
+});
+
+test("only outer diamond sides soften: perfectly joined edges remain opaque", () => {
+  const width = 1200, height = 1600, size = 150;
+  const a = { xPct: .4, yPct: .5, size };
+  const b = { xPct: .4 + size / 2 / width, yPct: .5 + size / 4 / height, size };
+  assert.equal(exposedDirtEdges([a], width, height).length, 4);
+  assert.equal(exposedDirtEdges([a, b], width, height).length, 6, "two shared sides are internal");
+  assert.equal(exposedDirtEdges([a, b, a], width, height).length, 6, "duplicate stamps cannot remove exterior fades");
+  assert.equal(exposedDirtEdges([a, { ...a, xPct: .9 }], width, height).length, 8);
+  const connected = exposedDirtEdges([a,b],width,height);
+  assert.ok(!connected.some(edge => edge.cx === a.xPct * width && edge.cy === a.yPct * height &&
+    Math.abs((edge.ax+edge.bx)/2 - (a.xPct*width + size/4)) < 1e-7 &&
+    Math.abs((edge.ay+edge.by)/2 - (a.yPct*height + size/8)) < 1e-7));
+});
+
+test("camera cropping does not create faded seams against an offscreen saved neighbor", () => {
+  const width = 1200, height = 1600, size = 150;
+  const a = { xPct: .4, yPct: .5, size };
+  const b = { xPct: a.xPct + size/2/width, yPct: a.yPct + size/4/height, size };
+  // This camera slice includes the shared side and the exposed left of a,
+  // but the shared edge must remain absent from the fade set.
+  const edges = exposedDirtEdges([a,b],width,height,{left:450,top:750,right:520,bottom:840});
+  assert.ok(edges.every(edge => !(
+    edge.cx === a.xPct*width &&
+    Math.abs((edge.ax+edge.bx)/2 - (a.xPct*width + size/4)) < 1e-7 &&
+    Math.abs((edge.ay+edge.by)/2 - (a.yPct*height + size/8)) < 1e-7
+  )));
+});
+
+test("rest spots are created as effects only, with legacy spots still readable", () => {
+  const panel = readFileSync("client/src/components/PetParkAdminPanel.tsx","utf8");
+  const server = readFileSync("server/routes/petParkAdmin.routes.ts","utf8");
+  assert.match(panel, /option.type === "sleep" \? "Rest Spot \(Sleep Square\)"/);
+  assert.doesNotMatch(panel, /value: "sleep_spot", label: "Rest Spot"/);
+  assert.doesNotMatch(panel, /setKind\(/);
+  assert.match(panel, /kind: "decor", imageData: pendingImage/);
+  assert.match(server, /value === "sleep_spot"/);
 });
