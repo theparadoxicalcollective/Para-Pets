@@ -572,6 +572,19 @@ export default function PetParkPage() {
                 <option value="">Choose a pet</option>
                 {availablePets.map(p => <option key={p.inventoryId} value={p.inventoryId}>{p.petNickname || p.name || p.shopItemId}</option>)}
               </select>
+              {availablePets.find(pet => pet.inventoryId === selectedPet) && (() => {
+                const chosen = availablePets.find(pet => pet.inventoryId === selectedPet)!;
+                return <div className="flex items-center gap-3 rounded-lg border border-amber-700/35 bg-black/30 p-2">
+                  <div className="h-20 w-20 shrink-0">
+                    <PetAnimator petTemplateId={chosen.shopItemId} petInventoryId={chosen.inventoryId}
+                      costumeAccess="owner" mode="static" size={80} fillContainer />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{chosen.petNickname || chosen.name}</p>
+                    <p className="text-xs text-amber-200/75">Level {chosen.petLevel ?? 1} · {chosen.starRarity ?? chosen.rarity ?? "?"}★</p>
+                  </div>
+                </div>;
+              })()}
               <button type="button" disabled={!selectedPet || action.isPending} className="rounded-lg bg-[#245037] px-4 py-2 disabled:opacity-50"
                 onClick={() => action.mutate({ path: "/api/pet-park/deposits", body: { petInventoryId: selectedPet, slotNumber: activeSlot } })}>Equip pet</button>
             </div>;
