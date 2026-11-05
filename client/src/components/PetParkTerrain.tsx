@@ -16,6 +16,70 @@ export function dirtPatchWorldRect(patch: ParkDirtPatch, width: number, height: 
   };
 }
 
+export type DirtExposedEdge = {
+  ax: number; ay: number; bx: number; by: number;
+  cx: number; cy: number; size: number;
+};
+
+/** A shared diamond side has two owners and must never fade. Calculate in
+ * world space so zoom/pan, newly painted strokes and existing stamps agree.
+ * Offscreen neighbors count too, preventing seams at the viewport boundary.
+ */
+export function exposedDirtEdges(
+  stamps: readonly ParkDirtPatch[],
+  worldWidth: number,
+  worldHeight: number,
+  visible?: { left: number; top: number; right: number; bottom: number },
+): DirtExposedEdge[] {
+  const edges = new Map<string, { edge: DirtExposedEdge; count: number }>();
+  const tiles: Array<{ cx: number; cy: number; halfW: number; halfH: number }> = [];
+  const seen = new Set<string>();
+  const quantize = (value: number) => Math.round(value * 1000);
+  for (const stamp of stamps) {
+    if (!(Number.isFinite(stamp.xPct) && Number.isFinite(stamp.yPct) &&
+          Number.isFinite(stamp.size) && stamp.size > 0)) continue;
+    const cx = stamp.xPct * worldWidth;
+    const cy = stamp.yPct * worldHeight;
+    const halfW = stamp.size / 2, halfH = stamp.size / 4;
+    const tileKey = [quantize(cx), quantize(cy), quantize(stamp.size)].join(":");
+    if (seen.has(tileKey)) continue;
+    seen.add(tileKey);
+    tiles.push({ cx, cy, halfW, halfH });
+    const points = [
+      [cx, cy - halfH], [cx + halfW, cy],
+      [cx, cy + halfH], [cx - halfW, cy],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const [ax, ay] = points[i], [bx, by] = points[(i + 1) % 4];
+      const a = quantize(ax) + ":" + quantize(ay);
+      const b = quantize(bx) + ":" + quantize(by);
+      const key = a < b ? a + "|" + b : b + "|" + a;
+      const previous = edges.get(key);
+      if (previous) previous.count += 1;
+      else edges.set(key, { edge: { ax, ay, bx, by, cx, cy, size: stamp.size }, count: 1 });
+    }
+  }
+  const exposed: DirtExposedEdge[] = [];
+  for (const { edge, count } of edges.values()) {
+    if (count !== 1) continue;
+    const { ax, ay, bx, by, cx, cy, size } = edge;
+    if (visible && (Math.max(ax, bx) < visible.left - 16 || Math.min(ax, bx) > visible.right + 16 ||
+        Math.max(ay, by) < visible.top - 16 || Math.min(ay, by) > visible.bottom + 16)) continue;
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    const dx = mx - cx, dy = my - cy, length = Math.hypot(dx, dy) || 1;
+    const outerX = mx + dx / length * 2, outerY = my + dy / length * 2;
+    // If another diamond covers this boundary (including legacy overlapping
+    // stamps), it belongs to the union's interior rather than an exposed edge.
+    const covered = tiles.some(tile => {
+      if (tile.cx === cx && tile.cy === cy && tile.halfW * 2 === size) return false;
+      return Math.abs(outerX - tile.cx) / tile.halfW +
+        Math.abs(outerY - tile.cy) / tile.halfH < 1 - 1e-5;
+    });
+    if (!covered) exposed.push(edge);
+  }
+  return exposed;
+}
+
 /**
  * One camera-aligned visual canvas; there is no second game stage or placement
  * surface. Viewport-sized backing pixels avoid enormous canvases on level 4.
@@ -208,6 +272,29 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
       ctx.ellipse(x, y, size, Math.max(1, size * 0.33), -0.3, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+  // Fade just the *exposed* sides of the connected diamond union. Drawing
+  // watercolor-green translucent gradients over the dirt on the existing
+  // grass canvas avoids per-tile alpha stacking and an extra scene/canvas.
+  // The dark brown center and grain remain untouched.
+  for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
+    const mx = (edge.ax + edge.bx) / 2, my = (edge.ay + edge.by) / 2;
+    const dx = edge.cx - mx, dy = edge.cy - my;
+    const length = Math.hypot(dx, dy) || 1;
+    const fade = Math.min(15, edge.size * 0.11);
+    const insetX = dx / length * fade, insetY = dy / length * fade;
+    const gradient = ctx.createLinearGradient(mx, my, mx + insetX, my + insetY);
+    gradient.addColorStop(0, "rgba(44,73,52,.88)");
+    gradient.addColorStop(0.48, "rgba(44,73,52,.40)");
+    gradient.addColorStop(1, "rgba(44,73,52,0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(edge.ax, edge.ay);
+    ctx.lineTo(edge.bx, edge.by);
+    ctx.lineTo(edge.bx + insetX, edge.by + insetY);
+    ctx.lineTo(edge.ax + insetX, edge.ay + insetY);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
