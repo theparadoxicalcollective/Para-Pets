@@ -4,6 +4,7 @@ import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSl
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
+import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   registerPetParkDisplayRoutes(app, isAuthenticated);
@@ -42,7 +43,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         hatchedImageUrl: shopItems.hatchedImageUrl,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
-        buildingId: petParkDeposits.buildingId, showInPark: petParkDeposits.showInPark, parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
+        buildingId: petParkDeposits.buildingId, roomEffectId: petParkDeposits.roomEffectId, showInPark: petParkDeposits.showInPark, parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
         interiorXPct: petParkDeposits.interiorXPct, interiorYPct: petParkDeposits.interiorYPct, pose: petParkDeposits.pose,
         checkpointAt: petParkDeposits.checkpointAt, pausedAt: petParkDeposits.pausedAt, pausedDurationMs: petParkDeposits.pausedDurationMs,
       }).from(petParkDeposits)
@@ -55,6 +56,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         petInventoryId: petParkDeposits.petInventoryId,
         parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
         buildingId: petParkDeposits.buildingId,
+        roomEffectId: petParkDeposits.roomEffectId,
         interiorXPct: petParkDeposits.interiorXPct,
         interiorYPct: petParkDeposits.interiorYPct,
         pose: petParkDeposits.pose,
@@ -133,8 +135,9 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
 
 
   app.patch("/api/pet-park/deposits/:id/placement", isAuthenticated, async (req, res) => {
-    const { buildingId = null, xPct = 0.5, yPct = 0.72, pose = "idle" } = req.body ?? {};
+    const { buildingId = null, roomEffectId = null, xPct = 0.5, yPct = 0.72, pose = "idle" } = req.body ?? {};
     if ((buildingId !== null && (typeof buildingId !== "string" || buildingId.length > 100)) ||
+        (roomEffectId !== null && (typeof roomEffectId !== "string" || !roomEffectId || roomEffectId.length > 64 || buildingId === null)) ||
         typeof xPct !== "number" || !Number.isFinite(xPct) || xPct < 0 || xPct > 1 ||
         typeof yPct !== "number" || !Number.isFinite(yPct) || yPct < 0 || yPct > 1 ||
         !["idle", "sit", "sleep"].includes(pose)) {
@@ -151,16 +154,22 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         if (buildingId !== null) {
           const [building] = await tx.select().from(petParkBuildings).where(eq(petParkBuildings.id, buildingId)).for("update");
           if (!building || !building.interiorImageUrl) return { status: 422 as const };
-          const occupants = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
+          const occupants = await tx.select({ id: petParkDeposits.id, roomEffectId: petParkDeposits.roomEffectId }).from(petParkDeposits)
             .where(and(eq(petParkDeposits.buildingId, buildingId), isNull(petParkDeposits.withdrawnAt), sql`${petParkDeposits.id} <> ${deposit.id}`));
           if (occupants.length >= building.maxPets) return { status: 409 as const };
+          if (roomEffectId !== null) {
+            const room = (building.interiorEffects ?? []).find(effect => effect.id === roomEffectId);
+            if (!isPetAccessibleParkRoom(room)) return { status: 422 as const };
+            const roomOccupants = occupants.filter(item => item.roomEffectId === roomEffectId);
+            if (roomOccupants.length >= room.maxPets) return { status: 409 as const };
+          }
         }
-        const [updated] = await tx.update(petParkDeposits).set({ buildingId, interiorXPct: xPct, interiorYPct: yPct, pose, showInPark: true }).where(eq(petParkDeposits.id, deposit.id)).returning();
+        const [updated] = await tx.update(petParkDeposits).set({ buildingId, roomEffectId: buildingId ? roomEffectId : null, interiorXPct: xPct, interiorYPct: yPct, pose, showInPark: true }).where(eq(petParkDeposits.id, deposit.id)).returning();
         return { status: 200 as const, deposit: updated };
       });
       if (result.status === 404) return res.status(404).json({ message: "Active deposit not found" });
-      if (result.status === 422) return res.status(422).json({ message: "This building is not ready for pets" });
-      if (result.status === 409) return res.status(409).json({ message: "This building is at capacity" });
+      if (result.status === 422) return res.status(422).json({ message: "This building or room is not available for pets" });
+      if (result.status === 409) return res.status(409).json({ message: "This building or room is at capacity" });
       return res.json(result.deposit);
     } catch (error) {
       console.error("[pet-park] placement update failed", error);
