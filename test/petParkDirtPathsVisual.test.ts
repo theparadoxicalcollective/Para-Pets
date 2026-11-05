@@ -55,7 +55,7 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
   assert.ok(firstFill > lastRect, "both tiles enter one common path before the base fill");
   assert.ok(trace.indexOf("clip", firstFill) > firstFill, "world-anchored dirt grain is clipped to the merged fill");
   assert.ok(trace.includes("restore"));
-  assert.equal(trace.filter(x => x === "gradient").length, 8, "separated sample tiles expose 8 edges");
+  assert.equal(trace.filter(x => x === "gradient").length, 4, "overlapping stamps fade only their four outside diamond sides");
 });
 
 test("editing and brush previews use the same path stamps without introducing a new hit-test surface", () => {
