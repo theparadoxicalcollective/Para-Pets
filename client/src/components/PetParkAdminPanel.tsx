@@ -53,7 +53,11 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
     },
     onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
-      if (variables.method !== "POST") return;
+      if (variables.method !== "POST") {
+        qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
+        qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
+        return;
+      }
       const isBuilding = variables.url === "/api/admin/pet-park/buildings";
       const isItem = variables.url === "/api/admin/pet-park/items";
       if (!isBuilding && !isItem) return;
@@ -121,7 +125,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
                   coinsPerHour: (rates ?? data!.settings).coinsPerHour,
                   essencePerHour: (rates ?? data!.settings).essencePerHour,
                   petXpPerHour: (rates ?? data!.settings).petXpPerHour } });
-              setRates(null); setPublish(null); setModeratorPreview(null);
+              // Keep local edits until the server confirms success; the response invalidates both park views.
             }}>Save reward rates & park availability</button>
         </div>
         <p className="rounded-lg border border-emerald-700/45 bg-emerald-950/35 p-3 text-sm text-emerald-100">
