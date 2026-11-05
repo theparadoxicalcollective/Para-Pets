@@ -103,27 +103,29 @@ export default function PetParkInteriorRoom({
       onEffectPointerUp={onEffectPointerUp} onEffectPointerCancel={onEffectPointerCancel} />
     {effects.filter(isParkRoomEffect).map(room => {
       const markerSize = Math.max(48, dimensions.height * room.size / 100);
-      return <div key={room.id} data-testid={`park-room-portal-${room.id}`}
-        className="absolute flex items-center justify-center"
+      // Keep the button directly under the image artwork. The existing
+      // admin drag handler measures currentTarget.parentElement as the image,
+      // not a 48px marker wrapper.
+      return <button key={room.id} type="button"
+        data-testid={`park-room-portal-${room.id}`}
+        aria-label={editEffects ? `Edit room ${room.name}` : `Open ${room.name}`}
+        data-park-room-portal={room.id} disabled={!editEffects && !room.imageUrl}
+        title={room.name}
+        className={`absolute flex touch-none items-center justify-center rounded-full border border-amber-300/40 bg-[#123828]/15 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-40 ${selectedEffectId === room.id ? "outline outline-2 outline-amber-300" : ""}`}
         style={{
           left: room.x * imageWidth, top: room.y * dimensions.height,
           width: markerSize, height: markerSize, transform: "translate(-50%, -50%)",
           zIndex: 12, pointerEvents: "auto",
-        }}>
-        <button type="button" aria-label={editEffects ? `Edit room ${room.name}` : `Open ${room.name}`}
-          data-park-room-portal={room.id} disabled={!editEffects && !room.imageUrl}
-          title={room.name}
-          className={`relative flex h-full w-full touch-none items-center justify-center rounded-full border border-amber-300/40 bg-[#123828]/15 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-40 ${selectedEffectId === room.id ? "outline outline-2 outline-amber-300" : ""}`}
-          onPointerDown={editEffects ? event => onEffectPointerDown?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
-          onPointerMove={editEffects ? event => onEffectPointerMove?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
-          onPointerUp={editEffects ? event => onEffectPointerUp?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
-          onPointerCancel={editEffects ? event => onEffectPointerCancel?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
-          onLostPointerCapture={editEffects ? event => onEffectPointerCancel?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
-          onClick={event => { event.stopPropagation(); if (!editEffects) onOpenRoom?.(room); }}>
-          <HomeInteriorExitSparkle />
-        </button>
+        }}
+        onPointerDown={editEffects ? event => onEffectPointerDown?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onPointerMove={editEffects ? event => onEffectPointerMove?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onPointerUp={editEffects ? event => onEffectPointerUp?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onPointerCancel={editEffects ? event => onEffectPointerCancel?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onLostPointerCapture={editEffects ? event => onEffectPointerCancel?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onClick={event => { event.stopPropagation(); if (!editEffects) onOpenRoom?.(room); }}>
+        <HomeInteriorExitSparkle />
         {editEffects && <span className="pointer-events-none absolute top-[90%] rounded bg-black/75 px-1 text-[10px] text-amber-100">{room.name}</span>}
-      </div>;
+      </button>;
     })}
     {typeof children === "function" ? children({ imageWidth, sceneHeight: dimensions.height }) : children}
     </div>
