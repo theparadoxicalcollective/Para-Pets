@@ -4,17 +4,17 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ParkEffectVisual } from "../client/src/components/ParkEffectVisual";
 
-test("waterfall mist renders independent irregular smoke streams instead of a circular glow", () => {
+test("waterfall mist renders soft drifting ground haze instead of vertical smoke streams", () => {
   const markup = renderToStaticMarkup(createElement(ParkEffectVisual, { type: "waterfall_mist" }));
   assert.match(markup, /park-water-effect--waterfall_mist/);
   assert.match(markup, /<svg[^>]+viewBox="0 0 240 180"/);
-  assert.equal((markup.match(/class="park-mist-wisp /g) ?? []).length, 5);
-  assert.match(markup, /<feTurbulence/);
-  assert.match(markup, /<feDisplacementMap/);
+  assert.equal((markup.match(/class="park-mist-cloud /g) ?? []).length, 3);
+  assert.match(markup, /<radialGradient/);
+  assert.match(markup, /park-mist-cloud--front/);
   assert.match(markup, /<feGaussianBlur/);
-  assert.match(markup, /@keyframes parkMistDrift/);
+  assert.match(markup, /@keyframes parkMistSpread/);
   assert.doesNotMatch(markup, /radial-gradient\(ellipse at 50% 79%/);
-  assert.doesNotMatch(markup, /park-water-mist-plume|parkMistBillow/);
+  assert.doesNotMatch(markup, /park-mist-wisp|parkMistDrift|park-water-mist-plume|parkMistBillow/);
 });
 
 test("each mist instance has its own SVG filter and gradients", () => {
