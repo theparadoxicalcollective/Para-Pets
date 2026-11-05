@@ -76,7 +76,7 @@ test("Pet Care Hunger remains raised by 24–48px with jars and tap targets unch
   assert.match(hunger, /position: relative;[\s\S]*?inset: auto;/);
   assert.match(page, /className="pet-care-inventory-section"/);
   assert.match(page, /className="pet-care-inventory-jars"/);
-  assert.match(page, /data-testid=\{\`pet-care-\${kind}-jar\`\}/);
+  assert.ok(page.includes('data-testid={`pet-care-${kind}-jar`}'));
   assert.match(page, /data-pet-care-physics-body="true"/);
   assert.match(page, /src=\{petCareJar\}[\s\S]*?opacity: 0\.38[\s\S]*?pointerEvents: "none"/);
 });
