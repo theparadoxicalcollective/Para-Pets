@@ -55,6 +55,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
       if (variables.method !== "POST") {
         setRates(null); setPublish(null); setModeratorPreview(null);
+        toast({ title: "Pet Park settings saved", description: "Park availability and reward rates have been updated." });
         qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
         qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         return;
@@ -108,15 +109,28 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
                 essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
                 petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) })} />
           </label>)}
-          <label className="flex items-center gap-3 rounded-lg border border-amber-500/50 bg-amber-950/30 p-3 text-sm font-semibold">
-            <input type="checkbox" aria-label="Allow players into Pet Park" className="h-5 w-5 accent-amber-500" checked={publish ?? data?.settings.enabledForPlayers ?? false}
-              onChange={e => setPublish(e.target.checked)} /> Open Pet Park to players
-          </label>
-          <label className="flex items-center gap-3 rounded-lg border border-amber-500/50 bg-emerald-950/25 p-3 text-sm font-semibold">
-            <input type="checkbox" aria-label="Allow moderators into Pet Park" className="h-5 w-5 accent-amber-500"
-              checked={moderatorPreview ?? data?.settings.enabledForModerators ?? false}
-              onChange={e => setModeratorPreview(e.target.checked)} /> Open Pet Park to moderators
-          </label>
+          {([
+            { key: "players", label: "Open Pet Park to players", checked: publish ?? data?.settings.enabledForPlayers ?? false,
+              setChecked: setPublish, description: "Allow all players to enter the park." },
+            { key: "moderators", label: "Open Pet Park to moderators", checked: moderatorPreview ?? data?.settings.enabledForModerators ?? false,
+              setChecked: setModeratorPreview, description: "Allow moderators to enter the normal player park while public access is closed." },
+          ] as const).map(option => <div key={option.key}
+            className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/45 bg-[#10291d]/75 p-3">
+            <div className="min-w-0">
+              <div id={`park-access-${option.key}`} className="text-sm font-semibold text-amber-100">{option.label}</div>
+              <div className="mt-1 text-xs text-amber-100/65">{option.description}</div>
+              <div className="mt-1 text-xs font-semibold text-[#f5cf64]">{option.checked ? "On" : "Off"}</div>
+            </div>
+            <button type="button" role="switch" aria-checked={option.checked}
+              aria-labelledby={`park-access-${option.key}`}
+              aria-label={option.key === "players" ? "Allow players into Pet Park" : "Allow moderators into Pet Park"}
+              disabled={!data || mutation.isPending}
+              onClick={() => option.setChecked(!option.checked)}
+              className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5cf64] disabled:opacity-50 ${option.checked ? "border-[#f5cf64] bg-[#245037]" : "border-amber-800/70 bg-[#24312b]"}`}>
+              <span aria-hidden="true" className={`absolute top-1 h-6 w-6 rounded-full shadow transition-[left] ${option.checked ? "left-7 bg-[#f5cf64]" : "left-1 bg-[#c5bda4]"}`} />
+            </button>
+          </div>)}
+          {(publish !== null || moderatorPreview !== null) && <p role="status" className="text-xs text-[#f5cf64]">Unsaved access changes — tap Save below to apply.</p>}
           <p className="text-xs text-amber-100/70">Moderator access allows staff to preview the normal player park without editing controls. It does not publish the park to everyone.</p>
           <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
             onClick={() => {
