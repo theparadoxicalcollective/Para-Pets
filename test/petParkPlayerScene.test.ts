@@ -54,7 +54,7 @@ test("closed park has under-construction view and admin-only scene preview", () 
   assert.match(page, /Pet Park — Under Construction/);
   assert.match(route, /if \(!canEnterPark\) \{/);
   assert.match(page, /scene\?\.canEditPark/);
-  assert.match(route, /if \(!park\?\.enabled && !\(park\?\.moderators && role\?\.isModerator\)\) return \{ status: 403/);
+  assert.match(route, /if \(!park\?\.enabled && !role\?\.isAdmin && !\(park\?\.moderators && role\?\.isModerator\)\) return \{ status: 403/);
 });
 
 test("deposits require authenticated owner, hatched unlisted pet, open park and unlocked slot", () => {
