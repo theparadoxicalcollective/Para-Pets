@@ -33,8 +33,8 @@ type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageU
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; buildingId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
-type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; isHatched: boolean; isListed?: boolean; type?: string };
+type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number } };
+type InventoryPet = { inventoryId: string; shopItemId: string; name: string; petNickname?: string | null; petLevel?: number; starRarity?: number; rarity?: number; isHatched: boolean; isListed?: boolean; type?: string };
 
 export default function PetParkPage() {
   const [, navigate] = useLocation();
@@ -71,7 +71,7 @@ export default function PetParkPage() {
   const [editorMode, setEditorMode] = useState<"scene" | "effects" | "decor">("scene");
   const [indoorDrag, setIndoorDrag] = useState<{ petId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
-  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.enabledForPlayers });
+  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -517,12 +517,12 @@ export default function PetParkPage() {
       onClose={() => setDetailsBuildingId(null)} onUpdated={invalidate} />}
 
     {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">Loading Pet Park…</div> :
-      !scene?.enabledForPlayers && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
+      !scene?.canEnterPark && !scene?.canEditPark ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/75 p-6 pointer-events-none">
         <div className="rounded-xl border border-amber-500/50 bg-[#152d23] p-6 text-center shadow-xl">
           <h2 className="text-xl font-semibold text-amber-300">Pet Park — Under Construction</h2>
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
         </div>
-      </div> : !scene?.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto max-w-sm" data-testid="pet-park-player-slots">
+      </div> : scene?.canEditPark ? (!scene.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : null) : !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto max-w-sm" data-testid="pet-park-player-slots">
         <div className="grid grid-cols-3 gap-2" aria-label="Your three park pet spots">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
