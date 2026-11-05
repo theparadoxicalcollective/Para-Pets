@@ -54,6 +54,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
     onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
       if (variables.method !== "POST") {
+        setRates(null); setPublish(null); setModeratorPreview(null);
         qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
         qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         return;
