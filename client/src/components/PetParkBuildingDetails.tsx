@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { isParkRoomEffect, PARK_ROOM_DEFAULT_PETS, PARK_ROOM_MIN_PETS, PARK_ROOM_MAX_PETS, type ParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MIN, PET_PARK_BUILDING_CAPACITY_MAX } from "@shared/petParkBuildingCapacity";
@@ -21,26 +22,29 @@ export type ParkBuildingDetails = {
   imageUrl: string;
   interiorImageUrl: string | null;
   maxPets: number;
-  interiorEffects: HouseInteriorEffect[];
+  interiorEffects: ParkInteriorEffect[];
 };
 
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
-  building, occupantCount = 0, onClose, onUpdated,
+  building, occupantCount = 0, onClose, onUpdated, onPreview, initialSelectedEffectId = null,
 }: {
   building: ParkBuildingDetails;
   occupantCount?: number;
   onClose: () => void;
   onUpdated: () => void;
+  onPreview?: () => void;
+  initialSelectedEffectId?: string | null;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [name, setName] = useState(building.name);
   const [capacity, setCapacity] = useState(building.maxPets);
-  const [effects, setEffects] = useState<HouseInteriorEffect[]>(building.interiorEffects ?? []);
+  const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
-  const savedEffects = useRef<HouseInteriorEffect[]>(building.interiorEffects ?? []);
-  const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
+  const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
+  const [selectedEffectId, setSelectedEffectId] = useState<string | null>(initialSelectedEffectId);
+  const [showEffectChoices, setShowEffectChoices] = useState(false);
 
   useEffect(() => {
     const latest = building.interiorEffects ?? [];
@@ -62,10 +66,10 @@ export default function PetParkBuildingDetails({
     onSuccess: (updated, variables) => {
       // The PATCH response is authoritative (and may sanitize uploaded effects).
       if (variables.interiorEffects !== undefined) {
-        const confirmed = (updated.interiorEffects ?? []) as HouseInteriorEffect[];
+        const confirmed = (updated.interiorEffects ?? []) as ParkInteriorEffect[];
         savedEffects.current = confirmed;
         setEffects(confirmed);
-        setSelectedEffectId(null);
+        setSelectedEffectId(variables.roomImageData !== undefined ? String(variables.roomEffectId) : null);
       }
       if (typeof updated.name === "string") setName(updated.name);
       if (typeof updated.maxPets === "number") setCapacity(updated.maxPets);
@@ -78,12 +82,13 @@ export default function PetParkBuildingDetails({
   });
 
   const selectedEffect = effects.find(effect => effect.id === selectedEffectId);
-  const addEffect = (type: HouseInteriorEffect["type"], defaultSize: number) => {
+  const addEffect = (type: ParkInteriorEffect["type"], defaultSize: number) => {
     if (effects.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT) return;
-    const effect: HouseInteriorEffect = {
-      id: `park-room-effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      type, x: 0.5, y: 0.5, size: defaultSize,
-    };
+    const id = `park-room-effect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const effect: ParkInteriorEffect = type === "room"
+      ? { id, type: "room", x: 0.5, y: 0.5, size: defaultSize, name: "Magical Room",
+          view: "full_page", imageUrl: null, maxPets: PARK_ROOM_DEFAULT_PETS }
+      : { id, type, x: 0.5, y: 0.5, size: defaultSize };
     setEffects(previous => [...previous, effect]);
     setSelectedEffectId(effect.id);
   };
@@ -93,7 +98,7 @@ export default function PetParkBuildingDetails({
       ? { ...effect, size: Math.max(HOUSE_INTERIOR_EFFECT_MIN_SIZE, Math.min(HOUSE_INTERIOR_EFFECT_MAX_SIZE, effect.size + delta)) }
       : effect));
   };
-  const onEffectPointerDown = (event: ReactPointerEvent<HTMLDivElement>, effect: HouseInteriorEffect) => {
+  const onEffectPointerDown = (event: ReactPointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => {
     if (!event.isPrimary || mutation.isPending) return;
     event.stopPropagation();
     safeSetPointerCapture(event.currentTarget, event.pointerId);
@@ -129,6 +134,20 @@ export default function PetParkBuildingDetails({
     dragRef.current = null;
     setEffects(previous => previous.map(effect => effect.id === drag.id ? { ...effect, x: drag.x, y: drag.y } : effect));
   };
+  const updateSelectedRoom = (patch: Partial<ParkRoomEffect>) => {
+    if (!selectedEffectId) return;
+    setEffects(previous => previous.map(effect => effect.id === selectedEffectId && isParkRoomEffect(effect)
+      ? { ...effect, ...patch } : effect));
+  };
+  const uploadRoom = async (file: File | undefined) => {
+    if (!file || !selectedEffect || !isParkRoomEffect(selectedEffect)) return;
+    try {
+      const roomImageData = await readPetParkImageData(file);
+      mutation.mutate({ interiorEffects: effects, roomEffectId: selectedEffect.id, roomImageData });
+    } catch (error) {
+      toast({ title: "Room image upload failed", description: String(error), variant: "destructive" });
+    }
+  };
   const upload = async (file: File | undefined, field: "imageData" | "interiorImageData") => {
     if (!file) return;
     try { mutation.mutate({ [field]: await readPetParkImageData(file) }); }
@@ -140,7 +159,10 @@ export default function PetParkBuildingDetails({
     <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#10271e] text-amber-100 shadow-xl">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-700/50 p-3">
         <h2 className="font-semibold text-amber-300">Edit building: {building.name}</h2>
-        <button type="button" onClick={onClose} className="rounded bg-slate-700 px-3 py-2 text-sm">Close</button>
+        <div className="flex items-center gap-2">
+          {onPreview && <button type="button" onClick={onPreview} className="rounded border border-amber-500/50 bg-[#245037] px-3 py-2 text-sm">View inside</button>}
+          <button type="button" onClick={onClose} className="rounded bg-slate-700 px-3 py-2 text-sm">Close</button>
+        </div>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3">
         <div className="space-y-2 rounded-lg border border-amber-800/60 p-3">
@@ -177,7 +199,11 @@ export default function PetParkBuildingDetails({
           </div>
         </div>
         <div className="space-y-3 rounded-lg border border-amber-800/60 p-3" aria-label="Edit building interior effects">
-          <h3 className="font-semibold text-amber-300">Interior effects</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-semibold text-amber-300">Interior effects</h3>
+            <button type="button" aria-label="Add effect inside building" onClick={() => setShowEffectChoices(value => !value)}
+              className="rounded-lg border border-amber-500/50 bg-[#245037] px-3 py-2 text-sm font-semibold text-[#f5cf64]">+ Add effect</button>
+          </div>
           {imagePreview ? <>
             <p className="text-xs text-amber-100/75">Add an effect, then drag it on the real room artwork. Changes are not published until you save effects.</p>
             <PetParkInteriorRoom imageUrl={imagePreview} name={building.name} effects={effects}
@@ -188,12 +214,12 @@ export default function PetParkBuildingDetails({
               onEffectPointerCancel={onEffectPointerCancel} />
           </> : <p className="text-sm text-amber-100/70">Upload an interior background to place effects directly on the room.</p>}
           {imagePreview && <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {HOME_INTERIOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
+            {showEffectChoices && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[...HOME_INTERIOR_EFFECT_OPTIONS, { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
                 className="rounded bg-teal-900 px-2 py-2 text-left text-xs disabled:opacity-50"
                 disabled={effects.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT || mutation.isPending}
-                onClick={() => addEffect(option.type, option.defaultSize)}>{option.label}</button>)}
-            </div>
+                onClick={() => { addEffect(option.type, option.defaultSize); setShowEffectChoices(false); }}>{option.label}</button>)}
+            </div>}
             <p className="text-xs text-amber-100/70">{effects.length}/{HOUSE_INTERIOR_EFFECT_MAX_COUNT} effects</p>
             {selectedEffect && <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-semibold">{selectedEffect.type.replaceAll("_", " ")}</span>
@@ -202,6 +228,38 @@ export default function PetParkBuildingDetails({
               <span>{selectedEffect.size}%</span>
               <button type="button" disabled={mutation.isPending} aria-label="Increase interior effect size" className="rounded bg-amber-800 px-3 py-2"
                 onClick={() => changeSize(2)}>+ Size</button>
+              {isParkRoomEffect(selectedEffect) && <div className="w-full space-y-3 rounded-lg border border-amber-500/45 bg-[#123324] p-3">
+                <h4 className="font-semibold text-[#f5cf64]">Room settings</h4>
+                <label className="block">Room name
+                  <input aria-label="Room name" maxLength={60} value={selectedEffect.name}
+                    onChange={event => updateSelectedRoom({ name: event.target.value })}
+                    className="mt-1 w-full rounded bg-[#091e17] p-2" />
+                </label>
+                <label className="block">Room image
+                  <input type="file" accept="image/*" aria-label="Upload room image"
+                    disabled={mutation.isPending}
+                    onChange={event => { void uploadRoom(event.target.files?.[0]); event.target.value = ""; }}
+                    className="mt-1 block w-full text-xs" />
+                </label>
+                {selectedEffect.imageUrl && <img src={selectedEffect.imageUrl} alt="Room artwork preview" className="max-h-36 w-full rounded-lg object-contain" />}
+                <p className="text-amber-200/70">Select how this room opens when a player taps its sparkle.</p>
+                <div className="grid grid-cols-2 gap-2" aria-label="Room opening mode">
+                  <button type="button" aria-pressed={selectedEffect.view === "full_page"}
+                    className={`rounded-lg border px-3 py-2 ${selectedEffect.view === "full_page" ? "border-amber-300 bg-[#245037]" : "border-amber-700/40"}`}
+                    onClick={() => updateSelectedRoom({ view: "full_page" })}>Full page</button>
+                  <button type="button" aria-pressed={selectedEffect.view === "popup"}
+                    className={`rounded-lg border px-3 py-2 ${selectedEffect.view === "popup" ? "border-amber-300 bg-[#245037]" : "border-amber-700/40"}`}
+                    onClick={() => updateSelectedRoom({ view: "popup" })}>Popup</button>
+                </div>
+                {selectedEffect.view === "full_page" ? <label className="block">
+                  Maximum pets in this room ({PARK_ROOM_MIN_PETS}–{PARK_ROOM_MAX_PETS})
+                  <input type="number" inputMode="numeric" min={PARK_ROOM_MIN_PETS} max={PARK_ROOM_MAX_PETS}
+                    aria-label="Room pet capacity" value={selectedEffect.maxPets}
+                    onChange={event => updateSelectedRoom({ maxPets: Math.max(PARK_ROOM_MIN_PETS, Math.min(PARK_ROOM_MAX_PETS, Number(event.target.value) || 1)) })}
+                    className="mt-1 w-full rounded bg-[#091e17] p-2" />
+                </label> : <p className="text-amber-200/70">Popup rooms are view-only. Pets cannot enter them.</p>}
+                <p className="text-amber-200/70">Save interior effects to publish the name, mode, pet capacity, and portal placement. Uploading artwork also saves the current draft.</p>
+              </div>}
               <button type="button" disabled={mutation.isPending} className="rounded bg-red-900 px-3 py-2" onClick={() => {
                 setEffects(previous => previous.filter(effect => effect.id !== selectedEffect.id)); setSelectedEffectId(null);
               }}>Remove effect</button>
