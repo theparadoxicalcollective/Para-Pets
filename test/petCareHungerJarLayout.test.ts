@@ -74,7 +74,7 @@ test("Pet Care Hunger remains raised by 24–48px with jars and tap targets unch
     assert.ok(before - after >= 24 && before - after <= 48, `unexpected meter shift at ${height}px`);
   }
   assert.match(hunger, /position: relative;[\s\S]*?inset: auto;/);
-  assert.match(page, /className="pet-care-inventory-section"/);
+  assert.match(page, /className="absolute left-0 right-0 pet-care-inventory-section"/);
   assert.match(page, /className="pet-care-inventory-jars"/);
   assert.ok(page.includes('data-testid={`pet-care-${kind}-jar`}'));
   assert.match(page, /data-pet-care-physics-body="true"/);
