@@ -131,38 +131,37 @@ test("brush only overlays the existing Pet Park viewport; camera, effects and ed
   assert.match(server, /app\.post\("\/api\/admin\/pet-park\/terrain-strokes", isAdmin/);
 });
 
-test("dirt paths snap to square grid centers and hold a straight axis despite pointer jitter", async () => {
-  const { parkExtendPathStroke, parkSnapPathPoint } = await import("../client/src/lib/petParkTerrainBrush");
-  const world = { width: 1800, height: 2700 };
-  const first = parkExtendPathStroke([], { xPct: 0.51, yPct: 0.49 }, world, 200);
+test("isometric dirt paths share slanted edges and resist pointer jitter", async () => {
+  const { parkExtendPathStroke, parkSnapPathPoint, parkPathGrid, parkPathPoint } = await import("../client/src/lib/petParkTerrainBrush");
+  const world = { width: 1800, height: 2700 }, size = 200;
+  const first = parkExtendPathStroke([], { xPct: 0.51, yPct: 0.49 }, world, size);
   assert.deepEqual(first, [{ xPct: 0.5, yPct: 0.5 }]);
-  let stroke = parkExtendPathStroke(first, { xPct: 0.8, yPct: 0.53 }, world, 200);
-  assert.equal(stroke.length, 4);
-  stroke = parkExtendPathStroke(stroke, { xPct: 0.9, yPct: 0.7 }, world, 200);
-  assert.ok(stroke.every(point => point.yPct === 0.5), "one horizontal stroke must not wander vertically");
-  for (let i = 1; i < stroke.length; i++) assert.ok(Math.abs((stroke[i].xPct - stroke[i-1].xPct) * world.width - 200) < 1e-7);
-  const backtrack = parkExtendPathStroke(stroke, first[0], world, 200);
-  assert.equal(backtrack.length, stroke.length, "backtracking must not create duplicate stamps");
-  assert.equal(parkExtendPathStroke([], {xPct:0.5,yPct:0.5}, world, 200, 1).length,1);
-  for (const point of [parkSnapPathPoint({xPct:0,yPct:0},world,200), parkSnapPathPoint({xPct:1,yPct:1},world,200)]) {
-    assert.ok(point.xPct*world.width >= 100 && point.xPct*world.width <= world.width-100);
-    assert.ok(point.yPct*world.height >= 100 && point.yPct*world.height <= world.height-100);
+  let stroke = parkExtendPathStroke(first, parkPathPoint({u:4,v:0},world,size), world, size);
+  assert.equal(stroke.length, 5);
+  stroke = parkExtendPathStroke(stroke, parkPathPoint({u:6,v:3},world,size), world, size);
+  assert.ok(stroke.every(point => Math.abs(parkPathGrid(point,world,size).v) < 1e-8));
+  for (let i=1;i<stroke.length;i++) {
+    assert.ok(Math.abs((stroke[i].xPct-stroke[i-1].xPct)*world.width-size/2)<1e-7);
+    assert.ok(Math.abs((stroke[i].yPct-stroke[i-1].yPct)*world.height-size/4)<1e-7);
+  }
+  assert.equal(parkExtendPathStroke(stroke,first[0],world,size).length,stroke.length);
+  for (const point of [parkSnapPathPoint({xPct:0,yPct:0},world,size),parkSnapPathPoint({xPct:1,yPct:1},world,size)]) {
+    assert.ok(point.xPct*world.width>=100-1e-7 && point.xPct*world.width<=world.width-100+1e-7);
+    assert.ok(point.yPct*world.height>=50-1e-7 && point.yPct*world.height<=world.height-50+1e-7);
   }
 });
 
-test("vertical snapped paths have no gaps, honor the stroke cap, and retain alignment after expansion", async () => {
-  const { parkExtendPathStroke, parkSnapPathPoint } = await import("../client/src/lib/petParkTerrainBrush");
+test("both isometric axes obey the cap and preserve alignment on expansion", async () => {
+  const { parkExtendPathStroke, parkSnapPathPoint, parkPathGrid, parkPathPoint } = await import("../client/src/lib/petParkTerrainBrush");
   const { parkExpandPoint, parkGroundSize } = await import("../shared/petParkGround");
-  const world = {width:5400,height:8100};
-  const stroke = parkExtendPathStroke([{xPct:0.5,yPct:0.5}],{xPct:0.51,yPct:1},world,60,12);
+  const world={width:5400,height:8100};
+  const stroke=parkExtendPathStroke([{xPct:0.5,yPct:0.5}],parkPathPoint({u:0,v:50},world,60),world,60,12);
   assert.equal(stroke.length,12);
-  assert.ok(stroke.every(p=>p.xPct===0.5));
-  for(let i=1;i<stroke.length;i++)assert.ok(Math.abs((stroke[i].yPct-stroke[i-1].yPct)*world.height-60)<1e-7);
+  assert.ok(stroke.every(p=>Math.abs(parkPathGrid(p,world,60).u)<1e-7));
   for(let level=1;level<4;level++) {
-    const old = parkGroundSize(level), next=parkGroundSize(level+1);
+    const old=parkGroundSize(level), next=parkGroundSize(level+1);
     const p=parkSnapPathPoint({xPct:0.4,yPct:0.4},old,200);
-    const expanded=parkExpandPoint(p,level,level+1);
-    const snapped=parkSnapPathPoint(expanded,next,200);
+    const expanded=parkExpandPoint(p,level,level+1), snapped=parkSnapPathPoint(expanded,next,200);
     assert.ok(Math.abs(snapped.xPct-expanded.xPct)<1e-8 && Math.abs(snapped.yPct-expanded.yPct)<1e-8);
   }
 });

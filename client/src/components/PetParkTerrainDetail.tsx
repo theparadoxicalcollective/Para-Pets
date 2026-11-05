@@ -6,11 +6,11 @@ import type { ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
  */
 export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetailType }) {
   const base = "pointer-events-none absolute inset-0 overflow-hidden rounded-[50%]";
-  // The brush preview shows an opaque, square-ended dirt tile. Once saved,
+  // The brush preview shows an opaque isometric dirt tile. Once saved,
   // adjoining tiles merge into one textured path in PetParkTerrain's canvas.
   if (type === "dirt_path") return <div aria-hidden="true"
     className="pointer-events-none absolute inset-0 overflow-hidden rounded-[3%]"
-    style={{ backgroundColor: "#846d4e", backgroundImage: [
+    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)", backgroundColor: "#846d4e", backgroundImage: [
       "radial-gradient(ellipse at 22% 34%, rgba(210,180,126,.13), transparent 33%)",
       "radial-gradient(ellipse at 78% 66%, rgba(64,45,30,.15), transparent 40%)",
     ].join(",") }} />;

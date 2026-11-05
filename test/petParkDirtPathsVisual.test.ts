@@ -8,7 +8,7 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const painter = readFileSync("client/src/components/PetParkTerrain.tsx", "utf8");
 const preview = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
 
-test("all saved dirt patches preserve their world positions and square-ended ground footprints", () => {
+test("all saved dirt patches preserve their world positions and isometric ground footprints", () => {
   const point = { xPct: 0.38, yPct: 0.61, size: 200 };
   for (const [width, height] of [[390, 844], [820, 1180], [1440, 900]]) {
     for (const level of [1, 2, 3, 4]) {
@@ -17,7 +17,7 @@ test("all saved dirt patches preserve their world positions and square-ended gro
       assert.ok(Math.abs(rect.x + rect.width / 2 - point.xPct * g.worldWidth) < 1e-8);
       assert.ok(Math.abs(rect.y + rect.height / 2 - point.yPct * g.worldHeight) < 1e-8);
       assert.equal(rect.width, 200);
-      assert.equal(rect.height, 200);
+      assert.equal(rect.height, 100);
     }
   }
 });
@@ -33,6 +33,9 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
     clip() { trace.push("clip"); },
     fill() { trace.push("fill"); },
     ellipse() {},
+    moveTo(...values: number[]) { trace.push({ rect: values }); },
+    lineTo(...values: number[]) { trace.push({ rect: values }); },
+    closePath() {},
     fillStyle: "", shadowColor: "", shadowBlur: 0,
   } as unknown as CanvasRenderingContext2D;
   const view = { viewportWidth: 600, viewportHeight: 800,
@@ -42,9 +45,12 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
   paintDirtPaths(ctx, view, [first, second]);
   const expected = [dirtPatchWorldRect(first, 1200, 1600), dirtPatchWorldRect(second, 1200, 1600)];
   const rects = trace.filter((x): x is { rect: number[] } => typeof x !== "string" && "rect" in x);
-  assert.deepEqual(rects.slice(1, 3).map(x => x.rect), expected.map(r => [r.x, r.y, r.width, r.height]));
+  assert.deepEqual(rects.slice(1).map(x => x.rect), expected.flatMap(r => [
+    [r.x + r.width / 2, r.y], [r.x + r.width, r.y + r.height / 2],
+    [r.x + r.width / 2, r.y + r.height], [r.x, r.y + r.height / 2],
+  ]));
   const firstFill = trace.indexOf("fill");
-  const lastRect = trace.findIndex((x, i) => i > 1 && typeof x !== "string" && x.rect[0] === expected[1].x);
+  const lastRect = trace.findIndex((x, i) => i > 1 && typeof x !== "string" && x.rect[0] === expected[1].x + expected[1].width / 2);
   assert.ok(firstFill > lastRect, "both tiles enter one common path before the base fill");
   assert.ok(trace.indexOf("clip", firstFill) > firstFill, "world-anchored dirt grain is clipped to the merged fill");
   assert.ok(trace.includes("restore"));
@@ -56,8 +62,8 @@ test("editing and brush previews use the same path stamps without introducing a 
   assert.match(page, /startPlacement\(e, "item", item\)/);
   assert.match(page, /placementSave\.mutate/);
   assert.match(page, /onWheel=\{e =>/);
-  assert.match(painter, /ctx\.rect\(rect\.x, rect\.y, rect\.width, rect\.height\)/);
+  assert.match(painter, /ctx\.closePath\(\)/);
   assert.match(painter, /ctx\.fillStyle = "#846d4e"/);
-  assert.match(preview, /rounded-\[3%\]/);
+  assert.match(preview, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
   assert.doesNotMatch(preview, /radial-gradient\(ellipse at 52% 50%/);
 });

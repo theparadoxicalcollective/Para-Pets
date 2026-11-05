@@ -6,7 +6,8 @@ export type ParkDepthObject = {
   worldHeight: number;
   size: number;
   kind: ParkDepthKind;
-  layer?: number;
+  layer?: number; // Stored for compatibility only; it never overrides depth.
+  contact?: number; // Visible base in the square artwork box, when known.
 };
 
 /**
@@ -15,19 +16,17 @@ export type ParkDepthObject = {
  * existing translateY(-75%) body with an 80% tall animator region.
  * Using those existing transforms avoids jumping any saved artwork.
  */
-export function parkGroundContactY({ yPct, worldHeight, size, kind }: ParkDepthObject): number {
-  return yPct * worldHeight + (kind === "pet" ? size * (0.8 - 0.75) : size / 2);
+export function parkGroundContactY({ yPct, worldHeight, size, kind, contact = 1 }: ParkDepthObject): number {
+  return yPct * worldHeight + (kind === "pet" ? size * (0.8 - 0.75) : size * (contact - 0.5));
 }
 
-/**
- * Paint nearer ground contacts over farther contacts. Existing admin layer is
- * a deliberate local depth adjustment (six world units per increment) so
- * creators can still override overlap without disabling natural Y-depth.
- * All values fit below the explicitly selected editor object's z-index.
- */
+/** Nearer ground contacts always cover farther ones. Ignore legacy layers. */
 export function parkDepthIndex(object: ParkDepthObject): number {
-  const offset = (object.layer ?? 0) * 6;
-  return Math.round(5_000_000 + (parkGroundContactY(object) + offset) * 32);
+  return Math.round(5_000_000 + parkGroundContactY(object) * 32);
 }
 
-export const PARK_SELECTED_DEPTH_Z = 9_000_000;
+/** Account for transparent padding and object-contain letterboxing. */
+export function parkImageGroundContact(width: number, height: number, bounds: { top: number; height: number }): number {
+  const drawnHeight = height / Math.max(width, height, 1);
+  return (1 - drawnHeight) / 2 + (bounds.top + bounds.height) * drawnHeight;
+}

@@ -433,7 +433,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
       <button type="button" data-testid="button-open-mini-pets" aria-label="Open Mini Pets inventory" onClick={() => setMiniPetOpen(true)}
         className="absolute z-[5] closet-mini-pet-trigger grid place-items-center rounded-full transition-transform active:scale-90"
-        style={{ left: "7.5%", top: "55%", width: "13%", aspectRatio: "1", border: "1.5px solid rgba(161,255,209,.86)", background: "radial-gradient(circle,rgba(24,110,79,.86),rgba(3,28,20,.92) 72%)", boxShadow: "0 3px 9px rgba(0,0,0,.7),0 0 9px rgba(74,255,177,.3)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+        style={{ left: "5%", top: "55%", width: "18%", aspectRatio: "1", border: "1.5px solid rgba(161,255,209,.86)", background: "radial-gradient(circle,rgba(24,110,79,.86),rgba(3,28,20,.92) 72%)", boxShadow: "0 3px 9px rgba(0,0,0,.7),0 0 9px rgba(74,255,177,.3)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
         {equippedMiniPetData?.equipped ? (
           <MiniPetRenderer petInventoryId={petInventoryId} style={{ width: "88%", height: "88%" }} />
         ) : (

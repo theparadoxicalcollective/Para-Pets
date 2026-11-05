@@ -26,8 +26,19 @@ test("Closet uses a centered, square pet stage so the authored oval reaches the 
   assert.doesNotMatch(source, /data-canonical-visual-layer="duplicate-backdrop"/);
   assert.match(source, /imageUrl: closetBackground/);
   assert.match(source, /data-testid="closet-pet-preview"[\s\S]*?left: "5%"[\s\S]*?top: "28%"[\s\S]*?width: "90%"[\s\S]*?aspectRatio: "1"/);
-  assert.match(source, /data-testid="button-open-mini-pets"[\s\S]*?left: "7\.5%"[\s\S]*?top: "55%"[\s\S]*?width: "13%"/);
+  assert.match(source, /data-testid="button-open-mini-pets"[\s\S]*?left: "5%"[\s\S]*?top: "55%"[\s\S]*?width: "18%"/);
   assert.match(source, /aria-label="Accessory slots"[\s\S]*?left: "8%"[\s\S]*?top: "20%"[\s\S]*?width: "84%"[\s\S]*?height: "9\.2%"/);
+});
+
+test("Closet mini-pet circle remains prominent on tablets without moving into the pet preview", () => {
+  const css = read("client/src/tabletStageShell.css");
+  assert.match(css, /\.closet-mini-pet-trigger \{[\s\S]*?left: calc\(50% - min\(38vw, 365px\)\) !important;[\s\S]*?width: clamp\(92px, 13vw, 148px\) !important;/);
+  for (const [width, height] of [[768, 1024], [834, 1194], [1024, 768], [1440, 900]]) {
+    const circleLeft = width / 2 - Math.min(width * 0.38, 365);
+    const circleWidth = Math.max(92, Math.min(width * 0.13, 148));
+    const petPreviewLeft = (width - Math.min(width * 0.45, height * 0.42, 470)) / 2;
+    assert.ok(circleLeft + circleWidth < petPreviewLeft, `mini-pet circle should remain left of the central preview at ${width}x${height}`);
+  }
 });
 
 test("Closet touch drag selects device HUD coordinates or legacy embedded coordinates", () => {

@@ -11,8 +11,9 @@ import { isParkTerrainNearViewport } from "@/lib/petParkTerrainVisibility";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { isParkEffect } from "@shared/petParkEffects";
+import { getAlphaBounds } from "@/lib/alphaBounds";
 import PetParkGroundShadow from "@/components/PetParkGroundShadow";
-import { parkDepthIndex, PARK_SELECTED_DEPTH_Z } from "@/lib/petParkDepth";
+import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { X, Expand } from "lucide-react";
@@ -46,6 +47,14 @@ export default function PetParkPage() {
   const [zoom, setZoom] = useState(1);
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
+  const [imageContacts, setImageContacts] = useState<Record<string, number>>({});
+  const observeContact = (image: HTMLImageElement, url: string) => {
+    const width = image.naturalWidth, height = image.naturalHeight;
+    void getAlphaBounds(url, image).then(bounds => {
+      const contact = parkImageGroundContact(width, height, bounds);
+      setImageContacts(old => old[url] === contact ? old : { ...old, [url]: contact });
+    });
+  };
   const [selectedPet, setSelectedPet] = useState("");
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
@@ -359,7 +368,7 @@ export default function PetParkPage() {
         scale={scale} panX={camera.x} panY={camera.y} dirtPatches={dirtPatches} />}
       {scene && <div className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
-        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? PARK_SELECTED_DEPTH_Z : parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", layer: shownPosition("building", building).layer }) }}><img src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
+        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark) setEnteredBuilding(building); }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "outline outline-2 outline-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]" : ""}`} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className="relative z-[1] h-full w-full object-contain" /><span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1 text-[10px]" style={{ transform: `translateX(-50%) ${building.flipped ? "scaleX(-1)" : ""}` }}>{building.name}</span></button>)}
         {scene.items.map(item => {
           const position = shownPosition("item", item);
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
@@ -367,8 +376,8 @@ export default function PetParkPage() {
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
           return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
-          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? PARK_SELECTED_DEPTH_Z : item.kind === "terrain" ? 500 + Math.max(-400, Math.min(400, shownPosition("item", item).layer)) : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", layer: shownPosition("item", item).layer }) }}>
-          {item.kind === "terrain" && item.effectType === "dirt_path" ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><img alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
+          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "terrain" || item.effectType === "water_ripple" || item.effectType === "water_shimmer" ? 500 : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: item.imageUrl ? imageContacts[item.imageUrl] : undefined }) }}>
+          {item.kind === "terrain" && item.effectType === "dirt_path" ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><img onLoad={event => observeContact(event.currentTarget, item.imageUrl!)} alt="" src={item.imageUrl} draggable={false} className="relative z-[1] w-full h-full object-contain" /></> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
         </div>;
         })}
@@ -462,35 +471,7 @@ export default function PetParkPage() {
         <button type="button" aria-label="Increase park object size" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ size: Math.min(1000, placementDraft.size + 20) })}>+ Size</button>
         <button type="button" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ flipped: !placementDraft.flipped })}>Flip</button>
       </div>
-      <details className="rounded-lg border border-[#b99a4c]/45 bg-[#0b2016]/80 px-3 py-2 text-xs">
-        <summary className="cursor-pointer text-[#f5d77b]">More options · layers and exact placement</summary>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button type="button" aria-label="Move park object back one layer" disabled={placementSave.isPending} className="rounded bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ layer: Math.max(-10000, placementDraft.layer - 1) })}>Layer −</button>
-          <button type="button" aria-label="Move park object forward one layer" disabled={placementSave.isPending} className="rounded bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ layer: Math.min(10000, placementDraft.layer + 1) })}>Layer +</button>
-        </div>
-        <div className="mt-2 border-t border-[#b99a4c]/30 pt-2">Fine-tune exact placement</div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {(["xPct", "yPct", "size", "layer"] as const).map(field => <label key={field} className="flex flex-col gap-1">
-            <span>{field === "xPct" ? "World X (0–1)" : field === "yPct" ? "World Y (0–1)" : field === "size" ? "Size" : "Layer"}</span>
-            <input type="number" aria-label={`Park object ${field}`} className="w-full rounded border border-[#b99a4c]/30 bg-[#0a1d14] p-2"
-              min={field === "size" ? 1 : field === "layer" ? -10000 : 0}
-              max={field === "size" ? 1000 : field === "layer" ? 10000 : 1}
-              step={field === "xPct" || field === "yPct" ? 0.01 : 1}
-              value={placementDraft[field]}
-              onChange={event => {
-                const number = Number(event.target.value);
-                if (!Number.isFinite(number)) return;
-                const min = field === "size" ? 1 : field === "layer" ? -10000 : 0;
-                const max = field === "size" ? 1000 : field === "layer" ? 10000 : 1;
-                const safe = Math.max(min, Math.min(max, field === "size" || field === "layer" ? Math.round(number) : number));
-                setPlacementDraft(previous => previous && ({ ...previous, [field]: safe }));
-              }} />
-          </label>)}
-        </div>
-        <button type="button" disabled={placementSave.isPending || placementDelete.isPending}
-          onClick={() => placementSave.mutate({ ...selectedPlacement, ...placementDraft })}
-          className="mt-2 rounded-lg border border-[#e5c66a]/60 bg-[#245037] px-3 py-2 text-xs disabled:opacity-50">Apply exact values</button>
-      </details>
+      <p className="text-xs text-amber-100/75">Depth follows ground position automatically. Move lower to bring in front.</p>
       <div className="flex flex-wrap items-center gap-2">
         {selectedPlacement.kind === "building" && <>
           <button type="button" className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 text-xs" onClick={() => setEnteredBuilding(selectedObject as ParkBuilding)}>Enter building</button>

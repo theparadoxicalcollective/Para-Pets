@@ -16,8 +16,8 @@ test("Pet Park creates buildings, decor, rest spots and effects in the real worl
   assert.ok(panel.includes('mode === "create"'), "reuse creation forms without requiring a second scene preview");
   assert.ok(!panel.includes('mode === "editor"'), "retired full-screen editor must not remain");
   assert.ok(!page.includes('Advanced edit'), "all object editing stays in the actual world scene");
-  assert.ok(page.includes('Fine-tune exact placement'), "preserve numeric coordinate editing from old panel");
-  assert.ok(page.includes('Park object ${field}'), "position fields are available for precision editing");
+  assert.ok(!page.includes('Fine-tune exact placement'), "placement stays direct instead of exposing world coordinates");
+  assert.ok(!page.includes('Park object ${field}')); 
   assert.ok(panel.includes('creationPosition?.xPct ?? 0.5'));
   assert.ok(panel.includes('creationPosition?.yPct ?? 0.5'));
   assert.ok(panel.includes('url: "/api/admin/pet-park/buildings"'));
@@ -29,14 +29,15 @@ test("Pet Park creates buildings, decor, rest spots and effects in the real worl
   assert.ok(!page.includes('placementMode'), "objects edit directly without a separate Move mode");
 });
 
-test("in-scene edits autosave positions, keep optional exact fields and allow deselection", () => {
+test("in-scene edits autosave positions, sort depth automatically and allow deselection", () => {
   assert.ok(page.includes('size: Math.min(1000, placementDraft.size + 20)'));
   assert.ok(page.includes('size: Math.max(1, placementDraft.size - 20)'));
   assert.ok(page.includes('flipped: !placementDraft.flipped'));
   assert.ok(page.includes('shownPosition("building", building).size * scale'));
-  assert.ok(page.includes('kind: "item", layer: shownPosition("item", item).layer'), "item layering now combines ground depth and admin override");
+  assert.ok(page.includes('Depth follows ground position automatically'));
+  assert.ok(!page.includes('More options · layers')); 
   assert.ok(page.includes('return apiRequest("PATCH", path, placement)'), "PATCH includes coordinates, size, flip and layer");
-  assert.ok(page.includes('placementSave.mutate({ ...selectedPlacement, ...placementDraft })'));
+  assert.ok(page.includes('placementSave.mutate({ kind: drag.kind, id: drag.objectId, ...placement })'));
   assert.ok(page.includes('setSelectedPlacement(null); setPlacementDraft(null);'), "tapping Done or blank ground deselects");
   assert.ok(page.includes('window.confirm("Remove this object from Pet Park?")'), "confirmation remains for non-terrain objects");
   assert.ok(page.includes('(selectedObject as ParkItem).kind === "terrain"'), "terrain removes without confirmation");

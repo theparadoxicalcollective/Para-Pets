@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { parkGroundContactY, parkDepthIndex, PARK_SELECTED_DEPTH_Z } from "../client/src/lib/petParkDepth";
+import { parkGroundContactY, parkDepthIndex, parkImageGroundContact } from "../client/src/lib/petParkDepth";
 import { parkExpandPoint, parkGroundSize } from "../shared/petParkGround";
 
 test("far ground contacts render behind near ones across every park expansion tier", () => {
@@ -11,7 +11,7 @@ test("far ground contacts render behind near ones across every park expansion ti
     const near = { yPct: 0.73, worldHeight: height, size: 130, kind: "building" as const };
     assert.ok(parkGroundContactY(far) < parkGroundContactY(near));
     assert.ok(parkDepthIndex(far) < parkDepthIndex(near));
-    assert.ok(parkDepthIndex(near) < PARK_SELECTED_DEPTH_Z);
+    assert.ok(Number.isFinite(parkDepthIndex(near)));
   }
 });
 
@@ -28,14 +28,17 @@ test("ground contact respects existing visual transforms without moving saved co
   assert.ok(parkDepthIndex(nearPet) > parkDepthIndex(frontTree), "pet moving in front should cover tree");
 });
 
-test("existing admin layers still allow deliberate local overlap adjustment", () => {
+test("legacy layers cannot override automatic feet-based depth", () => {
   const sprite = { yPct: 0.5, worldHeight: 2700, size: 120, kind: "item" as const };
-  assert.ok(parkDepthIndex({ ...sprite, layer: 2 }) > parkDepthIndex({ ...sprite, layer: 1 }));
-  assert.ok(parkDepthIndex({ ...sprite, layer: -5 }) < parkDepthIndex({ ...sprite, layer: 0 }));
-  // The admin can also lift a nearby object above a slightly closer one.
-  assert.ok(parkDepthIndex({ ...sprite, layer: 4 }) > parkDepthIndex({ ...sprite, yPct: 0.505 }));
-  // Even the API's maximum permitted values remain below the editor selection.
-  assert.ok(parkDepthIndex({ ...sprite, worldHeight: 8100, yPct: 1, size: 1000, layer: 10000 }) < PARK_SELECTED_DEPTH_Z);
+  for (const layer of [-10000, -5, 0, 1, 10000]) assert.equal(parkDepthIndex({ ...sprite, layer }), parkDepthIndex(sprite));
+  assert.ok(parkDepthIndex({ ...sprite, layer: 10000 }) < parkDepthIndex({ ...sprite, yPct: 0.6, layer: -10000 }));
+  const building = { yPct: 0.5, worldHeight: 2700, size: 400, kind: "building" as const, contact: 0.7 };
+  const feet = parkGroundContactY(building);
+  const pet = { yPct: 0, worldHeight: 2700, size: 165, kind: "pet" as const };
+  assert.ok(parkDepthIndex({ ...pet, yPct: (feet + 20 - 165 * 0.05) / 2700 }) > parkDepthIndex(building));
+  assert.ok(parkDepthIndex({ ...pet, yPct: (feet - 20 - 165 * 0.05) / 2700 }) < parkDepthIndex(building));
+  assert.equal(parkImageGroundContact(400, 200, { top: 0.1, height: 0.6 }), 0.6);
+  assert.equal(parkImageGroundContact(200, 200, { top: 0.1, height: 0.6 }), 0.7);
 });
 
 test("center expansion remapping preserves ground-contact order", () => {
@@ -57,7 +60,7 @@ test("park shares one renderer for depth, shadows and original interactions", ()
   const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
   const shadow = readFileSync("client/src/components/PetParkGroundShadow.tsx", "utf8");
   assert.equal((page.match(/parkDepthIndex\(\{/g) ?? []).length, 3, "buildings, items and pets each use shared depth order");
-  assert.match(page, /PARK_SELECTED_DEPTH_Z/);
+  assert.doesNotMatch(page, /PARK_SELECTED_DEPTH_Z|Move park object.*layer|More options · layers/);
   assert.equal((page.match(/<PetParkGroundShadow /g) ?? []).length, 1, "only pets retain a ground shadow");
   assert.match(page, /kind="pet"/);
   assert.doesNotMatch(page, /<PetParkGroundShadow kind="(?:building|decor)"/);

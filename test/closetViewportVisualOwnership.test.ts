@@ -18,7 +18,7 @@ test("Closet background stays behind tablet pet and controls while authored temp
 
 test("Closet preserves scene and tutorial target contracts", () => {
   assert.match(closet, /data-testid="closet-pet-preview"[\s\S]*left: "5%"[\s\S]*top: "28%"[\s\S]*width: "90%"[\s\S]*aspectRatio: "1"/);
-  assert.match(closet, /data-testid="button-open-mini-pets"[\s\S]*left: "7\.5%"[\s\S]*top: "55%"[\s\S]*width: "13%"/);
+  assert.match(closet, /data-testid="button-open-mini-pets"[\s\S]*left: "5%"[\s\S]*top: "55%"[\s\S]*width: "18%"/);
   assert.match(closet, /data-testid=\{`slot-accessory-\$\{slot\}`\}/);
   assert.match(closet, /data-testid="button-close-equip-accessories"/);
 });

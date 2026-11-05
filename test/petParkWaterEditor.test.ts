@@ -31,14 +31,15 @@ test("water effects use admin-only persistence and three supported types", () =>
   assert.match(page, /<ParkEffectVisual type=\{item\.effectType\}/);
 });
 
-test("in-park editor still moves, resizes, flips and layers water effects, decor and rest spots", () => {
+test("in-park editor moves, resizes and flips water effects, decor and rest spots with automatic depth", () => {
   assert.match(page, /onPointerDown=\{e => startPlacement\(e, "item", item\)\}/);
   assert.match(page, /onPointerUp=\{endPlacement\}/);
-  assert.match(page, /placementSave.mutate\(\{ \.\.\.selectedPlacement, \.\.\.placementDraft \}\)/);
+  assert.match(page, /placementSave\.mutate\(\{ \.\.\.selectedPlacement, \.\.\.next \}\)/);
+  assert.match(page, /Depth follows ground position automatically/);
   assert.match(page, /\+ Size/);
   assert.match(page, /− Size/);
   assert.match(page, /flipped: !placementDraft.flipped/);
-  assert.match(page, /Fine-tune exact placement/);
+  assert.doesNotMatch(page, /Fine-tune exact placement/);
   assert.match(panel, /Rest Spot/);
   assert.match(page, /parkCameraGeometry\(viewportSize.width, viewportSize.height, groundLevel, zoom\)/);
   assert.match(visual, /prefers-reduced-motion: reduce/);

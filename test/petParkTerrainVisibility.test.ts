@@ -71,7 +71,7 @@ test("culling only skips invisible terrain, preserving decor, effects, pet inter
   assert.match(page, /<PetParkTerrainBrush/);
   assert.match(page, /<PetAnimator petTemplateId=\{pet.petTemplateId\}/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
-  assert.match(page, /PARK_SELECTED_DEPTH_Z/);
+  assert.doesNotMatch(page, /PARK_SELECTED_DEPTH_Z/);
   assert.match(page, /parkDepthIndex\(/);
   assert.match(page, /onWheel=\{e =>/);
   assert.match(page, /parkExpansionCameraPan\(/);

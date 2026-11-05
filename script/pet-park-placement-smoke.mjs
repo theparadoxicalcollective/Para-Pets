@@ -58,11 +58,12 @@ try{
   await page.mouse.move(box.x+box.width/2,box.y+box.height*.4);await page.mouse.down();
   await page.mouse.move(box.x+box.width/2+30,box.y+box.height*.4+20,{steps:6});await page.mouse.up();
   await page.getByRole('button',{name:'Done',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:/layer|Apply exact values/i}).count(),0,name+': no manual layer controls');
   assert.equal(patches.length,1,name+': one drag uses the existing placement PATCH');
   assert.ok(patches[0].xPct>0.5&&patches[0].yPct>0.5);
   await page.getByRole('button',{name:'Paint terrain',exact:true}).click();
   const surface=page.getByTestId('pet-park-terrain-brush-surface');await surface.waitFor({state:'visible'});
-  const from={x:width*.18,y:height*.22},to={x:width*.82,y:height*.235};
+  const from={x:width*.18,y:height*.22},to={x:width*.82,y:height*.22+width*.64*.5};
   const session=touch?await context.newCDPSession(page):null;
   if(session){
    await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...from,id:1}]});
@@ -70,18 +71,18 @@ try{
   }else{await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:8});}
   const previews=page.locator('[data-testid="pet-park-brush-mode"] > div.opacity-80');
   await previews.first().waitFor({state:'visible'});
-  const preview=await previews.first().boundingBox();assert.ok(Math.abs(preview.width-preview.height)<1,name+': preview must be square');
+  const preview=await previews.first().boundingBox();assert.ok(Math.abs(preview.width-preview.height*2)<1,name+': preview must be an isometric diamond');
   if(session)await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});else await page.mouse.up();
   await page.waitForFunction(()=>!document.body.textContent.includes('Saving terrain…'));
   assert.equal(strokes.length,1);assert.equal(strokes[0].type,'dirt_path');
   const points=strokes[0].points;assert.ok(points.length>1);
-  assert.ok(points.every(p=>p.yPct===points[0].yPct),name+': pointer jitter must not make crooked paths');
-  for(let i=1;i<points.length;i++)assert.ok(Math.abs((points[i].xPct-points[i-1].xPct)*1800-strokes[0].size)<1e-6,name+': tiles meet edge to edge');
+  assert.ok(points.every(p=>Math.abs((p.xPct-points[0].xPct)*1800-2*(p.yPct-points[0].yPct)*2700)<1e-6),name+': path must follow the ground diagonal');
+  for(let i=1;i<points.length;i++)assert.ok(Math.abs((points[i].xPct-points[i-1].xPct)*1800-strokes[0].size/2)<1e-6,name+': tiles meet edge to edge');
   const controls=await page.getByLabel('Pet Park terrain brush controls',{exact:true}).boundingBox();
   assert.ok(controls.y+controls.height<=height-60,name+': brush controls must clear the preview status banner');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-'+name.replaceAll(' ','-')+'.png'});
-  console.log('PASS '+name+': shadow-free buildings/decor, unchanged saved placement, object drag, square preview, snapped touch/mouse path and one save');
+  console.log('PASS '+name+': shadow-free buildings/decor, unchanged saved placement, object drag, diamond preview, snapped touch/mouse path and one save');
   await context.close();
  }
 }finally{await browser.close();await server.close();}
