@@ -214,7 +214,7 @@ export function registerPetParkAdminRoutes(
             .from(petParkDeposits)
             .where(and(eq(petParkDeposits.buildingId, existing.id), isNull(petParkDeposits.withdrawnAt)));
           if (updates.maxPets !== undefined && occupants.length > (updates.maxPets as number))
-            return { status: 409 as const, message: "Move pets outside before lowering building capacity" };
+            return { status: 409 as const, message: `This building has ${occupants.length} active pets. Move pets outside before lowering capacity.` };
           if (updates.interiorEffects !== undefined) {
             let proposed = sanitizeParkInteriorEffects(body.interiorEffects, existing.interiorEffects);
             if (uploadedRoomUrl !== null) {
