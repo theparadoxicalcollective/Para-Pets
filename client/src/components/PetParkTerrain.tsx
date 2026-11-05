@@ -182,7 +182,7 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
 
   // One opaque, softly shadowed fill means overlapping tiles are seamless.
   // Adjacent stamps can overlap freely without dark or bright rings.
-  ctx.fillStyle = "#846d4e";
+  ctx.fillStyle = "#624832";
   ctx.shadowColor = "rgba(32, 36, 21, .33)";
   ctx.shadowBlur = 6;
   ctx.fill();
@@ -203,7 +203,7 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
       const x = (col + 0.15 + parkTerrainNoise(col, row, 42) * 0.7) * 29;
       const y = (row + 0.12 + parkTerrainNoise(col, row, 43) * 0.7) * 25;
       const size = 2 + parkTerrainNoise(col, row, 44) * 9;
-      ctx.fillStyle = tone > 0.59 ? "rgba(213, 183, 129, .20)" : "rgba(60, 43, 29, .18)";
+      ctx.fillStyle = tone > 0.59 ? "rgba(171, 132, 88, .18)" : "rgba(37, 27, 21, .20)";
       ctx.beginPath();
       ctx.ellipse(x, y, size, Math.max(1, size * 0.33), -0.3, 0, Math.PI * 2);
       ctx.fill();

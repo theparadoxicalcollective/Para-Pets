@@ -20,8 +20,8 @@ test("admin settings and direct creation retain water effects, player access and
   assert.match(editor, /WATER_EFFECT_OPTIONS\.map\(option/);
   assert.match(editor, /value: "sleep_spot", label: "Rest Spot"/);
   assert.match(page, /onPointerMove=\{movePlacement\}/);
-  assert.match(editor, /aria-label="Allow players into Pet Park"/);
-  assert.match(editor, /aria-label="Allow moderators into Pet Park"/);
+  assert.match(editor, /Allow players into Pet Park/);
+  assert.match(editor, /Allow moderators into Pet Park/);
   assert.match(editor, /mode === "settings"/);
   assert.match(page, /\["scene", "\+ Building"\]/);
   assert.match(page, /\["decor", "\+ Decor"\]/);
@@ -44,4 +44,20 @@ test("reward ledger carries partial units across frequent manual claims", () => 
   assert.deepEqual(earned(24, [60_000,60_000,60_000,60_000,60_000]), [0,0,0,0,2]);
   assert.deepEqual(earned(60, [60_000,60_000,60_000]), [1,1,1]);
   assert.deepEqual(earned(300, [60_000,60_000]), [5,5]);
+});
+
+test("park access controls are real switches with explicit on/off state and save feedback", () => {
+  assert.match(editor, /role="switch" aria-checked=\{option\.checked\}/);
+  assert.match(editor, /option\.setChecked\(!option\.checked\)/);
+  assert.match(editor, /Unsaved access changes/);
+  assert.match(editor, /Pet Park settings saved/);
+  assert.match(editor, /enabledForPlayers: publish \?\? data!\.settings\.enabledForPlayers/);
+  assert.match(editor, /enabledForModerators: moderatorPreview \?\? data!\.settings\.enabledForModerators/);
+});
+
+test("saved Pet Park dirt and brush preview share a darker brown color", () => {
+  const terrain = readFileSync("client/src/components/PetParkTerrain.tsx", "utf8");
+  const detail = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
+  assert.match(terrain, /ctx\.fillStyle = "#624832"/);
+  assert.match(detail, /backgroundColor: "#624832"/);
 });
