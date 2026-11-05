@@ -5,6 +5,7 @@ import { z } from "zod";
 import { isAdornmentSlotKey } from "./costumeFeature";
 import { isAdornmentItemEffect } from "./adornmentAnimation";
 import type { HouseInteriorEffect } from "./housing";
+import type { ParkInteriorEffect } from "./petParkRooms";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1397,7 +1398,7 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   flipped: boolean("flipped").notNull().default(false),
   layer: integer("layer").notNull().default(0),
   maxPets: integer("max_pets").notNull().default(10),
-  interiorEffects: jsonb("interior_effects").$type<HouseInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
+  interiorEffects: jsonb("interior_effects").$type<ParkInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -1418,6 +1419,7 @@ export const petParkDeposits = pgTable("pet_park_deposits", {
   parkXPct: real("park_x_pct"),
   parkYPct: real("park_y_pct"),
   buildingId: varchar("building_id").references(() => petParkBuildings.id, { onDelete: "set null" }),
+  roomEffectId: varchar("room_effect_id"),
   interiorXPct: real("interior_x_pct").notNull().default(0.5),
   interiorYPct: real("interior_y_pct").notNull().default(0.72),
   pose: text("pose").notNull().default("idle"),
