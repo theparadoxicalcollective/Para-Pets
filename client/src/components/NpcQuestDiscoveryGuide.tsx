@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { BJ_EVENT, bjGetStatus } from "@/lib/beginJourney";
+import { apiRequest } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
 import { getQuestGuideSurface, guideBoundsInSurface, guideCardShouldMoveUp, guideTargetOnScreen } from "@/lib/questGuideViewport";
-import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
+import { shouldPauseNpcDiscoveryTour, usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
+import { useMainNavOpen } from "@/lib/mainNavState";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 
 interface GuideNpc { id: string; name: string; worldId: string; worldName: string }
@@ -31,6 +33,7 @@ function saveIndex(userId: string, value: number) {
 /** A separate, read-only tour. It never starts or claims an NPC quest. */
 export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; tutorial_quest_completed?: boolean; tutorial_reward_claimed?: boolean; isModerator?: boolean } }) {
   const [location] = useLocation();
+  const mainNavOpen = useMainNavOpen();
   const [index, setIndex] = useState(() => savedIndex(user.id));
   const [tutorialStatus, setTutorialStatus] = useState(bjGetStatus);
   useEffect(() => {
@@ -41,10 +44,33 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   }, []);
   const [targetRect, setTargetRect] = useState<{ selector: string; rect: DOMRect } | null>(null);
   const guideCardRef = useRef<HTMLDivElement>(null);
-  const recentTourTap = useRef<{ x: number; y: number; until: number } | null>(null);
+  const recentTourTap = useRef<{ x: number; y: number; until: number; location: string } | null>(null);
   const eligible = !!(user.tutorial_quest_completed || user.tutorial_reward_claimed) && tutorialStatus === "done";
-  const shouldLoadTour = eligible;
-  usePrimaryQuestGuideOwner("npc-discovery", eligible && index < worlds.length);
+  const questDataEnabled = eligible && index < worlds.length;
+  // Reuse the other overlays' exact React Query keys. A real accepted quest
+  // must not compete with this optional, input-blocking NPC location tour.
+  const ginnyQuest = useQuery<{ status: string }>({
+    queryKey: ["/api/quests/ginny-mini-pet"], enabled: questDataEnabled, staleTime: 2_000,
+    queryFn: async () => (await apiRequest("GET", "/api/quests/ginny-mini-pet")).json(),
+  });
+  const lonelleQuest = useQuery<{ status: string }>({
+    queryKey: ["/api/quests/lonelle-lost-adornment"], enabled: questDataEnabled, staleTime: 2_000,
+    queryFn: async () => (await apiRequest("GET", "/api/quests/lonelle-lost-adornment")).json(),
+  });
+  const jansonQuest = useQuery<{ quests: { status: string }[]; dailyQuest?: { status: string } }>({
+    queryKey: ["/api/quests/janson"], enabled: questDataEnabled, staleTime: 2_000,
+    queryFn: async () => (await apiRequest("GET", "/api/quests/janson")).json(),
+  });
+  const activeQuest = shouldPauseNpcDiscoveryTour({
+    ginnyStatus: ginnyQuest.data?.status,
+    lonelleStatus: lonelleQuest.data?.status,
+    jansonStatuses: [...(jansonQuest.data?.quests ?? []).map(quest => quest.status), jansonQuest.data?.dailyQuest?.status],
+  });
+  // Never start locking a newly loaded page until the real quest statuses
+  // are known. Errors still allow the non-critical discovery tour to recover.
+  const waitingForQuestState = [ginnyQuest, lonelleQuest, jansonQuest].some(query => query.isPending && !query.isError);
+  const shouldLoadTour = eligible && !activeQuest && !waitingForQuestState;
+  usePrimaryQuestGuideOwner("npc-discovery", shouldLoadTour && index < worlds.length);
 
   useEffect(() => { setIndex(savedIndex(user.id)); }, [user.id]);
 
@@ -116,7 +142,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   const npcSelector = current && `[data-testid="location-${current.id}"]`;
   const npcElement = atWorld && npcSelector ? document.querySelector<HTMLElement>(npcSelector) : null;
   const navMap = document.querySelector<HTMLElement>('[data-testid="nav-item-map"]');
-  const mapIsOpen = navMap && getComputedStyle(navMap).pointerEvents !== "none";
+  const mapIsOpen = mainNavOpen && !!navMap;
   const selector = atWorld && current ? `[data-testid="location-${current.id}"]`
     : atMap ? `[data-testid="button-location-${current?.worldId}"]`
     : mapIsOpen ? '[data-testid="nav-item-map"]' : '[data-testid="button-floating-nav"]';
@@ -156,7 +182,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
   // The NPC is a live world control. During this read-only tour, even a tap on
   // its visible edge must never start its actual quest.
   useEffect(() => {
-    if (!eligible || !atWorld || !npcSelector) return;
+    if (!shouldLoadTour || !atWorld || !npcSelector) return;
     const blockNpcClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element) || !event.target.closest(npcSelector)) return;
       event.preventDefault();
@@ -164,20 +190,23 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     };
     document.addEventListener("click", blockNpcClick, true);
     return () => document.removeEventListener("click", blockNpcClick, true);
-  }, [eligible, atWorld, npcSelector]);
+  }, [shouldLoadTour, atWorld, npcSelector]);
 
   // Some Android browsers send a second, delayed click at the same position
   // after a touch. Swallow that click if the tour has already advanced.
   useEffect(() => {
+    if (!shouldLoadTour) { recentTourTap.current = null; return; }
     const blockGhostClick = (event: MouseEvent) => {
       const tap = recentTourTap.current;
-      if (!tap || Date.now() > tap.until || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 24) return;
+      // A tap in a new world is a new action, even when its NPC occupies the
+      // same screen position. Only suppress delayed clicks on the same route.
+      if (!tap || tap.location !== location || Date.now() > tap.until || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 24) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
     document.addEventListener("click", blockGhostClick, true);
     return () => document.removeEventListener("click", blockGhostClick, true);
-  }, []);
+  }, [shouldLoadTour, location]);
 
   const blockingOverlay = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"], [data-quest-guide-blocker="true"]')).some(node => {
     const rect = node.getBoundingClientRect();
@@ -185,7 +214,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
     const style = getComputedStyle(node);
     return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0.1;
   });
-  if (!eligible || blockingOverlay || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
+  if (!shouldLoadTour || blockingOverlay || index >= worlds.length || isLoading || !npcs?.length && !isError) return null;
   const finish = (next: number) => {
     saveIndex(user.id, next);
     setIndex(next);
@@ -213,7 +242,7 @@ export default function NpcQuestDiscoveryGuide({ user }: { user: { id: string; t
       showHint={false}
       blockingGuide
       onTourAdvance={point => {
-        if (point) recentTourTap.current = { x: point.x, y: point.y, until: Date.now() + 450 };
+        if (point) recentTourTap.current = { x: point.x, y: point.y, until: Date.now() + 450, location };
         advance();
       }}
     />

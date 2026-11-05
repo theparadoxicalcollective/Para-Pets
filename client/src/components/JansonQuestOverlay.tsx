@@ -123,6 +123,12 @@ export default function JansonQuestOverlay() {
         setDialogOpen(false);
         if (inBayou) window.dispatchEvent(new Event("para:show-fishing-spots"));
         else navigate(`/world/${WORLD}?fishHint=1`);
+      } else if (key === "sell_fish") {
+        // Starting the chapter should immediately take the player to the
+        // market, not leave them hunting for a second indistinguishable button.
+        setDialogOpen(false);
+        if (inBayou) window.dispatchEvent(new Event("para:open-fish-market"));
+        else navigate(`/world/${WORLD}?jansonHint=1`);
       }
     },
     onError: (error: Error) => setMessage(error.message),
@@ -172,9 +178,8 @@ export default function JansonQuestOverlay() {
     if (quest.questKey === "catch_fish" || quest.questKey === "daily_catch_fish") {
       if (inBayou) window.dispatchEvent(new Event("para:show-fishing-spots"));
       else navigate(`/world/${WORLD}?fishHint=1`);
-    } else if (quest.status === "available") navigate(`/world/${WORLD}`);
-    else if (state.marketUnlocked && inBayou) openMarket();
-    else navigate(`/world/${WORLD}`);
+    } else if (state.marketUnlocked && inBayou) openMarket();
+    else navigate(`/world/${WORLD}?jansonHint=1`);
   };
 
   return <>
@@ -260,7 +265,7 @@ export default function JansonQuestOverlay() {
           </div>
           <button type="button" aria-label="Close Janson dialog" onClick={() => setDialogOpen(false)} style={{ alignSelf: "flex-start", border: 0, background: "transparent", color: "#fff", fontSize: 24 }}>×</button>
         </div>
-        {current?.status === "available" && <button type="button" data-testid={`button-start-janson-${current.questKey}`} disabled={start.isPending} onClick={() => start.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{current.questKey === "catch_fish" || current.questKey === "daily_catch_fish" ? "! Gone Fishing" : "Sell Fish"}</button>}
+        {current?.status === "available" && <button type="button" data-testid={`button-start-janson-${current.questKey}`} disabled={start.isPending} onClick={() => start.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{current.questKey === "catch_fish" || current.questKey === "daily_catch_fish" ? "! Gone Fishing" : "Start Sell Fish · Open Market"}</button>}
         {current?.status === "accepted" && (current.questKey === "catch_fish" || current.questKey === "daily_catch_fish") && <button type="button" onClick={() => onQuestGo(current)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>! Gone Fishing</button>}
         {state.marketUnlocked && <button type="button" data-testid="button-janson-fish-market" onClick={openMarket} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12, background: repeatable?.status === "available" ? "#245a54" : actionStyle.background }}>Sell Fish</button>}
         {current?.status === "completed" && <button type="button" data-testid={`button-claim-janson-at-npc-${current.questKey}`} disabled={claim.isPending} onClick={() => claim.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{claim.isPending ? "CLAIMING…" : `CLAIM ${current.title.toUpperCase()} REWARD`}</button>}

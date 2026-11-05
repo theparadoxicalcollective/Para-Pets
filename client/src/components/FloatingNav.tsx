@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
+import { setMainNavOpen } from "@/lib/mainNavState";
 import { useToast } from "@/hooks/use-toast";
 import { Lock } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.webp";
@@ -135,6 +136,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
   const navHidden = useNavHidden();
   const [isOpen, setIsOpen]             = useState(false);
+  // Page-level quest guides observe the committed menu state, including
+  // backdrop closes, pet-menu handoffs, and hiding the HUD for dialogs.
+  useEffect(() => {
+    setMainNavOpen(isOpen && !navHidden);
+    return () => setMainNavOpen(false);
+  }, [isOpen, navHidden]);
   useEffect(() => {
     const closeForPetMenu = () => setIsOpen(false);
     window.addEventListener("para-pets:pet-menu-open", closeForPetMenu);
@@ -446,6 +453,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         {/* ── Main circular button ─────────────────────────────────────── */}
         <button
           data-testid="button-floating-nav"
+          aria-expanded={isOpen}
+          aria-label="Main navigation"
           onClick={() => { if (!isOpen) window.dispatchEvent(new Event("para-pets:main-nav-open")); setIsOpen(v => !v); }}
           className="absolute inset-0 rounded-full transition-transform duration-200 active:scale-90 flex items-center justify-center"
           style={{

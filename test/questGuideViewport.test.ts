@@ -90,7 +90,7 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   assert.match(npcSource, /: atMap \? "pan"/);
   assert.match(npcSource, /button-skip-npc-guide/);
   assert.match(npcSource, /blockingGuide/);
-  assert.match(npcSource, /const shouldLoadTour = eligible;/);
+  assert.match(npcSource, /const shouldLoadTour = eligible && !activeQuest && !waitingForQuestState;/);
   assert.match(npcSource, /blockingOverlay/);
 
   const appSource = readFileSync("client/src/App.tsx", "utf8");

@@ -25,8 +25,8 @@ test("selected fish queue is bounded and supports native vertical touch scrollin
   assert.match(queueMarkup, /touchAction:\s*"pan-y"/);
 });
 
-test("queued count stays above the queue and confirm controls remain a non-shrinking sibling", () => {
-  const countStart = source.indexOf("fish queued");
+test("selected count stays above the queue and confirm controls remain a non-shrinking sibling", () => {
+  const countStart = source.indexOf("fish selected");
   assert.ok(countStart > -1 && countStart < queueStart);
   assert.ok(confirmBarStart > queueStart && confirmBarStart < inventoryStart);
 

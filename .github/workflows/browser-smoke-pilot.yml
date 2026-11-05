@@ -7,13 +7,19 @@ on:
       - 'client/src/components/BeginJourneyOverlay.tsx'
       - 'client/src/components/NpcQuestDiscoveryGuide.tsx'
       - 'client/src/components/QuestGuideSpotlight.tsx'
+      - 'client/src/components/LonelleQuestOverlay.tsx'
+      - 'client/src/components/JansonQuestOverlay.tsx'
+      - 'client/src/components/GinnyQuestOverlay.tsx'
+      - 'client/src/components/PetCostumeEquipmentSection.tsx'
       - 'client/src/components/FloatingNav.tsx'
       - 'client/src/components/PetInventory.tsx'
       - 'client/src/pages/HomePage.tsx'
       - 'client/src/pages/PetInventoryPage.tsx'
+      - 'client/src/pages/SellFishPage.tsx'
       - 'client/src/lib/beginJourney.ts'
       - 'client/src/lib/queryClient.ts'
       - 'client/src/lib/questGuide*.ts'
+      - 'client/src/lib/mainNavState.ts'
       - 'client/src/App.tsx'
       - 'client/src/index.css'
       - 'client/src/tabletStageShell.css'
@@ -33,8 +39,11 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install isolated browser runner (no lockfile or manifest changes)
-        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/para-browser" --no-package-lock --ignore-scripts playwright@1.56.1
+          ln -s "$RUNNER_TEMP/para-browser/node_modules/playwright" node_modules/playwright
+          ln -s "$RUNNER_TEMP/para-browser/node_modules/playwright-core" node_modules/playwright-core
+      - run: node node_modules/playwright/cli.js install --with-deps chromium
       - name: Exercise public route at phone, tablet and desktop sizes
         shell: bash
         run: |
