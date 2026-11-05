@@ -23,10 +23,10 @@ test("Pet Park main-nav button checks live publishing state and shows only a the
   const navHandler = nav.split('const openPetPark = async () => {')[1]?.split('const handleRight = (id: string) => {')[0];
   assert.ok(navHandler, "navigation should check access before changing route");
   assert.match(navHandler, /if \(user\.isAdmin\) \{ navigate\("\/pet-park"\); return; \}/);
-  assert.match(navHandler, /queryClient\.fetchQuery<\{ enabledForPlayers: boolean \}>/);
+  assert.match(navHandler, /queryClient\.fetchQuery<\{ enabledForPlayers: boolean; canEnterPark: boolean \}>/);
   assert.match(navHandler, /queryFn: async \(\) => \(await apiRequest\("GET", "\/api\/pet-park\/status"\)\)\.json\(\)/);
   assert.match(navHandler, /staleTime: 0/);
-  assert.match(navHandler, /if \(status\.enabledForPlayers\) \{/);
+  assert.match(navHandler, /if \(status\.canEnterPark\) \{/);
   assert.match(navHandler, /toast\(\{ title: "Pet Park is under construction" \}\)/);
   assert.match(navHandler, /Unable to check Pet Park availability/);
   assert.match(nav, /if \(id === "keepers"\) \{[\s\S]*?setTimeout\(\(\) => \{ void openPetPark\(\); \}, NAV_DELAY\)/);
@@ -42,19 +42,19 @@ test("park status read is authenticated, lightweight and follows admin publishin
   const statusHandler = route.split('app.get("/api/pet-park/status", isAuthenticated, async (_req, res) => {')[1]
     ?.split('app.get("/api/pet-park/scene"')[0];
   assert.ok(statusHandler, "authenticated park availability route should exist");
-  assert.match(statusHandler, /select\(\{ enabledForPlayers: petParkSettings\.enabledForPlayers \}\)/);
+  assert.match(statusHandler, /select\(\{ enabledForPlayers: petParkSettings\.enabledForPlayers, enabledForModerators: petParkSettings\.enabledForModerators \}\)/);
   assert.match(statusHandler, /eq\(petParkSettings\.id, "main"\)/);
   assert.match(statusHandler, /enabledForPlayers: settings\?\.enabledForPlayers \?\? false/);
   assert.doesNotMatch(statusHandler, /petParkDeposits|petParkSceneItems|petParkBuildings|shopItems|userInventory/);
   assert.match(statusHandler, /Unable to check Pet Park availability/);
-  assert.match(route, /!settings\?\.enabledForPlayers && !player\?\.isAdmin/);
+  assert.match(route, /if \(!canEnterPark\) \{/);
 });
 
 test("closed park has under-construction view and admin-only scene preview", () => {
   assert.match(page, /Pet Park — Under Construction/);
-  assert.match(route, /!settings\?\.enabledForPlayers && !player\?\.isAdmin/);
+  assert.match(route, /if \(!canEnterPark\) \{/);
   assert.match(page, /scene\?\.canEditPark/);
-  assert.match(route, /if \(!park\?\.enabled\) return \{ status: 403/);
+  assert.match(route, /if \(!park\?\.enabled && !\(park\?\.moderators && role\?\.isModerator\)\) return \{ status: 403/);
 });
 
 test("deposits require authenticated owner, hatched unlisted pet, open park and unlocked slot", () => {
@@ -84,4 +84,33 @@ test("scene pans both axes with viewport clamping and uses existing pet artwork 
   assert.match(page, /sleeping \? "sleep" : "idle"/);
   assert.match(page, /reduceMotion \? "static"/);
   assert.match(page, /Drag the park in any direction/);
+});
+
+test("moderator-only park access keeps ordinary players out and preserves reward pause", () => {
+  const schema = readFileSync("shared/schema.ts", "utf8");
+  const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.ts", "utf8");
+  const adminRoutes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
+  const slotRoutes = readFileSync("server/routes/petParkSlots.routes.ts", "utf8");
+  const editor = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8");
+  assert.ok(schema.includes('enabledForModerators: boolean("enabled_for_moderators").notNull().default(false)'));
+  assert.ok(migration.includes("ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS enabled_for_moderators boolean NOT NULL DEFAULT false"));
+  assert.ok(adminRoutes.includes("enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour, updatedAt: now"));
+  assert.ok(editor.includes('aria-label="Allow moderators into Pet Park"'));
+  assert.ok(server.includes("canEnterPark: !!role?.isAdmin || !!settings?.enabledForPlayers || (!!settings?.enabledForModerators && !!role?.isModerator)"));
+  assert.ok(server.includes("pausedAt: park.enabled ? null : new Date()"));
+  assert.ok(slotRoutes.includes("!park?.enabled && !(park?.moderators && role?.isModerator)"));
+  const access = (publicOpen: boolean, modOpen: boolean, admin: boolean, moderator: boolean) => admin || publicOpen || (modOpen && moderator);
+  assert.equal(access(false,false,false,false), false);
+  assert.equal(access(false,true,false,false), false);
+  assert.equal(access(false,true,false,true), true);
+  assert.equal(access(true,false,false,false), true);
+  assert.equal(access(false,false,true,false), true);
+});
+
+test("visitor park shows three oval spots with existing equip and unlock paths", () => {
+  assert.ok(page.includes('data-testid="pet-park-player-slots"'));
+  assert.ok(page.includes("Array.from({ length: 3 }"));
+  assert.ok(page.includes("rounded-[50%]"));
+  assert.ok(page.includes("body: { petInventoryId: selectedPet, slotNumber: activeSlot }"));
+  assert.ok(page.includes('aria-label="Close pet spot"'));
 });
