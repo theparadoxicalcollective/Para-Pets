@@ -83,7 +83,7 @@ test("scene pans both axes with viewport clamping and uses existing pet artwork 
   assert.match(page, /isParkSleepPosition\(position, scene\.items/);
   assert.match(page, /sleeping \? "sleep" : "idle"/);
   assert.match(page, /reduceMotion \? "static"/);
-  assert.match(page, /Drag the park in any direction/);
+  assert.match(page, /data-testid="pet-park-player-slots"/);
 });
 
 test("moderator-only park access keeps ordinary players out and preserves reward pause", () => {
@@ -96,8 +96,8 @@ test("moderator-only park access keeps ordinary players out and preserves reward
   assert.ok(migration.includes("ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS enabled_for_moderators boolean NOT NULL DEFAULT false"));
   assert.ok(adminRoutes.includes("enabledForPlayers, enabledForModerators, coinsPerHour, essencePerHour, petXpPerHour, updatedAt: now"));
   assert.ok(editor.includes('aria-label="Allow moderators into Pet Park"'));
-  assert.ok(server.includes("canEnterPark: !!role?.isAdmin || !!settings?.enabledForPlayers || (!!settings?.enabledForModerators && !!role?.isModerator)"));
-  assert.ok(server.includes("pausedAt: park.enabled ? null : new Date()"));
+  assert.ok(route.includes("canEnterPark: !!role?.isAdmin || !!settings?.enabledForPlayers || (!!settings?.enabledForModerators && !!role?.isModerator)"));
+  assert.ok(route.includes("pausedAt: park.enabled ? null : new Date()"));
   assert.ok(slotRoutes.includes("!park?.enabled && !(park?.moderators && role?.isModerator)"));
   const access = (publicOpen: boolean, modOpen: boolean, admin: boolean, moderator: boolean) => admin || publicOpen || (modOpen && moderator);
   assert.equal(access(false,false,false,false), false);
