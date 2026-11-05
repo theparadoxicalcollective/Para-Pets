@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image, Minus, Plus, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { HOME_OUTDOOR_EFFECT_OPTIONS, HomeOutdoorEffectVisual } from "@/components/HomeInteriorEffect";
+import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
@@ -36,7 +36,6 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
   const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
-  const [kind, setKind] = useState<"decor" | "sleep_spot">( "decor" );
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
@@ -158,7 +157,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (PARK_BASE_VIEW_HEIGHT)))))}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
             style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
-            <span className="block text-sm text-[#f5cf64]">{option.label}</span>
+            <span className="block text-sm text-[#f5cf64]">{option.type === "sleep" ? "Rest Spot (Sleep Square)" : option.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
           </button>)}
         </div>
@@ -212,11 +211,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          {([{ value: "decor", label: "Decoration / Object" }, { value: "sleep_spot", label: "Rest Spot" }] as const).map(option => <button type="button" key={option.value}
-            aria-pressed={kind === option.value} onClick={() => setKind(option.value)}
-            className="rounded-xl border px-2 py-3 text-sm" style={{ background: kind === option.value ? "rgba(48,95,62,0.9)" : "rgba(23,54,36,0.82)", borderColor: kind === option.value ? GOLD : GOLD_BORDER }}>{option.label}</button>)}
-        </div>
+        <p className="text-xs text-amber-100/75">Upload decoration or object artwork. For pet resting areas, use + Effects → Rest Spot (Sleep Square).</p>
         {pendingImage ? <div aria-label="Pet Park decor size preview" className="relative flex h-48 items-center justify-center overflow-hidden rounded-xl border bg-[#263e29]" style={{ borderColor: GOLD_BORDER }}>
           <img src={pendingImage} alt="New park object preview" draggable={false} className="max-h-full object-contain drop-shadow-lg"
             style={{ width: Math.min(180, Math.max(42, itemSize * 0.7)), height: Math.min(180, Math.max(42, itemSize * 0.7)) }} />
@@ -226,10 +221,6 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <Image className="mr-2 inline h-4 w-4" /> Upload Image (PNG/JPEG)
           <input aria-label="Scene item artwork" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setPendingImage); e.target.value = ""; }} />
         </label>}
-        {kind === "sleep_spot" && <>
-          <p className="text-xs text-amber-100/70">Rest spots are sleep interaction areas: pets resting inside the spot sleep. An image is optional; without one the editor shows a Sleep Square.</p>
-          {!pendingImage && <div aria-label="Sleep Square preview" className="mx-auto h-28 w-28"><HomeOutdoorEffectVisual type="sleep" adminPreview /></div>}
-        </>}
         <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: GOLD_BORDER, background: "rgba(255,215,0,.04)" }}>
           <div className="flex items-center justify-between text-sm"><label htmlFor="park-decor-size">Starting size</label><span className="font-semibold">{itemSize} world units</span></div>
           <div className="flex items-center gap-3">
@@ -242,14 +233,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           </div>
           <p className="text-[11px] text-amber-100/60">Size is saved when the object is created. Use Move park objects to position, resize or flip it afterward. Depth follows ground position automatically.</p>
         </div>
-        <button type="button" disabled={mutation.isPending || (kind === "decor" && !pendingImage)}
+        <button type="button" disabled={mutation.isPending || !pendingImage}
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
-            kind, imageData: pendingImage, effectType: null,
+            kind: "decor", imageData: pendingImage, effectType: null,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
             size: itemSize, flipped: false, layer: 0,
-          } })}>{mutation.isPending ? "Adding…" : kind === "decor" ? "Add Decoration" : "Add Rest Spot"}</button>
+          } })}>{mutation.isPending ? "Adding…" : "Add Decoration"}</button>
       </section>}
       </>}
     </div>
