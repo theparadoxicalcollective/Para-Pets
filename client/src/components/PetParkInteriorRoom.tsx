@@ -9,13 +9,16 @@ type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: 
 export default function PetParkInteriorRoom({
   imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
-  onPointerMove, onPointerUp, onPointerCancel,
+  onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect,
 }: {
   imageUrl: string;
   name: string;
   effects: HouseInteriorEffect[];
-  children?: ReactNode;
+  /** Use measured image geometry for pets resting on admin-sized indoor spots. */
+  children?: ReactNode | ((layout: { imageWidth: number; sceneHeight: number }) => ReactNode);
   expanded?: boolean;
+  offEffectIds?: ReadonlySet<string>;
+  onToggleEffect?: (effect: HouseInteriorEffect) => void;
   selectedEffectId?: string | null;
   editEffects?: boolean;
   onEffectPointerDown?: EffectPointerHandler;
@@ -61,10 +64,19 @@ export default function PetParkInteriorRoom({
     }}
     onPointerUp={event => { if (drag.current?.id === event.pointerId) drag.current = null; }}
     onPointerCancel={event => { if (drag.current?.id === event.pointerId) drag.current = null; }}>
-    <div className={expanded ? "absolute top-0 h-full touch-none" : "absolute inset-0"}
+    <div data-park-interior-artwork className={expanded ? "absolute top-0 h-full touch-none" : "absolute inset-0"}
       style={expanded ? { left: cameraX, width: imageWidth } : undefined}
+      onClickCapture={event => {
+        if (editEffects || !onToggleEffect) return;
+        const target = (event.target as HTMLElement).closest<HTMLElement>("[data-player-toggle-effect-id]");
+        const effect = effects.find(item => item.id === target?.dataset.playerToggleEffectId);
+        if (!effect) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onToggleEffect(effect);
+      }}
       onPointerDown={event => {
-        if (!expanded || !event.isPrimary || (event.target as HTMLElement).closest("button, [data-park-pet]")) return;
+        if (!expanded || !event.isPrimary || (event.target as HTMLElement).closest("button, [data-park-pet], [data-player-toggle-effect-id]")) return;
         drag.current = { id: event.pointerId, startX: event.clientX, panX: cameraX };
         safeSetPointerCapture(event.currentTarget, event.pointerId);
       }}
@@ -83,10 +95,11 @@ export default function PetParkInteriorRoom({
       }} />
     <HomeInteriorEffectsLayer effects={effects} panX={0}
       imgWidth={imageWidth} sceneHeight={dimensions.height}
+      offEffectIds={offEffectIds} onToggleEffect={onToggleEffect}
       selectedId={selectedEffectId} interactive={editEffects}
       onEffectPointerDown={onEffectPointerDown} onEffectPointerMove={onEffectPointerMove}
       onEffectPointerUp={onEffectPointerUp} onEffectPointerCancel={onEffectPointerCancel} />
-    {children}
+    {typeof children === "function" ? children({ imageWidth, sceneHeight: dimensions.height }) : children}
     </div>
   </div>;
 }

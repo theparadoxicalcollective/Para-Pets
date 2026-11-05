@@ -11,7 +11,10 @@ const adminRoutes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8")
 
 test("park building details are admin-only, contextual and use existing storage", () => {
   assert.match(page, /scene\?\.canEditPark && detailsBuilding && <PetParkBuildingDetails/);
-  assert.match(page, /setDetailsBuildingId\(activeBuilding\.id\)/);
+  // Room visitors only see Exit; the admin editor remains available from selected scene buildings.
+  assert.match(page, /scene\?\.canEditPark && detailsBuilding && <PetParkBuildingDetails/);
+  assert.match(page, /aria-label="Exit building"/);
+  assert.doesNotMatch(page, /setDetailsBuildingId\(activeBuilding\.id\)/);
   assert.match(page, /setDetailsBuildingId\(selectedPlacement\.id\)/);
   assert.match(details, /Park building name/);
   assert.match(details, /Park building capacity/);
@@ -23,7 +26,9 @@ test("park building details are admin-only, contextual and use existing storage"
 });
 
 test("player and admin effects share natural-image room coordinates and Home effect layer", () => {
-  assert.match(page, /<PetParkInteriorRoom expanded imageUrl=\{activeBuilding\.interiorImageUrl\}/);
+  assert.match(page, /<PetParkInteriorRoom expanded\s+imageUrl=\{activeBuilding\.interiorImageUrl\}/);
+  assert.match(page, /offEffectIds=\{new Set\(offParkInteriorLights\[activeBuilding\.id\]/);
+  assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight\(activeBuilding\.id, effect\)\}/);
   assert.match(details, /<PetParkInteriorRoom imageUrl=\{imagePreview\}/);
   assert.match(room, /naturalWidth \/ naturalHeight/);
   assert.match(room, /getBoundingClientRect\(\)/);

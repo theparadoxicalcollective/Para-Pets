@@ -38,7 +38,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       const deposits = await db.select({
         id: petParkDeposits.id, slotNumber: petParkDeposits.slotNumber,
         petInventoryId: petParkDeposits.petInventoryId, petName: shopItems.name,
-        petTemplateId: userInventory.shopItemId,
+        petTemplateId: shopItems.petTemplateId,
+        hatchedImageUrl: shopItems.hatchedImageUrl,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
         buildingId: petParkDeposits.buildingId, showInPark: petParkDeposits.showInPark, parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
@@ -57,7 +58,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         interiorXPct: petParkDeposits.interiorXPct,
         interiorYPct: petParkDeposits.interiorYPct,
         pose: petParkDeposits.pose,
-        petTemplateId: userInventory.shopItemId,
+        petTemplateId: shopItems.petTemplateId,
+        hatchedImageUrl: shopItems.hatchedImageUrl,
         petName: shopItems.name,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
@@ -101,8 +103,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         if (!owner) return { status: 404 as const };
         const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
           .from(petParkSettings).where(eq(petParkSettings.id, "main"));
-        const [role] = await tx.select({ isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
-        if (!park?.enabled && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
+        const [role] = await tx.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+        if (!park?.enabled && !role?.isAdmin && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
         const [slots] = await tx.select({ unlockedSlots: petParkPlayerSlots.unlockedSlots })
           .from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
         if (slotNumber > (slots?.unlockedSlots ?? 1)) return { status: 409 as const };
@@ -241,8 +243,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         if (!owner) return { status: 404 as const };
         const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers, moderators: petParkSettings.enabledForModerators })
           .from(petParkSettings).where(eq(petParkSettings.id, "main"));
-        const [role] = await tx.select({ isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
-        if (!park?.enabled && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
+        const [role] = await tx.select({ isAdmin: users.isAdmin, isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+        if (!park?.enabled && !role?.isAdmin && !(park?.moderators && role?.isModerator)) return { status: 403 as const };
         const [outgoing] = await tx.select().from(petParkDeposits)
           .where(and(eq(petParkDeposits.id, String(req.params.id)), eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt))).for("update");
         if (!outgoing) return { status: 404 as const };
