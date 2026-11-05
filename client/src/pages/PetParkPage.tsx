@@ -26,7 +26,7 @@ import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
-import { isParkSleepPosition, parkPetSizeOnSleepSpot } from "@/lib/petParkSleepSpots";
+import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot } from "@/lib/petParkSleepSpots";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan } from "@/lib/petParkCamera";
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
@@ -65,6 +65,7 @@ export default function PetParkPage() {
   const [offParkInteriorLights, setOffParkInteriorLights] = useState<Record<string, string[]>>({});
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
+  const [indoorSelectedPetId, setIndoorSelectedPetId] = useState<string | null>(null);
   const [detailsBuildingId, setDetailsBuildingId] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [showCreator, setShowCreator] = useState(false);
@@ -504,12 +505,115 @@ export default function PetParkPage() {
     {scene?.enabledForPlayers && <div className="absolute right-3 top-16 z-20 rounded bg-black/70 px-3 py-1 text-xs">
       {(scene?.sharedPets ?? []).length} pets visiting
     </div>}
-    {activeBuilding && <div className="fixed inset-0 z-40 flex flex-col bg-black/90" role="dialog" aria-modal="true" aria-label={activeBuilding.name}>
-      <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#13291e]">
-        <div className="flex items-center justify-between gap-3 p-3"><h2 className="text-lg font-semibold text-amber-300">{activeBuilding.name}</h2>{scene?.canEditPark && <button type="button" className="rounded bg-[#245037] px-3 py-2" onClick={() => setDetailsBuildingId(activeBuilding.id)}>Edit building</button>}<button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => setEnteredBuilding(null)}>Leave building</button></div>
-        <div className="relative min-h-0 flex-1 overflow-hidden">{activeBuilding.interiorImageUrl ? <PetParkInteriorRoom expanded imageUrl={activeBuilding.interiorImageUrl} name={activeBuilding.name} effects={activeBuilding.interiorEffects ?? []} onPointerMove={e => { if (!indoorDrag) return; const rect = e.currentTarget.getBoundingClientRect(); setIndoorDrag({ ...indoorDrag, x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)) }); }} onPointerUp={() => { if (!indoorDrag) return; const deposit = deposits.find(item => item.petInventoryId === indoorDrag.petId); if (deposit) action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: indoorDrag.x, yPct: indoorDrag.y, pose: "idle" } }); setIndoorDrag(null); }} onPointerCancel={() => setIndoorDrag(null)}>{(scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).map(pet => { const ownDeposit = deposits.find(item => item.petInventoryId === pet.petInventoryId); const x = indoorDrag?.petId === pet.petInventoryId ? indoorDrag.x : pet.interiorXPct; const y = indoorDrag?.petId === pet.petInventoryId ? indoorDrag.y : pet.interiorYPct; return <div key={pet.petInventoryId} className="absolute z-10" style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: "translate(-50%, -70%)", width: 225, height: 260 }}><div className="h-[80%]"><PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId} costumeAccess={ownDeposit ? "owner" : "public"} mode={pet.pose === "sleep" ? "sleep" : pet.pose === "sit" ? "house" : "idle"} size={225} fillContainer /></div>{ownDeposit ? <button type="button" aria-label={`Move ${pet.petNickname || pet.petName}`} className="rounded bg-black/75 px-2 py-1 text-xs" onPointerDown={e => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setIndoorDrag({ petId: pet.petInventoryId, x, y }); }} onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${ownDeposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: x, yPct: y, pose: pet.pose } })}>{pet.petNickname || pet.petName} · drag</button> : <span className="rounded bg-black/70 px-1 text-[10px]">{pet.petNickname || pet.petName}</span>}</div>; })}</PetParkInteriorRoom> : <p className="p-8 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}</div>
-        <div className="flex max-h-[18dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-t border-amber-500/25 p-2 text-xs text-amber-100/70"><span>{(scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).length}/{activeBuilding.maxPets} pets · Park-wide limit remains three per player.</span>{deposits.filter(deposit => deposit.buildingId === activeBuilding.id).map(deposit => <div key={deposit.id} className="flex flex-wrap gap-1"><button type="button" className="rounded bg-amber-800 px-2 py-2 text-amber-50" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: null, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} outside</button>{(["idle","sit","sleep"] as const).map(pose => <button key={pose} type="button" className="rounded bg-[#245037] px-2 py-2" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: deposit.interiorXPct, yPct: deposit.interiorYPct, pose } })}>{pose === "idle" ? "Bounce" : pose === "sit" ? "Sit" : "Sleep"}</button>)}</div>)}{deposits.filter(deposit => deposit.buildingId !== activeBuilding.id).map(deposit => <button key={deposit.id} type="button" className="rounded bg-emerald-800 px-3 py-2" onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`, body: { buildingId: activeBuilding.id, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} inside</button>)}</div>
+    {activeBuilding && <div className="fixed inset-0 z-40 bg-[#13291e]" role="dialog" aria-modal="true" aria-label={activeBuilding.name}>
+      <button type="button" aria-label="Exit building" onClick={() => { setEnteredBuilding(null); setIndoorSelectedPetId(null); cancelEquippedPetDrag(); }}
+        className="absolute right-3 z-50 rounded-full border border-amber-400/70 bg-[#10291d]/95 px-5 py-2.5 font-fantasy text-sm font-semibold text-[#f5cf64] shadow-xl"
+        style={{ top: "max(64px, calc(env(safe-area-inset-top, 0px) + 12px))" }}>Exit</button>
+      {activeBuilding.interiorImageUrl ? <PetParkInteriorRoom expanded
+        imageUrl={activeBuilding.interiorImageUrl} name={activeBuilding.name}
+        effects={activeBuilding.interiorEffects ?? []}
+        offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
+        onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}
+        onPointerMove={event => {
+          if (!indoorDrag) return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          setIndoorDrag({ ...indoorDrag,
+            x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+            y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+          });
+        }}
+        onPointerUp={() => {
+          if (!indoorDrag) return;
+          const deposit = deposits.find(item => item.petInventoryId === indoorDrag.petId);
+          if (deposit) action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`,
+            body: { buildingId: activeBuilding.id, xPct: indoorDrag.x, yPct: indoorDrag.y, pose: "idle" } });
+          setIndoorDrag(null);
+        }}
+        onPointerCancel={() => setIndoorDrag(null)}>
+        {({ imageWidth, sceneHeight }) => (scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).map(pet => {
+          const ownDeposit = deposits.find(item => item.petInventoryId === pet.petInventoryId);
+          const x = indoorDrag?.petId === pet.petInventoryId ? indoorDrag.x : pet.interiorXPct;
+          const y = indoorDrag?.petId === pet.petInventoryId ? indoorDrag.y : pet.interiorYPct;
+          const petSize = parkIndoorPetSizeOnSleepSpot({ x, y }, activeBuilding.interiorEffects ?? [],
+            { width: imageWidth, height: sceneHeight }, 225);
+          return <div key={pet.petInventoryId} data-park-pet className="absolute z-10"
+            style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: "translate(-50%, -70%)",
+              width: petSize, height: petSize * 260 / 225 }}>
+            <div className="relative h-[80%]">
+              {pet.petTemplateId ? <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
+                costumeAccess={ownDeposit ? "owner" : "public"}
+                mode={pet.pose === "sleep" ? "sleep" : pet.pose === "sit" ? "house" : "idle"}
+                size={petSize} fillContainer /> :
+                pet.hatchedImageUrl ? <img src={pet.hatchedImageUrl} alt="" className="h-full w-full object-contain" /> : null}
+              <div className="pointer-events-none absolute bottom-0 left-0 h-[25%] w-[25%]">
+                <MiniPetRenderer petInventoryId={pet.petInventoryId} access={ownDeposit ? "owner" : "public"} animated={!reduceMotion} />
+              </div>
+            </div>
+            {ownDeposit ? <button type="button" aria-label={`Move ${pet.petNickname || pet.petName}`}
+              className="rounded bg-black/75 px-2 py-1 text-xs text-amber-100"
+              onPointerDown={event => { event.stopPropagation(); safeSetPointerCapture(event.currentTarget, event.pointerId);
+                setIndoorDrag({ petId: pet.petInventoryId, x, y }); }}
+              onClick={() => setIndoorSelectedPetId(pet.petInventoryId)}>
+                {pet.petNickname || pet.petName} · drag
+              </button> : <span className="rounded bg-black/70 px-1 text-[10px]">{pet.petNickname || pet.petName}</span>}
+          </div>;
+        })}
+      </PetParkInteriorRoom> : <p className="p-8 pt-28 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}
+      <div data-testid="pet-park-interior-slots" className="absolute inset-x-2 z-50 rounded-xl border border-amber-500/55 bg-[#10291d]/95 p-2 shadow-2xl"
+        style={{ bottom: "max(10px, env(safe-area-inset-bottom, 0px))" }}>
+        <div className="flex items-center justify-between gap-2 px-1 pb-1 text-[11px] text-amber-100/75">
+          <span>{(scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding.id).length}/{activeBuilding.maxPets} pets inside</span>
+          <span>Drag an equipped pet into the room</span>
+        </div>
+        {(() => {
+          const deposit = deposits.find(item => item.petInventoryId === indoorSelectedPetId);
+          if (!deposit) return null;
+          return <div className="mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-amber-500/35 p-2 text-[11px]">
+            <span className="mr-1 font-semibold">{deposit.petNickname || deposit.petName}</span>
+            {deposit.buildingId === activeBuilding.id ? <>
+              <button type="button" className="rounded bg-amber-800 px-2 py-1.5"
+                onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`,
+                  body: { buildingId: null, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>Move {deposit.petNickname || deposit.petName} outside</button>
+              {(["idle","sit","sleep"] as const).map(pose => <button key={pose} type="button"
+                className="rounded bg-[#245037] px-2 py-1.5"
+                onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`,
+                  body: { buildingId: activeBuilding.id, xPct: deposit.interiorXPct, yPct: deposit.interiorYPct, pose } })}>
+                {pose === "idle" ? "Bounce" : pose === "sit" ? "Sit" : "Sleep"}
+              </button>)}
+            </> : <button type="button" className="rounded bg-[#245037] px-2 py-1.5"
+              onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${deposit.id}/placement`,
+                body: { buildingId: activeBuilding.id, xPct: 0.5, yPct: 0.72, pose: "idle" } })}>
+              Move {deposit.petNickname || deposit.petName} inside
+            </button>}
+            <button type="button" className="ml-auto rounded border border-amber-500/40 px-2 py-1.5"
+              onClick={() => setIndoorSelectedPetId(null)}>Close</button>
+          </div>;
+        })()}
+        <div className="flex gap-2 overflow-x-auto overscroll-x-contain">
+          {deposits.length === 0 && <p className="p-3 text-xs text-amber-100/65">Equip a level 10+ pet in the park first.</p>}
+          {deposits.map(deposit => <button type="button" key={deposit.id}
+            data-testid={`pet-park-room-slot-${deposit.slotNumber}`}
+            className="flex min-w-[118px] shrink-0 touch-none items-center gap-1 rounded-[50%] border border-amber-500/65 bg-[#1c3d2a] px-2 py-1 text-left text-[11px] text-amber-100"
+            onPointerDown={event => startEquippedPetDrag(event, deposit)}
+            onPointerMove={event => moveEquippedPetDrag(event, deposit.slotNumber)}
+            onPointerUp={endEquippedPetDrag}
+            onPointerCancel={cancelEquippedPetDrag}
+            onLostPointerCapture={cancelEquippedPetDrag}
+            onClick={() => { if (Date.now() < suppressSlotClickUntil.current) return; setIndoorSelectedPetId(deposit.petInventoryId); }}>
+            <PetParkPetPortrait petTemplateId={deposit.petTemplateId} hatchedImageUrl={deposit.hatchedImageUrl}
+              petInventoryId={deposit.petInventoryId} size={52} />
+            <span className="min-w-0"><span className="block text-[10px] font-semibold">Spot {deposit.slotNumber}</span>
+              <span className="block max-w-[64px] truncate">{deposit.petNickname || deposit.petName}</span>
+              <span className="block text-[9px] text-amber-300/75">{deposit.buildingId === activeBuilding.id ? "Inside" : "Drag in"}</span>
+            </span>
+          </button>)}
+        </div>
       </div>
+      {slotDragGhost && <div className="pointer-events-none fixed z-[70] flex items-center gap-1 rounded-full border border-amber-300 bg-[#1e452e]/90 p-2 text-xs font-semibold text-amber-100 shadow-xl"
+        style={{ left: slotDragGhost.x, top: slotDragGhost.y, transform: "translate(-50%, -110%)" }}>
+        {deposits.find(item => item.id === slotDragGhost.petId)?.petNickname ||
+          deposits.find(item => item.id === slotDragGhost.petId)?.petName || "Pet"}
+      </div>}
     </div>}
     {inspectedPet && <div className="absolute left-1/2 top-1/3 z-30 w-[min(85%,300px)] -translate-x-1/2 rounded-xl border border-amber-500 bg-[#152d23] p-4 text-center shadow-xl">
       <h2 className="font-semibold text-amber-300">{inspectedPet.petNickname || inspectedPet.petName}</h2>
