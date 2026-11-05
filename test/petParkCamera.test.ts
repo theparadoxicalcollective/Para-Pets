@@ -77,7 +77,7 @@ test("player and admin use world coords, not an old image-sized reference stage"
   assert.match(player, /Expand Ground/);
   assert.doesNotMatch(player, /backgroundImage: scene.backgroundUrl/);
   assert.match(room, /naturalWidth \/ naturalHeight/);
-  assert.match(room, /imgWidth=\{dimensions.width\} sceneHeight=\{dimensions.height\}/);
+  assert.match(room, /imgWidth=\{imageWidth\} sceneHeight=\{dimensions.height\}/);
   assert.ok(player.includes('left: `${shownPosition("item", item).xPct * 100}%`'));
   assert.ok(player.includes('top: `${shownPosition("item", item).yPct * 100}%`'));
   assert.doesNotMatch(player, /Fine-tune exact placement/);
