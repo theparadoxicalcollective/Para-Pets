@@ -30,3 +30,10 @@ test("missing NPC data cannot silently skip a world or complete discovery", () =
   // explicitly restore pointer input so the map pan surface cannot intercept taps.
   assert.match(discovery, /if \(isError\) return createPortal\([\s\S]*?pointerEvents: "auto"/);
 });
+
+test("NPC hotspot fallback consumes valid tour taps without opening an NPC quest", () => {
+  assert.match(discovery, /if \(!targetOnScreen \|\| !current\) return;/);
+  assert.match(discovery, /event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);/);
+  assert.match(discovery, /saveIndex\(user\.id, index \+ 1\);\s*setIndex\(index \+ 1\);/);
+  assert.match(discovery, /event\.clientX < bounds\.left[\s\S]*?event\.clientY > bounds\.bottom/);
+});
