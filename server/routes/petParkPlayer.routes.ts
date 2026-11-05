@@ -72,7 +72,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .where(and(isNull(petParkDeposits.withdrawnAt), eq(petParkDeposits.showInPark, true)))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
-        enabledForPlayers: canEnterPark,
+        enabledForPlayers: settings?.enabledForPlayers ?? false,
+        canEnterPark,
         backgroundUrl: settings?.backgroundUrl ?? null, // Legacy only; the live park draws grass instead.
         groundLevel: settings?.groundLevel ?? 1,
         buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
