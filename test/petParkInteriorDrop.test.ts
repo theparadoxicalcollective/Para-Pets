@@ -30,5 +30,5 @@ test("Pet Park uses template IDs, not shop item IDs, for both personal and publi
   assert.match(room, /data-park-interior-artwork/);
   assert.match(page, /dropEquippedPetInside\(drag\.petId/);
   assert.match(page, /data-testid="pet-park-interior-slots"/);
-  assert.match(page, /aria-label="Exit building"/);
+  assert.match(page, /aria-label=\{fullPageRoom \? "Exit room" : "Exit building"\}/);
 });
