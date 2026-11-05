@@ -113,7 +113,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
         if (existing) return { status: 409 as const };
-        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false }).returning();
+        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false, pausedAt: park.enabled ? null : new Date() }).returning();
         return { status: 201 as const, deposit };
       });
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });
