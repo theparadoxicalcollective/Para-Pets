@@ -23,12 +23,12 @@ test("park building details are admin-only, contextual and use existing storage"
 });
 
 test("player and admin effects share natural-image room coordinates and Home effect layer", () => {
-  assert.match(page, /<PetParkInteriorRoom imageUrl=\{activeBuilding\.interiorImageUrl\}/);
+  assert.match(page, /<PetParkInteriorRoom expanded imageUrl=\{activeBuilding\.interiorImageUrl\}/);
   assert.match(details, /<PetParkInteriorRoom imageUrl=\{imagePreview\}/);
   assert.match(room, /naturalWidth \/ naturalHeight/);
   assert.match(room, /getBoundingClientRect\(\)/);
   assert.match(room, /observeHomeViewport\(element, measure, "artwork-scene"\)/);
-  assert.match(room, /imgWidth=\{dimensions\.width\} sceneHeight=\{dimensions\.height\}/);
+  assert.match(room, /imgWidth=\{imageWidth\} sceneHeight=\{dimensions\.height\}/);
   assert.match(room, /<HomeInteriorEffectsLayer/);
   assert.match(homeEffects, /onPointerDown=\{interactive && onEffectPointerDown/);
   assert.doesNotMatch(page, /aspectRatio: "4 \/ 3"/);
