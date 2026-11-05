@@ -8,7 +8,7 @@ const admin = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 const player = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 
 test("effect drafts use the most recently confirmed server save as their cancel baseline", () => {
-  assert.match(details, /savedEffects = useRef<HouseInteriorEffect\[\]>/);
+  assert.match(details, /savedEffects = useRef<ParkInteriorEffect\[\]>/);
   assert.match(details, /onSuccess: \(updated, variables\) =>/);
   assert.match(details, /variables\.interiorEffects !== undefined/);
   assert.match(details, /savedEffects\.current = confirmed/);

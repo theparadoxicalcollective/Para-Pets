@@ -3,6 +3,7 @@ import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, parkGroundSize } from "@shared/petParkGround";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
+import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
@@ -179,7 +180,21 @@ export function registerPetParkAdminRoutes(
       if (!isValidPetParkBuildingCapacity(body.maxPets)) return res.status(400).json({ message: `Building capacity must be from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
       updates.maxPets = body.maxPets;
     }
-    if (body.interiorEffects !== undefined) updates.interiorEffects = sanitizeHouseInteriorEffects(body.interiorEffects);
+    if (body.interiorEffects !== undefined) {
+      if (!Array.isArray(body.interiorEffects) || body.interiorEffects.length > 20)
+        return res.status(400).json({ message: "Choose up to 20 valid interior effects" });
+      updates.interiorEffects = body.interiorEffects;
+    }
+    if (body.roomImageData !== undefined && (typeof body.roomImageData !== "string" ||
+        !body.roomImageData.startsWith("data:image/") || body.roomImageData.length > 12_000_000 ||
+        !Array.isArray(body.interiorEffects) || typeof body.roomEffectId !== "string")) {
+      return res.status(400).json({ message: "Save a selected room with a valid image" });
+    }
+    let uploadedRoomUrl: string | null = null;
+    if (body.roomImageData !== undefined) {
+      try { uploadedRoomUrl = await processWorldImage(body.roomImageData, 2000); }
+      catch { return res.status(400).json({ message: "Unable to process room image" }); }
+    }
     for (const key of ["xPct", "yPct", "size", "flipped", "layer"] as const) {
       if (body[key] === undefined) continue;
       const valid = key === "xPct" || key === "yPct" ? validPosition(body[key]) : key === "size" ? validSize(body[key]) : key === "flipped" ? typeof body[key] === "boolean" : validLayer(body[key]);
@@ -188,27 +203,46 @@ export function registerPetParkAdminRoutes(
     }
     if (!Object.keys(updates).length) return res.status(400).json({ message: "No valid building changes provided" });
     try {
-      if (updates.maxPets !== undefined) {
-        // The player placement route also locks the building before counting occupants.
-        // Serialize capacity reductions with incoming placements so deposited pets cannot
-        // be stranded inside a building whose new capacity is already exceeded.
+      if (updates.maxPets !== undefined || updates.interiorEffects !== undefined) {
+        // Room changes and pet placements serialize through the same building lock.
+        // Never delete, shrink or convert a room that currently contains pets.
         const result = await db.transaction(async tx => {
-          const [existing] = await tx.select({ id: petParkBuildings.id }).from(petParkBuildings)
+          const [existing] = await tx.select().from(petParkBuildings)
             .where(eq(petParkBuildings.id, String(req.params.id))).for("update");
           if (!existing) return { status: 404 as const };
-          const occupants = await tx.select({ id: petParkDeposits.id }).from(petParkDeposits)
+          const occupants = await tx.select({ id: petParkDeposits.id, roomEffectId: petParkDeposits.roomEffectId })
+            .from(petParkDeposits)
             .where(and(eq(petParkDeposits.buildingId, existing.id), isNull(petParkDeposits.withdrawnAt)));
-          if (occupants.length > (updates.maxPets as number)) {
-            return { status: 409 as const, occupants: occupants.length };
+          if (updates.maxPets !== undefined && occupants.length > (updates.maxPets as number))
+            return { status: 409 as const, message: `This building has ${occupants.length} active pets. Move pets outside before lowering capacity.` };
+          if (updates.interiorEffects !== undefined) {
+            let proposed = sanitizeParkInteriorEffects(body.interiorEffects, existing.interiorEffects);
+            if (uploadedRoomUrl !== null) {
+              const id = String(body.roomEffectId);
+              const room = proposed.find(effect => effect.id === id);
+              if (!room || room.type !== "room")
+                return { status: 400 as const, message: "Select a valid room before uploading artwork" };
+              proposed = proposed.map(effect => effect.id === id && effect.type === "room"
+                ? { ...effect, imageUrl: uploadedRoomUrl } : effect);
+            }
+            const counts = new Map<string, number>();
+            for (const occupant of occupants) if (occupant.roomEffectId) {
+              counts.set(occupant.roomEffectId, (counts.get(occupant.roomEffectId) ?? 0) + 1);
+            }
+            for (const [id, count] of counts) {
+              const room = proposed.find(effect => effect.id === id);
+              if (!isPetAccessibleParkRoom(room) || count > room.maxPets)
+                return { status: 409 as const, message: "Move pets out of this room before removing, converting or reducing its capacity" };
+            }
+            updates.interiorEffects = proposed;
           }
           const [building] = await tx.update(petParkBuildings).set(updates)
             .where(eq(petParkBuildings.id, existing.id)).returning();
           return { status: 200 as const, building };
         });
         if (result.status === 404) return res.status(404).json({ message: "Building not found" });
-        if (result.status === 409) return res.status(409).json({
-          message: `This building has ${result.occupants} active pets. Move pets outside before lowering capacity.`,
-        });
+        if (result.status === 400) return res.status(400).json({ message: result.message });
+        if (result.status === 409) return res.status(409).json({ message: result.message });
         return res.json(result.building);
       }
       const [building] = await db.update(petParkBuildings).set(updates).where(eq(petParkBuildings.id, String(req.params.id))).returning();

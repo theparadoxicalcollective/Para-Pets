@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState, type PointerEventHandler, type ReactNode } from "react";
-import { HomeInteriorEffectsLayer } from "@/components/HomeInteriorEffect";
+import { HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { observeHomeViewport, centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, safeSetPointerCapture, HOME_TOUCH_SURFACE_STYLE } from "@/lib/homeCrossDevice";
 import type { HouseInteriorEffect } from "@shared/housing";
+import { isParkRoomEffect, type ParkInteriorEffect, type ParkRoomEffect } from "@shared/petParkRooms";
 
-type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: HouseInteriorEffect) => void;
+type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => void;
 
 /** One actual-image coordinate surface for park visitors and administrators. */
 export default function PetParkInteriorRoom({
   imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
-  onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect,
+  onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect, onOpenRoom,
 }: {
   imageUrl: string;
   name: string;
-  effects: HouseInteriorEffect[];
+  effects: ParkInteriorEffect[];
+  onOpenRoom?: (room: ParkRoomEffect) => void;
   /** Use measured image geometry for pets resting on admin-sized indoor spots. */
   children?: ReactNode | ((layout: { imageWidth: number; sceneHeight: number }) => ReactNode);
   expanded?: boolean;
@@ -69,7 +71,7 @@ export default function PetParkInteriorRoom({
       onClickCapture={event => {
         if (editEffects || !onToggleEffect) return;
         const target = (event.target as HTMLElement).closest<HTMLElement>("[data-player-toggle-effect-id]");
-        const effect = effects.find(item => item.id === target?.dataset.playerToggleEffectId);
+        const effect = effects.find((item): item is HouseInteriorEffect => !isParkRoomEffect(item) && item.id === target?.dataset.playerToggleEffectId);
         if (!effect) return;
         event.preventDefault();
         event.stopPropagation();
@@ -93,12 +95,38 @@ export default function PetParkInteriorRoom({
         const { naturalWidth, naturalHeight } = event.currentTarget;
         if (naturalWidth > 0 && naturalHeight > 0) setAspect(naturalWidth / naturalHeight);
       }} />
-    <HomeInteriorEffectsLayer effects={effects} panX={0}
+    <HomeInteriorEffectsLayer effects={effects.filter((effect): effect is HouseInteriorEffect => !isParkRoomEffect(effect))} panX={0}
       imgWidth={imageWidth} sceneHeight={dimensions.height}
       offEffectIds={offEffectIds} onToggleEffect={onToggleEffect}
       selectedId={selectedEffectId} interactive={editEffects}
       onEffectPointerDown={onEffectPointerDown} onEffectPointerMove={onEffectPointerMove}
       onEffectPointerUp={onEffectPointerUp} onEffectPointerCancel={onEffectPointerCancel} />
+    {effects.filter(isParkRoomEffect).map(room => {
+      const markerSize = Math.max(48, dimensions.height * room.size / 100);
+      // Keep the button directly under the image artwork. The existing
+      // admin drag handler measures currentTarget.parentElement as the image,
+      // not a 48px marker wrapper.
+      return <button key={room.id} type="button"
+        data-testid={`park-room-portal-${room.id}`}
+        aria-label={editEffects ? `Edit room ${room.name}` : `Open ${room.name}`}
+        data-park-room-portal={room.id} disabled={!editEffects && !room.imageUrl}
+        title={room.name}
+        className={`absolute flex touch-none items-center justify-center rounded-full border border-amber-300/40 bg-[#123828]/15 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-40 ${selectedEffectId === room.id ? "outline outline-2 outline-amber-300" : ""}`}
+        style={{
+          left: room.x * imageWidth, top: room.y * dimensions.height,
+          width: markerSize, height: markerSize, transform: "translate(-50%, -50%)",
+          zIndex: 12, pointerEvents: "auto",
+        }}
+        onPointerDown={editEffects ? event => onEffectPointerDown?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onPointerMove={editEffects ? event => onEffectPointerMove?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onPointerUp={editEffects ? event => onEffectPointerUp?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onPointerCancel={editEffects ? event => onEffectPointerCancel?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onLostPointerCapture={editEffects ? event => onEffectPointerCancel?.(event as unknown as React.PointerEvent<HTMLDivElement>, room) : undefined}
+        onClick={event => { event.stopPropagation(); if (!editEffects) onOpenRoom?.(room); }}>
+        <HomeInteriorExitSparkle />
+        {editEffects && <span className="pointer-events-none absolute top-[90%] rounded bg-black/75 px-1 text-[10px] text-amber-100">{room.name}</span>}
+      </button>;
+    })}
     {typeof children === "function" ? children({ imageWidth, sceneHeight: dimensions.height }) : children}
     </div>
   </div>;

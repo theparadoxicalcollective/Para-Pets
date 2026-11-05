@@ -13,8 +13,9 @@ test("park building details are admin-only, contextual and use existing storage"
   assert.match(page, /scene\?\.canEditPark && detailsBuilding && <PetParkBuildingDetails/);
   // Room visitors only see Exit; the admin editor remains available from selected scene buildings.
   assert.match(page, /scene\?\.canEditPark && detailsBuilding && <PetParkBuildingDetails/);
-  assert.match(page, /aria-label="Exit building"/);
-  assert.doesNotMatch(page, /setDetailsBuildingId\(activeBuilding\.id\)/);
+  assert.match(page, /aria-label=\{fullPageRoom \? "Exit room" : "Exit building"\}/);
+  assert.match(page, /setDetailsBuildingId\(activeBuilding\.id\)/);
+  assert.match(page, /scene\?\.canEditPark && !fullPageRoom/);
   assert.match(page, /setDetailsBuildingId\(selectedPlacement\.id\)/);
   assert.match(details, /Park building name/);
   assert.match(details, /Park building capacity/);
@@ -26,7 +27,8 @@ test("park building details are admin-only, contextual and use existing storage"
 });
 
 test("player and admin effects share natural-image room coordinates and Home effect layer", () => {
-  assert.match(page, /<PetParkInteriorRoom expanded\s+imageUrl=\{activeBuilding\.interiorImageUrl\}/);
+  assert.match(page, /<PetParkInteriorRoom key=\{currentRoomId \?\? activeBuilding\.id\} expanded/);
+  assert.match(page, /imageUrl=\{fullPageRoom\?\.imageUrl \?\? activeBuilding\.interiorImageUrl/);
   assert.match(page, /offEffectIds=\{new Set\(offParkInteriorLights\[activeBuilding\.id\]/);
   assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight\(activeBuilding\.id, effect\)\}/);
   assert.match(details, /<PetParkInteriorRoom imageUrl=\{imagePreview\}/);
@@ -47,7 +49,7 @@ test("interior effect editing reuses coordinate contract and supports cancel/sav
   assert.match(details, /onEffectPointerCancel=/);
   assert.match(details, /HOUSE_INTERIOR_EFFECT_MIN_SIZE/);
   assert.match(details, /HOUSE_INTERIOR_EFFECT_MAX_SIZE/);
-  assert.match(details, /HOME_INTERIOR_EFFECT_OPTIONS\.map/);
+  assert.match(details, /\.\.\.HOME_INTERIOR_EFFECT_OPTIONS, \{ type: "room"/);
   assert.match(details, /Save interior effects/);
   assert.match(details, /Cancel effect changes/);
   assert.match(details, /interiorEffects: effects/);

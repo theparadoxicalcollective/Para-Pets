@@ -26,7 +26,8 @@ test("placement endpoint authorizes owner, validates normalized coordinates and 
 
 test("interior shows shared occupants, permits own-pet placement and keeps indoor pets out of outdoor roster", () => {
   assert.match(page, /const outdoorPets = .*filter\(pet => !pet\.buildingId\)/);
-  assert.match(page, /pet\.buildingId === activeBuilding\.id/);
+  assert.match(page, /indoorVisiblePets\.map\(pet =>/);
+  assert.match(page, /pet\.buildingId === activeBuilding\?\.id && \(pet\.roomEffectId \?\? null\) === currentRoomId/);
   assert.match(page, /Move \{deposit\.petNickname \|\| deposit\.petName\} inside/);
   assert.match(page, /\["idle","sit","sleep"\] as const/);
   assert.match(page, /Move \{deposit\.petNickname \|\| deposit\.petName\} outside/);
