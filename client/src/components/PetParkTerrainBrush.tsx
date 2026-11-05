@@ -23,7 +23,7 @@ export default function PetParkTerrainBrush(props: Props) {
   const draftRef = useRef<ParkBrushPoint[]>([]);
   const savingRef = useRef(false);
   const [type, setType] = useState<ParkTerrainDetailType>("dirt_path");
-  const [size, setSize] = useState(200);
+  const [size, setSize] = useState(150);
   const [draft, setDraft] = useState<ParkBrushPoint[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -119,16 +119,16 @@ export default function PetParkTerrainBrush(props: Props) {
       <div className="grid grid-cols-2 gap-1.5">
         {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
           disabled={!!draft.length || saving} aria-pressed={type === option.type}
-          onClick={() => { setType(option.type); setSize(option.size); }}
+          onClick={() => { setType(option.type); setSize(option.type === "dirt_path" ? 150 : option.size); }}
           className={`rounded-lg border px-2 py-2 text-xs disabled:opacity-60 ${type === option.type ? "border-[#e5c66a] bg-[#245037]" : "border-[#b99a4c]/45 bg-[#0b2016]"}`}>{option.label}</button>)}
       </div>
       <div className="flex items-center gap-2 text-xs">
         <span>Brush size</span>
         <button type="button" aria-label="Decrease terrain brush size" disabled={!!draft.length || saving}
-          onClick={() => setSize(v => Math.max(60, v - 25))} className="rounded bg-[#245037] px-3 py-2">−</button>
+          onClick={() => setSize(v => type === "dirt_path" ? 150 : Math.max(60, v - 25))} className="rounded bg-[#245037] px-3 py-2">−</button>
         <span className="tabular-nums">{size}</span>
         <button type="button" aria-label="Increase terrain brush size" disabled={!!draft.length || saving}
-          onClick={() => setSize(v => Math.min(400, v + 25))} className="rounded bg-[#245037] px-3 py-2">+</button>
+          onClick={() => setSize(v => type === "dirt_path" ? 150 : Math.min(400, v + 25))} className="rounded bg-[#245037] px-3 py-2">+</button>
       </div>
       {saveFailed && <div className="flex gap-2">
         <button type="button" disabled={saving} onClick={() => void saveStroke(draftRef.current)}
