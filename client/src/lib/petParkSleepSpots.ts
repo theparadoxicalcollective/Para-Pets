@@ -51,3 +51,31 @@ export function isParkSleepPosition(
 ): boolean {
   return parkSleepSpotAtPosition(position, items, world) !== null;
 }
+
+/** Interior sleep squares are authored as a percentage of the room height.
+ * Use the visible artwork's dimensions, not the phone viewport, for both
+ * interaction and pet size. All other indoor pets retain the 225-unit base.
+ */
+export function parkIndoorPetSizeOnSleepSpot(
+  position: { x: number; y: number },
+  effects: readonly { type: string; x: number; y: number; size: number }[],
+  artwork: { width: number; height: number },
+  normalSize = 225,
+): number {
+  if (!(artwork.width > 0 && artwork.height > 0)) return normalSize;
+  let size = normalSize;
+  let nearest = Infinity;
+  for (const effect of effects) {
+    if (effect.type !== "sleep" || !Number.isFinite(effect.size) || effect.size <= 0) continue;
+    const area = artwork.height * effect.size / 100;
+    const dx = (position.x - effect.x) * artwork.width;
+    const dy = (position.y - effect.y) * artwork.height;
+    if (Math.abs(dx) > area / 2 || Math.abs(dy) > area / 2) continue;
+    const distance = dx * dx + dy * dy;
+    if (distance < nearest) {
+      size = Math.min(normalSize, area);
+      nearest = distance;
+    }
+  }
+  return size;
+}
