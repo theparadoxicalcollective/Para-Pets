@@ -93,9 +93,9 @@ try{
     assert.deepEqual(requests,[{inventoryId:"pail"}],name+": only actual owned inventory ID is sent");
     await water.click();
     await dialog.waitFor({state:"visible"});
+    await dialog.getByText(/no refillable items that need water/i).waitFor({state:"visible"});
     assert.equal(await dialog.getByTestId("pet-park-refill-item").count(),0,
       name+": full water containers are not refilled again");
-    assert.match(await dialog.innerText(),/no refillable items that need water/i);
     await page.getByRole("button",{name:"Close refill popup"}).click();
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": alpha-aware water-source tap, actual inventory filter, one refill and updated full pail");
