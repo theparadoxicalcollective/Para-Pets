@@ -3,7 +3,7 @@ import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, parkGroundSize } from "@shared/petParkGround";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
-import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
+import { sanitizeParkInteriorEffects } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
