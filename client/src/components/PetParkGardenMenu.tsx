@@ -62,6 +62,7 @@ export default function PetParkGardenMenu({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [motion, setMotion] = useState<ToolMotion | null>(null);
   const [lastReward, setLastReward] = useState<{ quantity: number; fruitName: string; imageUrl: string | null } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rewardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCrop = crops.find(crop => crop.id === plot.cropId);
@@ -121,6 +122,24 @@ export default function PetParkGardenMenu({
     setRetry(null);
     setErrorMessage(null);
   }, [plot.plotItemId, plot.phase, plot.waterApplied, plot.harvestReady]);
+  // Pass-through dismissal: tap outside the actual tool bubbles (or press
+  // Escape) to close; do not add a full-screen hit-blocking backdrop or
+  // swallow Pet Park camera pans, other plots or pinch gestures.
+  useEffect(() => {
+    const handlePointer = (event: PointerEvent) => {
+      if (menuRef.current && event.target instanceof Node &&
+          !menuRef.current.contains(event.target)) onClose();
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("pointerdown", handlePointer, true);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointer, true);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [onClose]);
   useEffect(() => () => {
     if (finishTimer.current) clearTimeout(finishTimer.current);
     if (rewardTimer.current) clearTimeout(rewardTimer.current);
@@ -157,7 +176,7 @@ export default function PetParkGardenMenu({
     : plot.phase === "partial" ? "Partially grown"
     : plot.phase === "seedling" ? "Seedling" : "Planted seed";
   return <ViewportModalPortal blocking={false}>
-    <div data-testid="pet-park-garden-menu" className="pointer-events-none absolute inset-0 z-[76]"
+    <div ref={menuRef} data-testid="pet-park-garden-menu" className="pointer-events-none absolute inset-0 z-[76]"
       aria-label="Garden Plot tools">
       <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[260px]"
         style={{ left: anchor.x, top: anchor.y, transform: "translate(-50%, -107px)" }}>
@@ -186,11 +205,6 @@ export default function PetParkGardenMenu({
               <span className="leading-none">{actionNames[action]}</span>
             </button>;
           })}
-          <button type="button" aria-label="Close garden tools" onPointerDown={event => event.stopPropagation()}
-            onClick={event => { event.stopPropagation(); if (!mutation.isPending) onClose(); }}
-            className="pointer-events-auto absolute right-0 top-[-2px] flex h-7 w-7 items-center justify-center rounded-full border border-[#b89b61]/70 bg-[#09281b]/95 text-[#ead59f] shadow-md">
-            <X size={15} />
-          </button>
         </div>
         <div className="mx-auto w-fit max-w-[240px] rounded-full border border-[#bd9e62]/70 bg-[#092719]/90 px-3 py-1 text-center font-fantasy text-[11px] text-[#f4d69c] shadow-lg"
           data-testid="pet-park-garden-stage">{stageLabel}</div>

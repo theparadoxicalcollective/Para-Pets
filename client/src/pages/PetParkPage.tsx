@@ -40,7 +40,8 @@ import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, 
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize, parkGroundTheme, type ParkGroundTheme } from "@shared/petParkGround";
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import { gardenCropProgress, gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
@@ -107,6 +108,7 @@ export default function PetParkPage() {
     return next;
   });
   const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
+  const suppressGardenPlotClickUntil = useRef(0);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [openedRoomId, setOpenedRoomId] = useState<string | null>(null);
   const [focusedRoomEffectId, setFocusedRoomEffectId] = useState<string | null>(null);
@@ -149,6 +151,20 @@ export default function PetParkPage() {
     refetchInterval: selectedGardenPlotId ? 5000 : 30_000,
   });
   const chosenGardenPlot = garden?.plots?.find(plot => plot.plotItemId === selectedGardenPlotId);
+  useEffect(() => {
+    if (!selectedGardenPlotId || chosenGardenPlot) return;
+    // The garden state can briefly be pending just after selecting a tile.
+    // Its compact notice also closes by tapping away, without a modal.
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Element &&
+          event.target.closest('[data-testid="pet-park-garden-loading"]')) return;
+      suppressGardenPlotClickUntil.current = Date.now() + 300;
+      setSelectedGardenPlotId(null);
+    };
+    document.addEventListener("pointerdown", outside, true);
+    return () => document.removeEventListener("pointerdown", outside, true);
+  }, [selectedGardenPlotId, chosenGardenPlot]);
+
   const invalidateGarden = () => {
     qc.invalidateQueries({ queryKey: ["/api/pet-park/garden"] });
     qc.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -845,7 +861,7 @@ export default function PetParkPage() {
             className="pointer-events-auto absolute inset-0 z-[2] cursor-pointer touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
             style={{ clipPath: "polygon(50% 0%,100% 50%,50% 100%,0% 50%)" }}
             onPointerDown={event => event.stopPropagation()}
-            onClick={event => { event.stopPropagation(); setSelectedGardenPlotId(item.id); }} />}
+            onClick={event => { event.stopPropagation(); if (Date.now() >= suppressGardenPlotClickUntil.current) setSelectedGardenPlotId(item.id); }} />}
           {!scene.canEditPark && scene.canEnterPark && item.kind === "decor" &&
             !item.isWaterSource && item.imageUrl && item.tapImageUrl && <button
             type="button" data-testid="pet-park-tappable-decor"
@@ -888,15 +904,11 @@ export default function PetParkPage() {
             { ...plot, effectType: "garden_plot" },
             { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera)) return null;
-          return <div key={plot.plotItemId} data-testid="pet-park-garden-crop"
-            aria-hidden="true" className="pointer-events-none absolute"
-            style={{ left: `${plot.xPct * 100}%`, top: `${plot.yPct * 100}%`,
-              width: plot.size * scale, height: plot.size * scale,
-              transform: "translate(-50%, -94%)",
-              zIndex: parkDepthIndex({ yPct: plot.yPct, worldHeight: geometry.worldHeight,
-                size: plot.size, kind: "item" }) }}>
-            <img src={image} alt="" draggable={false} className="h-full w-full object-contain" />
-          </div>;
+          return <PetParkCropArtwork key={plot.plotItemId + ":" + plot.phase}
+            image={image} xPct={plot.xPct} yPct={plot.yPct} size={plot.size} scale={scale}
+            zIndex={parkDepthIndex({ yPct: plot.yPct, worldHeight: geometry.worldHeight,
+              size: plot.size, kind: "item" })}
+            progress={gardenCropProgress(plot, crop)} />;
         })}
         {outdoorPets.map(pet => {
           const position = outdoorPetDraft?.petInventoryId === pet.petInventoryId
@@ -1071,14 +1083,13 @@ export default function PetParkPage() {
         key={chosenGardenPlot.plotItemId} plot={chosenGardenPlot}
         anchor={gardenToolAnchor}
         crops={garden?.crops ?? []} inventory={inventory} inventoryLoading={isGardenInventoryLoading}
-        onClose={() => setSelectedGardenPlotId(null)} onChanged={invalidateGarden} /> :
-      <ViewportModalPortal blocking={false}><div
+        onClose={() => { suppressGardenPlotClickUntil.current = Date.now() + 300; setSelectedGardenPlotId(null); }}
+        onChanged={invalidateGarden} /> :
+      <ViewportModalPortal blocking={false}><div data-testid="pet-park-garden-loading"
         className="pointer-events-none absolute inset-x-3 top-[28%] z-[76] flex justify-center">
         <div className="pointer-events-auto flex max-w-[260px] items-center gap-2 rounded-xl border border-[#c9a65e]/80 bg-[#143925]/95 p-2 text-xs text-[#f4dda6] shadow-lg"
           role="status">
           <span>{isGardenLoading ? "Checking Garden Plot…" : "Garden Plot unavailable."}</span>
-          <button type="button" aria-label="Close garden tools" onClick={() => setSelectedGardenPlotId(null)}
-            className="rounded-full border border-[#c9a65e]/60 p-1"><X size={15} /></button>
         </div>
       </div></ViewportModalPortal>
     )}

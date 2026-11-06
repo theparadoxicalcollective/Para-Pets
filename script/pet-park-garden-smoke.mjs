@@ -30,6 +30,11 @@ const server = await createServer({server:{host:"127.0.0.1",port:4189,strictPort
 const art="data:image/svg+xml;base64,"+Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><circle cx="100" cy="90" r="70" fill="#588c4b"/></svg>',
 ).toString("base64");
+// Mimic a player-uploaded transparent PNG: visible sprout is at the top
+// RIGHT of its canvas, so naïve image centering places it off the plot.
+const cropArt="data:image/svg+xml;base64,"+Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="150" y="20" width="35" height="50" fill="#58a44b"/></svg>',
+).toString("base64");
 await server.listen();
 const browser=await chromium.launch({headless:true});
 try{
@@ -43,8 +48,8 @@ try{
       cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null };
     const crop={id:"crop1",seedItemId:"seed-item",fruitItemId:"fruit-item",
       seedName:"Forest Tomato Seeds",fruitName:"Forest Tomato",ready:true,
-      images:{seedPack:art,planted:art,seedling:art,partial:art,grown:art,picked:art,fruit:art},
-      drops:{planted:1,seedling:1,partial:1,grown:1} };
+      images:{seedPack:art,planted:cropArt,seedling:cropArt,partial:cropArt,grown:cropArt,picked:cropArt,fruit:art},
+      drops:{planted:15,seedling:7,partial:12,grown:5} };
     const scene={
       enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,backgroundUrl:null,
       groundTheme:"grass",buildings:[],deposits:[],unlockedSlots:1,
@@ -60,7 +65,7 @@ try{
       {inventoryId:"seed",shopItemId:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",quantity:2,isListed:false,imageUrl:art},
       {inventoryId:"seed-listed",shopItemId:"seed-item",name:"Market Seeds",type:"garden_seed",quantity:9,isListed:true,imageUrl:art},
       {inventoryId:"pail",shopItemId:"pail-item",name:"Watering Pail",type:"garden_tool",specialType:"watering_pail",
-        quantity:1,isListed:false,isRefillable:true,gardenWaterLeft:10,imageUrl:art},
+        quantity:1,isListed:false,isRefillable:true,gardenWaterLeft:100,imageUrl:art},
     ];
     page.on("pageerror",error=>errors.push(error.message));
     await page.route("**/api/**",route=>{
@@ -94,10 +99,16 @@ try{
           inventory=inventory.map(x=>x.inventoryId==="seed"?{...x,quantity:1}:x);
         }else if(action==="water"){
           assert.equal(body.inventoryId,"pail");assert.notEqual(plot.harvestReady,true);
-          const next={planted:"seedling",seedling:"partial",partial:"grown",grown:"grown"};
-          plot.phase=next[plot.phase];plot.waterApplied=0;
-          if(plot.phase==="grown" && requests.filter(x=>x.action==="water").length===4){plot.harvestReady=true;plot.waterApplied=1;}
-          inventory=inventory.map(x=>x.inventoryId==="pail"?{...x,gardenWaterLeft:x.gardenWaterLeft-1}:x);
+          const required=crop.drops[plot.phase],waterAvailable=inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft;
+          const poured=Math.min(10,waterAvailable,required-plot.waterApplied);
+          assert.ok(poured>0 && poured<=10,"water is charged in bounded units");
+          plot.waterApplied+=poured;
+          if(plot.waterApplied===required){
+            if(plot.phase==="grown")plot.harvestReady=true;
+            else{plot.phase={planted:"seedling",seedling:"partial",partial:"grown"}[plot.phase];plot.waterApplied=0;}
+          }
+          inventory=inventory.map(x=>x.inventoryId==="pail"?{...x,gardenWaterLeft:x.gardenWaterLeft-poured}:x);
+          replays.set(body.requestId,{waterUsed:poured}); // overwritten with full response below
         }else {
           assert.equal(plot.phase,"grown");assert.equal(plot.harvestReady,true);
           assert.equal(body.inventoryId,"scythe");plot.phase="picked";plot.harvestReady=false;
@@ -106,7 +117,7 @@ try{
         }
         const result={plot:{...plot},replayed:false,
           ...(action==="harvest"?{reward:{fruitItemId:"fruit-item",quantity:2}}:{}),
-          ...(action==="water"?{waterLeft:inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft}:{})};
+          ...(action==="water"?{waterLeft:inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,waterUsed:replays.get(body.requestId)?.waterUsed}:{})};
         replays.set(body.requestId,result);
         return route.fulfill({json:result});
       }
@@ -157,6 +168,26 @@ try{
     assert.ok(anchor && plotBounds && Math.abs(anchor.x+anchor.width/2-(plotBounds.x+plotBounds.width/2))<4,
       name+": tool bubbles follow the world-positioned plot");
 
+    const dismiss=async()=>{
+      // Background tap dismisses the tool arc, without a blocking backdrop
+      // and without re-opening the same plot on the trailing click.
+      await page.mouse.click(20,Math.round(height*.35));
+      await menu.waitFor({state:"hidden"});
+      // A subsequent intentional opening is distinct from the pointer that
+      // just dismissed it; let that anti-reopen window finish.
+      await page.waitForTimeout(350);
+    };
+    assert.equal(await menu.getByRole("button",{name:"Close garden tools"}).count(),0,
+      name+": no extra X button is shown");
+    // A second tap on the plot itself counts as an outside-menu gesture.
+    // Pointer-down closes the bubbles and the trailing click must NOT
+    // immediately reopen them.
+    await ground.click();
+    await menu.waitFor({state:"hidden"});
+    await page.waitForTimeout(350); // let the same-gesture suppression window expire
+    assert.equal(await menu.count(),0,name+": off-menu plot tap stays dismissed");
+    await ground.click();
+    await menu.waitFor({state:"visible"});
     const apply=async(label,expectedPhase)=>{
       const count=requests.length;
       const button=menu.getByRole("button",{name:label,exact:true});
@@ -170,7 +201,6 @@ try{
         getComputedStyle(node).animationName);
       assert.equal(actualAnimation,expectedAnimation,name+": tool motion matches intended image orientation");
       await menu.getByTestId("pet-park-garden-stage").getByText(expectedPhase,{exact:true}).waitFor({state:"visible"});
-      assert.equal(requests.length,count+1,name+": one request for one "+label+" tap");
       if(label==="Water"){
         const bar=menu.getByTestId("pet-park-garden-water-gauge");
         await bar.waitFor({state:"visible"});
@@ -178,6 +208,7 @@ try{
         await bar.getByText(expectedLeft+" / 100").waitFor({state:"visible"});
       }
       await motion.waitFor({state:"hidden",timeout:8000});
+      assert.equal(requests.length,count+1,name+": one request for one "+label+" tap");
     };
     for(const other of ["Plant","Water","Harvest"])
       assert.equal(await menu.getByRole("button",{name:other,exact:true}).isDisabled(),true,
@@ -188,22 +219,47 @@ try{
       name+": tilled soil has only its two diamond borders; no curved interior furrows");
     await apply("Plant","Planted seed");
     assert.equal(await menu.getByText("Market Seeds").count(),0,"listed seeds cannot be selected");
-    await page.getByTestId("pet-park-garden-crop").waitFor({state:"visible"});
-    await apply("Water","Seedling");
-    await apply("Water","Partially grown");
-    await apply("Water","Fully grown");
-    await apply("Water","Ready to harvest");
-    assert.equal(inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,6);
+    await page.getByTestId("pet-park-garden-crop").waitFor({state:"attached"});
+    await page.getByTestId("pet-park-garden-visible-art").waitFor({state:"visible"});
+    // Scan the crop artwork rather than centering its full 200x200
+    // transparent box. The uploaded visible 35x50 patch is at (150,20).
+    await page.waitForFunction(()=>{
+      const image=document.querySelector('[data-testid="pet-park-garden-visible-art"]')?.getBoundingClientRect();
+      const plot=document.querySelector('[data-testid="pet-park-garden-plot"]')?.getBoundingClientRect();
+      if(!image||!plot)return false;
+      const visibleX=image.left+image.width*(167.5/200);
+      const visibleBottom=image.top+image.height*(70/200);
+      return Math.abs(visibleX-(plot.left+plot.width/2))<5 &&
+        Math.abs(visibleBottom-(plot.top+plot.height/2))<5;
+    },null,{timeout:12000});
+    const progress=page.getByTestId("pet-park-garden-growth-progress");
+    await progress.waitFor({state:"visible"});
+    assert.equal(await progress.getByRole("progressbar").getAttribute("aria-valuemax"),"15",
+      name+": visible crop bar uses admin-defined stage water requirement");
+    await apply("Water","Planted seed"); // first pour fills 10 of 15
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="pet-park-garden-growth-progress"] [role="progressbar"]')
+        ?.getAttribute("aria-valuenow")==="10");
+    assert.equal(inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,90);
+    await apply("Water","Seedling");  // only 5 remaining for this stage
+    await apply("Water","Partially grown"); // only 7 for seedling
+    await apply("Water","Partially grown"); // 10 of 12
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="pet-park-garden-growth-progress"] [role="progressbar"]')
+        ?.getAttribute("aria-valuenow")==="10");
+    await apply("Water","Fully grown"); // only 2 to complete
+    await apply("Water","Ready to harvest"); // only 5
+    assert.equal(inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,61);
     await apply("Harvest","Recently harvested");
     await menu.getByTestId("pet-park-garden-harvest").waitFor({state:"visible"});
     assert.match(await menu.getByTestId("pet-park-garden-harvest").innerText(),/2 × Forest Tomato/);
     assert.equal(inventory.find(x=>x.inventoryId==="fruit").quantity,2);
-    assert.equal(requests.length,7);
+    assert.equal(requests.length,9);
     await menu.getByRole("button",{name:"Close harvest notice"}).click();
-    await menu.getByRole("button",{name:"Close garden tools"}).click();
+    await dismiss();
     await ground.click();
     await menu.getByTestId("pet-park-garden-stage").getByText("Recently harvested").waitFor({state:"visible"});
-    await menu.getByRole("button",{name:"Close garden tools"}).click();
+    await dismiss();
 
     // A new player with no gardening equipment should see a small message,
     // rather than an empty blocking inventory popup or a usable action.
@@ -217,7 +273,7 @@ try{
     for(const label of ["Hoe","Plant","Water","Harvest"])
       assert.equal(await menu.getByRole("button",{name:label,exact:true}).isDisabled(),true,
         name+": empty Bag disables "+label);
-    await menu.getByRole("button",{name:"Close garden tools"}).click();
+    await dismiss();
 
     // Empty Watering Pail retains its actual 0/100 server value and directs
     // players to a Water Source without attempting to debit a nonexistent drop.
@@ -232,8 +288,8 @@ try{
     await menu.getByTestId("pet-park-garden-no-items")
       .getByText("Find a Water Source to refill your pail.",{exact:true}).waitFor();
     assert.equal(await menu.getByRole("button",{name:"Water",exact:true}).isDisabled(),true);
-    assert.equal(requests.length,7,name+": no tools/empty pail never generate garden mutations");
-    await menu.getByRole("button",{name:"Close garden tools"}).click();
+    assert.equal(requests.length,9,name+": no tools/empty pail never generate garden mutations");
+    await dismiss();
 
     // Multiple owned Seed Packs offer compact seed bubbles, not a second
     // "Use" confirmation. Listed marketplace seeds remain excluded.
@@ -256,8 +312,8 @@ try{
     assert.equal(await seedPicker.getByText("Market Seeds").count(),0);
     await seedPicker.getByRole("button",{name:"Plant Forest Tomato Seeds"}).click();
     await menu.getByTestId("pet-park-garden-stage").getByText("Planted seed").waitFor();
-    assert.equal(requests.length,8,name+": one seed choice submits one plant request");
-    await menu.getByRole("button",{name:"Close garden tools"}).click();
+    assert.equal(requests.length,10,name+": one seed choice submits one plant request");
+    await dismiss();
 
     // Third-slot transition was previously reported to crash mobile Safari.
     // The server must complete the purchase only once and the page must
@@ -320,7 +376,7 @@ try{
       name+": stored catalog price and picture shown without fake checkout");
     await page.getByRole("button",{name:"Exit building"}).click();
     assert.deepEqual(errors,[],name+": no client runtime errors");
-    console.log("PASS "+name+": actual Garden Plot hoe/seed/4 drops/harvest, tilled art, market exclusion, and common visitor/terrain zoom");
+    console.log("PASS "+name+": actual Garden Plot alpha-art centering, stage water bar, six batched pours, outside dismissal, harvest, and shared camera zoom");
     await context.close();
   }
 }finally{await browser.close();await server.close();}
