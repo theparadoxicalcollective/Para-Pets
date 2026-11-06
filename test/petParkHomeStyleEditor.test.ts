@@ -71,7 +71,7 @@ test("effect picker exposes Home effect cards and existing water options", () =>
   assert.match(panel, /Pet Park decor size preview/);
   assert.match(panel, /size: itemSize/);
   assert.match(page, /isParkSleepPosition\(position, scene.items/);
-  assert.match(panel, /aria-pressed=\{buildingCapacity === capacity\}/);
+  assert.match(panel, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/, "new buildings remain view-only and keep the legacy minimum capacity");
   assert.match(panel, /data-testid="button-create-park-building"/);
   assert.match(panel, /data-testid="button-create-park-item"/);
   assert.match(panel, /Upload Building Image/);
