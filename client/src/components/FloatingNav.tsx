@@ -24,10 +24,8 @@ import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import { AquariumPage } from "@/pages/AquariumPage";
-import { BEGIN_JOURNEY_ENABLED, bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
-import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 interface NavUser {
   id: string;
@@ -152,16 +150,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showAquarium, setShowAquarium] = useState(false);
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
-  const [bjStatus, setBjStatus] = useState(() => bjGetStatus());
   const [spacing, setSpacing]   = useState(() => calcSpacing(typeof window !== "undefined" ? window.innerWidth : 390));
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const handler = () => setBjStatus(bjGetStatus());
-    window.addEventListener(BJ_EVENT, handler);
-    return () => window.removeEventListener(BJ_EVENT, handler);
-  }, []);
 
   useEffect(() => {
     const hud = document.getElementById("game-viewport-hud");
@@ -175,21 +166,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       window.removeEventListener("resize", measure);
     };
   }, []);
-
-  // Sync localStorage from server-side flags — fixes older players seeing tutorial again on new device/browser
-  useEffect(() => {
-    const isComplete = (user as any).tutorial_reward_claimed || (user as any).tutorial_quest_completed;
-    if (BEGIN_JOURNEY_ENABLED && isComplete && bjGetStatus() !== "done") {
-      bjSetStep("done");
-    }
-  }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
-
-  // Show hint only before the player has started the quest.
-  // Once they're working through it the overlay guides them; the hint
-  // reappears (via bjStatus "not_started" → "active" → reward claimed) only
-  // if they somehow dismiss the overlay mid-flow — but the server's
-  // tutorial_reward_claimed is the final gate so it always disappears after claim.
-  const showLoginHint = BEGIN_JOURNEY_ENABLED && !(user as any).tutorial_reward_claimed && bjStatus === "not_started";
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -254,36 +230,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     },
   });
 
-  const tutorialClaimMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/tutorial/claim-reward", {}),
-    onSuccess: async (res) => {
-      const data = await res.json();
-      queryClient.setQueryData(["/api/auth/me"], (current: any) =>
-        current ? { ...current, tutorial_reward_claimed: true } : current
-      );
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      if (onUserUpdate) {
-        onUserUpdate({ ...user, coins: data.newBalance ?? user.coins, tutorial_reward_claimed: true });
-      }
-      toast({
-        title: "Reward Claimed!",
-        description: "+1,500 coins earned!",
-      });
-    },
-    onError: () => {
-      toast({ title: "Failed to claim reward", variant: "destructive" });
-    },
-  });
-
   // Alert only when a completed quest has a reward waiting to be claimed.
   // Merely receiving a new set of daily quests should not create a login reminder.
   const visibleDailyQuests = questData?.quests.filter(q => !q.reward_claimed) ?? [];
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
-  const tutorialClaimable = BEGIN_JOURNEY_ENABLED && !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
   const npcQuestInLog = !!ginnyData && (ginnyData.status === "accepted" || ginnyData.status === "completed")
     || !!jansonData?.quests.some(q => q.status === "accepted" || q.status === "completed")
     || jansonData?.dailyQuest?.status === "accepted" || jansonData?.dailyQuest?.status === "completed";
-  const questRewardReady = hasCompletedUnclaimed || tutorialClaimable || ginnyData?.status === "completed"
+  const questRewardReady = hasCompletedUnclaimed || ginnyData?.status === "completed"
     || !!jansonData?.quests.some(q => q.status === "completed") || jansonData?.dailyQuest?.status === "completed";
 
   const friendRequestCount = friendReqData?.count ?? 0;
@@ -346,53 +300,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   return (
     <>
       <ViewportHudPortal>
-      {/* ── Login quest hint arrow ────────────────────────────────────────── */}
-      {showLoginHint && (
-        <>
-
-          {/* Phase 1: nav closed — arrow points down at the main nav button */}
-          {!isOpen && (
-            <img
-              src={tutorialArrow}
-              alt=""
-              style={{
-                position: "absolute",
-                bottom: 82,
-                right: 8,
-                width: 44,
-                height: 56,
-                pointerEvents: "none",
-                zIndex: 96,
-                animation: "bj-hint-bob 1.3s ease-in-out infinite",
-                filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))",
-              }}
-            />
-          )}
-
-          {/* Phase 2: nav open — arrow points down at the quest log icon */}
-          {isOpen && (
-            <img
-              src={tutorialArrow}
-              alt=""
-              style={{
-                position: "absolute",
-                bottom: 80,
-                // Quest is the 2nd LEFT_ITEM (index 1), translateX = -(spacing*2).
-                // Arrow center should sit above quest button center:
-                // right = NAV_RIGHT + BUTTON_SIZE/2 + spacing*2 - arrowWidth/2
-                right: NAV_RIGHT + BUTTON_SIZE / 2 + spacing * 2 - 22,
-                width: 44,
-                height: 56,
-                pointerEvents: "none",
-                zIndex: 10001,
-                animation: "bj-hint-bob 1.3s ease-in-out infinite",
-                filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))",
-              }}
-            />
-          )}
-        </>
-      )}
-
       {/* ── Backdrop (closes nav) ─────────────────────────────────────────── */}
       {isOpen && (
         <div
@@ -559,39 +466,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
-                {/* ── Begin Journey one-time quest card ── */}
-                {/* Visibility is server-driven: stays until tutorial_reward_claimed = true on the server */}
-                {BEGIN_JOURNEY_ENABLED && !(user as any).tutorial_reward_claimed && (
-                  <div className="rounded-md p-2" style={{ position: "relative", overflow: "hidden", background: tutorialClaimable ? "rgba(120,80,10,0.18)" : bjStatus === "active" ? "rgba(30,80,20,0.15)" : "rgba(92,58,30,0.1)", border: tutorialClaimable ? "1px solid rgba(212,160,23,0.55)" : bjStatus === "active" ? "1px solid rgba(100,200,80,0.4)" : "1px solid rgba(139,90,40,0.35)" }}>
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                        <span className="font-fantasy text-[8px] font-bold tracking-widest flex-shrink-0 px-1 py-px rounded" style={{ background: "rgba(30,80,20,0.25)", border: "1px solid rgba(80,180,60,0.4)", color: "#2a6010", textTransform: "uppercase", letterSpacing: "0.15em" }}>One-Time</span>
-                        <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight min-w-0 truncate">Begin Journey</p>
-                      </div>
-                      {tutorialClaimable ? (
-                        <button
-                          data-testid="button-begin-journey-claim"
-                          onClick={() => tutorialClaimMutation.mutate()}
-                          disabled={tutorialClaimMutation.isPending}
-                          className="flex-shrink-0 transition-transform active:scale-90 rounded"
-                          style={{ background: "linear-gradient(135deg, #7a5000 0%, #c48000 100%)", border: "1px solid rgba(240,192,64,0.7)", color: "#fff8e1", fontFamily: "Lora, serif", fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", cursor: "pointer", padding: "3px 8px", marginRight: 3, boxShadow: "0 0 10px rgba(212,160,23,0.5)" }}
-                        >CLAIM</button>
-                      ) : bjStatus !== "active" ? (
-                        <button
-                          data-testid="button-begin-journey-go"
-                          onClick={() => { bjSetStep(0); setShowQuest(false); }}
-                          className="flex-shrink-0 transition-transform active:scale-90 rounded"
-                          style={{ background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)", border: "1px solid rgba(100,220,100,0.55)", color: "#dcfce7", fontFamily: "Lora, serif", fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", cursor: "pointer", padding: "3px 8px", marginRight: 3, boxShadow: "0 0 8px rgba(60,180,60,0.3)" }}
-                        >GO</button>
-                      ) : (
-                        <span className="font-fantasy text-[9px] flex-shrink-0 px-1.5 py-0.5 rounded" style={{ background: "rgba(30,80,20,0.25)", border: "1px solid rgba(80,180,60,0.35)", color: "#3a8020" }}>Active</span>
-                      )}
-                    </div>
-                    <p className="font-fantasy text-[#5a2e0a] text-[10.5px] tracking-wide leading-snug">
-                      {tutorialClaimable ? "Your journey is complete! Claim your 1,500 coin reward." : bjStatus === "active" ? "Follow the golden arrow to complete your journey!" : "Start your adventure as a Para Pet tamer!"}
-                    </p>
-                  </div>
-                )}
                 {!questData || visibleDailyQuests.length === 0 ? (
                   !npcQuestInLog && <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
                     <p className="font-fantasy text-[#3a1800] text-[11.5px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
