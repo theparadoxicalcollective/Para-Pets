@@ -394,9 +394,9 @@ export function registerPetParkAdminRoutes(
     }
     try {
       // Don't process images for nonexistent or non-decor objects.
-      const [original] = await db.select({ id: petParkSceneItems.id }).from(petParkSceneItems)
+      const [original] = await db.select({ id: petParkSceneItems.id, kind: petParkSceneItems.kind }).from(petParkSceneItems)
         .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")));
-      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      if (!original || original.kind !== "decor") return res.status(404).json({ message: "Decoration not found" });
       const tapImageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const [updated] = await db.update(petParkSceneItems).set({ tapImageUrl })
         .where(and(eq(petParkSceneItems.id, original.id), eq(petParkSceneItems.kind, "decor"))).returning();
