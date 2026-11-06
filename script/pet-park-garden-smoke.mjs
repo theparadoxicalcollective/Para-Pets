@@ -69,6 +69,9 @@ try{
       if(p==="/api/inventory")return route.fulfill({json:inventory});
       if(p==="/api/pet-park/garden")return route.fulfill({json:{serverNow:new Date().toISOString(),plots:[plot],crops:[crop]}});
       if(p==="/api/pet-park/status")return route.fulfill({json:{enabledForPlayers:true,canEnterPark:true}});
+      if(p==="/api/pet-park/buildings/shop1/shop-items")return route.fulfill({json:[
+        {id:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",price:125,imageUrl:art,eggImageUrl:null,hatchedImageUrl:null},
+      ]});
       if(p==="/api/pet-park/slots/unlock"){
         const body=route.request().postDataJSON();
         assert.equal(body.slot,3);
@@ -281,6 +284,24 @@ try{
     assert.equal(slotUnlockCalls,1,name+": third spot persists after reload, without charging twice");
     assert.equal(await page.getByTestId("pet-park-contact-shadow").count(),0,
       name+": outdoor pets cast no artificial foot oval");
+    // Player shop display is loaded only after entering an Is Shop building,
+    // not on every camera move / ordinary scene query.
+    scene.items=[];
+    scene.buildings=[{id:"shop1",name:"Woodland Shop",imageUrl:art,interiorImageUrl:art,
+      xPct:.5,yPct:.5,size:240,flipped:false,layer:0,maxPets:10,
+      interiorEffects:[],isShop:true,shopItemIds:["seed-item"]}];
+    await page.reload({waitUntil:"commit"});
+    const shopEntrance=page.getByRole("button",{name:"Enter Woodland Shop"});
+    await shopEntrance.waitFor({state:"visible"});
+    await shopEntrance.click();
+    const shop=page.getByTestId("pet-park-shop-shelf");
+    await shop.waitFor({state:"visible"});
+    await shop.getByText("Forest Tomato Seeds").waitFor();
+    assert.equal(await shop.getByRole("button",{name:"Add shop item"}).count(),0,
+      name+": only administrators can curate shop merchandise");
+    assert.equal(await shop.getByText("125 coins").count(),1,
+      name+": stored catalog price and picture shown without fake checkout");
+    await page.getByRole("button",{name:"Exit building"}).click();
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": actual Garden Plot hoe/seed/4 drops/harvest, tilled art, market exclusion, and common visitor/terrain zoom");
     await context.close();
