@@ -40,7 +40,8 @@ test("indoor placement checks ownership, capacity and public visibility without 
 
 test("shared indoor occupants are filtered to their exact building and room", () => {
   assert.match(page, /const outdoorPets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => !pet\.buildingId\)/);
-  assert.match(page, /const buildingOccupants = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => pet\.buildingId === activeBuilding\?\.id/);
+  assert.match(page, /const buildingOccupants = activeBuilding\?\.isShop \? \[\] :/);
+  assert.match(page, /filter\(pet => pet\.buildingId === activeBuilding\?\.id\)/);
   assert.match(page, /const indoorVisiblePets = buildingOccupants\.filter\(pet =>/);
   assert.match(page, /\(pet\.roomEffectId \?\? null\) === currentRoomId/);
   assert.match(page, /indoorVisiblePets\.map\(pet =>/);
@@ -57,7 +58,7 @@ test("full-page rooms may hold pets; centered popups cannot", () => {
     name: "Room", x: .5, y: .5, size: 14, maxPets: 5 } as const;
   assert.equal(isPetAccessibleParkRoom(fullRoom), true);
   assert.equal(isPetAccessibleParkRoom({ ...fullRoom, view: "popup" }), false);
-  assert.match(page, /!popupRoom && <div data-testid="pet-park-interior-slots"/);
+  assert.match(page, /!popupRoom && !activeBuilding\.isShop && <div data-testid="pet-park-interior-slots"/);
   assert.match(page, /View-only · No pet placement/);
   assert.match(admin, /count > room\.maxPets/);
 });
