@@ -1,4 +1,5 @@
 import type { Express, Request, RequestHandler, Response } from "express";
+import { PetTeamSelectionError } from "../petTeam";
 
 export interface PvpRouteDependencies {
   storage: typeof import("../storage").storage;
@@ -426,12 +427,14 @@ export function registerPvpRoutes(
   app.post("/api/pvp/battle-group", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
-      const { petInventoryIds } = req.body;
-      if (!Array.isArray(petInventoryIds)) return res.status(400).json({ message: "petInventoryIds must be an array" });
-      const ids = petInventoryIds.slice(0, 5);
-      const group = await storage.upsertBattleGroup(user.id, ids);
+      // Both the existing PvP endpoint and the player-team endpoint share
+      // one validated persistence boundary; no second roster is created.
+      const group = await storage.upsertBattleGroup(user.id, req.body?.petInventoryIds);
       return res.json(group);
     } catch (err) {
+      if (err instanceof PetTeamSelectionError) {
+        return res.status(err.status).json({ message: err.message });
+      }
       return res.status(500).json({ message: "Failed to save battle group" });
     }
   });
