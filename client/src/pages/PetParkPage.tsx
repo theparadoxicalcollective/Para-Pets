@@ -8,6 +8,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetParkPetPortrait from "@/components/PetParkPetPortrait";
 import PetParkRewardBars from "@/components/PetParkRewardBars";
 import PetParkSlotProgress from "@/components/PetParkSlotProgress";
+import PetParkShopShelf from "@/components/PetParkShopShelf";
 import emptyParkPetArtwork from "@assets/generated_images/hub_para_pet_transparent.png";
 const coinImage = new URL("../../../attached_assets/uploads/MainGameCoinImage.PNG", import.meta.url).href;
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
@@ -19,7 +20,6 @@ import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type 
 import { isParkEffect } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
-import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
@@ -45,7 +45,7 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: ParkInteriorEffect[] };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -72,6 +72,27 @@ export default function PetParkPage() {
     });
   };
   const [selectedPet, setSelectedPet] = useState("");
+  const [petSearch, setPetSearch] = useState("");
+  // Gestures can dispatch many events between refreshes. Commit the latest
+  // camera once per animation frame instead of rerendering every scene item
+  // on every pointer sample (notably expensive on older iPhones/tablets).
+  const cameraFrame = useRef<number | null>(null);
+  const queuedCamera = useRef<{ pan: { x: number; y: number }; zoom?: number } | null>(null);
+  const queueCameraUpdate = (nextPan: { x: number; y: number }, nextZoom?: number) => {
+    queuedCamera.current = { pan: nextPan, zoom: nextZoom };
+    if (cameraFrame.current !== null) return;
+    cameraFrame.current = window.requestAnimationFrame(() => {
+      cameraFrame.current = null;
+      const next = queuedCamera.current;
+      queuedCamera.current = null;
+      if (!next) return;
+      setPan(next.pan);
+      if (next.zoom !== undefined) setZoom(next.zoom);
+    });
+  };
+  useEffect(() => () => {
+    if (cameraFrame.current !== null) window.cancelAnimationFrame(cameraFrame.current);
+  }, []);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [showPetChoices, setShowPetChoices] = useState(false);
   const [offParkInteriorLights, setOffParkInteriorLights] = useState<Record<string, string[]>>({});
@@ -121,8 +142,11 @@ export default function PetParkPage() {
   // Server owns stage transitions and the picked cooldown. Refetch without
   // inferring growth or advancing a plot on a local device clock.
   const { data: garden, isLoading: isGardenLoading } = useQuery<GardenPlayerState>({
-    queryKey: ["/api/pet-park/garden"], enabled: !!scene?.canEnterPark && !scene?.canEditPark,
-    refetchInterval: 5000,
+    queryKey: ["/api/pet-park/garden"], enabled: !!scene?.canEnterPark && !scene?.canEditPark && !enteredBuilding,
+    // Only the active plot needs near-live progress. Its own server mutations
+    // still invalidate immediately; background 5s polling needlessly redraws
+    // every building, terrain stamp and pet for idle park visitors.
+    refetchInterval: selectedGardenPlotId ? 5000 : 30_000,
   });
   const chosenGardenPlot = garden?.plots?.find(plot => plot.plotItemId === selectedGardenPlotId);
   const invalidateGarden = () => {
@@ -178,14 +202,28 @@ export default function PetParkPage() {
       const res = await apiRequest(method, path, body ?? {});
       return res.json();
     },
-    onSuccess: (_result: unknown, variables) => {
+    onSuccess: (result: unknown, variables) => {
       // Ordinary equip, swap, collect and display actions are reflected in
       // the slot HUD, not noisy success toasts. Keep errors visible.
       invalidate();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       setSelectedPet("");
       setShowPetChoices(false);
+      setPetSearch("");
       if (variables.path === "/api/pet-park/deposits") setActiveSlot(null);
+      if (variables.path === "/api/pet-park/slots/unlock") {
+        // The server has already committed the coin debit + unlocked spot.
+        // Reflect its result in the existing scene cache immediately rather
+        // than rendering a large pet picker through a stale locked scene.
+        const unlockedSlots = (result as { unlockedSlots?: unknown } | null)?.unlockedSlots;
+        if (typeof unlockedSlots === "number" && Number.isInteger(unlockedSlots) &&
+            unlockedSlots >= 1 && unlockedSlots <= 3) {
+          qc.setQueryData<ParkScene>(["/api/pet-park/scene"],
+            old => old ? { ...old, unlockedSlots } : old);
+        }
+        setActiveSlot(null);
+        toast({ title: "Pet spot unlocked", description: "Tap the new spot to choose a pet." });
+      }
     },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
@@ -673,6 +711,8 @@ export default function PetParkPage() {
       return { ...current, [buildingId]: Array.from(off) };
     });
   const availablePets = inventory.filter(p => p.isHatched && (p.petLevel ?? 1) >= 10 && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
+  const matchingPets = availablePets.filter(p => !petSearch.trim() || `${p.petNickname || p.name} ${p.petLevel ?? ""}`.toLowerCase().includes(petSearch.trim().toLowerCase()));
+  const visiblePetChoices = matchingPets.slice(0, 24);
 
   return <div className="absolute inset-0 overflow-hidden bg-[#13291e] text-amber-100" data-testid="pet-park-page">
     <style>{`
@@ -741,11 +781,10 @@ export default function PetParkPage() {
             const center = { x: (points[0].x + points[1].x) / 2 - (bounds?.left ?? 0),
               y: (points[0].y + points[1].y) / 2 - (bounds?.top ?? 0) };
             const zoomRatio = nextZoom / pinch.current.zoom;
-            setPan(parkClampCamera({
+            queueCameraUpdate(parkClampCamera({
               x: center.x - (pinch.current.midpoint.x - pinch.current.pan.x) * zoomRatio,
               y: center.y - (pinch.current.midpoint.y - pinch.current.pan.y) * zoomRatio,
-            }, nextGeometry));
-            setZoom(nextZoom);
+            }, nextGeometry), nextZoom);
             return;
           }
         }
@@ -754,7 +793,7 @@ export default function PetParkPage() {
         const delta = homeCameraPointerDelta(e.clientX - drag.x, e.clientY - drag.y, viewport.current);
         if (Math.hypot(delta.x, delta.y) > 7) drag.moved = true;
         if (!drag.moved) return;
-        setPan(parkClampCamera({ x: drag.panX + delta.x, y: drag.panY + delta.y }, geometry));
+        queueCameraUpdate(parkClampCamera({ x: drag.panX + delta.x, y: drag.panY + delta.y }, geometry));
       }}
       onPointerUp={e => {
         touchPoints.current.delete(e.pointerId);
@@ -881,7 +920,6 @@ export default function PetParkPage() {
                 otherwise mix separately zoomed pixel sizes on pinch gestures. */}
             <div data-park-pet-world-scale className="relative"
               style={{ width: petSize, height: petHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <PetParkGroundShadow kind="pet" />
             <div data-park-pet-artwork className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
@@ -934,6 +972,7 @@ export default function PetParkPage() {
         key={fullPageRoom?.id ?? activeBuilding.id} expanded
         imageUrl={fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl ?? ""}
         name={fullPageRoom?.name ?? activeBuilding.name}
+        darkness={activeBuilding.interiorDarkness ?? 35}
         effects={fullPageRoom ? [] : activeBuilding.interiorEffects ?? []}
         onOpenRoom={showRoomEffect}
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
@@ -977,6 +1016,9 @@ export default function PetParkPage() {
         </div>}
       </PetParkInteriorRoom>
         : <p className="p-8 pt-28 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}
+      {activeBuilding.isShop && !fullPageRoom && !!activeBuilding.interiorImageUrl &&
+        <PetParkShopShelf buildingId={activeBuilding.id}
+          itemIds={activeBuilding.shopItemIds ?? []} canEditPark={Boolean(scene?.canEditPark)} />}
       {!popupRoom && <div data-testid="pet-park-interior-slots"
         className="absolute inset-x-3 bottom-[max(10px,env(safe-area-inset-bottom,0px))] z-50 mx-auto max-w-xl rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 p-2 shadow-xl">
         <div className="flex items-center justify-between gap-2 text-[11px] text-amber-200/80">
@@ -1240,7 +1282,7 @@ export default function PetParkPage() {
               onClick={() => {
                 if (Date.now() < suppressSlotClickUntil.current) return;
                 setSlotTapEffect(previous => ({ slot, nonce: (previous?.nonce ?? 0) + 1 }));
-                setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false);
+                setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false); setPetSearch("");
               }}
               onPointerDown={event => { if (pet) startEquippedPetDrag(event, pet); }}
               onPointerMove={event => moveEquippedPetDrag(event, slot)}
@@ -1312,9 +1354,12 @@ export default function PetParkPage() {
               <button type="button" className="rounded-lg border border-amber-500/60 bg-[#245037]/90 px-3 py-2 text-xs text-[#f6d783]" onClick={() => setShowPetChoices(value => !value)}>Change equipped pet</button>
               {showPetChoices && <div className="space-y-2">
                 <p className="text-xs text-amber-100/75">Choose a replacement. Swapping automatically collects rewards and returns your current pet.</p>
+                <input type="search" aria-label="Search park replacement pets" value={petSearch}
+                  onChange={event => setPetSearch(event.target.value)} placeholder="Find pet by name or level"
+                  className="w-full rounded-lg border border-[#bda567]/60 bg-[#0b2016] px-3 py-2 text-xs" />
                 <div className="max-h-[min(26dvh,220px)] space-y-2 overflow-y-auto">
-                  {availablePets.length === 0 && <p className="text-xs text-amber-100/65">No other eligible level 10+ pets available.</p>}
-                  {availablePets.map(candidate => <button type="button" key={candidate.inventoryId} aria-pressed={selectedPet === candidate.inventoryId}
+                  {matchingPets.length === 0 && <p className="text-xs text-amber-100/65">{availablePets.length ? "No pets match your search." : "No other eligible level 10+ pets available."}</p>}
+                  {visiblePetChoices.map(candidate => <button type="button" key={candidate.inventoryId} aria-pressed={selectedPet === candidate.inventoryId}
                     onClick={() => setSelectedPet(candidate.inventoryId)}
                     className={`flex w-full items-center gap-2 rounded border p-2 text-left ${selectedPet === candidate.inventoryId ? "border-amber-300 bg-[#315e43]" : "border-amber-500/25 bg-[#0b2016]"}`}>
                     <PetParkPetPortrait petTemplateId={candidate.petTemplateId} hatchedImageUrl={candidate.hatchedImageUrl} petInventoryId={candidate.inventoryId} size={92} />
@@ -1344,9 +1389,17 @@ export default function PetParkPage() {
             </div>;
             return <div className="space-y-2">
               <p className="text-xs text-amber-200/75">Choose a hatched, unlisted pet at level 10 or above.</p>
+              <input type="search" aria-label="Search pets to equip" value={petSearch}
+                onChange={event => setPetSearch(event.target.value)} placeholder="Find pet by name or level"
+                className="w-full rounded-lg border border-[#bda567]/60 bg-[#0b2016] px-3 py-2 text-xs" />
+              {matchingPets.length > 24 && <p className="text-xs text-amber-100/70">
+                Showing 24 of {matchingPets.length} pets. Search to find others.
+              </p>}
               <div role="group" aria-label={`Choose pet for spot ${activeSlot}`} className="max-h-[min(38dvh,360px)] space-y-2 overflow-y-auto overscroll-contain rounded-lg border border-amber-600/40 p-2">
-                {availablePets.length === 0 && <p className="p-3 text-xs text-amber-100/70">No eligible pets. Hatch and level up a pet to level 10 first.</p>}
-                {availablePets.map(p => <button type="button" key={p.inventoryId} aria-pressed={selectedPet === p.inventoryId} onClick={() => setSelectedPet(p.inventoryId)}
+                {matchingPets.length === 0 && <p className="p-3 text-xs text-amber-100/70">
+                  {availablePets.length ? "No pets match your search." : "No eligible pets. Hatch and level up a pet to level 10 first."}
+                </p>}
+                {visiblePetChoices.map(p => <button type="button" key={p.inventoryId} aria-pressed={selectedPet === p.inventoryId} onClick={() => setSelectedPet(p.inventoryId)}
                   className={`flex w-full min-h-[120px] items-center gap-3 rounded-lg border p-2 text-left ${selectedPet === p.inventoryId ? "border-amber-300 bg-[#315e43]" : "border-amber-600/30 bg-[#0b2016]"}`}>
                   <PetParkPetPortrait petTemplateId={p.petTemplateId} hatchedImageUrl={p.hatchedImageUrl} petInventoryId={p.inventoryId} size={118} />
                   <div className="min-w-0"><p className="truncate text-sm font-semibold">{p.petNickname || p.name}</p><p className="text-xs text-amber-200/75">Level {p.petLevel} · {p.starRarity ?? p.rarity ?? "?"}★</p></div>

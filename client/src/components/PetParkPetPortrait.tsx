@@ -5,7 +5,9 @@ import { getAlphaBounds } from "@/lib/alphaBounds";
 
 /**
  * Player Detail companion artwork, sized for Pet Park pickers and equipped slots.
- * Only mount the relatively expensive part/costume tree when it nears view.
+ * Mount both assembled pets and fallback hatch images only near the viewport.
+ * A newly unlocked third spot can expose a large inventory list; off-screen
+ * pet image decodes must not compete for mobile Safari's memory.
  */
 export default memo(function PetParkPetPortrait({
   petTemplateId, petInventoryId, hatchedImageUrl = null, size = 110, access = "owner",
@@ -42,17 +44,17 @@ export default memo(function PetParkPetPortrait({
 
   return <div ref={holder} className={`relative flex shrink-0 items-center justify-center ${className}`}
     data-testid="pet-park-pet-portrait" style={{ width: size, height: size }}>
-    {visible && petTemplateId ? (
+    {visible && (petTemplateId ? (
       <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId}
         costumeAccess={access} mode={reducedMotion ? "static" : mode} size={size} fillContainer fitVisible
         style={{ filter: "drop-shadow(0 3px 5px rgba(0,0,0,.4))" }} />
     ) : hatchedImageUrl ? (
-      <img src={hatchedImageUrl} alt="" draggable={false}
+      <img src={hatchedImageUrl} alt="" draggable={false} loading="lazy" decoding="async"
         onLoad={event => { if (hatchedImageUrl) void getAlphaBounds(hatchedImageUrl, event.currentTarget); }}
         className={`h-full w-full object-contain ${mode === "sleep" && !reducedMotion ? "pet-park-rest" : ""}`} />
     ) : (
       <span aria-hidden="true" className="text-xs text-amber-200/50">Pet</span>
-    )}
+    ))}
     {visible && <div className="pointer-events-none absolute bottom-0 left-0 h-[34%] w-[34%]">
       <MiniPetRenderer petInventoryId={petInventoryId} access={access} animated={false} />
     </div>}

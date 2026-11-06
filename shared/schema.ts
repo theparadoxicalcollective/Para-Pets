@@ -1462,6 +1462,10 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   layer: integer("layer").notNull().default(0),
   maxPets: integer("max_pets").notNull().default(10),
   interiorEffects: jsonb("interior_effects").$type<ParkInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
+  isShop: boolean("is_shop").notNull().default(false),
+  shopItemIds: jsonb("shop_item_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  // Same ambience scale as Pet Home. Existing rooms receive soft darkness.
+  interiorDarkness: integer("interior_darkness").notNull().default(35),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

@@ -38,6 +38,7 @@ try{
     const page=await context.newPage();
     page.setDefaultTimeout(16000);
     const errors=[],requests=[],replays=new Map();
+    let slotUnlockCalls=0;
     const plot={ plotItemId:"plot1",xPct:.5,yPct:.5,size:150,phase:"empty",
       cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null };
     const crop={id:"crop1",seedItemId:"seed-item",fruitItemId:"fruit-item",
@@ -68,6 +69,17 @@ try{
       if(p==="/api/inventory")return route.fulfill({json:inventory});
       if(p==="/api/pet-park/garden")return route.fulfill({json:{serverNow:new Date().toISOString(),plots:[plot],crops:[crop]}});
       if(p==="/api/pet-park/status")return route.fulfill({json:{enabledForPlayers:true,canEnterPark:true}});
+      if(p==="/api/pet-park/buildings/shop1/shop-items")return route.fulfill({json:[
+        {id:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",price:125,imageUrl:art,eggImageUrl:null,hatchedImageUrl:null},
+      ]});
+      if(p==="/api/pet-park/slots/unlock"){
+        const body=route.request().postDataJSON();
+        assert.equal(body.slot,3);
+        assert.equal(scene.unlockedSlots,2,"must unlock the preceding spot first");
+        scene.unlockedSlots=3;
+        slotUnlockCalls++;
+        return route.fulfill({json:{unlockedSlots:3,charged:5000,coins:500}});
+      }
       const match=p.match(/^\/api\/pet-park\/garden\/plots\/plot1\/(hoe|plant|water|harvest)$/);
       if(match){
         const action=match[1],body=route.request().postDataJSON();
@@ -245,6 +257,68 @@ try{
     await seedPicker.getByRole("button",{name:"Plant Forest Tomato Seeds"}).click();
     await menu.getByTestId("pet-park-garden-stage").getByText("Planted seed").waitFor();
     assert.equal(requests.length,8,name+": one seed choice submits one plant request");
+    await menu.getByRole("button",{name:"Close garden tools"}).click();
+
+    // Third-slot transition was previously reported to crash mobile Safari.
+    // The server must complete the purchase only once and the page must
+    // survive its 2 → 3 scene update, re-entering the equip picker on tap.
+    scene.unlockedSlots=2;
+    await page.reload({waitUntil:"commit"});
+    const third=page.getByTestId("pet-park-slot-3");
+    await third.waitFor({state:"visible"});
+    await third.click();
+    const thirdDialog=page.getByRole("dialog",{name:"Park pet spot 3"});
+    await thirdDialog.waitFor({state:"visible"});
+    await thirdDialog.getByRole("button",{name:/Unlock .*5,000 coins/}).click();
+    await thirdDialog.waitFor({state:"hidden",timeout:10000});
+    assert.equal(slotUnlockCalls,1,name+": exactly one server-authorized third spot debit");
+    await third.click();
+    await thirdDialog.waitFor({state:"visible"});
+    await thirdDialog.getByRole("group",{name:"Choose pet for spot 3"}).waitFor({state:"visible"});
+    await thirdDialog.getByRole("button",{name:"Close pet spot"}).click();
+    await page.reload({waitUntil:"commit"});
+    await third.waitFor({state:"visible"});
+    await third.click();
+    await thirdDialog.getByRole("group",{name:"Choose pet for spot 3"}).waitFor({state:"visible"});
+    await thirdDialog.getByRole("button",{name:"Close pet spot"}).click();
+    assert.equal(slotUnlockCalls,1,name+": third spot persists after reload, without charging twice");
+    assert.equal(await page.getByTestId("pet-park-contact-shadow").count(),0,
+      name+": outdoor pets cast no artificial foot oval");
+    // Player shop display is loaded only after entering an Is Shop building,
+    // not on every camera move / ordinary scene query.
+    scene.items=[];
+    scene.buildings=[{id:"shop1",name:"Woodland Shop",imageUrl:art,interiorImageUrl:art,
+      xPct:.5,yPct:.5,size:240,flipped:false,layer:0,maxPets:10,
+      interiorEffects:[{id:"lamp",type:"warm_glow",x:.5,y:.4,size:18}],
+      interiorDarkness:40,isShop:true,shopItemIds:["seed-item"]}];
+    await page.reload({waitUntil:"commit"});
+    const shopEntrance=page.getByRole("button",{name:"Enter Woodland Shop"});
+    await shopEntrance.waitFor({state:"visible"});
+    await shopEntrance.click();
+    const shop=page.getByTestId("pet-park-shop-shelf");
+    await shop.waitFor({state:"visible"});
+    await shop.getByText("Forest Tomato Seeds").waitFor();
+    const dark=page.locator('[data-testid="pet-park-interior-room"] [data-testid="home-interior-darkness-layer"]');
+    await dark.waitFor({state:"visible"});
+    assert.equal(await dark.evaluate(node=>node.tagName.toLowerCase()),"svg",
+      name+": room darkness uses the same light-shaped cutout as Pet Homes");
+    assert.equal(await dark.locator("mask").count(),1,
+      name+": transparent dark layer must leave a cutout around active lamps");
+    assert.equal(await dark.locator("rect[mask]").count(),1);
+    assert.equal(await dark.locator("rect[mask]").evaluate(node=>node.style.fillOpacity),"0.4",
+      name+": building-specific darkness is correctly saved and rendered");
+    const roomLayers=await page.locator('[data-testid="pet-park-interior-room"] [data-park-interior-artwork]').evaluate(artwork=>{
+      const children=Array.from(artwork.children);
+      return {dark:children.findIndex(node=>node.getAttribute("data-testid")==="home-interior-darkness-layer"),
+        light:children.findIndex(node=>node.getAttribute("data-testid")==="home-interior-effect-lamp")};
+    });
+    assert.ok(roomLayers.dark>=0 && roomLayers.light>roomLayers.dark,
+      name+": glowing effect overlays are above the translucent dark background");
+    assert.equal(await shop.getByRole("button",{name:"Add shop item"}).count(),0,
+      name+": only administrators can curate shop merchandise");
+    assert.equal(await shop.getByText("125 coins").count(),1,
+      name+": stored catalog price and picture shown without fake checkout");
+    await page.getByRole("button",{name:"Exit building"}).click();
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": actual Garden Plot hoe/seed/4 drops/harvest, tilled art, market exclusion, and common visitor/terrain zoom");
     await context.close();

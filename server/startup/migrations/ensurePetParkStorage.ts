@@ -61,8 +61,15 @@ export async function ensurePetParkStorage(): Promise<void> {
       layer integer NOT NULL DEFAULT 0,
       max_pets integer NOT NULL DEFAULT 10 CHECK (max_pets BETWEEN 10 AND 25),
       interior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
+      is_shop boolean NOT NULL DEFAULT false,
+      shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+      interior_darkness integer NOT NULL DEFAULT 35,
       created_at timestamp NOT NULL DEFAULT now()
     );
+    ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS is_shop boolean NOT NULL DEFAULT false;
+    ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb;
+    -- Additive default: existing rooms gain soft ambience without placement changes.
+    ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS interior_darkness integer NOT NULL DEFAULT 35;
 
     -- Existing parks may have 1–3-pet buildings. Raise those capacities to
     -- ten before enforcing the new range; no occupants are displaced, and

@@ -1,7 +1,8 @@
 import type { Express, RequestHandler } from "express";
-import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, isParkGroundTheme, parkGroundSize } from "@shared/petParkGround";
-import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
+import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings, shopItems } from "@shared/schema";
+import { HOUSE_INTERIOR_DARKNESS_MIN, HOUSE_INTERIOR_DARKNESS_MAX } from "@shared/housing";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
@@ -31,6 +32,27 @@ export function registerPetParkAdminRoutes(
     processWorldImage: (imageData: string, maxSize: number) => Promise<string>;
   },
 ): void {
+  // Bounded catalog lookup for the existing shop items, only while the admin
+  // is curating a building. Never load the entire catalog into the park scene.
+  app.get("/api/admin/pet-park/shop-catalog", isAdmin, async (req, res) => {
+    const search = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 75) : "";
+    const type = typeof req.query.type === "string" ? req.query.type.trim().slice(0, 40) : "";
+    try {
+      const items = await db.select({
+        id: shopItems.id, name: shopItems.name, type: shopItems.type,
+        imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
+        hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
+      }).from(shopItems).where(and(
+        search ? ilike(shopItems.name, "%" + search + "%") : undefined,
+        type && type !== "all" ? eq(shopItems.type, type) : undefined,
+      )).orderBy(asc(shopItems.name)).limit(100);
+      return res.json(items);
+    } catch (error) {
+      console.error("[pet-park] shop item catalog failed", error);
+      return res.status(500).json({ message: "Unable to search shop items" });
+    }
+  });
+
   // Draft assets are admin-only; players cannot see unpublished park content.
   app.get("/api/admin/pet-park", isAdmin, async (_req, res) => {
     try {
@@ -158,19 +180,20 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
-    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 120, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN } = req.body ?? {};
+    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 300, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN, isShop = false, interiorDarkness = 35 } = req.body ?? {};
     if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
         typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000 ||
         (interiorImageData != null && (typeof interiorImageData !== "string" || !interiorImageData.startsWith("data:image/") || interiorImageData.length > 12_000_000)) ||
         !validPosition(xPct) || !validPosition(yPct) || !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
-        !isValidPetParkBuildingCapacity(maxPets)) {
+        !isValidPetParkBuildingCapacity(maxPets) || typeof isShop !== "boolean" ||
+        !Number.isInteger(interiorDarkness) || interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN || interiorDarkness > HOUSE_INTERIOR_DARKNESS_MAX) {
       return res.status(400).json({ message: `Provide a name, exterior image, valid placement and a pet capacity from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
     }
     try {
       const imageUrl = await processWorldImage(imageData, 1200);
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2000) : null;
       const [building] = await db.insert(petParkBuildings).values({
-        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, interiorEffects: [],
+        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [],
       }).returning();
       return res.status(201).json(building);
     } catch (error) {
@@ -193,6 +216,26 @@ export function registerPetParkAdminRoutes(
     if (body.interiorImageData !== undefined) {
       if (body.interiorImageData !== null && (typeof body.interiorImageData !== "string" || !body.interiorImageData.startsWith("data:image/") || body.interiorImageData.length > 12_000_000)) return res.status(400).json({ message: "Valid interior image required" });
       try { updates.interiorImageUrl = body.interiorImageData ? await processWorldImage(body.interiorImageData, 2000) : null; } catch { return res.status(400).json({ message: "Unable to process interior image" }); }
+    }
+    if (body.interiorDarkness !== undefined) {
+      if (!Number.isInteger(body.interiorDarkness) || body.interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN ||
+          body.interiorDarkness > HOUSE_INTERIOR_DARKNESS_MAX) {
+        return res.status(400).json({ message: "Interior darkness must be between 0 and 90 percent" });
+      }
+      updates.interiorDarkness = body.interiorDarkness;
+    }
+    if (body.isShop !== undefined) {
+      if (typeof body.isShop !== "boolean") return res.status(400).json({ message: "Is Shop must be on or off" });
+      updates.isShop = body.isShop;
+    }
+    if (body.shopItemIds !== undefined) {
+      const ids = body.shopItemIds;
+      if (!Array.isArray(ids) || ids.length > 80 ||
+          ids.some((id: unknown) => typeof id !== "string" || id.length < 1 || id.length > 100) ||
+          new Set(ids).size !== ids.length) {
+        return res.status(400).json({ message: "Select up to 80 unique, valid shop items" });
+      }
+      updates.shopItemIds = ids;
     }
     if (body.maxPets !== undefined) {
       if (!isValidPetParkBuildingCapacity(body.maxPets)) return res.status(400).json({ message: `Building capacity must be from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
@@ -220,6 +263,16 @@ export function registerPetParkAdminRoutes(
       updates[key] = body[key];
     }
     if (!Object.keys(updates).length) return res.status(400).json({ message: "No valid building changes provided" });
+    if (updates.shopItemIds !== undefined && (updates.shopItemIds as string[]).length) {
+      try {
+        const ids = updates.shopItemIds as string[];
+        const found = await db.select({ id: shopItems.id }).from(shopItems).where(inArray(shopItems.id, ids));
+        if (found.length !== ids.length) return res.status(400).json({ message: "A selected shop item no longer exists" });
+      } catch (error) {
+        console.error("[pet-park] shop catalog validation failed", error);
+        return res.status(500).json({ message: "Could not validate shop items" });
+      }
+    }
     try {
       if (updates.maxPets !== undefined || updates.interiorEffects !== undefined) {
         // Room changes and pet placements serialize through the same building lock.

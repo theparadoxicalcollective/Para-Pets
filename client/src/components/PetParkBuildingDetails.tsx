@@ -11,6 +11,7 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { scenePointToPlacement } from "@/lib/coordinateContracts";
 import {
+  HOUSE_INTERIOR_DARKNESS_MAX,
   HOUSE_INTERIOR_EFFECT_MAX_COUNT,
   HOUSE_INTERIOR_EFFECT_MIN_SIZE,
   HOUSE_INTERIOR_EFFECT_MAX_SIZE,
@@ -23,6 +24,9 @@ export type ParkBuildingDetails = {
   imageUrl: string;
   interiorImageUrl: string | null;
   maxPets: number;
+  isShop?: boolean;
+  shopItemIds?: string[];
+  interiorDarkness?: number;
   interiorEffects: ParkInteriorEffect[];
 };
 
@@ -41,6 +45,10 @@ export default function PetParkBuildingDetails({
   const qc = useQueryClient();
   const [name, setName] = useState(building.name);
   const [maxPets, setMaxPets] = useState(building.maxPets);
+  const [isShop, setIsShop] = useState(Boolean(building.isShop));
+  const [darkness, setDarkness] = useState(building.interiorDarkness ?? 35);
+  const darknessRef = useRef(building.interiorDarkness ?? 35);
+  const savedDarkness = useRef(building.interiorDarkness ?? 35);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
@@ -84,6 +92,12 @@ export default function PetParkBuildingDetails({
       }
       if (typeof updated.name === "string") setName(updated.name);
       if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
+      if (typeof updated.isShop === "boolean") setIsShop(updated.isShop);
+      if (typeof updated.interiorDarkness === "number") {
+        savedDarkness.current = updated.interiorDarkness;
+        darknessRef.current = updated.interiorDarkness;
+        setDarkness(updated.interiorDarkness);
+      }
       if (updated.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
@@ -178,6 +192,7 @@ export default function PetParkBuildingDetails({
     role="dialog" aria-modal="true" aria-label={`Edit effects on ${building.name}`}
     data-testid="pet-park-building-details" data-testid-full-room-editor="true">
     <PetParkInteriorRoom key={imagePreview} imageUrl={imagePreview} name={building.name} effects={effects}
+      darkness={darkness}
       selectedEffectId={selectedEffectId} editEffects expanded
       onEffectPointerDown={onEffectPointerDown}
       onEffectPointerMove={onEffectPointerMove}
@@ -200,6 +215,34 @@ export default function PetParkBuildingDetails({
       className="pointer-events-auto absolute inset-x-3 z-30 mx-auto max-w-xl overflow-y-auto overscroll-contain rounded-xl border border-amber-500/60 bg-[#10291d]/95 px-3 py-3 text-amber-100 shadow-2xl"
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: showEffectChoices ? "48dvh" : "38dvh" }}>
       <p className="mb-2 text-xs text-amber-100/75">Tap an effect to select it, then drag it directly on the room. Save when finished.</p>
+      <div className="mb-3 rounded-xl border border-[#b99a4c]/45 bg-[#153523] p-2.5">
+        <label htmlFor="pet-park-interior-darkness" className="mb-1 flex justify-between gap-2 text-xs font-semibold text-[#f0d69d]">
+          <span>Room darkness</span><span>{darkness}%</span>
+        </label>
+        <input id="pet-park-interior-darkness" data-testid="slider-park-interior-darkness"
+          type="range" min={0} max={HOUSE_INTERIOR_DARKNESS_MAX} step={5} value={darkness}
+          disabled={mutation.isPending}
+          onPointerDown={event => event.stopPropagation()}
+          onChange={event => {
+            const next = Number(event.currentTarget.value);
+            darknessRef.current = next;
+            setDarkness(next);
+          }}
+          onPointerUp={event => {
+            event.stopPropagation();
+            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
+              mutation.mutate({ interiorDarkness: darknessRef.current });
+          }}
+          onBlur={() => {
+            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
+              mutation.mutate({ interiorDarkness: darknessRef.current });
+          }}
+          className="w-full accent-[#dcb970]" />
+        <p className="mt-1 text-[10px] text-amber-100/65">
+          Translucent darkness covers the background, with clear spots around active lights.
+          Changes are saved to this building.
+        </p>
+      </div>
             {showEffectChoices && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[...HOME_INTERIOR_EFFECT_OPTIONS, ...PARK_WATER_EFFECT_OPTIONS.map(option => ({ ...option, defaultSize: option.interiorSize })), { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
                 className="rounded bg-teal-900 px-2 py-2 text-left text-xs disabled:opacity-50"
@@ -287,10 +330,16 @@ export default function PetParkBuildingDetails({
                 Math.min(PET_PARK_BUILDING_CAPACITY_MAX, Math.round(Number(event.target.value) || PET_PARK_BUILDING_CAPACITY_MIN))))}
               className="mt-1 w-full rounded bg-[#091e17] p-2" />
           </label>
+          <label className="flex min-h-11 items-center gap-3 rounded-lg border border-[#b99a4c]/50 bg-[#183b2a] p-3 text-sm">
+            <input type="checkbox" aria-label="Is Shop building" checked={isShop}
+              onChange={event => setIsShop(event.target.checked)} className="h-4 w-4 accent-[#e0bd75]" />
+            Is Shop
+          </label>
+          {isShop && <p className="text-xs text-amber-100/70">Upload an interior, then enter the building to use + Add Item. Existing catalog items appear with images and names.</p>}
           <p className="text-xs text-amber-100/70">Visitors share the building with placed pets. Full-page rooms also have their own limits within the building's capacity.</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
             disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
-            onClick={() => mutation.mutate({ name: name.trim(), maxPets })}>Save building details</button>
+            onClick={() => mutation.mutate({ name: name.trim(), maxPets, isShop })}>Save building details</button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">Replace exterior artwork
               <input type="file" accept="image/*" aria-label="Replace park building exterior" className="mt-1 block w-full text-xs"
