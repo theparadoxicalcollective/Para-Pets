@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { bjStart } from "@/lib/beginJourney";
+import { BEGIN_JOURNEY_ENABLED, bjStart } from "@/lib/beginJourney";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { playChime } from "@/lib/sounds";
@@ -72,7 +72,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       localStorage.removeItem("para_pets_just_registered");
       localStorage.removeItem("para_pets_just_registered_user_id");
       setTimeout(() => {
-        bjStart();
+        if (BEGIN_JOURNEY_ENABLED) bjStart();
         onComplete(data.user ?? null);
       }, 800);
     },
@@ -305,7 +305,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                   boxShadow: phase !== "done" ? "0 0 18px rgba(212,170,50,0.35)" : "none",
                 }}
               >
-                {phase === "claiming" ? "Collecting…" : phase === "done" ? "✓ Gifts Collected!" : "Collect & Begin Journey"}
+                {phase === "claiming" ? "Collecting…" : phase === "done" ? "✓ Gifts Collected!" : "Collect & Continue"}
               </button>
             ) : (
               <div style={{ height: 42 }} />
