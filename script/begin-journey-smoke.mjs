@@ -1,17 +1,19 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createServer } from "vite";
 import { chromium } from "playwright";
 
 // Mobile/tablet gameplay only; desktop entry blocking is tested separately.
 // Real player-facing components; isolated API fixtures, never live player data.
 const fixtureId = "/__begin-journey-fixture.tsx";
+const paused = /export const BEGIN_JOURNEY_ENABLED = false/.test(readFileSync("client/src/lib/beginJourney.ts","utf8"));
 const fixture = `
 import React, {useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
 import {useLocation} from 'wouter';
 import {QueryClientProvider,useQuery} from '@tanstack/react-query';
 import {queryClient} from '@/lib/queryClient';
-import {bjUsePlayer,bjGetStep,bjSetStep} from '@/lib/beginJourney';
+import {BEGIN_JOURNEY_ENABLED,bjUsePlayer,bjGetStep,bjSetStep} from '@/lib/beginJourney';
 import {useStageViewportLayout,publishStageViewportCss} from '@/lib/stageViewport';
 import HomePage from '@/pages/HomePage';
 import PetInventoryPage from '@/pages/PetInventoryPage';
@@ -32,7 +34,7 @@ function Fixture(){
    Object.assign(document.getElementById('game-stage').style,{position:'absolute',left:layout.left+'px',top:layout.top+'px',width:layout.designWidth+'px',height:layout.designHeight+'px',overflow:'hidden'});
  },[layout]);
  useEffect(()=>{
-   if(!user)return;
+   if(!user || !BEGIN_JOURNEY_ENABLED)return;
    if(user.tutorial_quest_completed)bjSetStep('done');
    else if(bjGetStep()===null){
      const seed=new URLSearchParams(window.location.search).get('seed');
@@ -66,6 +68,11 @@ try{
 for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profiles[1],profiles[4]]:profiles){
  const recovery=!probe && (width===360 || (recoveryOnly && width===800));
  const context=await browser.newContext({viewport:{width,height},isMobile:touch,hasTouch:touch});
+ if(paused && (width===360 || width===800)){
+   // In-flight legacy accounts must not lose their stored step during the
+   // pause. New player/avatar onboarding can migrate this later.
+   await context.addInitScript(() => localStorage.setItem('bj_step:journey-fixture','5'));
+ }
  const page=await context.newPage();page.setDefaultTimeout(12000);
  const errors=[];page.on('pageerror',error=>{errors.push(error.message);console.error(error.message)});
  const user={id:'journey-fixture',username:'QA',email:'qa@example.invalid',coins:0,isAdmin:false,isModerator:false,emailVerified:true,profileImage:null,activePetId:probe?'starter-owned':null,tutorial_quest_completed:false,tutorial_reward_claimed:false};
@@ -145,6 +152,28 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
   }
  };
  await page.goto('http://127.0.0.1:4175/'+(probe?'?seed=5':''),{waitUntil:'domcontentloaded'});
+ if(paused){
+  await page.getByTestId('button-floating-nav').waitFor({state:'visible'});
+  assert.equal(await page.getByTestId('button-begin-journey').count(),0,name+': legacy Begin Here CTA hidden');
+  assert.equal(await page.getByTestId('begin-journey-forwarder').count(),0,name+': blocking tutorial is unmounted');
+  assert.equal(await page.getByText('Choose your first 3-star companion').count(),0,name+': starter prompt removed');
+  const saved=await page.evaluate(()=>localStorage.getItem('bj_step:journey-fixture'));
+  if(width===360 || width===800)assert.equal(saved,'5',name+': stored progress survives pause');
+  else assert.equal(saved,null,name+': new players do not start legacy tutorial');
+  await activate(page.getByTestId('button-floating-nav'));
+  await activate(page.getByTestId('nav-item-quest'));
+  await page.getByTestId('quest-log-viewport-overlay').waitFor({state:'visible'});
+  assert.equal(await page.getByText('Begin Journey',{exact:true}).count(),0,name+': hidden quest card');
+  assert.equal(await page.getByTestId('button-begin-journey-claim').count(),0,name+': tutorial reward is not displayed');
+  assert.equal(await page.getByText('No active quests. Explore the realm to discover adventures...').count(),1,
+    name+': ordinary quests still work');
+  assert.deepEqual(counts,{grants:0,potionGrants:0,useAttempts:0,uses:0,complete:0,claims:0,activations:0},
+    name+': paused tutorial makes no mutations');
+  assert.deepEqual(errors,[],name+': no client runtime errors');
+  console.log('PASS '+name+': Begin Journey paused, other quests visible, saved state preserved and no tutorial requests');
+  await context.close();
+  continue;
+ }
  if(probe){
   const potion=page.getByTestId('button-speedup-tutorial');await potion.waitFor({state:'visible'});
   assert.equal(await potion.evaluate(node=>getComputedStyle(node).pointerEvents),'auto','potion must accept input through the HUD');
