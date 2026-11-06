@@ -36,6 +36,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
   const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
@@ -53,7 +54,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
       if (variables.method !== "POST") {
         setRates(null); setPublish(null); setModeratorPreview(null);
-        toast({ title: "Pet Park settings saved", description: "Park availability and reward rates have been updated." });
+        setSettingsSaved(true);
         qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
         qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         return;
@@ -98,14 +99,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
           <h3 className="font-semibold">Park rewards & player access</h3>
           <p className="text-xs">Rates are stored per hour. The recommended preset equals 1 coin/minute, 5 pet XP/minute and 2 essence/5 minutes. Closing pauses earning but preserves deposits and rewards.</p>
-          <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 })}>Use recommended reward rates</button>
+          <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => { setSettingsSaved(false); setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 }); }}>Use recommended reward rates</button>
           {(["coinsPerHour", "essencePerHour", "petXpPerHour"] as const).map(key => <label key={key} className="flex items-center justify-between gap-2 text-sm">
             <span>{key === "coinsPerHour" ? "Coins / hour" : key === "essencePerHour" ? "Essence / hour" : "Pet XP / hour"}</span>
             <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-[#0b2016] p-2"
               value={(rates ?? data?.settings)?.[key] ?? 0}
-              onChange={e => setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
+              onChange={e => { setSettingsSaved(false); setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
                 essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
-                petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) })} />
+                petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) }); }} />
           </label>)}
           {([
             { key: "players", label: "Open Pet Park to players", checked: publish ?? data?.settings.enabledForPlayers ?? false,
@@ -123,12 +124,13 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
               aria-labelledby={`park-access-${option.key}`}
               aria-label={option.key === "players" ? "Allow players into Pet Park" : "Allow moderators into Pet Park"}
               disabled={!data || mutation.isPending}
-              onClick={() => option.setChecked(!option.checked)}
+              onClick={() => { setSettingsSaved(false); option.setChecked(!option.checked); }}
               className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5cf64] disabled:opacity-50 ${option.checked ? "border-[#f5cf64] bg-[#245037]" : "border-amber-800/70 bg-[#24312b]"}`}>
               <span aria-hidden="true" className={`absolute top-1 h-6 w-6 rounded-full shadow transition-[left] ${option.checked ? "left-7 bg-[#f5cf64]" : "left-1 bg-[#c5bda4]"}`} />
             </button>
           </div>)}
           {(publish !== null || moderatorPreview !== null) && <p role="status" className="text-xs text-[#f5cf64]">Unsaved access changes — tap Save below to apply.</p>}
+          {settingsSaved && <p role="status" className="text-xs font-semibold text-[#b6dcab]">Park settings saved.</p>}
           <p className="text-xs text-amber-100/70">Moderator access allows staff to preview the normal player park without editing controls. It does not publish the park to everyone.</p>
           <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
             onClick={() => {
