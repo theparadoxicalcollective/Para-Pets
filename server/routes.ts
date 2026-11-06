@@ -52,8 +52,6 @@ import {
   createHomeBundleListing,
   createInventoryListing,
 } from "./marketplace/transactions";
-import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
-import { invalidTutorialRequest, TutorialError } from "./tutorial/errors";
 import { CaveTierLockedError, isCaveTierAccessible } from "./caveProgress";
 import { executeAcceptGift, executeSendGift } from "./gifts/transactions";
 import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTransactions";
@@ -113,28 +111,6 @@ import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
 import { startVeridianWatcherBackgroundJobs } from "./veridianWatcher/backgroundJobs";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-function sendTutorialError(res: Response, error: unknown, operation: string) {
-  if (error instanceof TutorialError) {
-    const status = error.code === "invalid_request" ? 400
-      : error.code === "player_not_found" ? 404
-      : error.code === "tutorial_not_completed" ? 409
-      : error.code === "reward_item_unavailable" ? 503
-      : 409;
-    return res.status(status).json({ errorCode: error.code, message: error.message });
-  }
-  console.error(`[tutorial] ${operation} error:`, error);
-  return res.status(500).json({ errorCode: "tutorial_operation_failed", message: "Tutorial operation failed" });
-}
-
-function requireEmptyTutorialBody(body: unknown): void {
-  if (body == null) return;
-  if (typeof body !== "object" || Array.isArray(body) || Object.keys(body).length > 0) {
-    throw invalidTutorialRequest();
-  }
-}
-
-
 
 // ── Daily Quest helpers ───────────────────────────────────────────────────────
 function getCentralDate(): string {
@@ -4563,140 +4539,7 @@ export async function registerRoutes(
   cleanupStaleRewards();
   setInterval(cleanupStaleRewards, 6 * 60 * 60 * 1000);
 
-  // ── Tutorial: production-backed 3-star starter choices ───────────────────
-  app.get("/api/tutorial/starter-pets", isAuthenticated, async (_req: any, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT id, name, image_url, egg_image_url, hatched_image_url,
-               COALESCE(star_rarity, rarity) AS rarity
-        FROM shop_items
-        WHERE type = 'pet'
-          AND COALESCE(star_rarity, rarity) = 3
-          AND egg_image_url IS NOT NULL
-          AND hatched_image_url IS NOT NULL
-        ORDER BY created_at ASC, name ASC
-      `);
-      return res.json((result.rows as any[]).map((pet) => ({
-        id: String(pet.id),
-        name: String(pet.name),
-        imageUrl: pet.egg_image_url || pet.image_url,
-        eggImageUrl: pet.egg_image_url,
-        hatchedImageUrl: pet.hatched_image_url,
-        rarity: 3,
-      })));
-    } catch (err) {
-      console.error("[tutorial] starter-pets error:", err);
-      return res.status(500).json({ message: "Failed to load starter pets" });
-    }
-  });
-
-  app.post("/api/tutorial/grant-starter-egg", isAuthenticated, async (req: any, res) => {
-    const userId = req.user!.id;
-    const petId = typeof req.body?.petId === "string" ? req.body.petId.trim() : "";
-    if (!petId || Object.keys(req.body ?? {}).some((key) => key !== "petId")) {
-      return res.status(400).json({ message: "Choose a valid 3-star starter pet" });
-    }
-    try {
-      const granted = await db.transaction(async (tx) => {
-        const playerResult = await tx.execute(sql`
-          SELECT COALESCE(tutorial_quest_completed, false) AS completed
-          FROM users WHERE id = ${userId} FOR UPDATE
-        `);
-        const player = playerResult.rows[0] as any;
-        if (!player) throw Object.assign(new Error("Player is unavailable"), { status: 404 });
-        if (player.completed) throw Object.assign(new Error("Begin Journey is already complete"), { status: 409 });
-
-        const petResult = await tx.execute(sql`
-          SELECT id, name
-          FROM shop_items
-          WHERE id = ${petId}
-            AND type = 'pet'
-            AND COALESCE(star_rarity, rarity) = 3
-            AND egg_image_url IS NOT NULL
-            AND hatched_image_url IS NOT NULL
-          FOR SHARE
-        `);
-        const pet = petResult.rows[0] as any;
-        if (!pet) throw Object.assign(new Error("That 3-star starter pet is no longer available"), { status: 409 });
-
-        // Idempotently reuse this exact unhatched starter choice. Do not return
-        // an unrelated owned pet: that was the source of the client/server loop.
-        const ownedResult = await tx.execute(sql`
-          SELECT ui.id
-          FROM user_inventory ui
-          WHERE ui.user_id = ${userId}
-            AND ui.shop_item_id = ${petId}
-            AND COALESCE(ui.is_hatched, false) = false
-            AND COALESCE(ui.is_listed, false) = false
-          ORDER BY ui.acquired_at ASC
-          LIMIT 1
-          FOR UPDATE OF ui
-        `);
-        if (ownedResult.rows[0]) {
-          return {
-            granted: false,
-            inventoryId: String((ownedResult.rows[0] as any).id),
-            petId: String(pet.id),
-            itemName: String(pet.name),
-          };
-        }
-
-        const inventoryResult = await tx.execute(sql`
-          INSERT INTO user_inventory (user_id, shop_item_id, quantity, hatch_started_at)
-          VALUES (${userId}, ${petId}, 1, NOW())
-          RETURNING id
-        `);
-        return {
-          granted: true,
-          inventoryId: String((inventoryResult.rows[0] as any).id),
-          petId: String(pet.id),
-          itemName: String(pet.name),
-        };
-      });
-      return res.json(granted);
-    } catch (err: any) {
-      const status = Number(err?.status) || 500;
-      if (status >= 500) console.error("[tutorial] grant-starter-egg error:", err);
-      return res.status(status).json({ message: status >= 500 ? "Failed to grant starter pet" : err.message });
-    }
-  });
-
-  // ── Tutorial: grant 3 free Small Hatching Potions (one-time) ────────────────
-  app.post("/api/tutorial/grant-hatch-potions", isAuthenticated, async (req: any, res) => {
-    const userId = req.user!.id;
-    try {
-      requireEmptyTutorialBody(req.body);
-      const result = await grantTutorialHatchPotions(userId);
-      return res.json({
-        granted: result.status === "granted",
-        alreadyGranted: result.alreadyGranted,
-        grantedQuantity: result.grantedQuantity,
-        potionGrantStatus: result.status,
-        status: result.status,
-      });
-    } catch (err) {
-      return sendTutorialError(res, err, "grant-hatch-potions");
-    }
-  });
-
   registerMixingTreeRecipeRoutes(app, { db, isAuthenticated, isAdmin });
-
-  // ── Tutorial: mark quest completed (no coins yet — player claims from quest log) ─
-  app.post("/api/tutorial/complete", isAuthenticated, async (req: any, res) => {
-    const userId = req.user!.id;
-    try {
-      requireEmptyTutorialBody(req.body);
-      const result = await completeTutorial(userId);
-      return res.json({
-        ok: true,
-        status: result.status,
-        tutorialCompleted: result.tutorialCompleted,
-        alreadyCompleted: result.alreadyCompleted,
-      });
-    } catch (err) {
-      return sendTutorialError(res, err, "complete");
-    }
-  });
 
   // ── Cave: per-pet progress ─────────────────────────────────────────────────
   app.get("/api/cave/progress/:petInventoryId", isAuthenticated, async (req: any, res) => {
@@ -4738,23 +4581,6 @@ export async function registerRoutes(
       }
       console.error("[cave] complete-tier error:", err);
       return res.status(500).json({ message: "Server error" });
-    }
-  });
-
-  // ── Tutorial: claim completion reward (1500 coins, one-time) ────────────────
-  app.post("/api/tutorial/claim-reward", isAuthenticated, async (req: any, res) => {
-    const userId = req.user!.id;
-    try {
-      requireEmptyTutorialBody(req.body);
-      const result = await claimTutorialReward(userId);
-      return res.json({
-        alreadyClaimed: result.status === "already_claimed",
-        coins: result.coins,
-        newBalance: result.coinBalance,
-        status: result.status,
-      });
-    } catch (err) {
-      return sendTutorialError(res, err, "claim-reward");
     }
   });
 
