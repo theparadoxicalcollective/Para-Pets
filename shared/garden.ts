@@ -3,6 +3,22 @@
  * transitions, inventory deductions, rewards and the harvest cooldown.
  */
 export const GARDEN_WATER_CAPACITY = 100;
+/** UI and server use the same eligibility rule for a refillable inventory
+ * row. An unopened container (NULL charges) is already full, not empty. */
+export function gardenItemNeedsRefill(item: {
+  isRefillable?: boolean | null;
+  isListed?: boolean | null;
+  quantity?: number | null;
+  gardenWaterLeft?: number | null;
+}): boolean {
+  return item.isRefillable === true && item.isListed !== true &&
+    (item.quantity ?? 1) > 0 &&
+    Number.isInteger(item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) &&
+    (item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) >= 0 &&
+    (item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) < GARDEN_WATER_CAPACITY;
+}
+
+
 export const GARDEN_PICKED_COOLDOWN_MS = 30_000;
 export const GARDEN_HARVEST_COUNTS = [1, 2, 3] as const;
 export const GARDEN_PHASES = [
