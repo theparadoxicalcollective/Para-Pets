@@ -25,7 +25,7 @@ import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
 import { getVisibleViewport } from "@/lib/stage";
-import { bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
+import { BEGIN_JOURNEY_ENABLED, bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -45,6 +45,11 @@ import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
 import { coverArtworkPoint, viewportPointToCoverArtwork } from "@/lib/artworkCoverGeometry";
+
+// Preserved tutorial steps may still exist in localStorage. They must never
+// intercept ordinary potion gestures or suppress the hatching sheet while
+// Begin Journey is temporarily paused.
+const isBeginJourneyStep5 = () => BEGIN_JOURNEY_ENABLED && bjGetStep() === 5;
 
 interface HomePageProps {
   user: {
@@ -452,7 +457,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       // Begin Journey owns its own lightweight completion flash. Running the
       // normal hatch cinematic at the same time duplicated full-screen layers
       // and pet renderers, which could exhaust iOS Safari during the transition.
-      const tutorialStep = bjGetStep();
+      const tutorialStep = BEGIN_JOURNEY_ENABLED ? bjGetStep() : null;
       if (tutorialStep === 5 || tutorialStep === 6) {
         setHatchRevealing(false);
         setHatchFadingOut(false);
@@ -591,7 +596,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   ]);
 
   const ownsAnyPet = inventory.some((item) => item.type === "pet");
-  const canBeginJourney = !inventoryLoading
+  const canBeginJourney = BEGIN_JOURNEY_ENABLED && !inventoryLoading
     && !ownsAnyPet
     && !currentUser.tutorial_quest_completed
     && !currentUser.tutorial_reward_claimed;
@@ -659,7 +664,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, []);
 
   // ── Tutorial: open speed-up sheet when step 5 starts (works on reload too) ──
-  // NOTE: the sheet itself is hidden during step 5 (bjGetStep() !== 5 guard above).
+  // NOTE: the sheet itself is hidden during step 5 (!isBeginJourneyStep5() guard above).
   // bj_open_speedup just sets state so the overlay knows potions are "ready".
   useEffect(() => {
     const handler = () => { setShowSpeedUp(true); };
@@ -812,7 +817,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     // spotlit egg in the center of the screen.  Accept ANY gesture (tap or
     // drag in any direction) on a potion as "used on egg" so the tutorial
     // always completes.
-    if (bjGetStep() === 5) {
+    if (isBeginJourneyStep5()) {
       e.preventDefault();
       const pid = e.pointerId;
       const startX = e.clientX, startY = e.clientY;
@@ -1360,7 +1365,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           data-testid="button-egg-tap"
                           onClick={() => {
                             if (hatchHomeMutation.isPending || hatchRevealing) return;
-                            if (bjIsStep5TapMode() || eggHatchReady) {
+                            if ((BEGIN_JOURNEY_ENABLED && bjIsStep5TapMode()) || eggHatchReady) {
                               // Ready active eggs hatch on tap; preserve the tutorial's
                               // force-hatch behavior. The successful mutation already
                               // triggers the existing hatch reveal animation.
@@ -1577,7 +1582,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* Speed-up sheet is hidden during tutorial step 5 — the overlay renders its own
           single-potion card at z-99003 so there is no z-index war. */}
-      {!isOverlayActive && bjGetStep() !== 5 && showSpeedUp && activePet && !activePet.isHatched && (
+      {!isOverlayActive && !isBeginJourneyStep5() && showSpeedUp && activePet && !activePet.isHatched && (
         <ViewportModalPortal>
         <div
           data-bj="speedup-sheet"
@@ -1589,11 +1594,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-bj="speedup-backdrop"
             className="absolute inset-0 bg-black/60"
             style={{
-              opacity:       bjGetStep() === 5 ? 0 : 1,
-              pointerEvents: bjGetStep() === 5 ? "none" : "auto",
+              opacity:       isBeginJourneyStep5() ? 0 : 1,
+              pointerEvents: isBeginJourneyStep5() ? "none" : "auto",
             }}
             onClick={() => {
-              if (bjGetStep() === 5) return;
+              if (isBeginJourneyStep5()) return;
               setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false);
             }}
           />
@@ -1613,11 +1618,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
               <button
                 onClick={() => {
-                  if (bjGetStep() === 5) return;
+                  if (isBeginJourneyStep5()) return;
                   setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false);
                 }}
                 className="font-fantasy text-[#a89878] text-xs tracking-wider"
-                style={{ cursor: "pointer", background: "none", border: "none", opacity: bjGetStep() === 5 ? 0 : 1 }}
+                style={{ cursor: "pointer", background: "none", border: "none", opacity: isBeginJourneyStep5() ? 0 : 1 }}
                 data-testid="button-close-speedup"
               >
                 Close
@@ -1698,7 +1703,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       onClick={() => {
                         // Step 5 is handled entirely by onPointerDown → pointerup.
                         // Bail here to prevent a double-fire on desktop browsers.
-                        if (bjGetStep() === 5) return;
+                        if (isBeginJourneyStep5()) return;
                         if (!speedUpMutation.isPending) {
                           speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
                         }
