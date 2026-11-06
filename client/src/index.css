@@ -4219,3 +4219,113 @@ img[data-interactive], button img, a img {
 @media (prefers-reduced-motion: reduce) {
   .pet-park-slot, .pet-park-slot__tap-sparkles i { transition: none; animation: none; }
 }
+
+
+/* Shared Pet Park ovals keep their existing world interaction and gold rim.
+   Their new decorative artwork and payout meter never capture touch drags. */
+.pet-park-slot__empty-art {
+  filter: grayscale(1) brightness(0) invert(.64) drop-shadow(0 2px 3px rgba(0,0,0,.9));
+  opacity: .48;
+  transform: translateY(2px);
+  pointer-events: none;
+}
+.pet-park-slot__add-symbol {
+  position: absolute;
+  right: 14%;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(245,205,115,.85);
+  border-radius: 50%;
+  color: #f9df97;
+  font-family: Georgia, serif;
+  font-size: 19px;
+  line-height: 1;
+  background: radial-gradient(circle at 40% 30%, #365d3c, #0c2419);
+  box-shadow: 0 1px 5px rgba(0,0,0,.6), inset 0 0 5px rgba(251,215,124,.14);
+}
+.pet-park-slot-progress {
+  pointer-events: none;
+  width: 100%;
+}
+.pet-park-slot-progress__track {
+  position: relative;
+  height: 9px;
+  overflow: hidden;
+  border: 1px solid rgba(254,226,145,.87);
+  border-radius: 20px;
+  background: linear-gradient(#030f0a, #163724);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.55), 0 0 4px rgba(245,198,95,.2);
+}
+.pet-park-slot-progress__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #fff1b2 0%, #f3cc63 41%, #ac7624 100%);
+  box-shadow: 0 0 8px rgba(255,210,92,.68), inset 0 1px 1px rgba(255,255,255,.65);
+  transition: width .65s linear;
+}
+.pet-park-slot-progress__shine {
+  position: absolute;
+  inset: 1px 4px auto;
+  height: 2px;
+  border-radius: 30px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.27), transparent);
+}
+.pet-park-slot-progress[data-state="paused"] .pet-park-slot-progress__fill { filter: saturate(.4); opacity: .56; }
+.pet-park-slot-progress[data-state="inactive"] .pet-park-slot-progress__fill { display: none; }
+
+/* Forest-green and antique-gold reward card, matching the existing game
+   dialogs rather than replacing their actions or Pet Park reward calculations. */
+.pet-park-reward-panel {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% -12%, rgba(149,125,63,.28), transparent 55%),
+    linear-gradient(150deg, rgba(30,74,48,.98), rgba(9,35,24,.98) 55%, rgba(6,26,18,.98));
+  border: 2px solid #ac8845;
+  box-shadow:
+    inset 0 0 0 1px rgba(247,217,136,.28),
+    inset 0 2px 12px rgba(245,210,125,.09),
+    inset 0 -18px 25px rgba(0,0,0,.25),
+    0 12px 36px rgba(0,0,0,.68),
+    0 0 19px rgba(199,158,68,.1);
+  scrollbar-color: #9c7e46 #091d13;
+}
+.pet-park-reward-panel::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: 5px;
+  border: 1px solid rgba(210,175,97,.36);
+  border-radius: 12px;
+}
+.pet-park-reward-panel__jewel {
+  display: grid;
+  place-items: center;
+  height: 36px;
+  width: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(251,218,136,.55);
+  background: radial-gradient(circle at 40% 25%, #548359, #173d29 65%, #071a11);
+  color: #ffe0a0;
+  font-size: 22px;
+  text-shadow: 0 0 8px rgba(255,221,132,.8);
+  box-shadow: inset 0 1px 4px rgba(255,231,153,.15), 0 2px 8px rgba(0,0,0,.5);
+}
+.pet-park-collect-button {
+  color: #193021;
+  background: linear-gradient(180deg, #fff1be, #f1d178 47%, #bf8e3e);
+  border: 1px solid #f6dd95;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.75), inset 0 -2px 3px rgba(99,58,18,.28),
+    0 4px 8px rgba(0,0,0,.4), 0 0 13px rgba(228,183,77,.16);
+  text-shadow: 0 1px 0 rgba(255,240,184,.4);
+  transition: transform .15s ease, filter .15s ease;
+}
+.pet-park-collect-button:active { transform: translateY(1px); filter: brightness(.95); }
+@media (prefers-reduced-motion: reduce) {
+  .pet-park-slot-progress__fill, .pet-park-collect-button { transition: none !important; }
+}
