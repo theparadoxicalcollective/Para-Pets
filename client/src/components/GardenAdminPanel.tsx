@@ -215,8 +215,7 @@ export default function GardenAdminPanel() {
             </label>
             <ImageSlot label="tool" required image={images.seedPack ?? null} onFile={f => void setImage("seedPack", f)}/>
             {form.type === "watering_pail" && <p className="text-xs text-[#dfc987]">Every pail holds exactly 100 drops. Water is tracked per owned pail, not shared across players.</p>}
-            <>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#baa15f]/45 bg-[#193a29] p-3 text-sm">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#baa15f]/45 bg-[#193a29] p-3 text-sm">
                 <input type="checkbox" aria-label="Refillable" checked={toolRefillable}
                   onChange={event => setToolRefillable(event.target.checked)}
                   className="h-4 w-4 accent-[#e9c875]" />
@@ -224,7 +223,6 @@ export default function GardenAdminPanel() {
                   <small className="block text-[#d0bea0]">Mark this item as refillable. Water-bearing tools, such as pails, can collect up to 100 drops at a Water Source.</small>
                 </span>
               </label>
-            </>}
           </> : <>
             <div className="grid grid-cols-2 gap-2">
               <label className="col-span-2 block text-xs">Seed name
