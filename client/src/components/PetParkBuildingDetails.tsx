@@ -241,8 +241,11 @@ export default function PetParkBuildingDetails({
                   Maximum pets in this room ({PARK_ROOM_MIN_PETS}–{PARK_ROOM_MAX_PETS})
                   <input type="number" aria-label="Room pet capacity" min={PARK_ROOM_MIN_PETS} max={PARK_ROOM_MAX_PETS}
                     inputMode="numeric" value={selectedEffect.maxPets}
-                    onChange={event => updateSelectedRoom({ maxPets: Math.max(PARK_ROOM_MIN_PETS,
-                      Math.min(PARK_ROOM_MAX_PETS, Math.round(Number(event.target.value) || PARK_ROOM_MIN_PETS))) })}
+                    onChange={event => {
+                      const nextCapacity = Number(event.target.value);
+                      updateSelectedRoom({ maxPets: Math.max(PARK_ROOM_MIN_PETS,
+                        Math.min(PARK_ROOM_MAX_PETS, Math.round(nextCapacity || PARK_ROOM_MIN_PETS))) });
+                    }}
                     className="mt-1 w-full rounded bg-[#091e17] p-2" />
                 </label> : <p className="text-amber-200/70">Popups are view-only. Pets cannot enter them.</p>}
                 <p className="text-amber-200/70">Save effects to publish the room artwork, name, opening mode and portal placement.</p>
