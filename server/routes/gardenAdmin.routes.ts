@@ -71,8 +71,7 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
     const { kind, name, description = "", price = 0, imageData, isRefillable = false } = req.body ?? {};
     const tool = GARDEN_TOOL_OPTIONS.find(candidate => candidate.key === kind);
     if (!tool || (name != null && !validName(name)) || !validDescription(description) ||
-        !validGardenPrice(price) || !validGardenArtwork(imageData) || typeof isRefillable !== "boolean" ||
-        (isRefillable && kind !== "watering_pail")) {
+        !validGardenPrice(price) || !validGardenArtwork(imageData) || typeof isRefillable !== "boolean") {
       return res.status(400).json({ message: "Provide a valid garden tool, price and image" });
     }
     try {
@@ -91,18 +90,17 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
     }
   });
 
-  // Retrofitting an existing pail must not touch its owner's remaining
-  // drops. This flag only grants eligibility at an admin-tagged Water Source.
+  // Refilling is an opt-in capability for any garden tool. Toggling it does
+  // not change the current water charges on already-owned inventory rows.
   app.patch("/api/admin/garden/tools/:id/refillable", isAdmin, async (req, res) => {
     const { isRefillable } = req.body ?? {};
     if (typeof isRefillable !== "boolean")
       return res.status(400).json({ message: "Refillable must be on or off" });
     try {
       const [item] = await db.update(shopItems).set({ isRefillable })
-        .where(and(eq(shopItems.id, String(req.params.id)), eq(shopItems.type, "garden_tool"),
-          eq(shopItems.specialType, "watering_pail")))
+        .where(and(eq(shopItems.id, String(req.params.id)), eq(shopItems.type, "garden_tool")))
         .returning();
-      return item ? res.json(item) : res.status(404).json({ message: "Watering pail not found" });
+      return item ? res.json(item) : res.status(404).json({ message: "Garden tool not found" });
     } catch (error) {
       console.error("[garden] refillable flag update failed", error);
       return res.status(500).json({ message: "Could not update refillable setting" });
