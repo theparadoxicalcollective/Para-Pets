@@ -262,9 +262,11 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
         quests: [
           {
             key: BEGIN_JOURNEY_TUTORIAL.id,
-            title: "Beginning Tutorial",
+            title: "Begin Journey (paused)",
             kind: "tutorial",
-            isActive: true,
+            // Historical progress/reset remains available to moderators,
+            // but this tutorial is not part of the live quest offering.
+            isActive: false,
           },
           {
             key: NPC_DISCOVERY_TOUR_QUEST_KEY,
