@@ -40,10 +40,8 @@ test("creation and editing forms allow typed capacities and respect the validate
   assert.match(form, /aria-label="Building pet capacity"/);
   assert.match(form, /isValidPetParkBuildingCapacity\(buildingCapacity\)/);
   assert.match(form, /\[10, 15, 20, 25\]/);
-  assert.match(details, /aria-label="Park building capacity"/);
-  assert.match(details, /type="number" inputMode="numeric"/);
-  assert.match(details, /isValidPetParkBuildingCapacity\(capacity\)/);
-  assert.match(details, /capacity < occupantCount/);
+  assert.doesNotMatch(details, /aria-label="Park building capacity"/);
+  assert.match(details, /All player pets stay outdoors/);
 });
 
 test("the building creation route accepts 10 to 25 pets and rejects invalid values", async () => {
