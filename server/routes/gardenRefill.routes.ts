@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import {
   petParkSceneItems, petParkSettings, shopItems, userInventory, users,
 } from "@shared/schema";
-import { GARDEN_WATER_CAPACITY } from "@shared/garden";
+import { GARDEN_WATER_CAPACITY, gardenItemNeedsRefill } from "@shared/garden";
 import { db } from "../db";
 
 /**
@@ -51,7 +51,7 @@ export function registerGardenRefillRoutes(app: Express, isAuthenticated: Reques
           id: userInventory.id,
           quantity: userInventory.quantity,
           isListed: userInventory.isListed,
-          waterLeft: userInventory.gardenWaterLeft,
+          gardenWaterLeft: userInventory.gardenWaterLeft,
           isRefillable: shopItems.isRefillable,
           name: shopItems.name,
         }).from(userInventory)
@@ -62,7 +62,7 @@ export function registerGardenRefillRoutes(app: Express, isAuthenticated: Reques
 
         // Null represents a new, full container. Never mint an item or
         // reset an item that is already full, listed, or not refillable.
-        if ((owned.waterLeft ?? GARDEN_WATER_CAPACITY) >= GARDEN_WATER_CAPACITY)
+        if (!gardenItemNeedsRefill(owned))
           return { status: 409 as const, message: "This item is already full" };
 
         const [saved] = await tx.update(userInventory)
