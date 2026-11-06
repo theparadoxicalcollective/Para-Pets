@@ -50,7 +50,7 @@ test("terrain types expose only dirt/stone/water brush buttons; legacy Stones re
   assert.equal(isParkTerrainDetail("stone_patch"), true);
   assert.equal(isParkConnectedPath("water_shimmer"), false, "water FX are not paint brushes");
   assert.equal(isParkTerrainDetail("water_shimmer"), false);
-  assert.match(brush, /const extendStroke = isParkConnectedPath\(type\) \? parkExtendPathStroke/);
+  assert.match(brush, /const extendStroke = isParkConnectedPath\(type\) \|\| type === "garden_plot" \? parkExtendPathStroke/);
   assert.match(brush, /PARK_TERRAIN_DETAIL_OPTIONS\.map\(option =>/);
   assert.match(brush, /PET_PARK_GROUND_THEMES\.map\(option =>/);
   assert.match(brush, /role="group" aria-label="Pet Park ground style"/);
