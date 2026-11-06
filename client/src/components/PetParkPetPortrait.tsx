@@ -8,7 +8,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
  */
 export default memo(function PetParkPetPortrait({
   petTemplateId, petInventoryId, hatchedImageUrl = null, size = 110, access = "owner",
-  className = "",
+  className = "", mode = "static", reducedMotion = false,
 }: {
   petTemplateId?: string | null;
   petInventoryId: string;
@@ -16,6 +16,8 @@ export default memo(function PetParkPetPortrait({
   size?: number;
   access?: "owner" | "public";
   className?: string;
+  mode?: "static" | "idle" | "sleep";
+  reducedMotion?: boolean;
 }) {
   const holder = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -41,7 +43,7 @@ export default memo(function PetParkPetPortrait({
     data-testid="pet-park-pet-portrait" style={{ width: size, height: size }}>
     {visible && petTemplateId ? (
       <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId}
-        costumeAccess={access} mode="static" size={size} fillContainer fitVisible
+        costumeAccess={access} mode={reducedMotion ? "static" : mode} size={size} fillContainer fitVisible
         style={{ filter: "drop-shadow(0 3px 5px rgba(0,0,0,.4))" }} />
     ) : hatchedImageUrl ? (
       <img src={hatchedImageUrl} alt="" draggable={false} className="h-full w-full object-contain" />
