@@ -333,12 +333,14 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
-    const { kind, effectType, imageData, xPct, yPct, size, flipped, layer } = req.body ?? {};
+    const { kind, effectType, imageData, xPct, yPct, size, flipped, layer, isWaterSource = false } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||
         !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000))) {
       return res.status(400).json({ message: "Invalid Pet Park item" });
     }
+    if (typeof isWaterSource !== "boolean" || (kind !== "decor" && isWaterSource))
+      return res.status(400).json({ message: "Only decorations can be marked as water sources" });
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
     if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
@@ -346,7 +348,7 @@ export function registerPetParkAdminRoutes(
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer) }).returning();
+        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer), isWaterSource }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] item create failed", error);
@@ -369,12 +371,31 @@ export function registerPetParkAdminRoutes(
         return res.status(422).json({ message: "Only uploaded decor objects can be duplicated" });
       const [item] = await db.insert(petParkSceneItems)
         .values({ kind: "decor", imageUrl: original.imageUrl, effectType: null,
+          isWaterSource: original.isWaterSource,
           xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
         .returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] decor duplication failed", error);
       return res.status(500).json({ message: "Unable to duplicate decoration" });
+    }
+  });
+
+  // An existing uploaded decoration may be designated a watering station
+  // independently of its size and placement. No other park object can become
+  // a source, and this never changes terrain, art or player water charges.
+  app.patch("/api/admin/pet-park/items/:id/water-source", isAdmin, async (req, res) => {
+    const isWaterSource = req.body?.isWaterSource;
+    if (typeof isWaterSource !== "boolean")
+      return res.status(400).json({ message: "Water Source must be on or off" });
+    try {
+      const [item] = await db.update(petParkSceneItems).set({ isWaterSource })
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")))
+        .returning();
+      return item ? res.json(item) : res.status(404).json({ message: "Decoration not found" });
+    } catch (error) {
+      console.error("[pet-park] water source update failed", error);
+      return res.status(500).json({ message: "Could not change Water Source" });
     }
   });
 
