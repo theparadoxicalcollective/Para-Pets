@@ -35,6 +35,25 @@ export function parkTerrainCellWindow(bounds: ParkTerrainBounds, stepX: number, 
   };
 }
 
+/**
+ * Affine reprojection of a terrain raster painted for a previous camera.
+ * The preview canvas extends by marginX/Y around the viewport. Mapping the
+ * old world pixel through this transform must yield the same screen pixel as
+ * the current camera's world projection, with no scene-scale distortion.
+ */
+export function parkTerrainPreviewTransform(
+  last: Pick<ParkTerrainViewport, "scale" | "panX" | "panY">,
+  next: Pick<ParkTerrainViewport, "scale" | "panX" | "panY">,
+  marginX: number, marginY: number,
+) {
+  const ratio = next.scale / Math.max(0.001, last.scale);
+  return {
+    ratio,
+    dx: next.panX - last.panX * ratio + marginX * (1 - ratio),
+    dy: next.panY - last.panY * ratio + marginY * (1 - ratio),
+  };
+}
+
 /** Stable, unsigned coordinate hash: shifting the camera never changes a grass tuft. */
 export function parkTerrainNoise(x: number, y: number, salt = 0): number {
   let hash = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(salt | 0, 1274126177);
