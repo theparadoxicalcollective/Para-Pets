@@ -31,6 +31,8 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
       );
       CREATE TABLE pet_park_scene_items (
         id varchar PRIMARY KEY, kind text NOT NULL, effect_type text,
+        x_pct real NOT NULL DEFAULT 0.5, y_pct real NOT NULL DEFAULT 0.5,
+        size integer NOT NULL DEFAULT 150,
         is_water_source boolean NOT NULL DEFAULT false
       );
       CREATE TABLE shop_items (
@@ -168,7 +170,7 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
     assert.equal(plant.statusCode, 200);
     assert.equal(plant.payload.plot.phase, "planted");
     assert.equal(plant.payload.remainingQuantity, 1);
-    assert.equal(itemCount && await itemCount("alice-seed"), 1);
+    assert.equal(await itemCount("alice-seed"), 1);
     assert.equal((await request(path("plant"), { plotId: "plot1" },
       { requestId: plantId, inventoryId: "alice-seed" })).payload.replayed, true);
     assert.equal(await itemCount("alice-seed"), 1, "plant retry did not debit twice");
