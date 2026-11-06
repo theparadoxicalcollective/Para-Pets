@@ -27,5 +27,6 @@ export const PARK_WATER_EFFECT_OPTIONS: Array<{
   { type: "water_ripple", label: "Water Ripples", description: "Gentle expanding ripples", defaultSize: 110, interiorSize: 16 },
   { type: "water_shimmer", label: "Water Shimmer", description: "Soft, shifting surface reflections for ponds and pools", defaultSize: 140, interiorSize: 20 },
   { type: "water_flow", label: "Vertical Water Flow", description: "Downward turquoise and white streaks for falling water", defaultSize: 170, interiorSize: 24 },
+  { type: "water_flow", label: "Vertical Water Flow", description: "Falling streams for waterfalls and flowing water", defaultSize: 155, interiorSize: 24 },
   { type: "water_drop", label: "Water Drop", description: "A single faint drop falling slowly on a loop", defaultSize: 80, interiorSize: 12 },
 ];
