@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parkNextRewardProgress, type ParkRewardRates, type ParkRewardTiming, type ParkRewardRate } from "@/lib/petParkRewardProgress";
 
 /** Compact HUD shown only when an equipped pet spot is open.
@@ -14,10 +14,12 @@ export default function PetParkRewardBars({
     const timer = window.setInterval(() => setTick(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  const serverStamp = serverNow ? Date.parse(serverNow) : NaN;
-  // Server clocks own reward accrual; synchronize the displayed estimate with
-  // the most recently fetched server timestamp. No separate polling request.
-  const clockOffset = Number.isFinite(serverStamp) ? serverStamp - tick : 0;
+  // Anchor once per scene response, then let the 1s tick advance locally.
+  // Recomputing the offset on every tick would freeze the progress bars.
+  const clockOffset = useMemo(() => {
+    const serverStamp = serverNow ? Date.parse(serverNow) : NaN;
+    return Number.isFinite(serverStamp) ? serverStamp - Date.now() : 0;
+  }, [serverNow]);
   const now = tick + clockOffset;
   const bars: { kind: ParkRewardRate; name: string; color: string; glow: string }[] = [
     { kind: "coins", name: "Coins", color: "linear-gradient(90deg,#91701e,#f5c85a)", glow: "rgba(245,200,90,.45)" },
@@ -37,7 +39,7 @@ export default function PetParkRewardBars({
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <span className="font-semibold text-amber-100">{name}</span>
           <span className="tabular-nums text-amber-100/65">
-            {meter.disabled ? "Not earning" : meter.paused ? "Paused" : `Next +${meter.nextUnits} in ${meter.secondsRemaining}s`}
+            {meter.disabled ? "Not earning" : meter.paused ? "Paused" : `Next +${meter.nextUnits} in ${meter.secondsRemaining >= 60 ? `${Math.floor(meter.secondsRemaining / 60)}m ${meter.secondsRemaining % 60}s` : `${meter.secondsRemaining}s`}`}
           </span>
         </div>
         <div role="progressbar" aria-label={`${name} toward next reward`} aria-valuemin={0} aria-valuemax={100}
