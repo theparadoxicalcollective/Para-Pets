@@ -21,8 +21,11 @@ function isFraction(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 export function defaultParkShopPlacement(itemId: string, index: number): ParkShopPlacement {
-  return { itemId, xPct: .22 + (index % 4) * .18,
-    yPct: .33 + (Math.floor(index / 4) % 4) * .14, size: 12 };
+  // Center the first item for mobile portrait rooms, whose image can
+  // extend well outside the visible viewport horizontally.
+  const columns = [.5, .35, .65];
+  return { itemId, xPct: columns[index % columns.length],
+    yPct: .38 + (Math.floor(index / columns.length) % 4) * .14, size: 12 };
 }
 export function withParkShopDefaults(ids: readonly string[], placements: readonly ParkShopPlacement[]): ParkShopPlacement[] {
   const byId = new Map(placements.map(value => [value.itemId, value]));
