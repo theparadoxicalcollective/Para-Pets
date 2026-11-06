@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { gardenCrops, shopItems } from "@shared/schema";
 import {
   GARDEN_IMAGE_KEYS, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
@@ -37,7 +37,8 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
         db.select({
           id: shopItems.id, name: shopItems.name, description: shopItems.description,
           price: shopItems.price, type: shopItems.type, specialType: shopItems.specialType,
-          specialAmount: shopItems.specialAmount, imageUrl: shopItems.imageUrl,
+          specialAmount: shopItems.specialAmount, isRefillable: shopItems.isRefillable,
+          imageUrl: shopItems.imageUrl,
           worldId: shopItems.worldId,
         }).from(shopItems).where(inArray(shopItems.type, ["garden_tool", "garden_seed", "garden_fruit"])),
       ]);
@@ -67,10 +68,11 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
   });
 
   app.post("/api/admin/garden/tools", isAdmin, async (req, res) => {
-    const { kind, name, description = "", price = 0, imageData } = req.body ?? {};
+    const { kind, name, description = "", price = 0, imageData, isRefillable = false } = req.body ?? {};
     const tool = GARDEN_TOOL_OPTIONS.find(candidate => candidate.key === kind);
     if (!tool || (name != null && !validName(name)) || !validDescription(description) ||
-        !validGardenPrice(price) || !validGardenArtwork(imageData)) {
+        !validGardenPrice(price) || !validGardenArtwork(imageData) || typeof isRefillable !== "boolean" ||
+        (isRefillable && kind !== "watering_pail")) {
       return res.status(400).json({ message: "Provide a valid garden tool, price and image" });
     }
     try {
@@ -80,11 +82,30 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
         worldId: "all", type: "garden_tool", imageUrl, price,
         specialType: kind as GardenToolKind,
         specialAmount: kind === "watering_pail" ? GARDEN_WATER_CAPACITY : null,
+        isRefillable,
       }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[garden] tool create failed", error);
       return res.status(500).json({ message: "Could not add garden tool" });
+    }
+  });
+
+  // Retrofitting an existing pail must not touch its owner's remaining
+  // drops. This flag only grants eligibility at an admin-tagged Water Source.
+  app.patch("/api/admin/garden/tools/:id/refillable", isAdmin, async (req, res) => {
+    const { isRefillable } = req.body ?? {};
+    if (typeof isRefillable !== "boolean")
+      return res.status(400).json({ message: "Refillable must be on or off" });
+    try {
+      const [item] = await db.update(shopItems).set({ isRefillable })
+        .where(and(eq(shopItems.id, String(req.params.id)), eq(shopItems.type, "garden_tool"),
+          eq(shopItems.specialType, "watering_pail")))
+        .returning();
+      return item ? res.json(item) : res.status(404).json({ message: "Watering pail not found" });
+    } catch (error) {
+      console.error("[garden] refillable flag update failed", error);
+      return res.status(500).json({ message: "Could not update refillable setting" });
     }
   });
 
