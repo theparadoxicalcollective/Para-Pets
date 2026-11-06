@@ -63,6 +63,7 @@ export async function ensurePetParkStorage(): Promise<void> {
       interior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
       is_shop boolean NOT NULL DEFAULT false,
       shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+      interior_darkness integer NOT NULL DEFAULT 35,
       created_at timestamp NOT NULL DEFAULT now()
     );
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS is_shop boolean NOT NULL DEFAULT false;
