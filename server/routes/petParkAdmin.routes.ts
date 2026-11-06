@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
-import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, isParkGroundTheme, parkGroundSize } from "@shared/petParkGround";
-import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
+import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings, shopItems } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
@@ -158,19 +158,19 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
-    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 120, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN } = req.body ?? {};
+    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 300, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN, isShop = false } = req.body ?? {};
     if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
         typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000 ||
         (interiorImageData != null && (typeof interiorImageData !== "string" || !interiorImageData.startsWith("data:image/") || interiorImageData.length > 12_000_000)) ||
         !validPosition(xPct) || !validPosition(yPct) || !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
-        !isValidPetParkBuildingCapacity(maxPets)) {
+        !isValidPetParkBuildingCapacity(maxPets) || typeof isShop !== "boolean") {
       return res.status(400).json({ message: `Provide a name, exterior image, valid placement and a pet capacity from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
     }
     try {
       const imageUrl = await processWorldImage(imageData, 1200);
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2000) : null;
       const [building] = await db.insert(petParkBuildings).values({
-        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, interiorEffects: [],
+        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorEffects: [],
       }).returning();
       return res.status(201).json(building);
     } catch (error) {
