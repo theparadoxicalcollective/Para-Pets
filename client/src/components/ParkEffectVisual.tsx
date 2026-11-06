@@ -76,6 +76,7 @@ const WATER_CSS = [
 const WATER_ART_CSS = [
   ".park-water-art { position:relative; width:100%; height:100%; pointer-events:none; isolation:isolate; overflow:visible; }",
   ".park-water-art svg { display:block; width:100%; height:100%; overflow:visible; }",
+  ".park-water-art--flow { overflow:hidden; }",
   ".park-water-art--flow svg { width:72%; margin:0 auto; }",
   ".park-surface-caustic { transform-box:fill-box; transform-origin:center; animation:parkSurfaceDrift 6.4s ease-in-out infinite alternate; }",
   ".park-surface-caustic--far { animation-duration:8.7s; animation-delay:-3.6s; }",
