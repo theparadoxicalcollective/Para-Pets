@@ -21,12 +21,12 @@ test("shared pet scene has stable placement, public cosmetics, pet inspection an
   assert.match(client, /isParkPetNearViewport\(/);
   assert.match(client, /arrangeParkVisitors\(/);
   assert.match(client, /costumeAccess=\{isMine \? "owner" : "public"\}/);
-  assert.match(client, /Keeper: \{inspectedPet\.ownerName\}/);
+  assert.match(client, /<PlayerDetailPanel userId=\{inspectedPet\.ownerId\}/);
   assert.match(client, /refetchInterval: 30_000/);
   assert.match(client, /const outdoorPets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => !pet\.buildingId\)/);
   assert.match(client, /outdoorPets\.map/);
   assert.match(client, /indoorVisiblePets\.map\(pet =>/);
-  assert.match(client, /data-testid="pet-park-outdoor-drag"/);
+  assert.match(client, /data-testid=\{myDeposit \? "pet-park-outdoor-drag" : "pet-park-outdoor-inspect"\}/);
   assert.match(client, /\(scene\?\.sharedPets \?\? \[\]\)\.length/);
   assert.match(client, /scene && !activeBuilding && <div/);
 });

@@ -15,7 +15,10 @@ test("Pet Park reuses Pet House touch, viewport and pointer primitives", () => {
   assert.match(source, /drag.id !== e.pointerId/);
   assert.match(source, /Math.hypot\(delta.x, delta.y\) > 7/);
   assert.match(source, /closest\("\[data-park-draggable\]"\)/, "artwork is identified separately from real controls");
-  assert.match(source, /const isControl = !draggableArtwork/, "unarmed artwork may still pan");
+  assert.match(source, /const isControl = !!\(e\.target as HTMLElement\)\.closest\("button, input, select, textarea, a"\)/,
+    "buttons remain real controls rather than implicit camera pan targets");
+  assert.match(source, /!draggableArtwork \|\| !scene\?\.canEditPark/,
+    "editor artwork can still pan but visitor building clicks retain pointer ownership");
   assert.doesNotMatch(source, /new ResizeObserver/);
 });
 

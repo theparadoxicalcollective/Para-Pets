@@ -58,8 +58,8 @@ test("editor movement requires a second artwork tap and outdoor pets use owner-o
   assert.match(page, /Date\.now\(\) - previous\.at < 400/);
   assert.match(page, /setMoveArmed\(doubleTap/);
   assert.match(page, /aria-label=\{\x60Move \$\{pet\.petNickname/);
-  assert.match(page, /myDeposit && <button/);
-  assert.match(page, /data-testid="pet-park-outdoor-drag"/);
+  assert.match(page, /onPointerDown=\{myDeposit \? event => startOutdoorPetDrag\(event, myDeposit, position\) : undefined\}/);
+  assert.match(page, /data-testid=\{myDeposit \? "pet-park-outdoor-drag" : "pet-park-outdoor-inspect"\}/);
   assert.match(page, /dropEquippedPet\(drag\.petId/);
   assert.doesNotMatch(page, /dropEquippedPetInside|indoorSelectedPetId/);
   assert.match(page, /indoorVisiblePets\.map\(pet =>/);

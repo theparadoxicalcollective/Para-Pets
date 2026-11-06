@@ -52,7 +52,7 @@ test("equipped pets are private until explicitly dragged into the outdoor scene"
   assert.match(playerRoutes, /isNull\(petParkDeposits\.buildingId\)/);
   assert.match(playerRoutes, /isNotNull\(petParkDeposits\.parkXPct\)/);
   assert.match(playerRoutes, /isNotNull\(petParkDeposits\.parkYPct\)/);
-  assert.match(page, /data-testid="pet-park-outdoor-drag"/);
+  assert.match(page, /data-testid=\{myDeposit \? "pet-park-outdoor-drag" : "pet-park-outdoor-inspect"\}/);
   assert.match(page, /dropEquippedPet\(drag\.petId/);
   assert.match(page, /display: "park", xPct: next\.x, yPct: next\.y/);
   assert.match(page, /Return to oval/);

@@ -30,6 +30,12 @@ on:
       - 'script/*smoke.mjs'
       - '.github/workflows/browser-smoke-pilot.yml'
 
+# Only the newest revision of each pull request needs runner time.
+# Do not cancel completed/push builds on the protected main branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   public-route-smoke:
     # Playwright 1.56.1 does not support the Ubuntu 26.04 latest image.
@@ -71,6 +77,8 @@ jobs:
           node script/desktop-coming-soon-smoke.mjs
           node script/desktop-portrait-shell-smoke.mjs
           node script/pet-park-placement-smoke.mjs
+          node script/pet-park-player-profile-smoke.mjs
+          node script/pet-park-indoor-touch-smoke.mjs
           node script/pet-park-isometric-smoke.mjs
           node script/npc-discovery-smoke.mjs
           # Exercise the PR-specific Lonelle flow before the longer, occasionally

@@ -69,6 +69,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         petName: shopItems.name,
         petNickname: userInventory.petNickname,
         petLevel: userInventory.petLevel,
+        rarity: shopItems.rarity,
         ownerName: users.username,
         ownerId: users.id,
         depositedAt: petParkDeposits.createdAt,

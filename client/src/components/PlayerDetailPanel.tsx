@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { UserCheck, UserPlus } from "lucide-react";
@@ -25,6 +25,8 @@ interface PlayerDetailPanelProps {
   pvpStats?: PvpStats;
   onRemoveFriend?: () => void;
   zIndex?: number;
+  /** Reuse this full player card as a centered, scrollable pop-up for Pet Park. */
+  presentation?: "sheet" | "popup";
 }
 
 interface ActivePet {
@@ -138,12 +140,19 @@ function ActionButton({
   );
 }
 
-export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend, zIndex = 50 }: PlayerDetailPanelProps) {
+export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend, zIndex = 50, presentation = "sheet" }: PlayerDetailPanelProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isSelf = !!currentUserId && currentUserId === userId;
   const [showAquarium, setShowAquarium] = useState(false);
   const [accessoryDetail, setAccessoryDetail] = useState<EquippedAcc | null>(null);
+
+  useEffect(() => {
+    if (presentation !== "popup") return;
+    const onEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [presentation, onClose]);
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -283,23 +292,32 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     <div
       data-testid="overlay-player-detail"
       data-global-hud-blocker="true"
-      className="fixed inset-0 flex items-end justify-center"
+      data-presentation={presentation}
+      className={presentation === "popup"
+        ? "fixed inset-0 flex items-center justify-center px-3 py-[max(14px,env(safe-area-inset-top,0px))]"
+        : "fixed inset-0 flex items-end justify-center"}
       style={{ background: "rgba(0,0,0,0.72)", zIndex }}
       onClick={onClose}
     >
       <div
         data-testid="panel-player-detail"
-        className="w-full rounded-t-3xl"
+        className={presentation === "popup" ? "w-full rounded-3xl" : "w-full rounded-t-3xl"}
+        role="dialog" aria-modal="true" aria-label="Player profile"
         style={{
           position: "relative",
-          maxWidth: 480,
-          maxHeight: "calc(88*var(--vh))",
+          maxWidth: presentation === "popup" ? 440 : 480,
+          maxHeight: presentation === "popup"
+            ? "calc(100dvh - max(28px, env(safe-area-inset-top, 0px)) - max(28px, env(safe-area-inset-bottom, 0px)))"
+            : "calc(88*var(--vh))",
           overflowY: "auto",
+          overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
           background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",
           border: "1px solid rgba(212,160,23,0.25)",
-          borderBottom: "none",
-          boxShadow: "0 -12px 48px rgba(0,0,0,0.8)",
+          borderBottom: presentation === "popup" ? undefined : "none",
+          boxShadow: presentation === "popup"
+            ? "0 16px 58px rgba(0,0,0,0.84), 0 0 16px rgba(202,159,56,0.1)"
+            : "0 -12px 48px rgba(0,0,0,0.8)",
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -335,7 +353,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
 
             {/* PvP-style identity row with profile actions kept beside the name. */}
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-3 pb-1 pr-11" data-testid="player-identity-row">
-              <div className="flex min-w-0 items-center flex-1 gap-3">
+              <div className="flex min-w-0 items-center flex-1 gap-3"
+                style={presentation === "popup" ? { minWidth: 166 } : undefined}>
                 <div className="flex aspect-square flex-shrink-0 items-center justify-center"
                 style={{ width: "clamp(66px, 18vw, 78px)", background: "linear-gradient(145deg, #f2d574, #8d6416)", clipPath: OCTAGON_CLIP_PATH, filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.65)) drop-shadow(0 0 5px rgba(201,160,48,0.32))" }}>
                 <div className="aspect-square overflow-hidden"
