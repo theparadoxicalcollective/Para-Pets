@@ -608,7 +608,8 @@ export default function PetParkPage() {
         const draggableArtwork = (e.target as HTMLElement).closest("[data-park-draggable]");
       // Touching unarmed artwork may still pan the camera. Pointer capture
       // stays with the object only after the double-tap has armed a move.
-      const isControl = !draggableArtwork && !!(e.target as HTMLElement).closest("button, input, select, textarea, a");
+      const isControl = !!(e.target as HTMLElement).closest("button, input, select, textarea, a")
+        && (!draggableArtwork || !scene?.canEditPark);
         if (e.pointerType === "touch" && !isControl) {
           touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
           if (touchPoints.current.size === 2) {
