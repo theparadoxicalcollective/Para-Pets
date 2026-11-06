@@ -1,0 +1,84 @@
+import type { Express, RequestHandler } from "express";
+import { and, eq, sql } from "drizzle-orm";
+import {
+  petParkSceneItems, petParkSettings, shopItems, userInventory, users,
+} from "@shared/schema";
+import { GARDEN_WATER_CAPACITY } from "@shared/garden";
+import { db } from "../db";
+
+/**
+ * Only a saved Water Source decor and an owned, explicitly refillable,
+ * unlisted item can participate. The inventory row is locked so a refill
+ * cannot race a future garden watering transaction on the same item.
+ */
+export function registerGardenRefillRoutes(app: Express, isAuthenticated: RequestHandler): void {
+  app.post("/api/pet-park/water-sources/:sourceId/refill", isAuthenticated, async (req, res) => {
+    const sourceId = req.params.sourceId;
+    const inventoryId = req.body?.inventoryId;
+    if (typeof sourceId !== "string" || sourceId.length < 1 || sourceId.length > 100 ||
+        typeof inventoryId !== "string" || inventoryId.length < 1 || inventoryId.length > 100) {
+      return res.status(400).json({ message: "Choose a water source and a refillable inventory item" });
+    }
+    const userId = (req.user as { id: string }).id;
+    try {
+      const result = await db.transaction(async tx => {
+        const [settings] = await tx.select({
+          enabledForPlayers: petParkSettings.enabledForPlayers,
+          enabledForModerators: petParkSettings.enabledForModerators,
+        }).from(petParkSettings).where(eq(petParkSettings.id, "main"));
+        const [player] = await tx.select({
+          isAdmin: users.isAdmin, isModerator: users.isModerator,
+        }).from(users).where(eq(users.id, userId));
+        if (!player) return { status: 404 as const, message: "Player not found" };
+        const canEnterPark = !!player.isAdmin || !!settings?.enabledForPlayers ||
+          (!!settings?.enabledForModerators && !!player.isModerator);
+        if (!canEnterPark) return { status: 403 as const, message: "Pet Park is not open to your account" };
+
+        const [source] = await tx.select({
+          id: petParkSceneItems.id,
+        }).from(petParkSceneItems).where(and(
+          eq(petParkSceneItems.id, sourceId),
+          eq(petParkSceneItems.kind, "decor"),
+          eq(petParkSceneItems.isWaterSource, true),
+        ));
+        if (!source) return { status: 404 as const, message: "This decoration is not a water source" };
+
+        // Same row lock must be reused by garden watering to prevent
+        // concurrent fill-and-consume calls from overwriting one another.
+        await tx.execute(sql`SELECT id FROM user_inventory
+          WHERE id = ${inventoryId} AND user_id = ${userId} FOR UPDATE`);
+        const [owned] = await tx.select({
+          id: userInventory.id,
+          quantity: userInventory.quantity,
+          isListed: userInventory.isListed,
+          waterLeft: userInventory.gardenWaterLeft,
+          isRefillable: shopItems.isRefillable,
+          name: shopItems.name,
+        }).from(userInventory)
+          .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+          .where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId)));
+        if (!owned || !owned.isRefillable || owned.isListed || (owned.quantity ?? 1) <= 0)
+          return { status: 422 as const, message: "Choose an owned, unlisted refillable item" };
+
+        // Null represents a new, full container. Never mint an item or
+        // reset an item that is already full, listed, or not refillable.
+        if ((owned.waterLeft ?? GARDEN_WATER_CAPACITY) >= GARDEN_WATER_CAPACITY)
+          return { status: 409 as const, message: "This item is already full" };
+
+        const [saved] = await tx.update(userInventory)
+          .set({ gardenWaterLeft: GARDEN_WATER_CAPACITY })
+          .where(and(eq(userInventory.id, owned.id), eq(userInventory.userId, userId)))
+          .returning({ waterLeft: userInventory.gardenWaterLeft });
+        return {
+          status: 200 as const, inventoryId: owned.id, itemName: owned.name,
+          waterLeft: saved.waterLeft, capacity: GARDEN_WATER_CAPACITY,
+        };
+      });
+      if (result.status !== 200) return res.status(result.status).json({ message: result.message });
+      return res.json(result);
+    } catch (error) {
+      console.error("[garden] water source refill failed", error);
+      return res.status(500).json({ message: "Unable to refill this item" });
+    }
+  });
+}
