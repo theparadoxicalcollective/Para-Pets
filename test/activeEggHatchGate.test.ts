@@ -22,7 +22,7 @@ test("tapping an unhatched egg opens hatching item panel; ready eggs have explic
   assert.ok(eggTap.includes('setShowSpeedUp(true)'));
   assert.ok(home.includes('data-testid="active-pet-speedup-viewport-modal"'));
   assert.ok(home.includes('data-testid="button-hatch-ready-egg"'));
-  assert.ok(home.includes('data-bj="egg-drop-zone"'));
+  assert.ok(home.includes("ref={homeEggDropRef}"), "normal hatching drop zone remains");
   assert.ok(home.includes('onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}'));
 });
 
