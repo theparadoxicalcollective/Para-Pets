@@ -28,5 +28,5 @@ test("shared pet scene has stable placement, public cosmetics, pet inspection an
   assert.match(client, /indoorVisiblePets\.map\(pet =>/);
   assert.match(client, /data-testid="pet-park-outdoor-drag"/);
   assert.match(client, /\(scene\?\.sharedPets \?\? \[\]\)\.length/);
-  assert.match(client, /scene && <div/);
+  assert.match(client, /scene && !activeBuilding && <div/);
 });
