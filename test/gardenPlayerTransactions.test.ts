@@ -105,7 +105,7 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
         planted_image_url,seedling_image_url,partial_image_url,grown_image_url,picked_image_url,
         planted_drops,seedling_drops,partial_drops,grown_drops)
       VALUES ('crop1','seed','fruit','/planted.png','/seedling.png','/partial.png',
-        '/grown.png','/picked.png',2,1,1,1);
+        '/grown.png','/picked.png',17,9,12,5);
     `);
     const database = drizzle(pool, { schema: (await import("../shared/schema")) }) as typeof db;
     const handlers = new Map<string, (req: any, res: any) => Promise<any>>();
@@ -188,20 +188,34 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
     ]);
     assert.equal(firstWater.statusCode, 200);
     assert.equal(firstWaterReplay.statusCode, 200);
-    assert.equal((await charges()), 99, "concurrent duplicate water requests consume exactly one drop");
-    for (const expected of ["seedling", "partial", "grown", "grown"]) {
+    assert.equal(firstWater.payload.waterUsed, 10, "one watering pours ten actual drops");
+    assert.equal(firstWater.payload.plot.phase, "planted", "a large stage may need multiple pours");
+    assert.equal(firstWater.payload.plot.waterApplied, 10);
+    assert.equal(firstWaterReplay.payload.waterUsed, 10);
+    assert.equal((await charges()), 90, "concurrent duplicate requests charge the ten drops only once");
+    // No batch can spill into the next stage, and the pail never loses
+    // more than that stage needed, even when ten drops were available.
+    for (const [expected, used, progress] of [
+      ["seedling", 7, 0],
+      ["partial", 9, 0],
+      ["partial", 10, 10],
+      ["grown", 2, 0],
+      ["grown", 5, 5],
+    ] as const) {
       const watered = await request(path("water"), { plotId: "plot1" },
         { requestId: key(), inventoryId: "alice-pail" });
       assert.equal(watered.statusCode, 200);
       assert.equal(watered.payload.plot.phase, expected);
+      assert.equal(watered.payload.plot.waterApplied, progress);
+      assert.equal(watered.payload.waterUsed, used);
     }
-    assert.equal(await charges(), 95);
+    assert.equal(await charges(), 57, "total 43 drops equals four admin-authored stage requirements");
     const ready = await request("GET /api/pet-park/garden");
     assert.equal(ready.payload.plots[0].harvestReady, true);
     const overwater = await request(path("water"), { plotId: "plot1" },
       { requestId: key(), inventoryId: "alice-pail" });
     assert.equal(overwater.statusCode, 409);
-    assert.equal(await charges(), 95, "ready crops don't consume extra drops");
+    assert.equal(await charges(), 57, "ready crops don't consume extra drops");
 
     const harvestId = key();
     const [harvest, duplicateHarvest] = await Promise.all([
@@ -242,7 +256,7 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
       { sourceId: "plain-decor" }, { inventoryId: "alice-pail" })).statusCode, 404);
 
     const receiptCount = Number((await pool.query("SELECT count(*)::int AS n FROM garden_action_receipts WHERE user_id='alice'")).rows[0].n);
-    assert.equal(receiptCount, 8, "only successful unique mutations have committed receipts");
+    assert.equal(receiptCount, 9, "only successful unique mutations have committed receipts");
   } finally {
     await pool.end();
     await setupPool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
