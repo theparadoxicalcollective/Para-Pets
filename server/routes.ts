@@ -12,7 +12,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
@@ -1256,6 +1256,30 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Quantity must be a whole number between 1 and 20" });
       }
 
+      if (req.params.worldId === "pet-park") {
+        // Reuse the existing atomic, limited in-game coin purchase below.
+        // The Park storefront must be real, enterable, and actually stock
+        // this catalog ID; never accept the client-supplied price or position.
+        const buildingId = req.body?.buildingId;
+        if (typeof buildingId !== "string" || !buildingId || buildingId.length > 100)
+          return res.status(400).json({ message: "Choose a Pet Park shop" });
+        const [building] = await db.select({
+          isShop: petParkBuildings.isShop, shopItemIds: petParkBuildings.shopItemIds,
+          interiorImageUrl: petParkBuildings.interiorImageUrl,
+        }).from(petParkBuildings).where(eq(petParkBuildings.id, buildingId));
+        if (!building?.isShop || !building.interiorImageUrl ||
+            !Array.isArray(building.shopItemIds) || !building.shopItemIds.includes(itemId))
+          return res.status(404).json({ message: "This item is not for sale in that shop" });
+        const [park] = await db.select({
+          enabled: petParkSettings.enabledForPlayers,
+          moderators: petParkSettings.enabledForModerators,
+        }).from(petParkSettings).where(eq(petParkSettings.id, "main"));
+        const [viewer] = await db.select({
+          isAdmin: usersTable.isAdmin, isModerator: usersTable.isModerator,
+        }).from(usersTable).where(eq(usersTable.id, user.id));
+        if (!viewer?.isAdmin && !park?.enabled && !(park?.moderators && viewer?.isModerator))
+          return res.status(403).json({ message: "Pet Park is not open" });
+      }
       const shopItem = await storage.getShopItem(itemId);
       if (!shopItem) {
         return res.status(404).json({ message: "Item not found" });
