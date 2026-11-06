@@ -11,13 +11,13 @@ test("Active Pet speed-up sheet uses the viewport modal layer without changing B
   const end = home.indexOf("Screen-relative Pet Menu", start);
   const section = home.slice(start, end);
 
-  assert.match(section, /bjGetStep\(\) !== 5/);
+  assert.match(section, /!isBeginJourneyStep5\(\) && showSpeedUp/, "normal speed-up sheet must work when the tutorial is paused");
   assert.match(section, /<ViewportModalPortal>[\s\S]*data-bj="speedup-sheet"/);
   assert.match(section, /data-testid="active-pet-speedup-viewport-modal"/);
   assert.doesNotMatch(section, /maxWidth: "768px"|className="fixed inset-0/);
   assert.match(section, /data-bj="egg-drop-zone"/);
   assert.match(section, /ref=\{homeEggDropRef\}/);
-  assert.match(section, /if \(bjGetStep\(\) === 5\) return/);
+  assert.match(section, /if \(isBeginJourneyStep5\(\)\) return/, "only an enabled tutorial may suppress ordinary egg interactions");
 });
 
 test("Active Pet hatch reveal can cover the real viewport without changing reveal content", () => {
