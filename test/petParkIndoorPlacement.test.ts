@@ -40,7 +40,8 @@ test("indoor placement checks ownership, capacity and public visibility without 
 
 test("shared indoor occupants are filtered to their exact building and room", () => {
   assert.match(page, /const outdoorPets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => !pet\.buildingId\)/);
-  assert.match(page, /const indoorVisiblePets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => pet\.buildingId === activeBuilding\?\.id/);
+  assert.match(page, /const buildingOccupants = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => pet\.buildingId === activeBuilding\?\.id/);
+  assert.match(page, /const indoorVisiblePets = buildingOccupants\.filter\(pet =>/);
   assert.match(page, /\(pet\.roomEffectId \?\? null\) === currentRoomId/);
   assert.match(page, /indoorVisiblePets\.map\(pet =>/);
   assert.match(page, /<PetParkPetPortrait petTemplateId=\{pet\.petTemplateId\}/);
@@ -71,4 +72,12 @@ test("indoor dragging converts viewport touch coordinates to panned artwork coor
   assert.equal(petParkInteriorDropPoint({ x: 150, y: 820 },
     { left: 0, top: 40, width: 400, height: 760 },
     { left: -300, top: 40, width: 1200, height: 760 }), null);
+});
+
+test("effect depth is above all decorations while indoor artwork is passively layered below room interactions", () => {
+  assert.match(page, /item\.kind === "effect" \|\| item\.kind === "sleep_spot" \? 12_000_000/);
+  assert.match(page, /transform: "translate\(-50%, -88%\)", zIndex: 2/);
+  assert.match(page, /!activeBuilding && <PetParkTerrain/);
+  assert.match(page, /!activeBuilding && <div className="absolute top-0 left-0 pointer-events-none"/);
+  assert.match(page, /\$\{buildingOccupants\.length\}\/\$\{activeBuilding\.maxPets\} pets inside/);
 });
