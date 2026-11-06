@@ -3,7 +3,7 @@ import type { ParkGroundTheme } from "@shared/petParkGround";
 import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
 import {
   parkTerrainCellWindow, parkTerrainNoise, parkVisibleTerrainBounds,
-  type ParkTerrainViewport,
+  parkTerrainPreviewTransform, type ParkTerrainViewport,
 } from "@/lib/petParkTerrain";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
@@ -193,9 +193,8 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       // Persisted art / map geometry changes always draw immediately.
       frame = window.requestAnimationFrame(paint);
     } else {
-      const ratio = view.scale / Math.max(0.001, previous.view.scale);
-      const dx = view.panX - previous.view.panX * ratio + previous.marginX * (1 - ratio);
-      const dy = view.panY - previous.view.panY * ratio + previous.marginY * (1 - ratio);
+      const { ratio, dx, dy } = parkTerrainPreviewTransform(
+        previous.view, view, previous.marginX, previous.marginY);
       if (Math.abs(dx) < .1 && Math.abs(dy) < .1 && Math.abs(ratio - 1) < .0001) {
         canvas.style.transform = "";
         canvas.dataset.parkCameraPreview = "false";
