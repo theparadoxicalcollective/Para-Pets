@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { UserCheck, UserPlus } from "lucide-react";
@@ -25,6 +25,8 @@ interface PlayerDetailPanelProps {
   pvpStats?: PvpStats;
   onRemoveFriend?: () => void;
   zIndex?: number;
+  /** Reuse this full player card as a centered, scrollable pop-up for Pet Park. */
+  presentation?: "sheet" | "popup";
 }
 
 interface ActivePet {
@@ -138,12 +140,19 @@ function ActionButton({
   );
 }
 
-export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend, zIndex = 50 }: PlayerDetailPanelProps) {
+export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend, zIndex = 50, presentation = "sheet" }: PlayerDetailPanelProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isSelf = !!currentUserId && currentUserId === userId;
   const [showAquarium, setShowAquarium] = useState(false);
   const [accessoryDetail, setAccessoryDetail] = useState<EquippedAcc | null>(null);
+
+  useEffect(() => {
+    if (presentation !== "popup") return;
+    const onEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [presentation, onClose]);
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -283,23 +292,32 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     <div
       data-testid="overlay-player-detail"
       data-global-hud-blocker="true"
-      className="fixed inset-0 flex items-end justify-center"
+      data-presentation={presentation}
+      className={presentation === "popup"
+        ? "fixed inset-0 flex items-center justify-center px-3 py-[max(14px,env(safe-area-inset-top,0px))]"
+        : "fixed inset-0 flex items-end justify-center"}
       style={{ background: "rgba(0,0,0,0.72)", zIndex }}
       onClick={onClose}
     >
       <div
         data-testid="panel-player-detail"
-        className="w-full rounded-t-3xl"
+        className={presentation === "popup" ? "w-full rounded-3xl" : "w-full rounded-t-3xl"}
+        role="dialog" aria-modal="true" aria-label="Player profile"
         style={{
           position: "relative",
-          maxWidth: 480,
-          maxHeight: "calc(88*var(--vh))",
+          maxWidth: presentation === "popup" ? 440 : 480,
+          maxHeight: presentation === "popup"
+            ? "calc(100dvh - max(28px, env(safe-area-inset-top, 0px)) - max(28px, env(safe-area-inset-bottom, 0px)))"
+            : "calc(88*var(--vh))",
           overflowY: "auto",
+          overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
           background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",
           border: "1px solid rgba(212,160,23,0.25)",
-          borderBottom: "none",
-          boxShadow: "0 -12px 48px rgba(0,0,0,0.8)",
+          borderBottom: presentation === "popup" ? undefined : "none",
+          boxShadow: presentation === "popup"
+            ? "0 16px 58px rgba(0,0,0,0.84), 0 0 16px rgba(202,159,56,0.1)"
+            : "0 -12px 48px rgba(0,0,0,0.8)",
         }}
         onClick={e => e.stopPropagation()}
       >
