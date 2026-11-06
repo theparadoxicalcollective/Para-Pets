@@ -7,11 +7,19 @@ export async function ensureGardenStorage(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE user_inventory
       ADD COLUMN IF NOT EXISTS garden_water_left integer;
-    ALTER TABLE user_inventory
-      DROP CONSTRAINT IF EXISTS user_inventory_garden_water_left_check;
-    ALTER TABLE user_inventory
-      ADD CONSTRAINT user_inventory_garden_water_left_check
-      CHECK (garden_water_left IS NULL OR garden_water_left BETWEEN 0 AND 100);
+    DO $garden$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'user_inventory_garden_water_left_check'
+          AND conrelid = 'user_inventory'::regclass
+      ) THEN
+        ALTER TABLE user_inventory
+          ADD CONSTRAINT user_inventory_garden_water_left_check
+          CHECK (garden_water_left IS NULL OR garden_water_left BETWEEN 0 AND 100);
+      END IF;
+    END
+    $garden$;
 
     CREATE TABLE IF NOT EXISTS garden_crops (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
