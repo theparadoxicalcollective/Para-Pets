@@ -12,10 +12,9 @@ test("floating navigation measures its real viewport HUD container", () => {
   assert.doesNotMatch(nav, /getStageSurface|DESIGN_W|DESIGN_H/);
 });
 
-test("floating navigation retains menu and tutorial controls", () => {
+test("floating navigation retains menu controls without obsolete tutorial pointers", () => {
   assert.match(nav, /<ViewportHudPortal>/);
   assert.match(nav, /para-pets:pet-menu-open/);
-  assert.match(nav, /showLoginHint/);
-  assert.match(nav, /spacing \* 2/);
-  assert.match(nav, /NAV_RIGHT \+ BUTTON_SIZE \/ 2 \+ spacing \* 2 - 22/);
+  assert.doesNotMatch(nav, /showLoginHint|tutorialArrow|bjSetStep|BEGIN_JOURNEY_ENABLED/);
+  assert.match(nav, /data-testid="button-floating-nav"/);
 });
