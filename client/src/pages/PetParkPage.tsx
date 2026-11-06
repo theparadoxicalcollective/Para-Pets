@@ -744,7 +744,6 @@ export default function PetParkPage() {
     </div>}
     {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={`${detailsBuilding.id}:${focusedRoomEffectId ?? ""}`}
       building={detailsBuilding} initialSelectedEffectId={focusedRoomEffectId} initialShowEffectChoices={openInteriorEffectChoices}
-      occupantCount={(scene.sharedPets ?? []).filter(pet => pet.buildingId === detailsBuilding.id).length}
       onPreview={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(false); setOpenedRoomId(null); setEnteredBuilding(detailsBuilding); }}
       onClose={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(false); }} onUpdated={invalidate} />}
 
