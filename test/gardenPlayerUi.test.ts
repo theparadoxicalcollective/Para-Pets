@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
-  gardenActionForPlot, gardenCropProgress,
+  gardenActionForPlot, gardenCropProgress, gardenAfterWaterPour, GARDEN_WATER_POUR_DROPS,
   type GardenPlayerCrop, type GardenPlayerPlot,
 } from "../shared/garden";
 const source = (path: string) => readFileSync(path, "utf8");
@@ -44,7 +44,7 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(page, /setSelectedGardenPlotId\(item\.id\)/);
   assert.match(page, /<PetParkGardenMenu/);
   assert.match(page, /garden\?\.plots\?\.find\(plot => plot\.plotItemId === item\.id\)/);
-  assert.match(page, /data-testid="pet-park-garden-crop"/);
+  assert.match(page, /<PetParkCropArtwork/);
   assert.match(page, /parkDepthIndex\(\{ yPct: plot\.yPct/);
   assert.match(page, /onChanged=\{invalidateGarden\}/);
   assert.match(menu, /crypto\.randomUUID\(\)/);
@@ -65,6 +65,9 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(menu, /data-testid="pet-park-garden-water-gauge"/);
   assert.match(menu, /data-testid="pet-park-garden-animation"/);
   assert.match(menu, /onClick=\{event => \{ event.stopPropagation\(\); chooseAction\(action\); \}\}/);
+  assert.match(menu, /document\.addEventListener\("pointerdown", handlePointer, true\)/);
+  assert.match(menu, /event\.key === "Escape"/);
+  assert.doesNotMatch(menu, /aria-label="Close garden tools"/);
   assert.match(menu, /setMotion\(/);
   assert.match(menu, /if \(action === "plant" && items.length > 1\)/);
   assert.match(menu, /Retry safely/);
@@ -82,6 +85,33 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(motionCss, /garden-falling-drop/);
   assert.match(motionCss, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(page, /DESIGN_W|DESIGN_H|390\s*[*×x]\s*844/);
+});
+
+test("10-drop pours stay within a stage and only charge actual pail capacity", () => {
+  assert.equal(GARDEN_WATER_POUR_DROPS, 10);
+  const required = { planted: 17, seedling: 7, partial: 20, grown: 4 };
+  const first = gardenAfterWaterPour({ phase: "planted", waterApplied: 0, harvestReady: false }, required, 100);
+  assert.deepEqual(first, { growth: { phase: "planted", waterApplied: 10, harvestReady: false }, dropsUsed: 10 });
+  const next = gardenAfterWaterPour(first.growth, required, 100);
+  assert.deepEqual(next, { growth: { phase: "seedling", waterApplied: 0, harvestReady: false }, dropsUsed: 7 });
+  const lowPail = gardenAfterWaterPour({ phase: "partial", waterApplied: 2, harvestReady: false }, required, 3);
+  assert.equal(lowPail.dropsUsed, 3);
+  assert.equal(lowPail.growth.waterApplied, 5);
+  const ready = gardenAfterWaterPour({ phase: "grown", waterApplied: 0, harvestReady: false }, required, 100);
+  assert.deepEqual(ready, { growth: { phase: "grown", waterApplied: 4, harvestReady: true }, dropsUsed: 4 });
+  assert.throws(() => gardenAfterWaterPour(first.growth, required, 0), /empty/);
+});
+
+test("crop art centers its scanned visible pixels, not the transparent canvas, and owns stage progress", () => {
+  const art = source("client/src/components/PetParkCropArtwork.tsx");
+  assert.match(art, /getAlphaBounds\(image, element\)/);
+  assert.match(art, /bounds\.left \+ bounds\.width \/ 2/);
+  assert.match(art, /bounds\.top \+ bounds\.height/);
+  assert.match(art, /data-testid="pet-park-garden-visible-art"/);
+  assert.match(art, /data-testid="pet-park-garden-growth-progress"/);
+  assert.match(art, /role="progressbar" aria-label="Water to next growth stage"/);
+  assert.match(art, /aria-valuenow=\{progress\.value\}/);
+  assert.match(art, /bottom: Math\.max\(16, visibleHeight \+ 9\)/);
 });
 
 test("untilled and tilled plot designs share path brown with independent four-sided borders", () => {
