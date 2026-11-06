@@ -16,7 +16,7 @@ test("card flip titles stay on the rotating front and back faces", () => {
 
 test("ready active egg hatch behavior remains merged", () => {
   const source = file("client/src/pages/HomePage.tsx");
-  assert.match(source, /bjIsStep5TapMode\(\) \|\| eggHatchReady/);
+  assert.match(source, /\(BEGIN_JOURNEY_ENABLED && bjIsStep5TapMode\(\)\) \|\| eggHatchReady/);
   assert.match(source, /hatchHomeMutation\.mutate\(activePet\.inventoryId\)/);
   assert.match(source, /setShowSpeedUp\(true\)/);
 });
