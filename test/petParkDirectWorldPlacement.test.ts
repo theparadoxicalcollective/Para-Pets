@@ -6,7 +6,7 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const admin = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 
 test("Pet Park uses existing world scene to move buildings, decor and effects without a second placement renderer", () => {
-  assert.match(page, /Drag to move · auto-saves/);
+  assert.match(page, /Double-tap artwork to move/);
   assert.match(page, /scene\?\.canEditPark/);
   assert.match(page, /startPlacement\(e, "building"/);
   assert.match(page, /startPlacement\(e, "item"/);
