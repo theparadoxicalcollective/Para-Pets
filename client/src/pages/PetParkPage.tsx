@@ -29,7 +29,7 @@ import { isParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms"
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
 import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot, isParkIndoorSleepPosition } from "@/lib/petParkSleepSpots";
-import { parkProjectedIndoorPetBounds, parkVisiblePetArtworkBounds, parkPetWouldObscureAnother, parkInteriorArtworkRect } from "@/lib/petParkVisibleOverlap";
+import { parkProjectedPetBounds, parkVisiblePetArtworkBounds, parkPetWouldObscureAnother, parkInteriorArtworkRect } from "@/lib/petParkVisibleOverlap";
 import PetParkRarityStars from "@/components/PetParkRarityStars";
 import { petParkInteriorDropPoint } from "@/lib/petParkInteriorDrop";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan } from "@/lib/petParkCamera";
@@ -336,6 +336,21 @@ export default function PetParkPage() {
   const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);
   const parkPositions = useMemo(() => arrangeParkVisitors(outdoorPets, scene?.items ?? []), [scene?.sharedPets, scene?.items]);
   const occupied = new Set(deposits.map(d => d.petInventoryId));
+  const outdoorOverlapsAnotherPet = (petInventoryId: string, point: { xPct: number; yPct: number }) => {
+    const worldElement = document.querySelector<HTMLElement>("[data-park-world-artwork]");
+    if (!worldElement || !scene) return false;
+    const position = { x: point.xPct, y: point.yPct };
+    const size = parkPetSizeOnSleepSpot(position, scene.items,
+      { width: geometry.worldWidth, height: geometry.worldHeight }, 200) * scale;
+    const pets = Array.from(worldElement.querySelectorAll<HTMLElement>("[data-park-pet]"));
+    const source = pets.find(element => element.dataset.parkPet === petInventoryId);
+    const projected = parkProjectedPetBounds(
+      position, size, parkInteriorArtworkRect(worldElement),
+      source ? { element: source, currentSize: source.getBoundingClientRect().width, anchorYRatio: .75 } : null,
+    );
+    return pets.some(element => element !== source &&
+      parkPetWouldObscureAnother(projected, parkVisiblePetArtworkBounds(element)));
+  };
   const dropEquippedPet = (petId: string, clientX: number, clientY: number) => {
     const rect = viewport.current?.getBoundingClientRect();
     if (!rect || clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
@@ -347,6 +362,11 @@ export default function PetParkPage() {
     const xPct = (clientX - rect.left - camera.x) / sceneWidth;
     const yPct = (clientY - rect.top - camera.y) / sceneHeight;
     if (xPct < 0 || xPct > 1 || yPct < 0 || yPct > 1) return;
+    const inventoryId = deposits.find(item => item.id === petId)?.petInventoryId;
+    if (inventoryId && outdoorOverlapsAnotherPet(inventoryId, { xPct, yPct })) {
+      toast({ title: "That spot is occupied", description: "Place your pet a little to the side." });
+      return;
+    }
     action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${petId}/display`, body: { display: "park", xPct, yPct } });
     setActiveSlot(null);
   };
@@ -376,7 +396,7 @@ export default function PetParkPage() {
     const existing = Array.from(artworkElement.querySelectorAll<HTMLElement>("[data-park-pet]"));
     const source = existing.find(element => element.dataset.parkPet === petInventoryId);
     const sourceSize = source ? source.getBoundingClientRect().width : 0;
-    const projected = parkProjectedIndoorPetBounds(
+    const projected = parkProjectedPetBounds(
       position, size, parkInteriorArtworkRect(artworkElement),
       source ? { element: source, currentSize: sourceSize } : null,
     );
@@ -523,6 +543,10 @@ export default function PetParkPage() {
     if (!moved) return;
     const next = outdoorPetPosition(drag, event.clientX, event.clientY);
     suppressOutdoorInspectUntil.current = Date.now() + 450;
+    if (outdoorOverlapsAnotherPet(drag.petInventoryId, { xPct: next.x, yPct: next.y })) {
+      toast({ title: "That spot is occupied", description: "Move slightly to the side so both pets stay visible." });
+      return;
+    }
     action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${drag.depositId}/display`,
       body: { display: "park", xPct: next.x, yPct: next.y } });
   };
@@ -659,7 +683,7 @@ export default function PetParkPage() {
       {scene && !activeBuilding && <PetParkTerrain viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
         worldWidth={geometry.worldWidth} worldHeight={geometry.worldHeight}
         scale={scale} panX={camera.x} panY={camera.y} dirtPatches={dirtPatches} />}
-      {scene && !activeBuilding && <div className="absolute top-0 left-0 pointer-events-none"
+      {scene && !activeBuilding && <div data-park-world-artwork className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
         {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark &&
           parkImageHitAt(e.currentTarget.querySelector("img")!, e.clientX, e.clientY, building.flipped)) {
@@ -691,11 +715,11 @@ export default function PetParkPage() {
           const petHeight = petSize * 225 / 200;
           const myDeposit = deposits.find(d => d.petInventoryId === pet.petInventoryId);
           const isMine = !!myDeposit;
-          return <div key={pet.petInventoryId} className="absolute"
+          return <div key={pet.petInventoryId} data-park-pet={pet.petInventoryId} className="absolute"
             style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
               transform: "translate(-50%, -75%)", width: petSize * scale, height: petHeight * scale, zIndex: parkDepthIndex({ yPct: position.y, worldHeight: geometry.worldHeight, size: petHeight, kind: "pet" }) }}>
             <PetParkGroundShadow kind="pet" />
-            <div className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
+            <div data-park-pet-artwork className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
               {pet.petTemplateId ? <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
