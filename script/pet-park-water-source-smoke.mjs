@@ -30,6 +30,9 @@ const server = await createServer({server:{host:"127.0.0.1",port:4187,strictPort
 const art="data:image/svg+xml;base64,"+Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="30" y="30" width="140" height="140" rx="25" fill="#5a9d91"/></svg>',
 ).toString("base64");
+const altArt="data:image/svg+xml;base64,"+Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="30" y="30" width="140" height="140" rx="25" fill="#d0a763"/></svg>',
+).toString("base64");
 await server.listen();
 const browser=await chromium.launch({headless:true});
 try{
@@ -43,7 +46,9 @@ try{
       enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,
       backgroundUrl:null,groundTheme:"grass",buildings:[],deposits:[],sharedPets:[],unlockedSlots:1,
       items:[
-        {id:"fountain",kind:"decor",effectType:null,isWaterSource:true,imageUrl:art,xPct:.5,yPct:.5,size:140,flipped:false,layer:0},
+        {id:"fountain",kind:"decor",effectType:null,isWaterSource:true,imageUrl:art,tapImageUrl:altArt,xPct:.5,yPct:.5,size:140,flipped:false,layer:0},
+        {id:"gate",kind:"decor",effectType:null,isWaterSource:false,imageUrl:art,tapImageUrl:altArt,
+          xPct:.28,yPct:.56,size:105,flipped:false,layer:0},
         {id:"ordinary-decor",kind:"decor",effectType:null,isWaterSource:false,imageUrl:art,xPct:.7,yPct:.65,size:100,flipped:false,layer:0},
       ],
     };
@@ -72,6 +77,25 @@ try{
       return route.fulfill({json:{}});
     });
     await page.goto("http://127.0.0.1:4187/fixture",{waitUntil:"commit",timeout:30000});
+    // Real touch interaction on an ordinary tappable gate, including
+    // alpha-transparent hit areas, repeat tap, and accessible keyboard click.
+    const gate=page.getByTestId("pet-park-tappable-decor");
+    await gate.waitFor({state:"visible",timeout:30000});
+    assert.equal(await gate.count(),1,name+": only decor with alternate art is independently tappable");
+    const gateImage=gate.locator("..").locator("img");
+    await gateImage.evaluate(img=>img.decode());
+    assert.equal(await gateImage.getAttribute("src"),art);
+    await gate.click({position:{x:3,y:3}});
+    assert.equal(await gateImage.getAttribute("src"),art,name+": transparent art does not toggle");
+    await gate.click();
+    assert.equal(await gateImage.getAttribute("src"),altArt,name+": first tap shows alternate image");
+    await gateImage.evaluate(img=>img.decode());
+    await gate.click();
+    assert.equal(await gateImage.getAttribute("src"),art,name+": second tap restores original");
+    await gate.focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await gateImage.getAttribute("src"),altArt,name+": keyboard click is accessible");
+
     const water=page.getByTestId("pet-park-water-source");
     await water.waitFor({state:"visible",timeout:30000});
     assert.equal(await water.count(),1,name+": only marked decor is interactive");
@@ -79,6 +103,8 @@ try{
     await water.click({position:{x:3,y:3}});
     assert.equal(await page.getByTestId("pet-park-refill-popup").count(),0,name+": transparent art cannot start a refill");
     await water.click();
+    assert.equal(await water.locator("..").locator("img").getAttribute("src"),altArt,
+      name+": a water-source decor can switch artwork without losing refill behavior");
     const dialog=page.getByRole("dialog",{name:"Refill Water"});
     await dialog.waitFor({state:"visible"});
     await dialog.getByTestId("pet-park-refill-item").waitFor({state:"visible"});
