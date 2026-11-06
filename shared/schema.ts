@@ -1368,6 +1368,7 @@ export const petParkSettings = pgTable("pet_park_settings", {
   enabledForModerators: boolean("enabled_for_moderators").notNull().default(false),
   backgroundUrl: text("background_url"), // Legacy uploads retained, no longer used as park terrain.
   groundLevel: integer("ground_level").notNull().default(1),
+  groundTheme: text("ground_theme").notNull().default("grass"),
   coinsPerHour: integer("coins_per_hour").notNull().default(0),
   essencePerHour: integer("essence_per_hour").notNull().default(0),
   petXpPerHour: integer("pet_xp_per_hour").notNull().default(0),
