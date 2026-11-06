@@ -133,7 +133,7 @@ export default function PetParkGardenMenu({ plot, crops, inventory, inventoryLoa
           <div className="relative mx-auto my-3 h-44 w-56 shrink-0" role="group" aria-label="Garden actions">
             {buttons.map(({ action: buttonAction, Icon, placement }) =>
               <button key={buttonAction} type="button"
-                data-testid={`pet-park-garden-${buttonAction}`}
+                data-testid={`pet-park-garden-action-${buttonAction}`}
                 aria-label={actionNames[buttonAction]} aria-pressed={action === buttonAction}
                 disabled={suggested !== buttonAction || mutation.isPending}
                 onClick={() => { setChosenAction(buttonAction); setRetry(null); setErrorMessage(null); }}
