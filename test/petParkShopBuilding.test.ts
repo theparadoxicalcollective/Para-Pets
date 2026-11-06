@@ -76,3 +76,40 @@ test("stability fixes keep third-slot purchase state, bounded mobile picker, no 
   assert.doesNotMatch(page, /PetParkGroundShadow|pet-park-contact-shadow/);
   assert.match(policy, /requestedSlot === 2 \? PET_PARK_SECOND_SLOT_PRICE : PET_PARK_THIRD_SLOT_PRICE/);
 });
+
+
+test("Park building interiors reuse home translucent darkness with active light cutouts", () => {
+  const schema = get("shared/schema.ts");
+  const migration = get("server/startup/migrations/ensurePetParkStorage.ts");
+  const routes = get("server/routes/petParkAdmin.routes.ts");
+  const room = get("client/src/components/PetParkInteriorRoom.tsx");
+  const page = get("client/src/pages/PetParkPage.tsx");
+  const editor = get("client/src/components/PetParkBuildingDetails.tsx");
+  const home = get("client/src/components/HomeInteriorEffect.tsx");
+
+  assert.match(schema, /interiorDarkness: integer\("interior_darkness"\)\.notNull\(\)\.default\(35\)/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS interior_darkness integer NOT NULL DEFAULT 35/);
+  assert.match(routes, /Number\.isInteger\(body\.interiorDarkness\)/);
+  assert.match(routes, /updates\.interiorDarkness = body\.interiorDarkness/);
+  assert.match(routes, /interiorDarkness = 35/);
+
+  assert.match(room, /import \{ HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle \}/);
+  assert.match(room, /<HomeInteriorDarknessLayer darkness=\{darkness\}/);
+  assert.match(room, /offEffectIds=\{offEffectIds\} panX=\{0\} imgWidth=\{imageWidth\}/);
+  assert.match(room, /sceneHeight=\{dimensions\.height\} zIndex=\{2\}/);
+  const background = room.indexOf('<img src={imageUrl}');
+  const dark = room.indexOf('<HomeInteriorDarknessLayer');
+  const effects = room.indexOf('<HomeInteriorEffectsLayer');
+  const pets = room.indexOf('{typeof children === "function"');
+  assert.ok(background >= 0 && background < dark && dark < effects && effects < pets,
+    "darkness must only shade the background, not lamps, water, portals or pets");
+  assert.match(home, /data-testid="home-interior-darkness-layer"/);
+  assert.match(home, /isHouseInteriorLightEffectType\(effect\.type\)/);
+  assert.match(page, /darkness=\{activeBuilding\.interiorDarkness \?\? 35\}/);
+
+  assert.match(editor, /data-testid="slider-park-interior-darkness"/);
+  assert.match(editor, /max=\{HOUSE_INTERIOR_DARKNESS_MAX\}/);
+  assert.match(editor, /mutation\.mutate\(\{ interiorDarkness: darknessRef\.current \}\)/);
+  assert.match(editor, /<PetParkInteriorRoom key=\{imagePreview\}[\s\S]*?darkness=\{darkness\}/);
+  assert.doesNotMatch(page, /390\s*[x×]\s*844/);
+});
