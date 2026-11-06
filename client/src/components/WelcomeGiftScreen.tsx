@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { BEGIN_JOURNEY_ENABLED, bjStart } from "@/lib/beginJourney";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { playChime } from "@/lib/sounds";
@@ -72,7 +71,6 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       localStorage.removeItem("para_pets_just_registered");
       localStorage.removeItem("para_pets_just_registered_user_id");
       setTimeout(() => {
-        if (BEGIN_JOURNEY_ENABLED) bjStart();
         onComplete(data.user ?? null);
       }, 800);
     },
