@@ -19,7 +19,7 @@ export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetail
   if (type === "garden_plot") return <div aria-hidden="true"
     className="pointer-events-none absolute inset-0 overflow-hidden"
     style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-      background: "radial-gradient(ellipse at 52% 45%, #66442e 7%, #483021 62%, #3e4329 93%)",
+      background: "radial-gradient(ellipse at 52% 45%, #957a55 7%, #786444 62%, #536044 93%)",
       filter: "drop-shadow(0 1px 2px rgba(0,0,0,.2))" }}>
     <svg className="absolute inset-0 h-full w-full" viewBox="0 0 240 120" preserveAspectRatio="none">
       <path d="M4 58 L120 3 L236 58 L121 117 Z" fill="none" stroke="#9a8550" strokeWidth="5" strokeOpacity=".7"/>
