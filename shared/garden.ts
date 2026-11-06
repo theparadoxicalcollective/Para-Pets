@@ -55,3 +55,42 @@ export function gardenHarvestQuantity(random: number = Math.random()): 1 | 2 | 3
  * growth never shifts sideways even when admin images have different dimensions.
  */
 export const GARDEN_PLANT_ANCHOR = { x: .5, y: .5 } as const;
+
+export type GardenPlotPhase = "empty" | "tilled" | GardenPhase;
+export type GardenGrowingPhase = "planted" | "seedling" | "partial" | "grown";
+export type GardenWaterRequirements = Record<GardenGrowingPhase, number>;
+export type GardenGrowth = {
+  phase: GardenPlotPhase;
+  waterApplied: number;
+  harvestReady: boolean;
+};
+/** Exactly one water drop advances at most one phase. No elapsed-time growth,
+ * client-provided stage skips or implicit free watering.
+ */
+export function gardenAfterWaterDrop(current: GardenGrowth, required: GardenWaterRequirements): GardenGrowth {
+  if (!(current.phase === "planted" || current.phase === "seedling" ||
+        current.phase === "partial" || current.phase === "grown") || current.harvestReady)
+    throw new Error("This plot cannot be watered now");
+  const threshold = required[current.phase];
+  if (!validGardenDrops(threshold) || !Number.isSafeInteger(current.waterApplied) ||
+      current.waterApplied < 0 || current.waterApplied >= threshold)
+    throw new Error("Invalid garden growth progress");
+  const progress = current.waterApplied + 1;
+  if (progress < threshold)
+    return { phase: current.phase, waterApplied: progress, harvestReady: false };
+  const next: Record<GardenGrowingPhase, GardenGrowingPhase> = {
+    planted: "seedling", seedling: "partial", partial: "grown", grown: "grown",
+  };
+  return current.phase === "grown"
+    ? { phase: "grown", waterApplied: threshold, harvestReady: true }
+    : { phase: next[current.phase], waterApplied: 0, harvestReady: false };
+}
+/** Called at read and before mutation: picked plots have a server 30s lockout
+ * and return to an unprepared empty diamond afterward.
+ */
+export function gardenEffectivePhase(
+  phase: GardenPlotPhase, pickedUntil: Date | null | undefined, now: Date = new Date(),
+): GardenPlotPhase {
+  return phase === "picked" && pickedUntil && pickedUntil.getTime() <= now.getTime()
+    ? "empty" : phase;
+}
