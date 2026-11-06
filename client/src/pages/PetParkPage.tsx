@@ -323,8 +323,8 @@ export default function PetParkPage() {
   const fullPageRoom = activeRoom && isParkRoomEffect(activeRoom) && activeRoom.view === "full_page" && activeRoom.imageUrl ? activeRoom : null;
   const popupRoom = activeRoom && isParkRoomEffect(activeRoom) && activeRoom.view === "popup" && activeRoom.imageUrl ? activeRoom : null;
   const currentRoomId = fullPageRoom?.id ?? null;
-  const indoorVisiblePets = (scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding?.id &&
-    (pet.roomEffectId ?? null) === currentRoomId);
+  const buildingOccupants = (scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding?.id);
+  const indoorVisiblePets = buildingOccupants.filter(pet => (pet.roomEffectId ?? null) === currentRoomId);
   const deposits = scene?.deposits ?? [];
   const equippedForInterior = deposits.filter(pet => pet.slotNumber <= (scene?.unlockedSlots ?? 1));
   const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);
@@ -682,7 +682,7 @@ export default function PetParkPage() {
         className="absolute inset-x-3 bottom-[max(10px,env(safe-area-inset-bottom,0px))] z-50 mx-auto max-w-xl rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 p-2 shadow-xl">
         <div className="flex items-center justify-between gap-2 text-[11px] text-amber-200/80">
           <span>{currentRoomId ? `${indoorVisiblePets.length}/${fullPageRoom?.maxPets ?? 0} pets in room` :
-            `${indoorVisiblePets.length}/${activeBuilding.maxPets} pets inside`}</span>
+            `${buildingOccupants.length}/${activeBuilding.maxPets} pets inside`}</span>
           <span>Drag an equipped pet onto the room</span>
         </div>
         <div className="mt-1 flex gap-2 overflow-x-auto overscroll-contain">
