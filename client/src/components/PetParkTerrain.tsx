@@ -310,26 +310,40 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
       ctx.fill();
     }
   }
-  // Fade just the *exposed* sides of the connected diamond union. Drawing
-  // watercolor-green translucent gradients over the dirt on the existing
-  // grass canvas avoids per-tile alpha stacking and an extra scene/canvas.
-  // The dark brown center and grain remain untouched.
+  // Narrow, uneven watercolor feathering on the union's EXPOSED edges.
+  // The grass is already on this one opaque scene canvas, so a translucent
+  // grass tint blends the outer few pixels without extra stages or any
+  // per-tile alpha (which would create seams at adjoining diamonds).
+  // All randomness is world-anchored: dragging or zooming never reshuffles it.
   for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
-    const mx = (edge.ax + edge.bx) / 2, my = (edge.ay + edge.by) / 2;
-    const fade = Math.min(15, edge.size * 0.11);
-    const insetX = edge.inwardX * fade, insetY = edge.inwardY * fade;
-    const gradient = ctx.createLinearGradient(mx, my, mx + insetX, my + insetY);
-    gradient.addColorStop(0, "rgba(44,73,52,.88)");
-    gradient.addColorStop(0.48, "rgba(44,73,52,.40)");
-    gradient.addColorStop(1, "rgba(44,73,52,0)");
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.moveTo(edge.ax, edge.ay);
-    ctx.lineTo(edge.bx, edge.by);
-    ctx.lineTo(edge.bx + insetX, edge.by + insetY);
-    ctx.lineTo(edge.ax + insetX, edge.ay + insetY);
-    ctx.closePath();
-    ctx.fill();
+    const dx = edge.bx - edge.ax, dy = edge.by - edge.ay;
+    const segmentCount = Math.max(2, Math.ceil(Math.hypot(dx, dy) / 24));
+    const seedX = Math.round(edge.ax * 5), seedY = Math.round(edge.ay * 5);
+    const jitterAt = (i: number) => (parkTerrainNoise(seedX + i, seedY, 47) - 0.5) * 2.5;
+    for (let i = 0; i < segmentCount; i++) {
+      const t0 = i / segmentCount, t1 = (i + 1) / segmentCount;
+      const jitter0 = jitterAt(i), jitter1 = jitterAt(i + 1);
+      const x0 = edge.ax + dx * t0 - edge.inwardX * jitter0;
+      const y0 = edge.ay + dy * t0 - edge.inwardY * jitter0;
+      const x1 = edge.ax + dx * t1 - edge.inwardX * jitter1;
+      const y1 = edge.ay + dy * t1 - edge.inwardY * jitter1;
+      const variation = parkTerrainNoise(seedX + i, seedY, 49);
+      const width = Math.min(8, edge.size * 0.055) * (0.65 + variation * 0.35);
+      const alpha = (0.50 + parkTerrainNoise(seedX + i, seedY, 51) * 0.19).toFixed(3);
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      const gradient = ctx.createLinearGradient(mx, my, mx + edge.inwardX * width, my + edge.inwardY * width);
+      gradient.addColorStop(0, `rgba(44,73,52,${alpha})`);
+      gradient.addColorStop(0.46, "rgba(44,73,52,.20)");
+      gradient.addColorStop(1, "rgba(44,73,52,0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.lineTo(x1 + edge.inwardX * width, y1 + edge.inwardY * width);
+      ctx.lineTo(x0 + edge.inwardX * width, y0 + edge.inwardY * width);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
   ctx.restore();
 }

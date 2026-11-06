@@ -320,6 +320,30 @@ export function registerPetParkAdminRoutes(
     }
   });
 
+  // Duplicate an existing decoration without reuploading or reprocessing its art.
+  // New objects receive their own ID and remain editable through the existing
+  // item placement route; only the saved server-side asset URL is reused.
+  app.post("/api/admin/pet-park/items/:id/duplicate", isAdmin, async (req, res) => {
+    const { xPct, yPct } = req.body ?? {};
+    if (!validPosition(xPct) || !validPosition(yPct))
+      return res.status(400).json({ message: "Choose a valid place for the duplicated decoration" });
+    try {
+      const [original] = await db.select().from(petParkSceneItems)
+        .where(eq(petParkSceneItems.id, String(req.params.id)));
+      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      if (original.kind !== "decor" || !original.imageUrl)
+        return res.status(422).json({ message: "Only uploaded decor objects can be duplicated" });
+      const [item] = await db.insert(petParkSceneItems)
+        .values({ kind: "decor", imageUrl: original.imageUrl, effectType: null,
+          xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
+        .returning();
+      return res.status(201).json(item);
+    } catch (error) {
+      console.error("[pet-park] decor duplication failed", error);
+      return res.status(500).json({ message: "Unable to duplicate decoration" });
+    }
+  });
+
   app.patch("/api/admin/pet-park/items/:id", isAdmin, async (req, res) => {
     const { xPct, yPct, size, flipped, layer } = req.body ?? {};
     if (!validPosition(xPct) || !validPosition(yPct) || !validSize(size) ||

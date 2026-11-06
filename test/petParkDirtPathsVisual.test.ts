@@ -55,7 +55,7 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
   assert.ok(firstFill > lastRect, "both tiles enter one common path before the base fill");
   assert.ok(trace.indexOf("clip", firstFill) > firstFill, "world-anchored dirt grain is clipped to the merged fill");
   assert.ok(trace.includes("restore"));
-  assert.equal(trace.filter(x => x === "gradient").length, 8, "legacy offset stamps fade all exposed segments, not covered interior edges");
+  assert.ok(trace.filter(x => x === "gradient").length > 8, "short varied edge gradients should feather the exposed portions without a single uniform border");
 });
 
 test("editing and brush previews use the same path stamps without introducing a new hit-test surface", () => {
@@ -106,4 +106,16 @@ test("rest spots are created as effects only, with legacy spots still readable",
   assert.doesNotMatch(panel, /setKind\(/);
   assert.match(panel, /kind: "decor", imageData: pendingImage/);
   assert.match(server, /value === "sleep_spot"/);
+});
+
+test("outer path feathering is narrow, uneven and world-stable; connecting edges never fade", () => {
+  assert.match(painter, /Math\.min\(8, edge\.size \* 0\.055\)/);
+  assert.match(painter, /parkTerrainNoise\(seedX \+ i, seedY, 47\)/);
+  assert.match(painter, /gradient\.addColorStop\(1, "rgba\(44,73,52,0\)"\)/);
+  assert.doesNotMatch(painter, /const fade = Math\.min\(15, edge\.size \* 0\.11\)/);
+  const view = { width: 1200, height: 1600 }, size = 150;
+  const a = { xPct: 0.4, yPct: 0.5, size };
+  const b = { xPct: a.xPct + size / 2 / view.width,
+    yPct: a.yPct + size / 4 / view.height, size };
+  assert.equal(exposedDirtEdges([a,b],view.width,view.height).length,6);
 });
