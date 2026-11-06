@@ -7,7 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
-import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
+import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
 type ParkDraft = {
   settings: { enabledForPlayers: boolean; enabledForModerators: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
@@ -41,7 +41,6 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [buildingName, setBuildingName] = useState("");
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
-  const [buildingCapacity, setBuildingCapacity] = useState(PET_PARK_BUILDING_CAPACITY_MIN);
 
   const items = data?.items ?? [];
   const buildings = data?.buildings ?? [];
@@ -185,29 +184,16 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <input aria-label="Building name" placeholder="e.g. Woodland Cottage" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)}
             className="w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
         </label>
-        <div className="space-y-2">
-          <label htmlFor="pet-park-new-building-capacity" className="block text-sm">Building pet capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})</label>
-          <input id="pet-park-new-building-capacity" type="number" inputMode="numeric"
-            aria-label="Building pet capacity" min={PET_PARK_BUILDING_CAPACITY_MIN} max={PET_PARK_BUILDING_CAPACITY_MAX} step={1}
-            value={buildingCapacity} onChange={event => setBuildingCapacity(Number(event.target.value))}
-            className="w-full rounded-xl border bg-[#10291d] p-3 text-[#f5cf64]" style={{ borderColor: GOLD_BORDER }} />
-          <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacities">
-            {[10, 15, 20, 25].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
-              className="rounded-xl border px-2 py-2 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(48,95,62,0.9)" : "rgba(23,54,36,0.82)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
-              {capacity} {capacity === 1 ? "pet" : "pets"}
-            </button>)}
-          </div>
-          <p className="text-xs text-amber-100/60">Capacity is shared by all visitors. Each player can still deposit up to three pets in the park.</p>
-        </div>
+        <p className="text-xs text-amber-100/75">Buildings are interactive spaces for effects and magical room entrances. Equipped pets are placed outdoors only.</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
           {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
           <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
         </label>
-        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage || !isValidPetParkBuildingCapacity(buildingCapacity)}
+        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage}
           data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
-            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity,
+            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
