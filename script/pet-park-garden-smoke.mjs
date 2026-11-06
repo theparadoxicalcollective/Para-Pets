@@ -132,12 +132,6 @@ try{
     await ground.click();
     const menu=page.getByRole("dialog",{name:"Garden Plot"});
     await menu.waitFor({state:"visible"});
-    const act=async(label)=>{
-      await menu.getByRole("button",{name:label,exact:true}).click();
-      await menu.getByTestId("pet-park-garden-inventory-item").first().click();
-      const expected=requests.length;
-      await page.waitForFunction(n=>window.__gardenMarker===n,n=>(n))(0).catch(()=>{});
-    };
     // Test the actual menu, not direct API calls. Ensure a server commit
     // changes the plot and inventory before the next action is offered.
     const apply=async(label,expectedPhase)=>{
