@@ -87,14 +87,14 @@ function setup(known: any) {
 
 test("duplicating decor creates a new row with unchanged art, size, flip and layer", async () => {
   const original = { kind: "decor", imageUrl: "/uploads/tree.png",
-    size: 480, flipped: true, layer: 42, xPct: 0.2, yPct: 0.4, effectType: null };
+    size: 480, flipped: true, layer: 42, xPct: 0.2, yPct: 0.4, effectType: null, isWaterSource: true };
   const route = setup(original);
   const res = await route.invoke(0.33, 0.56);
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.id, "duplicate-id");
   assert.deepEqual(route.getSaved(), {
     kind: "decor", imageUrl: "/uploads/tree.png", effectType: null,
-    size: 480, flipped: true, layer: 42, xPct: 0.33, yPct: 0.56,
+    size: 480, flipped: true, layer: 42, xPct: 0.33, yPct: 0.56, isWaterSource: true,
   });
   assert.equal(route.imageProcessingCalls(), 0, "duplication must never require another image upload");
 });
