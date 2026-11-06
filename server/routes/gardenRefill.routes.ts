@@ -53,6 +53,7 @@ export function registerGardenRefillRoutes(app: Express, isAuthenticated: Reques
           isListed: userInventory.isListed,
           gardenWaterLeft: userInventory.gardenWaterLeft,
           isRefillable: shopItems.isRefillable,
+          type: shopItems.type, specialType: shopItems.specialType,
           name: shopItems.name,
         }).from(userInventory)
           .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
