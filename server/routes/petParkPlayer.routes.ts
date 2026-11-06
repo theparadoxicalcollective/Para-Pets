@@ -4,7 +4,6 @@ import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSl
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
-import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   registerPetParkDisplayRoutes(app, isAuthenticated);
@@ -72,8 +71,9 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
-        // Idle deposits keep accruing rewards but are private to their owner.
-        .where(and(isNull(petParkDeposits.withdrawnAt), eq(petParkDeposits.showInPark, true)))
+        // Every active equipped pet is visible outdoors. Previous indoor/idle flags
+        // remain on saved rows only for backwards compatibility; rewards are unchanged.
+        .where(isNull(petParkDeposits.withdrawnAt))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
@@ -118,7 +118,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
         if (existing) return { status: 409 as const };
-        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false, pausedAt: park.enabled ? null : new Date() }).returning();
+        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: true, pausedAt: park.enabled ? null : new Date() }).returning();
         return { status: 201 as const, deposit };
       });
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });
@@ -134,48 +134,12 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
   });
 
 
-  app.patch("/api/pet-park/deposits/:id/placement", isAuthenticated, async (req, res) => {
-    const { buildingId = null, roomEffectId = null, xPct = 0.5, yPct = 0.72, pose = "idle" } = req.body ?? {};
-    if ((buildingId !== null && (typeof buildingId !== "string" || buildingId.length > 100)) ||
-        (roomEffectId !== null && (typeof roomEffectId !== "string" || !roomEffectId || roomEffectId.length > 64 || buildingId === null)) ||
-        typeof xPct !== "number" || !Number.isFinite(xPct) || xPct < 0 || xPct > 1 ||
-        typeof yPct !== "number" || !Number.isFinite(yPct) || yPct < 0 || yPct > 1 ||
-        !["idle", "sit", "sleep"].includes(pose)) {
-      return res.status(400).json({ message: "Choose a valid building, position and pet pose" });
-    }
-    try {
-      const userId = (req.user as { id: string }).id;
-      const result = await db.transaction(async tx => {
-        const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
-        if (!owner) return { status: 404 as const };
-        const [deposit] = await tx.select().from(petParkDeposits)
-          .where(and(eq(petParkDeposits.id, String(req.params.id)), eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt))).for("update");
-        if (!deposit) return { status: 404 as const };
-        if (buildingId !== null) {
-          const [building] = await tx.select().from(petParkBuildings).where(eq(petParkBuildings.id, buildingId)).for("update");
-          if (!building || !building.interiorImageUrl) return { status: 422 as const };
-          const occupants = await tx.select({ id: petParkDeposits.id, roomEffectId: petParkDeposits.roomEffectId }).from(petParkDeposits)
-            .where(and(eq(petParkDeposits.buildingId, buildingId), isNull(petParkDeposits.withdrawnAt), sql`${petParkDeposits.id} <> ${deposit.id}`));
-          if (occupants.length >= building.maxPets) return { status: 409 as const };
-          if (roomEffectId !== null) {
-            const room = (building.interiorEffects ?? []).find(effect => effect.id === roomEffectId);
-            if (!isPetAccessibleParkRoom(room)) return { status: 422 as const };
-            const roomOccupants = occupants.filter(item => item.roomEffectId === roomEffectId);
-            if (roomOccupants.length >= room.maxPets) return { status: 409 as const };
-          }
-        }
-        const [updated] = await tx.update(petParkDeposits).set({ buildingId, roomEffectId: buildingId ? roomEffectId : null, interiorXPct: xPct, interiorYPct: yPct, pose, showInPark: true }).where(eq(petParkDeposits.id, deposit.id)).returning();
-        return { status: 200 as const, deposit: updated };
-      });
-      if (result.status === 404) return res.status(404).json({ message: "Active deposit not found" });
-      if (result.status === 422) return res.status(422).json({ message: "This building or room is not available for pets" });
-      if (result.status === 409) return res.status(409).json({ message: "This building or room is at capacity" });
-      return res.json(result.deposit);
-    } catch (error) {
-      console.error("[pet-park] placement update failed", error);
-      return res.status(500).json({ message: "Unable to save pet placement" });
-    }
-  });
+  // Legacy indoor placement is deliberately disabled. Keep a clear rejection
+  // rather than letting stale clients hide pets inside buildings or rooms.
+  // Existing stored building IDs are read as outdoor pets until their owners
+  // move them using the ordinary /display route (which clears the indoor IDs).
+  app.patch("/api/pet-park/deposits/:id/placement", isAuthenticated, (_req, res) =>
+    res.status(410).json({ message: "Pet Park pets now stay outdoors. Move them in the park instead." }));
 
   // Collection and withdrawal share one transaction and owner lock.
   // The caller may collect without removing the pet.
@@ -270,7 +234,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         if (!rewards) throw new Error("Unable to settle outgoing pet");
         const [deposit] = await tx.insert(petParkDeposits).values({
           userId, petInventoryId, slotNumber: outgoing.slotNumber,
-          showInPark: false, pausedAt: park.enabled ? null : new Date(),
+          showInPark: true, pausedAt: park.enabled ? null : new Date(),
         }).returning();
         return { status: 200 as const, rewards, deposit };
       });
