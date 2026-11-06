@@ -30,6 +30,11 @@ const server = await createServer({server:{host:"127.0.0.1",port:4189,strictPort
 const art="data:image/svg+xml;base64,"+Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><circle cx="100" cy="90" r="70" fill="#588c4b"/></svg>',
 ).toString("base64");
+// Mimic a player-uploaded transparent PNG: visible sprout is at the top
+// RIGHT of its canvas, so naïve image centering places it off the plot.
+const cropArt="data:image/svg+xml;base64,"+Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="150" y="20" width="35" height="50" fill="#58a44b"/></svg>',
+).toString("base64");
 await server.listen();
 const browser=await chromium.launch({headless:true});
 try{
@@ -43,8 +48,8 @@ try{
       cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null };
     const crop={id:"crop1",seedItemId:"seed-item",fruitItemId:"fruit-item",
       seedName:"Forest Tomato Seeds",fruitName:"Forest Tomato",ready:true,
-      images:{seedPack:art,planted:art,seedling:art,partial:art,grown:art,picked:art,fruit:art},
-      drops:{planted:1,seedling:1,partial:1,grown:1} };
+      images:{seedPack:art,planted:cropArt,seedling:cropArt,partial:cropArt,grown:cropArt,picked:cropArt,fruit:art},
+      drops:{planted:15,seedling:7,partial:12,grown:5} };
     const scene={
       enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,backgroundUrl:null,
       groundTheme:"grass",buildings:[],deposits:[],unlockedSlots:1,
@@ -60,7 +65,7 @@ try{
       {inventoryId:"seed",shopItemId:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",quantity:2,isListed:false,imageUrl:art},
       {inventoryId:"seed-listed",shopItemId:"seed-item",name:"Market Seeds",type:"garden_seed",quantity:9,isListed:true,imageUrl:art},
       {inventoryId:"pail",shopItemId:"pail-item",name:"Watering Pail",type:"garden_tool",specialType:"watering_pail",
-        quantity:1,isListed:false,isRefillable:true,gardenWaterLeft:10,imageUrl:art},
+        quantity:1,isListed:false,isRefillable:true,gardenWaterLeft:100,imageUrl:art},
     ];
     page.on("pageerror",error=>errors.push(error.message));
     await page.route("**/api/**",route=>{
@@ -94,10 +99,16 @@ try{
           inventory=inventory.map(x=>x.inventoryId==="seed"?{...x,quantity:1}:x);
         }else if(action==="water"){
           assert.equal(body.inventoryId,"pail");assert.notEqual(plot.harvestReady,true);
-          const next={planted:"seedling",seedling:"partial",partial:"grown",grown:"grown"};
-          plot.phase=next[plot.phase];plot.waterApplied=0;
-          if(plot.phase==="grown" && requests.filter(x=>x.action==="water").length===4){plot.harvestReady=true;plot.waterApplied=1;}
-          inventory=inventory.map(x=>x.inventoryId==="pail"?{...x,gardenWaterLeft:x.gardenWaterLeft-1}:x);
+          const required=crop.drops[plot.phase],waterAvailable=inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft;
+          const poured=Math.min(10,waterAvailable,required-plot.waterApplied);
+          assert.ok(poured>0 && poured<=10,"water is charged in bounded units");
+          plot.waterApplied+=poured;
+          if(plot.waterApplied===required){
+            if(plot.phase==="grown")plot.harvestReady=true;
+            else{plot.phase={planted:"seedling",seedling:"partial",partial:"grown"}[plot.phase];plot.waterApplied=0;}
+          }
+          inventory=inventory.map(x=>x.inventoryId==="pail"?{...x,gardenWaterLeft:x.gardenWaterLeft-poured}:x);
+          replays.set(body.requestId,{waterUsed:poured}); // overwritten with full response below
         }else {
           assert.equal(plot.phase,"grown");assert.equal(plot.harvestReady,true);
           assert.equal(body.inventoryId,"scythe");plot.phase="picked";plot.harvestReady=false;
@@ -106,7 +117,7 @@ try{
         }
         const result={plot:{...plot},replayed:false,
           ...(action==="harvest"?{reward:{fruitItemId:"fruit-item",quantity:2}}:{}),
-          ...(action==="water"?{waterLeft:inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft}:{})};
+          ...(action==="water"?{waterLeft:inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,waterUsed:replays.get(body.requestId)?.waterUsed}:{})};
         replays.set(body.requestId,result);
         return route.fulfill({json:result});
       }
