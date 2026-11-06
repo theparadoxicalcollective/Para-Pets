@@ -1349,8 +1349,11 @@ export default function PetParkPage() {
               <button type="button" className="rounded-lg border border-amber-500/60 bg-[#245037]/90 px-3 py-2 text-xs text-[#f6d783]" onClick={() => setShowPetChoices(value => !value)}>Change equipped pet</button>
               {showPetChoices && <div className="space-y-2">
                 <p className="text-xs text-amber-100/75">Choose a replacement. Swapping automatically collects rewards and returns your current pet.</p>
+                <input type="search" aria-label="Search park replacement pets" value={petSearch}
+                  onChange={event => setPetSearch(event.target.value)} placeholder="Find pet by name or level"
+                  className="w-full rounded-lg border border-[#bda567]/60 bg-[#0b2016] px-3 py-2 text-xs" />
                 <div className="max-h-[min(26dvh,220px)] space-y-2 overflow-y-auto">
-                  {availablePets.length === 0 && <p className="text-xs text-amber-100/65">No other eligible level 10+ pets available.</p>}
+                  {matchingPets.length === 0 && <p className="text-xs text-amber-100/65">{availablePets.length ? "No pets match your search." : "No other eligible level 10+ pets available."}</p>}
                   {visiblePetChoices.map(candidate => <button type="button" key={candidate.inventoryId} aria-pressed={selectedPet === candidate.inventoryId}
                     onClick={() => setSelectedPet(candidate.inventoryId)}
                     className={`flex w-full items-center gap-2 rounded border p-2 text-left ${selectedPet === candidate.inventoryId ? "border-amber-300 bg-[#315e43]" : "border-amber-500/25 bg-[#0b2016]"}`}>
@@ -1381,8 +1384,16 @@ export default function PetParkPage() {
             </div>;
             return <div className="space-y-2">
               <p className="text-xs text-amber-200/75">Choose a hatched, unlisted pet at level 10 or above.</p>
+              <input type="search" aria-label="Search pets to equip" value={petSearch}
+                onChange={event => setPetSearch(event.target.value)} placeholder="Find pet by name or level"
+                className="w-full rounded-lg border border-[#bda567]/60 bg-[#0b2016] px-3 py-2 text-xs" />
+              {matchingPets.length > 24 && <p className="text-xs text-amber-100/70">
+                Showing 24 of {matchingPets.length} pets. Search to find others.
+              </p>}
               <div role="group" aria-label={`Choose pet for spot ${activeSlot}`} className="max-h-[min(38dvh,360px)] space-y-2 overflow-y-auto overscroll-contain rounded-lg border border-amber-600/40 p-2">
-                {availablePets.length === 0 && <p className="p-3 text-xs text-amber-100/70">No eligible pets. Hatch and level up a pet to level 10 first.</p>}
+                {matchingPets.length === 0 && <p className="p-3 text-xs text-amber-100/70">
+                  {availablePets.length ? "No pets match your search." : "No eligible pets. Hatch and level up a pet to level 10 first."}
+                </p>}
                 {visiblePetChoices.map(p => <button type="button" key={p.inventoryId} aria-pressed={selectedPet === p.inventoryId} onClick={() => setSelectedPet(p.inventoryId)}
                   className={`flex w-full min-h-[120px] items-center gap-3 rounded-lg border p-2 text-left ${selectedPet === p.inventoryId ? "border-amber-300 bg-[#315e43]" : "border-amber-600/30 bg-[#0b2016]"}`}>
                   <PetParkPetPortrait petTemplateId={p.petTemplateId} hatchedImageUrl={p.hatchedImageUrl} petInventoryId={p.inventoryId} size={118} />
