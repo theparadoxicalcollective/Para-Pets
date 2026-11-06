@@ -160,7 +160,7 @@ export default function PetParkGardenMenu({
     <div data-testid="pet-park-garden-menu" className="pointer-events-none absolute inset-0 z-[76]"
       aria-label="Garden Plot tools">
       <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[260px]"
-        style={{ left: anchor.x, top: anchor.y, transform: "translate(-50%, -100%)" }}>
+        style={{ left: anchor.x, top: anchor.y, transform: "translate(-50%, -107px)" }}>
         <div className="relative h-[107px]" role="group" aria-label="Garden tools">
           {BUTTONS.map(({ action, Icon, x, y }) => {
             const items = owned(action);
