@@ -95,6 +95,14 @@ try{
   assert.equal(await page.getByRole('button',{name:/layer|Apply exact values/i}).count(),0,name+': no manual layer controls');
   await page.getByRole('button',{name:'Paint terrain',exact:true}).click();
   const surface=page.getByTestId('pet-park-terrain-brush-surface');await surface.waitFor({state:'visible'});
+  const palette=page.getByTestId('pet-park-terrain-brush-palette');
+  const toggleTools=page.getByRole('button',{name:'Choose terrain brush'});
+  assert.equal(await palette.count(),0,name+': compact toolbar does not cover painting until requested');
+  assert.equal(await toggleTools.getAttribute('aria-expanded'),'false');
+  await toggleTools.click();
+  await palette.waitFor({state:'visible'});
+  await toggleTools.click();
+  await palette.waitFor({state:'hidden'});
   const from={x:width*.18,y:height*.22},to={x:width*.82,y:height*.22+width*.64*.5};
   const session=touch?await context.newCDPSession(page):null;
   if(session){
@@ -112,9 +120,11 @@ try{
   for(let i=1;i<points.length;i++)assert.ok(Math.abs((points[i].xPct-points[i-1].xPct)*1800-strokes[0].size/2)<1e-6,name+': tiles meet edge to edge');
   // The park-wide base is independent of painted paths. Switching themes must
   // update the REAL viewport canvas but never move authored decor/buildings.
+  await toggleTools.click();
   const groundButtons=page.getByRole('group',{name:'Pet Park ground style'});
   assert.equal(await groundButtons.getByRole('button').count(),5,name+': five themed base grounds');
-  for(const [theme,rgb] of [['snow','rgb(201, 214, 211)'],['volcanic','rgb(51, 45, 49)'],['grass','rgb(44, 73, 52)']]){
+  for(const [index,[theme,rgb]] of [['snow','rgb(201, 214, 211)'],['volcanic','rgb(51, 45, 49)'],['grass','rgb(44, 73, 52)']].entries()){
+    if(index>0)await toggleTools.click();
     const label=theme.charAt(0).toUpperCase()+theme.slice(1);
     const saved=page.waitForResponse(response=>response.url().includes('/api/admin/pet-park/ground-theme'));
     await groundButtons.getByRole('button',{name:label,exact:true}).click();
@@ -126,6 +136,7 @@ try{
   assert.equal(patches.length,1,name+': changing base ground cannot mutate saved buildings');
   // Drive the real mobile pointer handlers for each new connected material.
   for(const [material,label] of [['stone_path','Stone Path'],['water_path','Water']]){
+    await toggleTools.click();
     await page.getByRole('button',{name:label,exact:true}).click();
     const response=page.waitForResponse(response=>response.url().includes('/api/admin/pet-park/terrain-strokes'));
     if(session){
@@ -147,6 +158,7 @@ try{
   assert.equal(strokes.length,3);
   // Garden plots must use the SAME touch/mouse world-to-grid stroke handler
   // as stone/dirt paths, not a new scene or admin input surface.
+  await toggleTools.click();
   await page.getByRole('button',{name:'Garden Plot',exact:true}).click();
   const gardenSave=page.waitForResponse(response=>response.url().includes('/api/admin/pet-park/terrain-strokes'));
   if(session){
@@ -164,7 +176,9 @@ try{
   assert.ok(strokes.at(-1).points.every(p=>p.xPct>=0&&p.xPct<=1&&p.yPct>=0&&p.yPct<=1));
   assert.equal(patches.length,1,name+': painting plots never repositions buildings');
   const controls=await page.getByLabel('Pet Park terrain brush controls',{exact:true}).boundingBox();
-  assert.ok(controls.y+controls.height<=height-60,name+': brush controls must clear the preview status banner');
+  assert.ok(controls.y>=60&&controls.y+controls.height<height*.6,
+    name+': compact painter tools stay near the top without hiding the world');
+  assert.ok(controls.height<90,name+': collapsed brush controls are not a bulky popup');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-'+name.replaceAll(' ','-')+'.png'});
   console.log('PASS '+name+': original admin gestures, three snapped dirt/stone/water paths and five persistent ground options with zero placement changes');
