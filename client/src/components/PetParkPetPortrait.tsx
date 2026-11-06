@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 
@@ -6,7 +6,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
  * Player Detail companion artwork, sized for Pet Park pickers and equipped slots.
  * Only mount the relatively expensive part/costume tree when it nears view.
  */
-export default function PetParkPetPortrait({
+export default memo(function PetParkPetPortrait({
   petTemplateId, petInventoryId, hatchedImageUrl = null, size = 110, access = "owner",
   className = "",
 }: {
@@ -52,4 +52,4 @@ export default function PetParkPetPortrait({
       <MiniPetRenderer petInventoryId={petInventoryId} access={access} animated={false} />
     </div>}
   </div>;
-}
+});
