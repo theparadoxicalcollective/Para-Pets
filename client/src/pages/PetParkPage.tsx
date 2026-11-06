@@ -327,7 +327,7 @@ export default function PetParkPage() {
     (pet.roomEffectId ?? null) === currentRoomId);
   const equippedForInterior = deposits.filter(pet => !pet.slotNumber || pet.slotNumber <= (scene?.unlockedSlots ?? 1));
   const deposits = scene?.deposits ?? [];
-  const outdoorPets = scene?.sharedPets ?? [];
+  const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);
   const parkPositions = useMemo(() => arrangeParkVisitors(outdoorPets, scene?.items ?? []), [scene?.sharedPets, scene?.items]);
   const occupied = new Set(deposits.map(d => d.petInventoryId));
   const dropEquippedPet = (petId: string, clientX: number, clientY: number) => {
