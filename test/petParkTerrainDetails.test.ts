@@ -63,7 +63,7 @@ test("decor/effects/pets are preserved and terrain remains a ground-level detail
   assert.match(page, /item\.kind === "effect" && item\.effectType/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
   assert.match(page, /<PetAnimator petTemplateId=\{pet.petTemplateId\}/);
-  assert.match(page, /<PetParkGroundShadow kind="pet" \/>/);
+  assert.doesNotMatch(page, /PetParkGroundShadow|pet-park-contact-shadow/, "outdoor pet shadows were intentionally removed");
   assert.match(page, /<PetParkTerrain/);
   assert.match(page, /onWheel=\{e =>/);
 });
