@@ -49,13 +49,13 @@ try{
     };
     let inventory=[
       {inventoryId:"pail",shopItemId:"pail-item",name:"Forest Pail",imageUrl:art,
-        type:"garden_tool",isRefillable:true,gardenWaterLeft:12,isListed:false,quantity:1},
+        type:"garden_tool",specialType:"watering_pail",isRefillable:true,gardenWaterLeft:12,isListed:false,quantity:1},
       {inventoryId:"full",shopItemId:"full-item",name:"Full Container",imageUrl:art,
-        type:"garden_tool",isRefillable:true,gardenWaterLeft:100,isListed:false,quantity:1},
+        type:"garden_tool",specialType:"watering_pail",isRefillable:true,gardenWaterLeft:100,isListed:false,quantity:1},
       {inventoryId:"forbidden",shopItemId:"ordinary-item",name:"Ordinary Decor",imageUrl:art,
-        type:"garden_tool",isRefillable:false,gardenWaterLeft:0,isListed:false,quantity:1},
+        type:"garden_tool",specialType:"watering_pail",isRefillable:false,gardenWaterLeft:0,isListed:false,quantity:1},
       {inventoryId:"listed",shopItemId:"listed-item",name:"Market Pail",imageUrl:art,
-        type:"garden_tool",isRefillable:true,gardenWaterLeft:0,isListed:true,quantity:1},
+        type:"garden_tool",specialType:"watering_pail",isRefillable:true,gardenWaterLeft:0,isListed:true,quantity:1},
     ];
     await page.route("**/api/**",route=>{
       const url=new URL(route.request().url());
