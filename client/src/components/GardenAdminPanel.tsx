@@ -113,7 +113,7 @@ export default function GardenAdminPanel() {
         if (!Number.isSafeInteger(price) || price < 0 || price > 1_000_000) throw new Error("Enter a valid tool price.");
         await apiRequest("POST", "/api/admin/garden/tools", {
           kind: form.type, name: toolName.trim(), price, imageData: images.seedPack,
-          isRefillable: form.type === "watering_pail" && toolRefillable,
+          isRefillable: toolRefillable,
         });
       } else {
         const price = Number(draft.price);
@@ -214,14 +214,14 @@ export default function GardenAdminPanel() {
               <input type="number" min={0} max={1000000} className={inputs+" mt-1"} value={toolPrice} onChange={e => setToolPrice(e.target.value)} />
             </label>
             <ImageSlot label="tool" required image={images.seedPack ?? null} onFile={f => void setImage("seedPack", f)}/>
-            {form.type === "watering_pail" && <>
-              <p className="text-xs text-[#dfc987]">Every pail holds exactly 100 drops. Water is tracked per owned pail, not shared across players.</p>
+            {form.type === "watering_pail" && <p className="text-xs text-[#dfc987]">Every pail holds exactly 100 drops. Water is tracked per owned pail, not shared across players.</p>}
+            <>
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#baa15f]/45 bg-[#193a29] p-3 text-sm">
                 <input type="checkbox" aria-label="Refillable" checked={toolRefillable}
                   onChange={event => setToolRefillable(event.target.checked)}
                   className="h-4 w-4 accent-[#e9c875]" />
                 <span><strong>Refillable</strong>
-                  <small className="block text-[#d0bea0]">An empty pail may be filled back to 100 drops at a decoration marked Water Source.</small>
+                  <small className="block text-[#d0bea0]">Refillable equipment can hold up to 100 drops and be filled at a decoration marked Water Source.</small>
                 </span>
               </label>
             </>}
