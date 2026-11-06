@@ -195,7 +195,7 @@ export default function PetParkBuildingDetails({
         </button>
       </div>
     </div>
-    {(showEffectChoices || selectedEffect) && <div aria-label="Edit building interior effects"
+    <div aria-label="Edit building interior effects"
       className="pointer-events-auto absolute inset-x-3 z-30 mx-auto max-w-xl overflow-y-auto overscroll-contain rounded-xl border border-amber-500/60 bg-[#10291d]/95 px-3 py-3 text-amber-100 shadow-2xl"
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: showEffectChoices ? "48dvh" : "38dvh" }}>
       <p className="mb-2 text-xs text-amber-100/75">Tap an effect to select it, then drag it directly on the room. Save when finished.</p>
@@ -256,7 +256,7 @@ export default function PetParkBuildingDetails({
                 disabled={mutation.isPending} onClick={() => { setEffects(savedEffects.current); setSelectedEffectId(null); }}>Cancel effect changes</button>
             </div>
 
-    </div>}
+    </div>
   </div>;
 
   return <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))]"
