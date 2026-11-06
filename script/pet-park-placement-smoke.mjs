@@ -145,6 +145,24 @@ try{
       name+': '+material+' shares the existing dirt isometric grid');
   }
   assert.equal(strokes.length,3);
+  // Garden plots must use the SAME touch/mouse world-to-grid stroke handler
+  // as stone/dirt paths, not a new scene or admin input surface.
+  await page.getByRole('button',{name:'Garden Plot',exact:true}).click();
+  const gardenSave=page.waitForResponse(response=>response.url().includes('/api/admin/pet-park/terrain-strokes'));
+  if(session){
+    await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...from,id:1}]});
+    for(let i=1;i<=8;i++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:from.x+(to.x-from.x)*i/8,y:from.y+(to.y-from.y)*i/8,id:1}]});
+    await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  }else{
+    await page.mouse.move(from.x,from.y);await page.mouse.down();
+    await page.mouse.move(to.x,to.y,{steps:8});await page.mouse.up();
+  }
+  await gardenSave;
+  assert.equal(strokes.length,4,name+': garden plot stroke must be saved exactly once');
+  assert.equal(strokes.at(-1).type,'garden_plot');
+  assert.equal(strokes.at(-1).size,150);
+  assert.ok(strokes.at(-1).points.every(p=>p.xPct>=0&&p.xPct<=1&&p.yPct>=0&&p.yPct<=1));
+  assert.equal(patches.length,1,name+': painting plots never repositions buildings');
   const controls=await page.getByLabel('Pet Park terrain brush controls',{exact:true}).boundingBox();
   assert.ok(controls.y+controls.height<=height-60,name+': brush controls must clear the preview status banner');
   assert.deepEqual(errors,[]);
