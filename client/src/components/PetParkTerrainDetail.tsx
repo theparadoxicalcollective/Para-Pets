@@ -4,7 +4,7 @@ import type { ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
  * A soft-edged, image-free terrain stamp in the existing 2.5D park scene.
  * The parent owns normalized placement, scaling, editing and stacking.
  */
-export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetailType }) {
+export default function PetParkTerrainDetail({ type, tilled = false }: { type: ParkTerrainDetailType; tilled?: boolean }) {
   const base = "pointer-events-none absolute inset-0 overflow-hidden rounded-[50%]";
   // The brush preview shows an opaque isometric dirt tile. Once saved,
   // adjoining tiles merge into one textured path in PetParkTerrain's canvas.
@@ -17,16 +17,45 @@ export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetail
   // Brush ghosts use the same 2:1 footprint as the saved union canvas. Only
   // the preview is a DOM stamp; saved material uses one seamless canvas.
   if (type === "garden_plot") return <div aria-hidden="true"
+    data-testid={tilled ? "pet-park-tilled-soil" : "pet-park-untilled-soil"}
     className="pointer-events-none absolute inset-0 overflow-hidden"
-    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-      background: "radial-gradient(ellipse at 52% 45%, #957a55 7%, #786444 62%, #536044 93%)",
-      filter: "drop-shadow(0 1px 2px rgba(0,0,0,.2))" }}>
+    style={{
+      clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+      // Match the first dirt path's warm forest-brown rather than sandy tan.
+      // Every diamond keeps all four edges, including beside a snapped plot.
+      backgroundColor: tilled ? "#36261d" : "#624832",
+      backgroundImage: tilled ? [
+        "radial-gradient(ellipse at 21% 32%,rgba(118,82,48,.30) 0%,transparent 19%)",
+        "radial-gradient(ellipse at 72% 66%,rgba(15,13,12,.27) 0%,transparent 28%)",
+        "radial-gradient(ellipse at 51% 47%,#493024 4%,#36261d 82%)",
+      ].join(",") : [
+        "radial-gradient(ellipse at 29% 35%,rgba(133,94,60,.24) 0%,transparent 37%)",
+        "radial-gradient(ellipse at 75% 70%,rgba(36,26,19,.28) 0%,transparent 32%)",
+        "radial-gradient(ellipse at center,#684a34,#5b412e 91%)",
+      ].join(","),
+    }}>
     <svg className="absolute inset-0 h-full w-full" viewBox="0 0 240 120" preserveAspectRatio="none">
-      <path d="M4 58 L120 3 L236 58 L121 117 Z" fill="none" stroke="#9a8550" strokeWidth="5" strokeOpacity=".7"/>
-      <path d="M22 61 Q74 36 114 24 Q170 36 216 61 M31 71 Q94 45 132 40 Q184 52 205 66 M48 83 Q98 61 150 56 Q177 63 194 70"
-        fill="none" stroke="#261e17" strokeOpacity=".3" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M71 55l4 2M114 82l6-2M155 54l5 1M103 38l3-2M138 72l3 2M83 67l3-1"
-        fill="none" stroke="#b49a6c" strokeOpacity=".5" strokeWidth="2" strokeLinecap="round"/>
+      {/* A distinct edge on every side is intentional; neighboring plots
+          retain their own border instead of dissolving into the path union. */}
+      <path d="M120 3 L237 60 L120 117 L3 60 Z" fill="none"
+        stroke={tilled ? "#281a14" : "#3d2b20"} strokeWidth="5" strokeLinejoin="round" />
+      <path d="M120 7 L230 60 L120 112 L10 60 Z" fill="none"
+        stroke={tilled ? "#8c6245" : "#997452"} strokeWidth="2" strokeOpacity={tilled ? ".48" : ".55"} />
+      {tilled ? <>
+        {/* Soft diagonal furrows; no hard striped texture or sand colors. */}
+        <path d="M29 62 Q90 28 150 40 M45 78 Q118 38 195 61 M73 93 Q131 58 204 66"
+          fill="none" stroke="#1d1815" strokeOpacity=".42" strokeWidth="7" strokeLinecap="round" />
+        <path d="M32 57 Q91 26 147 36 M48 73 Q114 38 189 58 M77 88 Q140 54 202 63"
+          fill="none" stroke="#846043" strokeOpacity=".38" strokeWidth="2.8" strokeLinecap="round" />
+      </> : <>
+        <path d="M28 60 Q72 42 100 49 M131 78 Q172 59 209 63"
+          fill="none" stroke="#33261e" strokeOpacity=".2" strokeWidth="5" strokeLinecap="round" />
+      </>}
+      {[[36,60,4,2],[62,53,7,3],[85,82,4,2],[112,29,5,2],[156,75,7,3],
+        [190,60,5,2],[120,91,4,2],[145,49,5,2],[91,50,3,2],[178,84,3,2]].map(([x,y,rx,ry],i) =>
+        <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry}
+          fill={tilled ? (i%3===0 ? "#936946" : "#201912") : (i%3===0 ? "#967453" : "#35271c")}
+          opacity={tilled ? ".33" : ".25"} />)}
     </svg>
   </div>;
   if (type === "stone_path") return <div aria-hidden="true"
