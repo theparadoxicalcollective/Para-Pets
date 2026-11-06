@@ -24,8 +24,6 @@ import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
-import { getVisibleViewport } from "@/lib/stage";
-import { bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -56,8 +54,6 @@ interface HomePageProps {
     isAdmin: boolean;
     isModerator?: boolean;
     activePetId: string | null;
-    tutorial_quest_completed?: boolean;
-    tutorial_reward_claimed?: boolean;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
@@ -179,7 +175,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
   const homeGestureAbortRef = useRef<AbortController | null>(null);
-  const tutorialPotionBusyRef = useRef(false);
   useEffect(() => () => homeGestureAbortRef.current?.abort(), []);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
@@ -449,18 +444,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
 
-      // Begin Journey owns its own lightweight completion flash. Running the
-      // normal hatch cinematic at the same time duplicated full-screen layers
-      // and pet renderers, which could exhaust iOS Safari during the transition.
-      const tutorialStep = bjGetStep();
-      if (tutorialStep === 5 || tutorialStep === 6) {
-        setHatchRevealing(false);
-        setHatchFadingOut(false);
-        setHatchTimerDone(false);
-        setHatchedPetCache(null);
-        return;
-      }
-
       if (activePet) {
         const cache = {
           hatchedImageUrl: activePet.hatchedImageUrl,
@@ -590,12 +573,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     activePetSceneRect.width,
   ]);
 
-  const ownsAnyPet = inventory.some((item) => item.type === "pet");
-  const canBeginJourney = !inventoryLoading
-    && !ownsAnyPet
-    && !currentUser.tutorial_quest_completed
-    && !currentUser.tutorial_reward_claimed;
-
   // Freeze the last valid activePet so power-up modals stay mounted during
   // inventory refetches (avoids modal closing mid power-up).
   if (activePet) frozenActivePetRef.current = activePet;
@@ -622,8 +599,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   );
 
   const speedUpMutation = useMutation({
-    mutationFn: async ({ petInvId, itemInvId, specialAmount, tutorialFill }: { petInvId: string; itemInvId: string; specialAmount?: number | null; tutorialFill?: boolean }) => {
-      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId, tutorialFill: tutorialFill ?? false });
+    mutationFn: async ({ petInvId, itemInvId, specialAmount }: { petInvId: string; itemInvId: string; specialAmount?: number | null }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
       return res.json();
     },
     onSuccess: (data, variables) => {
@@ -640,7 +617,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             : item
         )
       );
-      window.dispatchEvent(new CustomEvent("bj_speedup_used"));
       setSpeedEffectLabel(`-${variables.specialAmount ?? "?"} min`);
       setShowSpeedEffect(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -650,43 +626,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       toast({ title: "Hatching potion could not be used", description: "Please drag it onto your egg again to retry.", variant: "destructive" });
     },
   });
-
-  // ── Tutorial: close speed-up sheet when tutorial signals egg is ready ────────
-  useEffect(() => {
-    const handler = () => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); };
-    window.addEventListener("bj_close_speedup", handler);
-    return () => window.removeEventListener("bj_close_speedup", handler);
-  }, []);
-
-  // ── Tutorial: open speed-up sheet when step 5 starts (works on reload too) ──
-  // NOTE: the sheet itself is hidden during step 5 (bjGetStep() !== 5 guard above).
-  // bj_open_speedup just sets state so the overlay knows potions are "ready".
-  useEffect(() => {
-    const handler = () => { setShowSpeedUp(true); };
-    window.addEventListener("bj_open_speedup", handler);
-    return () => window.removeEventListener("bj_open_speedup", handler);
-  }, []);
-
-  // ── Tutorial step 5: overlay's single potion card fires this event on tap ──
-  // We handle the mutation here because speedUpMutation lives in HomePage.
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { petInvId, itemInvId, specialAmount } = (e as CustomEvent<{
-        petInvId: string; itemInvId: string; specialAmount: number;
-      }>).detail;
-      if (petInvId && itemInvId && !tutorialPotionBusyRef.current) {
-        tutorialPotionBusyRef.current = true;
-        // Tutorial step 5: each confirmed use advances one third of the hatch.
-        speedUpMutation.mutate(
-          { petInvId, itemInvId, specialAmount, tutorialFill: true },
-          { onSettled: () => { tutorialPotionBusyRef.current = false; } },
-        );
-      }
-    };
-    window.addEventListener("bj_step5_use_potion", handler as EventListener);
-    return () => window.removeEventListener("bj_step5_use_potion", handler as EventListener);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // ── Active pet action mutations ──────────────────────────────────────────────
   const toModalItem = (i: InventoryItem): PowerUpItem => ({
@@ -806,60 +745,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const gestureController = new AbortController();
     homeGestureAbortRef.current = gestureController;
 
-    // ── Tutorial step 5 ────────────────────────────────────────────────────────
-    // The normal drop-zone rect check fails during the tutorial because
-    // homeEggDropRef points to the small egg INSIDE the sheet, not the big
-    // spotlit egg in the center of the screen.  Accept ANY gesture (tap or
-    // drag in any direction) on a potion as "used on egg" so the tutorial
-    // always completes.
-    if (bjGetStep() === 5) {
-      e.preventDefault();
-      const pid = e.pointerId;
-      const startX = e.clientX, startY = e.clientY;
-
-      const onMove = (ev: PointerEvent) => {
-        if (ev.pointerId !== pid) return;
-        const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
-        if (dist > 6) {
-          setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
-          // The tutorial threshold is viewport-relative; egg drop hit tests
-          // still use the actual DOM target bounds on every device.
-          setHomeDragOver(ev.clientY < getVisibleViewport().height * 0.65);
-        }
-      };
-
-      const onUp = (ev: PointerEvent) => {
-        if (ev.pointerId !== pid) return;
-        gestureController.abort();
-        if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
-        setHomeDragging(null);
-        setHomeDragOver(false);
-
-        // Fire the tutorial action for any tap or drag gesture
-        if (bjIsStep5FakeMode()) {
-          playSpeedUp();
-          setSpeedEffectLabel(`-${item.specialAmount ?? 60} min`);
-          setShowSpeedEffect(true);
-          setTimeout(() => window.dispatchEvent(new CustomEvent("bj_fake_speedup_done")), 350);
-        } else if (!speedUpMutation.isPending) {
-          speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
-        }
-      };
-
-      const onCancel = (ev: PointerEvent) => {
-        if (ev.pointerId !== pid) return;
-        gestureController.abort();
-        if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
-        setHomeDragging(null);
-        setHomeDragOver(false);
-      };
-      document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
-      document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
-      document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
-      return;
-    }
-
-    // ── Normal (non-tutorial) drag logic ──────────────────────────────────────
+    // Normal drag-and-drop of hatch-time items onto the active egg.
     e.preventDefault();
     const petInvId = activePet.inventoryId;
     const startX = e.clientX, startY = e.clientY;
@@ -1360,10 +1246,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           data-testid="button-egg-tap"
                           onClick={() => {
                             if (hatchHomeMutation.isPending || hatchRevealing) return;
-                            if (bjIsStep5TapMode() || eggHatchReady) {
-                              // Ready active eggs hatch on tap; preserve the tutorial's
-                              // force-hatch behavior. The successful mutation already
-                              // triggers the existing hatch reveal animation.
+                            if (eggHatchReady) {
+                              // The server confirms the hatch and the usual reveal.
                               setShowSpeedUp(false);
                               hatchHomeMutation.mutate(activePet.inventoryId);
                             } else {
@@ -1423,66 +1307,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     })()}
                   </div>
                 </div>
-              ) : canBeginJourney ? (
-                <button
-                  type="button"
-                  data-testid="button-begin-journey"
-                  onClick={() => bjRestart()}
-                  aria-label="Begin your first pet journey"
-                  className="relative flex flex-col items-center justify-center active:scale-95"
-                  style={{
-                    width: "min(72vw, 330px)",
-                    minHeight: "240px",
-                    border: "none",
-                    background: "none",
-                    cursor: "pointer",
-                    animation: "activePetBreath 3.2s ease-in-out infinite",
-                  }}
-                >
-                  <div
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      width: "210px",
-                      height: "210px",
-                      borderRadius: "50%",
-                      background: "radial-gradient(circle, rgba(240,192,64,0.3) 0%, rgba(46,122,79,0.18) 48%, transparent 72%)",
-                      filter: "blur(5px)",
-                      animation: "eggGlowPulse 2s ease-in-out infinite",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "relative",
-                      padding: "16px 30px",
-                      borderRadius: "999px",
-                      color: "#fff2a8",
-                      fontFamily: "Lora, Georgia, serif",
-                      fontSize: "clamp(18px, 5vw, 25px)",
-                      fontWeight: 800,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      background: "linear-gradient(145deg, rgba(34,92,43,0.98), rgba(11,48,29,0.98))",
-                      border: "2px solid rgba(240,192,64,0.82)",
-                      boxShadow: "0 0 18px rgba(240,192,64,0.5), 0 0 42px rgba(46,160,86,0.32), 0 8px 22px rgba(0,0,0,0.62)",
-                    }}
-                  >
-                    Begin Here
-                  </div>
-                  <span
-                    style={{
-                      position: "relative",
-                      marginTop: 14,
-                      color: "rgba(234,244,215,0.9)",
-                      fontFamily: "Lora, Georgia, serif",
-                      fontSize: 12,
-                      letterSpacing: "0.04em",
-                      textShadow: "0 2px 6px rgba(0,0,0,0.9)",
-                    }}
-                  >
-                    Choose your first 3-star companion
-                  </span>
-                </button>
               ) : (
                 <div className="text-center space-y-3 animate-float">
                   <div
@@ -1575,27 +1399,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </div>
 
 
-      {/* Speed-up sheet is hidden during tutorial step 5 — the overlay renders its own
-          single-potion card at z-99003 so there is no z-index war. */}
-      {!isOverlayActive && bjGetStep() !== 5 && showSpeedUp && activePet && !activePet.isHatched && (
+      {!isOverlayActive && showSpeedUp && activePet && !activePet.isHatched && (
         <ViewportModalPortal>
         <div
-          data-bj="speedup-sheet"
           data-testid="active-pet-speedup-viewport-modal"
           className="absolute inset-0 flex items-end justify-center"
           style={{ zIndex: 55 }}
         >
           <div
-            data-bj="speedup-backdrop"
             className="absolute inset-0 bg-black/60"
-            style={{
-              opacity:       bjGetStep() === 5 ? 0 : 1,
-              pointerEvents: bjGetStep() === 5 ? "none" : "auto",
-            }}
-            onClick={() => {
-              if (bjGetStep() === 5) return;
-              setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false);
-            }}
+            onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }}
           />
           <div
             className="relative w-full rounded-t-2xl animate-slide-up"
@@ -1612,12 +1425,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             <div className="flex items-center justify-between px-5 pt-5 pb-2">
               <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
               <button
-                onClick={() => {
-                  if (bjGetStep() === 5) return;
-                  setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false);
-                }}
+                onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }}
                 className="font-fantasy text-[#a89878] text-xs tracking-wider"
-                style={{ cursor: "pointer", background: "none", border: "none", opacity: bjGetStep() === 5 ? 0 : 1 }}
+                style={{ cursor: "pointer", background: "none", border: "none" }}
                 data-testid="button-close-speedup"
               >
                 Close
@@ -1643,7 +1453,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               </div>
             )}
             {/* Egg drop zone */}
-            <div className="px-5 pb-4" data-bj="egg-drop-zone">
+            <div className="px-5 pb-4">
               <div
                 ref={homeEggDropRef}
                 className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 py-5 transition-all"
@@ -1696,9 +1506,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         opacity: speedUpMutation.isPending ? 0.4 : 1,
                       }}
                       onClick={() => {
-                        // Step 5 is handled entirely by onPointerDown → pointerup.
-                        // Bail here to prevent a double-fire on desktop browsers.
-                        if (bjGetStep() === 5) return;
                         if (!speedUpMutation.isPending) {
                           speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
                         }

@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'client/src/components/BeginJourneyOverlay.tsx'
-      - 'client/src/components/NpcQuestDiscoveryGuide.tsx'
       - 'client/src/components/QuestGuideSpotlight.tsx'
       - 'client/src/components/LonelleQuestOverlay.tsx'
       - 'client/src/components/JansonQuestOverlay.tsx'
@@ -20,7 +18,6 @@ on:
       - 'client/src/pages/HomePage.tsx'
       - 'client/src/pages/PetInventoryPage.tsx'
       - 'client/src/pages/SellFishPage.tsx'
-      - 'client/src/lib/beginJourney.ts'
       - 'client/src/lib/queryClient.ts'
       - 'client/src/lib/questGuide*.ts'
       - 'client/src/lib/mainNavState.ts'
@@ -85,10 +82,8 @@ jobs:
           node script/pet-park-water-source-smoke.mjs
           node script/pet-park-garden-smoke.mjs
           node script/pet-park-isometric-smoke.mjs
-          node script/npc-discovery-smoke.mjs
-          # Exercise the PR-specific Lonelle flow before the longer, occasionally
-          # timing-sensitive Begin Journey suite, while retaining every gate.
+          # Independent story quests remain covered; the retired introduction tour is not run.
           node script/lonelle-quest-smoke.mjs
           node script/ginny-guide-smoke.mjs
-          node script/begin-journey-smoke.mjs
+          node script/onboarding-retirement-smoke.mjs
           node script/janson-quest-smoke.mjs

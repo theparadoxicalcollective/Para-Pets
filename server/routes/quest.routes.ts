@@ -2,11 +2,9 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import type { db as database } from "../db";
 import type { executeDailyQuestClaim as DailyQuestClaimExecutor } from "../dailyQuestClaim";
-import { BEGIN_JOURNEY_TUTORIAL } from "../tutorial/config";
 import { jansonQuestDate } from "../jansonQuestRules";
 
 const GINNY_MINI_PET_QUEST_KEY = "ginny-mini-pet";
-const NPC_DISCOVERY_TOUR_QUEST_KEY = "npc-discovery-tour";
 
 export interface QuestRouteDependencies {
   db: typeof database;
@@ -221,20 +219,6 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
 
   // Administrator QA tools: reset a selected quest only for a moderator account.
   // This intentionally preserves inventory, coins, and already-earned rewards.
-  app.get("/api/quests/npc-discovery-tour/reset-token", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const key = `npc_discovery_tour_reset:${user.id}`;
-      const result = await db.execute(sql`
-        SELECT value FROM game_settings WHERE key = ${key} LIMIT 1
-      `);
-      return res.json({ resetToken: (result.rows[0] as any)?.value ?? null });
-    } catch (err) {
-      console.error("NPC discovery reset token error:", err);
-      return res.status(500).json({ message: "Failed to load NPC guide reset state" });
-    }
-  });
-
   app.get("/api/admin/moderator-quests", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -260,18 +244,6 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
           username: String(moderator.username),
         })),
         quests: [
-          {
-            key: BEGIN_JOURNEY_TUTORIAL.id,
-            title: "Beginning Tutorial",
-            kind: "tutorial",
-            isActive: true,
-          },
-          {
-            key: NPC_DISCOVERY_TOUR_QUEST_KEY,
-            title: "Show NPC Quest Guide",
-            kind: "tutorial",
-            isActive: true,
-          },
           {
             key: GINNY_MINI_PET_QUEST_KEY,
             title: "Ginny's Little Companion",
@@ -322,24 +294,7 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
         }
 
         let questTitle: string;
-        if (questKey === BEGIN_JOURNEY_TUTORIAL.id) {
-          await tx.execute(sql`
-            UPDATE users
-            SET tutorial_hatch_potions_claimed = false,
-                tutorial_quest_completed = false,
-                tutorial_reward_claimed = false
-            WHERE id = ${moderatorUserId}
-          `);
-          questTitle = "Beginning Tutorial";
-        } else if (questKey === NPC_DISCOVERY_TOUR_QUEST_KEY) {
-          const key = `npc_discovery_tour_reset:${moderatorUserId}`;
-          await tx.execute(sql`
-            INSERT INTO game_settings (key, value)
-            VALUES (${key}, gen_random_uuid()::text)
-            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
-          `);
-          questTitle = "Show NPC Quest Guide";
-        } else if (questKey === GINNY_MINI_PET_QUEST_KEY) {
+        if (questKey === GINNY_MINI_PET_QUEST_KEY) {
           await tx.execute(sql`
             DELETE FROM pet_equipped_mini_pets
             WHERE mini_pet_inventory_id IN (

@@ -6,18 +6,15 @@ const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const petWorld = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
 const modalPortal = readFileSync("client/src/components/ViewportModalPortal.tsx", "utf8");
 
-test("Active Pet speed-up sheet uses the viewport modal layer without changing Begin Journey gating", () => {
-  const start = home.indexOf("Speed-up sheet is hidden during tutorial step 5");
-  const end = home.indexOf("Screen-relative Pet Menu", start);
-  const section = home.slice(start, end);
-
-  assert.match(section, /bjGetStep\(\) !== 5/);
-  assert.match(section, /<ViewportModalPortal>[\s\S]*data-bj="speedup-sheet"/);
-  assert.match(section, /data-testid="active-pet-speedup-viewport-modal"/);
-  assert.doesNotMatch(section, /maxWidth: "768px"|className="fixed inset-0/);
-  assert.match(section, /data-bj="egg-drop-zone"/);
+test("ordinary Active Pet speed-up sheet retains viewport modal ownership", () => {
+  const start = home.indexOf('data-testid="active-pet-speedup-viewport-modal"');
+  assert.ok(start >= 0);
+  const section = home.slice(Math.max(0, start - 160), home.indexOf("Screen-relative Pet Menu", start));
+  assert.match(section, /<ViewportModalPortal>[\s\S]*data-testid="active-pet-speedup-viewport-modal"/);
+  assert.match(section, /showSpeedUp && activePet && !activePet\.isHatched/);
   assert.match(section, /ref=\{homeEggDropRef\}/);
-  assert.match(section, /if \(bjGetStep\(\) === 5\) return/);
+  assert.doesNotMatch(section, /data-bj=|isBeginJourneyStep5|bjIsStep5|tutorialFill/);
+  assert.doesNotMatch(section, /maxWidth: "768px"|className="fixed inset-0/);
 });
 
 test("Active Pet hatch reveal can cover the real viewport without changing reveal content", () => {

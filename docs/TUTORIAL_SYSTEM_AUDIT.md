@@ -1,4 +1,17 @@
-# Begin Journey tutorial system audit
+# Archived — Begin Journey tutorial system audit
+
+> **Historical reference only (retired in PR #1002, November 2026).**
+> The old seven-step client tutorial, NPC discovery tour, starter-egg/potion
+> API routes, and tutorial-only hatch behavior have been removed. This
+> document describes *past* behavior and is **not** an implementation guide
+> for the forthcoming Player Avatar / Player Level onboarding.
+> Player historical coins, inventory, and tutorial receipt columns were
+> preserved. Unfinished legacy quests cannot be resumed or claimed.
+> Keep the new avatar/level onboarding independent of old `bj_*` keys,
+> tutorial navigation/buttons, special hatching paths and obsolete quest flags.
+> Reuse current game viewport, shared quest spotlights, inventory, and
+> authenticated reward transactions only where appropriate.
+
 
 ## Confirmed original flow
 

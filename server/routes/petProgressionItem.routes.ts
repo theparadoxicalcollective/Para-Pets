@@ -2,7 +2,6 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, sql } from "drizzle-orm";
 import { userInventory } from "@shared/schema";
 import { tryConsumeOneFromInventory } from "../inventoryConsumption";
-import { BEGIN_JOURNEY_TUTORIAL } from "../tutorial/config";
 import { ensureEvolutionStorage } from "../petEvolution";
 import { EVOLUTION_SLOT_COUNT, completelyFillCurrentEvolutionNode } from "@shared/evolution";
 
@@ -32,7 +31,7 @@ export interface PetProgressionItemRouteDependencies {
  *
  * This is an organization-only boundary. It preserves the existing power-up
  * and special-item behavior, including ownership checks, stat/level formulas,
- * inventory consumption, Begin Journey hatch-potion authorization, route order,
+ * inventory consumption, standard hatch-potion usage, route order,
  * status codes, response shapes, and quest side effects.
  */
 export function registerPetProgressionItemRoutes(
@@ -135,7 +134,7 @@ export function registerPetProgressionItemRoutes(
   app.post("/api/pet/:inventoryId/use-special", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { itemInventoryId, tutorialFill } = req.body;
+      const { itemInventoryId } = req.body;
 
       const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
@@ -210,37 +209,11 @@ export function registerPetProgressionItemRoutes(
         if (petInv.isHatched) {
           return res.status(400).json({ message: "Pet is already hatched" });
         }
-        // Accelerated hatch progress is RESERVED for Begin Journey. Each of
-        // the three granted potions advances exactly one third of the full hatch
-        // duration, so players learn the real use flow before the egg is ready.
-        // It is authorized server-side (never by the client flag alone): the
-        // player must have claimed tutorial potions but not yet completed the
-        // quest. The client's tutorialFill is only an intent hint;
-        // a spoofed flag does nothing outside the genuine tutorial window. Players
-        // who have not started OR have finished the tutorial always get the
-        // item's specific minute reduction below.
-        let allowInstantFill = false;
-        if (tutorialFill === true) {
-          const trows = await db.execute(sql`SELECT tutorial_hatch_potions_claimed, tutorial_quest_completed FROM users WHERE id = ${user.id}`);
-          const trow = (trows as any).rows?.[0] ?? (trows as any)?.[0];
-          allowInstantFill = !!trow?.tutorial_hatch_potions_claimed && !trow?.tutorial_quest_completed;
-        }
-        let hatchUpdate: Record<string, any>;
-        if (allowInstantFill) {
-          // Tutorial only: advance one third of the configured hatch duration.
-          // Three successful potion uses make the egg ready regardless of its
-          // normal hatch time.
-          const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
-          const tutorialStepMs = (hatchTimeHours * 3600 * 1000) / BEGIN_JOURNEY_TUTORIAL.hatchPotion.quantity;
-          const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
-          hatchUpdate = { hatchStartedAt: new Date(currentStart.getTime() - tutorialStepMs - 500) };
-        } else {
-          // NORMAL PLAY: reduce the remaining hatch time by the item's specific
-          // amount (specialAmount minutes) by moving hatchStartedAt earlier —
-          // it does NOT instantly finish hatching.
-          const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
-          hatchUpdate = { hatchStartedAt: new Date(currentStart.getTime() - specialAmount * 60 * 1000) };
-        }
+        // Regular hatching potions always reduce elapsed hatch time by their
+        // configured minutes. No tutorial-only accelerated fill or legacy
+        // account flag can alter this action.
+        const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
+        const hatchUpdate = { hatchStartedAt: new Date(currentStart.getTime() - specialAmount * 60 * 1000) };
         const updatedPet = await db.transaction(async (tx) => {
           const [pet] = await tx
             .update(userInventory)

@@ -85,44 +85,25 @@ test("quest guide interaction guard supports target-only, pan, and read-only tou
   assert.match(lonelleSource, /mode=\{guideMode\}/);
   assert.match(lonelleSource, /blockingGuide=\{false\}/);
 
-  const npcSource = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
-  assert.match(npcSource, /targetOnScreen && npcElement \? "tour"/);
-  assert.match(npcSource, /: atMap \? "pan"/);
-  assert.match(npcSource, /button-skip-npc-guide/);
-  assert.match(npcSource, /blockingGuide/);
-  assert.match(npcSource, /const shouldLoadTour = eligible && !activeQuest && !waitingForQuestState;/);
-  assert.match(npcSource, /blockingOverlay/);
-
   const appSource = readFileSync("client/src/App.tsx", "utf8");
   assert.match(appSource, /data-testid="modal-haunted-world-welcome"/);
   assert.match(appSource, /data-quest-guide-blocker="true"/);
 });
 
-test("Begin Journey portal layers use HUD-local positioning on desktop without changing phone coordinates", () => {
-  const source = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
-  assert.match(source, /createPortal\(/);
-  assert.match(source, /surface\.target/);
-  assert.doesNotMatch(source, /position: "fixed"/);
-  assert.match(source, /position: "absolute", inset: 0/);
-  const desktop = { left: 396, top: 0, scale: 1 };
-  assert.deepEqual(guideBoundsInSurface({ left: 496, right: 576, top: 300, bottom: 380 }, desktop), { left: 100, right: 180, top: 300, bottom: 380 });
-  const phone = { left: 0, top: 0, scale: 1 };
-  assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 300, bottom: 380 }, phone), { left: 100, right: 180, top: 300, bottom: 380 });
-});
-
-test("shared quest and NPC guides position overlays inside their HUD portal on centered desktop", () => {
+test("shared quest spotlight HUD geometry works for mobile and desktop even without the retired tutorial", () => {
   const viewport = readFileSync("client/src/lib/questGuideViewport.ts", "utf8");
-  assert.match(viewport, /target: hud,\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*inStage: true,/);
   const spotlight = readFileSync("client/src/components/QuestGuideSpotlight.tsx", "utf8");
-  const npc = readFileSync("client/src/components/NpcQuestDiscoveryGuide.tsx", "utf8");
+  assert.match(viewport, /target: hud,\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*inStage: true,/);
   assert.match(spotlight, /const position = surface\.inStage \? "absolute" : "fixed"/);
-  assert.match(npc, /surface\.inStage \? "absolute" : "fixed"/);
-  const desktopHud = { left: 396, top: 0, scale: 1 };
-  const desktopBounds = guideBoundsInSurface({ left: 496, right: 576, top: 320, bottom: 400 }, desktopHud);
-  assert.deepEqual(desktopBounds, { left: 100, right: 180, top: 320, bottom: 400 });
-  assert.equal(guideTargetOnScreen(desktopBounds, 648, 900), true);
-  const phoneHud = { left: 0, top: 0, scale: 1 };
-  assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 320, bottom: 400 }, phoneHud), desktopBounds);
+  const desktop = { left: 396, top: 0, scale: 1 };
+  assert.deepEqual(guideBoundsInSurface({ left: 496, right: 576, top: 300, bottom: 380 }, desktop),
+    { left: 100, right: 180, top: 300, bottom: 380 });
+  const phone = { left: 0, top: 0, scale: 1 };
+  assert.deepEqual(guideBoundsInSurface({ left: 100, right: 180, top: 300, bottom: 380 }, phone),
+    { left: 100, right: 180, top: 300, bottom: 380 });
+  assert.equal(guideTargetOnScreen({left:100,right:180,top:300,bottom:380},648,900),true);
+  assert.doesNotMatch(readFileSync("client/src/App.tsx","utf8"),
+    /NpcQuestDiscoveryGuide|BeginJourneyOverlay/);
 });
 
 test("Ginny mini pet guide follows the current Pet Menu and Closet actions", () => {

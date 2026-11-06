@@ -20,9 +20,9 @@ test("Home speed-up drag ghost and hit tests both use device coordinates", () =>
   assert.doesNotMatch(source, /clientToStage\(/);
 });
 
-test("Begin Journey potion glow threshold follows the visible device height", () => {
-  assert.match(source, /getVisibleViewport\(\)\.height \* 0\.65/);
-  assert.doesNotMatch(source, /window\.innerHeight \* 0\.65/);
+test("normal hatching drag keeps rectangle hit tests and no Step 5 shortcut", () => {
+  assert.match(source, /homeEggDropRef\.current\?\.getBoundingClientRect\(\)/);
+  assert.doesNotMatch(source, /bjIsStep5|tutorialFill|getVisibleViewport\(\)\.height \* 0\.65/);
 });
 
 test("petting hearts and sparkles use viewport coordinates outside the scaled stage", () => {

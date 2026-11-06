@@ -35,9 +35,6 @@ import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
-import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
-import NpcQuestDiscoveryGuide from "@/components/NpcQuestDiscoveryGuide";
-import { bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep, bjUsePlayer } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -251,11 +248,6 @@ function AppRouter() {
     },
   });
 
-  // Select the browser-local tutorial namespace before any tutorial child renders.
-  // This prevents a second account on the same device from inheriting another
-  // player's step, starter egg id, or completed state.
-  if (user?.id) bjUsePlayer(String(user.id));
-
   const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
     queryKey: ["/api/maintenance-status"],
     retry: false,
@@ -279,20 +271,6 @@ function AppRouter() {
     window.addEventListener("navOverlayToggle", handler);
     return () => window.removeEventListener("navOverlayToggle", handler);
   }, []);
-
-  // Server completion is authoritative. Migrate every unfinished account off
-  // the legacy looping flow once, and automatically recover missing/stale local
-  // state (including moderator resets and players who never received an egg).
-  useEffect(() => {
-    if (!user || showWelcome) return;
-    if ((user as any).tutorial_quest_completed || (user as any).tutorial_reward_claimed) {
-      if (bjGetStatus() !== "done") bjSetStep("done");
-      return;
-    }
-    if (!bjIsCurrentFlowVersion() || bjGetStatus() === "done" || bjGetStatus() === "not_started") {
-      bjRestart();
-    }
-  }, [user, showWelcome]);
 
   // After auth resolves for a logged-in user, fetch inventory and preload the
   // home page background + active pet image before revealing the app.
@@ -637,9 +615,6 @@ function AppRouter() {
         />
       )}
 
-      {/* Begin Journey tutorial overlay */}
-      <BeginJourneyOverlay user={user} />
-      <NpcQuestDiscoveryGuide user={user} />
     </>
   );
 }
