@@ -36,8 +36,6 @@ interface NavUser {
   isAdmin: boolean;
   isModerator?: boolean;
   activePetId: string | null;
-  tutorial_reward_claimed?: boolean;
-  tutorial_quest_completed?: boolean;
 }
 
 interface FloatingNavProps {
