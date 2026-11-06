@@ -48,7 +48,7 @@ type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; pet
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; groundTheme?: ParkGroundTheme; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number }; serverNow?: string };
-type InventoryPet = { inventoryId: string; shopItemId: string; imageUrl?: string | null; isRefillable?: boolean; gardenWaterLeft?: number | null; quantity?: number; petTemplateId?: string | null; hatchedImageUrl?: string | null; name: string; petNickname?: string | null; petLevel?: number; starRarity?: number; rarity?: number; isHatched: boolean; isListed?: boolean; type?: string };
+type InventoryPet = { inventoryId: string; shopItemId: string; imageUrl?: string | null; isRefillable?: boolean; specialType?: string | null; gardenWaterLeft?: number | null; quantity?: number; petTemplateId?: string | null; hatchedImageUrl?: string | null; name: string; petNickname?: string | null; petLevel?: number; starRarity?: number; rarity?: number; isHatched: boolean; isListed?: boolean; type?: string };
 
 export default function PetParkPage() {
   const [, navigate] = useLocation();
@@ -107,7 +107,8 @@ export default function PetParkPage() {
   const [indoorPetDraft, setIndoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [], isFetching: isGardenInventoryLoading } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
-  const availableRefillables = inventory.filter(gardenItemNeedsRefill);
+  const availableRefillables = inventory.filter(item =>
+    item.type === "garden_tool" && item.specialType === "watering_pail" && gardenItemNeedsRefill(item));
   // The shared player card needs the viewer id to hide friend actions on self.
   const { data: viewingUser } = useQuery<{ id: string }>({ queryKey: ["/api/auth/me"], enabled: !!inspectedPet, staleTime: 60_000 });
 
