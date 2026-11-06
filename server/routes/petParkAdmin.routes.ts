@@ -225,15 +225,9 @@ export function registerPetParkAdminRoutes(
               proposed = proposed.map(effect => effect.id === id && effect.type === "room"
                 ? { ...effect, imageUrl: uploadedRoomUrl } : effect);
             }
-            const counts = new Map<string, number>();
-            for (const occupant of occupants) if (occupant.roomEffectId) {
-              counts.set(occupant.roomEffectId, (counts.get(occupant.roomEffectId) ?? 0) + 1);
-            }
-            for (const [id, count] of counts) {
-              const room = proposed.find(effect => effect.id === id);
-              if (!isPetAccessibleParkRoom(room) || count > room.maxPets)
-                return { status: 409 as const, message: "Move pets out of this room before removing, converting or reducing its capacity" };
-            }
+            // Legacy indoor deposit references remain intact for owners to
+            // move outdoors. Since room portals are view-only now, those old
+            // references must not block effect edits or room deletion.
             updates.interiorEffects = proposed;
           }
           const [building] = await tx.update(petParkBuildings).set(updates)
