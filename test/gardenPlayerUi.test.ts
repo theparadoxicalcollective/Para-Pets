@@ -88,7 +88,13 @@ test("untilled and tilled plot designs share path brown with independent four-si
   assert.match(terrain, /backgroundColor: tilled \? "#36261d" : "#624832"/);
   assert.match(terrain, /M120 3 L237 60 L120 117 L3 60 Z/);
   assert.match(terrain, /data-testid=\{tilled \? "pet-park-tilled-soil" : "pet-park-untilled-soil"\}/);
-  assert.match(terrain, /So[f]?t diagonal furrows/);
+  // After tilled soil is hoed, it remains dark and textured without the old
+  // arched furrows that looked like accidental curved stripes on the tiles.
+  const gardenStamp = terrain.split('if (type === "garden_plot")')[1]?.split('if (type === "stone_path")')[0] ?? "";
+  const tilledDetail = gardenStamp.split("{tilled &&")[1]?.split("{[[36,60")[0] ?? "";
+  assert.match(gardenStamp, /Smooth dark tilled earth/);
+  assert.match(tilledDetail, /ellipse key=\{`grain-\$\{i\}`\}/);
+  assert.doesNotMatch(tilledDetail, /<path|\bQ\d/, "no arched furrows are drawn inside tilled soil");
   assert.match(terrain, /map\(\(\[x,y,rx,ry\],i\)/);
   const brush = source("client/src/components/PetParkTerrainBrush.tsx");
   assert.match(brush, /isParkConnectedPath\(type\) \|\| type === "garden_plot" \? parkExtendPathStroke/);
