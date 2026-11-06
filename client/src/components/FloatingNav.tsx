@@ -24,7 +24,7 @@ import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import { AquariumPage } from "@/pages/AquariumPage";
-import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
+import { BEGIN_JOURNEY_ENABLED, bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -179,7 +179,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // Sync localStorage from server-side flags — fixes older players seeing tutorial again on new device/browser
   useEffect(() => {
     const isComplete = (user as any).tutorial_reward_claimed || (user as any).tutorial_quest_completed;
-    if (isComplete && bjGetStatus() !== "done") {
+    if (BEGIN_JOURNEY_ENABLED && isComplete && bjGetStatus() !== "done") {
       bjSetStep("done");
     }
   }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
@@ -189,7 +189,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // reappears (via bjStatus "not_started" → "active" → reward claimed) only
   // if they somehow dismiss the overlay mid-flow — but the server's
   // tutorial_reward_claimed is the final gate so it always disappears after claim.
-  const showLoginHint = !(user as any).tutorial_reward_claimed && bjStatus === "not_started";
+  const showLoginHint = BEGIN_JOURNEY_ENABLED && !(user as any).tutorial_reward_claimed && bjStatus === "not_started";
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -279,7 +279,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // Merely receiving a new set of daily quests should not create a login reminder.
   const visibleDailyQuests = questData?.quests.filter(q => !q.reward_claimed) ?? [];
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
-  const tutorialClaimable = !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
+  const tutorialClaimable = BEGIN_JOURNEY_ENABLED && !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
   const npcQuestInLog = !!ginnyData && (ginnyData.status === "accepted" || ginnyData.status === "completed")
     || !!jansonData?.quests.some(q => q.status === "accepted" || q.status === "completed")
     || jansonData?.dailyQuest?.status === "accepted" || jansonData?.dailyQuest?.status === "completed";
@@ -561,7 +561,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
                 {/* ── Begin Journey one-time quest card ── */}
                 {/* Visibility is server-driven: stays until tutorial_reward_claimed = true on the server */}
-                {!(user as any).tutorial_reward_claimed && (
+                {BEGIN_JOURNEY_ENABLED && !(user as any).tutorial_reward_claimed && (
                   <div className="rounded-md p-2" style={{ position: "relative", overflow: "hidden", background: tutorialClaimable ? "rgba(120,80,10,0.18)" : bjStatus === "active" ? "rgba(30,80,20,0.15)" : "rgba(92,58,30,0.1)", border: tutorialClaimable ? "1px solid rgba(212,160,23,0.55)" : bjStatus === "active" ? "1px solid rgba(100,200,80,0.4)" : "1px solid rgba(139,90,40,0.35)" }}>
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <div className="flex items-center gap-1.5 flex-1 min-w-0">
