@@ -130,7 +130,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             </button>
           </div>)}
           {(publish !== null || moderatorPreview !== null) && <p role="status" className="text-xs text-[#f5cf64]">Unsaved access changes — tap Save below to apply.</p>}
-          {settingsSaved && <p role="status" className="text-xs font-semibold text-[#b6dcab]">Park settings saved.</p>}
+          {settingsSaved && <p role="status" className="text-xs font-semibold text-[#b6dcab]">Pet Park settings saved.</p>}
           <p className="text-xs text-amber-100/70">Moderator access allows staff to preview the normal player park without editing controls. It does not publish the park to everyone.</p>
           <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
             onClick={() => {
