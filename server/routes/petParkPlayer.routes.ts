@@ -45,6 +45,10 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         buildingId: petParkDeposits.buildingId, roomEffectId: petParkDeposits.roomEffectId, showInPark: petParkDeposits.showInPark, parkXPct: petParkDeposits.parkXPct, parkYPct: petParkDeposits.parkYPct,
         interiorXPct: petParkDeposits.interiorXPct, interiorYPct: petParkDeposits.interiorYPct, pose: petParkDeposits.pose,
         checkpointAt: petParkDeposits.checkpointAt, pausedAt: petParkDeposits.pausedAt, pausedDurationMs: petParkDeposits.pausedDurationMs,
+        // Includes settled-claim duration so fractional progress toward each
+        // reward increment survives a manual collect or automatic pet swap.
+        earnedDurationMs: sql<number>`COALESCE((SELECT SUM(${petParkRewardClaims.earnedDurationMs})
+          FROM ${petParkRewardClaims} WHERE ${petParkRewardClaims.depositId} = ${petParkDeposits.id}), 0)`,
       }).from(petParkDeposits)
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
@@ -82,6 +86,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         backgroundUrl: settings?.backgroundUrl ?? null, // Legacy only; the live park draws grass instead.
         groundLevel: settings?.groundLevel ?? 1,
         buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
+        serverNow: new Date().toISOString(),
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
         preview: !settings?.enabledForPlayers && !!player?.isAdmin,
         canEditPark: !!player?.isAdmin,
