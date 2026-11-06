@@ -326,6 +326,11 @@ export default function PetParkPage() {
   const dropEquippedPet = (petId: string, clientX: number, clientY: number) => {
     const rect = viewport.current?.getBoundingClientRect();
     if (!rect || clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
+    // A drop onto the oval or its open equip panel is not park placement.
+    // This also prevents accidental public visibility from a short finger
+    // movement while operating the lower UI on a narrow phone.
+    const slots = document.querySelector<HTMLElement>('[data-testid="pet-park-player-slots"]');
+    if (slots && clientY >= slots.getBoundingClientRect().top - 6) return;
     const xPct = (clientX - rect.left - camera.x) / sceneWidth;
     const yPct = (clientY - rect.top - camera.y) / sceneHeight;
     if (xPct < 0 || xPct > 1 || yPct < 0 || yPct > 1) return;
