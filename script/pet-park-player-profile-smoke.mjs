@@ -52,7 +52,19 @@ try{
     await page.getByTestId("fixture-park-pet").click();
     const card=page.getByTestId("panel-player-detail");
     await card.waitFor({state:"visible"});
-    await page.getByTestId("text-player-username").getByText("Guest Keeper").waitFor();
+    const username=page.getByTestId("text-player-username");
+    await username.waitFor({state:"attached"});
+    const usernameLayout=await username.evaluate(el=>{
+      const box=el.getBoundingClientRect(),panel=document.querySelector('[data-testid="panel-player-detail"]');
+      const cardBox=panel?.getBoundingClientRect();
+      return {text:el.textContent,rect:box.toJSON(),computed:{
+        display:getComputedStyle(el).display,visibility:getComputedStyle(el).visibility,
+        opacity:getComputedStyle(el).opacity,
+      },panel:cardBox?.toJSON(),scrollTop:panel?.scrollTop,scrollHeight:panel?.scrollHeight};
+    });
+    console.log("PARK PROFILE LAYOUT",label,JSON.stringify(usernameLayout));
+    assert.equal(usernameLayout.text,"Guest Keeper",label+": owner profile loaded");
+    assert.ok(usernameLayout.rect.width>0 && usernameLayout.rect.height>0,label+": owner name has renderable dimensions");
     assert.equal(await page.getByTestId("overlay-player-detail").getAttribute("data-presentation"),"popup");
     assert.equal(await page.getByTestId("badge-badge-1").count(),1);
     assert.equal(await page.getByTestId("companion-showcase").count(),1);
