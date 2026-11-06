@@ -195,11 +195,20 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             className="w-full accent-[#d6b66e]" />
           <p className="text-[11px] text-amber-100/65">Larger starting size helps the artwork match the park. You can still adjust individual building sizes after placing them.</p>
         </div>
-        <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-sm">
-          <input type="checkbox" aria-label="Is Shop building" checked={buildingIsShop}
-            onChange={event => setBuildingIsShop(event.target.checked)} className="h-4 w-4 accent-[#d6b66e]" />
-          Is Shop
+        <label className={`flex min-h-11 items-center justify-between gap-3 rounded-xl border p-3 text-sm ${buildingIsShop ? "border-[#e0bf76] bg-[#28543a]" : "border-[#b99a4c]/50 bg-[#173b2a]/85"}`}>
+          <span className="flex flex-col gap-1"><strong>Is Shop</strong>
+            <span className="text-xs text-[#f3dbad]" role="status" data-testid="pet-park-new-building-shop-status">
+              {buildingIsShop ? "ON · New building will be a shop" : "OFF · Regular building"}
+            </span>
+          </span>
+          <span className={`relative flex h-8 w-14 shrink-0 items-center rounded-full border-2 p-1 ${buildingIsShop ? "border-[#e5c66a] bg-[#47734b]" : "border-[#887552] bg-[#253529]"}`}>
+            <input type="checkbox" role="switch" aria-label="Is Shop building" checked={buildingIsShop}
+              onChange={event => setBuildingIsShop(event.target.checked)}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+            <span aria-hidden="true" className={`h-5 w-5 rounded-full bg-[#f5dfad] shadow-sm transition-transform ${buildingIsShop ? "translate-x-6" : "translate-x-0"}`} />
+          </span>
         </label>
+        <p className="text-[11px] text-amber-100/70">After creating a shop, enter its uploaded interior to select merchandise with + Add Item.</p>
         <p className="text-xs text-amber-100/75">Buildings are interactive spaces for effects and magical room entrances. Equipped pets are placed outdoors only.</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
           {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
