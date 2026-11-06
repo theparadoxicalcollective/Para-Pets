@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type PointerEventHandler, type ReactNode } from "react";
 import { HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { observeHomeViewport, centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, safeSetPointerCapture, HOME_TOUCH_SURFACE_STYLE } from "@/lib/homeCrossDevice";
-import type { HouseInteriorEffect } from "@shared/housing";
+import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { isParkWaterEffect } from "@shared/petParkEffects";
+import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { isParkRoomEffect, type ParkInteriorEffect, type ParkRoomEffect } from "@shared/petParkRooms";
 
 type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => void;
@@ -95,12 +97,33 @@ export default function PetParkInteriorRoom({
         const { naturalWidth, naturalHeight } = event.currentTarget;
         if (naturalWidth > 0 && naturalHeight > 0) setAspect(naturalWidth / naturalHeight);
       }} />
-    <HomeInteriorEffectsLayer effects={effects.filter((effect): effect is HouseInteriorEffect => !isParkRoomEffect(effect))} panX={0}
+    <HomeInteriorEffectsLayer effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))} panX={0}
       imgWidth={imageWidth} sceneHeight={dimensions.height}
       offEffectIds={offEffectIds} onToggleEffect={onToggleEffect}
       selectedId={selectedEffectId} interactive={editEffects}
       onEffectPointerDown={onEffectPointerDown} onEffectPointerMove={onEffectPointerMove}
       onEffectPointerUp={onEffectPointerUp} onEffectPointerCancel={onEffectPointerCancel} />
+    {effects.filter(effect => isParkWaterEffect(effect.type)).map(effect => {
+      if (!isParkWaterEffect(effect.type)) return null;
+      const sizePx = Math.max(24, dimensions.height * effect.size / 100);
+      const selected = selectedEffectId === effect.id;
+      return <div key={effect.id} data-testid={`pet-park-interior-effect-${effect.id}`}
+        className="absolute flex touch-none items-center justify-center"
+        style={{
+          left: effect.x * imageWidth, top: effect.y * dimensions.height,
+          width: sizePx, height: sizePx, transform: "translate(-50%, -50%)",
+          zIndex: 4, pointerEvents: editEffects ? "auto" : "none",
+          outline: selected ? "1.5px dashed rgba(255,215,0,.9)" : "none",
+          outlineOffset: selected ? 4 : 0,
+        }}
+        onPointerDown={editEffects ? event => onEffectPointerDown?.(event, effect) : undefined}
+        onPointerMove={editEffects ? event => onEffectPointerMove?.(event, effect) : undefined}
+        onPointerUp={editEffects ? event => onEffectPointerUp?.(event, effect) : undefined}
+        onPointerCancel={editEffects ? event => onEffectPointerCancel?.(event, effect) : undefined}
+        onLostPointerCapture={editEffects ? event => onEffectPointerCancel?.(event, effect) : undefined}>
+        <ParkEffectVisual type={effect.type} reducedMotion={false} adminPreview={editEffects} />
+      </div>;
+    })}
     {effects.filter(isParkRoomEffect).map(room => {
       const markerSize = Math.max(48, dimensions.height * room.size / 100);
       // Keep the button directly under the image artwork. The existing
