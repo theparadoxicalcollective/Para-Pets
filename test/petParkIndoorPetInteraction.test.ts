@@ -58,6 +58,14 @@ test("curved rarity stars reuse the Active Pet star asset and hide scene namepla
   assert.match(room, /aria-label=\{`Move \$\{pet\.petNickname/);
 });
 
+test("transparent fallback pet artwork is analyzed once using existing bounded alpha cache", () => {
+  assert.match(portrait, /getAlphaBounds\(hatchedImageUrl, event\.currentTarget\)/);
+  assert.match(page, /getAlphaBounds\(pet\.hatchedImageUrl, event\.currentTarget\)/);
+  const alpha = readFileSync("client/src/lib/alphaBounds.ts", "utf8");
+  assert.match(alpha, /MAX_CONCURRENT_SCANS = 2/);
+  assert.match(alpha, /const cached = cache\.get\(url\)/);
+});
+
 test("overlap checks permit side touches but reject complete visual covering", () => {
   const stationary = { left: 120, right: 180, top: 90, bottom: 160 };
   assert.equal(parkPetWouldObscureAnother(stationary, stationary), true);
