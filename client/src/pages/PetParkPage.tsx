@@ -356,6 +356,45 @@ export default function PetParkPage() {
     suppressSlotClickUntil.current = Date.now() + 400;
     dropEquippedPet(drag.petId, event.clientX, event.clientY);
   };
+  const startOutdoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>, pet: ParkDeposit,
+    position: { x: number; y: number }) => {
+    if (!event.isPrimary || action.isPending) return;
+    event.stopPropagation();
+    outdoorPetPointer.current = { id: event.pointerId, depositId: pet.id, petInventoryId: pet.petInventoryId,
+      x: event.clientX, y: event.clientY, initialX: position.x, initialY: position.y };
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+  };
+  const outdoorPetPosition = (drag: NonNullable<typeof outdoorPetPointer.current>, x: number, y: number) => {
+    const delta = homeCameraPointerDelta(x - drag.x, y - drag.y, viewport.current);
+    return {
+      x: Math.max(0, Math.min(1, drag.initialX + delta.x / sceneWidth)),
+      y: Math.max(0, Math.min(1, drag.initialY + delta.y / sceneHeight)),
+    };
+  };
+  const moveOutdoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = outdoorPetPointer.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    event.stopPropagation();
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
+    const next = outdoorPetPosition(drag, event.clientX, event.clientY);
+    setOutdoorPetDraft({ petInventoryId: drag.petInventoryId, ...next });
+  };
+  const endOutdoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = outdoorPetPointer.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    event.stopPropagation();
+    outdoorPetPointer.current = null;
+    const moved = Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 6;
+    setOutdoorPetDraft(null);
+    if (!moved) return;
+    const next = outdoorPetPosition(drag, event.clientX, event.clientY);
+    action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${drag.depositId}/display`,
+      body: { display: "park", xPct: next.x, yPct: next.y } });
+  };
+  const cancelOutdoorPetDrag = () => {
+    outdoorPetPointer.current = null;
+    setOutdoorPetDraft(null);
+  };
   const cancelEquippedPetDrag = () => {
     slotDrag.current = null;
     setSlotDragGhost(null);
@@ -501,8 +540,10 @@ export default function PetParkPage() {
         </div>;
         })}
         {outdoorPets.map(pet => {
-          const position = pet.parkXPct != null && pet.parkYPct != null
-            ? { x: pet.parkXPct, y: pet.parkYPct } : parkPositions.get(pet.petInventoryId);
+          const position = outdoorPetDraft?.petInventoryId === pet.petInventoryId
+            ? { x: outdoorPetDraft.x, y: outdoorPetDraft.y }
+            : pet.parkXPct != null && pet.parkYPct != null
+              ? { x: pet.parkXPct, y: pet.parkYPct } : parkPositions.get(pet.petInventoryId);
           if (!position || !isParkPetNearViewport(position, sceneWidth, sceneHeight, camera.x, camera.y, viewportSize.width, viewportSize.height)) return null;
           const activity = parkPetActivity(pet.petInventoryId);
           const sleepWorld = { width: geometry.worldWidth, height: geometry.worldHeight };
@@ -510,7 +551,8 @@ export default function PetParkPage() {
           // This size belongs to the admin's rest area, not to a player-adjustable pet setting.
           const petSize = parkPetSizeOnSleepSpot(position, scene.items, sleepWorld, 200);
           const petHeight = petSize * 225 / 200;
-          const isMine = deposits.some(d => d.petInventoryId === pet.petInventoryId);
+          const myDeposit = deposits.find(d => d.petInventoryId === pet.petInventoryId);
+          const isMine = !!myDeposit;
           return <div key={pet.petInventoryId} className="absolute"
             style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
               transform: "translate(-50%, -75%)", width: petSize * scale, height: petHeight * scale, zIndex: parkDepthIndex({ yPct: position.y, worldHeight: geometry.worldHeight, size: petHeight, kind: "pet" }) }}>
@@ -525,6 +567,15 @@ export default function PetParkPage() {
                 <MiniPetRenderer petInventoryId={pet.petInventoryId} access={isMine ? "owner" : "public"} animated={!reduceMotion} />
               </div>
             </div>
+            {myDeposit && <button type="button"
+              aria-label={`Move ${pet.petNickname || pet.petName} in the outdoor park`}
+              data-testid="pet-park-outdoor-drag"
+              className="pointer-events-auto absolute inset-x-0 top-0 z-[2] h-[80%] touch-none"
+              onPointerDown={event => startOutdoorPetDrag(event, myDeposit, position)}
+              onPointerMove={moveOutdoorPetDrag}
+              onPointerUp={endOutdoorPetDrag}
+              onPointerCancel={cancelOutdoorPetDrag}
+              onLostPointerCapture={cancelOutdoorPetDrag} />}
             <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
               onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>
           </div>;
