@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   gardenActionReceipts, gardenCrops, gardenPlayerPlots, petParkSceneItems,
   petParkSettings, shopItems, userInventory, users,
@@ -271,6 +271,15 @@ export function registerGardenPlayerRoutes(
             ...(reward ? { reward } : {}),
             replayed: false,
           };
+          // A Watering Pail can spend thousands of drops across many crops.
+          // Prune only this owner's stale retry receipts at the start of a
+          // new crop cycle, not on every touch/water operation.
+          if (action === "hoe") {
+            await tx.delete(gardenActionReceipts).where(and(
+              eq(gardenActionReceipts.userId, userId),
+              lt(gardenActionReceipts.createdAt, new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)),
+            ));
+          }
           await tx.insert(gardenActionReceipts).values({
             userId, requestId, plotItemId: plotId, action, inventoryId, result,
           });
