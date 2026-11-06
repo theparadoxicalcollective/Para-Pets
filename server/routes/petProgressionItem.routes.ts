@@ -31,7 +31,7 @@ export interface PetProgressionItemRouteDependencies {
  *
  * This is an organization-only boundary. It preserves the existing power-up
  * and special-item behavior, including ownership checks, stat/level formulas,
- * inventory consumption, Begin Journey hatch-potion authorization, route order,
+ * inventory consumption, standard hatch-potion usage, route order,
  * status codes, response shapes, and quest side effects.
  */
 export function registerPetProgressionItemRoutes(
