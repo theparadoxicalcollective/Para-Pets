@@ -41,9 +41,10 @@ import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize, parkGroundTheme, type ParkGr
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -76,6 +77,14 @@ export default function PetParkPage() {
   const [offParkInteriorLights, setOffParkInteriorLights] = useState<Record<string, string[]>>({});
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [selectedWaterSourceId, setSelectedWaterSourceId] = useState<string | null>(null);
+  // Viewer-local visual state: gates switch appearance without changing shared
+  // decor placement or another player’s park scene.
+  const [tappedDecorIds, setTappedDecorIds] = useState<Set<string>>(() => new Set());
+  const toggleTappedDecor = (id: string) => setTappedDecorIds(previous => {
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [openedRoomId, setOpenedRoomId] = useState<string | null>(null);
@@ -228,6 +237,26 @@ export default function PetParkPage() {
       toast({ title: "Could not save placement", description: error.message, variant: "destructive" });
     },
   });
+  const tapImageSave = useMutation({
+    mutationFn: async ({ id, imageData }: { id: string; imageData: string | null }) =>
+      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/tap-image`, { imageData }),
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
+    },
+    onError: (error: Error) => toast({
+      title: "Unable to update Tap Image", description: error.message, variant: "destructive",
+    }),
+  });
+  const updateTapImage = async (id: string, file?: File) => {
+    if (!file || tapImageSave.isPending) return;
+    try {
+      const imageData = await readPetParkImageData(file);
+      tapImageSave.mutate({ id, imageData });
+    } catch (error) {
+      toast({ title: "Unable to read Tap Image", description: String(error), variant: "destructive" });
+    }
+  };
   const waterSourceSave = useMutation({
     mutationFn: async ({ id, isWaterSource }: { id: string; isWaterSource: boolean }) =>
       apiRequest("PATCH", `/api/admin/pet-park/items/${id}/water-source`, { isWaterSource }),
@@ -750,6 +779,8 @@ export default function PetParkPage() {
           } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></button>)}
         {scene.items.map(item => {
           const position = shownPosition("item", item);
+          const visibleDecorImage = !scene.canEditPark && item.kind === "decor" &&
+            item.tapImageUrl && tappedDecorIds.has(item.id) ? item.tapImageUrl : item.imageUrl;
           const isGardenPlot = item.kind === "terrain" && item.effectType === "garden_plot";
           const savedGardenPlot = isGardenPlot ? garden?.plots?.find(plot => plot.plotItemId === item.id) : undefined;
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
@@ -757,8 +788,8 @@ export default function PetParkPage() {
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
           return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : item.kind === "decor" && item.isWaterSource && scene.canEnterPark ? "pointer-events-auto" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && !item.imageUrl ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
-          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "effect" || item.kind === "sleep_spot" ? 12_000_000 : item.kind === "terrain" ? 500 : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: item.imageUrl ? imageContacts[item.imageUrl] : undefined }) }}>
-          {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : item.imageUrl ? <><img onLoad={event => observeContact(event.currentTarget, item.imageUrl!)} alt="" src={item.imageUrl} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></> :
+          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "effect" || item.kind === "sleep_spot" ? 12_000_000 : item.kind === "terrain" ? 500 : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: visibleDecorImage ? imageContacts[visibleDecorImage] : undefined }) }}>
+          {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
           {!scene.canEditPark && scene.canEnterPark && isGardenPlot && <button
             type="button" data-testid="pet-park-garden-plot" aria-label="Open Garden Plot"
@@ -766,6 +797,20 @@ export default function PetParkPage() {
             style={{ clipPath: "polygon(50% 0%,100% 50%,50% 100%,0% 50%)" }}
             onPointerDown={event => event.stopPropagation()}
             onClick={event => { event.stopPropagation(); setSelectedGardenPlotId(item.id); }} />}
+          {!scene.canEditPark && scene.canEnterPark && item.kind === "decor" &&
+            !item.isWaterSource && item.imageUrl && item.tapImageUrl && <button
+            type="button" data-testid="pet-park-tappable-decor"
+            aria-label={tappedDecorIds.has(item.id) ? "Restore decoration" : "Tap decoration"}
+            aria-pressed={tappedDecorIds.has(item.id)}
+            className="pointer-events-auto absolute inset-0 z-[3] touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            onClick={event => {
+              event.stopPropagation();
+              const image = event.currentTarget.parentElement?.querySelector("img");
+              if (image && (event.detail === 0 ||
+                  parkImageHitAt(image, event.clientX, event.clientY, item.flipped))) {
+                toggleTappedDecor(item.id);
+              }
+            }} />}
           {!scene.canEditPark && scene.canEnterPark && item.kind === "decor" && item.isWaterSource && item.imageUrl && <button
             type="button" data-testid="pet-park-water-source"
             aria-label="Refill at Water Source"
@@ -773,7 +818,8 @@ export default function PetParkPage() {
             onClick={event => {
               event.stopPropagation();
               const image = event.currentTarget.parentElement?.querySelector("img");
-              if (image && parkImageHitAt(image, event.clientX, event.clientY, item.flipped)) {
+              if (image && (event.detail === 0 || parkImageHitAt(image, event.clientX, event.clientY, item.flipped))) {
+                if (item.tapImageUrl) toggleTappedDecor(item.id);
                 setSelectedWaterSourceId(item.id);
               }
             }}>
