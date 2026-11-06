@@ -1349,9 +1349,10 @@ export async function registerRoutes(
             for (let i = 0; i < requestedQuantity; i++) {
               const extraFields: any = {};
               if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) extraFields.poleUsesLeft = shopItem.poleMaxUses;
+              if (shopItem.isRefillable) extraFields.gardenWaterLeft = 100;
               // Pets and poles must be individual rows. Other generic shop
               // items preserve the existing storage stacking behaviour.
-              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole") {
+              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole" && !shopItem.isRefillable) {
                 const [existing] = await tx.select().from(userInventory).where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId)));
                 if (existing) [invItem] = await tx.update(userInventory).set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` }).where(eq(userInventory.id, existing.id)).returning();
                 else [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: 1 }).returning();
