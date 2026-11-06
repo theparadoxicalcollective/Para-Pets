@@ -43,7 +43,7 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(page, /data-testid="pet-park-garden-plot"/);
   assert.match(page, /setSelectedGardenPlotId\(item\.id\)/);
   assert.match(page, /<PetParkGardenMenu/);
-  assert.match(page, /garden\?\.plots\.find\(plot => plot\.plotItemId === item\.id\)/);
+  assert.match(page, /garden\?\.plots\?\.find\(plot => plot\.plotItemId === item\.id\)/);
   assert.match(page, /data-testid="pet-park-garden-crop"/);
   assert.match(page, /parkDepthIndex\(\{ yPct: plot\.yPct/);
   assert.match(page, /onChanged=\{invalidateGarden\}/);
