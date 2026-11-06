@@ -36,11 +36,11 @@ try {
     const context = await browser.newContext({viewport:{width,height},hasTouch:true,isMobile:true});
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
-    const errors=[],saves=[];
+    const errors=[],saves=[],claims=[];
     page.on("pageerror",error=>errors.push(error.message));
     const owned={petInventoryId:"owner-pet",petTemplateId:null,hatchedImageUrl:petImage,petName:"Pet",petNickname:"My Pet",rarity:4,petLevel:32,ownerName:"Owner",ownerId:"owner",buildingId:"cottage",roomEffectId:null,interiorXPct:.37,interiorYPct:.60,parkXPct:null,parkYPct:null,pose:"idle"};
     const guest={...owned,petInventoryId:"guest-pet",ownerName:"Guest",ownerId:"guest",interiorXPct:.77,rarity:3};
-    let scene={enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,unlockedSlots:1,items:[],
+    let scene={enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,unlockedSlots:2,items:[],rates:{coinsPerHour:60,essencePerHour:24,petXpPerHour:300},serverNow:new Date().toISOString(),
       buildings:[{id:"cottage",name:"Fixture Cottage",imageUrl:house,interiorImageUrl:roomImage,xPct:.5,yPct:.5,size:420,flipped:false,layer:0,maxPets:20,interiorEffects:[{id:"sleep1",type:"sleep",x:.58,y:.6,size:18}]}],
       sharedPets:[owned,guest],deposits:[{...owned,id:"owner-deposit",slotNumber:1,checkpointAt:new Date().toISOString(),pausedAt:null,pausedDurationMs:0,earnedDurationMs:0}]};
     await page.route("**/api/**",route=>{
@@ -48,6 +48,10 @@ try {
       if(path==="/api/pet-park/scene")return route.fulfill({json:scene});
       if(path==="/api/pet-park/status")return route.fulfill({json:{enabledForPlayers:true,canEnterPark:true}});
       if(path==="/api/inventory")return route.fulfill({json:[]});
+      if(path==="/api/pet-park/deposits/owner-deposit/claim"){
+        claims.push(route.request().method());
+        return route.fulfill({json:{coins:1,essence:0,petXp:1}});
+      }
       if(path==="/api/pet-park/deposits/owner-deposit/placement"){
         const body=route.request().postDataJSON();
         saves.push(body);
@@ -58,6 +62,24 @@ try {
       return route.fulfill({json:{}});
     });
     await page.goto("http://127.0.0.1:4183/fixture",{waitUntil:"commit",timeout:30000});
+    const equipped=page.getByTestId("pet-park-slot-1");
+    await equipped.waitFor({state:"visible",timeout:30000});
+    assert.equal(await equipped.getByTestId("pet-park-pet-portrait").count(),1,label+": equipped slot shows pet artwork");
+    const bar=equipped.getByTestId("pet-park-slot-progress");
+    assert.equal(await bar.count(),1,label+": equipped slot has gold next-reward progress");
+    assert.equal(await bar.getAttribute("data-state"),"earning",label+": active earning status");
+    const empty=page.getByTestId("pet-park-slot-2");
+    assert.equal(await empty.locator("img.pet-park-slot__empty-art").count(),1,label+": open slot shows greyed mascot silhouette");
+    await equipped.click();
+    const rewards=page.getByRole("dialog",{name:"Park pet spot 1"});
+    await rewards.waitFor({state:"visible"});
+    assert.equal(await rewards.getByTestId("pet-park-reward-bars").count(),1,label+": details contain all reward meters");
+    assert.equal(await rewards.getByRole("progressbar").count(),3,label+": coins, essence and XP show separately");
+    await rewards.getByTestId("pet-park-collect-button").click();
+    await page.waitForTimeout(200);
+    assert.deepEqual(claims,["POST"],label+": original claim action is preserved");
+    await page.getByRole("button",{name:"Close pet spot"}).click();
+    assert.equal(await page.getByRole("dialog",{name:"Park pet spot 1"}).count(),0);
     const houseButton=page.getByRole("button",{name:"Enter Fixture Cottage"});
     await houseButton.waitFor({state:"visible",timeout:30000});
     // The real hit-test intentionally rejects clicks before the artwork is decoded.
