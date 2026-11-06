@@ -98,7 +98,7 @@ function simulate(options: Scenario = {}) {
       } };
     },
   };
-  const db = { transaction: async (cb: (tx: typeof tx) => Promise<unknown>) => cb(tx) };
+  const db = { transaction: async (cb: (dbTx: any) => Promise<unknown>) => cb(tx) };
   const app = { post(path: string, ...args: any[]) { handlers.set(path, args); } };
   registerGardenRefillRoutes(app as any, auth, db as any);
   const pathname = "/api/pet-park/water-sources/:sourceId/refill";
