@@ -46,7 +46,8 @@ export default memo(function PetParkPetPortrait({
         costumeAccess={access} mode={reducedMotion ? "static" : mode} size={size} fillContainer fitVisible
         style={{ filter: "drop-shadow(0 3px 5px rgba(0,0,0,.4))" }} />
     ) : hatchedImageUrl ? (
-      <img src={hatchedImageUrl} alt="" draggable={false} className="h-full w-full object-contain" />
+      <img src={hatchedImageUrl} alt="" draggable={false}
+        className={`h-full w-full object-contain ${mode === "sleep" && !reducedMotion ? "pet-park-rest" : ""}`} />
     ) : (
       <span aria-hidden="true" className="text-xs text-amber-200/50">Pet</span>
     )}
