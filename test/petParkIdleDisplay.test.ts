@@ -142,9 +142,9 @@ test("only explicitly placed outdoor pets become public; new equips stay private
 
 test("current on-screen slot UI can place or return a pet without withdrawing it", () => {
   assert.match(page, /Return to oval/);
-  assert.match(page, /Drag this equipped spot onto the outdoor park/);
+  assert.match(page, /Drag this pet into the park to display it/);
   assert.doesNotMatch(page, /"Show in park"/);
-  assert.match(page, /Equipped — earning, not visible/);
+  assert.match(page, /Equipped · earning rewards/);
   assert.match(page, /\$\{pet\.id\}\/display/);
   assert.match(page, /pet\.parkXPct != null && pet\.parkYPct != null/);
   assert.match(page, /data-testid="pet-park-player-slots"/);
