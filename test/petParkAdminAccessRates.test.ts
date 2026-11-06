@@ -59,6 +59,6 @@ test("park access controls are real switches with explicit on/off state and save
 test("saved Pet Park dirt and brush preview share a darker brown color", () => {
   const terrain = readFileSync("client/src/components/PetParkTerrain.tsx", "utf8");
   const detail = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
-  assert.match(terrain, /ctx\.fillStyle = "#624832"/);
+  assert.match(terrain, /kind === "dirt_path" \? "#624832"/);
   assert.match(detail, /backgroundColor: "#624832"/);
 });

@@ -31,8 +31,8 @@ try{
   const page=await context.newPage();page.setDefaultTimeout(10000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const art='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="40" y="20" width="120" height="120" fill="#c2ad74"/></svg>').toString('base64');
-  let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,items:[{id:'decor',kind:'decor',effectType:null,imageUrl:art,xPct:0.72,yPct:0.58,size:100,flipped:false,layer:0}],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
-  const strokes=[],patches=[];
+  let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,groundTheme:"grass",items:[{id:'decor',kind:'decor',effectType:null,imageUrl:art,xPct:0.72,yPct:0.58,size:100,flipped:false,layer:0}],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
+  const strokes=[],patches=[],groundUpdates=[];
   await page.route('**/api/**',route=>{
    const path=new URL(route.request().url()).pathname;
    if(path==='/api/pet-park/scene')return route.fulfill({json:scene});
@@ -40,6 +40,12 @@ try{
     const body=route.request().postDataJSON();patches.push(body);
     scene={...scene,buildings:[{...scene.buildings[0],...body}]};
     return route.fulfill({json:scene.buildings[0]});
+   }
+   if(path==='/api/admin/pet-park/ground-theme'){
+    const body=route.request().postDataJSON();
+    groundUpdates.push(body.groundTheme);
+    scene={...scene,groundTheme:body.groundTheme};
+    return route.fulfill({json:{groundTheme:body.groundTheme}});
    }
    if(path==='/api/admin/pet-park/terrain-strokes'){
     const body=route.request().postDataJSON();strokes.push(body);
@@ -104,11 +110,46 @@ try{
   const points=strokes[0].points;assert.ok(points.length>1);
   assert.ok(points.every(p=>Math.abs((p.xPct-points[0].xPct)*1800-2*(p.yPct-points[0].yPct)*2700)<1e-6),name+': path must follow the ground diagonal');
   for(let i=1;i<points.length;i++)assert.ok(Math.abs((points[i].xPct-points[i-1].xPct)*1800-strokes[0].size/2)<1e-6,name+': tiles meet edge to edge');
+  // The park-wide base is independent of painted paths. Switching themes must
+  // update the REAL viewport canvas but never move authored decor/buildings.
+  const groundButtons=page.getByRole('group',{name:'Pet Park ground style'});
+  assert.equal(await groundButtons.getByRole('button').count(),5,name+': five themed base grounds');
+  for(const [theme,rgb] of [['snow','rgb(201, 214, 211)'],['volcanic','rgb(51, 45, 49)'],['grass','rgb(44, 73, 52)']]){
+    const label=theme.charAt(0).toUpperCase()+theme.slice(1);
+    const saved=page.waitForResponse(response=>response.url().includes('/api/admin/pet-park/ground-theme'));
+    await groundButtons.getByRole('button',{name:label,exact:true}).click();
+    await saved;
+    await page.waitForFunction(expected=>document.querySelector('[data-testid="pet-park-painterly-terrain"]')?.style.backgroundColor===expected,rgb);
+    assert.equal(await groundButtons.getByRole('button',{name:label,exact:true}).getAttribute('aria-pressed'),'true');
+  }
+  assert.deepEqual(groundUpdates,['snow','volcanic','grass']);
+  assert.equal(patches.length,1,name+': changing base ground cannot mutate saved buildings');
+  // Drive the real mobile pointer handlers for each new connected material.
+  for(const [material,label] of [['stone_path','Stone Path'],['water_path','Water']]){
+    await page.getByRole('button',{name:label,exact:true}).click();
+    const response=page.waitForResponse(response=>response.url().includes('/api/admin/pet-park/terrain-strokes'));
+    if(session){
+      await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...from,id:1}]});
+      for(let i=1;i<=8;i++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:from.x+(to.x-from.x)*i/8,y:from.y+(to.y-from.y)*i/8,id:1}]});
+      await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    }else{
+      await page.mouse.move(from.x,from.y);await page.mouse.down();
+      await page.mouse.move(to.x,to.y,{steps:8});await page.mouse.up();
+    }
+    await response;
+    assert.equal(strokes.at(-1).type,material,name+': saved connected '+material);
+    assert.equal(strokes.at(-1).size,150);
+    const pathPoints=strokes.at(-1).points;
+    assert.ok(pathPoints.length>1,name+': continuous isometric '+material);
+    assert.ok(pathPoints.every(p=>Math.abs((p.xPct-pathPoints[0].xPct)*1800-2*(p.yPct-pathPoints[0].yPct)*2700)<1e-6),
+      name+': '+material+' shares the existing dirt isometric grid');
+  }
+  assert.equal(strokes.length,3);
   const controls=await page.getByLabel('Pet Park terrain brush controls',{exact:true}).boundingBox();
   assert.ok(controls.y+controls.height<=height-60,name+': brush controls must clear the preview status banner');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-'+name.replaceAll(' ','-')+'.png'});
-  console.log('PASS '+name+': shadow-free buildings/decor, unchanged single-tap placement, armed double-tap movement, alpha-only hit testing, diamond preview, snapped touch/mouse path and one save');
+  console.log('PASS '+name+': original admin gestures, three snapped dirt/stone/water paths and five persistent ground options with zero placement changes');
   await context.close();
  }
 }finally{await browser.close();await server.close();}

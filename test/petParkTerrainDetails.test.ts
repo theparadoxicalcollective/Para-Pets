@@ -12,9 +12,9 @@ const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.t
 const artwork = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
 
 test("only supported ground detail types may be created; unrelated effects stay distinct", () => {
-  assert.deepEqual(PARK_TERRAIN_DETAIL_OPTIONS.map(x=>x.type), ["dirt_path", "stone_patch"]);
+  assert.deepEqual(PARK_TERRAIN_DETAIL_OPTIONS.map(x=>x.type), ["dirt_path", "stone_path", "water_path"]);
   for(const option of PARK_TERRAIN_DETAIL_OPTIONS) assert.equal(isPaintableParkTerrainDetail(option.type), true);
-  for(const legacy of ["wildflowers", "wild_grass"]) {
+  for(const legacy of ["stone_patch", "wildflowers", "wild_grass"]) {
     assert.equal(isParkTerrainDetail(legacy), true, "saved legacy stamps must stay readable until cleared");
     assert.equal(isPaintableParkTerrainDetail(legacy), false, "do not allow creating more stock grass or flowers");
   }
