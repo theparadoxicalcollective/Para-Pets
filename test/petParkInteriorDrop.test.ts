@@ -28,7 +28,7 @@ test("Pet Park uses template IDs, not shop item IDs, for both personal and publi
   assert.match(portrait, /<PetAnimator petTemplateId=\{petTemplateId\}/);
   assert.match(portrait, /<MiniPetRenderer petInventoryId=\{petInventoryId\}/);
   assert.match(room, /data-park-interior-artwork/);
-  assert.match(page, /dropEquippedPetInside\(drag\.petId/);
-  assert.match(page, /data-testid="pet-park-interior-slots"/);
+  assert.match(page, /dropEquippedPet\(drag\.petId/);
+  assert.doesNotMatch(page, /dropEquippedPetInside\(|data-testid="pet-park-interior-slots"/);
   assert.match(page, /aria-label=\{fullPageRoom \? "Exit room" : "Exit building"\}/);
 });
