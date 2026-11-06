@@ -289,7 +289,8 @@ try{
     scene.items=[];
     scene.buildings=[{id:"shop1",name:"Woodland Shop",imageUrl:art,interiorImageUrl:art,
       xPct:.5,yPct:.5,size:240,flipped:false,layer:0,maxPets:10,
-      interiorEffects:[],isShop:true,shopItemIds:["seed-item"]}];
+      interiorEffects:[{id:"lamp",type:"warm_glow",x:.5,y:.4,size:18}],
+      interiorDarkness:40,isShop:true,shopItemIds:["seed-item"]}];
     await page.reload({waitUntil:"commit"});
     const shopEntrance=page.getByRole("button",{name:"Enter Woodland Shop"});
     await shopEntrance.waitFor({state:"visible"});
@@ -297,6 +298,22 @@ try{
     const shop=page.getByTestId("pet-park-shop-shelf");
     await shop.waitFor({state:"visible"});
     await shop.getByText("Forest Tomato Seeds").waitFor();
+    const dark=page.locator('[data-testid="pet-park-interior-room"] [data-testid="home-interior-darkness-layer"]');
+    await dark.waitFor({state:"visible"});
+    assert.equal(await dark.evaluate(node=>node.tagName.toLowerCase()),"svg",
+      name+": room darkness uses the same light-shaped cutout as Pet Homes");
+    assert.equal(await dark.locator("mask").count(),1,
+      name+": transparent dark layer must leave a cutout around active lamps");
+    assert.equal(await dark.locator("rect[mask]").count(),1);
+    assert.equal(await dark.locator("rect[mask]").evaluate(node=>node.style.fillOpacity),"0.4",
+      name+": building-specific darkness is correctly saved and rendered");
+    const roomLayers=await page.locator('[data-testid="pet-park-interior-room"] [data-park-interior-artwork]').evaluate(artwork=>{
+      const children=Array.from(artwork.children);
+      return {dark:children.findIndex(node=>node.getAttribute("data-testid")==="home-interior-darkness-layer"),
+        light:children.findIndex(node=>node.getAttribute("data-testid")==="home-interior-effect-lamp")};
+    });
+    assert.ok(roomLayers.dark>=0 && roomLayers.light>roomLayers.dark,
+      name+": glowing effect overlays are above the translucent dark background");
     assert.equal(await shop.getByRole("button",{name:"Add shop item"}).count(),0,
       name+": only administrators can curate shop merchandise");
     assert.equal(await shop.getByText("125 coins").count(),1,
