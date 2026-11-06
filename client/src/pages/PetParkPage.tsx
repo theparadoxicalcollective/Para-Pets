@@ -28,7 +28,9 @@ import type { HouseInteriorEffect } from "@shared/housing";
 import { isParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
-import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot } from "@/lib/petParkSleepSpots";
+import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot, isParkIndoorSleepPosition } from "@/lib/petParkSleepSpots";
+import { parkProjectedIndoorPetBounds, parkVisiblePetArtworkBounds, parkPetWouldObscureAnother, parkInteriorArtworkRect } from "@/lib/petParkVisibleOverlap";
+import PetParkRarityStars from "@/components/PetParkRarityStars";
 import { petParkInteriorDropPoint } from "@/lib/petParkInteriorDrop";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan } from "@/lib/petParkCamera";
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
@@ -38,7 +40,7 @@ import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
-type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
+type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkScene = { sharedPets?: SharedParkPet[]; enabledForPlayers: boolean; canEnterPark?: boolean; preview?: boolean; canEditPark?: boolean; backgroundUrl: string | null; groundLevel: number; items: ParkItem[]; buildings?: ParkBuilding[]; deposits: ParkDeposit[]; unlockedSlots: number; rates?: { coinsPerHour: number; essencePerHour: number; petXpPerHour: number }; serverNow?: string };
 type InventoryPet = { inventoryId: string; shopItemId: string; petTemplateId?: string | null; hatchedImageUrl?: string | null; name: string; petNickname?: string | null; petLevel?: number; starRarity?: number; rarity?: number; isHatched: boolean; isListed?: boolean; type?: string };
@@ -92,6 +94,9 @@ export default function PetParkPage() {
   const [outdoorPetDraft, setOutdoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
   const indoorSlotPointer = useRef<{ pointerId: number; petId: string; x: number; y: number } | null>(null);
   const [indoorDragGhost, setIndoorDragGhost] = useState<{ x: number; y: number; petId: string } | null>(null);
+  const indoorPlacedPointer = useRef<{ id: number; petInventoryId: string; depositId: string;
+    startX: number; startY: number; position: { x: number; y: number } } | null>(null);
+  const [indoorPetDraft, setIndoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
 
@@ -344,6 +349,45 @@ export default function PetParkPage() {
     action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${petId}/display`, body: { display: "park", xPct, yPct } });
     setActiveSlot(null);
   };
+  // Reuse the existing owner-only indoor placement endpoint for BOTH the
+  // equipped tray and a pet already resting in the room. Keep the pointer
+  // geometry in the real, panned room-image coordinate system.
+  const indoorArtworkGeometry = () => {
+    const viewportElement = document.querySelector<HTMLElement>('[data-testid="pet-park-interior-room"]');
+    const artworkElement = viewportElement?.querySelector<HTMLElement>('[data-park-interior-artwork]');
+    if (!viewportElement || !artworkElement) return null;
+    const viewportBounds = viewportElement.getBoundingClientRect();
+    const artworkBounds = artworkElement.getBoundingClientRect();
+    return { artworkElement, viewportBounds, artworkBounds };
+  };
+  const commitIndoorPetPosition = (
+    depositId: string, petInventoryId: string, point: { xPct: number; yPct: number },
+  ) => {
+    if (!activeBuilding || popupRoom || action.isPending) return;
+    const geometry = indoorArtworkGeometry();
+    if (!geometry) return;
+    const { artworkElement, artworkBounds } = geometry;
+    const effects = fullPageRoom ? [] : activeBuilding.interiorEffects.filter(effect => !isParkRoomEffect(effect));
+    const dimensions = { width: artworkBounds.width, height: artworkBounds.height };
+    const position = { x: point.xPct, y: point.yPct };
+    const size = parkIndoorPetSizeOnSleepSpot(position, effects, dimensions,
+      Math.max(68, Math.min(104, dimensions.height * .12)));
+    const existing = Array.from(artworkElement.querySelectorAll<HTMLElement>("[data-park-pet]"));
+    const source = existing.find(element => element.dataset.parkPet === petInventoryId);
+    const sourceSize = source ? source.getBoundingClientRect().width : 0;
+    const projected = parkProjectedIndoorPetBounds(
+      position, size, parkInteriorArtworkRect(artworkElement),
+      source ? { element: source, currentSize: sourceSize } : null,
+    );
+    if (existing.some(element => element !== source &&
+      parkPetWouldObscureAnother(projected, parkVisiblePetArtworkBounds(element)))) {
+      toast({ title: "That spot is occupied", description: "Move slightly to the side so both pets remain visible." });
+      return;
+    }
+    action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${depositId}/placement`,
+      body: { buildingId: activeBuilding.id, roomEffectId: currentRoomId, ...point,
+        pose: isParkIndoorSleepPosition(position, effects, dimensions) ? "sleep" : "idle" } });
+  };
   const startIndoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>, petId: string) => {
     if (!event.isPrimary || action.isPending || !activeBuilding || popupRoom) return;
     event.stopPropagation();
@@ -364,26 +408,63 @@ export default function PetParkPage() {
     indoorSlotPointer.current = null;
     setIndoorDragGhost(null);
     if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) <= 9 || !activeBuilding || popupRoom) return;
-    const viewportElement = document.querySelector<HTMLElement>('[data-testid="pet-park-interior-room"]');
-    const artworkElement = viewportElement?.querySelector<HTMLElement>('[data-park-interior-artwork]');
-    if (!viewportElement || !artworkElement) return;
+    const geometry = indoorArtworkGeometry();
+    if (!geometry) return;
     const hit = document.elementFromPoint(event.clientX, event.clientY);
-    // Drops on the exit button, effect portals, or the bottom equipped tray
-    // are UI interactions, never a request to deposit a pet behind that UI.
-    if (hit?.closest('button, [data-testid="pet-park-interior-slots"]')) return;
-    const viewportBounds = viewportElement.getBoundingClientRect();
-    const artworkBounds = artworkElement.getBoundingClientRect();
+    // Other *pet* artwork is not a UI blocker. The previous generic
+    // 'button' test rejected drops onto placed pet drag handles.
+    if (hit?.closest('[data-testid="pet-park-interior-slots"], [data-park-room-portal], [aria-label="Exit building"], [aria-label="Exit room"]')) return;
+    const { viewportBounds, artworkBounds } = geometry;
     const point = petParkInteriorDropPoint(
-      { x: event.clientX, y: event.clientY },
-      { left: viewportBounds.left, top: viewportBounds.top, width: viewportBounds.width, height: viewportBounds.height },
-      { left: artworkBounds.left, top: artworkBounds.top, width: artworkBounds.width, height: artworkBounds.height });
+      { x: event.clientX, y: event.clientY }, viewportBounds, artworkBounds);
     if (!point) return;
-    action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${drag.petId}/placement`,
-      body: { buildingId: activeBuilding.id, roomEffectId: currentRoomId, ...point, pose: "idle" } });
+    const pet = deposits.find(item => item.id === drag.petId);
+    if (pet) commitIndoorPetPosition(drag.petId, pet.petInventoryId, point);
   };
   const cancelIndoorPetDrag = () => {
     indoorSlotPointer.current = null;
     setIndoorDragGhost(null);
+  };
+  const startPlacedIndoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>, pet: SharedParkPet, depositId: string,
+    position: { x: number; y: number }) => {
+    if (!event.isPrimary || action.isPending || !activeBuilding || popupRoom) return;
+    event.stopPropagation();
+    indoorPlacedPointer.current = {
+      id: event.pointerId, petInventoryId: pet.petInventoryId, depositId,
+      startX: event.clientX, startY: event.clientY, position,
+    };
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+  };
+  const placedIndoorPetPosition = (drag: NonNullable<typeof indoorPlacedPointer.current>, x: number, y: number) => {
+    const geometry = indoorArtworkGeometry();
+    if (!geometry) return drag.position;
+    const dx = homeCameraPointerDelta(x - drag.startX, y - drag.startY, viewport.current);
+    return {
+      x: Math.max(0, Math.min(1, drag.position.x + dx.x / geometry.artworkBounds.width)),
+      y: Math.max(0, Math.min(1, drag.position.y + dx.y / geometry.artworkBounds.height)),
+    };
+  };
+  const movePlacedIndoorPet = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = indoorPlacedPointer.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    event.stopPropagation();
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
+    const next = placedIndoorPetPosition(drag, event.clientX, event.clientY);
+    setIndoorPetDraft({ petInventoryId: drag.petInventoryId, ...next });
+  };
+  const endPlacedIndoorPet = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = indoorPlacedPointer.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    event.stopPropagation();
+    indoorPlacedPointer.current = null;
+    const moved = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= 6;
+    const point = placedIndoorPetPosition(drag, event.clientX, event.clientY);
+    setIndoorPetDraft(null);
+    if (moved) commitIndoorPetPosition(drag.depositId, drag.petInventoryId, { xPct: point.x, yPct: point.y });
+  };
+  const cancelPlacedIndoorPet = () => {
+    indoorPlacedPointer.current = null;
+    setIndoorPetDraft(null);
   };
   const startEquippedPetDrag = (event: React.PointerEvent<HTMLButtonElement>, pet: ParkDeposit) => {
     if (!event.isPrimary || action.isPending) return;
@@ -631,8 +712,7 @@ export default function PetParkPage() {
               onPointerUp={endOutdoorPetDrag}
               onPointerCancel={cancelOutdoorPetDrag}
               onLostPointerCapture={cancelOutdoorPetDrag} />}
-            <button type="button" className="pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded bg-black/65 px-2 py-1 text-[11px] whitespace-nowrap text-amber-100"
-              onClick={() => setInspectedPet(pet)}>{pet.petNickname || pet.petName}</button>
+            <PetParkRarityStars rarity={pet.rarity} petSize={petSize * scale} />
           </div>;
         })}
       </div>}
@@ -667,21 +747,33 @@ export default function PetParkPage() {
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
         onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}>
         {({ imageWidth, sceneHeight: roomHeight }) => indoorVisiblePets.map(pet => {
+          const position = indoorPetDraft?.petInventoryId === pet.petInventoryId
+            ? { x: indoorPetDraft.x, y: indoorPetDraft.y }
+            : { x: pet.interiorXPct, y: pet.interiorYPct };
+          const effects = fullPageRoom ? [] : activeBuilding.interiorEffects.filter(effect => !isParkRoomEffect(effect));
+          const dimensions = { width: imageWidth, height: roomHeight };
           const basePetSize = Math.max(68, Math.min(104, roomHeight * 0.12));
-          const petSize = parkIndoorPetSizeOnSleepSpot(
-            { x: pet.interiorXPct, y: pet.interiorYPct },
-            fullPageRoom ? [] : activeBuilding.interiorEffects.filter(effect => !isParkRoomEffect(effect)),
-            { width: imageWidth, height: roomHeight }, basePetSize);
-          const isMine = deposits.some(item => item.petInventoryId === pet.petInventoryId);
-          return <div key={pet.petInventoryId} data-park-pet className="pointer-events-none absolute"
-            style={{ left: pet.interiorXPct * imageWidth, top: pet.interiorYPct * roomHeight,
-              transform: "translate(-50%, -88%)", zIndex: 2 }}>
-            <PetParkPetPortrait petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
-              hatchedImageUrl={pet.hatchedImageUrl} size={petSize}
-              access={isMine ? "owner" : "public"} />
-            <span className="pointer-events-none block max-w-[120px] truncate rounded bg-black/65 px-1 text-center text-[10px] text-amber-100">
-              {pet.petNickname || pet.petName}
-            </span>
+          const petSize = parkIndoorPetSizeOnSleepSpot(position, effects, dimensions, basePetSize);
+          const sleeping = isParkIndoorSleepPosition(position, effects, dimensions);
+          const deposit = deposits.find(item => item.petInventoryId === pet.petInventoryId);
+          const isMine = !!deposit;
+          return <div key={pet.petInventoryId} data-park-pet={pet.petInventoryId} className="pointer-events-none absolute"
+            style={{ left: position.x * imageWidth, top: position.y * roomHeight,
+              width: petSize, height: petSize,
+              transform: "translate(-50%, -88%)", zIndex: 5 + Math.round(position.y * 5) }}>
+            <div data-park-pet-artwork className="relative h-full w-full">
+              <PetParkPetPortrait petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
+                hatchedImageUrl={pet.hatchedImageUrl} size={petSize}
+                mode={sleeping ? "sleep" : "static"} reducedMotion={reduceMotion}
+                access={isMine ? "owner" : "public"} />
+            </div>
+            <PetParkRarityStars rarity={pet.rarity} petSize={petSize} />
+            {deposit && <button type="button" data-testid="pet-park-indoor-pet-drag"
+              aria-label={`Move ${pet.petNickname || pet.petName} inside the room`}
+              className="pointer-events-auto absolute left-[12%] top-[5%] z-[3] h-[85%] w-[76%] touch-none rounded-full"
+              onPointerDown={event => startPlacedIndoorPetDrag(event, pet, deposit.id, position)}
+              onPointerMove={movePlacedIndoorPet} onPointerUp={endPlacedIndoorPet}
+              onPointerCancel={cancelPlacedIndoorPet} onLostPointerCapture={cancelPlacedIndoorPet} />}
           </div>;
         })}
       </PetParkInteriorRoom>
