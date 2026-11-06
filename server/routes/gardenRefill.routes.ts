@@ -58,7 +58,8 @@ export function registerGardenRefillRoutes(app: Express, isAuthenticated: Reques
         }).from(userInventory)
           .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
           .where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId)));
-        if (!owned || !owned.isRefillable || owned.isListed || (owned.quantity ?? 1) <= 0)
+        if (!owned || owned.type !== "garden_tool" || owned.specialType !== "watering_pail" ||
+            !owned.isRefillable || owned.isListed || (owned.quantity ?? 1) <= 0)
           return { status: 422 as const, message: "Choose an owned, unlisted refillable item" };
 
         // Null represents a new, full container. Never mint an item or
