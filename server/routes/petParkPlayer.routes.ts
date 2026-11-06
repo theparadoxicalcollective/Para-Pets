@@ -4,6 +4,7 @@ import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSl
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
+import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   registerPetParkDisplayRoutes(app, isAuthenticated);
@@ -75,11 +76,14 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
-        // Only the player's explicit outdoor drop makes an equipped pet public.
-        // Legacy indoor deposits remain private and continue earning.
-        .where(and(isNull(petParkDeposits.withdrawnAt),
-          eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId),
-          isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct)))
+        // Equipping alone does not publish a pet. Only explicitly placed
+        // outdoor pets or occupants of a building/room are shared. Indoor
+        // records retain their position but never render in the outdoor scene.
+        .where(and(isNull(petParkDeposits.withdrawnAt), or(
+          and(eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId),
+            isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct)),
+          isNotNull(petParkDeposits.buildingId),
+        )))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
@@ -141,10 +145,70 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
   });
 
 
-  // No indoor placement; retain this route only for old clients. The saved
-  // deposit and its reward checkpoints remain untouched.
-  app.patch("/api/pet-park/deposits/:id/placement", isAuthenticated, (_req, res) =>
-    res.status(410).json({ message: "Pet Park pets are placed outdoors only." }));
+  // Interior placement is deliberately separate from public outdoor display.
+  // Only the owner can move one of their three deposits inside; all indoor
+  // pets remain private and continue accruing rewards at their checkpoints.
+  app.patch("/api/pet-park/deposits/:id/placement", isAuthenticated, async (req, res) => {
+    const depositId = req.params.id;
+    const { buildingId, roomEffectId = null, xPct, yPct, pose = "idle" } = req.body ?? {};
+    if (typeof depositId !== "string" || !depositId || depositId.length > 100 ||
+        typeof buildingId !== "string" || !buildingId || buildingId.length > 100 ||
+        (roomEffectId !== null && (typeof roomEffectId !== "string" || !roomEffectId || roomEffectId.length > 64)) ||
+        typeof xPct !== "number" || !Number.isFinite(xPct) || xPct < 0 || xPct > 1 ||
+        typeof yPct !== "number" || !Number.isFinite(yPct) || yPct < 0 || yPct > 1 ||
+        !["idle", "sit", "sleep"].includes(pose)) {
+      return res.status(400).json({ message: "Choose a valid indoor position and building" });
+    }
+    try {
+      const userId = (req.user as { id: string }).id;
+      const result = await db.transaction(async tx => {
+        // Preserve owner -> deposit -> building lock ordering for park actions.
+        const [owner] = await tx.select({ id: users.id }).from(users)
+          .where(eq(users.id, userId)).for("update");
+        if (!owner) return { status: 404 as const };
+        const [deposit] = await tx.select().from(petParkDeposits)
+          .where(and(eq(petParkDeposits.id, depositId), eq(petParkDeposits.userId, userId),
+            isNull(petParkDeposits.withdrawnAt))).for("update");
+        if (!deposit) return { status: 404 as const };
+        const [park] = await tx.select({ enabled: petParkSettings.enabledForPlayers,
+          moderators: petParkSettings.enabledForModerators }).from(petParkSettings)
+          .where(eq(petParkSettings.id, "main"));
+        const [role] = await tx.select({ isAdmin: users.isAdmin,
+          isModerator: users.isModerator }).from(users).where(eq(users.id, userId));
+        if (!park?.enabled && !role?.isAdmin && !(park?.moderators && role?.isModerator))
+          return { status: 403 as const };
+        // Serialize occupancy with all other placements and admin capacity edits.
+        const [building] = await tx.select().from(petParkBuildings)
+          .where(eq(petParkBuildings.id, buildingId)).for("update");
+        if (!building || !building.interiorImageUrl) return { status: 422 as const };
+        const room = roomEffectId === null ? null :
+          (building.interiorEffects ?? []).find(effect => effect.id === roomEffectId);
+        if (roomEffectId !== null && !isPetAccessibleParkRoom(room))
+          return { status: 422 as const };
+        const occupants = await tx.select({ id: petParkDeposits.id,
+          roomEffectId: petParkDeposits.roomEffectId }).from(petParkDeposits)
+          .where(and(eq(petParkDeposits.buildingId, buildingId), isNull(petParkDeposits.withdrawnAt)));
+        const others = occupants.filter(item => item.id !== deposit.id);
+        if (others.length >= building.maxPets) return { status: 409 as const };
+        if (room && isPetAccessibleParkRoom(room) &&
+            others.filter(item => item.roomEffectId === roomEffectId).length >= room.maxPets)
+          return { status: 409 as const };
+        const [updated] = await tx.update(petParkDeposits).set({
+          buildingId, roomEffectId, interiorXPct: xPct, interiorYPct: yPct, pose,
+          showInPark: false, parkXPct: null, parkYPct: null,
+        }).where(eq(petParkDeposits.id, deposit.id)).returning();
+        return { status: 200 as const, deposit: updated };
+      });
+      if (result.status === 404) return res.status(404).json({ message: "Equipped pet not found" });
+      if (result.status === 403) return res.status(403).json({ message: "Pet Park is not open to your account" });
+      if (result.status === 422) return res.status(422).json({ message: "This building or room cannot hold pets" });
+      if (result.status === 409) return res.status(409).json({ message: "This building or room is full" });
+      return res.json(result.deposit);
+    } catch (error) {
+      console.error("[pet-park] indoor placement failed", error);
+      return res.status(500).json({ message: "Unable to place pet inside" });
+    }
+  });
 
   // Collection and withdrawal share one transaction and owner lock.
   // The caller may collect without removing the pet.
