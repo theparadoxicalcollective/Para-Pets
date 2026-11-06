@@ -54,13 +54,36 @@ try{
   await cottage.waitFor({state:'visible'});
   assert.equal(await page.getByTestId('pet-park-contact-shadow').count(),0,name+': buildings and decor must have no added ground shadows');
   assert.equal(patches.length,0,'loading must never move saved objects');
+  // One drag may pan the camera or select, but must NOT move admin objects.
   const box=await cottage.boundingBox();
   await page.mouse.move(box.x+box.width/2,box.y+box.height*.4);await page.mouse.down();
   await page.mouse.move(box.x+box.width/2+30,box.y+box.height*.4+20,{steps:6});await page.mouse.up();
+  assert.equal(patches.length,0,name+': single drag cannot move a building');
+
+  // A double-tap on the visible artwork arms a subsequent drag; remeasure
+  // after camera panning instead of assuming the object stayed in one place.
+  await page.waitForTimeout(440);
+  const armedBox=await cottage.boundingBox();
+  const x=armedBox.x+armedBox.width/2,y=armedBox.y+armedBox.height*.4;
+  await page.mouse.click(x,y);
+  await page.mouse.click(x,y);
+  await page.getByText('Move armed · drag artwork').waitFor({state:'visible'});
+  const movedBox=await cottage.boundingBox();
+  await page.mouse.move(movedBox.x+movedBox.width/2,movedBox.y+movedBox.height*.4);
+  await page.mouse.down();
+  await page.mouse.move(movedBox.x+movedBox.width/2+30,movedBox.y+movedBox.height*.4+20,{steps:6});
+  await page.mouse.up();
+  await page.waitForFunction(()=>!document.body.textContent.includes('Saving…'));
+  assert.equal(patches.length,1,name+': armed double-tap drag uses the existing placement PATCH');
+  assert.ok(patches[0].xPct>0.5&&patches[0].yPct>0.5);
+
+  // The transparent corner of the SVG must not select or drag the building.
+  const after=await cottage.boundingBox();
+  await page.mouse.move(after.x+3,after.y+3);await page.mouse.down();
+  await page.mouse.move(after.x+33,after.y+23,{steps:6});await page.mouse.up();
+  assert.equal(patches.length,1,name+': transparent image padding cannot move an object');
   await page.getByRole('button',{name:'Done',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:/layer|Apply exact values/i}).count(),0,name+': no manual layer controls');
-  assert.equal(patches.length,1,name+': one drag uses the existing placement PATCH');
-  assert.ok(patches[0].xPct>0.5&&patches[0].yPct>0.5);
   await page.getByRole('button',{name:'Paint terrain',exact:true}).click();
   const surface=page.getByTestId('pet-park-terrain-brush-surface');await surface.waitFor({state:'visible'});
   const from={x:width*.18,y:height*.22},to={x:width*.82,y:height*.22+width*.64*.5};
@@ -82,7 +105,7 @@ try{
   assert.ok(controls.y+controls.height<=height-60,name+': brush controls must clear the preview status banner');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:'/tmp/park-'+name.replaceAll(' ','-')+'.png'});
-  console.log('PASS '+name+': shadow-free buildings/decor, unchanged saved placement, object drag, diamond preview, snapped touch/mouse path and one save');
+  console.log('PASS '+name+': shadow-free buildings/decor, unchanged single-tap placement, armed double-tap movement, alpha-only hit testing, diamond preview, snapped touch/mouse path and one save');
   await context.close();
  }
 }finally{await browser.close();await server.close();}
