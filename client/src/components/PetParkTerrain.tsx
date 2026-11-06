@@ -317,7 +317,7 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
   // All randomness is world-anchored: dragging or zooming never reshuffles it.
   for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
     const dx = edge.bx - edge.ax, dy = edge.by - edge.ay;
-    const segmentCount = Math.max(2, Math.ceil(Math.hypot(dx, dy) / 13));
+    const segmentCount = Math.max(2, Math.ceil(Math.hypot(dx, dy) / 24));
     const seedX = Math.round(edge.ax * 5), seedY = Math.round(edge.ay * 5);
     const jitterAt = (i: number) => (parkTerrainNoise(seedX + i, seedY, 47) - 0.5) * 2.5;
     for (let i = 0; i < segmentCount; i++) {
