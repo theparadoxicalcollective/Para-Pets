@@ -43,7 +43,7 @@ test("mobile Pet Park editor matches the Home Bundle layout while keeping actual
   assert.match(page, /\["effects", "\+ Effects"\]/);
   assert.match(page, /\["decor", "\+ Decor"\]/);
   assert.match(page, /\["scene", "\+ Building"\]/);
-  assert.match(page, /Drag to move · auto-saves/);
+  assert.match(page, /Double-tap artwork to move/);
   assert.match(page, /Expand Ground/);
   assert.doesNotMatch(page, /Zoom in to Pet Park|Zoom out of Pet Park|Park camera zoom controls/);
   assert.match(page, /touchPoints.current.size === 2/);
