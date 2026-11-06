@@ -325,8 +325,8 @@ export default function PetParkPage() {
   const currentRoomId = fullPageRoom?.id ?? null;
   const indoorVisiblePets = (scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding?.id &&
     (pet.roomEffectId ?? null) === currentRoomId);
-  const equippedForInterior = deposits.filter(pet => !pet.slotNumber || pet.slotNumber <= (scene?.unlockedSlots ?? 1));
   const deposits = scene?.deposits ?? [];
+  const equippedForInterior = deposits.filter(pet => pet.slotNumber <= (scene?.unlockedSlots ?? 1));
   const outdoorPets = (scene?.sharedPets ?? []).filter(pet => !pet.buildingId);
   const parkPositions = useMemo(() => arrangeParkVisitors(outdoorPets, scene?.items ?? []), [scene?.sharedPets, scene?.items]);
   const occupied = new Set(deposits.map(d => d.petInventoryId));
