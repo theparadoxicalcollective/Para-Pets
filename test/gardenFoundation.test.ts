@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   GARDEN_HARVEST_COUNTS, GARDEN_IMAGE_KEYS, GARDEN_PHASES,
   GARDEN_PICKED_COOLDOWN_MS, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
-  GARDEN_PLANT_ANCHOR, gardenHarvestQuantity,
+  GARDEN_PLANT_ANCHOR, gardenHarvestQuantity, gardenAfterWaterDrop, gardenEffectivePhase,
   isCompleteGardenCrop, validGardenArtwork, validGardenDrops, validGardenPrice,
 } from "../shared/garden";
 import { getGameItemCategory } from "../shared/itemTaxonomy";
@@ -30,6 +30,31 @@ test("garden phase, watering, cooldown and harvest probabilities are defined onc
   assert.throws(() => gardenHarvestQuantity(1));
   assert.throws(() => gardenHarvestQuantity(-1));
 });
+
+test("water only grows one phase per earned drop and never bypasses harvest readiness", () => {
+  const required = { planted: 2, seedling: 1, partial: 3, grown: 2 };
+  let state: { phase: "planted" | "seedling" | "partial" | "grown"; waterApplied: number; harvestReady: boolean } =
+    { phase: "planted", waterApplied: 0, harvestReady: false };
+  state = gardenAfterWaterDrop(state, required);
+  assert.deepEqual(state, { phase: "planted", waterApplied: 1, harvestReady: false });
+  state = gardenAfterWaterDrop(state, required);
+  assert.deepEqual(state, { phase: "seedling", waterApplied: 0, harvestReady: false });
+  state = gardenAfterWaterDrop(state, required);
+  assert.deepEqual(state, { phase: "partial", waterApplied: 0, harvestReady: false });
+  for(let i=0;i<3;i++) state = gardenAfterWaterDrop(state, required);
+  assert.deepEqual(state, { phase: "grown", waterApplied: 0, harvestReady: false });
+  state = gardenAfterWaterDrop(state, required);
+  assert.deepEqual(state, { phase: "grown", waterApplied: 1, harvestReady: false });
+  state = gardenAfterWaterDrop(state, required);
+  assert.deepEqual(state, { phase: "grown", waterApplied: 2, harvestReady: true });
+  assert.throws(() => gardenAfterWaterDrop(state, required));
+  assert.throws(() => gardenAfterWaterDrop({ phase: "empty", waterApplied: 0, harvestReady: false }, required));
+  const pickedAt = new Date("2026-11-06T00:00:00.000Z");
+  assert.equal(gardenEffectivePhase("picked", new Date(pickedAt.getTime()+30_000), new Date(pickedAt.getTime()+29_999)), "picked");
+  assert.equal(gardenEffectivePhase("picked", new Date(pickedAt.getTime()+30_000), new Date(pickedAt.getTime()+30_000)), "empty");
+  assert.equal(gardenEffectivePhase("tilled", null, pickedAt), "tilled");
+});
+
 test("garden image, stages and water amounts reject malformed or dangerous payloads", () => {
   assert.equal(validGardenArtwork("data:image/png;base64,AA=="), true);
   assert.equal(validGardenArtwork("data:image/svg+xml;base64,AA=="), false);
