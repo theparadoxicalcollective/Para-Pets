@@ -188,6 +188,20 @@ export default function PetParkPage() {
     onSuccess: () => { invalidate(); setSelectedPlacement(null); setPlacementDraft(null); },
     onError: (error: Error) => toast({ title: "Could not remove park object", description: error.message, variant: "destructive" }),
   });
+  const duplicateDecor = useMutation({
+    mutationFn: async ({ id, xPct, yPct }: { id: string; xPct: number; yPct: number }) => {
+      const response = await apiRequest("POST", `/api/admin/pet-park/items/${id}/duplicate`, { xPct, yPct });
+      return response.json() as Promise<ParkItem>;
+    },
+    onSuccess: (item) => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
+      setSelectedPlacement({ kind: "item", id: item.id });
+      setPlacementDraft({ xPct: item.xPct, yPct: item.yPct, size: item.size, flipped: item.flipped, layer: item.layer });
+      toast({ title: "Decoration duplicated", description: "Drag the new object into position." });
+    },
+    onError: (error: Error) => toast({ title: "Could not duplicate decoration", description: error.message, variant: "destructive" }),
+  });
   const clearTerrain = useMutation({
     mutationFn: () => apiRequest("DELETE", "/api/admin/pet-park/terrain"),
     onSuccess: () => {
@@ -710,6 +724,23 @@ export default function PetParkPage() {
       </div>
       <p className="text-xs text-amber-100/75">Depth follows ground position automatically. Move lower to bring in front.</p>
       <div className="flex flex-wrap items-center gap-2">
+        {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
+          type="button" aria-label="Duplicate park decoration"
+          disabled={placementSave.isPending || placementDelete.isPending || duplicateDecor.isPending}
+          onClick={() => {
+            const item = selectedObject as ParkItem;
+            // Offset by a small world-relative amount so the new copy is
+            // visible and can immediately be dragged, without camera changes.
+            const offset = Math.min(40, Math.max(18, item.size * 0.12));
+            duplicateDecor.mutate({
+              id: item.id,
+              xPct: Math.max(0, Math.min(1, placementDraft.xPct + offset / Math.max(1, sceneWidth))),
+              yPct: Math.max(0, Math.min(1, placementDraft.yPct + offset / Math.max(1, sceneHeight))),
+            });
+          }}
+          className="rounded-lg border border-[#b99a4c]/60 bg-[#245037] px-3 py-2 text-xs font-semibold disabled:opacity-50">
+          {duplicateDecor.isPending ? "Duplicating…" : "Duplicate"}
+        </button>}
         {selectedPlacement.kind === "building" && <>
           <button type="button" className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 text-xs" onClick={() => { setOpenedRoomId(null); setEnteredBuilding(selectedObject as ParkBuilding); }}>Enter building</button>
           <button type="button" className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 text-xs" onClick={() => setDetailsBuildingId(selectedPlacement.id)}>Edit building</button>
