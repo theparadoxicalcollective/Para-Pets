@@ -76,7 +76,7 @@ test("indoor dragging converts viewport touch coordinates to panned artwork coor
 
 test("effect depth is above all decorations while indoor artwork is passively layered below room interactions", () => {
   assert.match(page, /item\.kind === "effect" \|\| item\.kind === "sleep_spot" \? 12_000_000/);
-  assert.match(page, /transform: "translate\(-50%, -88%\)", zIndex: 2/);
+  assert.match(page, /zIndex: 1 \+ Math\.round\(position\.y \* 1000\)/);
   assert.match(page, /!activeBuilding && <PetParkTerrain/);
   assert.match(page, /!activeBuilding && <div className="absolute top-0 left-0 pointer-events-none"/);
   assert.match(page, /\$\{buildingOccupants\.length\}\/\$\{activeBuilding\.maxPets\} pets inside/);
@@ -94,7 +94,7 @@ test("static indoor portraits unmount offscreen art and mini-pet renderers", () 
   assert.match(portrait, /IntersectionObserver\(entries =>/);
   assert.match(portrait, /setVisible\(current => current === nearViewport \? current : nearViewport\)/);
   assert.match(portrait, /return \(\) => observer\.disconnect\(\)/);
-  assert.match(portrait, /mode="static"/);
+  assert.match(portrait, /reducedMotion \? "static" : mode/);
   assert.match(portrait, /\{visible && <div/);
   assert.doesNotMatch(portrait, /if \(visible\) return;/);
 });
