@@ -19,8 +19,9 @@ physical mobile/tablet testing have been completed.
    can be toggled in its usual selection editor; copies preserve the tag.
    Unmarked decorations, effects, terrain and buildings must not refill items.
 4. **Refillable** is a separate admin setting stored on catalog items.
-   New/existing watering pails can be toggled. A disabled pail still holds
-   100 drops but cannot use Water Source refills. Merely toggling a property
+   Garden equipment and ordinary Admin Items can be labeled refillable.
+   A disabled pail still holds 100 drops but cannot use Water Source refills.
+   Non-water-bearing items do not automatically gain capacity. Merely toggling a property
    NEVER changes an owner's remaining water.
 5. Player taps a plot to open the radial garden menu. Hoe prepares dark soil;
    a seed picker shows the player's owned/unlisted packets. Plant consumes
