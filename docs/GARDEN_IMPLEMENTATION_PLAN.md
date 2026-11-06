@@ -56,10 +56,20 @@ physical mobile/tablet testing have been completed.
   Admin Garden controls and stage assets, new Paint Terrain Garden Plot,
   Water Source decoration toggle and Refillable watering-pail setting.
   Does not enable player actions.
-- **PR 2:** Authenticated garden state read and idempotent hoe/plant/water/
-  refill/harvest API, exact inventory accounting (including stack and market
-  listings), fully validated owner and plot, deterministic transaction tests
-  and abuse/concurrency scenarios.
+- **PR 2 (current branch):** Authenticated GET `/api/pet-park/garden` for
+  private per-player plot states and ready crop artwork, and POST
+  `/api/pet-park/garden/plots/:plotId/{hoe,plant,water,harvest}`.
+  Each POST accepts only `{requestId: crypto.randomUUID(), inventoryId}`.
+  `requestId` must be reused on a retry of the **same** operation; generate a
+  new one for each intentional touch/drop. The server owns stage transitions,
+  and a committed receipt replays the original result without repeated
+  inventory changes. Receipts are pruned per-owner at later Hoe operations
+  after seven days. This PR also narrows Water Source refills to actual
+  refillable Watering Pails, preserves separate 100-drop pail inventory rows
+  regardless of refill flag, and avoids touching listed market stacks.
+  The real-Postgres regression suite exercises state transitions, idempotency,
+  owner separation, concurrency, and harvest rewards. PR 2 does **not** expose
+  the new controls to players yet.
 - **PR 3:** Player-side park plot hit targets, radial menu, seed picker,
   growth artwork, refill action, fruit award overlay, 30-second reset,
   mobile/tablet browser smoke checks and marketplace/Bag integration QA.
@@ -76,6 +86,16 @@ physical mobile/tablet testing have been completed.
   duplicating a tagged decoration retains the label.
 - Existing park ground themes, paths, sleep animation, pet overlap handling,
   buildings, admin gestures and inventory/market transactions are unaffected.
+- Retry response shape: `{ plot, replayed, remainingQuantity? , waterLeft?, reward? }`.
+  `plot` contains `plotItemId, phase, cropId, waterApplied, harvestReady,
+  pickedUntil`. GET returns `{ serverNow, plots, crops }`. A 409 means an
+  already-completed or currently unavailable action, not permission to
+  reapply a water drop. Refill remains on the existing Water Source endpoint.
+- Exactly one unit of a Seed Pack is deducted from the unlisted inventory
+  row; garden fruits join an unlisted stack or create a new row. The
+  `garden_fruit` direct-shop purchase ban remains server-side.
+- No legacy 390×844 rendering stage, alternate movement system, UI modal,
+  or desktop gameplay gate change is part of the server transaction PR.
 - Automated typecheck, Node tests, production build, and phone/tablet
   browser checks must be green on the eventual merged commit. Physical
   iOS Safari, Android, tablet visual/touch QA must be reported separately.
