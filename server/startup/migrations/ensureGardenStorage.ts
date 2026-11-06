@@ -5,6 +5,10 @@ import { sql } from "drizzle-orm";
  * equipment are minted by migration. Can be safely rerun on startup. */
 export async function ensureGardenStorage(): Promise<void> {
   await db.execute(sql`
+    ALTER TABLE shop_items
+      ADD COLUMN IF NOT EXISTS is_refillable boolean NOT NULL DEFAULT false;
+    ALTER TABLE pet_park_scene_items
+      ADD COLUMN IF NOT EXISTS is_water_source boolean NOT NULL DEFAULT false;
     ALTER TABLE user_inventory
       ADD COLUMN IF NOT EXISTS garden_water_left integer;
     DO $garden$
