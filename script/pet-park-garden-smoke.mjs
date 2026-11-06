@@ -181,7 +181,7 @@ try{
     // immediately reopen them.
     await ground.click();
     await menu.waitFor({state:"hidden"});
-    await page.waitForTimeout(80);
+    await page.waitForTimeout(350); // let the same-gesture suppression window expire
     assert.equal(await menu.count(),0,name+": off-menu plot tap stays dismissed");
     await ground.click();
     await menu.waitFor({state:"visible"});
