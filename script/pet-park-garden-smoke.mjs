@@ -93,7 +93,8 @@ try{
           inventory.push({inventoryId:"fruit",shopItemId:"fruit-item",name:crop.fruitName,type:"garden_fruit",quantity:2,isListed:false,imageUrl:art});
         }
         const result={plot:{...plot},replayed:false,
-          ...(action==="harvest"?{reward:{fruitItemId:"fruit-item",quantity:2}}:{})};
+          ...(action==="harvest"?{reward:{fruitItemId:"fruit-item",quantity:2}}:{}),
+          ...(action==="water"?{waterLeft:inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft}:{})};
         replays.set(body.requestId,result);
         return route.fulfill({json:result});
       }
@@ -130,20 +131,49 @@ try{
     assert.ok(afterZoomOut.pet<afterZoomIn.pet && afterZoomOut.tile<afterZoomIn.tile && afterZoomOut.hit<afterZoomIn.hit,name+": visitor, hit target and terrain all shrink together");
 
     await ground.click();
-    const menu=page.getByRole("dialog",{name:"Garden Plot"});
+    const menu=page.getByTestId("pet-park-garden-menu");
     await menu.waitFor({state:"visible"});
-    // Test the actual menu, not direct API calls. Ensure a server commit
-    // changes the plot and inventory before the next action is offered.
+    assert.equal(await page.getByRole("dialog",{name:"Garden Plot"}).count(),0,
+      name+": garden tools never open a full-screen modal");
+    // Each plot opens four world-anchored bubbles. Only the current stage
+    // can be used; one tool tap must send exactly one authenticated request.
+    const arc=menu.locator('[role="group"][aria-label="Garden tools"]');
+    await arc.waitFor({state:"visible"});
+    assert.equal(await menu.locator(".garden-tool-bubble").count(),4);
+    const anchor=await menu.getByTestId("pet-park-garden-anchor").boundingBox();
+    const plotBounds=await ground.boundingBox();
+    assert.ok(anchor && plotBounds && Math.abs(anchor.x+anchor.width/2-(plotBounds.x+plotBounds.width/2))<4,
+      name+": tool bubbles follow the world-positioned plot");
+
     const apply=async(label,expectedPhase)=>{
       const count=requests.length;
-      await menu.getByRole("button",{name:label,exact:true}).click();
-      await menu.getByTestId("pet-park-garden-inventory-item").first().click();
-      await page.waitForFunction(phase=>!!document.querySelector('[data-testid="pet-park-garden-menu"]') &&
-        document.querySelector('[data-testid="pet-park-garden-menu"]').textContent.includes(phase),expectedPhase);
-      assert.equal(requests.length,count+1,name+": one request for "+label);
+      const button=menu.getByRole("button",{name:label,exact:true});
+      await button.click();
+      const motion=menu.getByTestId("pet-park-garden-animation");
+      await motion.waitFor({state:"visible"});
+      assert.equal(await motion.getAttribute("data-action"),label.toLowerCase());
+      const expectedAnimation={Hoe:"garden-hoe-chops",Plant:"garden-seed-drop",
+        Water:"garden-pail-tip",Harvest:"garden-scythe-sweep"}[label];
+      const actualAnimation=await motion.locator(".garden-tool-motion").evaluate(node=>
+        getComputedStyle(node).animationName);
+      assert.equal(actualAnimation,expectedAnimation,name+": tool motion matches intended image orientation");
+      await menu.getByTestId("pet-park-garden-stage").getByText(expectedPhase,{exact:true}).waitFor({state:"visible"});
+      assert.equal(requests.length,count+1,name+": one request for one "+label+" tap");
+      if(label==="Water"){
+        const bar=menu.getByTestId("pet-park-garden-water-gauge");
+        await bar.waitFor({state:"visible"});
+        const expectedLeft=inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft;
+        await bar.getByText(expectedLeft+" / 100").waitFor({state:"visible"});
+      }
+      await motion.waitFor({state:"hidden",timeout:8000});
     };
+    for(const other of ["Plant","Water","Harvest"])
+      assert.equal(await menu.getByRole("button",{name:other,exact:true}).isDisabled(),true,
+        name+": future tools are visibly disabled");
     await apply("Hoe","Tilled soil");
     await page.getByTestId("pet-park-tilled-soil").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("pet-park-tilled-soil").locator("path").count(),2,
+      name+": tilled soil has only its two diamond borders; no curved interior furrows");
     await apply("Plant","Planted seed");
     assert.equal(await menu.getByText("Market Seeds").count(),0,"listed seeds cannot be selected");
     await page.getByTestId("pet-park-garden-crop").waitFor({state:"visible"});
@@ -152,16 +182,69 @@ try{
     await apply("Water","Fully grown");
     await apply("Water","Ready to harvest");
     assert.equal(inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,6);
-    await menu.getByRole("button",{name:"Harvest",exact:true}).click();
-    await menu.getByTestId("pet-park-garden-inventory-item").first().click();
+    await apply("Harvest","Recently harvested");
     await menu.getByTestId("pet-park-garden-harvest").waitFor({state:"visible"});
-    assert.match(await menu.innerText(),/2 × Forest Tomato/);
+    assert.match(await menu.getByTestId("pet-park-garden-harvest").innerText(),/2 × Forest Tomato/);
     assert.equal(inventory.find(x=>x.inventoryId==="fruit").quantity,2);
     assert.equal(requests.length,7);
-    await menu.getByRole("button",{name:"Done"}).click();
+    await menu.getByRole("button",{name:"Close harvest notice"}).click();
+    await menu.getByRole("button",{name:"Close garden tools"}).click();
     await ground.click();
-    await menu.getByText("Recently harvested").waitFor({state:"visible"});
-    await menu.getByRole("button",{name:"Close garden menu"}).click();
+    await menu.getByTestId("pet-park-garden-stage").getByText("Recently harvested").waitFor({state:"visible"});
+    await menu.getByRole("button",{name:"Close garden tools"}).click();
+
+    // A new player with no gardening equipment should see a small message,
+    // rather than an empty blocking inventory popup or a usable action.
+    plot.phase="empty"; plot.cropId=null; plot.waterApplied=0; plot.harvestReady=false; plot.pickedUntil=null;
+    inventory=[];
+    await page.reload({waitUntil:"commit"});
+    await ground.waitFor({state:"visible"});
+    await ground.click();
+    await menu.getByTestId("pet-park-garden-no-items")
+      .getByText("Come back when you have your gardening tools.",{exact:true}).waitFor();
+    for(const label of ["Hoe","Plant","Water","Harvest"])
+      assert.equal(await menu.getByRole("button",{name:label,exact:true}).isDisabled(),true,
+        name+": empty Bag disables "+label);
+    await menu.getByRole("button",{name:"Close garden tools"}).click();
+
+    // Empty Watering Pail retains its actual 0/100 server value and directs
+    // players to a Water Source without attempting to debit a nonexistent drop.
+    plot.phase="planted"; plot.cropId=crop.id; plot.waterApplied=0;
+    inventory=[{inventoryId:"hoe",shopItemId:"hoe-item",name:"Hoe",type:"garden_tool",
+      specialType:"hoe",quantity:1,isListed:false,imageUrl:art},
+      {inventoryId:"pail",shopItemId:"pail-item",name:"Watering Pail",type:"garden_tool",
+      specialType:"watering_pail",quantity:1,isListed:false,isRefillable:true,gardenWaterLeft:0,imageUrl:art}];
+    await page.reload({waitUntil:"commit"});
+    await ground.waitFor({state:"visible"});
+    await ground.click();
+    await menu.getByTestId("pet-park-garden-no-items")
+      .getByText("Find a Water Source to refill your pail.",{exact:true}).waitFor();
+    assert.equal(await menu.getByRole("button",{name:"Water",exact:true}).isDisabled(),true);
+    assert.equal(requests.length,7,name+": no tools/empty pail never generate garden mutations");
+    await menu.getByRole("button",{name:"Close garden tools"}).click();
+
+    // Multiple owned Seed Packs offer compact seed bubbles, not a second
+    // "Use" confirmation. Listed marketplace seeds remain excluded.
+    plot.phase="tilled"; plot.cropId=null; plot.waterApplied=0;
+    inventory=[{inventoryId:"hoe",shopItemId:"hoe-item",name:"Hoe",type:"garden_tool",
+      specialType:"hoe",quantity:1,isListed:false,imageUrl:art},
+      {inventoryId:"seed",shopItemId:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",
+      quantity:1,isListed:false,imageUrl:art},
+      {inventoryId:"seed-b",shopItemId:"seed-item",name:"More Tomato Seeds",type:"garden_seed",
+      quantity:1,isListed:false,imageUrl:art},
+      {inventoryId:"seed-listed",shopItemId:"seed-item",name:"Market Seeds",type:"garden_seed",
+      quantity:9,isListed:true,imageUrl:art}];
+    await page.reload({waitUntil:"commit"});
+    await ground.waitFor({state:"visible"});
+    await ground.click();
+    await menu.getByRole("button",{name:"Plant",exact:true}).click();
+    const seedPicker=menu.getByTestId("pet-park-garden-seed-choices");
+    await seedPicker.waitFor({state:"visible"});
+    assert.equal(await seedPicker.getByTestId("pet-park-garden-seed-choice").count(),2);
+    assert.equal(await seedPicker.getByText("Market Seeds").count(),0);
+    await seedPicker.getByRole("button",{name:"Plant Forest Tomato Seeds"}).click();
+    await menu.getByTestId("pet-park-garden-stage").getByText("Planted seed").waitFor();
+    assert.equal(requests.length,8,name+": one seed choice submits one plant request");
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": actual Garden Plot hoe/seed/4 drops/harvest, tilled art, market exclusion, and common visitor/terrain zoom");
     await context.close();

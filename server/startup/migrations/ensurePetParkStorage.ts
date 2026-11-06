@@ -32,6 +32,7 @@ export async function ensurePetParkStorage(): Promise<void> {
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       kind text NOT NULL CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain')),
       image_url text,
+      tap_image_url text,
       effect_type text,
       x_pct real NOT NULL DEFAULT 0.5 CHECK (x_pct BETWEEN 0 AND 1),
       y_pct real NOT NULL DEFAULT 0.5 CHECK (y_pct BETWEEN 0 AND 1),
@@ -42,6 +43,8 @@ export async function ensurePetParkStorage(): Promise<void> {
     );
 
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_type text;
+    -- Additive and nullable: existing decorations retain their normal image.
+    ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS tap_image_url text;
     ALTER TABLE pet_park_scene_items DROP CONSTRAINT IF EXISTS pet_park_scene_items_kind_check;
     ALTER TABLE pet_park_scene_items ADD CONSTRAINT pet_park_scene_items_kind_check
       CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain'));

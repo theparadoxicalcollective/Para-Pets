@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Droplets, Leaf, Scissors, Shovel, Sprout, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Droplets, Scissors, Shovel, Sprout, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
@@ -8,6 +8,7 @@ import {
   type GardenActionResult, type GardenPlayerAction,
   type GardenPlayerCrop, type GardenPlayerPlot,
 } from "@shared/garden";
+import "./PetParkGardenMenu.css";
 
 export type GardenOwnedItem = {
   inventoryId: string; shopItemId: string; name: string;
@@ -15,11 +16,19 @@ export type GardenOwnedItem = {
   isListed?: boolean; quantity?: number; gardenWaterLeft?: number | null;
 };
 type Request = { action: GardenPlayerAction; inventoryId: string; requestId: string };
+type ToolMotion = {
+  action: GardenPlayerAction; imageUrl: string | null;
+  requestId: string; waterBefore: number | null; waterAfter: number | null;
+  confirmed: boolean;
+};
 type Props = {
   plot: GardenPlayerPlot;
   crops: readonly GardenPlayerCrop[];
   inventory: readonly GardenOwnedItem[];
   inventoryLoading: boolean;
+  // Position is projected from the EXISTING Pet Park camera in screen pixels.
+  // It is never saved and cannot alter the scene or admin plot placement.
+  anchor: { x: number; y: number };
   onClose: () => void;
   onChanged: () => void;
 };
@@ -29,6 +38,12 @@ const actionNames: Record<GardenPlayerAction, string> = {
 const tools: Record<Exclude<GardenPlayerAction, "plant">, string> = {
   hoe: "hoe", water: "watering_pail", harvest: "scythe",
 };
+const BUTTONS: Array<{ action: GardenPlayerAction; Icon: typeof Shovel; x: number; y: number }> = [
+  { action: "hoe", Icon: Shovel, x: 7, y: 29 },
+  { action: "plant", Icon: Sprout, x: 70, y: 4 },
+  { action: "water", Icon: Droplets, x: 136, y: 4 },
+  { action: "harvest", Icon: Scissors, x: 199, y: 29 },
+];
 function eligibleItem(item: GardenOwnedItem, action: GardenPlayerAction,
   crops: readonly GardenPlayerCrop[]): boolean {
   if (item.isListed || (item.quantity ?? 0) <= 0) return false;
@@ -38,29 +53,48 @@ function eligibleItem(item: GardenOwnedItem, action: GardenPlayerAction,
     (action !== "water" || (item.gardenWaterLeft ?? 100) > 0);
 }
 
-/** A single viewport-sized, accessible choice surface. The buttons form a
- * radial menu but reuse Pet Park's existing modal and inventory APIs rather
- * than inventing a second scene, tool belt or positioning system. */
-export default function PetParkGardenMenu({ plot, crops, inventory, inventoryLoading, onClose, onChanged }: Props) {
+export default function PetParkGardenMenu({
+  plot, crops, inventory, inventoryLoading, anchor, onClose, onChanged,
+}: Props) {
   const suggested = gardenActionForPlot(plot);
-  const [chosenAction, setChosenAction] = useState<GardenPlayerAction | null>(null);
+  const [showSeeds, setShowSeeds] = useState(false);
   const [retry, setRetry] = useState<Request | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [motion, setMotion] = useState<ToolMotion | null>(null);
   const [lastReward, setLastReward] = useState<{ quantity: number; fruitName: string; imageUrl: string | null } | null>(null);
+  const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rewardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCrop = crops.find(crop => crop.id === plot.cropId);
   const progress = gardenCropProgress(plot, activeCrop);
-  const action = chosenAction && suggested === chosenAction ? chosenAction : suggested;
-  const eligible = action ? inventory.filter(item => eligibleItem(item, action, crops)) : [];
+  const owned = (action: GardenPlayerAction) => inventory.filter(item => eligibleItem(item, action, crops));
+  const seeds = owned("plant");
+  const hasTools = inventory.some(item => !item.isListed && (item.quantity ?? 0) > 0 && item.type === "garden_tool");
+  const hasEmptyPail = inventory.some(item => !item.isListed && (item.quantity ?? 0) > 0 &&
+    item.type === "garden_tool" && item.specialType === "watering_pail" && (item.gardenWaterLeft ?? 100) === 0);
+  const neededItems = suggested ? owned(suggested) : [];
+  const missingMessage = inventoryLoading ? "Checking your gardening tools…" :
+    !hasTools ? "Come back when you have your gardening tools." :
+    suggested === "water" && hasEmptyPail && neededItems.length === 0
+      ? "Find a Water Source to refill your pail." :
+    suggested === "plant" && neededItems.length === 0 ? "Bring a Seed Pack to plant here." :
+    suggested === "hoe" && neededItems.length === 0 ? "Bring a Hoe to prepare the soil." :
+    suggested === "harvest" && neededItems.length === 0 ? "Bring a Scythe to harvest." :
+    plot.phase === "picked" ? "The soil is resting after harvest." : null;
+  const isBusy = !!motion;
   const mutation = useMutation({
     mutationFn: async (request: Request) => {
       const response = await apiRequest("POST",
-        `/api/pet-park/garden/plots/${encodeURIComponent(plot.plotItemId)}/${request.action}`,
+        "/api/pet-park/garden/plots/" + encodeURIComponent(plot.plotItemId) + "/" + request.action,
         { requestId: request.requestId, inventoryId: request.inventoryId });
       return response.json() as Promise<GardenActionResult>;
     },
-    onSuccess: result => {
+    onSuccess: (result, request) => {
       setRetry(null);
       setErrorMessage(null);
+      setShowSeeds(false);
+      setMotion(previous => previous?.requestId === request.requestId
+        ? { ...previous, waterAfter: typeof result.waterLeft === "number" ? result.waterLeft : null, confirmed: true }
+        : previous);
       onChanged();
       if (result.reward) {
         const crop = crops.find(entry => entry.fruitItemId === result.reward?.fruitItemId);
@@ -68,37 +102,53 @@ export default function PetParkGardenMenu({ plot, crops, inventory, inventoryLoa
           quantity: result.reward.quantity, fruitName: crop?.fruitName ?? "Fruit",
           imageUrl: crop?.images.fruit ?? null,
         });
-      } else {
-        setChosenAction(null);
+        if (rewardTimer.current) clearTimeout(rewardTimer.current);
+        rewardTimer.current = setTimeout(() => setLastReward(null), 3400);
       }
+      if (finishTimer.current) clearTimeout(finishTimer.current);
+      finishTimer.current = setTimeout(() => setMotion(null), 1280);
     },
     onError: (error: Error) => {
-      // The server may have committed before a mobile connection dropped.
-      // Keep the SAME request ID for an explicit retry, never mint a second
-      // seed debit or fruit award. A conflict re-reads the authoritative state.
-      setErrorMessage(error.message || "Unable to use that item");
+      // A mobile request may commit before its response is lost. An explicit
+      // retry must reuse the very same UUID, never charge another water drop.
+      setErrorMessage(error.message || "Garden action could not be completed.");
+      setMotion(null);
       onChanged();
     },
   });
   useEffect(() => {
-    setChosenAction(null);
+    setShowSeeds(false);
     setRetry(null);
     setErrorMessage(null);
   }, [plot.plotItemId, plot.phase, plot.waterApplied, plot.harvestReady]);
-  const submit = (inventoryId: string) => {
-    if (!action || mutation.isPending) return;
-    const pending = retry?.action === action && retry.inventoryId === inventoryId
-      ? retry : { action, inventoryId, requestId: crypto.randomUUID() };
+  useEffect(() => () => {
+    if (finishTimer.current) clearTimeout(finishTimer.current);
+    if (rewardTimer.current) clearTimeout(rewardTimer.current);
+  }, []);
+  const submit = (action: GardenPlayerAction, item: GardenOwnedItem) => {
+    if (action !== suggested || mutation.isPending || motion || inventoryLoading ||
+        !eligibleItem(item, action, crops)) return;
+    const pending = retry?.action === action && retry.inventoryId === item.inventoryId
+      ? retry : { action, inventoryId: item.inventoryId, requestId: crypto.randomUUID() };
     setRetry(pending);
     setErrorMessage(null);
+    setShowSeeds(false);
+    setMotion({
+      action, imageUrl: item.imageUrl ?? null, requestId: pending.requestId,
+      waterBefore: action === "water" ? (item.gardenWaterLeft ?? 100) : null,
+      waterAfter: null, confirmed: false,
+    });
     mutation.mutate(pending);
   };
-  const buttons: Array<{ action: GardenPlayerAction; Icon: typeof Shovel; placement: string }> = [
-    { action: "hoe", Icon: Shovel, placement: "left-1/2 top-0 -translate-x-1/2" },
-    { action: "plant", Icon: Sprout, placement: "right-0 top-1/2 -translate-y-1/2" },
-    { action: "water", Icon: Droplets, placement: "left-1/2 bottom-0 -translate-x-1/2" },
-    { action: "harvest", Icon: Scissors, placement: "left-0 top-1/2 -translate-y-1/2" },
-  ];
+  const chooseAction = (action: GardenPlayerAction) => {
+    if (action !== suggested || isBusy || mutation.isPending || inventoryLoading) return;
+    const items = owned(action);
+    if (action === "plant" && items.length > 1) {
+      setShowSeeds(previous => !previous);
+    } else if (items[0]) {
+      submit(action, items[0]);
+    }
+  };
   const stageLabel = plot.phase === "empty" ? "Unprepared soil"
     : plot.phase === "tilled" ? "Tilled soil"
     : plot.phase === "picked" ? "Recently harvested"
@@ -106,85 +156,112 @@ export default function PetParkGardenMenu({ plot, crops, inventory, inventoryLoa
     : plot.phase === "grown" ? "Fully grown"
     : plot.phase === "partial" ? "Partially grown"
     : plot.phase === "seedling" ? "Seedling" : "Planted seed";
-  return <ViewportModalPortal>
-    <div className="fixed inset-0 z-[75] flex items-end justify-center px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-5 sm:items-center"
-      data-testid="pet-park-garden-menu">
-      <button type="button" aria-label="Close Garden" onClick={onClose}
-        className="absolute inset-0 bg-black/75" />
-      <section role="dialog" aria-modal="true" aria-label="Garden Plot"
-        className="relative flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border-2 border-[#c9a65e] bg-[radial-gradient(ellipse_at_top,#305c40,#102a1c_80%)] p-4 text-[#f4dda6] shadow-[inset_0_0_0_2px_rgba(237,204,119,.15),0_16px_50px_rgba(0,0,0,.75)]"
-        style={{ maxHeight: "min(90dvh, 760px)" }}>
-        <header className="mb-3 flex shrink-0 items-center justify-between border-b border-[#cead67]/40 pb-3">
-          <div className="flex items-center gap-2"><Leaf size={22} aria-hidden="true" className="text-[#dfcf8d]" />
-            <div><p className="text-[10px] uppercase tracking-widest text-amber-100/60">Pet Park</p>
-              <h2 className="font-fantasy text-lg font-bold text-[#ffdf90]">Garden Plot</h2></div></div>
-          <button type="button" aria-label="Close garden menu" onClick={onClose}
-            className="rounded-full border border-[#ceb073]/50 bg-[#123321] p-2"><X size={17} /></button>
-        </header>
-        {lastReward ? <div data-testid="pet-park-garden-harvest" className="flex flex-col items-center gap-3 py-7 text-center">
-          {lastReward.imageUrl ? <img src={lastReward.imageUrl} alt="" className="h-24 w-24 object-contain" /> : <Leaf size={58} />}
-          <h3 className="font-fantasy text-xl text-[#ffdf90]">Harvest complete!</h3>
-          <p className="text-sm">You collected <strong>{lastReward.quantity} × {lastReward.fruitName}</strong>.</p>
-          <p className="text-xs text-[#d1d2ad]">Added to your Bag. This soil rests for 30 seconds.</p>
-          <button type="button" onClick={onClose}
-            className="min-h-11 rounded-xl border border-[#e6c978] bg-[#245037] px-8 font-semibold">Done</button>
-        </div> : <>
-          <p className="shrink-0 text-center text-sm font-semibold text-[#e9d6a2]">{stageLabel}{activeCrop ? ` · ${activeCrop.fruitName}` : ""}</p>
-          <div className="relative mx-auto my-3 h-44 w-56 shrink-0" role="group" aria-label="Garden actions">
-            {buttons.map(({ action: buttonAction, Icon, placement }) =>
-              <button key={buttonAction} type="button"
-                data-testid={`pet-park-garden-action-${buttonAction}`}
-                aria-label={actionNames[buttonAction]} aria-pressed={action === buttonAction}
-                disabled={suggested !== buttonAction || mutation.isPending}
-                onClick={() => { setChosenAction(buttonAction); setRetry(null); setErrorMessage(null); }}
-                className={`absolute ${placement} flex min-h-12 min-w-14 flex-col items-center justify-center rounded-full border px-2 py-1 text-[10px] font-semibold shadow-lg disabled:opacity-35 ${action === buttonAction ? "border-[#f6d780] bg-[#52704a] text-[#ffe3a1]" : "border-[#c7a760]/50 bg-[#173a2a] text-[#efdda9]"}`}>
-                <Icon size={18} aria-hidden="true" />{actionNames[buttonAction]}</button>)}
-            <div className="pointer-events-none absolute left-1/2 top-1/2 flex h-[78px] w-[104px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-[#a98e57]/35 bg-[#132d22]/90 px-1 text-center text-[11px] text-[#dfd0a7]">
-              {suggested ? <><strong className="font-fantasy text-[#f7d989]">Next step</strong>
-                {actionNames[suggested]}</> : plot.phase === "picked" ? "Resting…" : "Unavailable"}
-            </div>
-          </div>
-          {progress && <div className="mb-3 shrink-0" data-testid="pet-park-garden-progress">
-            <div className="mb-1 flex justify-between text-xs text-[#e9d6a2]"><span>Water drops</span>
-              <span>{progress.value} / {progress.required}</span></div>
-            <div role="progressbar" aria-valuemin={0} aria-valuemax={progress.required}
-              aria-valuenow={progress.value} className="h-2.5 overflow-hidden rounded-full border border-[#b89d5d]/60 bg-[#061b13]">
-              <div className="h-full bg-gradient-to-r from-[#547b54] to-[#c0cf84]"
-                style={{ width: `${100 * progress.value / progress.required}%` }} />
-            </div>
+  return <ViewportModalPortal blocking={false}>
+    <div data-testid="pet-park-garden-menu" className="pointer-events-none absolute inset-0 z-[76]"
+      aria-label="Garden Plot tools">
+      <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[260px]"
+        style={{ left: anchor.x, top: anchor.y, transform: "translate(-50%, -107px)" }}>
+        <div className="relative h-[107px]" role="group" aria-label="Garden tools">
+          {BUTTONS.map(({ action, Icon, x, y }) => {
+            const items = owned(action);
+            const available = !inventoryLoading && suggested === action && items.length > 0 && !isBusy && !mutation.isPending;
+            const catalogItem = items[0] ?? inventory.find(item => action === "plant"
+              ? item.type === "garden_seed" && !item.isListed
+              : item.type === "garden_tool" && item.specialType === tools[action as Exclude<GardenPlayerAction, "plant">]);
+            const sourceImage = catalogItem?.imageUrl ?? (action === "plant" ? crops[0]?.images.seedPack : null);
+            return <button type="button" key={action}
+              data-testid={"pet-park-garden-action-" + action}
+              aria-label={actionNames[action]} aria-disabled={!available}
+              disabled={!available}
+              title={actionNames[action]}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => { event.stopPropagation(); chooseAction(action); }}
+              className={"garden-tool-bubble pointer-events-auto absolute flex h-[57px] w-[57px] flex-col items-center justify-center rounded-full border text-[10px] font-semibold shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2d48a] " +
+                (available ? "border-[#f1d18a] bg-[#1f5135] text-[#ffe9b0]" :
+                  "border-[#7e816e]/70 bg-[#22382b]/90 text-[#a5ae96] opacity-45 grayscale")}
+              style={{ left: x, top: y }}>
+              {sourceImage ? <img src={sourceImage} alt="" draggable={false}
+                className="h-[34px] w-[38px] object-contain" /> :
+                <Icon size={25} strokeWidth={1.8} aria-hidden="true" />}
+              <span className="leading-none">{actionNames[action]}</span>
+            </button>;
+          })}
+          <button type="button" aria-label="Close garden tools" onPointerDown={event => event.stopPropagation()}
+            onClick={event => { event.stopPropagation(); if (!mutation.isPending) onClose(); }}
+            className="pointer-events-auto absolute right-0 top-[-2px] flex h-7 w-7 items-center justify-center rounded-full border border-[#b89b61]/70 bg-[#09281b]/95 text-[#ead59f] shadow-md">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="mx-auto w-fit max-w-[240px] rounded-full border border-[#bd9e62]/70 bg-[#092719]/90 px-3 py-1 text-center font-fantasy text-[11px] text-[#f4d69c] shadow-lg"
+          data-testid="pet-park-garden-stage">{stageLabel}</div>
+        {progress && <div className="mx-auto mt-1.5 w-fit max-w-[220px] rounded-full border border-[#b5ae80]/35 bg-[#102e23]/90 px-3 py-1 text-center text-[10px] text-[#e3d7b1]"
+          data-testid="pet-park-garden-progress">
+          Water: {progress.value} / {progress.required} drops
+        </div>}
+        {missingMessage && !motion && <div data-testid="pet-park-garden-no-items"
+          role="status" className="mx-auto mt-2 max-w-[255px] rounded-xl border border-[#c7a96b]/65 bg-[#102d20]/95 px-3 py-2 text-center text-xs text-[#f0dba9] shadow-lg">
+          {missingMessage}
+        </div>}
+        {showSeeds && suggested === "plant" && seeds.length > 1 && !motion &&
+          <div data-testid="pet-park-garden-seed-choices" className="pointer-events-auto mx-auto mt-2 flex max-h-[125px] w-fit max-w-[260px] flex-wrap justify-center gap-1.5 overflow-y-auto rounded-xl border border-[#bfa068]/60 bg-[#0e3222]/95 p-1.5">
+            {seeds.map(seed => <button type="button" key={seed.inventoryId}
+              data-testid="pet-park-garden-seed-choice" title={seed.name}
+              aria-label={"Plant " + seed.name}
+              disabled={mutation.isPending} onClick={() => submit("plant", seed)}
+              className="flex min-h-12 min-w-14 max-w-20 flex-col items-center rounded-full border border-[#d9b977]/70 bg-[#1c4931] p-1 text-[9px] text-[#f2dba6]">
+              {seed.imageUrl ? <img src={seed.imageUrl} alt="" className="h-7 w-8 object-contain" /> : <Sprout size={21} />}
+              <span className="max-w-[65px] truncate">{seed.name}</span>
+            </button>)}
           </div>}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {plot.phase === "picked" ? <p className="py-3 text-center text-xs text-[#e6d6b1]">The soil will be available again 30 seconds after harvest. Return to hoe it again.</p> :
-            suggested ? <>
-              <p className="mb-2 text-xs text-[#d1d2ad]">Choose your {suggested === "plant" ? "seed packet" : suggested === "water" ? "watering pail" : suggested === "hoe" ? "hoe" : "scythe"}:</p>
-              {inventoryLoading ? <p className="py-4 text-center text-xs">Loading your Bag…</p> :
-              eligible.length ? <div className="space-y-2">
-                {eligible.map(item => <button key={item.inventoryId} type="button"
-                  data-testid="pet-park-garden-inventory-item" disabled={mutation.isPending}
-                  onClick={() => submit(item.inventoryId)}
-                  className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-[#d4b97b]/50 bg-[#1c4530] p-2 text-left disabled:opacity-50 active:bg-[#365940]">
-                  {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-10 w-10 shrink-0 object-contain" /> :
-                    <Sprout size={25} className="shrink-0 text-[#e6d69c]" />}
-                  <span className="min-w-0 flex-1"><strong className="block truncate font-fantasy text-sm text-[#f5d98e]">{item.name}</strong>
-                    <small className="text-[11px] text-[#c4ceaf]">{suggested === "water"
-                      ? `${item.gardenWaterLeft ?? 100} / 100 drops remaining` : `Owned: ${item.quantity ?? 0}`}</small></span>
-                  <span className="rounded-full border border-[#e5c66a]/40 px-2 py-1 text-xs">Use</span>
-                </button>)}
-              </div> : <p data-testid="pet-park-garden-no-items"
-                className="rounded-xl border border-[#b69b61]/40 bg-[#0a261a] p-3 text-center text-xs text-[#e2d3a9]">
-                {suggested === "water" ? "No watering pail with water. Refill an eligible pail at a Water Source decoration." :
-                  suggested === "plant" ? "No plantable Seed Packs in your Bag. Buy seeds at a shop or market." :
-                  `You need a ${suggested === "hoe" ? "Hoe" : "Scythe"} in your Bag.`}
-              </p>}
-            </> : null}
-            {errorMessage && <div role="alert" className="mt-3 rounded-xl border border-[#cfb06d] bg-[#432e23] p-3 text-xs">
-              <p>{errorMessage}</p>
-              {retry && <button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate(retry)}
-                className="mt-2 min-h-10 rounded-lg border border-[#e6c978] bg-[#245037] px-4 font-semibold">Retry same action safely</button>}
-            </div>}
+        {errorMessage && <div role="alert"
+          className="pointer-events-auto mx-auto mt-2 max-w-[260px] rounded-xl border border-[#cfb06d] bg-[#492b23]/95 p-2 text-center text-xs text-[#fae1b6] shadow-lg">
+          <p>{errorMessage}</p>
+          {retry && retry.action === suggested && <button type="button" disabled={mutation.isPending}
+            onClick={() => {
+              const original = inventory.find(item => item.inventoryId === retry.inventoryId);
+              if (original && !motion) {
+                setMotion({ action: retry.action, requestId: retry.requestId, imageUrl: original.imageUrl ?? null,
+                  waterBefore: retry.action === "water" ? (original.gardenWaterLeft ?? 100) : null,
+                  waterAfter: null, confirmed: false });
+                mutation.mutate(retry);
+              }
+            }}
+            className="mt-1.5 min-h-9 rounded-full border border-[#f0d388] bg-[#214e35] px-3 font-semibold">
+            Retry safely
+          </button>}
+        </div>}
+      </div>
+      {motion && <div data-testid="pet-park-garden-animation" data-action={motion.action}
+        aria-hidden="true" className="pointer-events-none absolute"
+        style={{ left: anchor.x, top: anchor.y + 12, transform: "translate(-50%, -50%)" }}>
+        {motion.action === "water" && <div className="absolute bottom-[110px] left-1/2 z-20 w-[88px] -translate-x-1/2 rounded-lg border border-[#d3bf80] bg-[#102d24]/95 px-2 py-1 shadow-lg"
+          data-testid="pet-park-garden-water-gauge">
+          <div className="text-center text-[9px] font-bold text-[#eddaa5]">{motion.waterAfter ?? motion.waterBefore ?? 100} / 100</div>
+          <div className="mt-0.5 h-[6px] overflow-hidden rounded-full bg-[#27453b]">
+            <div className="h-full rounded-full bg-[#83c6c7] transition-[width] duration-700 ease-in-out"
+              style={{ width: (((motion.waterAfter ?? motion.waterBefore ?? 100) / 100) * 100) + "%" }} />
           </div>
-        </>}
-      </section>
+        </div>}
+        <div className={"garden-tool-motion garden-tool-motion-" + motion.action}>
+          {motion.imageUrl ? <img src={motion.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" /> :
+            motion.action === "water" ? <Droplets size={75} /> : motion.action === "hoe" ? <Shovel size={75} /> :
+            motion.action === "harvest" ? <Scissors size={75} /> : <Sprout size={75} />}
+        </div>
+        {motion.action === "water" && <div className="garden-pour-drops">
+          <span /><span /><span />
+        </div>}
+        {motion.action === "plant" && <div className="garden-plant-sparkle">✦</div>}
+      </div>}
+      {lastReward && <div data-testid="pet-park-garden-harvest"
+        className="pointer-events-auto absolute z-[2] flex min-w-[180px] max-w-[240px] items-center gap-2 rounded-xl border-2 border-[#d8b873] bg-[#123d2b]/95 px-3 py-2 text-[#f2d69a] shadow-xl"
+        role="status" style={{ left: anchor.x, top: anchor.y + 36, transform: "translateX(-50%)" }}>
+        {lastReward.imageUrl ? <img src={lastReward.imageUrl} alt="" className="h-11 w-11 object-contain" /> : <Sprout size={31} />}
+        <div className="min-w-0 flex-1"><strong className="font-fantasy text-sm">Harvested!</strong>
+          <p className="text-[11px]">{lastReward.quantity} × {lastReward.fruitName}</p>
+          <p className="text-[9px] text-[#bed5b6]">Added to your Bag</p></div>
+        <button type="button" aria-label="Close harvest notice" onClick={() => setLastReward(null)}
+          className="rounded-full p-1"><X size={14} /></button>
+      </div>}
     </div>
   </ViewportModalPortal>;
 }

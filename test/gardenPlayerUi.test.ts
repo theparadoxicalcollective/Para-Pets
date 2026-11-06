@@ -48,13 +48,39 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(page, /parkDepthIndex\(\{ yPct: plot\.yPct/);
   assert.match(page, /onChanged=\{invalidateGarden\}/);
   assert.match(menu, /crypto\.randomUUID\(\)/);
-  assert.match(menu, /retry\?\.action === action && retry\.inventoryId === inventoryId/);
+  assert.match(menu, /retry\?\.action === action && retry\.inventoryId === item\.inventoryId/);
   assert.match(menu, /mutation\.mutate\(retry\)/);
   assert.match(menu, /item\.isListed \|\| \(item\.quantity \?\? 0\) <= 0/);
   assert.match(menu, /item\.type === "garden_seed"/);
   assert.match(menu, /item\.type === "garden_tool"/);
-  assert.match(menu, /ViewportModalPortal/);
-  assert.match(menu, /border-2 border-\[#c9a65e\]/);
+  assert.match(menu, /ViewportModalPortal blocking=\{false\}/);
+  assert.match(menu, /data-testid="pet-park-garden-anchor"/);
+  assert.match(menu, /translate\(-50%, -107px\)/, "bubble arc must not jump when notices or seed choices appear");
+  assert.match(menu, /data-testid=\{"pet-park-garden-action-" \+ action\}/);
+  assert.match(menu, /garden-tool-bubble/);
+  assert.match(menu, /aria-disabled=\{!available\}/);
+  assert.match(menu, /missingMessage/);
+  assert.match(menu, /Come back when you have your gardening tools/);
+  assert.match(menu, /Find a Water Source to refill your pail/);
+  assert.match(menu, /data-testid="pet-park-garden-water-gauge"/);
+  assert.match(menu, /data-testid="pet-park-garden-animation"/);
+  assert.match(menu, /onClick=\{event => \{ event.stopPropagation\(\); chooseAction\(action\); \}\}/);
+  assert.match(menu, /setMotion\(/);
+  assert.match(menu, /if \(action === "plant" && items.length > 1\)/);
+  assert.match(menu, /Retry safely/);
+  assert.doesNotMatch(menu, /aria-modal="true"|bg-black\/75|Choose your hoe|>Use<|Next step/);
+  assert.match(page, /const gardenToolAnchor = chosenGardenPlot/);
+  assert.match(page, /camera.x \+ chosenGardenPlot.xPct \* sceneWidth/);
+  assert.match(page, /camera.y \+ chosenGardenPlot.yPct \* sceneHeight/);
+  assert.match(page, /anchor=\{gardenToolAnchor\}/);
+  assert.match(page, /<ViewportModalPortal blocking=\{false\}>/);
+  const motionCss = source("client/src/components/PetParkGardenMenu.css");
+  assert.match(motionCss, /garden-hoe-chops/);
+  assert.match(motionCss, /garden-pail-tip/);
+  assert.match(motionCss, /rotate\(-34deg\)/);
+  assert.match(motionCss, /garden-scythe-sweep/);
+  assert.match(motionCss, /garden-falling-drop/);
+  assert.match(motionCss, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(page, /DESIGN_W|DESIGN_H|390\s*[*×x]\s*844/);
 });
 
@@ -63,7 +89,13 @@ test("untilled and tilled plot designs share path brown with independent four-si
   assert.match(terrain, /backgroundColor: tilled \? "#36261d" : "#624832"/);
   assert.match(terrain, /M120 3 L237 60 L120 117 L3 60 Z/);
   assert.match(terrain, /data-testid=\{tilled \? "pet-park-tilled-soil" : "pet-park-untilled-soil"\}/);
-  assert.match(terrain, /So[f]?t diagonal furrows/);
+  // After tilled soil is hoed, it remains dark and textured without the old
+  // arched furrows that looked like accidental curved stripes on the tiles.
+  const gardenStamp = terrain.split('if (type === "garden_plot")')[1]?.split('if (type === "stone_path")')[0] ?? "";
+  const tilledDetail = gardenStamp.split("{tilled &&")[1]?.split("{[[36,60")[0] ?? "";
+  assert.match(gardenStamp, /Smooth dark tilled earth/);
+  assert.match(tilledDetail, /ellipse key=\{`grain-\$\{i\}`\}/);
+  assert.doesNotMatch(tilledDetail, /<path|\bQ\d/, "no arched furrows are drawn inside tilled soil");
   assert.match(terrain, /map\(\(\[x,y,rx,ry\],i\)/);
   const brush = source("client/src/components/PetParkTerrainBrush.tsx");
   assert.match(brush, /isParkConnectedPath\(type\) \|\| type === "garden_plot" \? parkExtendPathStroke/);

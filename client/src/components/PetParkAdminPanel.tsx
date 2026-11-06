@@ -33,6 +33,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingTapImage, setPendingTapImage] = useState<string | null>(null);
   const [newWaterSource, setNewWaterSource] = useState(false);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
@@ -60,7 +61,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       if (!isBuilding && !isItem) return;
       const created = result?.building ?? result?.item ?? result;
       if (isBuilding) { setBuildingImage(null); setInteriorImage(null); }
-      if (isItem) { setPendingImage(null); setNewWaterSource(false); }
+      if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewWaterSource(false); }
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       if (typeof created?.id === "string") {
         onCreated?.({
@@ -205,6 +206,19 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <Image className="mr-2 inline h-4 w-4" /> Upload Image (PNG/JPEG)
           <input aria-label="Scene item artwork" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={e => { void selectFile(e.target.files?.[0], setPendingImage); e.target.value = ""; }} />
         </label>}
+        <div className="space-y-2 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3">
+          <strong className="block text-sm text-[#f5d98e]">Tap Image <span className="text-[11px] font-normal text-amber-100/70">(optional)</span></strong>
+          <p className="text-[11px] text-amber-100/75">Alternate art shown when a player taps this decoration. Tap again to switch back (for example, an open gate).</p>
+          {pendingTapImage && <div className="relative flex h-28 items-center justify-center rounded-lg border border-[#c9a65e]/40 bg-[#0b2418] p-2">
+            <img src={pendingTapImage} alt="Alternate Tap Image preview" draggable={false} className="h-full w-full object-contain" />
+            <button type="button" aria-label="Remove Tap Image" onClick={() => setPendingTapImage(null)} className="absolute right-1 top-1 rounded-full border border-[#c9a65e]/50 bg-[#153521] p-2"><X size={16} /></button>
+          </div>}
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/60 bg-[#143324] px-3 py-3 text-center text-xs text-[#efd599]">
+            <Image size={15} className="mr-1 inline" />{pendingTapImage ? "Replace Tap Image" : "Upload Tap Image (PNG/JPEG)"}
+            <input aria-label="Decoration Tap Image" type="file" accept="image/png,image/jpeg" className="sr-only"
+              onChange={event => { void selectFile(event.target.files?.[0], setPendingTapImage); event.target.value = ""; }} />
+          </label>
+        </div>
         <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: GOLD_BORDER, background: "rgba(255,215,0,.04)" }}>
           <div className="flex items-center justify-between text-sm"><label htmlFor="park-decor-size">Starting size</label><span className="font-semibold">{itemSize} world units</span></div>
           <div className="flex items-center gap-3">
@@ -229,7 +243,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
-            kind: "decor", imageData: pendingImage, effectType: null, isWaterSource: newWaterSource,
+            kind: "decor", imageData: pendingImage, tapImageData: pendingTapImage, effectType: null, isWaterSource: newWaterSource,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
             size: itemSize, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding…" : "Add Decoration"}</button>
