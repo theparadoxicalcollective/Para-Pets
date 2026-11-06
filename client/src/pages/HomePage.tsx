@@ -54,8 +54,6 @@ interface HomePageProps {
     isAdmin: boolean;
     isModerator?: boolean;
     activePetId: string | null;
-    tutorial_quest_completed?: boolean;
-    tutorial_reward_claimed?: boolean;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
