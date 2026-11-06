@@ -105,6 +105,7 @@ export default function PetParkShopShelf({
         <span className="text-[9px] text-amber-100/65">{item.price} coins</span>
       </div>)}
     </div>
+    {!canEditPark && selected.length > 0 && <p className="mt-1 text-[10px] text-amber-100/60">Item display only · Purchases are not enabled here yet.</p>}
     {showPicker && canEditPark && <div data-testid="pet-park-shop-picker" className="mt-2 border-t border-[#bfa46d]/40 pt-2">
       <div className="flex items-center gap-1 rounded-lg border border-[#bda66c]/50 bg-[#0d261b] px-2">
         <Search size={14} />
