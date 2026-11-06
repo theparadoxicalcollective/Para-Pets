@@ -18,8 +18,8 @@ test("park building details are admin-only, contextual and use existing storage"
   assert.match(page, /scene\?\.canEditPark && !fullPageRoom/);
   assert.match(page, /setDetailsBuildingId\(selectedPlacement\.id\)/);
   assert.match(details, /Park building name/);
-  assert.match(details, /Park building capacity/);
-  assert.match(details, /Players can share this building with their equipped pets/);
+  assert.doesNotMatch(details, /aria-label="Park building capacity"/);
+  assert.match(details, /All player pets stay outdoors/);
   assert.match(details, /Replace park building exterior/);
   assert.match(details, /Replace park building interior/);
   assert.match(details, /api\/admin\/pet-park\/buildings\/\$\{building\.id\}/);
@@ -52,7 +52,8 @@ test("interior effect editing reuses coordinate contract and supports cancel/sav
   assert.match(details, /onEffectPointerCancel=/);
   assert.match(details, /HOUSE_INTERIOR_EFFECT_MIN_SIZE/);
   assert.match(details, /HOUSE_INTERIOR_EFFECT_MAX_SIZE/);
-  assert.match(details, /\.\.\.HOME_INTERIOR_EFFECT_OPTIONS, \{ type: "room"/);
+  assert.match(details, /\.\.\.HOME_INTERIOR_EFFECT_OPTIONS, \.\.\.PARK_WATER_EFFECT_OPTIONS\.map/);
+  assert.match(details, /type: "room" as const/);
   assert.match(details, /Save interior effects/);
   assert.match(details, /Cancel effect changes/);
   assert.match(details, /interiorEffects: effects/);
