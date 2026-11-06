@@ -33,7 +33,7 @@ test("garden phase, watering, cooldown and harvest probabilities are defined onc
 
 test("water only grows one phase per earned drop and never bypasses harvest readiness", () => {
   const required = { planted: 2, seedling: 1, partial: 3, grown: 2 };
-  let state: { phase: "planted" | "seedling" | "partial" | "grown"; waterApplied: number; harvestReady: boolean } =
+  let state: ReturnType<typeof gardenAfterWaterDrop> =
     { phase: "planted", waterApplied: 0, harvestReady: false };
   state = gardenAfterWaterDrop(state, required);
   assert.deepEqual(state, { phase: "planted", waterApplied: 1, harvestReady: false });
