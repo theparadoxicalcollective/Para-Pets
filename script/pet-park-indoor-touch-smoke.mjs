@@ -60,6 +60,8 @@ try {
     await page.goto("http://127.0.0.1:4183/fixture",{waitUntil:"commit",timeout:30000});
     const houseButton=page.getByRole("button",{name:"Enter Fixture Cottage"});
     await houseButton.waitFor({state:"visible",timeout:30000});
+    // The real hit-test intentionally rejects clicks before the artwork is decoded.
+    await houseButton.locator("img").evaluate(img => img.decode());
     await houseButton.click();
     await page.getByTestId("pet-park-interior-room").waitFor({state:"visible"});
     const petButton=page.getByTestId("pet-park-indoor-pet-drag");
