@@ -60,7 +60,7 @@ test("adjoining saved dirt tiles are one opaque painted shape, not separate tran
 
 test("editing and brush previews use the same path stamps without introducing a new hit-test surface", () => {
   assert.match(page, /dirtPatches=\{dirtPatches\}/);
-  assert.match(page, /item\.effectType === "dirt_path" \? null/);
+  assert.match(page, /item\.kind === "terrain" && isParkConnectedPath\(item\.effectType\) \? null/);
   assert.match(page, /startPlacement\(e, "item", item\)/);
   assert.match(page, /placementSave\.mutate/);
   assert.match(page, /onWheel=\{e =>/);
