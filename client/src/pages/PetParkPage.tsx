@@ -162,6 +162,16 @@ export default function PetParkPage() {
   const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
+  // Float the garden action bubbles over the selected plot using the SAME
+  // world→screen camera projection as the terrain. The HUD's bubble size
+  // stays readable while zooming; the saved plot's position never changes.
+  const gardenToolAnchor = chosenGardenPlot ? {
+    x: Math.max(132, Math.min(viewportSize.width - 132,
+      camera.x + chosenGardenPlot.xPct * sceneWidth)),
+    y: Math.max(166, Math.min(viewportSize.height - 100,
+      camera.y + chosenGardenPlot.yPct * sceneHeight -
+      chosenGardenPlot.size * scale * parkTerrainHeightRatio("garden_plot") / 2 - 10)),
+  } : null;
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }); qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] }); };
   const action = useMutation({
     mutationFn: async ({ method = "POST", path, body }: { method?: "POST" | "PATCH"; path: string; body?: object }) => {
@@ -1015,16 +1025,19 @@ export default function PetParkPage() {
       </div>}
     </div>}
     {selectedGardenPlotId && !scene?.canEditPark && scene?.canEnterPark && (
-      chosenGardenPlot ? <PetParkGardenMenu
+      chosenGardenPlot && gardenToolAnchor ? <PetParkGardenMenu
         key={chosenGardenPlot.plotItemId} plot={chosenGardenPlot}
+        anchor={gardenToolAnchor}
         crops={garden?.crops ?? []} inventory={inventory} inventoryLoading={isGardenInventoryLoading}
         onClose={() => setSelectedGardenPlotId(null)} onChanged={invalidateGarden} /> :
-      <ViewportModalPortal><div className="fixed inset-0 z-[75] flex items-end justify-center p-3">
-        <button type="button" aria-label="Close Garden" className="absolute inset-0 bg-black/75" onClick={() => setSelectedGardenPlotId(null)} />
-        <section role="dialog" aria-modal="true" aria-label="Garden loading" className="relative w-full max-w-sm rounded-2xl border-2 border-[#c9a65e] bg-[#173d2a] p-4 text-center text-[#f4dda6]">
-          <p>{isGardenLoading ? "Loading your Garden Plot…" : "Garden Plot not available. Close and try again."}</p>
-          <button type="button" className="mt-3 min-h-11 rounded-xl border border-[#c9a65e] bg-[#245037] px-6" onClick={() => setSelectedGardenPlotId(null)}>Close</button>
-        </section>
+      <ViewportModalPortal blocking={false}><div
+        className="pointer-events-none absolute inset-x-3 top-[28%] z-[76] flex justify-center">
+        <div className="pointer-events-auto flex max-w-[260px] items-center gap-2 rounded-xl border border-[#c9a65e]/80 bg-[#143925]/95 p-2 text-xs text-[#f4dda6] shadow-lg"
+          role="status">
+          <span>{isGardenLoading ? "Checking Garden Plot…" : "Garden Plot unavailable."}</span>
+          <button type="button" aria-label="Close garden tools" onClick={() => setSelectedGardenPlotId(null)}
+            className="rounded-full border border-[#c9a65e]/60 p-1"><X size={15} /></button>
+        </div>
       </div></ViewportModalPortal>
     )}
     {selectedWaterSourceId && !scene?.canEditPark && <ViewportModalPortal>
