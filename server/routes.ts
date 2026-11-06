@@ -1283,6 +1283,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Item not found" });
       }
 
+      // Garden fruit must be earned from harvesting or bought from another
+      // player's marketplace listing. Never allow direct shop-ID purchases,
+      // even when the caller forges a world ID or knows the catalog item ID.
+      if (shopItem.type === "garden_fruit") {
+        return res.status(403).json({ message: "Harvested fruit is not sold by shops" });
+      }
+
       let isFirstPetAcquisition = false;
       if (shopItem.type === "pet") {
         const petCount = await storage.countInventoryPetCopies(user.id, itemId);
