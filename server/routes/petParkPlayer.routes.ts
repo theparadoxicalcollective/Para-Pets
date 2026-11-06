@@ -91,6 +91,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         canEnterPark,
         backgroundUrl: settings?.backgroundUrl ?? null, // Legacy only; the live park draws grass instead.
         groundLevel: settings?.groundLevel ?? 1,
+        groundTheme: settings?.groundTheme ?? "grass",
         buildings, rates: { coinsPerHour: settings?.coinsPerHour ?? 0, essencePerHour: settings?.essencePerHour ?? 0, petXpPerHour: settings?.petXpPerHour ?? 0 },
         serverNow: new Date().toISOString(),
         items, deposits, sharedPets, unlockedSlots: slots?.unlockedSlots ?? 1,
