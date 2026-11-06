@@ -33,6 +33,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [newWaterSource, setNewWaterSource] = useState(false);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       if (!isBuilding && !isItem) return;
       const created = result?.building ?? result?.item ?? result;
       if (isBuilding) { setBuildingImage(null); setInteriorImage(null); }
-      if (isItem) setPendingImage(null);
+      if (isItem) { setPendingImage(null); setNewWaterSource(false); }
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       if (typeof created?.id === "string") {
         onCreated?.({
@@ -216,11 +217,19 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           </div>
           <p className="text-[11px] text-amber-100/60">Size is saved when the object is created. Use Move park objects to position, resize or flip it afterward. Depth follows ground position automatically.</p>
         </div>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-xs text-[#f4d795]">
+          <input aria-label="Water Source" type="checkbox" checked={newWaterSource}
+            onChange={event => setNewWaterSource(event.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#d8bc67]" />
+          <span><strong className="block text-sm">Water Source</strong>
+            <span className="block text-[11px] text-amber-100/75">Allow refillable garden tools to collect water here. This decoration keeps its artwork and placement.</span>
+          </span>
+        </label>
         <button type="button" disabled={mutation.isPending || !pendingImage}
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
-            kind: "decor", imageData: pendingImage, effectType: null,
+            kind: "decor", imageData: pendingImage, effectType: null, isWaterSource: newWaterSource,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
             size: itemSize, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding…" : "Add Decoration"}</button>

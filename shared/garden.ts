@@ -1,0 +1,114 @@
+/** Garden configuration and progression shared by server, Admin Realm and Pet Park.
+ * All quantities are measured in individual water drops. The server owns
+ * transitions, inventory deductions, rewards and the harvest cooldown.
+ */
+export const GARDEN_WATER_CAPACITY = 100;
+/** UI and server use the same eligibility rule for a refillable inventory
+ * row. An unopened container (NULL charges) is already full, not empty. */
+export function gardenItemNeedsRefill(item: {
+  isRefillable?: boolean | null;
+  isListed?: boolean | null;
+  quantity?: number | null;
+  gardenWaterLeft?: number | null;
+}): boolean {
+  // Admin's explicit Refillable flag authorizes use at water sources.
+  // Item type and special effects remain unchanged by refilling.
+  return item.isRefillable === true && item.isListed !== true &&
+    (item.quantity ?? 1) > 0 &&
+    Number.isInteger(item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) &&
+    (item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) >= 0 &&
+    (item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) < GARDEN_WATER_CAPACITY;
+}
+
+
+export const GARDEN_PICKED_COOLDOWN_MS = 30_000;
+export const GARDEN_HARVEST_COUNTS = [1, 2, 3] as const;
+export const GARDEN_PHASES = [
+  { key: "planted", label: "Planted seed", waterLabel: "Drops to seedling" },
+  { key: "seedling", label: "Seedling", waterLabel: "Drops to partial growth" },
+  { key: "partial", label: "Partially grown", waterLabel: "Drops to full growth" },
+  { key: "grown", label: "Fully grown", waterLabel: "Drops until harvest-ready" },
+  { key: "picked", label: "Picked", waterLabel: "" },
+] as const;
+export type GardenPhase = typeof GARDEN_PHASES[number]["key"];
+export type GardenToolKind = "watering_pail" | "hoe" | "scythe";
+export type GardenShopType = "garden_seed" | "garden_fruit" | "garden_tool";
+export const GARDEN_TOOL_OPTIONS = [
+  { key: "watering_pail", label: "Watering Pail", description: "Carries 100 drops of water" },
+  { key: "hoe", label: "Hoe", description: "Prepares an empty garden plot" },
+  { key: "scythe", label: "Scythe", description: "Harvests a fully grown plant" },
+] as const;
+export const GARDEN_IMAGE_KEYS = [
+  "seedPack", "planted", "seedling", "partial", "grown", "picked", "fruit",
+] as const;
+export type GardenImageKey = typeof GARDEN_IMAGE_KEYS[number];
+export type GardenImages = Record<GardenImageKey, string | null>;
+
+export function validGardenDrops(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1 && value <= 1000;
+}
+export function validGardenPrice(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000;
+}
+export function validGardenArtwork(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 8_000_000 &&
+    /^data:image\/(?:png|webp|jpeg);base64,[a-z0-9+/=]+$/i.test(value);
+}
+/** Crop artwork may be saved as a draft; only complete crops are plantable. */
+export function isCompleteGardenCrop(input: {
+  images: GardenImages;
+  drops: readonly number[];
+}): boolean {
+  return GARDEN_IMAGE_KEYS.every(key => !!input.images[key]) &&
+    input.drops.length === 4 && input.drops.every(validGardenDrops);
+}
+/** Discrete, server-side harvest rarity: 75% one, 20% two, 5% three.
+ * A random source is injectable for deterministic tests, never provided by clients.
+ */
+export function gardenHarvestQuantity(random: number = Math.random()): 1 | 2 | 3 {
+  if (!Number.isFinite(random) || random < 0 || random >= 1) throw new Error("Invalid server random source");
+  return random < .75 ? 1 : random < .95 ? 2 : 3;
+}
+/** Display images are bottom-center anchored on the garden diamond, so
+ * growth never shifts sideways even when admin images have different dimensions.
+ */
+export const GARDEN_PLANT_ANCHOR = { x: .5, y: .5 } as const;
+
+export type GardenPlotPhase = "empty" | "tilled" | GardenPhase;
+export type GardenGrowingPhase = "planted" | "seedling" | "partial" | "grown";
+export type GardenWaterRequirements = Record<GardenGrowingPhase, number>;
+export type GardenGrowth = {
+  phase: GardenPlotPhase;
+  waterApplied: number;
+  harvestReady: boolean;
+};
+/** Exactly one water drop advances at most one phase. No elapsed-time growth,
+ * client-provided stage skips or implicit free watering.
+ */
+export function gardenAfterWaterDrop(current: GardenGrowth, required: GardenWaterRequirements): GardenGrowth {
+  if (!(current.phase === "planted" || current.phase === "seedling" ||
+        current.phase === "partial" || current.phase === "grown") || current.harvestReady)
+    throw new Error("This plot cannot be watered now");
+  const threshold = required[current.phase];
+  if (!validGardenDrops(threshold) || !Number.isSafeInteger(current.waterApplied) ||
+      current.waterApplied < 0 || current.waterApplied >= threshold)
+    throw new Error("Invalid garden growth progress");
+  const progress = current.waterApplied + 1;
+  if (progress < threshold)
+    return { phase: current.phase, waterApplied: progress, harvestReady: false };
+  const next: Record<GardenGrowingPhase, GardenGrowingPhase> = {
+    planted: "seedling", seedling: "partial", partial: "grown", grown: "grown",
+  };
+  return current.phase === "grown"
+    ? { phase: "grown", waterApplied: threshold, harvestReady: true }
+    : { phase: next[current.phase], waterApplied: 0, harvestReady: false };
+}
+/** Called at read and before mutation: picked plots have a server 30s lockout
+ * and return to an unprepared empty diamond afterward.
+ */
+export function gardenEffectivePhase(
+  phase: GardenPlotPhase, pickedUntil: Date | null | undefined, now: Date = new Date(),
+): GardenPlotPhase {
+  return phase === "picked" && pickedUntil && pickedUntil.getTime() <= now.getTime()
+    ? "empty" : phase;
+}

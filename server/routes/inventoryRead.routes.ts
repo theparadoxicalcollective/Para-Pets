@@ -131,6 +131,8 @@ export function registerInventoryReadRoutes(
         statBoostAmount: shopItem?.statBoostAmount || null,
         specialType: shopItem?.specialType || null,
         specialAmount: shopItem?.specialAmount || null,
+        isRefillable: shopItem?.isRefillable ?? false,
+        gardenWaterLeft: shopItem?.isRefillable ? (inv.gardenWaterLeft ?? 100) : null,
         healthRestored: shopItem?.healthRestored ?? null,
         manaRestored: shopItem?.manaRestored ?? null,
         petsRevived: shopItem?.petsRevived ?? null,

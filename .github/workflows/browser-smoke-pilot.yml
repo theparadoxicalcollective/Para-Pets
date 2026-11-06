@@ -53,7 +53,10 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/para-browser" --no-package-lock --ignore-scripts playwright@1.56.1
           ln -s "$RUNNER_TEMP/para-browser/node_modules/playwright" node_modules/playwright
           ln -s "$RUNNER_TEMP/para-browser/node_modules/playwright-core" node_modules/playwright-core
-      - run: node node_modules/playwright/cli.js install --with-deps chromium
+      # ubuntu-22.04 GitHub-hosted runners already provide Chromium's required
+      # shared libraries. --with-deps runs apt anyway; slow Ubuntu font mirrors
+      # have exhausted this 15-minute job after every smoke test passed.
+      - run: node node_modules/playwright/cli.js install chromium
       - name: Exercise public route at phone, tablet and desktop sizes
         shell: bash
         run: |
@@ -79,6 +82,7 @@ jobs:
           node script/pet-park-placement-smoke.mjs
           node script/pet-park-player-profile-smoke.mjs
           node script/pet-park-indoor-touch-smoke.mjs
+          node script/pet-park-water-source-smoke.mjs
           node script/pet-park-isometric-smoke.mjs
           node script/npc-discovery-smoke.mjs
           # Exercise the PR-specific Lonelle flow before the longer, occasionally

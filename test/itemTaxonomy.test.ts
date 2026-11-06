@@ -19,7 +19,7 @@ test("shared item taxonomy follows Pets, Fish, Home, Items in the requested orde
       ["pets", "Pets", ["pets", "mini_pets", "costumes", "accessories"]],
       ["fish", "Fish", ["fish", "poles", "bait"]],
       ["home", "Home", ["objects", "decor", "homes"]],
-      ["items", "Items", ["potions", "power_ups", "specials", "edibles", "gifts", "ingredients", "recipes", "clearing"]],
+      ["items", "Items", ["potions", "power_ups", "specials", "edibles", "gifts", "ingredients", "recipes", "clearing", "garden"]],
     ],
   );
   assert.equal(GAME_ITEM_CATEGORY_LABELS.costumes, "Adornments");

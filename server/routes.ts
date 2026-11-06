@@ -104,6 +104,8 @@ import { registerPetStateRoutes } from "./routes/petState.routes";
 import { registerPetParkSlotRoutes } from "./routes/petParkSlots.routes";
 import { registerPetParkPlayerRoutes } from "./routes/petParkPlayer.routes";
 import { registerPetParkAdminRoutes } from "./routes/petParkAdmin.routes";
+import { registerGardenAdminRoutes } from "./routes/gardenAdmin.routes";
+import { registerGardenRefillRoutes } from "./routes/gardenRefill.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
@@ -1282,6 +1284,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Item not found" });
       }
 
+      // Garden fruit must be earned from harvesting or bought from another
+      // player's marketplace listing. Never allow direct shop-ID purchases,
+      // even when the caller forges a world ID or knows the catalog item ID.
+      if (shopItem.type === "garden_fruit") {
+        return res.status(403).json({ message: "Harvested fruit is not sold by shops" });
+      }
+
       let isFirstPetAcquisition = false;
       if (shopItem.type === "pet") {
         const petCount = await storage.countInventoryPetCopies(user.id, itemId);
@@ -1340,9 +1349,10 @@ export async function registerRoutes(
             for (let i = 0; i < requestedQuantity; i++) {
               const extraFields: any = {};
               if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) extraFields.poleUsesLeft = shopItem.poleMaxUses;
+              if (shopItem.isRefillable) extraFields.gardenWaterLeft = 100;
               // Pets and poles must be individual rows. Other generic shop
               // items preserve the existing storage stacking behaviour.
-              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole") {
+              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole" && !shopItem.isRefillable) {
                 const [existing] = await tx.select().from(userInventory).where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId)));
                 if (existing) [invItem] = await tx.update(userInventory).set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` }).where(eq(userInventory.id, existing.id)).returning();
                 else [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: 1 }).returning();
@@ -1423,6 +1433,8 @@ export async function registerRoutes(
   registerPetParkSlotRoutes(app, isAuthenticated);
   registerPetParkPlayerRoutes(app, isAuthenticated, applyPetXp);
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
+  registerGardenAdminRoutes(app, { db, isAdmin, processWorldImage });
+  registerGardenRefillRoutes(app, isAuthenticated);
 
   registerPetStateRoutes(app, {
     storage,

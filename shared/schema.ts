@@ -89,6 +89,9 @@ export const shopItems = pgTable("shop_items", {
   clearingActive: boolean("clearing_active").notNull().default(true),
   specialType: text("special_type"),
   specialAmount: integer("special_amount"),
+  // Admin flag. Only refill-capable equipment can use a water source;
+  // future player requests must validate both item and target server-side.
+  isRefillable: boolean("is_refillable").notNull().default(false),
   shopPosX: real("shop_pos_x").notNull().default(50),
   shopPosY: real("shop_pos_y").notNull().default(50),
   shopWidth: integer("shop_width").notNull().default(72),
@@ -171,6 +174,9 @@ export const userInventory = pgTable("user_inventory", {
   petNickname: text("pet_nickname"),
   isListed: boolean("is_listed").notNull().default(false),
   poleUsesLeft: integer("pole_uses_left"),
+  // A watering pail consumes a finite 100 drops. Null means unused/full;
+  // zero stays empty until a replacement pail is acquired.
+  gardenWaterLeft: integer("garden_water_left"),
   quantity: integer("quantity").notNull().default(1),
   // Per-pet petting reward tracking. Each pet has its own daily allotment
   // (1 guaranteed +10 coin reward + up to 4 random extras), so a player
@@ -1379,6 +1385,8 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   kind: text("kind").notNull(), // decor | sleep_spot | effect
   effectType: text("effect_type"), // waterfall_mist | water_ripple | water_shimmer
+  // Tagged decor is a refill station; visual depth and placement are unchanged.
+  isWaterSource: boolean("is_water_source").notNull().default(false),
   imageUrl: text("image_url"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
@@ -1387,6 +1395,43 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   layer: integer("layer").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
+
+// Garden uses existing catalog and marketplace inventory identities.
+// A single crop definition owns stage artwork; seed/fruit are ordinary
+// shop_items, not a second item catalog.
+export const gardenCrops = pgTable("garden_crops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seedItemId: varchar("seed_item_id").notNull().references(() => shopItems.id, { onDelete: "restrict" }),
+  fruitItemId: varchar("fruit_item_id").notNull().references(() => shopItems.id, { onDelete: "restrict" }),
+  plantedImageUrl: text("planted_image_url"),
+  seedlingImageUrl: text("seedling_image_url"),
+  partialImageUrl: text("partial_image_url"),
+  grownImageUrl: text("grown_image_url"),
+  pickedImageUrl: text("picked_image_url"),
+  plantedDrops: integer("planted_drops").notNull().default(10),
+  seedlingDrops: integer("seedling_drops").notNull().default(10),
+  partialDrops: integer("partial_drops").notNull().default(10),
+  grownDrops: integer("grown_drops").notNull().default(10),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, table => [
+  uniqueIndex("garden_crops_seed_unique").on(table.seedItemId),
+  uniqueIndex("garden_crops_fruit_unique").on(table.fruitItemId),
+]);
+
+// Player-private growth on a shared, admin-placed garden diamond. The state
+// and inventory updates MUST happen inside one locked server transaction.
+export const gardenPlayerPlots = pgTable("garden_player_plots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  plotItemId: varchar("plot_item_id").notNull().references(() => petParkSceneItems.id, { onDelete: "cascade" }),
+  cropId: varchar("crop_id").references(() => gardenCrops.id, { onDelete: "restrict" }),
+  phase: text("phase").notNull().default("empty"),
+  waterApplied: integer("water_applied").notNull().default(0),
+  harvestReady: boolean("harvest_ready").notNull().default(false),
+  pickedUntil: timestamp("picked_until"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, table => [uniqueIndex("garden_player_plot_unique").on(table.userId, table.plotItemId)]);
 
 export const petParkBuildings = pgTable("pet_park_buildings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

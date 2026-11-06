@@ -2,7 +2,7 @@ export const GAME_ITEM_GROUPS = [
   { key: "pets", label: "Pets", categories: ["pets", "mini_pets", "costumes", "accessories"] },
   { key: "fish", label: "Fish", categories: ["fish", "poles", "bait"] },
   { key: "home", label: "Home", categories: ["objects", "decor", "homes"] },
-  { key: "items", label: "Items", categories: ["potions", "power_ups", "specials", "edibles", "gifts", "ingredients", "recipes", "clearing"] },
+  { key: "items", label: "Items", categories: ["potions", "power_ups", "specials", "edibles", "gifts", "ingredients", "recipes", "clearing", "garden"] },
 ] as const;
 
 export type GameItemGroupKey = typeof GAME_ITEM_GROUPS[number]["key"];
@@ -27,6 +27,7 @@ export const GAME_ITEM_CATEGORY_LABELS: Record<GameItemCategoryKey, string> = {
   ingredients: "Ingredients",
   recipes: "Recipes",
   clearing: "Clearing Equipment",
+  garden: "Garden",
 };
 
 export const GAME_ITEM_CATEGORY_ORDER: GameItemCategoryKey[] = GAME_ITEM_GROUPS.flatMap(
@@ -66,6 +67,7 @@ export function getGameItemCategory(input: GameItemTaxonomyInput): GameItemCateg
   if (rawType === "decor" || rawType === "home_decor") return "decor";
   if (rawType === "home" || rawType === "house" || rawType === "home_bundle") return "homes";
 
+  if (rawType === "garden_seed" || rawType === "garden_tool" || rawType === "garden_fruit") return "garden";
   if (rawType === "potion") return "potions";
   if (rawType === "power_up" || rawType === "item") return "power_ups";
   if (rawType === "special") return "specials";
