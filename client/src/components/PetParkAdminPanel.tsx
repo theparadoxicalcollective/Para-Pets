@@ -37,6 +37,8 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [newWaterSource, setNewWaterSource] = useState(false);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
+  const [buildingSize, setBuildingSize] = useState(300);
+  const [buildingIsShop, setBuildingIsShop] = useState(false);
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
 
@@ -60,7 +62,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       const isItem = variables.url === "/api/admin/pet-park/items";
       if (!isBuilding && !isItem) return;
       const created = result?.building ?? result?.item ?? result;
-      if (isBuilding) { setBuildingImage(null); setInteriorImage(null); }
+      if (isBuilding) { setBuildingImage(null); setInteriorImage(null); setBuildingIsShop(false); }
       if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewWaterSource(false); }
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       if (typeof created?.id === "string") {
@@ -183,6 +185,21 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <input aria-label="Building name" placeholder="e.g. Woodland Cottage" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)}
             className="w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
         </label>
+        <div className="space-y-2 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3">
+          <label htmlFor="park-building-starting-size" className="flex justify-between gap-2 text-sm">
+            <span>Starting building size</span><strong>{buildingSize} world units</strong>
+          </label>
+          <input id="park-building-starting-size" aria-label="Building starting size" type="range"
+            min={120} max={700} step={20} value={buildingSize}
+            onChange={event => setBuildingSize(Number(event.target.value))}
+            className="w-full accent-[#d6b66e]" />
+          <p className="text-[11px] text-amber-100/65">Larger starting size helps the artwork match the park. You can still adjust individual building sizes after placing them.</p>
+        </div>
+        <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[#b99a4c]/50 bg-[#173b2a]/85 p-3 text-sm">
+          <input type="checkbox" aria-label="Is Shop building" checked={buildingIsShop}
+            onChange={event => setBuildingIsShop(event.target.checked)} className="h-4 w-4 accent-[#d6b66e]" />
+          Is Shop
+        </label>
         <p className="text-xs text-amber-100/75">Buildings are interactive spaces for effects and magical room entrances. Equipped pets are placed outdoors only.</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
           {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
@@ -193,7 +210,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
             name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
-            xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: 0,
+            xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: buildingSize, isShop: buildingIsShop, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
         <p className="text-xs text-amber-100/75">Upload decoration or object artwork. For pet resting areas, use + Effects → Rest Spot (Sleep Square).</p>
