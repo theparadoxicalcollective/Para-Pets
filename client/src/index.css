@@ -4221,6 +4221,17 @@ img[data-interactive], button img, a img {
 }
 
 
+/* Reuse the Active Pet sleep-body movement for hatched PNG pets that do
+   not have individually animated part layers. This is a visual-only class:
+   it does not alter the pet anchor, hit target, or saved sleep position. */
+.pet-park-rest {
+  transform-origin: 50% 80%;
+  animation: petSleepBody 4.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-park-rest { animation: none !important; }
+}
+
 /* Shared Pet Park ovals keep their existing world interaction and gold rim.
    Their new decorative artwork and payout meter never capture touch drags. */
 .pet-park-slot__empty-art {
