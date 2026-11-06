@@ -333,22 +333,25 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
-    const { kind, effectType, imageData, xPct, yPct, size, flipped, layer, isWaterSource = false } = req.body ?? {};
+    const { kind, effectType, imageData, tapImageData = null, xPct, yPct, size, flipped, layer, isWaterSource = false } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||
         !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
-        (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000))) {
+        (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000)) ||
+        (tapImageData != null && (typeof tapImageData !== "string" || !tapImageData.startsWith("data:image/") || tapImageData.length > 8_000_000))) {
       return res.status(400).json({ message: "Invalid Pet Park item" });
     }
     if (typeof isWaterSource !== "boolean" || (kind !== "decor" && isWaterSource))
       return res.status(400).json({ message: "Only decorations can be marked as water sources" });
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
+    if (kind !== "decor" && tapImageData != null) return res.status(400).json({ message: "Only decorations support Tap Images" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
     if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
     if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
+      const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null, imageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer), isWaterSource }).returning();
+        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null, imageUrl, tapImageUrl, xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer), isWaterSource }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] item create failed", error);
@@ -370,7 +373,7 @@ export function registerPetParkAdminRoutes(
       if (original.kind !== "decor" || !original.imageUrl)
         return res.status(422).json({ message: "Only uploaded decor objects can be duplicated" });
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind: "decor", imageUrl: original.imageUrl, effectType: null,
+        .values({ kind: "decor", imageUrl: original.imageUrl, tapImageUrl: original.tapImageUrl, effectType: null,
           isWaterSource: original.isWaterSource,
           xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
         .returning();
@@ -378,6 +381,29 @@ export function registerPetParkAdminRoutes(
     } catch (error) {
       console.error("[pet-park] decor duplication failed", error);
       return res.status(500).json({ message: "Unable to duplicate decoration" });
+    }
+  });
+
+  // Edit the optional alternate image independently of placement and the
+  // normal artwork. Null removes it without affecting water-source metadata.
+  app.patch("/api/admin/pet-park/items/:id/tap-image", isAdmin, async (req, res) => {
+    const imageData = req.body?.imageData;
+    if (imageData !== null &&
+        (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000)) {
+      return res.status(400).json({ message: "Choose a valid Tap Image or remove it" });
+    }
+    try {
+      // Don't process images for nonexistent or non-decor objects.
+      const [original] = await db.select({ id: petParkSceneItems.id }).from(petParkSceneItems)
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")));
+      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      const tapImageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
+      const [updated] = await db.update(petParkSceneItems).set({ tapImageUrl })
+        .where(and(eq(petParkSceneItems.id, original.id), eq(petParkSceneItems.kind, "decor"))).returning();
+      return updated ? res.json(updated) : res.status(404).json({ message: "Decoration not found" });
+    } catch (error) {
+      console.error("[pet-park] tap image update failed", error);
+      return res.status(500).json({ message: "Could not update Tap Image" });
     }
   });
 
