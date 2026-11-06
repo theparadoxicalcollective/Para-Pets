@@ -153,6 +153,9 @@ test("admin seed creation atomically creates a shop seed, fruit and crop definit
   assert.deepEqual(h.written.map(w => w.table), [shopItems, shopItems, gardenCrops]);
   assert.equal(h.written[0].body.type, "garden_seed");
   assert.equal(h.written[1].body.type, "garden_fruit");
+  assert.equal(h.written[1].body.worldId, "garden_harvest_only");
+  const shopRoutes = source("server/routes.ts");
+  assert.match(shopRoutes, /if \(shopItem\.type === "garden_fruit"\) \{\s*return res\.status\(403\)/);
   assert.equal(h.written[0].body.imageUrl, "/game/processed-1.png");
   assert.equal(h.written[1].body.imageUrl, "/game/processed-3.png");
   assert.equal(h.written[2].body.plantedDrops, 3);
