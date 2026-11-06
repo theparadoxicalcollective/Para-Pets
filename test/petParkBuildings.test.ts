@@ -41,7 +41,8 @@ test("saved buildings reach the scene and can open their configured interior", (
   assert.match(page, /activeBuilding\.interiorImageUrl/);
   assert.match(page, /activeBuilding\.interiorEffects/);
   assert.match(page, /Array\.from\(\{ length: 3 \}/);
-  assert.doesNotMatch(page, /data-testid="pet-park-interior-slots"/);
-  assert.doesNotMatch(page, /activeBuilding\.maxPets/);
+  assert.match(page, /data-testid="pet-park-interior-slots"/);
+  assert.match(page, /activeBuilding\.maxPets/);
+  assert.match(page, /indoorVisiblePets\.map\(pet =>/);
   assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight/);
 });
