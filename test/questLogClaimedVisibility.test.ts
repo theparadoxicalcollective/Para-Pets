@@ -12,11 +12,15 @@ test("daily quest cards remain through completion and disappear only after rewar
   assert.match(nav, /queryClient\.invalidateQueries\(\{ queryKey: \["\/api\/quests\/daily"\] \}\)/);
 });
 
-test("Beginning Tutorial disappears immediately after its reward claim succeeds", () => {
+test("Beginning Tutorial is hidden while paused and historical reward records are preserved", () => {
   const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
+  const flag = readFileSync("client/src/lib/beginJourney.ts", "utf8");
 
-  assert.match(nav, /\{!\(user as any\)\.tutorial_reward_claimed && \(/);
-  assert.match(nav, /queryClient\.setQueryData\(\["\/api\/auth\/me"\][\s\S]*tutorial_reward_claimed: true/);
+  assert.match(flag, /export const BEGIN_JOURNEY_ENABLED = false/);
+  assert.match(nav, /\{BEGIN_JOURNEY_ENABLED && !\(user as any\)\.tutorial_reward_claimed && \(/);
+  assert.match(nav, /const tutorialClaimable = BEGIN_JOURNEY_ENABLED &&/);
+  assert.match(nav, /queryClient\.setQueryData\(\["\/api\/auth\/me"\][\s\S]*tutorial_reward_claimed: true/,
+    "old completed rewards must not be erased from the legacy system");
 });
 
 test("Ginny quest card disappears after a successful reward claim", () => {
