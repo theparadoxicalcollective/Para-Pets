@@ -54,7 +54,8 @@ test("legacy room metadata remains safe but room pet placement is retired", () =
   assert.match(player, /res\.status\(410\)/);
   assert.doesNotMatch(player, /roomOccupants\.length >= room\.maxPets/);
   assert.match(admin, /sanitizeParkInteriorEffects\(body\.interiorEffects, existing\.interiorEffects\)/);
-  assert.match(admin, /count > room\.maxPets/);
+  assert.doesNotMatch(admin, /count > room\.maxPets/, "legacy occupied rooms no longer block interactive room edits");
+  assert.match(admin, /Since room portals are view-only now/);
   assert.match(admin, /uploadedRoomUrl = await processWorldImage/);
 });
 
