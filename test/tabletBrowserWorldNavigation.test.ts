@@ -21,30 +21,15 @@ test("software keyboard still owns the reduced browser viewport on touch tablets
   assert.equal(resolveMobileBrowserHeight(1194, 650), 650);
 });
 
-test("expanded World guide targets use the full-device HUD coordinate surface", () => {
+test("expanded World NPC quest spotlight follows the full-device HUD surface", () => {
   const viewport = read("client/src/lib/questGuideViewport.ts");
-  const npcGuide = read("client/src/components/NpcQuestDiscoveryGuide.tsx");
   const spotlight = read("client/src/components/QuestGuideSpotlight.tsx");
-
   assert.match(viewport, /anchor\.closest\("#game-viewport-scene, #game-viewport-hud"\)/);
   assert.match(viewport, /document\.getElementById\("game-viewport-hud"\)/);
   assert.match(viewport, /const rect = target\.getBoundingClientRect\(\)/);
-  assert.match(viewport, /const logicalWidth = target\.clientWidth \|\| rect\.width/);
-  assert.match(viewport, /const logicalHeight = target\.clientHeight \|\| rect\.height/);
-  assert.match(viewport, /const scale = Math\.max\(rect\.width \/ Math\.max\(1, logicalWidth\), 0\.0001\)/);
-
-  assert.match(npcGuide, /const targetElement = document\.querySelector<HTMLElement>\(selector\)/);
-  assert.match(npcGuide, /const surface = getQuestGuideSurface\(targetElement\)/);
   assert.match(spotlight, /const targetNode = document\.querySelector<HTMLElement>\(selector\)/);
   assert.match(spotlight, /const surface = getQuestGuideSurface\(targetNode\)/);
-});
-
-test("Ginny being visible in an expanded World can transition the discovery guide out of pan mode", () => {
-  const npcGuide = read("client/src/components/NpcQuestDiscoveryGuide.tsx");
-
-  assert.match(npcGuide, /const targetOnScreen = guideTargetOnScreen\(guideRect, surface\.width, surface\.height\)/);
-  assert.match(npcGuide, /atWorld && targetOnScreen \? `This is \$\{current\?\.name\}\. Click to continue\.`/);
-  assert.match(npcGuide, /const guideMode = atWorld \? \(targetOnScreen && npcElement \? "tour" as const : "pan" as const\)/);
+  assert.doesNotMatch(read("client/src/App.tsx"), /NpcQuestDiscoveryGuide/);
 });
 
 test("World camera rebases an active drag after a camera resize instead of snapping back", () => {
