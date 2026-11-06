@@ -28,7 +28,7 @@ import type { HouseInteriorEffect } from "@shared/housing";
 import { isParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
-import { isParkSleepPosition, parkPetSizeOnSleepSpot } from "@/lib/petParkSleepSpots";
+import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot } from "@/lib/petParkSleepSpots";
 import { petParkInteriorDropPoint } from "@/lib/petParkInteriorDrop";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, parkExpansionCameraPan } from "@/lib/petParkCamera";
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize } from "@shared/petParkGround";
@@ -667,7 +667,11 @@ export default function PetParkPage() {
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
         onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}>
         {({ imageWidth, sceneHeight: roomHeight }) => indoorVisiblePets.map(pet => {
-          const petSize = Math.max(68, Math.min(104, roomHeight * 0.12));
+          const basePetSize = Math.max(68, Math.min(104, roomHeight * 0.12));
+          const petSize = parkIndoorPetSizeOnSleepSpot(
+            { x: pet.interiorXPct, y: pet.interiorYPct },
+            fullPageRoom ? [] : activeBuilding.interiorEffects.filter(effect => !isParkRoomEffect(effect)),
+            { width: imageWidth, height: roomHeight }, basePetSize);
           const isMine = deposits.some(item => item.petInventoryId === pet.petInventoryId);
           return <div key={pet.petInventoryId} data-park-pet className="pointer-events-none absolute"
             style={{ left: pet.interiorXPct * imageWidth, top: pet.interiorYPct * roomHeight,
