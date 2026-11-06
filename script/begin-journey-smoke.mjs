@@ -169,6 +169,11 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
   await page.getByTestId('quest-log-viewport-overlay').waitFor({state:'visible'});
   assert.equal(await page.getByText('Begin Journey',{exact:true}).count(),0,name+': hidden quest card');
   assert.equal(await page.getByTestId('button-begin-journey-claim').count(),0,name+': tutorial reward is not displayed');
+  // Inspect the real quest log *before* closing it for the separate hatching
+  // interaction. The quest message is correctly removed with its modal.
+  await page.getByTestId('quest-log-viewport-overlay')
+    .getByText('No active quests. Explore the realm to discover adventures...')
+    .waitFor({state:'visible'});
   if(width===360){
     await page.getByTestId('quest-log-viewport-backdrop').click({position:{x:7,y:7}});
     await page.getByTestId('button-egg-tap').tap();
@@ -176,8 +181,6 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
     assert.equal(await page.getByTestId('button-speedup-tutorial').count(),0,
       name+': stale Step 5 cannot seize normal potion use');
   }
-  assert.equal(await page.getByText('No active quests. Explore the realm to discover adventures...').count(),1,
-    name+': ordinary quests still work');
   assert.deepEqual(counts,{grants:0,potionGrants:0,useAttempts:0,uses:0,complete:0,claims:0,activations:0},
     name+': paused tutorial makes no mutations');
   assert.deepEqual(errors,[],name+': no client runtime errors');
