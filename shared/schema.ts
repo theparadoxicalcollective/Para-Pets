@@ -1433,6 +1433,21 @@ export const gardenPlayerPlots = pgTable("garden_player_plots", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, table => [uniqueIndex("garden_player_plot_unique").on(table.userId, table.plotItemId)]);
 
+// One durable receipt per signed-in player's request ID. A retried mobile
+// mutation returns the committed result without another seed debit, water
+// charge or fruit credit. The inventory ID is intentionally not a foreign key:
+// consuming the final seed may remove that inventory row.
+export const gardenActionReceipts = pgTable("garden_action_receipts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: varchar("request_id").notNull(),
+  plotItemId: varchar("plot_item_id").notNull().references(() => petParkSceneItems.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  inventoryId: varchar("inventory_id").notNull(),
+  result: jsonb("result").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [uniqueIndex("garden_action_receipts_owner_request_uidx").on(table.userId, table.requestId)]);
+
 export const petParkBuildings = pgTable("pet_park_buildings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().default("Building"),

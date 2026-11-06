@@ -132,7 +132,8 @@ export function registerInventoryReadRoutes(
         specialType: shopItem?.specialType || null,
         specialAmount: shopItem?.specialAmount || null,
         isRefillable: shopItem?.isRefillable ?? false,
-        gardenWaterLeft: shopItem?.isRefillable ? (inv.gardenWaterLeft ?? 100) : null,
+        gardenWaterLeft: (shopItem?.type === "garden_tool" && shopItem.specialType === "watering_pail")
+          ? (inv.gardenWaterLeft ?? 100) : null,
         healthRestored: shopItem?.healthRestored ?? null,
         manaRestored: shopItem?.manaRestored ?? null,
         petsRevived: shopItem?.petsRevived ?? null,

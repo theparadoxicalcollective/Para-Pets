@@ -106,6 +106,7 @@ import { registerPetParkPlayerRoutes } from "./routes/petParkPlayer.routes";
 import { registerPetParkAdminRoutes } from "./routes/petParkAdmin.routes";
 import { registerGardenAdminRoutes } from "./routes/gardenAdmin.routes";
 import { registerGardenRefillRoutes } from "./routes/gardenRefill.routes";
+import { registerGardenPlayerRoutes } from "./routes/gardenPlayer.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
@@ -1345,14 +1346,33 @@ export async function registerRoutes(
               [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: chunk }).returning();
               remaining -= chunk;
             }
+          } else if (shopItem.type === "garden_seed" ||
+              (shopItem.type === "garden_tool" && shopItem.specialType !== "watering_pail" && !shopItem.isRefillable)) {
+            // Seed and ordinary garden-tool stacks must never top up a market
+            // escrow row. Serialize top-ups with a stable (owner,item) key.
+            await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId})::int, hashtext(${itemId})::int)`);
+            const [existing] = await tx.select().from(userInventory).where(and(
+              eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId),
+              eq(userInventory.isListed, false), sql`${userInventory.quantity} > 0`,
+            )).orderBy(userInventory.acquiredAt, userInventory.id).limit(1).for("update");
+            if (existing) {
+              [invItem] = await tx.update(userInventory)
+                .set({ quantity: sql`${userInventory.quantity} + ${requestedQuantity}` })
+                .where(and(eq(userInventory.id, existing.id), eq(userInventory.isListed, false))).returning();
+            } else {
+              [invItem] = await tx.insert(userInventory)
+                .values({ userId, shopItemId: itemId, quantity: requestedQuantity }).returning();
+            }
           } else {
             for (let i = 0; i < requestedQuantity; i++) {
               const extraFields: any = {};
               if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) extraFields.poleUsesLeft = shopItem.poleMaxUses;
-              if (shopItem.isRefillable) extraFields.gardenWaterLeft = 100;
+              const isGardenPail = shopItem.type === "garden_tool" &&
+                shopItem.specialType === "watering_pail";
+              if (shopItem.isRefillable || isGardenPail) extraFields.gardenWaterLeft = 100;
               // Pets and poles must be individual rows. Other generic shop
               // items preserve the existing storage stacking behaviour.
-              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole" && !shopItem.isRefillable) {
+              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole" && !shopItem.isRefillable && !isGardenPail) {
                 const [existing] = await tx.select().from(userInventory).where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId)));
                 if (existing) [invItem] = await tx.update(userInventory).set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` }).where(eq(userInventory.id, existing.id)).returning();
                 else [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: 1 }).returning();
@@ -1435,6 +1455,7 @@ export async function registerRoutes(
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
   registerGardenAdminRoutes(app, { db, isAdmin, processWorldImage });
   registerGardenRefillRoutes(app, isAuthenticated);
+  registerGardenPlayerRoutes(app, isAuthenticated);
 
   registerPetStateRoutes(app, {
     storage,

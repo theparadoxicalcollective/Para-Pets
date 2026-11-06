@@ -80,7 +80,7 @@ function simulate(options: Scenario = {}) {
                 return scenario.owner ? [{
                   id: "pail", quantity: scenario.quantity, isListed: scenario.listed,
                   isRefillable: scenario.refillable, gardenWaterLeft: scenario.waterLeft,
-                  name: "Forest Pail",
+                  name: "Forest Pail", type: "garden_tool", specialType: "watering_pail",
                 }] : [];
               } };
             },
