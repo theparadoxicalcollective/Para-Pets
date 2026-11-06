@@ -8,49 +8,16 @@ import {
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("primary quest guide ownership remains exclusive across onboarding flows", () => {
-  try {
-    setPrimaryQuestGuideOwnerActive("begin-journey", true);
-    assert.equal(isPrimaryQuestGuideActive(), true);
-
-    setPrimaryQuestGuideOwnerActive("npc-discovery", true);
-    setPrimaryQuestGuideOwnerActive("begin-journey", false);
-    assert.equal(isPrimaryQuestGuideActive(), true);
-
-    setPrimaryQuestGuideOwnerActive("npc-discovery", false);
-    assert.equal(isPrimaryQuestGuideActive(), false);
-  } finally {
-    setPrimaryQuestGuideOwnerActive("begin-journey", false);
-    setPrimaryQuestGuideOwnerActive("npc-discovery", false);
-  }
-});
-
-test("Begin Journey and NPC discovery are the only primary blocking guides", () => {
-  const beginJourney = read("client/src/components/BeginJourneyOverlay.tsx");
-  const npcDiscovery = read("client/src/components/NpcQuestDiscoveryGuide.tsx");
+test("retired primary onboarding does not block independent NPC quest spotlights", () => {
+  const app = read("client/src/App.tsx");
   const lonelle = read("client/src/components/LonelleQuestOverlay.tsx");
   const ginny = read("client/src/components/GinnyQuestOverlay.tsx");
-
-  assert.match(
-    beginJourney,
-    /usePrimaryQuestGuideOwner\("begin-journey", step !== null && step !== "done"\)/,
-  );
-  assert.match(
-    npcDiscovery,
-    /usePrimaryQuestGuideOwner\("npc-discovery", shouldLoadTour && index < worlds\.length\)/,
-  );
-  assert.match(npcDiscovery, /const shouldLoadTour = eligible && !activeQuest && !waitingForQuestState;/);
-  assert.match(npcDiscovery, /blockingGuide/);
-
+  assert.doesNotMatch(app, /BeginJourneyOverlay|NpcQuestDiscoveryGuide/);
+  assert.equal(isPrimaryQuestGuideActive(), false);
   assert.match(lonelle, /usePrimaryQuestGuideActive\(\)/);
   assert.match(lonelle, /!primaryGuideActive[\s\S]*?<QuestGuideSpotlight/);
-  assert.match(lonelle, /blockingGuide=\{false\}/);
-
   assert.match(ginny, /usePrimaryQuestGuideActive\(\)/);
-  assert.match(
-    ginny,
-    /target=\{!primaryGuideActive && guideActive && state\.canEquipNow \? guideTarget : null\}/,
-  );
+  assert.match(ginny, /target=\{!primaryGuideActive && guideActive && state\.canEquipNow \? guideTarget : null\}/);
 });
 
 test("shared quest spotlight cannot darken or trap players unless explicitly blocking", () => {
