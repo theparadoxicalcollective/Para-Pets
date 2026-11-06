@@ -45,7 +45,7 @@ function stubRoutes(register: (app: any, args: any) => void) {
   return { call, writes, routes };
 }
 
-test("Garden equipment can be declared refillable only when it actually holds water", async () => {
+test("Garden equipment supports an opt-in refillable label while only pails have 100 water drops", async () => {
   const t = stubRoutes(registerGardenAdminRoutes);
   const good = await t.call("POST", "/api/admin/garden/tools", {
     kind: "watering_pail", name: "Watering Pail", imageData: "data:image/png;base64,AA==",
@@ -59,8 +59,15 @@ test("Garden equipment can be declared refillable only when it actually holds wa
     kind: "scythe", name: "Scythe", imageData: "data:image/png;base64,AA==",
     price: 0, isRefillable: true,
   });
-  assert.equal(bad.statusCode, 400);
-  assert.equal(t.writes.length, 1, "invalid configuration cannot mutate shop items");
+  assert.equal(bad.statusCode, 201);
+  assert.equal(t.writes[1].data.specialAmount, null, "scythes have no water capacity");
+  assert.equal(t.writes[1].data.isRefillable, true, "flag alone never grants water");
+  const invalid = await t.call("POST", "/api/admin/garden/tools", {
+    kind: "scythe", name: "Scythe", imageData: "data:image/png;base64,AA==",
+    price: 0, isRefillable: "true",
+  });
+  assert.equal(invalid.statusCode, 400);
+  assert.equal(t.writes.length, 2, "invalid configuration cannot mutate shop items");
 });
 
 test("Admin can toggle refill eligibility without editing remaining player water", async () => {
@@ -72,7 +79,7 @@ test("Admin can toggle refill eligibility without editing remaining player water
   const count = t.writes.length;
   assert.equal((await t.call("PATCH", "/api/admin/garden/tools/:id/refillable", { isRefillable: "true" })).statusCode, 400);
   assert.equal(t.writes.length, count);
-  assert.match(gardenSource, /eq\(shopItems\.specialType, "watering_pail"\)/);
+  assert.match(gardenSource, /eq\(shopItems\.type, "garden_tool"\)/);
   assert.doesNotMatch(gardenSource, /gardenWaterLeft|userInventory/, "admin toggle must not refill itself");
 });
 
@@ -113,6 +120,9 @@ test("Admin Realm toggles preserve existing item and decor positioning workflows
   assert.match(parkPage, /data-testid="park-decoration-water-source"/);
   assert.match(parkPage, /items\/\$\{id\}\/water-source/);
   assert.match(gardenAdmin, /aria-label="Refillable"/);
+  const itemEditor = read("client/src/components/ItemDatabaseSection.tsx");
+  assert.match(itemEditor, /data-testid="admin-item-refillable-toggle"/);
+  assert.match(itemEditor, /isRefillable: !petOnly/);
   assert.match(gardenAdmin, /garden\/tools\/\$\{item\.id\}\/refillable/);
   assert.match(schema, /isWaterSource: boolean\("is_water_source"\)\.notNull\(\)\.default\(false\)/);
   assert.match(schema, /isRefillable: boolean\("is_refillable"\)\.notNull\(\)\.default\(false\)/);
