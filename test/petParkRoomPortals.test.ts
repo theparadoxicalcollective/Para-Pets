@@ -43,15 +43,18 @@ test("duplicate room IDs cannot overwrite another saved room", () => {
   assert.equal(sanitizeParkInteriorEffects([room, { ...room, name: "Dupe" }], [room]).length, 1);
 });
 
-test("room metadata remains safe but old indoor placement no longer accepts pets", () => {
+test("room metadata remains safe with capacity-checked indoor pet placement", () => {
   const player = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
   const admin = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
   const schema = readFileSync("shared/schema.ts", "utf8");
   const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.ts", "utf8");
   assert.match(schema, /roomEffectId: varchar\("room_effect_id"\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS room_effect_id varchar/);
-  assert.match(player, /res\.status\(410\)/);
+  assert.match(player, /eq\(petParkDeposits\.userId, userId\)/);
+  assert.match(player, /isPetAccessibleParkRoom\(room\)/);
+  assert.match(player, /others\.filter\(item => item\.roomEffectId === roomEffectId\)\.length >= room\.maxPets/);
   assert.match(admin, /sanitizeParkInteriorEffects\(body\.interiorEffects, existing\.interiorEffects\)/);
+  assert.match(admin, /count > room\.maxPets/);
   assert.match(admin, /uploadedRoomUrl = await processWorldImage/);
 });
 
@@ -68,5 +71,5 @@ test("admin editing and visitor portals have separate full-room and popup behavi
   assert.match(page, /aria-label="Close room popup"/);
   assert.match(page, /View-only · No pet placement/);
   assert.match(page, /fullPageRoom\?\.imageUrl/);
-  assert.doesNotMatch(page, /data-testid="pet-park-interior-slots"/);
+  assert.match(page, /data-testid="pet-park-interior-slots"/);
 });
