@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
@@ -73,7 +73,8 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
         // Only pets deliberately dragged into the outdoor scene are public.
         // Old indoor deposits remain equipped and earning, but aren't exposed.
-        .where(and(isNull(petParkDeposits.withdrawnAt), eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId)))
+        .where(and(isNull(petParkDeposits.withdrawnAt), eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId),
+          isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct)))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
