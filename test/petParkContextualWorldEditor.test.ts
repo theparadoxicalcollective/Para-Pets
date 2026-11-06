@@ -6,7 +6,7 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const panel = readFileSync("client/src/components/PetParkAdminPanel.tsx", "utf8");
 const routes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 
-test("Pet Park creates buildings, decor, rest spots and effects in the real world scene", () => {
+test("Pet Park creates buildings and decor while rest spots are offered under effects", () => {
   for (const mode of ["effects", "decor", "scene"]) {
     assert.ok(page.includes(`["${mode}", `), `toolbar offers contextual ${mode} creation`);
   }
@@ -22,7 +22,8 @@ test("Pet Park creates buildings, decor, rest spots and effects in the real worl
   assert.ok(panel.includes('creationPosition?.yPct ?? 0.5'));
   assert.ok(panel.includes('url: "/api/admin/pet-park/buildings"'));
   assert.ok(panel.includes('url: "/api/admin/pet-park/items"'));
-  assert.ok(panel.includes('label: "Rest Spot"'), "Rest Spot is available in the decor picker");
+  assert.ok(panel.includes('option.type === "sleep" ? "Rest Spot (Sleep Square)"'), "Rest Spot is available in effects");
+  assert.ok(!panel.includes('value: "sleep_spot"'), "Decor no longer duplicates Rest Spot");
   assert.ok(panel.includes('type: "water_ripple"'), "Water ripples remain available in the effect picker");
   assert.ok(panel.includes('HOME_OUTDOOR_EFFECT_OPTIONS.map'), "Home Bundle outdoor effects are offered without duplication");
   assert.ok(page.includes('setSelectedPlacement({ kind: object.kind, id: object.id })'));

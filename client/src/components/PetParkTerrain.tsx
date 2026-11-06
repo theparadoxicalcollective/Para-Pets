@@ -16,6 +16,107 @@ export function dirtPatchWorldRect(patch: ParkDirtPatch, width: number, height: 
   };
 }
 
+export type DirtExposedEdge = {
+  ax: number; ay: number; bx: number; by: number;
+  cx: number; cy: number; size: number;
+  inwardX: number; inwardY: number;
+};
+
+/** A shared diamond side has two owners and must never fade. Calculate in
+ * world space so zoom/pan, newly painted strokes and existing stamps agree.
+ * Offscreen neighbors count too, preventing seams at the viewport boundary.
+ */
+export function exposedDirtEdges(
+  stamps: readonly ParkDirtPatch[],
+  worldWidth: number,
+  worldHeight: number,
+  visible?: { left: number; top: number; right: number; bottom: number },
+): DirtExposedEdge[] {
+  const edges = new Map<string, { edge: DirtExposedEdge; count: number }>();
+  const tilesByCell = new Map<string, Array<{ cx: number; cy: number; halfW: number; halfH: number }>>();
+  const cellSize = 200;
+  const cellKey = (x: number, y: number) => x + ":" + y;
+  const seen = new Set<string>();
+  const quantize = (value: number) => Math.round(value * 1000);
+  for (const stamp of stamps) {
+    if (!(Number.isFinite(stamp.xPct) && Number.isFinite(stamp.yPct) &&
+          Number.isFinite(stamp.size) && stamp.size > 0)) continue;
+    const cx = stamp.xPct * worldWidth;
+    const cy = stamp.yPct * worldHeight;
+    const halfW = stamp.size / 2, halfH = stamp.size / 4;
+    const tileKey = [quantize(cx), quantize(cy), quantize(stamp.size)].join(":");
+    if (seen.has(tileKey)) continue;
+    seen.add(tileKey);
+    const tile = { cx, cy, halfW, halfH };
+    // A sparse world-space lookup keeps exposed-edge tests local even after
+    // administrators paint hundreds of strokes across expanded park ground.
+    for (let cellY = Math.floor((cy - halfH) / cellSize); cellY <= Math.floor((cy + halfH) / cellSize); cellY++) {
+      for (let cellX = Math.floor((cx - halfW) / cellSize); cellX <= Math.floor((cx + halfW) / cellSize); cellX++) {
+        const key = cellKey(cellX, cellY);
+        const bin = tilesByCell.get(key);
+        if (bin) bin.push(tile); else tilesByCell.set(key, [tile]);
+      }
+    }
+    const points = [
+      [cx, cy - halfH], [cx + halfW, cy],
+      [cx, cy + halfH], [cx - halfW, cy],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const [ax, ay] = points[i], [bx, by] = points[(i + 1) % 4];
+      const a = quantize(ax) + ":" + quantize(ay);
+      const b = quantize(bx) + ":" + quantize(by);
+      const key = a < b ? a + "|" + b : b + "|" + a;
+      const previous = edges.get(key);
+      if (previous) previous.count += 1;
+      else {
+        const midpointX = (ax + bx) / 2, midpointY = (ay + by) / 2;
+        const inwardX = cx - midpointX, inwardY = cy - midpointY;
+        const normalLength = Math.hypot(inwardX, inwardY) || 1;
+        edges.set(key, { edge: { ax, ay, bx, by, cx, cy, size: stamp.size,
+          inwardX: inwardX / normalLength, inwardY: inwardY / normalLength }, count: 1 });
+      }
+    }
+  }
+  const exposed: DirtExposedEdge[] = [];
+  for (const { edge, count } of edges.values()) {
+    if (count !== 1) continue;
+    const { ax, ay, bx, by, cx, cy, size } = edge;
+    if (visible && (Math.max(ax, bx) < visible.left - 16 || Math.min(ax, bx) > visible.right + 16 ||
+        Math.max(ay, by) < visible.top - 16 || Math.min(ay, by) > visible.bottom + 16)) continue;
+    const { inwardX, inwardY } = edge;
+    // A legacy offset stamp can overlap only *part* of a diamond side.
+    // Sample short spans and fade its exposed pieces; a full shared side
+    // above has already been removed from consideration.
+    const segments = 6;
+    let openedAt = -1;
+    for (let span = 0; span <= segments; span++) {
+      let covered = span === segments;
+      if (!covered) {
+        const t = (span + 0.5) / segments;
+        const outerX = ax + (bx - ax) * t - inwardX * 2;
+        const outerY = ay + (by - ay) * t - inwardY * 2;
+        const candidates = tilesByCell.get(cellKey(Math.floor(outerX / cellSize), Math.floor(outerY / cellSize))) ?? [];
+        covered = candidates.some(tile => {
+          if (tile.cx === cx && tile.cy === cy && tile.halfW * 2 === size) return false;
+          return Math.abs(outerX - tile.cx) / tile.halfW +
+            Math.abs(outerY - tile.cy) / tile.halfH < 1 - 1e-5;
+        });
+      }
+      if (!covered && openedAt === -1) openedAt = span;
+      if (covered && openedAt !== -1) {
+        const t0 = openedAt / segments, t1 = span / segments;
+        exposed.push({
+          ...edge,
+          ax: ax + (bx - ax) * t0, ay: ay + (by - ay) * t0,
+          bx: ax + (bx - ax) * t1, by: ay + (by - ay) * t1,
+        });
+        openedAt = -1;
+      }
+    }
+  }
+  return exposed;
+}
+
 /**
  * One camera-aligned visual canvas; there is no second game stage or placement
  * surface. Viewport-sized backing pixels avoid enormous canvases on level 4.
@@ -208,6 +309,27 @@ export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainV
       ctx.ellipse(x, y, size, Math.max(1, size * 0.33), -0.3, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+  // Fade just the *exposed* sides of the connected diamond union. Drawing
+  // watercolor-green translucent gradients over the dirt on the existing
+  // grass canvas avoids per-tile alpha stacking and an extra scene/canvas.
+  // The dark brown center and grain remain untouched.
+  for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
+    const mx = (edge.ax + edge.bx) / 2, my = (edge.ay + edge.by) / 2;
+    const fade = Math.min(15, edge.size * 0.11);
+    const insetX = edge.inwardX * fade, insetY = edge.inwardY * fade;
+    const gradient = ctx.createLinearGradient(mx, my, mx + insetX, my + insetY);
+    gradient.addColorStop(0, "rgba(44,73,52,.88)");
+    gradient.addColorStop(0.48, "rgba(44,73,52,.40)");
+    gradient.addColorStop(1, "rgba(44,73,52,0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(edge.ax, edge.ay);
+    ctx.lineTo(edge.bx, edge.by);
+    ctx.lineTo(edge.bx + insetX, edge.by + insetY);
+    ctx.lineTo(edge.ax + insetX, edge.ay + insetY);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
