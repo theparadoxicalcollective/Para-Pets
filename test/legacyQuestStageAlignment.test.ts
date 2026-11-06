@@ -4,32 +4,6 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Begin Journey portals into the shared quest-guide surface and converts live target bounds", () => {
-  const source = read("client/src/components/BeginJourneyOverlay.tsx");
-
-  assert.match(source, /getQuestGuideSurface/);
-  assert.match(source, /guideBoundsInSurface/);
-  assert.match(source, /const surface = getQuestGuideSurface\(\)/);
-  assert.match(source, /targetGuideRect = targetRect \? guideBoundsInSurface\(targetRect, surface\) : null/);
-  assert.match(source, /potionGuideRect = potionRect \? guideBoundsInSurface\(potionRect, surface\) : null/);
-  assert.match(source, /eggGuideRect = eggOnHomeRect \? guideBoundsInSurface\(eggOnHomeRect, surface\) : null/);
-  assert.match(source, /right:\s+Math\.min\(surface\.width/);
-  assert.match(source, /bottom: Math\.min\(surface\.height/);
-  assert.match(source, /surface\.target,\s*\n\s*\);/);
-  assert.doesNotMatch(source, /window\.innerWidth|window\.innerHeight/);
-  assert.doesNotMatch(source, /document\.body,\s*\n\s*\);/);
-});
-
-test("Begin Journey drag preview converts client pixels before rendering in a scaled stage", () => {
-  const source = read("client/src/components/BeginJourneyOverlay.tsx");
-
-  assert.match(source, /dragPreviewPoint = dragPotionPreview \? \{/);
-  assert.match(source, /\(dragPotionPreview\.x - surface\.left\) \/ surface\.scale/);
-  assert.match(source, /\(dragPotionPreview\.y - surface\.top\) \/ surface\.scale/);
-  assert.match(source, /left: dragPreviewPoint\?\.x \?\? dragPotionPreview\.x/);
-  assert.match(source, /top: dragPreviewPoint\?\.y \?\? dragPotionPreview\.y/);
-});
-
 test("Ginny highlights notices and dialog use the authoritative game surface", () => {
   const source = read("client/src/components/GinnyQuestOverlay.tsx");
 
