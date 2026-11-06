@@ -61,11 +61,7 @@ const WATER_CSS = [
   ".park-water-effect { width:100%; height:100%; position:relative; overflow:hidden; pointer-events:none; isolation:isolate; }",
   ".park-water-effect--water_ripple:before,.park-water-effect--water_ripple:after { content:\"\"; position:absolute; inset:25% 10%; border:3px solid rgba(232,252,255,.7); border-radius:50%; box-shadow:0 0 9px rgba(179,247,255,.5),inset 0 0 8px rgba(255,255,255,.3); animation:parkRipple 4.5s ease-out infinite; }",
   ".park-water-effect--water_ripple:after { animation-delay:-2.25s; }",
-  ".park-water-effect--water_shimmer { overflow:visible; background:none; }",
-  '.park-water-effect--water_shimmer:before,.park-water-effect--water_shimmer:after { content:""; position:absolute; inset:32% 4%; border-radius:42% 58% 55% 45%; background:linear-gradient(166deg,transparent 18%,rgba(212,249,239,.08) 32%,rgba(230,255,248,.24) 43%,transparent 51%,rgba(225,252,242,.12) 67%,transparent 78%); filter:blur(5px); animation:parkShimmer 6.5s ease-in-out infinite alternate; }',
-  ".park-water-effect--water_shimmer:after { inset:43% 20% 20% 7%; opacity:.55; animation-duration:8.2s; animation-delay:-3.4s; }",
   "@keyframes parkRipple { 0% { transform:scale(.22); opacity:0; } 25% { opacity:.8; } 100% { transform:scale(1.4); opacity:0; } }",
-  "@keyframes parkShimmer { from { transform:translate3d(-7%,1%,0) scale(.97); opacity:.2; } to { transform:translate3d(9%,-2%,0) scale(1.04); opacity:.6; } }",
   // One discreet droplet, no heavy rain or splash. A long idle phase keeps
   // waterfalls, fireplaces and character art visually dominant.
   ".park-water-effect--water_drop { overflow:visible; }",
@@ -78,7 +74,7 @@ const WATER_CSS = [
 // SVG is deliberately confined to each already-placeable effect item. Paths have
 // irregular spacing and alpha-faded edges; only group transforms/opacity animate.
 const WATER_ART_CSS = [
-  ".park-water-art { overflow:visible; }",
+  ".park-water-art { position:relative; width:100%; height:100%; pointer-events:none; isolation:isolate; overflow:visible; }",
   ".park-water-art svg { display:block; width:100%; height:100%; overflow:visible; }",
   ".park-water-art--flow svg { width:72%; margin:0 auto; }",
   ".park-surface-caustic { transform-box:fill-box; transform-origin:center; animation:parkSurfaceDrift 6.4s ease-in-out infinite alternate; }",
