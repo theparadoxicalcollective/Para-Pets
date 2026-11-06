@@ -750,18 +750,36 @@ export default function PetParkPage() {
             const slot = index + 1;
             const pet = deposits.find(d => d.slotNumber === slot);
             const unlocked = slot <= scene.unlockedSlots;
-            return <button key={slot} type="button" aria-label={`Pet Park spot ${slot}`} data-testid={`pet-park-slot-${slot}`}
-              onClick={() => { if (Date.now() < suppressSlotClickUntil.current) return; setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false); }}
+            return <button key={slot} type="button" aria-label={`Pet Park spot ${slot}`}
+              aria-pressed={activeSlot === slot}
+              data-testid={`pet-park-slot-${slot}`}
+              onClick={() => {
+                if (Date.now() < suppressSlotClickUntil.current) return;
+                setSlotTapEffect(previous => ({ slot, nonce: (previous?.nonce ?? 0) + 1 }));
+                setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(false);
+              }}
               onPointerDown={event => { if (pet) startEquippedPetDrag(event, pet); }}
               onPointerMove={event => moveEquippedPetDrag(event, slot)}
               onPointerUp={endEquippedPetDrag}
               onPointerCancel={cancelEquippedPetDrag}
               onLostPointerCapture={cancelEquippedPetDrag}
               onDoubleClick={() => { if (pet) { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(true); } }}
-              className={`relative flex min-h-[76px] touch-none flex-col items-center justify-center gap-1 overflow-hidden rounded-[50%] border-2 bg-[radial-gradient(ellipse_at_50%_20%,#315e43_0%,#173b29_48%,#091e17_100%)] px-1 py-2 text-center font-fantasy text-[#f5d77b] shadow-[inset_0_2px_8px_rgba(245,206,105,0.15),0_5px_15px_rgba(0,0,0,0.45)] ${activeSlot === slot ? "border-amber-300 ring-2 ring-amber-300/45" : "border-[#c6a552]/75"}`}>
-              <span className="text-[10px] uppercase tracking-wide text-amber-200/80">Spot {slot}</span>
-              <span className="max-w-full truncate text-xs font-semibold">{pet ? pet.petNickname || pet.petName : unlocked ? "+ Equip" : "Locked"}</span>
-              {!pet && !unlocked && <span className="flex items-center gap-1 text-[11px]"><img src={coinImage} alt="Coins" className="h-5 w-5 object-contain" />{slot === 2 ? "2,500" : "5,000"}</span>}
+              className={`pet-park-slot relative flex min-h-[98px] touch-none flex-col items-center justify-center gap-0.5 overflow-hidden px-1.5 py-2 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
+              <span aria-hidden="true" className="pointer-events-none absolute top-1 text-[10px] text-amber-200/50">✦</span>
+              <span className="relative z-[1] mt-2 text-[10px] font-semibold uppercase tracking-wider text-amber-200/80">Spot {slot}</span>
+              {pet ? <span className="relative z-[1] flex max-w-full items-center justify-center gap-0.5">
+                <span className="pointer-events-none shrink-0"><PetParkPetPortrait petTemplateId={pet.petTemplateId}
+                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={35} /></span>
+                <span className="min-w-0 max-w-[68px] truncate text-[11px] font-semibold">{pet.petNickname || pet.petName}</span>
+              </span> : unlocked ?
+                <span className="relative z-[1] flex items-center gap-1 text-xs font-semibold"><Sparkles size={13} strokeWidth={1.8} /> Equip</span> :
+                <span className="relative z-[1] flex items-center gap-1 text-xs font-semibold"><LockKeyhole size={12} /> Locked</span>}
+              {!pet && !unlocked && <span className="relative z-[1] flex items-center gap-0.5 text-[11px]">
+                <img src={coinImage} alt="Coins" className="h-5 w-5 object-contain" />{slot === 2 ? "2,500" : "5,000"}
+              </span>}
+              {slotTapEffect?.slot === slot && <span aria-hidden="true" key={slotTapEffect.nonce} className="pet-park-slot__tap-sparkles">
+                <i /><i /><i /><i /><i />
+              </span>}
             </button>;
           })}
         </div>
