@@ -1126,6 +1126,28 @@ export default function PetParkPage() {
           {(selectedObject as ParkItem).isWaterSource ? "On" : "Off"}
         </span>
       </button>}
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <div
+        className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
+        data-testid="park-decoration-tap-image-editor">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-[#f5d98e]">Tap Image <span className="font-normal text-amber-100/70">(optional)</span></span>
+          {(selectedObject as ParkItem).tapImageUrl && <button type="button"
+            aria-label="Remove decoration Tap Image"
+            disabled={tapImageSave.isPending || placementDelete.isPending}
+            onClick={() => tapImageSave.mutate({ id: selectedPlacement.id, imageData: null })}
+            className="rounded-lg border border-[#b99a4c]/55 bg-[#332920] px-2 py-1 text-[11px] disabled:opacity-50">Remove</button>}
+        </div>
+        {(selectedObject as ParkItem).tapImageUrl && <img
+          src={(selectedObject as ParkItem).tapImageUrl!} alt="Current decoration Tap Image"
+          className="mx-auto h-20 w-full object-contain" />}
+        <label className={`block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] px-3 py-2 text-center text-xs ${tapImageSave.isPending ? "opacity-60" : ""}`}>
+          {tapImageSave.isPending ? "Saving Tap Image…" : (selectedObject as ParkItem).tapImageUrl ? "Replace Tap Image" : "Upload Tap Image"}
+          <input type="file" aria-label="Edit decoration Tap Image" accept="image/png,image/jpeg"
+            className="sr-only" disabled={tapImageSave.isPending || placementDelete.isPending}
+            onChange={event => { void updateTapImage(selectedPlacement.id, event.target.files?.[0]); event.target.value = ""; }} />
+        </label>
+        <p className="text-[11px] text-amber-100/70">Players tap to switch between this art and the original. Placement and size stay unchanged.</p>
+      </div>}
       <p className="text-xs text-amber-100/75">Depth follows ground position automatically. Move lower to bring in front.</p>
       <div className="flex flex-wrap items-center gap-2">
         {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
