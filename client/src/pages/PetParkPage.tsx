@@ -367,6 +367,10 @@ export default function PetParkPage() {
     const viewportElement = document.querySelector<HTMLElement>('[data-testid="pet-park-interior-room"]');
     const artworkElement = viewportElement?.querySelector<HTMLElement>('[data-park-interior-artwork]');
     if (!viewportElement || !artworkElement) return;
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    // Drops on the exit button, effect portals, or the bottom equipped tray
+    // are UI interactions, never a request to deposit a pet behind that UI.
+    if (hit?.closest('button, [data-testid="pet-park-interior-slots"]')) return;
     const viewportBounds = viewportElement.getBoundingClientRect();
     const artworkBounds = artworkElement.getBoundingClientRect();
     const point = petParkInteriorDropPoint(
