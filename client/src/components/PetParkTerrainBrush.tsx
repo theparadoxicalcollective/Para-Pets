@@ -57,7 +57,7 @@ export default function PetParkTerrainBrush(props: Props) {
       setSaving(false);
     }
   };
-  const extendStroke = isParkConnectedPath(type) ? parkExtendPathStroke : parkExtendBrushStroke;
+  const extendStroke = isParkConnectedPath(type) || type === "garden_plot" ? parkExtendPathStroke : parkExtendBrushStroke;
   const selectGround = async (groundTheme: ParkGroundTheme) => {
     if (changingGround || savingRef.current || draftRef.current.length || groundTheme === props.groundTheme) return;
     setChangingGround(true);
@@ -145,7 +145,7 @@ export default function PetParkTerrainBrush(props: Props) {
         <p className="mt-1.5 text-[10px] text-amber-100/70">{changingGround ? "Saving ground style…" : "Changes the park-wide base without moving objects or paths."}</p>
       </div>
       <div className="border-t border-[#b99a4c]/35 pt-2">
-        <p className="mb-1.5 font-fantasy text-xs font-semibold uppercase tracking-wider text-[#ead29b]">Paths & Water</p>
+        <p className="mb-1.5 font-fantasy text-xs font-semibold uppercase tracking-wider text-[#ead29b]">Paths, Water & Garden</p>
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
