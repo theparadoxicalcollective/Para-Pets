@@ -6,7 +6,7 @@ import {
 } from "@shared/schema";
 import {
   GARDEN_PICKED_COOLDOWN_MS, GARDEN_WATER_CAPACITY,
-  gardenAfterWaterDrop, gardenEffectivePhase, gardenHarvestQuantity,
+  gardenAfterWaterPour, gardenEffectivePhase, gardenHarvestQuantity,
   isCompleteGardenCrop, type GardenPlotPhase,
 } from "@shared/garden";
 import { tryConsumeOneFromInventory } from "../inventoryConsumption";
@@ -190,6 +190,7 @@ export function registerGardenPlayerRoutes(
           let reward: { fruitItemId: string; quantity: number } | undefined;
           let remainingQuantity: number | undefined;
           let waterLeft: number | undefined;
+          let waterUsed: number | undefined;
 
           if (action === "hoe") {
             requireAction(item.type === "garden_tool" && item.specialType === "hoe",
@@ -224,18 +225,23 @@ export function registerGardenPlayerRoutes(
             const remaining = inventory.gardenWaterLeft ?? GARDEN_WATER_CAPACITY;
             requireAction(Number.isSafeInteger(remaining) && remaining > 0 &&
               remaining <= GARDEN_WATER_CAPACITY, 409, "The Watering Pail is empty");
-            const next = gardenAfterWaterDrop(previous, {
+            // A single tap pours at most ten drops. The server decides the
+            // exact debit and stops at the NEXT stage boundary; no client
+            // stage skip, free watering, or surplus-drop loss is possible.
+            const { growth, dropsUsed } = gardenAfterWaterPour(previous, {
               planted: crop.plantedDrops, seedling: crop.seedlingDrops,
               partial: crop.partialDrops, grown: crop.grownDrops,
-            });
+            }, remaining);
             const [charged] = await tx.update(userInventory).set({
-              gardenWaterLeft: sql`COALESCE(${userInventory.gardenWaterLeft}, ${GARDEN_WATER_CAPACITY}) - 1`,
+              gardenWaterLeft: sql`COALESCE(${userInventory.gardenWaterLeft}, ${GARDEN_WATER_CAPACITY}) - ${dropsUsed}`,
             }).where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId),
-              eq(userInventory.isListed, false), sql`COALESCE(${userInventory.gardenWaterLeft}, 100) > 0`))
+              eq(userInventory.isListed, false),
+              sql`COALESCE(${userInventory.gardenWaterLeft}, ${GARDEN_WATER_CAPACITY}) >= ${dropsUsed}`))
               .returning({ gardenWaterLeft: userInventory.gardenWaterLeft });
-            requireAction(charged, 409, "The Watering Pail is empty");
+            requireAction(charged, 409, "The Watering Pail does not have enough water");
             waterLeft = charged.gardenWaterLeft ?? undefined;
-            values = { ...next, cropId: crop.id, pickedUntil: null };
+            waterUsed = dropsUsed;
+            values = { ...growth, cropId: crop.id, pickedUntil: null };
           } else {
             requireAction(item.type === "garden_tool" && item.specialType === "scythe",
               422, "Choose a Scythe from your inventory");
@@ -267,7 +273,7 @@ export function registerGardenPlayerRoutes(
           const result = {
             plot: currentPlot(plotId, saved, now),
             ...(remainingQuantity !== undefined ? { remainingQuantity } : {}),
-            ...(waterLeft !== undefined ? { waterLeft } : {}),
+            ...(waterLeft !== undefined ? { waterLeft, waterUsed } : {}),
             ...(reward ? { reward } : {}),
             replayed: false,
           };
