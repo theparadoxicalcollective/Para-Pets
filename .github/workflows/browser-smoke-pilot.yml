@@ -30,6 +30,12 @@ on:
       - 'script/*smoke.mjs'
       - '.github/workflows/browser-smoke-pilot.yml'
 
+# Only the newest revision of each pull request needs runner time.
+# Do not cancel completed/push builds on the protected main branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   public-route-smoke:
     # Playwright 1.56.1 does not support the Ubuntu 26.04 latest image.
