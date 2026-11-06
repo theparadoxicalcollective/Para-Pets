@@ -1388,6 +1388,8 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   // Tagged decor is a refill station; visual depth and placement are unchanged.
   isWaterSource: boolean("is_water_source").notNull().default(false),
   imageUrl: text("image_url"),
+  // Optional player-tappable alternate artwork for gates and similar decor.
+  tapImageUrl: text("tap_image_url"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(100),
