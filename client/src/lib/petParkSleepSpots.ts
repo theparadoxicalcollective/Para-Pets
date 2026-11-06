@@ -56,15 +56,15 @@ export function isParkSleepPosition(
  * Use the visible artwork's dimensions, not the phone viewport, for both
  * interaction and pet size. All other indoor pets retain the 225-unit base.
  */
-export function parkIndoorPetSizeOnSleepSpot(
+/** Use the same room-image footprint for the sleep pose and size reduction. */
+export function parkIndoorSleepSpotAtPosition(
   position: { x: number; y: number },
   effects: readonly { type: string; x: number; y: number; size: number }[],
   artwork: { width: number; height: number },
-  normalSize = 225,
-): number {
-  if (!(artwork.width > 0 && artwork.height > 0)) return normalSize;
-  let size = normalSize;
+): number | null {
+  if (!(artwork.width > 0 && artwork.height > 0)) return null;
   let nearest = Infinity;
+  let spotSize: number | null = null;
   for (const effect of effects) {
     if (effect.type !== "sleep" || !Number.isFinite(effect.size) || effect.size <= 0) continue;
     const area = artwork.height * effect.size / 100;
@@ -73,9 +73,27 @@ export function parkIndoorPetSizeOnSleepSpot(
     if (Math.abs(dx) > area / 2 || Math.abs(dy) > area / 2) continue;
     const distance = dx * dx + dy * dy;
     if (distance < nearest) {
-      size = Math.min(normalSize, area);
       nearest = distance;
+      spotSize = area;
     }
   }
-  return size;
+  return spotSize;
+}
+
+export function isParkIndoorSleepPosition(
+  position: { x: number; y: number },
+  effects: readonly { type: string; x: number; y: number; size: number }[],
+  artwork: { width: number; height: number },
+): boolean {
+  return parkIndoorSleepSpotAtPosition(position, effects, artwork) !== null;
+}
+
+export function parkIndoorPetSizeOnSleepSpot(
+  position: { x: number; y: number },
+  effects: readonly { type: string; x: number; y: number; size: number }[],
+  artwork: { width: number; height: number },
+  normalSize = 225,
+): number {
+  const spotSize = parkIndoorSleepSpotAtPosition(position, effects, artwork);
+  return spotSize === null ? normalSize : Math.min(normalSize, spotSize);
 }
