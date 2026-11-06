@@ -3,6 +3,8 @@
  * transitions, inventory deductions, rewards and the harvest cooldown.
  */
 export const GARDEN_WATER_CAPACITY = 100;
+/** Maximum drops poured by one tool tap; never cross a crop stage boundary. */
+export const GARDEN_WATER_POUR_DROPS = 10;
 /** UI and server use the same eligibility rule for a refillable inventory
  * row. An unopened container (NULL charges) is already full, not empty. */
 export function gardenItemNeedsRefill(item: {
@@ -103,6 +105,26 @@ export function gardenAfterWaterDrop(current: GardenGrowth, required: GardenWate
     ? { phase: "grown", waterApplied: threshold, harvestReady: true }
     : { phase: next[current.phase], waterApplied: 0, harvestReady: false };
 }
+/** One authenticated watering action uses up to ten real drops. It stops at
+ * the next stage, harvest readiness, or the remaining water in the pail.
+ * No surplus drops vanish and the next stage must be watered separately. */
+export function gardenAfterWaterPour(
+  current: GardenGrowth, required: GardenWaterRequirements, availableDrops: number,
+): { growth: GardenGrowth; dropsUsed: number } {
+  if (!Number.isSafeInteger(availableDrops) || availableDrops < 1)
+    throw new Error("The Watering Pail is empty");
+  const maxDrops = Math.min(GARDEN_WATER_POUR_DROPS, availableDrops);
+  let growth = current;
+  let dropsUsed = 0;
+  for (let i = 0; i < maxDrops; i++) {
+    const next = gardenAfterWaterDrop(growth, required);
+    growth = next;
+    dropsUsed++;
+    if (growth.phase !== current.phase || growth.harvestReady) break;
+  }
+  return { growth, dropsUsed };
+}
+
 /** Called at read and before mutation: picked plots have a server 30s lockout
  * and return to an unprepared empty diamond afterward.
  */
