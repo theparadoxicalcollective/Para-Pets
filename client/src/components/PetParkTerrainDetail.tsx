@@ -14,6 +14,27 @@ export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetail
       "radial-gradient(ellipse at 22% 34%, rgba(171,132,88,.13), transparent 33%)",
       "radial-gradient(ellipse at 78% 66%, rgba(64,45,30,.15), transparent 40%)",
     ].join(",") }} />;
+  // Brush ghosts use the same 2:1 footprint as the saved union canvas. Only
+  // the preview is a DOM stamp; saved material uses one seamless canvas.
+  if (type === "stone_path") return <div aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden"
+    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)", background: "#747671" }}>
+    <svg viewBox="0 0 240 120" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+      <path d="M4 50 L60 12 L116 45 L52 91 Z M118 25 L177 17 L235 58 L172 92 Z M75 72 L129 51 L172 94 L117 116 Z"
+        fill="#9c9b8c" fillOpacity=".45" stroke="#3f4e4b" strokeOpacity=".45" strokeWidth="2" />
+      <path d="M31 49 L56 37 M144 50 L173 58 M90 93 L116 84" stroke="#d0cbb6" strokeWidth="1.7" strokeOpacity=".5" />
+    </svg>
+  </div>;
+  if (type === "water_path") return <div aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden"
+    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+      background: "linear-gradient(160deg,#256575,#2a8590 55%,#174b61)" }}>
+    <svg viewBox="0 0 240 120" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+      <path d="M24 62 Q65 48 104 56 T199 54 M62 83 Q120 68 174 84 M97 33 Q124 29 160 35"
+        stroke="#c0ebe4" strokeOpacity=".48" strokeWidth="3" strokeLinecap="round" fill="none" />
+      <path d="M47 68 Q86 62 118 69 T214 69" stroke="#143f57" strokeOpacity=".35" strokeWidth="6" fill="none" />
+    </svg>
+  </div>;
   if (type === "stone_patch") return <div aria-hidden="true" className={base}>
     <div className="absolute inset-[6%] rounded-[50%]" style={{ background: "radial-gradient(ellipse,rgba(74,96,61,.22),transparent 70%)" }} />
     <svg viewBox="0 0 240 125" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" fill="none">
