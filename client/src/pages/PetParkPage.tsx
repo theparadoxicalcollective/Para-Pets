@@ -115,7 +115,7 @@ export default function PetParkPage() {
     queryKey: ["/api/pet-park/garden"], enabled: !!scene?.canEnterPark && !scene?.canEditPark,
     refetchInterval: 5000,
   });
-  const chosenGardenPlot = garden?.plots.find(plot => plot.plotItemId === selectedGardenPlotId);
+  const chosenGardenPlot = garden?.plots?.find(plot => plot.plotItemId === selectedGardenPlotId);
   const invalidateGarden = () => {
     qc.invalidateQueries({ queryKey: ["/api/pet-park/garden"] });
     qc.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -751,7 +751,7 @@ export default function PetParkPage() {
         {scene.items.map(item => {
           const position = shownPosition("item", item);
           const isGardenPlot = item.kind === "terrain" && item.effectType === "garden_plot";
-          const savedGardenPlot = isGardenPlot ? garden?.plots.find(plot => plot.plotItemId === item.id) : undefined;
+          const savedGardenPlot = isGardenPlot ? garden?.plots?.find(plot => plot.plotItemId === item.id) : undefined;
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
             { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
@@ -787,7 +787,7 @@ export default function PetParkPage() {
             a child of the terrain stamp's fixed z=500 background layer. */}
         {!scene.canEditPark && (garden?.plots ?? []).map(plot => {
           if (!["planted", "seedling", "partial", "grown", "picked"].includes(plot.phase)) return null;
-          const crop = garden?.crops.find(entry => entry.id === plot.cropId);
+          const crop = garden?.crops?.find(entry => entry.id === plot.cropId);
           const image = crop?.images[plot.phase as "planted" | "seedling" | "partial" | "grown" | "picked"];
           if (!image || !isParkTerrainNearViewport(
             { ...plot, effectType: "garden_plot" },
