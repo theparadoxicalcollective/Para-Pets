@@ -173,6 +173,9 @@ try{
       // and without re-opening the same plot on the trailing click.
       await page.mouse.click(20,Math.round(height*.35));
       await menu.waitFor({state:"hidden"});
+      // A subsequent intentional opening is distinct from the pointer that
+      // just dismissed it; let that anti-reopen window finish.
+      await page.waitForTimeout(350);
     };
     assert.equal(await menu.getByRole("button",{name:"Close garden tools"}).count(),0,
       name+": no extra X button is shown");
