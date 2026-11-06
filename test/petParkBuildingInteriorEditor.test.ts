@@ -31,7 +31,8 @@ test("player and admin effects share natural-image room coordinates and Home eff
   assert.match(page, /imageUrl=\{fullPageRoom\?\.imageUrl \?\? activeBuilding\.interiorImageUrl/);
   assert.match(page, /offEffectIds=\{new Set\(offParkInteriorLights\[activeBuilding\.id\]/);
   assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight\(activeBuilding\.id, effect\)\}/);
-  assert.match(details, /<PetParkInteriorRoom imageUrl=\{imagePreview\}/);
+  assert.match(details, /<PetParkInteriorRoom key=\{imagePreview\}/);
+  assert.match(details, /editEffects expanded/);
   assert.match(room, /naturalWidth \/ naturalHeight/);
   assert.match(room, /getBoundingClientRect\(\)/);
   assert.match(room, /observeHomeViewport\(element, measure, "artwork-scene"\)/);
