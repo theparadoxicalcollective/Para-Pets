@@ -37,7 +37,7 @@ import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
 import NpcQuestDiscoveryGuide from "@/components/NpcQuestDiscoveryGuide";
-import { bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep, bjUsePlayer } from "@/lib/beginJourney";
+import { BEGIN_JOURNEY_ENABLED, bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep, bjUsePlayer } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -284,7 +284,7 @@ function AppRouter() {
   // the legacy looping flow once, and automatically recover missing/stale local
   // state (including moderator resets and players who never received an egg).
   useEffect(() => {
-    if (!user || showWelcome) return;
+    if (!BEGIN_JOURNEY_ENABLED || !user || showWelcome) return;
     if ((user as any).tutorial_quest_completed || (user as any).tutorial_reward_claimed) {
       if (bjGetStatus() !== "done") bjSetStep("done");
       return;
@@ -637,8 +637,10 @@ function AppRouter() {
         />
       )}
 
-      {/* Begin Journey tutorial overlay */}
-      <BeginJourneyOverlay user={user} />
+      {/* Paused while player-avatar progression replaces legacy onboarding.
+          Never mount the legacy guide on a new session, but keep stored
+          per-player tutorial steps and earned reward receipts intact. */}
+      {BEGIN_JOURNEY_ENABLED && <BeginJourneyOverlay user={user} />}
       <NpcQuestDiscoveryGuide user={user} />
     </>
   );
