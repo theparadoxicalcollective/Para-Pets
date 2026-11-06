@@ -76,3 +76,15 @@ test("server only publishes pets after a deliberate outdoor drop, never when equ
   assert.match(player, /res\.status\(410\)/);
   assert.match(player, /checkpointAt: petParkDeposits\.checkpointAt/);
 });
+
+test("deleting a building makes previously indoor pets private without changing reward settlement", () => {
+  const admin = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
+  const segment = admin.split('app.delete("/api/admin/pet-park/buildings/:id"')[1]
+    ?.split('app.delete("/api/admin/pet-park/terrain"')[0];
+  assert.ok(segment);
+  assert.match(segment, /db\.transaction\(async tx =>/);
+  assert.match(segment, /showInPark: false, buildingId: null, roomEffectId: null/);
+  assert.match(segment, /parkXPct: null, parkYPct: null/);
+  assert.match(segment, /isNull\(petParkDeposits\.withdrawnAt\)/);
+  assert.doesNotMatch(segment, /checkpointAt:|withdrawnAt:|petParkRewardClaims/);
+});
