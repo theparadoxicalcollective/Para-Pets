@@ -12,15 +12,11 @@ test("daily quest cards remain through completion and disappear only after rewar
   assert.match(nav, /queryClient\.invalidateQueries\(\{ queryKey: \["\/api\/quests\/daily"\] \}\)/);
 });
 
-test("Beginning Tutorial is hidden while paused and historical reward records are preserved", () => {
+test("retired tutorial is absent from the quest log without hiding daily and NPC quests", () => {
   const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
-  const flag = readFileSync("client/src/lib/beginJourney.ts", "utf8");
-
-  assert.match(flag, /export const BEGIN_JOURNEY_ENABLED = false/);
-  assert.match(nav, /\{BEGIN_JOURNEY_ENABLED && !\(user as any\)\.tutorial_reward_claimed && \(/);
-  assert.match(nav, /const tutorialClaimable = BEGIN_JOURNEY_ENABLED &&/);
-  assert.match(nav, /queryClient\.setQueryData\(\["\/api\/auth\/me"\][\s\S]*tutorial_reward_claimed: true/,
-    "old completed rewards must not be erased from the legacy system");
+  assert.doesNotMatch(nav, /Begin Journey|tutorialClaimMutation|BEGIN_JOURNEY_ENABLED|showLoginHint/);
+  assert.match(nav, /visibleDailyQuests\.map\(\(quest\) =>/);
+  assert.match(nav, /ginnyData\?\.status === "completed"/);
 });
 
 test("Ginny quest card disappears after a successful reward claim", () => {
@@ -36,7 +32,7 @@ test("quest alert appears only for completed unclaimed rewards and uses a simple
   const nav = readFileSync("client/src/components/FloatingNav.tsx", "utf8");
 
   assert.match(nav, /const hasCompletedUnclaimed = questData\?\.quests\.some\(q => q\.completed && !q\.reward_claimed\)/);
-  assert.match(nav, /const questRewardReady = hasCompletedUnclaimed \|\| tutorialClaimable/);
+  assert.match(nav, /const questRewardReady = hasCompletedUnclaimed \|\| ginnyData/);
   assert.match(nav, /function QuestRewardBadge/);
   assert.match(nav, />\s*!\s*<\/span>/);
   assert.match(nav, /badge=\{item\.id === "quest" && questRewardReady \? "quest" : null\}/);
