@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEventHandler, type ReactNode } from "react";
-import { HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
+import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import { observeHomeViewport, centeredHomeCameraPanX, clampHomeCameraPanX, homeCameraPointerDeltaX, safeSetPointerCapture, HOME_TOUCH_SURFACE_STYLE } from "@/lib/homeCrossDevice";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { isParkWaterEffect } from "@shared/petParkEffects";
@@ -10,13 +10,14 @@ type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: 
 
 /** One actual-image coordinate surface for park visitors and administrators. */
 export default function PetParkInteriorRoom({
-  imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false,
+  imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false, darkness = 35,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
   onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect, onOpenRoom,
 }: {
   imageUrl: string;
   name: string;
   effects: ParkInteriorEffect[];
+  darkness?: number;
   onOpenRoom?: (room: ParkRoomEffect) => void;
   /** Use measured image geometry for pets resting on admin-sized indoor spots. */
   children?: ReactNode | ((layout: { imageWidth: number; sceneHeight: number }) => ReactNode);
@@ -97,6 +98,14 @@ export default function PetParkInteriorRoom({
         const { naturalWidth, naturalHeight } = event.currentTarget;
         if (naturalWidth > 0 && naturalHeight > 0) setAspect(naturalWidth / naturalHeight);
       }} />
+    {/* Reuse Pet Home's translucent room backdrop with light-shaped
+        cutouts. Keep it inside the panned artwork surface so the dark layer
+        follows the image in both compact and expanded mobile/tablet layouts.
+        Effects, interactive portals and pets all render ABOVE this layer. */}
+    <HomeInteriorDarknessLayer darkness={darkness}
+      effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))}
+      offEffectIds={offEffectIds} panX={0} imgWidth={imageWidth}
+      sceneHeight={dimensions.height} zIndex={2} />
     <HomeInteriorEffectsLayer effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))} panX={0}
       imgWidth={imageWidth} sceneHeight={dimensions.height}
       offEffectIds={offEffectIds} onToggleEffect={onToggleEffect}
