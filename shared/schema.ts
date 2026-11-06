@@ -89,6 +89,9 @@ export const shopItems = pgTable("shop_items", {
   clearingActive: boolean("clearing_active").notNull().default(true),
   specialType: text("special_type"),
   specialAmount: integer("special_amount"),
+  // Admin flag. Only refill-capable equipment can use a water source;
+  // future player requests must validate both item and target server-side.
+  isRefillable: boolean("is_refillable").notNull().default(false),
   shopPosX: real("shop_pos_x").notNull().default(50),
   shopPosY: real("shop_pos_y").notNull().default(50),
   shopWidth: integer("shop_width").notNull().default(72),
@@ -1382,6 +1385,8 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   kind: text("kind").notNull(), // decor | sleep_spot | effect
   effectType: text("effect_type"), // waterfall_mist | water_ripple | water_shimmer
+  // Tagged decor is a refill station; visual depth and placement are unchanged.
+  isWaterSource: boolean("is_water_source").notNull().default(false),
   imageUrl: text("image_url"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
