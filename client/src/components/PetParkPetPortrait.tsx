@@ -21,21 +21,21 @@ export default memo(function PetParkPetPortrait({
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (visible) return;
     const element = holder.current;
     if (!element || typeof IntersectionObserver === "undefined") {
       setVisible(true);
       return;
     }
+    // Track both entering AND leaving the visible room. A previous one-shot
+    // observer kept every pet's part/costume layers mounted after the camera
+    // panned past them, making a 20–25 pet interior increasingly expensive.
     const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: "160px" });
+      const nearViewport = entries.some(entry => entry.isIntersecting);
+      setVisible(current => current === nearViewport ? current : nearViewport);
+    }, { rootMargin: "120px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [visible]);
+  }, []);
 
   return <div ref={holder} className={`relative flex shrink-0 items-center justify-center ${className}`}
     data-testid="pet-park-pet-portrait" style={{ width: size, height: size }}>
