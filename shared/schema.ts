@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, integer, real, unique, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer, real, unique, uniqueIndex, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { isAdornmentSlotKey } from "./costumeFeature";
@@ -1431,6 +1431,7 @@ export const petParkDeposits = pgTable("pet_park_deposits", {
 }, (t) => [
   uniqueIndex("pet_park_deposits_slot_active_uidx").on(t.userId, t.slotNumber).where(sql`${t.withdrawnAt} IS NULL`),
   uniqueIndex("pet_park_deposits_pet_active_uidx").on(t.petInventoryId).where(sql`${t.withdrawnAt} IS NULL`),
+  index("pet_park_deposits_building_active_idx").on(t.buildingId, t.roomEffectId).where(sql`${t.withdrawnAt} IS NULL AND ${t.buildingId} IS NOT NULL`),
 ]);
 
 export const petParkRewardClaims = pgTable("pet_park_reward_claims", {

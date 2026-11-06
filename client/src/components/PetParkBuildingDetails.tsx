@@ -3,7 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { isParkRoomEffect, PARK_ROOM_DEFAULT_PETS, type ParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
+import { PARK_WATER_EFFECT_OPTIONS, isParkWaterEffect } from "@shared/petParkEffects";
+import { isParkRoomEffect, PARK_ROOM_DEFAULT_PETS, PARK_ROOM_MIN_PETS, PARK_ROOM_MAX_PETS, type ParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
+import { PET_PARK_BUILDING_CAPACITY_MIN, PET_PARK_BUILDING_CAPACITY_MAX } from "@shared/petParkBuildingCapacity";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
@@ -38,6 +40,7 @@ export default function PetParkBuildingDetails({
   const { toast } = useToast();
   const qc = useQueryClient();
   const [name, setName] = useState(building.name);
+  const [maxPets, setMaxPets] = useState(building.maxPets);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
@@ -80,6 +83,7 @@ export default function PetParkBuildingDetails({
         setSelectedEffectId(variables.roomImageData !== undefined ? String(variables.roomEffectId) : null);
       }
       if (typeof updated.name === "string") setName(updated.name);
+      if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
       if (updated.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
@@ -103,6 +107,7 @@ export default function PetParkBuildingDetails({
     const effect: ParkInteriorEffect = type === "room"
       ? { id, type: "room", x: 0.5, y: 0.5, size: defaultSize, name: "Magical Room",
           view: "full_page", imageUrl: null, maxPets: PARK_ROOM_DEFAULT_PETS }
+      : isParkWaterEffect(type) ? { id, type, x: 0.5, y: 0.5, size: defaultSize }
       : { id, type, x: 0.5, y: 0.5, size: defaultSize };
     setEffects(previous => [...previous, effect]);
     setSelectedEffectId(effect.id);
@@ -196,7 +201,7 @@ export default function PetParkBuildingDetails({
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: showEffectChoices ? "48dvh" : "38dvh" }}>
       <p className="mb-2 text-xs text-amber-100/75">Tap an effect to select it, then drag it directly on the room. Save when finished.</p>
             {showEffectChoices && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[...HOME_INTERIOR_EFFECT_OPTIONS, { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
+              {[...HOME_INTERIOR_EFFECT_OPTIONS, ...PARK_WATER_EFFECT_OPTIONS.map(option => ({ ...option, defaultSize: option.interiorSize })), { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
                 className="rounded bg-teal-900 px-2 py-2 text-left text-xs disabled:opacity-50"
                 disabled={effects.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT || mutation.isPending}
                 onClick={() => { addEffect(option.type, option.defaultSize); setShowEffectChoices(false); }}>{option.label}</button>)}
@@ -232,7 +237,17 @@ export default function PetParkBuildingDetails({
                     className={`rounded-lg border px-3 py-2 ${selectedEffect.view === "popup" ? "border-amber-300 bg-[#245037]" : "border-amber-700/40"}`}
                     onClick={() => updateSelectedRoom({ view: "popup" })}>Popup</button>
                 </div>
-                <p className="text-amber-200/70">Rooms are interactive viewing spaces only. Pets stay outdoors, whether this opens full-height or as a popup.</p>
+                {selectedEffect.view === "full_page" ? <label className="block w-full">
+                  Maximum pets in this room ({PARK_ROOM_MIN_PETS}–{PARK_ROOM_MAX_PETS})
+                  <input type="number" aria-label="Room pet capacity" min={PARK_ROOM_MIN_PETS} max={PARK_ROOM_MAX_PETS}
+                    inputMode="numeric" value={selectedEffect.maxPets}
+                    onChange={event => {
+                      const nextCapacity = Number(event.target.value);
+                      updateSelectedRoom({ maxPets: Math.max(PARK_ROOM_MIN_PETS,
+                        Math.min(PARK_ROOM_MAX_PETS, Math.round(nextCapacity || PARK_ROOM_MIN_PETS))) });
+                    }}
+                    className="mt-1 w-full rounded bg-[#091e17] p-2" />
+                </label> : <p className="text-amber-200/70">Popups are view-only. Pets cannot enter them.</p>}
                 <p className="text-amber-200/70">Save effects to publish the room artwork, name, opening mode and portal placement.</p>
               </div>}
               <button type="button" disabled={mutation.isPending} className="rounded bg-red-900 px-3 py-2" onClick={() => {
@@ -265,10 +280,17 @@ export default function PetParkBuildingDetails({
             <input aria-label="Park building name" className="mt-1 w-full rounded bg-slate-900 p-2" maxLength={80}
               value={name} onChange={event => setName(event.target.value)} />
           </label>
-          <p className="text-xs text-amber-100/70">Buildings and rooms are for interactive effects and exploration. All player pets stay outdoors.</p>
+          <label className="block text-sm">Maximum pets in this building ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})
+            <input type="number" aria-label="Park building capacity" min={PET_PARK_BUILDING_CAPACITY_MIN}
+              max={PET_PARK_BUILDING_CAPACITY_MAX} inputMode="numeric" value={maxPets}
+              onChange={event => setMaxPets(Math.max(PET_PARK_BUILDING_CAPACITY_MIN,
+                Math.min(PET_PARK_BUILDING_CAPACITY_MAX, Math.round(Number(event.target.value) || PET_PARK_BUILDING_CAPACITY_MIN))))}
+              className="mt-1 w-full rounded bg-[#091e17] p-2" />
+          </label>
+          <p className="text-xs text-amber-100/70">Visitors share the building with placed pets. Full-page rooms also have their own limits within the building's capacity.</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
             disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
-            onClick={() => mutation.mutate({ name: name.trim() })}>Save building details</button>
+            onClick={() => mutation.mutate({ name: name.trim(), maxPets })}>Save building details</button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">Replace exterior artwork
               <input type="file" accept="image/*" aria-label="Replace park building exterior" className="mt-1 block w-full text-xs"

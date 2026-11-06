@@ -24,7 +24,7 @@ test("Pet Park creates buildings and decor while rest spots are offered under ef
   assert.ok(panel.includes('url: "/api/admin/pet-park/items"'));
   assert.ok(panel.includes('option.type === "sleep" ? "Rest Spot (Sleep Square)"'), "Rest Spot is available in effects");
   assert.ok(!panel.includes('value: "sleep_spot"'), "Decor no longer duplicates Rest Spot");
-  assert.ok(panel.includes('type: "water_ripple"'), "Water ripples remain available in the effect picker");
+  assert.ok(panel.includes("PARK_WATER_EFFECT_OPTIONS.map"), "Use the shared water-effect choices, including ripple");
   assert.ok(panel.includes('HOME_OUTDOOR_EFFECT_OPTIONS.map'), "Home Bundle outdoor effects are offered without duplication");
   assert.ok(page.includes('setSelectedPlacement({ kind: object.kind, id: object.id })'));
   assert.ok(!page.includes('placementMode'), "objects edit directly without a separate Move mode");

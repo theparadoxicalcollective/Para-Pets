@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
-import { type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
@@ -16,11 +16,6 @@ type ParkDraft = {
 };
 type CreatedParkObject = { kind: "building" | "item"; id: string; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 
-const WATER_EFFECT_OPTIONS: Array<{ type: ParkEffectType; label: string; description: string; defaultSize: number }> = [
-  { type: "waterfall_mist", label: "Waterfall Mist", description: "Soft mist at waterfalls and cascades", defaultSize: 130 },
-  { type: "water_ripple", label: "Water Ripples", description: "Expanding rings over water", defaultSize: 110 },
-  { type: "water_shimmer", label: "Water Shimmer", description: "Gentle highlights on water", defaultSize: 140 },
-];
 const GOLD_BORDER = "rgba(255,215,0,0.38)";
 const GOLD = "#f5cf64";
 
@@ -164,7 +159,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         </div>
         <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Water Effects</div>
         <div className="grid grid-cols-2 gap-2">
-          {WATER_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
+          {PARK_WATER_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
             data-testid={`add-park-effect-${option.type}`}
             disabled={mutation.isPending} onClick={() => addEffect(option.type, option.defaultSize)}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"

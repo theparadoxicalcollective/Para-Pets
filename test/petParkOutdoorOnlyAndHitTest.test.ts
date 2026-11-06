@@ -61,10 +61,11 @@ test("editor movement requires a second artwork tap and outdoor pets use owner-o
   assert.match(page, /myDeposit && <button/);
   assert.match(page, /data-testid="pet-park-outdoor-drag"/);
   assert.match(page, /dropEquippedPet\(drag\.petId/);
-  assert.doesNotMatch(page, /dropEquippedPetInside|indoorVisiblePets|indoorSelectedPetId/);
+  assert.doesNotMatch(page, /dropEquippedPetInside|indoorSelectedPetId/);
+  assert.match(page, /indoorVisiblePets\.map\(pet =>/);
 });
 
-test("server only publishes pets after a deliberate outdoor drop, never when equipped", () => {
+test("equipped pets remain private until explicitly placed outdoors or inside a building", () => {
   const player = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
   const display = readFileSync("server/routes/petParkDisplay.routes.ts", "utf8");
   assert.match(player, /slotNumber, showInPark: false/);
@@ -73,7 +74,8 @@ test("server only publishes pets after a deliberate outdoor drop, never when equ
   assert.match(player, /isNotNull\(petParkDeposits\.parkYPct\)/);
   assert.match(display, /display === "park" && !hasX/);
   assert.match(display, /showInPark: false, buildingId: null, roomEffectId: null/);
-  assert.match(player, /res\.status\(410\)/);
+  assert.match(player, /isPetAccessibleParkRoom\(room\)/);
+  assert.match(player, /isNotNull\(petParkDeposits\.buildingId\)/);
   assert.match(player, /checkpointAt: petParkDeposits\.checkpointAt/);
 });
 

@@ -3,7 +3,7 @@ import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, parkGroundSize } from "@shared/petParkGround";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
-import { sanitizeParkInteriorEffects } from "@shared/petParkRooms";
+import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
@@ -225,9 +225,17 @@ export function registerPetParkAdminRoutes(
               proposed = proposed.map(effect => effect.id === id && effect.type === "room"
                 ? { ...effect, imageUrl: uploadedRoomUrl } : effect);
             }
-            // Legacy indoor deposit references remain intact for owners to
-            // move outdoors. Since room portals are view-only now, those old
-            // references must not block effect edits or room deletion.
+            // Active occupants cannot be orphaned by deleting a full-page
+            // room, changing it into a popup, or lowering its pet limit.
+            const counts = new Map<string, number>();
+            for (const occupant of occupants) if (occupant.roomEffectId) {
+              counts.set(occupant.roomEffectId, (counts.get(occupant.roomEffectId) ?? 0) + 1);
+            }
+            for (const [roomId, count] of counts) {
+              const room = proposed.find(effect => effect.id === roomId);
+              if (!isPetAccessibleParkRoom(room) || count > room.maxPets)
+                return { status: 409 as const, message: "Move pets out before changing an occupied room or its capacity" };
+            }
             updates.interiorEffects = proposed;
           }
           const [building] = await tx.update(petParkBuildings).set(updates)

@@ -59,6 +59,11 @@ const WATER_CSS = [
   ".park-water-effect--water_shimmer:after { inset:43% 20% 20% 7%; opacity:.55; animation-duration:8.2s; animation-delay:-3.4s; }",
   "@keyframes parkRipple { 0% { transform:scale(.22); opacity:0; } 25% { opacity:.8; } 100% { transform:scale(1.4); opacity:0; } }",
   "@keyframes parkShimmer { from { transform:translate3d(-7%,1%,0) scale(.97); opacity:.2; } to { transform:translate3d(9%,-2%,0) scale(1.04); opacity:.6; } }",
+  // One discreet droplet, no heavy rain or splash. A long idle phase keeps
+  // waterfalls, fireplaces and character art visually dominant.
+  ".park-water-effect--water_drop { overflow:visible; }",
+  '.park-water-effect--water_drop:before { content:""; position:absolute; left:50%; top:23%; width:7px; height:10px; border-radius:55% 55% 55% 5%; background:linear-gradient(135deg,rgba(245,255,255,.85),rgba(122,205,220,.52) 65%,rgba(90,170,190,.15)); box-shadow:0 0 4px rgba(213,247,251,.25); opacity:0; transform:translate3d(-50%,-12px,0) rotate(-45deg); animation:parkSingleDrop 7.2s ease-in infinite; }',
+  "@keyframes parkSingleDrop { 0%,22% { opacity:0; transform:translate3d(-50%,-12px,0) rotate(-45deg) scale(.75); } 29% { opacity:.58; } 61% { opacity:.52; transform:translate3d(-50%,16px,0) rotate(-45deg) scale(1); } 69%,100% { opacity:0; transform:translate3d(-50%,23px,0) rotate(-45deg) scale(.85); } }",
   ".park-water-effect--still:before,.park-water-effect--still:after { animation:none !important; }",
   "@media (prefers-reduced-motion: reduce) { .park-water-effect:before,.park-water-effect:after { animation:none !important; } }",
 ].join("\n");

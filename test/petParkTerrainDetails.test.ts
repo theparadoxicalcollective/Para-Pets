@@ -59,7 +59,7 @@ test("expanding ground preserves all saved terrain stamp locations relative to p
 });
 
 test("decor/effects/pets are preserved and terrain remains a ground-level detail", () => {
-  assert.match(page, /item\.kind === "terrain" \|\| item\.effectType === "water_ripple" \|\| item\.effectType === "water_shimmer" \? 500 : parkDepthIndex/);
+  assert.match(page, /item\.kind === "effect" \|\| item\.kind === "sleep_spot" \? 12_000_000 : item\.kind === "terrain" \? 500 : parkDepthIndex/);
   assert.match(page, /item\.kind === "effect" && item\.effectType/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
   assert.match(page, /<PetAnimator petTemplateId=\{pet.petTemplateId\}/);
