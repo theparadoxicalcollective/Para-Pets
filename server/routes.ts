@@ -106,6 +106,7 @@ import { registerPetParkPlayerRoutes } from "./routes/petParkPlayer.routes";
 import { registerPetParkAdminRoutes } from "./routes/petParkAdmin.routes";
 import { registerGardenAdminRoutes } from "./routes/gardenAdmin.routes";
 import { registerGardenRefillRoutes } from "./routes/gardenRefill.routes";
+import { registerGardenPlayerRoutes } from "./routes/gardenPlayer.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
@@ -1435,6 +1436,7 @@ export async function registerRoutes(
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
   registerGardenAdminRoutes(app, { db, isAdmin, processWorldImage });
   registerGardenRefillRoutes(app, isAuthenticated);
+  registerGardenPlayerRoutes(app, isAuthenticated);
 
   registerPetStateRoutes(app, {
     storage,
