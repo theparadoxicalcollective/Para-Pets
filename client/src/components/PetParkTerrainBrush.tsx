@@ -3,7 +3,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
-import { PARK_TERRAIN_DETAIL_OPTIONS, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
+import { PARK_TERRAIN_DETAIL_OPTIONS, isParkConnectedPath, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
+import { PET_PARK_GROUND_THEMES, type ParkGroundTheme } from "@shared/petParkGround";
 import { parkBrushWorldPoint, parkExtendBrushStroke, parkExtendPathStroke, PARK_BRUSH_MAX_STAMPS, type ParkBrushPoint } from "@/lib/petParkTerrainBrush";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
   worldWidth: number; worldHeight: number;
   panX: number; panY: number; scale: number;
   raised: boolean; onSaved: () => void; onExit: () => void;
+  groundTheme: ParkGroundTheme;
 };
 
 /** The only painting surface is an overlay on the EXISTING Pet Park camera.
@@ -27,6 +29,7 @@ export default function PetParkTerrainBrush(props: Props) {
   const [draft, setDraft] = useState<ParkBrushPoint[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [changingGround, setChangingGround] = useState(false);
 
   const pointAt = (event: PointerEvent<HTMLDivElement>) => {
     const rect = surface.current!.getBoundingClientRect();
@@ -54,7 +57,19 @@ export default function PetParkTerrainBrush(props: Props) {
       setSaving(false);
     }
   };
-  const extendStroke = type === "dirt_path" ? parkExtendPathStroke : parkExtendBrushStroke;
+  const extendStroke = isParkConnectedPath(type) ? parkExtendPathStroke : parkExtendBrushStroke;
+  const selectGround = async (groundTheme: ParkGroundTheme) => {
+    if (changingGround || savingRef.current || draftRef.current.length || groundTheme === props.groundTheme) return;
+    setChangingGround(true);
+    try {
+      await apiRequest("PATCH", "/api/admin/pet-park/ground-theme", { groundTheme });
+      props.onSaved();
+    } catch (error) {
+      toast({ title: "Could not change ground", description: String(error), variant: "destructive" });
+    } finally {
+      setChangingGround(false);
+    }
+  };
   const start = (event: PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     if (!event.isPrimary || savingRef.current || draftRef.current.length || activePointer.current !== null) return;
@@ -109,26 +124,34 @@ export default function PetParkTerrainBrush(props: Props) {
         transform: "translate(-50%, -50%)",
       }}><PetParkTerrainDetail type={type} /></div>)}
     <div aria-label="Pet Park terrain brush controls"
-      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/70 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl max-h-[34dvh] ${props.raised ? "bottom-[44%]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
+      className={`pointer-events-auto absolute inset-x-3 z-20 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/70 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl max-h-[47dvh] ${props.raised ? "bottom-[44%]" : "bottom-[max(64px,env(safe-area-inset-bottom))]"}`}
       onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm">Paint terrain</strong>
-        <button type="button" disabled={saving || draft.length > 0} onClick={props.onExit} className="rounded-lg border border-[#b99a4c]/60 bg-[#245037] px-3 py-2 text-xs disabled:opacity-50">Done</button>
+        <button type="button" disabled={saving || changingGround || draft.length > 0} onClick={props.onExit} className="rounded-lg border border-[#b99a4c]/60 bg-[#245037] px-3 py-2 text-xs disabled:opacity-50">Done</button>
       </div>
-      <p className="text-xs text-amber-100/80">{saving ? "Saving terrain…" : saveFailed ? "Save failed. Retry or clear this stroke." : type === "dirt_path" ? "Drag along either diagonal to lay a straight isometric path. Lift to turn. Release to save." : "Drag to paint stones. Release to save."}</p>
-      <div className="grid grid-cols-2 gap-1.5">
+      <p className="text-xs text-amber-100/80">{saving ? "Saving terrain…" : saveFailed ? "Save failed. Retry or clear this stroke." : "Paint a connected isometric path. Drag diagonally, lift to turn, and release to save."}</p>
+      <div className="border-t border-[#b99a4c]/35 pt-2">
+        <p className="mb-1.5 font-fantasy text-xs font-semibold uppercase tracking-wider text-[#ead29b]">Ground</p>
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Pet Park ground style">
+          {PET_PARK_GROUND_THEMES.map(option => <button key={option.type} type="button"
+            disabled={changingGround || saving || draft.length > 0}
+            aria-pressed={props.groundTheme === option.type}
+            onClick={() => void selectGround(option.type)}
+            className={`flex min-h-10 items-center justify-center gap-1 rounded-lg border px-1.5 py-2 text-[11px] font-semibold disabled:opacity-50 ${props.groundTheme === option.type ? "border-[#f2d47d] bg-[#35563d]" : "border-[#b99a4c]/45 bg-[#0b2016]"}`}>
+            <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full border border-[#c1ad83]/70 shadow-inner"
+              style={{ background: option.swatch }} />{option.label}</button>)}
+        </div>
+        <p className="mt-1.5 text-[10px] text-amber-100/70">{changingGround ? "Saving ground style…" : "Changes the park-wide base without moving objects or paths."}</p>
+      </div>
+      <div className="border-t border-[#b99a4c]/35 pt-2">
+        <p className="mb-1.5 font-fantasy text-xs font-semibold uppercase tracking-wider text-[#ead29b]">Paths & Water</p>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
         {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
-          disabled={!!draft.length || saving} aria-pressed={type === option.type}
-          onClick={() => { setType(option.type); setSize(option.type === "dirt_path" ? 150 : option.size); }}
+          disabled={!!draft.length || saving || changingGround} aria-pressed={type === option.type}
+          onClick={() => { setType(option.type); setSize(option.size); }}
           className={`rounded-lg border px-2 py-2 text-xs disabled:opacity-60 ${type === option.type ? "border-[#e5c66a] bg-[#245037]" : "border-[#b99a4c]/45 bg-[#0b2016]"}`}>{option.label}</button>)}
-      </div>
-      <div className="flex items-center gap-2 text-xs">
-        <span>Brush size</span>
-        <button type="button" aria-label="Decrease terrain brush size" disabled={!!draft.length || saving}
-          onClick={() => setSize(v => type === "dirt_path" ? 150 : Math.max(60, v - 25))} className="rounded bg-[#245037] px-3 py-2">−</button>
-        <span className="tabular-nums">{size}</span>
-        <button type="button" aria-label="Increase terrain brush size" disabled={!!draft.length || saving}
-          onClick={() => setSize(v => type === "dirt_path" ? 150 : Math.min(400, v + 25))} className="rounded bg-[#245037] px-3 py-2">+</button>
       </div>
       {saveFailed && <div className="flex gap-2">
         <button type="button" disabled={saving} onClick={() => void saveStroke(draftRef.current)}
