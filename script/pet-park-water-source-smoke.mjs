@@ -81,6 +81,7 @@ try{
     await water.click();
     const dialog=page.getByRole("dialog",{name:"Refill Water"});
     await dialog.waitFor({state:"visible"});
+    await dialog.getByTestId("pet-park-refill-item").waitFor({state:"visible"});
     assert.equal(await dialog.getByTestId("pet-park-refill-item").count(),1,
       name+": only partial, owned, unlisted, refillable equipment is offered");
     assert.match(await dialog.innerText(),/Forest Pail/);
