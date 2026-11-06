@@ -146,8 +146,9 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
 
 
   // Interior placement is deliberately separate from public outdoor display.
-  // Only the owner can move one of their three deposits inside; all indoor
-  // pets remain private and continue accruing rewards at their checkpoints.
+  // Only the owner can move one of their three deposits inside. Indoor pets
+  // are visible to room visitors but are never published on the outdoor map;
+  // they continue accruing rewards without resetting their checkpoints.
   app.patch("/api/pet-park/deposits/:id/placement", isAuthenticated, async (req, res) => {
     const depositId = req.params.id;
     const { buildingId, roomEffectId = null, xPct, yPct, pose = "idle" } = req.body ?? {};
