@@ -41,12 +41,13 @@ import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize, parkGroundTheme, type ParkGr
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { gardenCropProgress, gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import type { ParkShopPlacement } from "@shared/petParkShopPlacements";
 import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[] };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -99,6 +100,7 @@ export default function PetParkPage() {
   const [offParkInteriorLights, setOffParkInteriorLights] = useState<Record<string, string[]>>({});
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [selectedWaterSourceId, setSelectedWaterSourceId] = useState<string | null>(null);
+  const [showShopPicker, setShowShopPicker] = useState(false);
   // Viewer-local visual state: gates switch appearance without changing shared
   // decor placement or another player’s park scene.
   const [tappedDecorIds, setTappedDecorIds] = useState<Set<string>>(() => new Set());
@@ -478,7 +480,10 @@ export default function PetParkPage() {
   const fullPageRoom = activeRoom && isParkRoomEffect(activeRoom) && activeRoom.view === "full_page" && activeRoom.imageUrl ? activeRoom : null;
   const popupRoom = activeRoom && isParkRoomEffect(activeRoom) && activeRoom.view === "popup" && activeRoom.imageUrl ? activeRoom : null;
   const currentRoomId = fullPageRoom?.id ?? null;
-  const buildingOccupants = (scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding?.id);
+  // Merchandise-only shops never show or accept pets. The server also rejects
+  // placement there, including forged requests from older clients.
+  const buildingOccupants = activeBuilding?.isShop ? [] :
+    (scene?.sharedPets ?? []).filter(pet => pet.buildingId === activeBuilding?.id);
   const indoorVisiblePets = buildingOccupants.filter(pet => (pet.roomEffectId ?? null) === currentRoomId);
   const deposits = scene?.deposits ?? [];
   const equippedForInterior = deposits.filter(pet => pet.slotNumber <= (scene?.unlockedSlots ?? 1));
@@ -533,7 +538,7 @@ export default function PetParkPage() {
   const commitIndoorPetPosition = (
     depositId: string, petInventoryId: string, point: { xPct: number; yPct: number },
   ) => {
-    if (!activeBuilding || popupRoom || action.isPending) return;
+    if (!activeBuilding || activeBuilding.isShop || popupRoom || action.isPending) return;
     const geometry = indoorArtworkGeometry();
     if (!geometry) return;
     const { artworkElement, artworkBounds } = geometry;
@@ -559,7 +564,7 @@ export default function PetParkPage() {
         pose: isParkIndoorSleepPosition(position, effects, dimensions) ? "sleep" : "idle" } });
   };
   const startIndoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>, petId: string) => {
-    if (!event.isPrimary || action.isPending || !activeBuilding || popupRoom) return;
+    if (!event.isPrimary || action.isPending || !activeBuilding || activeBuilding.isShop || popupRoom) return;
     event.stopPropagation();
     indoorSlotPointer.current = { pointerId: event.pointerId, petId, x: event.clientX, y: event.clientY };
     safeSetPointerCapture(event.currentTarget, event.pointerId);
@@ -577,7 +582,7 @@ export default function PetParkPage() {
     event.stopPropagation();
     indoorSlotPointer.current = null;
     setIndoorDragGhost(null);
-    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) <= 9 || !activeBuilding || popupRoom) return;
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) <= 9 || !activeBuilding || activeBuilding.isShop || popupRoom) return;
     const geometry = indoorArtworkGeometry();
     if (!geometry) return;
     const hit = document.elementFromPoint(event.clientX, event.clientY);
@@ -597,7 +602,7 @@ export default function PetParkPage() {
   };
   const startPlacedIndoorPetDrag = (event: React.PointerEvent<HTMLButtonElement>, pet: SharedParkPet, depositId: string,
     position: { x: number; y: number }) => {
-    if (!event.isPrimary || action.isPending || !activeBuilding || popupRoom) return;
+    if (!event.isPrimary || action.isPending || !activeBuilding || activeBuilding.isShop || popupRoom) return;
     event.stopPropagation();
     indoorPlacedPointer.current = {
       id: event.pointerId, petInventoryId: pet.petInventoryId, depositId,
@@ -973,13 +978,18 @@ export default function PetParkPage() {
     {activeBuilding && <div className="fixed inset-0 z-40 bg-[#13291e]" role="dialog" aria-modal="true" aria-label={activeBuilding.name}>
       <button type="button" aria-label={fullPageRoom ? "Exit room" : "Exit building"}
         onClick={() => { if (fullPageRoom) setOpenedRoomId(null); else setEnteredBuilding(null);
-          cancelEquippedPetDrag(); }}
+          setShowShopPicker(false); cancelEquippedPetDrag(); }}
         className="absolute right-3 z-50 rounded-full border border-amber-400/70 bg-[#10291d]/95 px-5 py-2.5 font-fantasy text-sm font-semibold text-[#f5cf64] shadow-xl"
         style={{ top: "max(64px, calc(env(safe-area-inset-top, 0px) + 12px))" }}>{fullPageRoom ? "Back" : "Exit"}</button>
       {scene?.canEditPark && !fullPageRoom && <button type="button" aria-label="Add effect inside building"
         onClick={() => { setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(true); setDetailsBuildingId(activeBuilding.id); }}
         className="absolute left-3 z-50 rounded-full border border-amber-400/70 bg-[#10291d]/95 px-4 py-2.5 text-sm font-semibold text-[#f5cf64]"
         style={{ top: "max(64px, calc(env(safe-area-inset-top, 0px) + 12px))" }}>+ Add effect</button>}
+      {scene?.canEditPark && activeBuilding.isShop && !fullPageRoom && <button type="button"
+        aria-label="Add shop merchandise" data-testid="pet-park-shop-add-item"
+        onClick={() => setShowShopPicker(true)}
+        className="absolute left-3 z-50 rounded-full border border-[#e6c77f]/75 bg-[#214d35]/95 px-3 py-2.5 text-xs font-semibold text-[#f5d795] shadow-xl"
+        style={{ top: "max(117px, calc(env(safe-area-inset-top, 0px) + 65px))" }}>+ Add Item</button>}
       {(fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl) ? <PetParkInteriorRoom
         key={fullPageRoom?.id ?? activeBuilding.id} expanded
         imageUrl={fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl ?? ""}
@@ -989,7 +999,8 @@ export default function PetParkPage() {
         onOpenRoom={showRoomEffect}
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
         onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}>
-        {({ imageWidth, sceneHeight: roomHeight }) => <div className="pointer-events-none absolute inset-0" style={{ zIndex: 5 }}>
+        {({ imageWidth, sceneHeight: roomHeight }) => <>
+        <div className="pointer-events-none absolute inset-0" style={{ zIndex: 5 }}>
           {indoorVisiblePets.map(pet => {
           const position = indoorPetDraft?.petInventoryId === pet.petInventoryId
             ? { x: indoorPetDraft.x, y: indoorPetDraft.y }
@@ -1025,13 +1036,18 @@ export default function PetParkPage() {
               onClick={() => setInspectedPet(pet)} />}
           </div>;
           })}
-        </div>}
+        </div>
+        {activeBuilding.isShop && !fullPageRoom && <PetParkShopShelf
+          buildingId={activeBuilding.id}
+          itemIds={activeBuilding.shopItemIds ?? []}
+          placements={activeBuilding.shopItemPlacements ?? []}
+          canEditPark={Boolean(scene?.canEditPark)}
+          imageWidth={imageWidth} imageHeight={roomHeight}
+          showPicker={showShopPicker} onShowPickerChange={setShowShopPicker} />}
+        </>}
       </PetParkInteriorRoom>
         : <p className="p-8 pt-28 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}
-      {activeBuilding.isShop && !fullPageRoom && !!activeBuilding.interiorImageUrl &&
-        <PetParkShopShelf buildingId={activeBuilding.id}
-          itemIds={activeBuilding.shopItemIds ?? []} canEditPark={Boolean(scene?.canEditPark)} />}
-      {!popupRoom && <div data-testid="pet-park-interior-slots"
+      {!popupRoom && !activeBuilding.isShop && <div data-testid="pet-park-interior-slots"
         className="absolute inset-x-3 bottom-[max(10px,env(safe-area-inset-bottom,0px))] z-50 mx-auto max-w-xl rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 p-2 shadow-xl">
         <div className="flex items-center justify-between gap-2 text-[11px] text-amber-200/80">
           <span>{currentRoomId ? `${indoorVisiblePets.length}/${fullPageRoom?.maxPets ?? 0} pets in room` :
@@ -1059,7 +1075,7 @@ export default function PetParkPage() {
           {equippedForInterior.length === 0 && <p className="px-2 py-3 text-xs text-amber-200/70">Equip a level 10+ pet in an outdoor oval first.</p>}
         </div>
       </div>}
-      {indoorDragGhost && <div className="pointer-events-none fixed z-[100] rounded-full border border-amber-400/60 bg-[#10291d]/95 px-3 py-2 text-xs text-amber-100 shadow-xl"
+      {!activeBuilding.isShop && indoorDragGhost && <div className="pointer-events-none fixed z-[100] rounded-full border border-amber-400/60 bg-[#10291d]/95 px-3 py-2 text-xs text-amber-100 shadow-xl"
         style={{ left: indoorDragGhost.x, top: indoorDragGhost.y, transform: "translate(-50%, -115%)" }}>
         {deposits.find(item => item.id === indoorDragGhost.petId)?.petNickname ??
           deposits.find(item => item.id === indoorDragGhost.petId)?.petName ?? "Pet"}
