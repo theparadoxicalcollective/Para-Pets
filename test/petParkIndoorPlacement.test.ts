@@ -78,7 +78,7 @@ test("effect depth is above all decorations while indoor artwork is passively la
   assert.match(page, /item\.kind === "effect" \|\| item\.kind === "sleep_spot" \? 12_000_000/);
   assert.match(page, /zIndex: 1 \+ Math\.round\(position\.y \* 1000\)/);
   assert.match(page, /!activeBuilding && <PetParkTerrain/);
-  assert.match(page, /!activeBuilding && <div className="absolute top-0 left-0 pointer-events-none"/);
+  assert.match(page, /!activeBuilding && <div data-park-world-artwork className="absolute top-0 left-0 pointer-events-none"/);
   assert.match(page, /\$\{buildingOccupants\.length\}\/\$\{activeBuilding\.maxPets\} pets inside/);
 });
 
