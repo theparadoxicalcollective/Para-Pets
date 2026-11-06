@@ -36,3 +36,19 @@ export function parkNextRewardProgress(
     paused, disabled: false,
   };
 }
+
+/** Choose whichever real payout cycle is due next for the single oval preview.
+ * This avoids inventing a common coin/essence/XP progress target.
+ * The detailed popup continues to show all three individual cycles.
+ */
+export function parkSoonestRewardProgress(
+  timing: ParkRewardTiming, rates: ParkRewardRates, nowMs: number,
+): { kind: ParkRewardRate; progress: number; secondsRemaining: number; paused: boolean } | null {
+  const kinds: ParkRewardRate[] = ["coins", "essence", "petXp"];
+  const enabled = kinds.map(kind => ({ kind, result: parkNextRewardProgress(kind, timing, rates, nowMs) }))
+    .filter(entry => !entry.result.disabled);
+  const next = enabled.reduce<(typeof enabled)[number] | null>((best, entry) =>
+    best === null || entry.result.secondsRemaining < best.result.secondsRemaining ? entry : best, null);
+  return next ? { kind: next.kind, progress: next.result.progress,
+    secondsRemaining: next.result.secondsRemaining, paused: next.result.paused } : null;
+}
