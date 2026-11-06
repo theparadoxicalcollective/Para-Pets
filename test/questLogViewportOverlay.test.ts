@@ -28,8 +28,7 @@ test("Quest behavior remains unchanged by viewport ownership", () => {
   assert.match(nav, /apiRequest\("POST", `\/api\/quests\/daily\/claim\/\$\{questKey\}`, \{\}\)/);
   assert.match(nav, /setShowQuest\(false\)/);
   assert.match(nav, /visibleDailyQuests\.map/);
-  assert.match(nav, /button-begin-journey-claim/);
-  assert.match(nav, /button-begin-journey-go/);
+  assert.doesNotMatch(nav, /button-begin-journey-claim|button-begin-journey-go/, "retired quest cannot return to Quest Log");
 });
 
 test("ViewportModalPortal retains native-phone inline fallback", () => {
