@@ -48,7 +48,7 @@ try{
       items:[
         {id:"fountain",kind:"decor",effectType:null,isWaterSource:true,imageUrl:art,tapImageUrl:altArt,xPct:.5,yPct:.5,size:140,flipped:false,layer:0},
         {id:"gate",kind:"decor",effectType:null,isWaterSource:false,imageUrl:art,tapImageUrl:altArt,
-          xPct:.28,yPct:.56,size:105,flipped:false,layer:0},
+          xPct:.42,yPct:.43,size:105,flipped:false,layer:0},
         {id:"ordinary-decor",kind:"decor",effectType:null,isWaterSource:false,imageUrl:art,xPct:.7,yPct:.65,size:100,flipped:false,layer:0},
       ],
     };
