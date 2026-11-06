@@ -222,7 +222,7 @@ export function registerPetParkAdminRoutes(
     if (body.shopItemIds !== undefined) {
       const ids = body.shopItemIds;
       if (!Array.isArray(ids) || ids.length > 80 ||
-          ids.some(id => typeof id !== "string" || id.length < 1 || id.length > 100) ||
+          ids.some((id: unknown) => typeof id !== "string" || id.length < 1 || id.length > 100) ||
           new Set(ids).size !== ids.length) {
         return res.status(400).json({ message: "Select up to 80 unique, valid shop items" });
       }
