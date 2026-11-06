@@ -71,9 +71,9 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
-        // Every active equipped pet is visible outdoors. Previous indoor/idle flags
-        // remain on saved rows only for backwards compatibility; rewards are unchanged.
-        .where(isNull(petParkDeposits.withdrawnAt))
+        // Only pets deliberately dragged into the outdoor scene are public.
+        // Old indoor deposits remain equipped and earning, but aren't exposed.
+        .where(and(isNull(petParkDeposits.withdrawnAt), eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId)))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
       return res.json({
         enabledForPlayers: settings?.enabledForPlayers ?? false,
@@ -118,7 +118,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt),
             sql`(${petParkDeposits.slotNumber} = ${slotNumber} OR ${petParkDeposits.petInventoryId} = ${petInventoryId})`));
         if (existing) return { status: 409 as const };
-        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: true, pausedAt: park.enabled ? null : new Date() }).returning();
+        const [deposit] = await tx.insert(petParkDeposits).values({ userId, petInventoryId, slotNumber, showInPark: false, pausedAt: park.enabled ? null : new Date() }).returning();
         return { status: 201 as const, deposit };
       });
       if (result.status === 404) return res.status(404).json({ message: "Player not found" });
@@ -234,7 +234,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         if (!rewards) throw new Error("Unable to settle outgoing pet");
         const [deposit] = await tx.insert(petParkDeposits).values({
           userId, petInventoryId, slotNumber: outgoing.slotNumber,
-          showInPark: true, pausedAt: park.enabled ? null : new Date(),
+          showInPark: false, pausedAt: park.enabled ? null : new Date(),
         }).returning();
         return { status: 200 as const, rewards, deposit };
       });
