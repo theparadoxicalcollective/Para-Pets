@@ -17,10 +17,10 @@ test("park uses expandable grass without requiring uploaded terrain art", () => 
   assert.match(migration, /'decor', 'sleep_spot', 'effect'/);
 });
 
-test("four water effects use admin-only persistence and shared effect options", () => {
+test("five water effects use admin-only persistence and shared effect options", () => {
   assert.match(api, /app.post\("\/api\/admin\/pet-park\/items", isAdmin/);
   assert.match(api, /kind === "effect" && !isParkEffect\(effectType\)/);
-  for (const kind of ["waterfall_mist", "water_ripple", "water_shimmer", "water_drop"]) {
+  for (const kind of ["waterfall_mist", "water_ripple", "water_shimmer", "water_flow", "water_drop"]) {
     assert.ok(shared.includes(kind));
     assert.ok(visual.includes(kind));
   }
