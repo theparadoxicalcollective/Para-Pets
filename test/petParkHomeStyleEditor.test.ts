@@ -12,11 +12,11 @@ const visual = readFileSync("client/src/components/ParkEffectVisual.tsx", "utf8"
 const home = readFileSync("client/src/components/HomeInteriorEffect.tsx", "utf8");
 const routes = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 
-test("Pet Park supports all eight Home Bundle outdoor effects and retains three water effects", () => {
+test("Pet Park supports eight Home Bundle effects and all four park water effects", () => {
   assert.deepEqual([...HOUSE_OUTDOOR_EFFECT_TYPES].sort(), [
     "candle_light", "dust_motes", "fire", "lamp_light", "sleep", "soft_mist", "sparkles", "warm_glow",
   ]);
-  assert.equal(HOUSE_OUTDOOR_EFFECT_TYPES.length + PARK_WATER_EFFECT_TYPES.length, 11);
+  assert.equal(HOUSE_OUTDOOR_EFFECT_TYPES.length + PARK_WATER_EFFECT_TYPES.length, 12);
   for (const type of [...HOUSE_OUTDOOR_EFFECT_TYPES, ...PARK_WATER_EFFECT_TYPES]) {
     assert.equal(isParkEffect(type), true, `unsupported ${type}`);
   }
@@ -63,15 +63,15 @@ test("mobile Pet Park editor matches the Home Bundle layout while keeping actual
 
 test("effect picker exposes Home effect cards and existing water options", () => {
   assert.match(panel, /HOME_OUTDOOR_EFFECT_OPTIONS\.map\(option/);
-  assert.match(panel, /WATER_EFFECT_OPTIONS\.map\(option/);
-  for (const type of PARK_WATER_EFFECT_TYPES) assert.ok(panel.includes(type));
+  assert.match(panel, /PARK_WATER_EFFECT_OPTIONS\.map\(option/);
+  assert.deepEqual([...PARK_WATER_EFFECT_TYPES].sort(), ["water_drop", "water_ripple", "water_shimmer", "waterfall_mist"].sort());
   assert.match(panel, /onClick=\{\(\) => addEffect\(option.type/);
   assert.match(panel, /disabled=\{mutation.isPending\}/);
   assert.match(panel, /Rest Spot/);
   assert.match(panel, /Pet Park decor size preview/);
   assert.match(panel, /size: itemSize/);
   assert.match(page, /isParkSleepPosition\(position, scene.items/);
-  assert.match(panel, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/, "new buildings remain view-only and keep the legacy minimum capacity");
+  assert.match(panel, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/, "new buildings retain their minimum capacity and can be configured by admins");
   assert.match(panel, /data-testid="button-create-park-building"/);
   assert.match(panel, /data-testid="button-create-park-item"/);
   assert.match(panel, /Upload Building Image/);
