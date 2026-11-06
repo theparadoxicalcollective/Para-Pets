@@ -1,7 +1,6 @@
 import { getAlphaBoundsSync } from "./alphaBounds";
 
 export type ParkPixelRect = { left: number; top: number; right: number; bottom: number };
-type Size = { width: number; height: number };
 type Position = { x: number; y: number };
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -67,11 +66,11 @@ export function parkVisiblePetArtworkBounds(petElement: HTMLElement): ParkPixelR
  * sprite-box top-left. Translate a measured visible union to the new anchor,
  * including size changes when entering/leaving an admin sleep square.
  */
-export function parkProjectedIndoorPetBounds(
+export function parkProjectedPetBounds(
   position: Position,
   size: number,
   artwork: ParkPixelRect,
-  source?: { element: HTMLElement; currentSize: number } | null,
+  source?: { element: HTMLElement; currentSize: number; anchorYRatio?: number } | null,
 ): ParkPixelRect {
   const targetX = artwork.left + position.x * (artwork.right - artwork.left);
   const targetY = artwork.top + position.y * (artwork.bottom - artwork.top);
@@ -79,7 +78,7 @@ export function parkProjectedIndoorPetBounds(
     const rect = source.element.getBoundingClientRect();
     const visible = parkVisiblePetArtworkBounds(source.element);
     const originX = rect.left + rect.width / 2;
-    const originY = rect.top + rect.height * .88;
+    const originY = rect.top + rect.height * (source.anchorYRatio ?? .88);
     const ratio = size / source.currentSize;
     return {
       left: targetX + (visible.left - originX) * ratio,
