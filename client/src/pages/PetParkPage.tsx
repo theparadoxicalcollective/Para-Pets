@@ -746,7 +746,8 @@ export default function PetParkPage() {
         onOpenRoom={showRoomEffect}
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
         onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}>
-        {({ imageWidth, sceneHeight: roomHeight }) => indoorVisiblePets.map(pet => {
+        {({ imageWidth, sceneHeight: roomHeight }) => <div className="pointer-events-none absolute inset-0" style={{ zIndex: 5 }}>
+          {indoorVisiblePets.map(pet => {
           const position = indoorPetDraft?.petInventoryId === pet.petInventoryId
             ? { x: indoorPetDraft.x, y: indoorPetDraft.y }
             : { x: pet.interiorXPct, y: pet.interiorYPct };
@@ -760,7 +761,7 @@ export default function PetParkPage() {
           return <div key={pet.petInventoryId} data-park-pet={pet.petInventoryId} className="pointer-events-none absolute"
             style={{ left: position.x * imageWidth, top: position.y * roomHeight,
               width: petSize, height: petSize,
-              transform: "translate(-50%, -88%)", zIndex: 5 + Math.round(position.y * 5) }}>
+              transform: "translate(-50%, -88%)", zIndex: 1 + Math.round(position.y * 1000) }}>
             <div data-park-pet-artwork className="relative h-full w-full">
               <PetParkPetPortrait petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
                 hatchedImageUrl={pet.hatchedImageUrl} size={petSize}
@@ -775,7 +776,8 @@ export default function PetParkPage() {
               onPointerMove={movePlacedIndoorPet} onPointerUp={endPlacedIndoorPet}
               onPointerCancel={cancelPlacedIndoorPet} onLostPointerCapture={cancelPlacedIndoorPet} />}
           </div>;
-        })}
+          })}
+        </div>}
       </PetParkInteriorRoom>
         : <p className="p-8 pt-28 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}
       {!popupRoom && <div data-testid="pet-park-interior-slots"
