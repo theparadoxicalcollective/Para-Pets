@@ -16,6 +16,19 @@ export default function PetParkTerrainDetail({ type }: { type: ParkTerrainDetail
     ].join(",") }} />;
   // Brush ghosts use the same 2:1 footprint as the saved union canvas. Only
   // the preview is a DOM stamp; saved material uses one seamless canvas.
+  if (type === "garden_plot") return <div aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden"
+    style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+      background: "radial-gradient(ellipse at 52% 45%, #66442e 7%, #483021 62%, #3e4329 93%)",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,.2))" }}>
+    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 240 120" preserveAspectRatio="none">
+      <path d="M4 58 L120 3 L236 58 L121 117 Z" fill="none" stroke="#9a8550" strokeWidth="5" strokeOpacity=".7"/>
+      <path d="M22 61 Q74 36 114 24 Q170 36 216 61 M31 71 Q94 45 132 40 Q184 52 205 66 M48 83 Q98 61 150 56 Q177 63 194 70"
+        fill="none" stroke="#261e17" strokeOpacity=".3" strokeWidth="3" strokeLinecap="round"/>
+      <path d="M71 55l4 2M114 82l6-2M155 54l5 1M103 38l3-2M138 72l3 2M83 67l3-1"
+        fill="none" stroke="#b49a6c" strokeOpacity=".5" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  </div>;
   if (type === "stone_path") return <div aria-hidden="true"
     className="pointer-events-none absolute inset-0 overflow-hidden"
     style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)", background: "#747671" }}>
