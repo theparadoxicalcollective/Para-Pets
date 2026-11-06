@@ -104,6 +104,7 @@ import { registerPetStateRoutes } from "./routes/petState.routes";
 import { registerPetParkSlotRoutes } from "./routes/petParkSlots.routes";
 import { registerPetParkPlayerRoutes } from "./routes/petParkPlayer.routes";
 import { registerPetParkAdminRoutes } from "./routes/petParkAdmin.routes";
+import { registerGardenAdminRoutes } from "./routes/gardenAdmin.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 import { sanitizeEvolutionPetEffects } from "@shared/petEvolutionEffects";
@@ -1423,6 +1424,7 @@ export async function registerRoutes(
   registerPetParkSlotRoutes(app, isAuthenticated);
   registerPetParkPlayerRoutes(app, isAuthenticated, applyPetXp);
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
+  registerGardenAdminRoutes(app, { db, isAdmin, processWorldImage });
 
   registerPetStateRoutes(app, {
     storage,
