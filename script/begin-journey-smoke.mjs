@@ -79,6 +79,10 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
  const pet=id=>({inventoryId:id,id,shopItemId:'starter',name:id,type:'pet',rarity:3,starRarity:3,isHatched:false,hatchTime:3,hatchStartedAt:null,eggImageUrl:art,imageUrl:art,hatchedImageUrl:art,petTemplateId:null,petLevel:1,petHp:10,petAtk:1,petDef:1,quantity:1});
  let inventory=[pet('other-owned')];
  if(probe)inventory.push(pet('starter-owned'),{inventoryId:'potions',type:'special',specialType:'hatch_time',specialAmount:60,name:'Hatching Potion',imageUrl:art,quantity:3});
+ if(paused && width===360){
+  user.activePetId='other-owned';
+  inventory.push({inventoryId:'ordinary-potions',type:'special',specialType:'hatch_time',specialAmount:60,name:'Hatching Potion',imageUrl:art,quantity:3});
+ }
  const counts={grants:0,potionGrants:0,useAttempts:0,uses:0,complete:0,claims:0,activations:0};
  const failures={catalog:recovery?1:0,starterGrant:0,grant:0,activation:0,inventory:0,use:0,complete:0,claim:0};
  const fulfill=(route,json,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(json)});
@@ -165,6 +169,13 @@ for(const [name,width,height,touch] of probe?[profiles[1]]:recoveryOnly?[profile
   await page.getByTestId('quest-log-viewport-overlay').waitFor({state:'visible'});
   assert.equal(await page.getByText('Begin Journey',{exact:true}).count(),0,name+': hidden quest card');
   assert.equal(await page.getByTestId('button-begin-journey-claim').count(),0,name+': tutorial reward is not displayed');
+  if(width===360){
+    await page.getByTestId('quest-log-viewport-backdrop').click({position:{x:7,y:7}});
+    await page.getByTestId('button-egg-tap').tap();
+    await page.locator('[data-bj="speedup-sheet"]').waitFor({state:'visible'});
+    assert.equal(await page.getByTestId('button-speedup-tutorial').count(),0,
+      name+': stale Step 5 cannot seize normal potion use');
+  }
   assert.equal(await page.getByText('No active quests. Explore the realm to discover adventures...').count(),1,
     name+': ordinary quests still work');
   assert.deepEqual(counts,{grants:0,potionGrants:0,useAttempts:0,uses:0,complete:0,claims:0,activations:0},
