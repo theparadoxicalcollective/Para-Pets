@@ -36,10 +36,11 @@ test("reduced-motion mist keeps the smoke visible but stationary", () => {
   assert.match(still, /<svg/);
 });
 
-test("ripple and shimmer retain their own visuals rather than the mist", () => {
-  for (const type of ["water_ripple", "water_shimmer"] as const) {
+test("ripple, shimmer and vertical flow retain their own visuals rather than the mist", () => {
+  for (const type of ["water_ripple", "water_shimmer", "water_flow"] as const) {
     const markup = renderToStaticMarkup(createElement(ParkEffectVisual, { type }));
     assert.doesNotMatch(markup, /park-mist-wisp|<feTurbulence/);
     assert.match(markup, new RegExp(`park-water-effect--${type}`));
   }
 });
+

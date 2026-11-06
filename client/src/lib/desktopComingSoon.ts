@@ -14,7 +14,9 @@ export type DesktopNoticeDevice = {
 
 export function shouldShowDesktopComingSoon(pathname: string, device: DesktopNoticeDevice): boolean {
   // Keep admin tools and informational/account-recovery routes accessible on PC.
-  if (!usesDeviceGameplaySurface(pathname) && pathname !== "/hub") return false;
+  // Pet Park owns its viewport separately but is still player gameplay.
+  // Gate it here without changing its camera or stage geometry.
+  if (!usesDeviceGameplaySurface(pathname) && pathname !== "/hub" && pathname !== "/pet-park") return false;
   if (device.touchFirst) return false;
 
   if (/Android|iPhone|iPad|iPod|Windows Phone|Mobile/i.test(device.userAgent)) return false;

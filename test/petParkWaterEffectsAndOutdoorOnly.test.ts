@@ -13,7 +13,7 @@ const visual = readFileSync("client/src/components/ParkEffectVisual.tsx", "utf8"
 
 test("all park water effects are available both outdoors and inside buildings", () => {
   const names = PARK_WATER_EFFECT_OPTIONS.map(x => x.type);
-  assert.deepEqual(names, ["waterfall_mist", "water_ripple", "water_shimmer", "water_drop"]);
+  assert.deepEqual(names, ["waterfall_mist", "water_ripple", "water_shimmer", "water_flow", "water_drop"]);
   for (const effect of PARK_WATER_EFFECT_OPTIONS) {
     assert.equal(isParkEffect(effect.type), true);
     assert.ok(effect.interiorSize >= 4 && effect.interiorSize <= 40);

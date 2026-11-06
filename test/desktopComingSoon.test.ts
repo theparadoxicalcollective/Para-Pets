@@ -10,7 +10,7 @@ const pc: DesktopNoticeDevice = {
 };
 
 test("PC player gameplay and hub show the coming-soon notice regardless of window size", () => {
-  for (const path of ["/", "/map", "/world/haunted_woods", "/pets", "/bag", "/pvp", "/coins", "/hub", "/games/molten-blocks"]) {
+  for (const path of ["/", "/map", "/world/haunted_woods", "/pets", "/bag", "/pvp", "/coins", "/pet-park", "/hub", "/games/molten-blocks"]) {
     assert.equal(shouldShowDesktopComingSoon(path, pc), true, path);
   }
 });
@@ -26,6 +26,7 @@ test("phone, tablet and iPad with desktop user agent keep normal gameplay", () =
   for (const device of devices) {
     assert.equal(shouldShowDesktopComingSoon("/", device), false, device.userAgent);
     assert.equal(shouldShowDesktopComingSoon("/world/haunted_woods", device), false, device.userAgent);
+    assert.equal(shouldShowDesktopComingSoon("/pet-park", device), false, device.userAgent);
   }
 });
 
