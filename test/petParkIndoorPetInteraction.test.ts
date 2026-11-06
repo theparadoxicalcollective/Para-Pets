@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
-  parkPetWouldObscureAnother, parkProjectedIndoorPetBounds, parkVisiblePetArtworkBounds,
+  parkPetWouldObscureAnother, parkProjectedPetBounds, parkVisiblePetArtworkBounds,
 } from "../client/src/lib/petParkVisibleOverlap";
 
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
@@ -23,6 +23,10 @@ test("indoor pets are movable on their actual artwork through the existing owner
   assert.match(page, /\{deposit && <button/);
   assert.match(page, /safeSetPointerCapture\(event\.currentTarget, event\.pointerId\)/);
   assert.match(page, /onPointerCancel=\{cancelPlacedIndoorPet\}/);
+  assert.match(page, /outdoorOverlapsAnotherPet\(drag\.petInventoryId/);
+  assert.match(page, /data-park-world-artwork/);
+  assert.match(page, /data-park-pet-artwork/);
+  assert.match(page, /data-testid=\{myDeposit \? "pet-park-outdoor-drag" : "pet-park-outdoor-inspect"\}/);
   assert.doesNotMatch(page, /hit\?\.closest\('button, \[data-testid="pet-park-interior-slots"\]'\)/);
 });
 
@@ -57,7 +61,7 @@ test("overlap checks permit side touches but reject complete visual covering", (
 
 test("drop projection uses visible artwork, not an entire square sprite frame", () => {
   const room = { left: -280, right: 920, top: 50, bottom: 850 };
-  const proposal = parkProjectedIndoorPetBounds({ x: .5, y: .6 }, 100, room);
+  const proposal = parkProjectedPetBounds({ x: .5, y: .6 }, 100, room);
   assert.deepEqual(proposal, { left: 286, right: 354, top: 450, bottom: 518 });
   const frame = { left: 50, right: 150, top: 40, bottom: 140, width: 100, height: 100 };
   const element = {
@@ -67,7 +71,7 @@ test("drop projection uses visible artwork, not an entire square sprite frame", 
   } as unknown as HTMLElement;
   const visible = parkVisiblePetArtworkBounds(element);
   assert.deepEqual(visible, { left: 67, right: 133, top: 48, bottom: 130 });
-  const moved = parkProjectedIndoorPetBounds({ x: .5, y: .6 }, 100, room, { element, currentSize: 100 });
+  const moved = parkProjectedPetBounds({ x: .5, y: .6 }, 100, room, { element, currentSize: 100 });
   assert.deepEqual(moved, { left: 287, right: 353, top: 450, bottom: 532 });
 });
 
