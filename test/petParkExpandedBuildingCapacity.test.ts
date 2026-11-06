@@ -35,11 +35,10 @@ test("existing building schema restriction is migrated, per-player three slots s
   assert.match(player, /slotNumber > 3/);
 });
 
-test("creation and editing forms allow typed capacities and respect the validated range", () => {
-  assert.match(form, /type="number" inputMode="numeric"/);
-  assert.match(form, /aria-label="Building pet capacity"/);
-  assert.match(form, /isValidPetParkBuildingCapacity\(buildingCapacity\)/);
-  assert.match(form, /\[10, 15, 20, 25\]/);
+test("interiors are view-only while the legacy capacity schema default remains valid", () => {
+  assert.doesNotMatch(form, /aria-label="Building pet capacity"/);
+  assert.match(form, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/);
+  assert.match(form, /Equipped pets are placed outdoors only/);
   assert.doesNotMatch(details, /aria-label="Park building capacity"/);
   assert.match(details, /All player pets stay outdoors/);
 });
