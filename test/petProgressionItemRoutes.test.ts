@@ -162,15 +162,14 @@ test("power-up and special-item routes preserve owner and hatch validation befor
   assert.deepEqual([foreignItem.statusCode, foreignItem.body], [404, { message: "Item not found in inventory" }]);
 });
 
-test("extracted source preserves power-up slot rules, atomic consumption, quest progress, and tutorial authorization", () => {
+test("extracted source preserves power-up slot rules, atomic consumption, quest progress and normal hatching", () => {
   const source = fs.readFileSync("server/routes/petProgressionItem.routes.ts", "utf8");
 
   assert.match(source, /const maxItemsPerLevel = rawRarity <= 2 \? 1 : rawRarity === 3 \? 2 : 3/);
   assert.match(source, /const totalAllowances = petLevel \* maxItemsPerLevel/);
   assert.match(source, /tryConsumeOneFromInventory\(tx, user\.id, itemInv\.id\)/);
   assert.match(source, /incrementQuestProgress\(user\.id, "use_powerup"\)\.catch/);
-  assert.match(source, /tutorial_hatch_potions_claimed, tutorial_quest_completed/);
-  assert.match(source, /BEGIN_JOURNEY_TUTORIAL\.hatchPotion\.quantity/);
+  assert.doesNotMatch(source, /tutorial_hatch_potions_claimed|BEGIN_JOURNEY_TUTORIAL|tutorialFill/);
   assert.match(source, /specialAmount \* 60 \* 1000/);
   assert.match(source, /applyPetXp\(currentLevel, petInv\.petLevelPoints \|\| 0, specialAmount\)/);
 });
