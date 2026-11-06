@@ -56,15 +56,13 @@ test("center expansion remapping preserves ground-contact order", () => {
   }
 });
 
-test("park shares one renderer for depth, shadows and original interactions", () => {
+test("park preserves depth and original interactions without shadows under outdoor pets", () => {
   const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
-  const shadow = readFileSync("client/src/components/PetParkGroundShadow.tsx", "utf8");
   assert.equal((page.match(/parkDepthIndex\(\{/g) ?? []).length, 4,
     "buildings, decor, harvested garden crop artwork and pets all use shared depth order");
   assert.doesNotMatch(page, /PARK_SELECTED_DEPTH_Z|Move park object.*layer|More options · layers/);
-  assert.equal((page.match(/<PetParkGroundShadow /g) ?? []).length, 1, "only pets retain a ground shadow");
-  assert.match(page, /kind="pet"/);
-  assert.doesNotMatch(page, /<PetParkGroundShadow kind="(?:building|decor)"/);
+  assert.doesNotMatch(page, /PetParkGroundShadow|pet-park-contact-shadow/,
+    "neither public nor owned outdoor pets render an extra ground-contact ellipse");
   assert.match(page, /<PetParkTerrain/);
   assert.match(page, /<ParkEffectVisual type=\{item.effectType\}/);
   assert.match(page, /startPlacement\(e, "building"/);
@@ -72,7 +70,5 @@ test("park shares one renderer for depth, shadows and original interactions", ()
   assert.match(page, /<PetAnimator petTemplateId=\{pet.petTemplateId\}/);
   assert.match(page, /setInspectedPet\(pet\)/);
   assert.match(page, /setEnteredBuilding\(building\)/);
-  assert.match(shadow, /pointer-events-none/);
-  assert.match(shadow, /aria-hidden="true"/);
   assert.doesNotMatch(page, /zIndex: 11000 \+ index/);
 });
