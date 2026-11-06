@@ -7,6 +7,8 @@ import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetParkPetPortrait from "@/components/PetParkPetPortrait";
 import PetParkRewardBars from "@/components/PetParkRewardBars";
+import PetParkSlotProgress from "@/components/PetParkSlotProgress";
+import emptyParkPetArtwork from "@assets/generated_images/hub_para_pet_transparent.png";
 const coinImage = new URL("../../../attached_assets/uploads/MainGameCoinImage.PNG", import.meta.url).href;
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
 import PetParkTerrain from "@/components/PetParkTerrain";
@@ -1002,19 +1004,26 @@ export default function PetParkPage() {
               onPointerCancel={cancelEquippedPetDrag}
               onLostPointerCapture={cancelEquippedPetDrag}
               onDoubleClick={() => { if (pet) { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(true); } }}
-              className={`pet-park-slot relative flex min-h-[98px] touch-none flex-col items-center justify-center gap-0.5 overflow-hidden px-1.5 py-2 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
-              <span aria-hidden="true" className="pointer-events-none absolute top-1 text-[10px] text-amber-200/50">✦</span>
-              <span className="relative z-[1] mt-2 text-[10px] font-semibold uppercase tracking-wider text-amber-200/80">Spot {slot}</span>
-              {pet ? <span className="relative z-[1] flex max-w-full items-center justify-center gap-0.5">
-                <span className="pointer-events-none shrink-0"><PetParkPetPortrait petTemplateId={pet.petTemplateId}
-                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={35} /></span>
-                <span className="min-w-0 max-w-[68px] truncate text-[11px] font-semibold">{pet.petNickname || pet.petName}</span>
-              </span> : unlocked ?
-                <span className="relative z-[1] flex items-center gap-1 text-xs font-semibold"><Sparkles size={13} strokeWidth={1.8} /> Equip</span> :
-                <span className="relative z-[1] flex items-center gap-1 text-xs font-semibold"><LockKeyhole size={12} /> Locked</span>}
-              {!pet && !unlocked && <span className="relative z-[1] flex items-center gap-0.5 text-[11px]">
-                <img src={coinImage} alt="Coins" className="h-5 w-5 object-contain" />{slot === 2 ? "2,500" : "5,000"}
+              className={`pet-park-slot relative flex min-h-[116px] touch-none flex-col items-center justify-center gap-0 overflow-hidden px-1.5 py-2 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
+              <span aria-hidden="true" className="pointer-events-none absolute top-1.5 text-[9px] text-amber-200/65">✦</span>
+              <span className="relative z-[2] mt-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#f5d77b]">Spot {slot}</span>
+              {pet ? <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center pt-2">
+                <span className="absolute left-1/2 top-1 z-[3] w-[88%] -translate-x-1/2">
+                  <PetParkSlotProgress timing={pet} rates={scene.rates ?? { coinsPerHour: 0, essencePerHour: 0, petXpPerHour: 0 }} serverNow={scene.serverNow} />
+                </span>
+                <PetParkPetPortrait petTemplateId={pet.petTemplateId}
+                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={69} />
+              </span> : <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center">
+                <img src={emptyParkPetArtwork} alt="" draggable={false}
+                  className="pet-park-slot__empty-art h-[68px] w-[72px] object-contain" />
+                {unlocked
+                  ? <span aria-hidden="true" className="pet-park-slot__add-symbol">+</span>
+                  : <span aria-hidden="true" className="absolute right-2 top-0 rounded-full border border-[#bda168]/70 bg-[#091a13]/90 p-1 text-[#e3c576]"><LockKeyhole size={12} /></span>}
               </span>}
+              {!pet && !unlocked && <span className="pointer-events-none relative z-[2] -mt-1 flex items-center gap-0.5 text-[10px] text-amber-200/90">
+                <img src={coinImage} alt="" className="h-4 w-4 object-contain" />{slot === 2 ? "2,500" : "5,000"}
+              </span>}
+              <span className="sr-only">{pet ? `${pet.petNickname || pet.petName}, tap to view reward progress` : unlocked ? "Empty spot, tap to equip a pet" : "Locked pet spot"}</span>
               {slotTapEffect?.slot === slot && <span aria-hidden="true" key={slotTapEffect.nonce} className="pet-park-slot__tap-sparkles">
                 <i /><i /><i /><i /><i />
               </span>}
@@ -1022,18 +1031,41 @@ export default function PetParkPage() {
           })}
         </div>
         {activeSlot != null && <div role="dialog" aria-label={`Park pet spot ${activeSlot}`}
-          className="order-1 mb-2 max-h-[min(62dvh,570px)] overflow-y-auto rounded-xl border border-[#c6a552]/75 bg-[#10291d]/95 p-3 text-sm text-amber-100 shadow-2xl">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <strong className="font-fantasy text-[#f5d77b]">Pet Spot {activeSlot}</strong>
-            <button type="button" aria-label="Close pet spot" onClick={() => setActiveSlot(null)} className="rounded-full border border-amber-700/60 px-3 py-1">×</button>
+          className="pet-park-reward-panel order-1 mb-3 max-h-[min(67dvh,590px)] overflow-y-auto overscroll-contain rounded-2xl p-3 text-sm text-amber-100">
+          <div className="relative z-[1] mb-3 flex items-center justify-between gap-3 border-b border-[#bd9d55]/30 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="pet-park-reward-panel__jewel" aria-hidden="true">✦</span>
+              <div>
+                <p className="font-fantasy text-[9px] uppercase tracking-[.18em] text-[#cfb976]/80">The Pet Park</p>
+                <strong className="font-fantasy text-lg leading-tight text-[#f6d783]">Spot {activeSlot} · Rewards</strong>
+              </div>
+            </div>
+            <button type="button" aria-label="Close pet spot" onClick={() => setActiveSlot(null)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#b99a4c]/65 bg-[#071d14]/85 text-[#f3d68a] active:scale-95"><X size={17} /></button>
           </div>
           {(() => {
             const pet = deposits.find(d => d.slotNumber === activeSlot);
-            if (pet) return <div className="space-y-2">
-              <p>{pet.petNickname || pet.petName} · Level {pet.petLevel} · {pet.showInPark && !pet.buildingId && pet.parkXPct != null ? "Visible outdoors" : "Equipped — earning, not visible"}</p>
+            if (pet) return <div className="relative z-[1] space-y-3">
+              <div className="flex items-center gap-3 rounded-xl border border-[#b99a4c]/35 bg-[#071e15]/50 p-2 shadow-[inset_0_1px_8px_rgba(0,0,0,.35)]">
+                <div className="flex h-[78px] w-[78px] shrink-0 items-center justify-center rounded-full border border-[#a88c4d]/45 bg-[radial-gradient(ellipse,#31543b,#112a1c)]">
+                  <PetParkPetPortrait petTemplateId={pet.petTemplateId}
+                    hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={74} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-fantasy text-sm font-semibold text-[#f6d783]">{pet.petNickname || pet.petName}</p>
+                  <p className="font-fantasy text-[10px] text-amber-100/70">Level {pet.petLevel}</p>
+                  <p className="mt-1 text-[10px] text-[#a6c7a5]">{pet.buildingId ? "Resting inside" : pet.showInPark && pet.parkXPct != null ? "Exploring the park" : "Equipped · earning rewards"}</p>
+                </div>
+              </div>
               <PetParkRewardBars timing={pet} rates={scene.rates ?? { coinsPerHour: 0, essencePerHour: 0, petXpPerHour: 0 }} serverNow={scene.serverNow} />
-              <p className="text-xs text-amber-200/75">Drag this equipped spot onto the outdoor park to let other players see your pet.</p>
-              <button type="button" className="rounded-lg border border-amber-500/60 bg-[#245037] px-3 py-2 text-xs" onClick={() => setShowPetChoices(value => !value)}>Change pet · double-tap spot</button>
+              <button type="button" disabled={action.isPending} data-testid="pet-park-collect-button"
+                className="pet-park-collect-button flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50"
+                onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/claim` })}>
+                <img src={coinImage} alt="" className="h-6 w-6 object-contain" />
+                {action.isPending ? "Collecting…" : "Collect rewards"}
+              </button>
+              <p className="text-center text-[10px] leading-snug text-amber-100/60">Drag this pet into the park to display it. Collecting does not interrupt earning.</p>
+              <button type="button" className="rounded-lg border border-amber-500/60 bg-[#245037]/90 px-3 py-2 text-xs text-[#f6d783]" onClick={() => setShowPetChoices(value => !value)}>Change equipped pet</button>
               {showPetChoices && <div className="space-y-2">
                 <p className="text-xs text-amber-100/75">Choose a replacement. Swapping automatically collects rewards and returns your current pet.</p>
                 <div className="max-h-[min(26dvh,220px)] space-y-2 overflow-y-auto">
@@ -1054,8 +1086,6 @@ export default function PetParkPage() {
                 {pet.showInPark && !pet.buildingId && pet.parkXPct != null && <button type="button" disabled={action.isPending}
                   className="rounded-lg bg-[#245037] px-3 py-2 disabled:opacity-50"
                   onClick={() => action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${pet.id}/display`, body: { display: "idle" } })}>Return to oval</button>}
-                <button type="button" disabled={action.isPending} className="rounded-lg bg-emerald-800 px-3 py-2 disabled:opacity-50"
-                  onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/claim` })}>Collect rewards</button>
                 <button type="button" disabled={action.isPending} className="rounded-lg bg-amber-800 px-3 py-2 disabled:opacity-50"
                   onClick={() => action.mutate({ path: `/api/pet-park/deposits/${pet.id}/withdraw` })}>Retrieve</button>
               </div>
