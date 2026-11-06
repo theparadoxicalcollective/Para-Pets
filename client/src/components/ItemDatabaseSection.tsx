@@ -115,6 +115,7 @@ const ITEM_CATEGORY_COLORS: Record<GameItemCategoryKey, string> = {
   ingredients: "#fbbf24",
   recipes: "#fde68a",
   clearing: "#5eead4",
+  garden: "#b8d88a",
 };
 
 export const ITEM_CATEGORIES = GAME_ITEM_CATEGORY_ORDER.map(key => ({
