@@ -26,6 +26,7 @@ test("shared player card keeps the established profile content and changes only 
   assert.match(card, /presentation = "sheet"/);
   assert.match(card, /presentation === "popup" \? "w-full rounded-3xl" : "w-full rounded-t-3xl"/);
   assert.match(card, /maxWidth: presentation === "popup" \? 440 : 480/);
+  assert.match(card, /style=\{presentation === "popup" \? \{ minWidth: 166 \} : undefined\}/);
   assert.match(card, /maxHeight: presentation === "popup"/);
   assert.match(card, /100dvh - max\(28px, env\(safe-area-inset-top/);
   assert.match(card, /overflowY: "auto"/);
