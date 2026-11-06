@@ -76,7 +76,7 @@ test("PvP pet, leaderboard, and matchmaking rules remain unchanged", () => {
   assert.match(pvpRoutes, /\(activePet\.petMood \?\? 100\) - 3/);
   assert.match(pvpRoutes, /const top = all\.slice\(0, 100\)/);
   assert.match(pvpRoutes, /hidden: true/);
-  assert.match(pvpRoutes, /storage\\.upsertBattleGroup\\(user\\.id, req\\.body\\?\\.petInventoryIds\\)/);
+  assert.match(pvpRoutes, /storage\.upsertBattleGroup\(user\.id, req\.body\?\.petInventoryIds\)/);
   assert.match(pvpRoutes, /PetTeamSelectionError/);
   assert.match(pvpRoutes, /inBand\(others, 0\.35\)/);
   assert.match(pvpRoutes, /inBand\(others, 0\.60\)/);
