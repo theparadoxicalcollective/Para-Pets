@@ -40,7 +40,8 @@ import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, 
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize, parkGroundTheme, type ParkGroundTheme } from "@shared/petParkGround";
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { gardenItemNeedsRefill } from "@shared/garden";
+import { gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: ParkInteriorEffect[] };
@@ -75,6 +76,7 @@ export default function PetParkPage() {
   const [offParkInteriorLights, setOffParkInteriorLights] = useState<Record<string, string[]>>({});
   const [inspectedPet, setInspectedPet] = useState<SharedParkPet | null>(null);
   const [selectedWaterSourceId, setSelectedWaterSourceId] = useState<string | null>(null);
+  const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [openedRoomId, setOpenedRoomId] = useState<string | null>(null);
   const [focusedRoomEffectId, setFocusedRoomEffectId] = useState<string | null>(null);
@@ -107,6 +109,17 @@ export default function PetParkPage() {
   const [indoorPetDraft, setIndoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
   const { data: inventory = [], isFetching: isGardenInventoryLoading } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
+  // Server owns stage transitions and the picked cooldown. Refetch without
+  // inferring growth or advancing a plot on a local device clock.
+  const { data: garden, isLoading: isGardenLoading } = useQuery<GardenPlayerState>({
+    queryKey: ["/api/pet-park/garden"], enabled: !!scene?.canEnterPark && !scene?.canEditPark,
+    refetchInterval: 5000,
+  });
+  const chosenGardenPlot = garden?.plots.find(plot => plot.plotItemId === selectedGardenPlotId);
+  const invalidateGarden = () => {
+    qc.invalidateQueries({ queryKey: ["/api/pet-park/garden"] });
+    qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+  };
   const availableRefillables = inventory.filter(item =>
     item.type === "garden_tool" && item.specialType === "watering_pail" && gardenItemNeedsRefill(item));
   // The shared player card needs the viewer id to hide friend actions on self.
