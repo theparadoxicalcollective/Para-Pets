@@ -1,0 +1,100 @@
+/* Pet Park's tool motions are artwork-relative, not another camera scale.
+   The pail's spout points LEFT in the uploaded illustration. Negative CSS
+   rotation tips the spout DOWN toward the plot; the tool handle is the pivot. */
+.garden-tool-bubble { animation: garden-bubble-arrive 180ms ease-out both; }
+.garden-tool-bubble:disabled { cursor: default; box-shadow: 0 2px 12px rgba(0, 0, 0, .34); }
+.garden-tool-motion {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  filter: drop-shadow(0 7px 5px rgba(0,0,0,.54));
+  color: #dec585;
+  will-change: transform;
+}
+.garden-tool-motion-hoe {
+  transform-origin: 79% 18%;
+  animation: garden-hoe-chops 1100ms cubic-bezier(.3,.15,.4,1) both;
+}
+.garden-tool-motion-water {
+  transform-origin: 67% 33%;
+  animation: garden-pail-tip 1200ms ease-in-out both;
+}
+.garden-tool-motion-harvest {
+  transform-origin: 27% 81%;
+  animation: garden-scythe-sweep 1100ms ease-in-out both;
+}
+.garden-tool-motion-plant {
+  transform-origin: 50% 50%;
+  animation: garden-seed-drop 900ms ease-in-out both;
+}
+.garden-pour-drops {
+  position: absolute;
+  top: 39px;
+  left: -26px;
+  width: 65px;
+  height: 60px;
+  overflow: visible;
+}
+.garden-pour-drops span {
+  position: absolute;
+  top: 2px;
+  display: block;
+  width: 7px;
+  height: 12px;
+  border: 1px solid rgba(211, 245, 245, .65);
+  border-radius: 65% 65% 68% 68%;
+  background: linear-gradient(145deg, #d4faff, #69bcc5);
+  box-shadow: 0 0 5px rgba(85, 210, 233, .55);
+  opacity: 0;
+  animation: garden-falling-drop 460ms ease-in 360ms both;
+}
+.garden-pour-drops span:nth-child(2) { left: 16px; animation-delay: 500ms; }
+.garden-pour-drops span:nth-child(3) { left: 31px; animation-delay: 650ms; }
+.garden-plant-sparkle {
+  position: absolute;
+  left: -15px;
+  top: 55px;
+  color: #f7dc83;
+  animation: garden-seed-sparkle 850ms ease-out both;
+}
+@keyframes garden-bubble-arrive {
+  from { opacity: 0; transform: scale(.85) translateY(5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes garden-hoe-chops {
+  0%, 100% { transform: rotate(-12deg) translateY(-9px); }
+  8%, 33%, 57% { transform: rotate(-30deg) translateY(-13px); }
+  17%, 42%, 67% { transform: rotate(17deg) translateY(7px); }
+  25%, 50%, 77% { transform: rotate(-6deg) translateY(-3px); }
+}
+@keyframes garden-pail-tip {
+  0%, 100% { transform: rotate(0deg); }
+  25%, 75% { transform: rotate(-34deg); }
+  45%, 62% { transform: rotate(-37deg); }
+}
+@keyframes garden-scythe-sweep {
+  0%, 100% { transform: rotate(-28deg); }
+  24%, 68% { transform: rotate(32deg); }
+  44%, 84% { transform: rotate(-24deg); }
+}
+@keyframes garden-seed-drop {
+  0% { transform: translateY(-18px) scale(1); opacity: 1; }
+  65% { transform: translateY(15px) scale(.7); opacity: .95; }
+  100% { transform: translateY(22px) scale(.6); opacity: 0; }
+}
+@keyframes garden-falling-drop {
+  0% { opacity: 0; transform: translate(5px,0) rotate(10deg) scale(.6); }
+  18% { opacity: 1; }
+  90% { opacity: .9; }
+  100% { opacity: 0; transform: translate(-9px,54px) rotate(-15deg) scale(.8); }
+}
+@keyframes garden-seed-sparkle {
+  0%, 30% { opacity: 0; transform: scale(.1); }
+  65% { opacity: 1; transform: scale(1.4); }
+  100% { opacity: 0; transform: scale(2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .garden-tool-bubble, .garden-tool-motion, .garden-pour-drops span, .garden-plant-sparkle {
+    animation: none !important; filter: none;
+  }
+}
