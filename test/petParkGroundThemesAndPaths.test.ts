@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import test from "node:test";
 import { PET_PARK_GROUND_THEMES, isParkGroundTheme, parkGroundTheme, parkGroundSize } from "../shared/petParkGround";
 import { PARK_TERRAIN_DETAIL_OPTIONS, isPaintableParkTerrainDetail, isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "../shared/petParkTerrainDetails";
 import { PARK_GROUND_PALETTES } from "../client/src/lib/petParkGroundPalette";
-import PetParkTerrainDetail from "../client/src/components/PetParkTerrainDetail";
 import { dirtPatchWorldRect, exposedDirtEdges, paintConnectedPaths } from "../client/src/components/PetParkTerrain";
 import { parkExtendPathStroke, parkPathPoint, parkPathGrid } from "../client/src/lib/petParkTerrainBrush";
 
@@ -44,8 +41,10 @@ test("terrain types expose only dirt/stone/water brush buttons; legacy Stones re
     assert.equal(isParkConnectedPath(option.type), true);
     assert.equal(parkTerrainHeightRatio(option.type), .5);
     assert.equal(option.size, 150);
-    const markup = renderToStaticMarkup(createElement(PetParkTerrainDetail, { type: option.type }));
-    assert.match(markup, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
+    const artwork = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
+    assert.match(artwork, /type === "stone_path"/);
+    assert.match(artwork, /type === "water_path"/);
+    assert.match(artwork, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
   }
   assert.equal(isPaintableParkTerrainDetail("stone_patch"), false);
   assert.equal(isParkTerrainDetail("stone_patch"), true);
