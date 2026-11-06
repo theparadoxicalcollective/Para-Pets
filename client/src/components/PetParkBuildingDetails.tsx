@@ -23,6 +23,8 @@ export type ParkBuildingDetails = {
   imageUrl: string;
   interiorImageUrl: string | null;
   maxPets: number;
+  isShop?: boolean;
+  shopItemIds?: string[];
   interiorEffects: ParkInteriorEffect[];
 };
 
@@ -41,6 +43,7 @@ export default function PetParkBuildingDetails({
   const qc = useQueryClient();
   const [name, setName] = useState(building.name);
   const [maxPets, setMaxPets] = useState(building.maxPets);
+  const [isShop, setIsShop] = useState(Boolean(building.isShop));
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
@@ -84,6 +87,7 @@ export default function PetParkBuildingDetails({
       }
       if (typeof updated.name === "string") setName(updated.name);
       if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
+      if (typeof updated.isShop === "boolean") setIsShop(updated.isShop);
       if (updated.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
@@ -287,10 +291,16 @@ export default function PetParkBuildingDetails({
                 Math.min(PET_PARK_BUILDING_CAPACITY_MAX, Math.round(Number(event.target.value) || PET_PARK_BUILDING_CAPACITY_MIN))))}
               className="mt-1 w-full rounded bg-[#091e17] p-2" />
           </label>
+          <label className="flex min-h-11 items-center gap-3 rounded-lg border border-[#b99a4c]/50 bg-[#183b2a] p-3 text-sm">
+            <input type="checkbox" aria-label="Is Shop building" checked={isShop}
+              onChange={event => setIsShop(event.target.checked)} className="h-4 w-4 accent-[#e0bd75]" />
+            Is Shop
+          </label>
+          {isShop && <p className="text-xs text-amber-100/70">Upload an interior, then enter the building to use + Add Item. Existing catalog items appear with images and names.</p>}
           <p className="text-xs text-amber-100/70">Visitors share the building with placed pets. Full-page rooms also have their own limits within the building's capacity.</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
             disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
-            onClick={() => mutation.mutate({ name: name.trim(), maxPets })}>Save building details</button>
+            onClick={() => mutation.mutate({ name: name.trim(), maxPets, isShop })}>Save building details</button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">Replace exterior artwork
               <input type="file" accept="image/*" aria-label="Replace park building exterior" className="mt-1 block w-full text-xs"
