@@ -35,12 +35,11 @@ test("existing building schema restriction is migrated, per-player three slots s
   assert.match(player, /slotNumber > 3/);
 });
 
-test("interiors are view-only while the legacy capacity schema default remains valid", () => {
+test("building-wide capacity and separate player slots remain editable", () => {
   assert.doesNotMatch(form, /aria-label="Building pet capacity"/);
   assert.match(form, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/);
-  assert.match(form, /Equipped pets are placed outdoors only/);
-  assert.doesNotMatch(details, /aria-label="Park building capacity"/);
-  assert.match(details, /All player pets stay outdoors/);
+  assert.match(details, /aria-label="Park building capacity"/);
+  assert.match(details, /Visitors share the building with placed pets/);
 });
 
 test("the building creation route accepts 10 to 25 pets and rejects invalid values", async () => {
