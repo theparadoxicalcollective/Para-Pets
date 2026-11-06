@@ -11,6 +11,13 @@ const stars = readFileSync("client/src/components/PetParkRarityStars.tsx", "utf8
 const routes = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
+test("visitor building taps are controls rather than camera pointer-capture targets", () => {
+  assert.match(page, /const isControl = !!\(e\.target as HTMLElement\)\.closest\("button, input, select, textarea, a"\)/);
+  assert.match(page, /!draggableArtwork \|\| !scene\?\.canEditPark/);
+  assert.match(page, /if \(!e\.isPrimary \|\| isControl \|\| pinch\.current\) return/);
+  assert.match(page, /parkImageHitAt\(e\.currentTarget\.querySelector\("img"\)!/);
+});
+
 test("indoor pets are movable on their actual artwork through the existing owner-only API", () => {
   assert.match(page, /data-testid="pet-park-indoor-pet-drag"/);
   assert.match(page, /startPlacedIndoorPetDrag\(event, pet, deposit\.id, position\)/);
