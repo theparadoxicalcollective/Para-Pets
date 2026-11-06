@@ -244,7 +244,7 @@ export default function PetParkBuildingDetails({
                     onChange={event => updateSelectedRoom({ maxPets: Math.max(PARK_ROOM_MIN_PETS,
                       Math.min(PARK_ROOM_MAX_PETS, Math.round(Number(event.target.value) || PARK_ROOM_MIN_PETS))) })}
                     className="mt-1 w-full rounded bg-[#091e17] p-2" />
-                </label> : <p className="text-amber-200/70">Popups are view-only. Pets cannot enter them.</p>
+                </label> : <p className="text-amber-200/70">Popups are view-only. Pets cannot enter them.</p>}
                 <p className="text-amber-200/70">Save effects to publish the room artwork, name, opening mode and portal placement.</p>
               </div>}
               <button type="button" disabled={mutation.isPending} className="rounded bg-red-900 px-3 py-2" onClick={() => {
