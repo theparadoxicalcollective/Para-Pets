@@ -21,9 +21,10 @@ export function registerPetParkDisplayRoutes(
         (display !== "idle" && display !== "park") ||
         (hasX !== hasY) ||
         (display === "idle" && hasX) ||
+        (display === "park" && !hasX) ||
         (hasX && (typeof xPct !== "number" || !Number.isFinite(xPct) || xPct < 0 || xPct > 1 ||
           typeof yPct !== "number" || !Number.isFinite(yPct) || yPct < 0 || yPct > 1))) {
-      return res.status(400).json({ message: "Choose idle or park, with valid optional world coordinates" });
+      return res.status(400).json({ message: "Drag the equipped pet into the outdoor park to make it visible" });
     }
     try {
       const userId = (req.user as { id: string }).id;
@@ -37,7 +38,7 @@ export function registerPetParkDisplayRoutes(
             isNull(petParkDeposits.withdrawnAt))).for("update");
         if (!deposit) return null;
         const updatedFields = display === "idle"
-          ? { showInPark: true, buildingId: null, roomEffectId: null, pose: "idle" as const }
+          ? { showInPark: false, buildingId: null, roomEffectId: null, pose: "idle" as const }
           : { showInPark: true, buildingId: null, roomEffectId: null, pose: "idle" as const,
               ...(hasX ? { parkXPct: xPct as number, parkYPct: yPct as number } : {}) };
         const [updated] = await tx.update(petParkDeposits).set(updatedFields)
