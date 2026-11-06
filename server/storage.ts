@@ -63,11 +63,25 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
+import { PetTeamSelectionError, parsePetTeamSelection, resolvePetTeam } from "./petTeam";
 import type { HomeCatalogEffect, HomeOutdoorLightingMode, HomeSceneItemType } from "@shared/housing";
 import { completeCaveTier } from "./caveProgress";
 import { tryConsumeOneFromInventory as consumeOneFromInventory } from "./inventoryConsumption";
 import { grantHouseBundleIncludedItemsInTransaction } from "./housing/bundleContents";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
+
+// One projection powers reads, saves, and PvP matchmaking. It intentionally
+// excludes pet appearance/content fields and does not trigger inventory decay.
+const PET_TEAM_RECORD_COLUMNS = {
+  id: userInventory.id,
+  userId: userInventory.userId,
+  type: shopItems.type,
+  isHatched: userInventory.isHatched,
+  isListed: userInventory.isListed,
+  petAtk: userInventory.petAtk,
+  petDef: userInventory.petDef,
+  petLevel: userInventory.petLevel,
+};
 
 export interface HomeSceneCatalogItem {
   id: string;
@@ -2461,15 +2475,10 @@ export class DatabaseStorage implements IStorage {
       else s.losses++;
     }
 
-    // Pull every user's saved battle-group attack power so the leaderboard
-    // can show ATK alongside BP. Computed fresh inside upsertBattleGroup
-    // every time the player saves a new lineup, so the value here is
-    // always the player's currently-equipped team. Players who haven't
-    // built a group yet show 0 ATK on the board.
-    const groupRows = await db.select({
-      userId: pvpBattleGroups.userId,
-      attackPower: pvpBattleGroups.attackPower,
-    }).from(pvpBattleGroups);
+    // Resolve current eligible team members and their live stats in bulk.
+    // The stored power snapshot can become stale after leveling or inventory
+    // changes; leaderboard and matchmaking must not trust that snapshot.
+    const groupRows = await this.getAllBattleGroupsWithUsers();
     const apByUser: Record<string, number> = {};
     for (const g of groupRows) {
       if (g.userId) apByUser[g.userId] = g.attackPower ?? 0;
@@ -2696,42 +2705,58 @@ export class DatabaseStorage implements IStorage {
 
   async getBattleGroup(userId: string): Promise<any | null> {
     const [row] = await db.select().from(pvpBattleGroups).where(eq(pvpBattleGroups.userId, userId));
-    return row ?? null;
+    if (!row) return null;
+    const ids = row.petInventoryIds ?? [];
+    const records = ids.length
+      ? await db.select(PET_TEAM_RECORD_COLUMNS)
+          .from(userInventory)
+          .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+          .where(and(eq(userInventory.userId, userId), inArray(userInventory.id, ids)))
+      : [];
+    // Read-only reconciliation preserves the stored lineup until the player
+    // saves again; removed, listed and otherwise invalid pets cannot fight.
+    return { ...row, ...resolvePetTeam(ids, userId, records) };
   }
 
-  // Compute a single "team power" number from the user's currently selected
-  // pets. Using ATK + DEF/2 + level*5 gives a stat that scales with both
-  // raw fighting stats and progression, and produces a smooth distribution
-  // for matchmaking ranges.
   async computeBattleGroupPower(userId: string, petInventoryIds: string[]): Promise<number> {
     if (!petInventoryIds.length) return 0;
-    const rows = await db.select({
-      id: userInventory.id,
-      petAtk: userInventory.petAtk,
-      petDef: userInventory.petDef,
-      petLevel: userInventory.petLevel,
-    }).from(userInventory)
+    const records = await db.select(PET_TEAM_RECORD_COLUMNS)
+      .from(userInventory)
+      .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
       .where(and(eq(userInventory.userId, userId), inArray(userInventory.id, petInventoryIds)));
-    let total = 0;
-    for (const r of rows) {
-      total += (r.petAtk ?? 50) + Math.floor((r.petDef ?? 50) / 2) + (r.petLevel ?? 1) * 5;
-    }
-    return total;
+    return resolvePetTeam(petInventoryIds, userId, records).attackPower;
   }
 
   async upsertBattleGroup(userId: string, petInventoryIds: string[]): Promise<any> {
-    const attackPower = await this.computeBattleGroupPower(userId, petInventoryIds);
-    const existing = await this.getBattleGroup(userId);
-    if (existing) {
-      const [row] = await db.update(pvpBattleGroups)
-        .set({ petInventoryIds, attackPower, updatedAt: new Date() })
-        .where(eq(pvpBattleGroups.userId, userId))
+    // Validate at the persistence boundary as well as the HTTP boundary:
+    // no other caller may save unowned, unhatched, listed or duplicate pets.
+    const ids = parsePetTeamSelection(petInventoryIds);
+    return db.transaction(async (tx) => {
+      const records = ids.length
+        ? await tx.select(PET_TEAM_RECORD_COLUMNS)
+            .from(userInventory)
+            .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+            .where(and(eq(userInventory.userId, userId), inArray(userInventory.id, ids)))
+            .for("update", { of: userInventory })
+        : [];
+      const snapshot = resolvePetTeam(ids, userId, records);
+      if (snapshot.petInventoryIds.length !== ids.length) {
+        throw new PetTeamSelectionError(
+          "One or more selected pets are unavailable. Choose owned, hatched, unlisted pets.",
+          422,
+        );
+      }
+      // Unique userId and one atomic upsert avoid duplicate rows when a first
+      // save arrives concurrently from two devices.
+      const [row] = await tx.insert(pvpBattleGroups)
+        .values({ userId, petInventoryIds: ids, attackPower: snapshot.attackPower })
+        .onConflictDoUpdate({
+          target: pvpBattleGroups.userId,
+          set: { petInventoryIds: ids, attackPower: snapshot.attackPower, updatedAt: new Date() },
+        })
         .returning();
-      return row;
-    } else {
-      const [row] = await db.insert(pvpBattleGroups).values({ userId, petInventoryIds, attackPower }).returning();
-      return row;
-    }
+      return { ...row, ...snapshot };
+    });
   }
 
   async getAllBattleGroupsWithUsers(): Promise<any[]> {
@@ -2739,7 +2764,7 @@ export class DatabaseStorage implements IStorage {
     // staff-only and shouldn't show up as opponents. Moderators and bots ARE
     // included so non-mod players can match moderators (within AP band) and
     // moderators can be matched against bots for testing.
-    return db.select({
+    const groups = await db.select({
       userId: pvpBattleGroups.userId,
       petInventoryIds: pvpBattleGroups.petInventoryIds,
       attackPower: pvpBattleGroups.attackPower,
@@ -2752,6 +2777,26 @@ export class DatabaseStorage implements IStorage {
     }).from(pvpBattleGroups)
       .innerJoin(users, and(eq(pvpBattleGroups.userId, users.id), eq(users.isAdmin, false)))
       .orderBy(sql`${pvpBattleGroups.updatedAt} desc`);
+
+    // One batched eligibility/stat lookup (chunked to bound SQL parameters),
+    // rather than N per-player queries or trusting stale attackPower values.
+    const ids = Array.from(new Set(groups.flatMap((group) => group.petInventoryIds ?? [])));
+    const records: Array<{
+      id: string; userId: string; type: string; isHatched: boolean; isListed: boolean;
+      petAtk: number | null; petDef: number | null; petLevel: number | null;
+    }> = [];
+    for (let start = 0; start < ids.length; start += 500) {
+      const chunk = ids.slice(start, start + 500);
+      const batch = await db.select(PET_TEAM_RECORD_COLUMNS)
+        .from(userInventory)
+        .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+        .where(inArray(userInventory.id, chunk));
+      records.push(...batch);
+    }
+    return groups.map((group) => ({
+      ...group,
+      ...resolvePetTeam(group.petInventoryIds, group.userId, records),
+    }));
   }
 
   // ── World pet positions ────────────────────────────────────────────────────

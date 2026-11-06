@@ -84,6 +84,7 @@ import { registerRedeemCodeRoutes } from "./routes/redeemCode.routes";
 import { registerForumRoutes } from "./routes/forum.routes";
 import { registerRaidRoutes } from "./routes/raid.routes";
 import { registerPvpRoutes } from "./routes/pvp.routes";
+import { registerPlayerPetTeamRoutes } from "./routes/playerPetTeam.routes";
 import { registerFriendsRoutes } from "./routes/friends.routes";
 import { registerMoltenBlocksRoutes } from "./routes/moltenBlocks.routes";
 import { registerEnemyAdminRoutes } from "./routes/enemyAdmin.routes";
@@ -4214,6 +4215,7 @@ export async function registerRoutes(
   registerFishingAquariumRoutes(app, fishingRouteDependencies);
 
   // ── PvP Arena Routes ─────────────────────────────────────────────────────
+  registerPlayerPetTeamRoutes(app, { storage, isAuthenticated });
   registerPvpRoutes(app, { storage, isAuthenticated, publicAccount, maybeAwardBrawlerBadges });
 
   // ── Friends + Notifications ───────────────────────────────────────────────
