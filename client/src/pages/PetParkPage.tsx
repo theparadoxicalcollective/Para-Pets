@@ -19,7 +19,6 @@ import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type 
 import { isParkEffect } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
-import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
@@ -178,7 +177,7 @@ export default function PetParkPage() {
       const res = await apiRequest(method, path, body ?? {});
       return res.json();
     },
-    onSuccess: (_result: unknown, variables) => {
+    onSuccess: (result: unknown, variables) => {
       // Ordinary equip, swap, collect and display actions are reflected in
       // the slot HUD, not noisy success toasts. Keep errors visible.
       invalidate();
@@ -186,6 +185,19 @@ export default function PetParkPage() {
       setSelectedPet("");
       setShowPetChoices(false);
       if (variables.path === "/api/pet-park/deposits") setActiveSlot(null);
+      if (variables.path === "/api/pet-park/slots/unlock") {
+        // The server has already committed the coin debit + unlocked spot.
+        // Reflect its result in the existing scene cache immediately rather
+        // than rendering a large pet picker through a stale locked scene.
+        const unlockedSlots = (result as { unlockedSlots?: unknown } | null)?.unlockedSlots;
+        if (typeof unlockedSlots === "number" && Number.isInteger(unlockedSlots) &&
+            unlockedSlots >= 1 && unlockedSlots <= 3) {
+          qc.setQueryData<ParkScene>(["/api/pet-park/scene"],
+            old => old ? { ...old, unlockedSlots } : old);
+        }
+        setActiveSlot(null);
+        toast({ title: "Pet spot unlocked", description: "Tap the new spot to choose a pet." });
+      }
     },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
   });
@@ -881,7 +893,6 @@ export default function PetParkPage() {
                 otherwise mix separately zoomed pixel sizes on pinch gestures. */}
             <div data-park-pet-world-scale className="relative"
               style={{ width: petSize, height: petHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <PetParkGroundShadow kind="pet" />
             <div data-park-pet-artwork className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
