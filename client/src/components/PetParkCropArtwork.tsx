@@ -15,7 +15,7 @@ export default function PetParkCropArtwork({
   const width = size * scale;
   const visibleHeight = bounds.height * width * aspect;
   const percent = progress ? Math.min(100, Math.round(progress.value / progress.required * 100)) : 0;
-  return <div data-testid="pet-park-garden-crop" aria-hidden="true"
+  return <div data-testid="pet-park-garden-crop"
     className="pointer-events-none absolute" style={{
       left: `${xPct * 100}%`, top: `${yPct * 100}%`, zIndex,
     }}>
