@@ -24,7 +24,7 @@ test("Active Pet sparkle bursts and potion drag previews use client coordinates"
   assert.match(source, /\{homeDragging && createPortal\(/);
   assert.match(source, /\{ringSparkles\.length > 0 && createPortal\(/);
   assert.match(source, /document\.body/);
-  assert.match(source, /getVisibleViewport\(\)\.height \* 0\.65/);
+  assert.doesNotMatch(source, /getVisibleViewport\(\)\.height \* 0\.65/, "obsolete Step 5 glow threshold is removed");
   assert.match(source, /ev\.clientX >= dropRect\.left && ev\.clientX <= dropRect\.right/);
 });
 
