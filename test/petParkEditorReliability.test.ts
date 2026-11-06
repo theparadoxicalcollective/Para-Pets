@@ -19,13 +19,14 @@ test("effect drafts use the most recently confirmed server save as their cancel 
   assert.match(details, /disabled=\{mutation\.isPending\} onClick=\{\(\) => mutation\.mutate\(\{ interiorEffects: effects \}\)\}/);
 });
 
-test("old indoor deposits remain safe while view-only effects can change", () => {
+test("indoor deposits and capacity edits remain safe without affecting reward settlement", () => {
   assert.doesNotMatch(page, /occupantCount=\{/);
   assert.doesNotMatch(details, /capacity < occupantCount/);
-  assert.match(details, /All player pets stay outdoors/);
+  assert.match(details, /Visitors share the building with placed pets/);
   assert.match(admin, /db\.transaction\(async tx =>/);
   assert.match(admin, /isNull\(petParkDeposits\.withdrawnAt\)/);
   assert.match(admin, /occupants\.length > \(updates\.maxPets as number\)/);
-  assert.doesNotMatch(admin, /count > room\.maxPets/);
-  assert.match(player, /res\.status\(410\)/);
+  assert.match(admin, /count > room\.maxPets/);
+  assert.match(player, /others\.length >= building\.maxPets/);
+  assert.match(player, /isPetAccessibleParkRoom\(room\)/);
 });
