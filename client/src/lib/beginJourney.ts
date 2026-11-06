@@ -1,5 +1,11 @@
 import { ACTIVE_PET_UPDATE_CONFIRMED_EVENT } from "@/lib/queryClient";
 
+// Temporarily pause the legacy Begin Journey quest while the new player
+// avatar / player-level system is designed. Keep existing per-account
+// progression and server receipts untouched for a future intentional migration.
+// All Begin Journey entry points reference this one switch.
+export const BEGIN_JOURNEY_ENABLED = false;
+
 // Begin Journey — tutorial quest state management (localStorage-backed)
 let _step5FakeMode = false;
 export const bjSetStep5FakeMode = (v: boolean) => { _step5FakeMode = v; };
