@@ -39,3 +39,23 @@ export function parkExpandPoint(
     yPct: parkExpandedCoordinate(point.yPct, oldSize.height, nextSize.height),
   };
 }
+
+/**
+ * One persistent, park-wide base surface. The selector changes only appearance:
+ * expansion geometry and authored coordinates remain identical in every theme.
+ */
+export const PET_PARK_GROUND_THEMES = [
+  { type: "grass", label: "Grass", swatch: "#2c4934" },
+  { type: "snow", label: "Snow", swatch: "#c9d6d3" },
+  { type: "haunted", label: "Haunted", swatch: "#343e3b" },
+  { type: "swamp", label: "Swamp", swatch: "#394b38" },
+  { type: "volcanic", label: "Volcanic", swatch: "#332d31" },
+] as const;
+export type ParkGroundTheme = typeof PET_PARK_GROUND_THEMES[number]["type"];
+export function isParkGroundTheme(value: unknown): value is ParkGroundTheme {
+  return typeof value === "string" && PET_PARK_GROUND_THEMES.some(theme => theme.type === value);
+}
+/** Default to the current art for old parks or malformed API responses. */
+export function parkGroundTheme(value: unknown): ParkGroundTheme {
+  return isParkGroundTheme(value) ? value : "grass";
+}
