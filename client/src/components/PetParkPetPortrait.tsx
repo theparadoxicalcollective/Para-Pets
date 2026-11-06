@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
+import { getAlphaBounds } from "@/lib/alphaBounds";
 
 /**
  * Player Detail companion artwork, sized for Pet Park pickers and equipped slots.
@@ -47,6 +48,7 @@ export default memo(function PetParkPetPortrait({
         style={{ filter: "drop-shadow(0 3px 5px rgba(0,0,0,.4))" }} />
     ) : hatchedImageUrl ? (
       <img src={hatchedImageUrl} alt="" draggable={false}
+        onLoad={event => { if (hatchedImageUrl) void getAlphaBounds(hatchedImageUrl, event.currentTarget); }}
         className={`h-full w-full object-contain ${mode === "sleep" && !reducedMotion ? "pet-park-rest" : ""}`} />
     ) : (
       <span aria-hidden="true" className="text-xs text-amber-200/50">Pet</span>
