@@ -3,6 +3,7 @@ import {
   HOUSE_INTERIOR_EFFECT_MAX_SIZE, isHouseInteriorEffectType,
   sanitizeHouseInteriorEffects, type HouseInteriorEffect,
 } from "./housing";
+import { isParkWaterEffect, type ParkWaterEffect } from "./petParkEffects";
 
 /** Pet Park-only portal: normal Pet House effects and their renderer are unchanged. */
 export type ParkRoomView = "full_page" | "popup";
@@ -17,7 +18,10 @@ export interface ParkRoomEffect {
   view: ParkRoomView;
   maxPets: number;
 }
-export type ParkInteriorEffect = HouseInteriorEffect | ParkRoomEffect;
+export type ParkInteriorWaterEffect = {
+  id: string; type: ParkWaterEffect; x: number; y: number; size: number;
+};
+export type ParkInteriorEffect = HouseInteriorEffect | ParkRoomEffect | ParkInteriorWaterEffect;
 export const PARK_ROOM_MAX_PETS = 25;
 export const PARK_ROOM_MIN_PETS = 1;
 export const PARK_ROOM_DEFAULT_PETS = 3;
@@ -40,6 +44,7 @@ export function sanitizeParkInteriorEffects(
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Record<string, unknown>;
     const parsed = item.type === "room" ? sanitizeRoom(item, savedRooms) :
+      isParkWaterEffect(item.type) ? sanitizeWaterEffect(item) :
       isHouseInteriorEffectType(item.type) ? sanitizeHouseInteriorEffects([item])[0] : null;
     if (!parsed || ids.has(parsed.id)) continue;
     ids.add(parsed.id);
@@ -47,6 +52,14 @@ export function sanitizeParkInteriorEffects(
     if (result.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT) break;
   }
   return result;
+}
+
+function sanitizeWaterEffect(item: Record<string, unknown>): ParkInteriorWaterEffect | null {
+  if (!isParkWaterEffect(item.type)) return null;
+  // Reuse the same ID, placement, and size validation as regular Home
+  // interior effects. Only the effect TYPE is Pet Park-specific.
+  const base = sanitizeHouseInteriorEffects([{ ...item, type: "soft_mist" }])[0];
+  return base ? { ...base, type: item.type } : null;
 }
 
 function sanitizeRoom(
