@@ -45,7 +45,7 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; interiorEffects: ParkInteriorEffect[] };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -972,6 +972,7 @@ export default function PetParkPage() {
         key={fullPageRoom?.id ?? activeBuilding.id} expanded
         imageUrl={fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl ?? ""}
         name={fullPageRoom?.name ?? activeBuilding.name}
+        darkness={activeBuilding.interiorDarkness ?? 35}
         effects={fullPageRoom ? [] : activeBuilding.interiorEffects ?? []}
         onOpenRoom={showRoomEffect}
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
