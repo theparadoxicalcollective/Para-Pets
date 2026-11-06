@@ -221,7 +221,7 @@ export default function GardenAdminPanel() {
                   onChange={event => setToolRefillable(event.target.checked)}
                   className="h-4 w-4 accent-[#e9c875]" />
                 <span><strong>Refillable</strong>
-                  <small className="block text-[#d0bea0]">Refillable equipment can hold up to 100 drops and be filled at a decoration marked Water Source.</small>
+                  <small className="block text-[#d0bea0]">Mark this item as refillable. Water-bearing tools, such as pails, can collect up to 100 drops at a Water Source.</small>
                 </span>
               </label>
             </>}
