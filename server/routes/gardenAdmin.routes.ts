@@ -110,7 +110,7 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
         }).returning();
         const [fruit] = await tx.insert(shopItems).values({
           name: fruitName.trim(), description: `Harvested from ${name.trim()}.`,
-          price: 0, type: "garden_fruit", worldId: "all", imageUrl: saved.fruit,
+          price: 0, type: "garden_fruit", worldId: "garden_harvest_only", imageUrl: saved.fruit,
         }).returning();
         const [crop] = await tx.insert(gardenCrops).values({
           seedItemId: seed.id, fruitItemId: fruit.id,
