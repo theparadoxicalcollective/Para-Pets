@@ -8,6 +8,7 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetParkPetPortrait from "@/components/PetParkPetPortrait";
 import PetParkRewardBars from "@/components/PetParkRewardBars";
 import PetParkSlotProgress from "@/components/PetParkSlotProgress";
+import PetParkShopShelf from "@/components/PetParkShopShelf";
 import emptyParkPetArtwork from "@assets/generated_images/hub_para_pet_transparent.png";
 const coinImage = new URL("../../../attached_assets/uploads/MainGameCoinImage.PNG", import.meta.url).href;
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
@@ -44,7 +45,7 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: ParkInteriorEffect[] };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -1014,6 +1015,9 @@ export default function PetParkPage() {
         </div>}
       </PetParkInteriorRoom>
         : <p className="p-8 pt-28 text-center text-sm">This building needs an interior background. An admin can upload one with Edit building.</p>}
+      {activeBuilding.isShop && !fullPageRoom && !!activeBuilding.interiorImageUrl &&
+        <PetParkShopShelf buildingId={activeBuilding.id}
+          itemIds={activeBuilding.shopItemIds ?? []} canEditPark={Boolean(scene?.canEditPark)} />}
       {!popupRoom && <div data-testid="pet-park-interior-slots"
         className="absolute inset-x-3 bottom-[max(10px,env(safe-area-inset-bottom,0px))] z-50 mx-auto max-w-xl rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 p-2 shadow-xl">
         <div className="flex items-center justify-between gap-2 text-[11px] text-amber-200/80">
