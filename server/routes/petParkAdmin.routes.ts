@@ -249,8 +249,22 @@ export function registerPetParkAdminRoutes(
 
   app.delete("/api/admin/pet-park/buildings/:id", isAdmin, async (req, res) => {
     try {
-      const [building] = await db.delete(petParkBuildings).where(eq(petParkBuildings.id, String(req.params.id))).returning({ id: petParkBuildings.id });
-      return building ? res.json({ deleted: true }) : res.status(404).json({ message: "Building not found" });
+      const buildingId = String(req.params.id);
+      const deleted = await db.transaction(async tx => {
+        const [building] = await tx.select({ id: petParkBuildings.id }).from(petParkBuildings)
+          .where(eq(petParkBuildings.id, buildingId)).for("update");
+        if (!building) return false;
+        // Deleting a building clears legacy indoor placement without releasing
+        // or claiming any deposit. Otherwise ON DELETE SET NULL could make a
+        // previously indoor pet public without its owner dragging it outdoors.
+        await tx.update(petParkDeposits).set({
+          showInPark: false, buildingId: null, roomEffectId: null,
+          parkXPct: null, parkYPct: null, pose: "idle",
+        }).where(and(eq(petParkDeposits.buildingId, buildingId), isNull(petParkDeposits.withdrawnAt)));
+        await tx.delete(petParkBuildings).where(eq(petParkBuildings.id, buildingId));
+        return true;
+      });
+      return deleted ? res.json({ deleted: true }) : res.status(404).json({ message: "Building not found" });
     } catch (error) {
       console.error("[pet-park] building delete failed", error);
       return res.status(500).json({ message: "Unable to delete Pet Park building" });
