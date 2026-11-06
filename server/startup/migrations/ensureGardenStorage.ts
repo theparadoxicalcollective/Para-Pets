@@ -58,6 +58,21 @@ export async function ensureGardenStorage(): Promise<void> {
       CONSTRAINT garden_plot_plant_requires_crop
         CHECK (phase IN ('empty','tilled') OR crop_id IS NOT NULL)
     );
+    -- Keep response and mutation in the same transaction so duplicate HTTP
+    -- requests can never double-charge a pail or double-award fruit.
+    CREATE TABLE IF NOT EXISTS garden_action_receipts (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      request_id varchar NOT NULL,
+      plot_item_id varchar NOT NULL REFERENCES pet_park_scene_items(id) ON DELETE CASCADE,
+      action text NOT NULL CHECK (action IN ('hoe','plant','water','harvest')),
+      inventory_id varchar NOT NULL,
+      result jsonb NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS garden_action_receipts_owner_request_uidx
+      ON garden_action_receipts(user_id, request_id);
+
     CREATE UNIQUE INDEX IF NOT EXISTS garden_player_plot_unique
       ON garden_player_plots(user_id,plot_item_id);
     CREATE INDEX IF NOT EXISTS garden_player_plots_owner_idx
