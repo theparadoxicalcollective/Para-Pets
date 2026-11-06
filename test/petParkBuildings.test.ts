@@ -26,7 +26,8 @@ test("Pet Park buildings persist exterior, interior, capacity, normalized placem
   assert.match(adminRoutes, /sanitizeHouseInteriorEffects/);
   assert.match(adminPanel, /Building exterior image/);
   assert.match(adminPanel, /Building interior image/);
-  assert.match(adminPanel, /Building pet capacity/);
+  assert.doesNotMatch(adminPanel, /Building pet capacity/);
+  assert.match(adminPanel, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/);
   assert.match(interiorRoom, /HomeInteriorEffectsLayer/);
   assert.match(buildingDetails, /HOME_INTERIOR_EFFECT_OPTIONS/);
   assert.match(buildingDetails, /Edit building:/);
