@@ -37,7 +37,7 @@ test("admin settings and in-park editor retain grass expansion, assets and objec
   assert.match(park, /onPointerUp=\{endPlacement\}/);
   assert.doesNotMatch(park, /Fine-tune exact placement/);
   assert.match(park, /flipped: !placementDraft.flipped/);
-  assert.match(park, /Drag to move · auto-saves/);
+  assert.match(park, /Double-tap artwork to move/);
   assert.match(park, /Remove this object from Pet Park/);
   assert.match(building, /Replace park building exterior/);
   assert.match(building, /Save interior effects/);
