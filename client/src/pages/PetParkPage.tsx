@@ -41,7 +41,7 @@ import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize, parkGroundTheme, type ParkGr
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -195,6 +195,14 @@ export default function PetParkPage() {
       setSelectedPlacement(null); setPlacementDraft(null); setMoveArmed(null);
       toast({ title: "Could not save placement", description: error.message, variant: "destructive" });
     },
+  });
+  const waterSourceSave = useMutation({
+    mutationFn: async ({ id, isWaterSource }: { id: string; isWaterSource: boolean }) =>
+      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/water-source`, { isWaterSource }),
+    onSuccess: invalidate,
+    onError: (error: Error) => toast({
+      title: "Unable to update Water Source", description: error.message, variant: "destructive",
+    }),
   });
   const placementDelete = useMutation({
     mutationFn: async ({ kind, id }: { kind: "building" | "item"; id: string }) => {
@@ -931,6 +939,19 @@ export default function PetParkPage() {
           <button type="button" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ flipped: !placementDraft.flipped })}>Flip</button>
         </>}
       </div>
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
+        type="button" aria-label="Water Source" aria-pressed={Boolean((selectedObject as ParkItem).isWaterSource)}
+        data-testid="park-decoration-water-source"
+        disabled={waterSourceSave.isPending || placementSave.isPending || placementDelete.isPending}
+        onClick={() => waterSourceSave.mutate({
+          id: selectedPlacement.id, isWaterSource: !(selectedObject as ParkItem).isWaterSource,
+        })}
+        className="flex items-center justify-between rounded-lg border border-[#b99a4c]/60 bg-[#1c3c2c] px-3 py-2 text-left text-xs font-semibold disabled:opacity-50">
+        <span>Water Source <span className="font-normal text-amber-100/70">· Refill station</span></span>
+        <span className={`rounded-full px-2 py-1 ${(selectedObject as ParkItem).isWaterSource ? "bg-[#d9ba65] text-[#172d1e]" : "bg-[#17291e] text-[#c8bd95]"}`}>
+          {(selectedObject as ParkItem).isWaterSource ? "On" : "Off"}
+        </span>
+      </button>}
       <p className="text-xs text-amber-100/75">Depth follows ground position automatically. Move lower to bring in front.</p>
       <div className="flex flex-wrap items-center gap-2">
         {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
