@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { isParkSleepPosition, parkSleepSpotAtPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot } from "../client/src/lib/petParkSleepSpots";
+import { isParkSleepPosition, parkSleepSpotAtPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot, isParkIndoorSleepPosition } from "../client/src/lib/petParkSleepSpots";
 import { getHouseInteriorSleepSnapPosition, isHouseInteriorSleepPosition, isHouseOutdoorEffectType } from "../shared/housing";
 
 const world = { width: 1100, height: 1700 };
@@ -68,4 +68,14 @@ test("indoor sleeping pet uses the actual panned artwork size, not the device wi
   assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.72, y: 0.6 }, effect, image), 225);
   assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.55, y: 0.6 }, effect, { width: 0, height: 0 }), 225);
   assert.equal(parkIndoorPetSizeOnSleepSpot({ x: 0.55, y: 0.6 }, [{ type: "fire", x: 0.55, y: 0.6, size: 20 }], image), 225);
+});
+
+test("indoor sleep detection follows the same image-space area as resizing", () => {
+  const effects = [{ type: "sleep", x: .5, y: .65, size: 22 }];
+  const artwork = { width: 980, height: 800 };
+  assert.equal(isParkIndoorSleepPosition({ x: .5, y: .65 }, effects, artwork), true);
+  assert.equal(parkIndoorPetSizeOnSleepSpot({ x: .5, y: .65 }, effects, artwork, 200), 176);
+  assert.equal(isParkIndoorSleepPosition({ x: .65, y: .65 }, effects, artwork), false);
+  assert.equal(parkIndoorPetSizeOnSleepSpot({ x: .65, y: .65 }, effects, artwork, 200), 200);
+  assert.equal(isParkIndoorSleepPosition({ x: .5, y: .65 }, effects, { width: 0, height: 0 }), false);
 });
