@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { bjGetStep, bjSetStep, bjRestart, bjGetStarterInventoryId, bjSetStarterInventoryId, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
+import { BEGIN_JOURNEY_ENABLED, bjGetStep, bjSetStep, bjRestart, bjGetStarterInventoryId, bjSetStarterInventoryId, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
 import { isHatchedThreeStarPet } from "@/lib/tutorialHatch";
 import { usePrimaryQuestGuideOwner } from "@/lib/questGuideOwnership";
 import { getQuestGuideSurface, guideBoundsInSurface } from "@/lib/questGuideViewport";
@@ -66,7 +66,15 @@ interface StarterPetChoice {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function BeginJourneyOverlay({ user }: Props) {
+// Keep the old flow intact but unmounted while avatar/level onboarding is
+// being developed. A direct mount (e.g. from an old route or test fixture)
+// cannot fire tutorial requests or install its input-blocking spotlight.
+export default function BeginJourneyOverlay(props: Props) {
+  if (!BEGIN_JOURNEY_ENABLED) return null;
+  return <ActiveBeginJourneyOverlay {...props} />;
+}
+
+function ActiveBeginJourneyOverlay({ user }: Props) {
   const [step, setStep]               = useState<number | "done" | null>(() => bjGetStep());
   usePrimaryQuestGuideOwner("begin-journey", step !== null && step !== "done");
   const [targetRect, setTargetRect]   = useState<TargetRect | null>(null);
