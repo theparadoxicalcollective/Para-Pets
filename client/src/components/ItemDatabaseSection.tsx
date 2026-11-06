@@ -52,6 +52,7 @@ export interface ShopItemFull {
   clearingAttackStyle?: "sword_slash" | "staff_orb" | "default" | null;
   specialType: string | null;
   specialAmount: number | null;
+  isRefillable?: boolean;
   fishingType: string | null;
   starRarity: number | null;
   baitCatchBoost: number | null;
@@ -715,6 +716,7 @@ function AdminItemForm({
   const [clearingAttackStyle, setClearingAttackStyle] = useState(item?.clearingAttackStyle || "default");
   const [specialType, setSpecialType] = useState(item?.specialType || "hatch_time");
   const [specialAmount, setSpecialAmount] = useState(item?.specialAmount?.toString() || "10");
+  const [isRefillable, setIsRefillable] = useState(Boolean(item?.isRefillable));
   const [imageData, setImageData] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null);
   const [eggImageData, setEggImageData] = useState<string | null>(null);
@@ -741,7 +743,8 @@ function AdminItemForm({
     setSubmitting(true);
     try {
       const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
-      const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all" };
+      const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all",
+        isRefillable: !petOnly && effectiveType !== "pet" && isRefillable };
       payload.adornmentSlot = effectiveType === "costume" ? adornmentSlot : null;
       payload.adornmentEffect = effectiveType === "costume" && adornmentSlot !== "wings" ? (adornmentEffect || null) : null;
       payload.hideAboveHeadPart = effectiveType === "costume" && adornmentSlot === "head" ? hideAboveHeadPart : false;
@@ -1349,6 +1352,14 @@ function AdminItemForm({
               </p>
             </>
           )}
+
+          {/* A refill capability is independent of the item's other effects or artwork. */}
+          {!petOnly && effectiveType !== "pet" && <label data-testid="admin-item-refillable-toggle" className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#b59a60]/40 bg-[#173626]/65 p-3 font-fantasy text-xs text-[#e3ca91]">
+            <input type="checkbox" aria-label="Refillable" checked={isRefillable}
+              onChange={event => setIsRefillable(event.target.checked)} className="h-4 w-4 accent-[#d4b66c]" />
+            <span><strong className="block text-sm">Refillable</strong>
+              <small className="text-[#b4b095]">Can be filled at Pet Park decorations marked Water Source (100 water drops).</small></span>
+          </label>}
 
           {/* Item-type-specific fields */}
           {!petOnly && effectiveType === "power_up" && (
