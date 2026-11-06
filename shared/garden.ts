@@ -112,3 +112,42 @@ export function gardenEffectivePhase(
   return phase === "picked" && pickedUntil && pickedUntil.getTime() <= now.getTime()
     ? "empty" : phase;
 }
+
+/** Player endpoint contract; positions and progression are server-authored, not
+ * inferred from client timers or a second set of Pet Park coordinates. */
+export type GardenPlayerPlot = {
+  plotItemId: string; xPct: number; yPct: number; size: number;
+  phase: GardenPlotPhase; cropId: string | null; waterApplied: number;
+  harvestReady: boolean; pickedUntil: string | null;
+};
+export type GardenPlayerCrop = {
+  id: string; seedItemId: string; fruitItemId: string;
+  seedName: string; fruitName: string; ready: boolean;
+  images: GardenImages; drops: GardenWaterRequirements;
+};
+export type GardenPlayerState = {
+  serverNow: string; plots: GardenPlayerPlot[]; crops: GardenPlayerCrop[];
+};
+export type GardenPlayerAction = "hoe" | "plant" | "water" | "harvest";
+export type GardenActionResult = {
+  plot: GardenPlayerPlot; replayed: boolean;
+  remainingQuantity?: number; waterLeft?: number;
+  reward?: { fruitItemId: string; quantity: number };
+};
+/** UI affordances follow server state; no client-side free growth/reset. */
+export function gardenActionForPlot(plot: Pick<GardenPlayerPlot, "phase" | "harvestReady">): GardenPlayerAction | null {
+  if (plot.phase === "empty") return "hoe";
+  if (plot.phase === "tilled") return "plant";
+  if (plot.phase === "picked") return null;
+  if (plot.phase === "grown" && plot.harvestReady) return "harvest";
+  return "water";
+}
+export function gardenCropProgress(
+  plot: Pick<GardenPlayerPlot, "phase" | "waterApplied" | "harvestReady">,
+  crop?: GardenPlayerCrop | null,
+): { value: number; required: number } | null {
+  if (!crop || !["planted", "seedling", "partial", "grown"].includes(plot.phase) || plot.harvestReady) return null;
+  const required = crop.drops[plot.phase as GardenGrowingPhase];
+  return validGardenDrops(required)
+    ? { value: Math.max(0, Math.min(required, plot.waterApplied)), required } : null;
+}
