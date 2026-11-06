@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
-import { isParkGroundLevel, parkGroundSize } from "@shared/petParkGround";
+import { isParkGroundLevel, isParkGroundTheme, parkGroundSize } from "@shared/petParkGround";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
@@ -136,6 +136,24 @@ export function registerPetParkAdminRoutes(
     } catch (error) {
       console.error("[pet-park] expanding ground failed", error);
       return res.status(500).json({ message: "Unable to expand park ground" });
+    }
+  });
+
+  // Separate from ground expansion: changing scenery must never transform
+  // authored object/pet positions or touch publishing and reward settings.
+  app.patch("/api/admin/pet-park/ground-theme", isAdmin, async (req, res) => {
+    const { groundTheme } = req.body ?? {};
+    if (!isParkGroundTheme(groundTheme)) {
+      return res.status(400).json({ message: "Choose a valid Pet Park ground style" });
+    }
+    try {
+      const [saved] = await db.update(petParkSettings).set({ groundTheme, updatedAt: new Date() })
+        .where(eq(petParkSettings.id, "main")).returning({ groundTheme: petParkSettings.groundTheme });
+      if (!saved) return res.status(404).json({ message: "Pet Park settings not found" });
+      return res.json(saved);
+    } catch (error) {
+      console.error("[pet-park] ground style update failed", error);
+      return res.status(500).json({ message: "Unable to change Pet Park ground" });
     }
   });
 
