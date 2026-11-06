@@ -106,7 +106,7 @@ export default function PetParkPage() {
     startX: number; startY: number; position: { x: number; y: number } } | null>(null);
   const [indoorPetDraft, setIndoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
   const { data: scene, isLoading } = useQuery<ParkScene>({ queryKey: ["/api/pet-park/scene"], refetchInterval: 30_000 });
-  const { data: inventory = [] } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
+  const { data: inventory = [], isFetching: isGardenInventoryLoading } = useQuery<InventoryPet[]>({ queryKey: ["/api/inventory"], enabled: !!scene?.canEnterPark && !scene?.canEditPark });
   const availableRefillables = inventory.filter(gardenItemNeedsRefill);
   // The shared player card needs the viewer id to hide friend actions on self.
   const { data: viewingUser } = useQuery<{ id: string }>({ queryKey: ["/api/auth/me"], enabled: !!inspectedPet, staleTime: 60_000 });
@@ -937,7 +937,7 @@ export default function PetParkPage() {
               className="rounded-full border border-[#ceb073]/50 bg-[#123321] p-2"><X size={17} /></button>
           </header>
           <p className="mb-3 text-xs text-[#d1d2ad]">Choose a refillable item to fill it back to 100 drops.</p>
-          {availableRefillables.length ? <div className="space-y-2">
+          {isGardenInventoryLoading ? <p className="rounded-xl border border-[#b69b61]/40 bg-[#0a261a] px-3 py-4 text-center text-xs">Checking your refillable items…</p> : availableRefillables.length ? <div className="space-y-2">
             {availableRefillables.map(item => <button key={item.inventoryId} type="button"
               data-testid="pet-park-refill-item" disabled={refillWater.isPending}
               onClick={() => refillWater.mutate({ sourceId: selectedWaterSourceId, inventoryId: item.inventoryId })}
