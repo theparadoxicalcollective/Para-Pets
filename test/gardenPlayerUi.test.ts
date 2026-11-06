@@ -48,14 +48,15 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(page, /parkDepthIndex\(\{ yPct: plot\.yPct/);
   assert.match(page, /onChanged=\{invalidateGarden\}/);
   assert.match(menu, /crypto\.randomUUID\(\)/);
-  assert.match(menu, /retry\?\.action === action && retry\.inventoryId === inventoryId/);
+  assert.match(menu, /retry\?\.action === action && retry\.inventoryId === item\.inventoryId/);
   assert.match(menu, /mutation\.mutate\(retry\)/);
   assert.match(menu, /item\.isListed \|\| \(item\.quantity \?\? 0\) <= 0/);
   assert.match(menu, /item\.type === "garden_seed"/);
   assert.match(menu, /item\.type === "garden_tool"/);
   assert.match(menu, /ViewportModalPortal blocking=\{false\}/);
   assert.match(menu, /data-testid="pet-park-garden-anchor"/);
-  assert.match(menu, /data-testid="pet-park-garden-action-"/);
+  assert.match(menu, /translate\(-50%, -107px\)/, "bubble arc must not jump when notices or seed choices appear");
+  assert.match(menu, /data-testid=\{"pet-park-garden-action-" \+ action\}/);
   assert.match(menu, /garden-tool-bubble/);
   assert.match(menu, /aria-disabled=\{!available\}/);
   assert.match(menu, /missingMessage/);
