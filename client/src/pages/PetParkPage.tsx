@@ -23,7 +23,7 @@ import PetParkGroundShadow from "@/components/PetParkGroundShadow";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
-import { X, Expand, Sparkles, LockKeyhole } from "lucide-react";
+import { X, Expand, LockKeyhole } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
 import PetParkBuildingDetails from "@/components/PetParkBuildingDetails";
 import type { HouseInteriorEffect } from "@shared/housing";
@@ -1007,13 +1007,13 @@ export default function PetParkPage() {
               className={`pet-park-slot relative flex min-h-[116px] touch-none flex-col items-center justify-center gap-0 overflow-hidden px-1.5 py-2 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
               <span aria-hidden="true" className="pointer-events-none absolute top-1.5 text-[9px] text-amber-200/65">✦</span>
               <span className="relative z-[2] mt-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#f5d77b]">Spot {slot}</span>
-              {pet ? <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center pt-2">
-                <span className="absolute left-1/2 top-1 z-[3] w-[88%] -translate-x-1/2">
+              {pet ? <div className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center pt-2">
+                <div className="absolute left-1/2 top-1 z-[3] w-[88%] -translate-x-1/2">
                   <PetParkSlotProgress timing={pet} rates={scene.rates ?? { coinsPerHour: 0, essencePerHour: 0, petXpPerHour: 0 }} serverNow={scene.serverNow} />
-                </span>
+                </div>
                 <PetParkPetPortrait petTemplateId={pet.petTemplateId}
                   hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={69} />
-              </span> : <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center">
+              </div> : <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center">
                 <img src={emptyParkPetArtwork} alt="" draggable={false}
                   className="pet-park-slot__empty-art h-[68px] w-[72px] object-contain" />
                 {unlocked
