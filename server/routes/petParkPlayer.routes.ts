@@ -24,42 +24,6 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
     }
   });
 
-  // Read-only public merchandise preview for the *entered* shop building.
-  // Do not add catalog thumbnails or descriptions to every scene refresh.
-  app.get("/api/pet-park/buildings/:id/shop-items", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req.user as { id: string }).id;
-      const [settings] = await db.select({
-        enabledForPlayers: petParkSettings.enabledForPlayers,
-        enabledForModerators: petParkSettings.enabledForModerators,
-      }).from(petParkSettings).where(eq(petParkSettings.id, "main"));
-      const [viewer] = await db.select({ isAdmin: users.isAdmin, isModerator: users.isModerator })
-        .from(users).where(eq(users.id, userId));
-      const allowed = !!viewer?.isAdmin || !!settings?.enabledForPlayers ||
-        (!!settings?.enabledForModerators && !!viewer?.isModerator);
-      if (!allowed) return res.status(403).json({ message: "Pet Park is not open" });
-      const [building] = await db.select({
-        isShop: petParkBuildings.isShop, shopItemIds: petParkBuildings.shopItemIds,
-      }).from(petParkBuildings).where(eq(petParkBuildings.id, String(req.params.id)));
-      if (!building?.isShop) return res.status(404).json({ message: "Shop building not found" });
-      const ids = Array.isArray(building.shopItemIds) ? building.shopItemIds.slice(0, 80) : [];
-      if (!ids.length) return res.json([]);
-      const catalog = await db.select({
-        id: shopItems.id, name: shopItems.name, type: shopItems.type,
-        imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
-        hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
-      }).from(shopItems).where(inArray(shopItems.id, ids));
-      const byId = new Map(catalog.map(item => [item.id, item]));
-      return res.json(ids.flatMap(id => {
-        const item = byId.get(id);
-        return item ? [item] : [];
-      }));
-    } catch (error) {
-      console.error("[pet-park] shop item read failed", error);
-      return res.status(500).json({ message: "Unable to view shop building" });
-    }
-  });
-
   app.get("/api/pet-park/scene", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as { id: string }).id;
@@ -364,6 +328,42 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
     } catch (error) {
       console.error("[pet-park] claim failed", error);
       return res.status(500).json({ message: "Unable to collect park rewards" });
+    }
+  });
+
+  // Read-only public merchandise preview for the *entered* shop building.
+  // Do not add catalog thumbnails or descriptions to every scene refresh.
+  app.get("/api/pet-park/buildings/:id/shop-items", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as { id: string }).id;
+      const [settings] = await db.select({
+        enabledForPlayers: petParkSettings.enabledForPlayers,
+        enabledForModerators: petParkSettings.enabledForModerators,
+      }).from(petParkSettings).where(eq(petParkSettings.id, "main"));
+      const [viewer] = await db.select({ isAdmin: users.isAdmin, isModerator: users.isModerator })
+        .from(users).where(eq(users.id, userId));
+      const allowed = !!viewer?.isAdmin || !!settings?.enabledForPlayers ||
+        (!!settings?.enabledForModerators && !!viewer?.isModerator);
+      if (!allowed) return res.status(403).json({ message: "Pet Park is not open" });
+      const [building] = await db.select({
+        isShop: petParkBuildings.isShop, shopItemIds: petParkBuildings.shopItemIds,
+      }).from(petParkBuildings).where(eq(petParkBuildings.id, String(req.params.id)));
+      if (!building?.isShop) return res.status(404).json({ message: "Shop building not found" });
+      const ids = Array.isArray(building.shopItemIds) ? building.shopItemIds.slice(0, 80) : [];
+      if (!ids.length) return res.json([]);
+      const catalog = await db.select({
+        id: shopItems.id, name: shopItems.name, type: shopItems.type,
+        imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
+        hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
+      }).from(shopItems).where(inArray(shopItems.id, ids));
+      const byId = new Map(catalog.map(item => [item.id, item]));
+      return res.json(ids.flatMap(id => {
+        const item = byId.get(id);
+        return item ? [item] : [];
+      }));
+    } catch (error) {
+      console.error("[pet-park] shop item read failed", error);
+      return res.status(500).json({ message: "Unable to view shop building" });
     }
   });
 
