@@ -216,7 +216,8 @@ try{
       name+": tilled soil has only its two diamond borders; no curved interior furrows");
     await apply("Plant","Planted seed");
     assert.equal(await menu.getByText("Market Seeds").count(),0,"listed seeds cannot be selected");
-    await page.getByTestId("pet-park-garden-crop").waitFor({state:"visible"});
+    await page.getByTestId("pet-park-garden-crop").waitFor({state:"attached"});
+    await page.getByTestId("pet-park-garden-visible-art").waitFor({state:"visible"});
     // Scan the crop artwork rather than centering its full 200x200
     // transparent box. The uploaded visible 35x50 patch is at (150,20).
     await page.waitForFunction(()=>{
