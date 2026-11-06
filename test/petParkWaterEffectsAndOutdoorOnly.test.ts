@@ -33,7 +33,9 @@ test("indoor water effects persist with the same constraints as standard room ef
   assert.deepEqual(sanitizeParkInteriorEffects(entries).map(e => e.type),
     PARK_WATER_EFFECT_OPTIONS.map(e => e.type));
   const bad = sanitizeParkInteriorEffects([{ ...entries[0], id: "" }, { ...entries[1], type: "nonexistent" }]);
-  assert.deepEqual(bad, []);
+  assert.equal(bad.length, 1, "sanitizer repairs a blank ID but rejects an unknown type");
+  assert.equal(bad[0].type, entries[0].type);
+  assert.ok(bad[0].id.length > 0);
 });
 
 test("single water drop animates slowly and reduces motion without extra rain or splashes", () => {
@@ -56,12 +58,16 @@ test("equipped pets are private until explicitly dragged into the outdoor scene"
   assert.match(page, /Return to oval/);
 });
 
-test("building visits stay interactive and do not expose or accept indoor pets", () => {
-  assert.match(playerRoutes, /res\.status\(410\)/);
+test("building visits show their shared indoor pets and keep popup rooms non-placeable", () => {
+  assert.match(playerRoutes, /isPetAccessibleParkRoom\(room\)/);
+  assert.match(playerRoutes, /others\.length >= building\.maxPets/);
+  assert.match(playerRoutes, /isNotNull\(petParkDeposits\.buildingId\)/);
   assert.match(page, /<PetParkInteriorRoom/);
   assert.match(page, /onOpenRoom=\{showRoomEffect\}/);
   assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight/);
-  assert.doesNotMatch(page, /indoorVisiblePets|indoorSlotPointer|pet-park-interior-slots/);
+  assert.match(page, /indoorVisiblePets\.map\(pet =>/);
+  assert.match(page, /data-testid="pet-park-interior-slots"/);
+  assert.match(page, /!popupRoom && <div/);
   assert.match(page, /Move armed · drag artwork/);
   assert.match(page, /parkImageHitAt\(/);
 });
