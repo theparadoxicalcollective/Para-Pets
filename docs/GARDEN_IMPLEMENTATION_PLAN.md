@@ -1,8 +1,9 @@
 # Garden feature — Para Pets
 
-**Status:** PR #997 is the initial Admin Realm/catalog/plot foundation. Do not
-mark the Garden feature resolved until the following server/player PRs and
-physical mobile/tablet testing have been completed.
+**Status:** PR #997 (Admin foundation) and PR #998 (server transactions) were merged.
+PR 3 implements the actual player Garden inside Pet Park. Do not mark this
+feature resolved from a merged PR alone: physical iOS/Android/tablet
+interaction checks, real inventory behavior and visual review still matter.
 
 ## User-facing behavior and authoritative server rules
 
@@ -56,7 +57,7 @@ physical mobile/tablet testing have been completed.
   Admin Garden controls and stage assets, new Paint Terrain Garden Plot,
   Water Source decoration toggle and Refillable watering-pail setting.
   Does not enable player actions.
-- **PR 2 (current branch):** Authenticated GET `/api/pet-park/garden` for
+- **PR #998 (merged):** Authenticated GET `/api/pet-park/garden` for
   private per-player plot states and ready crop artwork, and POST
   `/api/pet-park/garden/plots/:plotId/{hoe,plant,water,harvest}`.
   Each POST accepts only `{requestId: crypto.randomUUID(), inventoryId}`.
@@ -70,9 +71,22 @@ physical mobile/tablet testing have been completed.
   The real-Postgres regression suite exercises state transitions, idempotency,
   owner separation, concurrency, and harvest rewards. PR 2 does **not** expose
   the new controls to players yet.
-- **PR 3:** Player-side park plot hit targets, radial menu, seed picker,
-  growth artwork, refill action, fruit award overlay, 30-second reset,
-  mobile/tablet browser smoke checks and marketplace/Bag integration QA.
+- **PR 3 (this branch):** Player plot diamond hit targets and accessible
+  four-direction radial action menu; owned/unlisted Seed Pack and tool picker
+  using current Bag inventory; state-aware growth artwork and exact
+  water-drop progress from the server; dark-brown tilled soil; picked fruit
+  award with 30-second server cooldown; reuse of already-implemented Water
+  Source refill dialog; phone/tablet browser smoke. The first dirt-path brown
+  replaces the sand-colored untitled soil; every snapped tile retains all four
+  individually visible edges, and tilled earth gains subtle dark furrows
+  and flecks.
+  Other players' outdoor pets, mini pets, rarity stars and hit areas now share
+  one world-unit zoom transform (rather than mixing pre-scaled child
+  dimensions with the camera scale). The Pet Park camera, scene model,
+  persisted admin placements, existing terrain brush, and the PC Coming
+  Soon restriction remain unchanged. No additional garden currency,
+  inventory ledger, global crop state or 390×844 stage is introduced.
+  PR 3 UI is disabled for admin preview and for players unable to enter the park.
 
 ### Regression matrix
 
@@ -99,3 +113,30 @@ physical mobile/tablet testing have been completed.
 - Automated typecheck, Node tests, production build, and phone/tablet
   browser checks must be green on the eventual merged commit. Physical
   iOS Safari, Android, tablet visual/touch QA must be reported separately.
+
+### PR 3 final real-device acceptance checks (not satisfied by CI alone)
+
+- On a real iPhone, Android phone and tablet: tap the middle and each
+  exposed edge of a snapped Garden Plot; dragging/pinching outside the
+  diamond still pans/zooms the same Pet Park. A crop image must not steal
+  hit-testing from the diamond or another player's pet.
+- Observe the same two adjacent Garden Plot tiles before/after Hoe:
+  four edges stay visible, untilled soil matches dirt path but is smoother
+  with darker patches; tilled soil is visibly deeper brown with soft
+  furrows and specks. Crop artwork stays centered above its own soil at
+  every zoom level without visual clipping, blurring or occlusion errors.
+- Complete Hoe → Seed Pack → configured water drops in all four phases →
+  Scythe → Bag fruit → 30-second rest → Hoe again. Switching devices,
+  opening/closing the menu and reloading must retain the authoritative
+  plot state and pail charges; each press deducts exactly one drop.
+- A pail at 0 must not water. Tapping a labeled Water Source must refill
+  only eligible pails to 100, never an arbitrary flagged item. The server
+  validates ownership; no plant/harvest on another player's plot state.
+- Verify an actual other-player pet and its rarity stars grow when
+  zooming in and shrink when zooming out at the same ratio as nearby
+  buildings and terrain (both pinch directions), without breaking
+  owner-only pet dragging, inspection, avatar overlays, mini pets or depth.
+- Verify PC still displays Coming Soon without exposing gameplay.
+- CI typecheck, integration tests, production build, and phone/tablet
+  scripted browser smoke must all pass. If production smoke and
+  physical-device testing disagree, keep the feature open for correction.

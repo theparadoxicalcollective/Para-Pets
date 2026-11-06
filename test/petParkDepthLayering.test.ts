@@ -59,7 +59,8 @@ test("center expansion remapping preserves ground-contact order", () => {
 test("park shares one renderer for depth, shadows and original interactions", () => {
   const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
   const shadow = readFileSync("client/src/components/PetParkGroundShadow.tsx", "utf8");
-  assert.equal((page.match(/parkDepthIndex\(\{/g) ?? []).length, 3, "buildings, items and pets each use shared depth order");
+  assert.equal((page.match(/parkDepthIndex\(\{/g) ?? []).length, 4,
+    "buildings, decor, harvested garden crop artwork and pets all use shared depth order");
   assert.doesNotMatch(page, /PARK_SELECTED_DEPTH_Z|Move park object.*layer|More options · layers/);
   assert.equal((page.match(/<PetParkGroundShadow /g) ?? []).length, 1, "only pets retain a ground shadow");
   assert.match(page, /kind="pet"/);
