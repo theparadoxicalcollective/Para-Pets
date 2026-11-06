@@ -40,7 +40,8 @@ import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan, 
 import { PET_PARK_MAX_GROUND_LEVEL, parkGroundSize, parkGroundTheme, type ParkGroundTheme } from "@shared/petParkGround";
 import { parkSnapPathPoint } from "@/lib/petParkTerrainBrush";
 import { HOME_TOUCH_SURFACE_STYLE, homeCameraPointerDelta, observeHomeViewport, safeSetPointerCapture } from "@/lib/homeCrossDevice";
-import { gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import { gardenCropProgress, gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
+import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
@@ -888,15 +889,11 @@ export default function PetParkPage() {
             { ...plot, effectType: "garden_plot" },
             { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera)) return null;
-          return <div key={plot.plotItemId} data-testid="pet-park-garden-crop"
-            aria-hidden="true" className="pointer-events-none absolute"
-            style={{ left: `${plot.xPct * 100}%`, top: `${plot.yPct * 100}%`,
-              width: plot.size * scale, height: plot.size * scale,
-              transform: "translate(-50%, -94%)",
-              zIndex: parkDepthIndex({ yPct: plot.yPct, worldHeight: geometry.worldHeight,
-                size: plot.size, kind: "item" }) }}>
-            <img src={image} alt="" draggable={false} className="h-full w-full object-contain" />
-          </div>;
+          return <PetParkCropArtwork key={plot.plotItemId + ":" + plot.phase}
+            image={image} xPct={plot.xPct} yPct={plot.yPct} size={plot.size} scale={scale}
+            zIndex={parkDepthIndex({ yPct: plot.yPct, worldHeight: geometry.worldHeight,
+              size: plot.size, kind: "item" })}
+            progress={gardenCropProgress(plot, crop)} />;
         })}
         {outdoorPets.map(pet => {
           const position = outdoorPetDraft?.petInventoryId === pet.petInventoryId
