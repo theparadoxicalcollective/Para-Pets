@@ -6,7 +6,7 @@ const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 const admin = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
 
 test("Pet Park uses existing world scene to move buildings, decor and effects without a second placement renderer", () => {
-  assert.match(page, /Drag to move · auto-saves/);
+  assert.match(page, /Double-tap artwork to move/);
   assert.match(page, /scene\?\.canEditPark/);
   assert.match(page, /startPlacement\(e, "building"/);
   assert.match(page, /startPlacement\(e, "item"/);
@@ -21,7 +21,8 @@ test("Pet Park uses existing world scene to move buildings, decor and effects wi
 
 test("touch gestures keep drag selection separate from the existing two-finger park camera", () => {
   assert.match(page, /data-park-draggable/, "draggable objects bypass viewport panning");
-  assert.match(page, /if \(e.pointerType !== "touch"\) e.stopPropagation\(\)/, "touch-down still reaches pinch tracking");
+  assert.match(page, /const doubleTap = !!previous/, "only the second tap can arm a move");
+  assert.match(page, /if \(moveArmed\?\.kind === kind && moveArmed\.id === object\.id\)/, "an armed object captures its movement pointer");
   assert.match(page, /touchPoints\.current\.set\(e.pointerId, \{ x: e.clientX, y: e.clientY \}\)/);
   assert.match(page, /setPlacementDraft\(placementPointer.current.placement\)/, "pinch cancels any unsaved object movement");
   assert.match(page, /placementPointer\.current = null;/);

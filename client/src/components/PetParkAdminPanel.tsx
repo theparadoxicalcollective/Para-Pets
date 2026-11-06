@@ -7,7 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
-import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
+import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
 type ParkDraft = {
   settings: { enabledForPlayers: boolean; enabledForModerators: boolean; backgroundUrl: string | null; coinsPerHour: number; essencePerHour: number; petXpPerHour: number };
@@ -36,12 +36,12 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [rates, setRates] = useState<{ coinsPerHour: number; essencePerHour: number; petXpPerHour: number } | null>(null);
   const [publish, setPublish] = useState<boolean | null>(null);
   const [moderatorPreview, setModeratorPreview] = useState<boolean | null>(null);
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
-  const [buildingCapacity, setBuildingCapacity] = useState(PET_PARK_BUILDING_CAPACITY_MIN);
 
   const items = data?.items ?? [];
   const buildings = data?.buildings ?? [];
@@ -54,7 +54,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
       if (variables.method !== "POST") {
         setRates(null); setPublish(null); setModeratorPreview(null);
-        toast({ title: "Pet Park settings saved", description: "Park availability and reward rates have been updated." });
+        setSettingsSaved(true);
         qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] });
         qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
         return;
@@ -99,14 +99,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
         <div className="rounded-lg border border-amber-600/40 p-3 space-y-2">
           <h3 className="font-semibold">Park rewards & player access</h3>
           <p className="text-xs">Rates are stored per hour. The recommended preset equals 1 coin/minute, 5 pet XP/minute and 2 essence/5 minutes. Closing pauses earning but preserves deposits and rewards.</p>
-          <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 })}>Use recommended reward rates</button>
+          <button type="button" className="rounded bg-[#245037] px-3 py-2 text-sm" onClick={() => { setSettingsSaved(false); setRates({ coinsPerHour: 60, essencePerHour: 24, petXpPerHour: 300 }); }}>Use recommended reward rates</button>
           {(["coinsPerHour", "essencePerHour", "petXpPerHour"] as const).map(key => <label key={key} className="flex items-center justify-between gap-2 text-sm">
             <span>{key === "coinsPerHour" ? "Coins / hour" : key === "essencePerHour" ? "Essence / hour" : "Pet XP / hour"}</span>
             <input type="number" min={0} max={10000} step={1} aria-label={key} className="w-24 rounded bg-[#0b2016] p-2"
               value={(rates ?? data?.settings)?.[key] ?? 0}
-              onChange={e => setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
+              onChange={e => { setSettingsSaved(false); setRates({ coinsPerHour: (rates ?? data?.settings)?.coinsPerHour ?? 0,
                 essencePerHour: (rates ?? data?.settings)?.essencePerHour ?? 0,
-                petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) })} />
+                petXpPerHour: (rates ?? data?.settings)?.petXpPerHour ?? 0, [key]: Number(e.target.value) }); }} />
           </label>)}
           {([
             { key: "players", label: "Open Pet Park to players", checked: publish ?? data?.settings.enabledForPlayers ?? false,
@@ -124,12 +124,13 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
               aria-labelledby={`park-access-${option.key}`}
               aria-label={option.key === "players" ? "Allow players into Pet Park" : "Allow moderators into Pet Park"}
               disabled={!data || mutation.isPending}
-              onClick={() => option.setChecked(!option.checked)}
+              onClick={() => { setSettingsSaved(false); option.setChecked(!option.checked); }}
               className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5cf64] disabled:opacity-50 ${option.checked ? "border-[#f5cf64] bg-[#245037]" : "border-amber-800/70 bg-[#24312b]"}`}>
               <span aria-hidden="true" className={`absolute top-1 h-6 w-6 rounded-full shadow transition-[left] ${option.checked ? "left-7 bg-[#f5cf64]" : "left-1 bg-[#c5bda4]"}`} />
             </button>
           </div>)}
           {(publish !== null || moderatorPreview !== null) && <p role="status" className="text-xs text-[#f5cf64]">Unsaved access changes — tap Save below to apply.</p>}
+          {settingsSaved && <p role="status" className="text-xs font-semibold text-[#b6dcab]">Pet Park settings saved.</p>}
           <p className="text-xs text-amber-100/70">Moderator access allows staff to preview the normal player park without editing controls. It does not publish the park to everyone.</p>
           <button type="button" className="rounded bg-[#245037] px-4 py-2 disabled:opacity-50" disabled={mutation.isPending || !data}
             onClick={() => {
@@ -185,29 +186,16 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <input aria-label="Building name" placeholder="e.g. Woodland Cottage" maxLength={80} value={buildingName} onChange={e => setBuildingName(e.target.value)}
             className="w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45" style={{ borderColor: GOLD_BORDER }} />
         </label>
-        <div className="space-y-2">
-          <label htmlFor="pet-park-new-building-capacity" className="block text-sm">Building pet capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})</label>
-          <input id="pet-park-new-building-capacity" type="number" inputMode="numeric"
-            aria-label="Building pet capacity" min={PET_PARK_BUILDING_CAPACITY_MIN} max={PET_PARK_BUILDING_CAPACITY_MAX} step={1}
-            value={buildingCapacity} onChange={event => setBuildingCapacity(Number(event.target.value))}
-            className="w-full rounded-xl border bg-[#10291d] p-3 text-[#f5cf64]" style={{ borderColor: GOLD_BORDER }} />
-          <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacities">
-            {[10, 15, 20, 25].map(capacity => <button key={capacity} type="button" aria-pressed={buildingCapacity === capacity} onClick={() => setBuildingCapacity(capacity)}
-              className="rounded-xl border px-2 py-2 text-center text-sm" style={{ background: buildingCapacity === capacity ? "rgba(48,95,62,0.9)" : "rgba(23,54,36,0.82)", borderColor: buildingCapacity === capacity ? GOLD : GOLD_BORDER }}>
-              {capacity} {capacity === 1 ? "pet" : "pets"}
-            </button>)}
-          </div>
-          <p className="text-xs text-amber-100/60">Capacity is shared by all visitors. Each player can still deposit up to three pets in the park.</p>
-        </div>
+        <p className="text-xs text-amber-100/75">Buildings are interactive spaces for effects and magical room entrances. Equipped pets are placed outdoors only.</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
           {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
           <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
         </label>
-        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage || !isValidPetParkBuildingCapacity(buildingCapacity)}
+        <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage}
           data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
-            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: buildingCapacity,
+            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: 120, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">

@@ -110,7 +110,9 @@ test("moderator-only park access keeps ordinary players out and preserves reward
 test("visitor park shows three oval spots with existing equip and unlock paths", () => {
   assert.ok(page.includes('data-testid="pet-park-player-slots"'));
   assert.ok(page.includes("Array.from({ length: 3 }"));
-  assert.ok(page.includes("rounded-[50%]"));
+  assert.ok(page.includes("pet-park-slot"));
+  assert.ok(page.includes("slotTapEffect"));
+  assert.ok(page.includes("PetParkRewardBars"));
   assert.ok(page.includes("body: { petInventoryId: selectedPet, slotNumber: activeSlot }"));
   assert.ok(page.includes('aria-label="Close pet spot"'));
 });

@@ -3,7 +3,7 @@ import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { isParkGroundLevel, parkGroundSize } from "@shared/petParkGround";
 import { petParkBuildings, petParkDeposits, petParkSceneItems, petParkSettings } from "@shared/schema";
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
-import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
+import { sanitizeParkInteriorEffects } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 import { isParkEffect } from "@shared/petParkEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
@@ -225,15 +225,9 @@ export function registerPetParkAdminRoutes(
               proposed = proposed.map(effect => effect.id === id && effect.type === "room"
                 ? { ...effect, imageUrl: uploadedRoomUrl } : effect);
             }
-            const counts = new Map<string, number>();
-            for (const occupant of occupants) if (occupant.roomEffectId) {
-              counts.set(occupant.roomEffectId, (counts.get(occupant.roomEffectId) ?? 0) + 1);
-            }
-            for (const [id, count] of counts) {
-              const room = proposed.find(effect => effect.id === id);
-              if (!isPetAccessibleParkRoom(room) || count > room.maxPets)
-                return { status: 409 as const, message: "Move pets out of this room before removing, converting or reducing its capacity" };
-            }
+            // Legacy indoor deposit references remain intact for owners to
+            // move outdoors. Since room portals are view-only now, those old
+            // references must not block effect edits or room deletion.
             updates.interiorEffects = proposed;
           }
           const [building] = await tx.update(petParkBuildings).set(updates)
@@ -255,8 +249,22 @@ export function registerPetParkAdminRoutes(
 
   app.delete("/api/admin/pet-park/buildings/:id", isAdmin, async (req, res) => {
     try {
-      const [building] = await db.delete(petParkBuildings).where(eq(petParkBuildings.id, String(req.params.id))).returning({ id: petParkBuildings.id });
-      return building ? res.json({ deleted: true }) : res.status(404).json({ message: "Building not found" });
+      const buildingId = String(req.params.id);
+      const deleted = await db.transaction(async tx => {
+        const [building] = await tx.select({ id: petParkBuildings.id }).from(petParkBuildings)
+          .where(eq(petParkBuildings.id, buildingId)).for("update");
+        if (!building) return false;
+        // Deleting a building clears legacy indoor placement without releasing
+        // or claiming any deposit. Otherwise ON DELETE SET NULL could make a
+        // previously indoor pet public without its owner dragging it outdoors.
+        await tx.update(petParkDeposits).set({
+          showInPark: false, buildingId: null, roomEffectId: null,
+          parkXPct: null, parkYPct: null, pose: "idle",
+        }).where(and(eq(petParkDeposits.buildingId, buildingId), isNull(petParkDeposits.withdrawnAt)));
+        await tx.delete(petParkBuildings).where(eq(petParkBuildings.id, buildingId));
+        return true;
+      });
+      return deleted ? res.json({ deleted: true }) : res.status(404).json({ message: "Building not found" });
     } catch (error) {
       console.error("[pet-park] building delete failed", error);
       return res.status(500).json({ message: "Unable to delete Pet Park building" });

@@ -19,14 +19,13 @@ test("effect drafts use the most recently confirmed server save as their cancel 
   assert.match(details, /disabled=\{mutation\.isPending\} onClick=\{\(\) => mutation\.mutate\(\{ interiorEffects: effects \}\)\}/);
 });
 
-test("client occupancy hints and server lock both protect existing deposited pets", () => {
-  assert.match(page, /occupantCount=\{\(scene\.sharedPets \?\? \[\]\)\.filter\(pet => pet\.buildingId === detailsBuilding\.id\)\.length\}/);
-  assert.match(details, /disabled=\{value < occupantCount\}/);
-  assert.match(details, /capacity < occupantCount/);
+test("old indoor deposits remain safe while view-only effects can change", () => {
+  assert.doesNotMatch(page, /occupantCount=\{/);
+  assert.doesNotMatch(details, /capacity < occupantCount/);
+  assert.match(details, /All player pets stay outdoors/);
   assert.match(admin, /db\.transaction\(async tx =>/);
-  assert.match(admin, /from\(petParkBuildings\)[\s\S]*?for\("update"\)/);
   assert.match(admin, /isNull\(petParkDeposits\.withdrawnAt\)/);
   assert.match(admin, /occupants\.length > \(updates\.maxPets as number\)/);
-  assert.match(admin, /res\.status\(409\)/);
-  assert.match(player, /from\(petParkBuildings\)\.where\(eq\(petParkBuildings\.id, buildingId\)\)\.for\("update"\)/);
+  assert.doesNotMatch(admin, /count > room\.maxPets/);
+  assert.match(player, /res\.status\(410\)/);
 });

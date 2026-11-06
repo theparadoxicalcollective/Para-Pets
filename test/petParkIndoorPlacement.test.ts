@@ -14,22 +14,16 @@ test("indoor placement is additive on existing deposits and migration is repeata
   assert.match(schema, /petParkRewardClaims = pgTable\("pet_park_reward_claims"/);
 });
 
-test("placement endpoint authorizes owner, validates normalized coordinates and enforces shared building capacity", () => {
+test("legacy indoor placement is rejected without changing reward data", () => {
   assert.match(routes, /app\.patch\("\/api\/pet-park\/deposits\/:id\/placement"/);
-  assert.match(routes, /eq\(petParkDeposits\.userId, userId\)/);
-  assert.match(routes, /xPct < 0 \|\| xPct > 1/);
-  assert.match(routes, /!\["idle", "sit", "sleep"\]\.includes\(pose\)/);
-  assert.match(routes, /occupants\.length >= building\.maxPets/);
+  assert.match(routes, /res\.status\(410\)/);
   assert.match(routes, /buildingId: petParkDeposits\.buildingId/);
   assert.match(routes, /checkpointAt: petParkDeposits\.checkpointAt/);
 });
 
-test("interior shows shared occupants, permits own-pet placement and keeps indoor pets out of outdoor roster", () => {
-  assert.match(page, /const outdoorPets = .*filter\(pet => !pet\.buildingId\)/);
-  assert.match(page, /indoorVisiblePets\.map\(pet =>/);
-  assert.match(page, /pet\.buildingId === activeBuilding\?\.id && \(pet\.roomEffectId \?\? null\) === currentRoomId/);
-  assert.match(page, /Move \{deposit\.petNickname \|\| deposit\.petName\} inside/);
-  assert.match(page, /\["idle","sit","sleep"\] as const/);
-  assert.match(page, /Move \{deposit\.petNickname \|\| deposit\.petName\} outside/);
-  assert.match(page, /api\/pet-park\/deposits\/\$\{deposit\.id\}\/placement/);
+test("rooms retain effect interactions but never render pets or draggable pet slots", () => {
+  assert.match(page, /<PetParkInteriorRoom/);
+  assert.match(page, /onOpenRoom=\{showRoomEffect\}/);
+  assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight/);
+  assert.doesNotMatch(page, /indoorVisiblePets|dropEquippedPetInside|pet-park-interior-slots/);
 });

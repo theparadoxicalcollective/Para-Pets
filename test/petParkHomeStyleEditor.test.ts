@@ -43,7 +43,7 @@ test("mobile Pet Park editor matches the Home Bundle layout while keeping actual
   assert.match(page, /\["effects", "\+ Effects"\]/);
   assert.match(page, /\["decor", "\+ Decor"\]/);
   assert.match(page, /\["scene", "\+ Building"\]/);
-  assert.match(page, /Drag to move · auto-saves/);
+  assert.match(page, /Double-tap artwork to move/);
   assert.match(page, /Expand Ground/);
   assert.doesNotMatch(page, /Zoom in to Pet Park|Zoom out of Pet Park|Park camera zoom controls/);
   assert.match(page, /touchPoints.current.size === 2/);
@@ -71,7 +71,7 @@ test("effect picker exposes Home effect cards and existing water options", () =>
   assert.match(panel, /Pet Park decor size preview/);
   assert.match(panel, /size: itemSize/);
   assert.match(page, /isParkSleepPosition\(position, scene.items/);
-  assert.match(panel, /aria-pressed=\{buildingCapacity === capacity\}/);
+  assert.match(panel, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/, "new buildings remain view-only and keep the legacy minimum capacity");
   assert.match(panel, /data-testid="button-create-park-building"/);
   assert.match(panel, /data-testid="button-create-park-item"/);
   assert.match(panel, /Upload Building Image/);

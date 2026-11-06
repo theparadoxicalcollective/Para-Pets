@@ -78,7 +78,7 @@ test("returning to idle preserves deposit, owner and reward checkpoints", async 
   assert.equal(deposit.withdrawnAt, null);
   assert.equal(calls.transactions, 1);
   assert.deepEqual(calls.locked, [users, petParkDeposits]);
-  assert.deepEqual(Object.keys(calls.writes[0]).sort(), ["buildingId", "pose", "showInPark"].sort());
+  assert.deepEqual(Object.keys(calls.writes[0]).sort(), ["buildingId", "roomEffectId", "parkXPct", "parkYPct", "pose", "showInPark"].sort());
 });
 
 test("showing a deposited pet in park sets optional normalized world position without a claim", async () => {
@@ -93,7 +93,7 @@ test("showing a deposited pet in park sets optional normalized world position wi
   assert.equal(deposit.checkpointAt.toISOString(), "2026-01-01T00:00:00.000Z");
   assert.equal(deposit.buildingId, null);
   assert.equal(calls.writes.length, 2);
-  assert.deepEqual(Object.keys(calls.writes[1]).sort(), ["buildingId", "parkXPct", "parkYPct", "pose", "showInPark"].sort());
+  assert.deepEqual(Object.keys(calls.writes[1]).sort(), ["buildingId", "roomEffectId", "parkXPct", "parkYPct", "pose", "showInPark"].sort());
 });
 
 test("invalid visibility or partial coordinates fail before transaction and persistence", async () => {
@@ -104,6 +104,7 @@ test("invalid visibility or partial coordinates fail before transaction and pers
     { display: "park", xPct: 0.2, yPct: 1.1 },
     { display: "park", xPct: "0.5", yPct: 0.5 },
     { display: "idle", xPct: 0.5, yPct: 0.5 },
+    { display: "park" },
   ]) {
     const result = await invoke(body);
     assert.equal(result.statusCode, 400);
@@ -124,23 +125,26 @@ test("database write failures do not claim or withdraw pets", async () => {
   assert.equal(calls.writes.length, 0);
 });
 
-test("legacy deposits stay public while newly deposited pets default idle", () => {
+test("only explicitly placed outdoor pets become public; new equips stay private", () => {
   assert.match(migration, /show_in_park boolean NOT NULL DEFAULT true/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS show_in_park boolean NOT NULL DEFAULT true/);
   assert.match(migration, /park_x_pct real CHECK/);
   assert.match(playerRoutes, /petInventoryId, slotNumber, showInPark: false/);
   assert.match(playerRoutes, /eq\(petParkDeposits\.showInPark, true\)/);
   assert.match(playerRoutes, /showInPark: petParkDeposits\.showInPark/);
-  assert.match(playerRoutes, /showInPark: true/); // Existing interior placement still exposes pet.
+  assert.match(playerRoutes, /showInPark: false/);
+  assert.match(playerRoutes, /isNull\(petParkDeposits\.buildingId\)/);
+  assert.match(playerRoutes, /isNotNull\(petParkDeposits\.parkXPct\)/);
   assert.match(playerRoutes, /settleDeposit\(userId: string, depositId: string, withdraw: boolean\)/);
   const settlement = playerRoutes.split("async function settleDeposit")[1];
   assert.doesNotMatch(settlement, /showInPark|parkXPct|parkYPct/);
 });
 
 test("current on-screen slot UI can place or return a pet without withdrawing it", () => {
-  assert.match(page, /Return to idle/);
-  assert.match(page, /Show in park/);
-  assert.match(page, /Idle — earning/);
+  assert.match(page, /Return to oval/);
+  assert.match(page, /Drag this equipped spot onto the outdoor park/);
+  assert.doesNotMatch(page, /"Show in park"/);
+  assert.match(page, /Equipped — earning, not visible/);
   assert.match(page, /\$\{pet\.id\}\/display/);
   assert.match(page, /pet\.parkXPct != null && pet\.parkYPct != null/);
   assert.match(page, /data-testid="pet-park-player-slots"/);

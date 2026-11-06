@@ -43,7 +43,7 @@ test("duplicate room IDs cannot overwrite another saved room", () => {
   assert.equal(sanitizeParkInteriorEffects([room, { ...room, name: "Dupe" }], [room]).length, 1);
 });
 
-test("room placement is owner checked, capacity checked and persists its room ID", () => {
+test("legacy room metadata remains safe but room pet placement is retired", () => {
   const player = readFileSync("server/routes/petParkPlayer.routes.ts", "utf8");
   const admin = readFileSync("server/routes/petParkAdmin.routes.ts", "utf8");
   const schema = readFileSync("shared/schema.ts", "utf8");
@@ -51,11 +51,11 @@ test("room placement is owner checked, capacity checked and persists its room ID
   assert.match(schema, /roomEffectId: varchar\("room_effect_id"\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS room_effect_id varchar/);
   assert.match(player, /eq\(petParkDeposits\.userId, userId\)/);
-  assert.match(player, /isPetAccessibleParkRoom\(room\)/);
-  assert.match(player, /roomOccupants\.length >= room\.maxPets/);
-  assert.match(player, /roomEffectId: buildingId \? roomEffectId : null/);
+  assert.match(player, /res\.status\(410\)/);
+  assert.doesNotMatch(player, /roomOccupants\.length >= room\.maxPets/);
   assert.match(admin, /sanitizeParkInteriorEffects\(body\.interiorEffects, existing\.interiorEffects\)/);
-  assert.match(admin, /count > room\.maxPets/);
+  assert.doesNotMatch(admin, /count > room\.maxPets/, "legacy occupied rooms no longer block interactive room edits");
+  assert.match(admin, /Since room portals are view-only now/);
   assert.match(admin, /uploadedRoomUrl = await processWorldImage/);
 });
 
@@ -65,13 +65,12 @@ test("admin editing and visitor portals have separate full-room and popup behavi
   const interior = readFileSync("client/src/components/PetParkInteriorRoom.tsx", "utf8");
   assert.match(editor, /aria-label="Add effect inside building"/);
   assert.match(editor, /aria-label="Upload room image"/);
-  assert.match(editor, /aria-label="Room pet capacity"/);
+  assert.doesNotMatch(editor, /aria-label="Room pet capacity"/, "rooms are view-only and cannot accept pet deposits");
   assert.match(editor, /Room opening mode/);
   assert.match(interior, /HomeInteriorExitSparkle/);
   assert.match(interior, /onOpenRoom\?\.\(room\)/);
   assert.match(page, /aria-label="Close room popup"/);
   assert.match(page, /View-only · No pet placement/);
-  assert.match(page, /roomEffectId: currentRoomId/);
   assert.match(page, /fullPageRoom\?\.imageUrl/);
-  assert.match(page, /data-testid="pet-park-interior-slots"/);
+  assert.doesNotMatch(page, /data-testid="pet-park-interior-slots"/);
 });

@@ -26,7 +26,8 @@ test("Pet Park buildings persist exterior, interior, capacity, normalized placem
   assert.match(adminRoutes, /sanitizeHouseInteriorEffects/);
   assert.match(adminPanel, /Building exterior image/);
   assert.match(adminPanel, /Building interior image/);
-  assert.match(adminPanel, /Building pet capacity/);
+  assert.doesNotMatch(adminPanel, /Building pet capacity/);
+  assert.match(adminPanel, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/);
   assert.match(interiorRoom, /HomeInteriorEffectsLayer/);
   assert.match(buildingDetails, /HOME_INTERIOR_EFFECT_OPTIONS/);
   assert.match(buildingDetails, /Edit building:/);
@@ -40,7 +41,7 @@ test("saved buildings reach the scene and can open their configured interior", (
   assert.match(page, /activeBuilding\.interiorImageUrl/);
   assert.match(page, /activeBuilding\.interiorEffects/);
   assert.match(page, /Array\.from\(\{ length: 3 \}/);
-  assert.match(page, /data-testid="pet-park-interior-slots"/);
-  assert.match(page, /data-testid=\{`pet-park-room-slot-\$\{deposit\.slotNumber\}`\}/);
-  assert.match(page, /activeBuilding\.maxPets/);
+  assert.doesNotMatch(page, /data-testid="pet-park-interior-slots"/);
+  assert.doesNotMatch(page, /activeBuilding\.maxPets/);
+  assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight/);
 });
