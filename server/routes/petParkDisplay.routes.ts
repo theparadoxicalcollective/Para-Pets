@@ -37,8 +37,8 @@ export function registerPetParkDisplayRoutes(
             isNull(petParkDeposits.withdrawnAt))).for("update");
         if (!deposit) return null;
         const updatedFields = display === "idle"
-          ? { showInPark: false, buildingId: null, pose: "idle" as const }
-          : { showInPark: true, buildingId: null, pose: "idle" as const,
+          ? { showInPark: true, buildingId: null, roomEffectId: null, pose: "idle" as const }
+          : { showInPark: true, buildingId: null, roomEffectId: null, pose: "idle" as const,
               ...(hasX ? { parkXPct: xPct as number, parkYPct: yPct as number } : {}) };
         const [updated] = await tx.update(petParkDeposits).set(updatedFields)
           .where(eq(petParkDeposits.id, deposit.id)).returning();
