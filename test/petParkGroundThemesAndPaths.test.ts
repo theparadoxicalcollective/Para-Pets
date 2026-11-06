@@ -35,10 +35,10 @@ test("five named ground styles use the original green default, stable geometric 
 });
 
 test("terrain types expose only dirt/stone/water brush buttons; legacy Stones remain readable", () => {
-  assert.deepEqual(PARK_TERRAIN_DETAIL_OPTIONS.map(x => x.type), ["dirt_path", "stone_path", "water_path"]);
+  assert.deepEqual(PARK_TERRAIN_DETAIL_OPTIONS.map(x => x.type), ["dirt_path", "stone_path", "water_path", "garden_plot"]);
   for (const option of PARK_TERRAIN_DETAIL_OPTIONS) {
     assert.equal(isPaintableParkTerrainDetail(option.type), true);
-    assert.equal(isParkConnectedPath(option.type), true);
+    assert.equal(isParkConnectedPath(option.type), option.type !== "garden_plot");
     assert.equal(parkTerrainHeightRatio(option.type), .5);
     assert.equal(option.size, 150);
     const artwork = readFileSync("client/src/components/PetParkTerrainDetail.tsx", "utf8");
