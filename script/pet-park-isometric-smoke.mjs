@@ -57,10 +57,18 @@ try{
   await page.getByTestId('paint').click();
   for(const scale of [.65,1.2]){
    await page.evaluate(s=>window.fixtureScale(s),scale);
-   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));
+   // During pinch frames the preview canvas reprojects without re-painting.
+   // Wait for the short resting debounce before inspecting actual raster
+   // pixels, and sample using the expanded canvas' on-screen bounds.
+   await page.waitForFunction(()=>{
+     const canvas=document.querySelector('[data-testid="pet-park-painterly-terrain"]');
+     return !!canvas && canvas.dataset.parkCameraPreview==='false';
+   },null,{timeout:12000});
    const samples=await page.getByTestId('pet-park-painterly-terrain').evaluate((canvas,{width,height,scale})=>{
-    const ctx=canvas.getContext('2d');
-    const pixel=(x,y)=>Array.from(ctx.getImageData(Math.round(x*canvas.width/width),Math.round(y*canvas.height/height),1,1).data);
+    const ctx=canvas.getContext('2d'),rect=canvas.getBoundingClientRect();
+    const pixel=(x,y)=>Array.from(ctx.getImageData(
+      Math.round((x-rect.left)*canvas.width/rect.width),
+      Math.round((y-rect.top)*canvas.height/rect.height),1,1).data);
     return [pixel(width/2,height/2),pixel(width/2+90*scale,height/2-40*scale)];
    },{width,height,scale});
    assert.ok(samples[0][0]>samples[0][1],name+': diamond center is dirt');
