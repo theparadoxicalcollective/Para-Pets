@@ -34,6 +34,7 @@ test("room sleep squares trigger the existing PetAnimator sleep mode, not a dupl
   assert.match(page, /isParkIndoorSleepPosition\(position, effects, dimensions\)/);
   assert.match(page, /mode=\{sleeping \? "sleep" : "static"\}/);
   assert.match(portrait, /mode=\{reducedMotion \? "static" : mode\}/);
+  assert.match(portrait, /mode === "sleep" && !reducedMotion \? "pet-park-rest" : ""/);
   assert.match(portrait, /IntersectionObserver\(entries =>/);
   assert.match(page, /pose: isParkIndoorSleepPosition/);
   assert.match(routes, /\["idle", "sit", "sleep"\]\.includes\(pose\)/);
