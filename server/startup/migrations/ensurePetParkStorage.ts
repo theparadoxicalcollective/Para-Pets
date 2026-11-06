@@ -14,12 +14,14 @@ export async function ensurePetParkStorage(): Promise<void> {
       enabled_for_moderators boolean NOT NULL DEFAULT false,
       background_url text,
       ground_level integer NOT NULL DEFAULT 1 CHECK (ground_level BETWEEN 1 AND 4),
+      ground_theme text NOT NULL DEFAULT 'grass' CHECK (ground_theme IN ('grass','snow','haunted','swamp','volcanic')),
       coins_per_hour integer NOT NULL DEFAULT 0,
       essence_per_hour integer NOT NULL DEFAULT 0,
       pet_xp_per_hour integer NOT NULL DEFAULT 0,
       updated_at timestamp NOT NULL DEFAULT now()
     );
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS enabled_for_moderators boolean NOT NULL DEFAULT false;
+    ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS ground_theme text NOT NULL DEFAULT 'grass';
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS coins_per_hour integer NOT NULL DEFAULT 0;
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS essence_per_hour integer NOT NULL DEFAULT 0;
     ALTER TABLE pet_park_settings ADD COLUMN IF NOT EXISTS pet_xp_per_hour integer NOT NULL DEFAULT 0;
