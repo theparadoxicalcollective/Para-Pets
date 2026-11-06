@@ -1,22 +1,8 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 
-export type PrimaryQuestGuideOwner = "begin-journey" | "npc-discovery";
-
-/** An accepted NPC quest takes precedence over the optional read-only tour.
- * Otherwise an old tour step can block the Closet, the fish market or a
- * real quest while telling the player to open navigation again.
- */
-export function shouldPauseNpcDiscoveryTour({
-  ginnyStatus, lonelleStatus, jansonStatuses = [],
-}: {
-  ginnyStatus?: string | null;
-  lonelleStatus?: string | null;
-  jansonStatuses?: readonly (string | null | undefined)[];
-}): boolean {
-  return ginnyStatus === "accepted" || ginnyStatus === "completed"
-    || lonelleStatus === "accepted" || lonelleStatus === "found" || lonelleStatus === "taken"
-    || jansonStatuses.some(status => status === "accepted" || status === "completed");
-}
+// Shared spotlight ownership remains available for new avatar/player-level
+// onboarding. It is no longer tied to retired "begin-journey" or NPC-tour IDs.
+export type PrimaryQuestGuideOwner = string;
 
 const activeOwners = new Set<PrimaryQuestGuideOwner>();
 const listeners = new Set<() => void>();
