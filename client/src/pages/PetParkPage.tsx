@@ -667,7 +667,7 @@ export default function PetParkPage() {
           const isMine = deposits.some(item => item.petInventoryId === pet.petInventoryId);
           return <div key={pet.petInventoryId} data-park-pet className="pointer-events-none absolute"
             style={{ left: pet.interiorXPct * imageWidth, top: pet.interiorYPct * roomHeight,
-              transform: "translate(-50%, -88%)", zIndex: 5 + Math.round(pet.interiorYPct * 100) }}>
+              transform: "translate(-50%, -88%)", zIndex: 2 }}>
             <PetParkPetPortrait petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
               hatchedImageUrl={pet.hatchedImageUrl} size={petSize}
               access={isMine ? "owner" : "public"} />
