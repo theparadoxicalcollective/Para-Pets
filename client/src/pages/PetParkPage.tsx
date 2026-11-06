@@ -91,6 +91,7 @@ export default function PetParkPage() {
   const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
   const [slotTapEffect, setSlotTapEffect] = useState<{ slot: number; nonce: number } | null>(null);
   const outdoorPetPointer = useRef<{ id: number; depositId: string; petInventoryId: string; x: number; y: number; initialX: number; initialY: number } | null>(null);
+  const suppressOutdoorInspectUntil = useRef(0);
   const [outdoorPetDraft, setOutdoorPetDraft] = useState<{ petInventoryId: string; x: number; y: number } | null>(null);
   const indoorSlotPointer = useRef<{ pointerId: number; petId: string; x: number; y: number } | null>(null);
   const [indoorDragGhost, setIndoorDragGhost] = useState<{ x: number; y: number; petId: string } | null>(null);
@@ -521,6 +522,7 @@ export default function PetParkPage() {
     setOutdoorPetDraft(null);
     if (!moved) return;
     const next = outdoorPetPosition(drag, event.clientX, event.clientY);
+    suppressOutdoorInspectUntil.current = Date.now() + 450;
     action.mutate({ method: "PATCH", path: `/api/pet-park/deposits/${drag.depositId}/display`,
       body: { display: "park", xPct: next.x, yPct: next.y } });
   };
@@ -703,15 +705,16 @@ export default function PetParkPage() {
                 <MiniPetRenderer petInventoryId={pet.petInventoryId} access={isMine ? "owner" : "public"} animated={!reduceMotion} />
               </div>
             </div>
-            {myDeposit && <button type="button"
-              aria-label={`Move ${pet.petNickname || pet.petName} in the outdoor park`}
-              data-testid="pet-park-outdoor-drag"
-              className="pointer-events-auto absolute inset-x-0 top-0 z-[2] h-[80%] touch-none"
-              onPointerDown={event => startOutdoorPetDrag(event, myDeposit, position)}
-              onPointerMove={moveOutdoorPetDrag}
-              onPointerUp={endOutdoorPetDrag}
-              onPointerCancel={cancelOutdoorPetDrag}
-              onLostPointerCapture={cancelOutdoorPetDrag} />}
+            <button type="button"
+              aria-label={myDeposit ? `Move or inspect ${pet.petNickname || pet.petName} in the outdoor park` : `Inspect ${pet.petNickname || pet.petName}`}
+              data-testid={myDeposit ? "pet-park-outdoor-drag" : "pet-park-outdoor-inspect"}
+              className="pointer-events-auto absolute left-[12%] top-[5%] z-[2] h-[70%] w-[76%] touch-none"
+              onPointerDown={myDeposit ? event => startOutdoorPetDrag(event, myDeposit, position) : undefined}
+              onPointerMove={myDeposit ? moveOutdoorPetDrag : undefined}
+              onPointerUp={myDeposit ? endOutdoorPetDrag : undefined}
+              onPointerCancel={myDeposit ? cancelOutdoorPetDrag : undefined}
+              onLostPointerCapture={myDeposit ? cancelOutdoorPetDrag : undefined}
+              onClick={() => { if (Date.now() >= suppressOutdoorInspectUntil.current) setInspectedPet(pet); }} />
             <PetParkRarityStars rarity={pet.rarity} petSize={petSize * scale} />
           </div>;
         })}
