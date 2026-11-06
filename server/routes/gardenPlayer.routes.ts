@@ -75,7 +75,11 @@ async function requireParkAccess(tx: GardenTx, userId: string, lock: boolean) {
 }
 async function ownedEquipment(tx: GardenTx, userId: string, inventoryId: string) {
   // Marketplace escrows the WHOLE listed row; neither tools nor seeds may use it.
-  const [inventory] = await tx.select().from(userInventory)
+  const [inventory] = await tx.select({
+    id: userInventory.id, userId: userInventory.userId,
+    shopItemId: userInventory.shopItemId, isListed: userInventory.isListed,
+    quantity: userInventory.quantity, gardenWaterLeft: userInventory.gardenWaterLeft,
+  }).from(userInventory)
     .where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId)))
     .for("update");
   requireAction(inventory && !inventory.isListed && inventory.quantity > 0,
@@ -244,7 +248,7 @@ export function registerGardenPlayerRoutes(
             requireAction(fruit?.type === "garden_fruit", 409, "Garden fruit is not available");
             const quantity = gardenHarvestQuantity(random());
             // Reuse the ordinary unlisted inventory stack, never marketplace escrow.
-            const [stack] = await tx.select().from(userInventory).where(and(
+            const [stack] = await tx.select({ id: userInventory.id }).from(userInventory).where(and(
               eq(userInventory.userId, userId), eq(userInventory.shopItemId, fruit.id),
               eq(userInventory.isListed, false), sql`${userInventory.quantity} > 0`,
             )).orderBy(userInventory.acquiredAt, userInventory.id).limit(1).for("update");
