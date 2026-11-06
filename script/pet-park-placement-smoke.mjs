@@ -49,9 +49,12 @@ try{
    }
    return route.fulfill({json:{}});
   });
-  await page.goto('http://127.0.0.1:4180/park-fixture');
+  // Vite's cold dependency optimization can delay the load event on CI.
+  // Navigation commits first; the actual gameplay readiness assertion below
+  // still requires the real building control to render before interactions.
+  await page.goto('http://127.0.0.1:4180/park-fixture',{waitUntil:'commit',timeout:30000});
   const cottage=page.getByRole('button',{name:'Enter Fixture Cottage',exact:true});
-  await cottage.waitFor({state:'visible'});
+  await cottage.waitFor({state:'visible',timeout:30000});
   assert.equal(await page.getByTestId('pet-park-contact-shadow').count(),0,name+': buildings and decor must have no added ground shadows');
   assert.equal(patches.length,0,'loading must never move saved objects');
   // One drag may pan the camera or select, but must NOT move admin objects.
