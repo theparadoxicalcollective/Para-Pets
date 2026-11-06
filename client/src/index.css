@@ -4146,3 +4146,76 @@ img[data-interactive], button img, a img {
   height: 0;
   display: none;
 }
+
+/* Pet Park's three equipped ovals: ornate game controls, not flat web buttons.
+   Effects are decorative/pointer-transparent and respect reduced motion. */
+.pet-park-slot {
+  position: relative;
+  isolation: isolate;
+  border: 2px solid #bd9850;
+  border-radius: 50% / 46%;
+  background:
+    radial-gradient(ellipse at 46% 7%, rgba(200, 176, 97, .32), transparent 52%),
+    radial-gradient(ellipse at 50% 45%, #254f36 0%, #173b29 51%, #071b13 100%);
+  box-shadow: inset 0 2px 1px rgba(254, 225, 147, .32),
+    inset 0 -5px 9px rgba(0, 0, 0, .45),
+    0 7px 13px rgba(0,0,0,.33), 0 0 0 1px rgba(80,49,14,.65);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.pet-park-slot::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(237,199,110,.32);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.pet-park-slot::after {
+  content: "";
+  position: absolute;
+  inset: 9px 12px auto;
+  height: 20%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255,230,157,.2), transparent 77%);
+  pointer-events: none;
+}
+.pet-park-slot:active { transform: scale(.97); }
+.pet-park-slot:focus-visible,
+.pet-park-slot--active {
+  border-color: #ffe3a0;
+  box-shadow: inset 0 2px 2px rgba(255,228,154,.4),
+    0 0 0 2px rgba(253,220,121,.22), 0 0 16px rgba(244,192,87,.32),
+    0 5px 13px rgba(0,0,0,.4);
+}
+.pet-park-slot__tap-sparkles {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+}
+.pet-park-slot__tap-sparkles i {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  display: block;
+  width: 10px;
+  height: 10px;
+  background: #ffe8a5;
+  clip-path: polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
+  filter: drop-shadow(0 0 3px #ffdf7c);
+  opacity: 0;
+  animation: pet-park-oval-spark .55s ease-out forwards;
+}
+.pet-park-slot__tap-sparkles i:nth-child(1) { --spark-dx: -35px; --spark-dy: -22px; animation-delay: 0s; }
+.pet-park-slot__tap-sparkles i:nth-child(2) { --spark-dx: 30px; --spark-dy: -19px; animation-delay: .06s; }
+.pet-park-slot__tap-sparkles i:nth-child(3) { --spark-dx: 37px; --spark-dy: 13px; animation-delay: .02s; }
+.pet-park-slot__tap-sparkles i:nth-child(4) { --spark-dx: -31px; --spark-dy: 20px; animation-delay: .08s; }
+.pet-park-slot__tap-sparkles i:nth-child(5) { --spark-dx: 0px; --spark-dy: -34px; animation-delay: .04s; }
+@keyframes pet-park-oval-spark {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(0deg); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--spark-dx)),calc(-50% + var(--spark-dy))) scale(.65) rotate(50deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-park-slot, .pet-park-slot__tap-sparkles i { transition: none; animation: none; }
+}
