@@ -11,7 +11,7 @@ import { db } from "../db";
  * unlisted item can participate. The inventory row is locked so a refill
  * cannot race a future garden watering transaction on the same item.
  */
-export function registerGardenRefillRoutes(app: Express, isAuthenticated: RequestHandler): void {
+export function registerGardenRefillRoutes(app: Express, isAuthenticated: RequestHandler, database: typeof db = db): void {
   app.post("/api/pet-park/water-sources/:sourceId/refill", isAuthenticated, async (req, res) => {
     const sourceId = req.params.sourceId;
     const inventoryId = req.body?.inventoryId;
@@ -21,7 +21,7 @@ export function registerGardenRefillRoutes(app: Express, isAuthenticated: Reques
     }
     const userId = (req.user as { id: string }).id;
     try {
-      const result = await db.transaction(async tx => {
+      const result = await database.transaction(async tx => {
         const [settings] = await tx.select({
           enabledForPlayers: petParkSettings.enabledForPlayers,
           enabledForModerators: petParkSettings.enabledForModerators,
