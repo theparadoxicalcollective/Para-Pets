@@ -105,6 +105,12 @@ export async function ensurePetParkStorage(): Promise<void> {
       ON pet_park_deposits (user_id, slot_number) WHERE withdrawn_at IS NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS pet_park_deposits_pet_active_uidx
       ON pet_park_deposits (pet_inventory_id) WHERE withdrawn_at IS NULL;
+    -- Building and room occupancy must stay cheap as the number of players
+    -- grows. This partial index covers the same active-deposit predicate
+    -- used by capacity checks, scene reads and building deletion.
+    CREATE INDEX IF NOT EXISTS pet_park_deposits_building_active_idx
+      ON pet_park_deposits (building_id, room_effect_id)
+      WHERE withdrawn_at IS NULL AND building_id IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS pet_park_reward_claims (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
