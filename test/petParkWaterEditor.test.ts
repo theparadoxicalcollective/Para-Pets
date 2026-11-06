@@ -17,14 +17,14 @@ test("park uses expandable grass without requiring uploaded terrain art", () => 
   assert.match(migration, /'decor', 'sleep_spot', 'effect'/);
 });
 
-test("water effects use admin-only persistence and three supported types", () => {
+test("four water effects use admin-only persistence and shared effect options", () => {
   assert.match(api, /app.post\("\/api\/admin\/pet-park\/items", isAdmin/);
   assert.match(api, /kind === "effect" && !isParkEffect\(effectType\)/);
-  for (const kind of ["waterfall_mist", "water_ripple", "water_shimmer"]) {
+  for (const kind of ["waterfall_mist", "water_ripple", "water_shimmer", "water_drop"]) {
     assert.ok(shared.includes(kind));
-    assert.ok(panel.includes(kind));
     assert.ok(visual.includes(kind));
   }
+  assert.match(panel, /PARK_WATER_EFFECT_OPTIONS\.map\(option =>/);
   assert.match(sceneApi, /canEditPark: !!player\?\.isAdmin/);
   assert.match(page, /scene\?\.canEditPark && showCreator/);
   assert.match(page, /<PetParkAdminPanel key=\{editorMode\} initialMode=/);
