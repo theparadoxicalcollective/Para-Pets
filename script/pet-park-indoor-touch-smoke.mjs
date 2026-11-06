@@ -62,7 +62,31 @@ try {
     await houseButton.waitFor({state:"visible",timeout:30000});
     // The real hit-test intentionally rejects clicks before the artwork is decoded.
     await houseButton.locator("img").evaluate(img => img.decode());
+    const clickInfo = await houseButton.evaluate(button => {
+      const img = button.querySelector("img");
+      const rect = img.getBoundingClientRect();
+      const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+      return { imgReady: img.complete, natural: [img.naturalWidth, img.naturalHeight],
+        center: [x,y], buttonRect: button.getBoundingClientRect().toJSON(),
+        topHit: document.elementFromPoint(x,y)?.outerHTML.slice(0,300) };
+    });
+    await page.evaluate(() => {
+      window.__parkClickLog = [];
+      document.addEventListener("click", event => {
+        window.__parkClickLog.push({ target: event.target?.outerHTML.slice(0,200),
+          clientX: event.clientX, clientY: event.clientY });
+      }, true);
+    });
     await houseButton.click();
+    if (await page.getByTestId("pet-park-interior-room").count() === 0) {
+      const debug = await page.evaluate(() => ({
+        clickLog: window.__parkClickLog, scenePresent: !!document.querySelector('[data-testid="pet-park-page"]'),
+        roomCount: document.querySelectorAll('[data-testid="pet-park-interior-room"]').length,
+        dialogCount: document.querySelectorAll('[role="dialog"]').length,
+        excerpt: document.body.innerText.slice(-700),
+      }));
+      console.log("PARK CLICK DEBUG", JSON.stringify({ label, clickInfo, debug, errors }));
+    }
     await page.getByTestId("pet-park-interior-room").waitFor({state:"visible"});
     const petButton=page.getByTestId("pet-park-indoor-pet-drag");
     await petButton.waitFor({state:"visible"});
