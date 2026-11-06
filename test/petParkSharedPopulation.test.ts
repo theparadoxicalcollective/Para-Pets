@@ -8,6 +8,7 @@ const client = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 test("park scene shares publicly displayed pets, preserving idle private deposits and reward records", () => {
   assert.match(server, /const sharedPets = await db\.select/);
   assert.match(server, /eq\(petParkDeposits\.showInPark, true\), isNull\(petParkDeposits\.buildingId\)/);
+  assert.match(server, /isNotNull\(petParkDeposits\.buildingId\)/);
   assert.match(server, /isNotNull\(petParkDeposits\.parkXPct\)/);
   assert.match(server, /items, deposits, sharedPets, unlockedSlots/);
   assert.match(server, /eq\(petParkDeposits\.userId, userId\)/);
@@ -22,9 +23,9 @@ test("shared pet scene has stable placement, public cosmetics, pet inspection an
   assert.match(client, /costumeAccess=\{isMine \? "owner" : "public"\}/);
   assert.match(client, /Keeper: \{inspectedPet\.ownerName\}/);
   assert.match(client, /refetchInterval: 30_000/);
-  assert.match(client, /const outdoorPets = scene\?\.sharedPets \?\? \[\]/);
+  assert.match(client, /const outdoorPets = \(scene\?\.sharedPets \?\? \[\]\)\.filter\(pet => !pet\.buildingId\)/);
   assert.match(client, /outdoorPets\.map/);
-  assert.doesNotMatch(client, /indoorVisiblePets\.map\(pet =>/);
+  assert.match(client, /indoorVisiblePets\.map\(pet =>/);
   assert.match(client, /data-testid="pet-park-outdoor-drag"/);
   assert.match(client, /\(scene\?\.sharedPets \?\? \[\]\)\.length/);
   assert.match(client, /scene && <div/);
