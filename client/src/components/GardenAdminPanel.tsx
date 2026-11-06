@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GARDEN_IMAGE_KEYS, GARDEN_PHASES, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY, type GardenImageKey, type GardenToolKind } from "@shared/garden";
 
-type CatalogItem = { id: string; name: string; description: string | null; imageUrl: string | null; price: number; specialType?: string | null };
+type CatalogItem = { id: string; name: string; description: string | null; imageUrl: string | null; price: number; specialType?: string | null; isRefillable?: boolean };
 type GardenCrop = {
   id: string; seedItem: CatalogItem | null; fruitItem: CatalogItem | null; ready: boolean;
   plantedImageUrl: string | null; seedlingImageUrl: string | null;
@@ -55,6 +55,8 @@ export default function GardenAdminPanel() {
   const [images, setImages] = useState<Partial<Record<GardenImageKey, string>>>({});
   const [toolName, setToolName] = useState("");
   const [toolPrice, setToolPrice] = useState("0");
+  const [toolRefillable, setToolRefillable] = useState(true);
+  const [updatingToolId, setUpdatingToolId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const openCrop = (crop?: GardenCrop) => {
@@ -71,6 +73,7 @@ export default function GardenAdminPanel() {
     const option = GARDEN_TOOL_OPTIONS.find(item => item.key === kind)!;
     setForm({ kind: "tool", type: kind }); setToolName(option.label);
     setToolPrice("0"); setImages({});
+    setToolRefillable(kind === "watering_pail");
   };
   const setImage = async (key: GardenImageKey, file: File) => {
     try {
@@ -87,6 +90,19 @@ export default function GardenAdminPanel() {
     if (key === "fruit") return form.crop.fruitItem?.imageUrl ?? null;
     return form.crop[(key + "ImageUrl") as keyof GardenCrop] as string | null;
   };
+  const toggleRefillable = async (item: CatalogItem) => {
+    if (updatingToolId) return;
+    setUpdatingToolId(item.id);
+    try {
+      await apiRequest("PATCH", `/api/admin/garden/tools/${item.id}/refillable`,
+        { isRefillable: !item.isRefillable });
+      await qc.invalidateQueries({ queryKey: ["/api/admin/garden"] });
+    } catch (error) {
+      toast({ title: "Refillable setting was not changed", description: String(error), variant: "destructive" });
+    } finally {
+      setUpdatingToolId(null);
+    }
+  };
   const submit = async () => {
     if (!form || saving) return;
     setSaving(true);
@@ -97,6 +113,7 @@ export default function GardenAdminPanel() {
         if (!Number.isSafeInteger(price) || price < 0 || price > 1_000_000) throw new Error("Enter a valid tool price.");
         await apiRequest("POST", "/api/admin/garden/tools", {
           kind: form.type, name: toolName.trim(), price, imageData: images.seedPack,
+          isRefillable: form.type === "watering_pail" && toolRefillable,
         });
       } else {
         const price = Number(draft.price);
@@ -157,6 +174,14 @@ export default function GardenAdminPanel() {
           {item.imageUrl && <img src={item.imageUrl} alt="" className="h-11 w-11 object-contain" />}
           <div className="min-w-0"><p className="truncate text-xs font-semibold">{item.name}</p>
             <p className="text-[10px] text-[#c0b891]">{item.specialType === "watering_pail" ? "100 water drops" : item.specialType === "hoe" ? "Prepare plot" : "Harvest crop"}</p></div>
+          {item.specialType === "watering_pail" && <button type="button"
+            aria-label={`Refillable ${item.name}`} aria-pressed={Boolean(item.isRefillable)}
+            data-testid={`garden-tool-refillable-${item.id}`}
+            disabled={updatingToolId !== null}
+            onClick={() => void toggleRefillable(item)}
+            className={`ml-auto shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold disabled:opacity-50 ${item.isRefillable ? "border-[#edce72] bg-[#35543b] text-[#f2d782]" : "border-[#8c835e] bg-[#17291e] text-[#b6ad91]"}`}>
+            {item.isRefillable ? "Refillable" : "Not refillable"}
+          </button>}
         </div>)}</div>}
     </div>
     <div className="space-y-2">
@@ -189,7 +214,17 @@ export default function GardenAdminPanel() {
               <input type="number" min={0} max={1000000} className={inputs+" mt-1"} value={toolPrice} onChange={e => setToolPrice(e.target.value)} />
             </label>
             <ImageSlot label="tool" required image={images.seedPack ?? null} onFile={f => void setImage("seedPack", f)}/>
-            {form.type === "watering_pail" && <p className="text-xs text-[#dfc987]">Every pail holds exactly 100 drops. Water is tracked per owned pail, not shared across players.</p>}
+            {form.type === "watering_pail" && <>
+              <p className="text-xs text-[#dfc987]">Every pail holds exactly 100 drops. Water is tracked per owned pail, not shared across players.</p>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#baa15f]/45 bg-[#193a29] p-3 text-sm">
+                <input type="checkbox" aria-label="Refillable" checked={toolRefillable}
+                  onChange={event => setToolRefillable(event.target.checked)}
+                  className="h-4 w-4 accent-[#e9c875]" />
+                <span><strong>Refillable</strong>
+                  <small className="block text-[#d0bea0]">An empty pail may be filled back to 100 drops at a decoration marked Water Source.</small>
+                </span>
+              </label>
+            </>}
           </> : <>
             <div className="grid grid-cols-2 gap-2">
               <label className="col-span-2 block text-xs">Seed name
