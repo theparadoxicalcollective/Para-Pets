@@ -41,16 +41,14 @@ export default function PetParkTerrainDetail({ type, tilled = false }: { type: P
         stroke={tilled ? "#281a14" : "#3d2b20"} strokeWidth="5" strokeLinejoin="round" />
       <path d="M120 7 L230 60 L120 112 L10 60 Z" fill="none"
         stroke={tilled ? "#8c6245" : "#997452"} strokeWidth="2" strokeOpacity={tilled ? ".48" : ".55"} />
-      {tilled ? <>
-        {/* Soft diagonal furrows; no hard striped texture or sand colors. */}
-        <path d="M29 62 Q90 28 150 40 M45 78 Q118 38 195 61 M73 93 Q131 58 204 66"
-          fill="none" stroke="#1d1815" strokeOpacity=".42" strokeWidth="7" strokeLinecap="round" />
-        <path d="M32 57 Q91 26 147 36 M48 73 Q114 38 189 58 M77 88 Q140 54 202 63"
-          fill="none" stroke="#846043" strokeOpacity=".38" strokeWidth="2.8" strokeLinecap="round" />
-      </> : <>
-        <path d="M28 60 Q72 42 100 49 M131 78 Q172 59 209 63"
-          fill="none" stroke="#33261e" strokeOpacity=".2" strokeWidth="5" strokeLinecap="round" />
-      </>}
+      {/* Smooth dark tilled earth: softly graded browns and scattered soil
+          flecks only. No curved/striped furrows; the four individual diamond
+          borders remain intact even beside another snapped plot. */}
+      {tilled && [[51,48,2.1,1.0],[79,65,1.7,1.0],[101,75,2.5,1.3],
+        [131,41,1.9,.9],[168,58,2.3,1.1],[148,82,1.5,.8],
+        [119,55,1.6,.8],[189,67,1.5,.8],[63,73,1.8,.8]].map(([x,y,rx,ry],i) =>
+        <ellipse key={`grain-${i}`} cx={x} cy={y} rx={rx} ry={ry}
+          fill={i%4===0 ? "#8c694a" : "#261c17"} opacity={i%4===0 ? ".28" : ".22"} />)}
       {[[36,60,4,2],[62,53,7,3],[85,82,4,2],[112,29,5,2],[156,75,7,3],
         [190,60,5,2],[120,91,4,2],[145,49,5,2],[91,50,3,2],[178,84,3,2]].map(([x,y,rx,ry],i) =>
         <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry}
