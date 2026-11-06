@@ -65,7 +65,7 @@ test("editing and brush previews use the same path stamps without introducing a 
   assert.match(page, /placementSave\.mutate/);
   assert.match(page, /onWheel=\{e =>/);
   assert.match(painter, /ctx\.closePath\(\)/);
-  assert.match(painter, /ctx\.fillStyle = "#624832"/);
+  assert.match(painter, /kind === "dirt_path" \? "#624832"/);
   assert.match(preview, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
   assert.doesNotMatch(preview, /radial-gradient\(ellipse at 52% 50%/);
 });
@@ -111,7 +111,7 @@ test("rest spots are created as effects only, with legacy spots still readable",
 test("outer path feathering is narrow, uneven and world-stable; connecting edges never fade", () => {
   assert.match(painter, /Math\.min\(8, edge\.size \* 0\.055\)/);
   assert.match(painter, /parkTerrainNoise\(seedX \+ i, seedY, 47\)/);
-  assert.match(painter, /gradient\.addColorStop\(1, "rgba\(44,73,52,0\)"\)/);
+  assert.match(painter, /gradient\.addColorStop\(1, `rgba\(\$\{ground\.rgb\.join\(","\)\},0\)`\)/);
   assert.doesNotMatch(painter, /const fade = Math\.min\(15, edge\.size \* 0\.11\)/);
   const view = { width: 1200, height: 1600 }, size = 150;
   const a = { xPct: 0.4, yPct: 0.5, size };
