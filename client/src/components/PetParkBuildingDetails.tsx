@@ -46,6 +46,16 @@ export default function PetParkBuildingDetails({
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(initialSelectedEffectId);
   const [showEffectChoices, setShowEffectChoices] = useState(initialShowEffectChoices);
+  const [effectMode, setEffectMode] = useState(Boolean(initialShowEffectChoices || initialSelectedEffectId));
+  const exitAfterSave = useRef(false);
+  const finishEffectEditing = () => {
+    if (mutation.isPending) return;
+    if (JSON.stringify(effects) !== JSON.stringify(savedEffects.current)) {
+      exitAfterSave.current = true;
+      mutation.mutate({ interiorEffects: effects });
+    } else if (onPreview) onPreview();
+    else onClose();
+  };
 
   useEffect(() => {
     const latest = building.interiorEffects ?? [];
@@ -78,8 +88,16 @@ export default function PetParkBuildingDetails({
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
       onUpdated();
+      if (exitAfterSave.current && variables.interiorEffects !== undefined) {
+        exitAfterSave.current = false;
+        if (onPreview) onPreview();
+        else onClose();
+      }
     },
-    onError: (error: Error) => toast({ title: "Could not update building", description: error.message, variant: "destructive" }),
+    onError: (error: Error) => {
+      exitAfterSave.current = false;
+      toast({ title: "Could not update building", description: error.message, variant: "destructive" });
+    },
   });
 
   const selectedEffect = effects.find(effect => effect.id === selectedEffectId);
@@ -155,66 +173,32 @@ export default function PetParkBuildingDetails({
     catch (error) { toast({ title: "Image upload failed", description: String(error), variant: "destructive" }); }
   };
 
-  return <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))]"
-    role="dialog" aria-modal="true" aria-label={`Edit ${building.name}`} data-testid="pet-park-building-details">
-    <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#10271e] text-amber-100 shadow-xl">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-700/50 p-3">
-        <h2 className="font-semibold text-amber-300">Edit building: {building.name}</h2>
-        <div className="flex items-center gap-2">
-          {onPreview && <button type="button" onClick={onPreview} className="rounded border border-amber-500/50 bg-[#245037] px-3 py-2 text-sm">View inside</button>}
-          <button type="button" onClick={onClose} className="rounded bg-slate-700 px-3 py-2 text-sm">Close</button>
-        </div>
+  if (effectMode && imagePreview) return <div className="fixed inset-0 z-[120] overflow-hidden bg-[#10271e]"
+    role="dialog" aria-modal="true" aria-label={`Edit effects on ${building.name}`}
+    data-testid="pet-park-building-details" data-testid-full-room-editor="true">
+    <PetParkInteriorRoom key={imagePreview} imageUrl={imagePreview} name={building.name} effects={effects}
+      selectedEffectId={selectedEffectId} editEffects expanded
+      onEffectPointerDown={onEffectPointerDown}
+      onEffectPointerMove={onEffectPointerMove}
+      onEffectPointerUp={onEffectPointerUp}
+      onEffectPointerCancel={onEffectPointerCancel} />
+    <div className="pointer-events-none absolute inset-x-3 z-30 flex items-center justify-between gap-2"
+      style={{ top: "max(62px, calc(env(safe-area-inset-top, 0px) + 12px))" }}>
+      <span className="pointer-events-auto max-w-[40%] truncate rounded-full border border-amber-500/50 bg-[#10291d]/95 px-3 py-2 text-xs font-semibold text-[#f5cf64]">{building.name}</span>
+      <div className="pointer-events-auto flex gap-2">
+        <button type="button" aria-label="Add effect inside building" disabled={mutation.isPending}
+          onClick={() => setShowEffectChoices(value => !value)}
+          className="rounded-full border border-amber-500/65 bg-[#245037]/95 px-3 py-2 text-xs font-semibold text-[#f5cf64]">+ Add effect</button>
+        <button type="button" aria-label="Finish editing room effects" disabled={mutation.isPending}
+          onClick={finishEffectEditing} className="rounded-full border border-amber-500/65 bg-[#10291d]/95 px-3 py-2 text-xs font-semibold text-[#f5cf64] disabled:opacity-50">
+          {mutation.isPending ? "Saving…" : "Done"}
+        </button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-3">
-        <div className={`space-y-2 rounded-lg border border-amber-800/60 p-3 ${initialShowEffectChoices || initialSelectedEffectId ? "order-2" : "order-1"}`}>
-          <label className="block text-sm">Name
-            <input aria-label="Park building name" className="mt-1 w-full rounded bg-slate-900 p-2" maxLength={80}
-              value={name} onChange={event => setName(event.target.value)} />
-          </label>
-          <label className="block text-sm">Shared indoor capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})
-            <input type="number" inputMode="numeric" aria-label="Park building capacity" min={PET_PARK_BUILDING_CAPACITY_MIN}
-              max={PET_PARK_BUILDING_CAPACITY_MAX} step={1} className="mt-1 w-full rounded bg-slate-900 p-3"
-              value={capacity} onChange={event => setCapacity(Number(event.target.value))} />
-          </label>
-          <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacity choices">
-            {[10, 15, 20, 25].map(value => <button type="button" key={value}
-              aria-pressed={capacity === value} disabled={value < occupantCount}
-              onClick={() => setCapacity(value)}
-              className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-2 py-2 text-xs disabled:opacity-30">
-              {value} {value === 1 ? "pet" : "pets"}
-            </button>)}
-          </div>
-          <p className="text-xs text-amber-100/70">{occupantCount} active {occupantCount === 1 ? "pet" : "pets"} inside. Move pets outside before lowering capacity.</p>
-          <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
-            disabled={mutation.isPending || !name.trim() || name.trim().length > 80 || !isValidPetParkBuildingCapacity(capacity) || capacity < occupantCount}
-            onClick={() => mutation.mutate({ name: name.trim(), maxPets: capacity })}>Save building details</button>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block text-sm">Replace exterior artwork
-              <input type="file" accept="image/*" aria-label="Replace park building exterior" className="mt-1 block w-full text-xs"
-                disabled={mutation.isPending} onChange={event => { const file = event.target.files?.[0]; void upload(file, "imageData"); event.target.value = ""; }} />
-            </label>
-            <label className="block text-sm">Replace interior background
-              <input type="file" accept="image/*" aria-label="Replace park building interior" className="mt-1 block w-full text-xs"
-                disabled={mutation.isPending} onChange={event => { const file = event.target.files?.[0]; void upload(file, "interiorImageData"); event.target.value = ""; }} />
-            </label>
-          </div>
-        </div>
-        <div className={`space-y-3 rounded-lg border border-amber-800/60 p-3 ${initialShowEffectChoices || initialSelectedEffectId ? "order-1" : "order-2"}`} aria-label="Edit building interior effects">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-amber-300">Interior effects</h3>
-            <button type="button" aria-label="Add effect inside building" onClick={() => setShowEffectChoices(value => !value)}
-              className="rounded-lg border border-amber-500/50 bg-[#245037] px-3 py-2 text-sm font-semibold text-[#f5cf64]">+ Add effect</button>
-          </div>
-          {imagePreview ? <>
-            <p className="text-xs text-amber-100/75">Add an effect, then drag it on the real room artwork. Changes are not published until you save effects.</p>
-            <PetParkInteriorRoom imageUrl={imagePreview} name={building.name} effects={effects}
-              selectedEffectId={selectedEffectId} editEffects
-              onEffectPointerDown={onEffectPointerDown}
-              onEffectPointerMove={onEffectPointerMove}
-              onEffectPointerUp={onEffectPointerUp}
-              onEffectPointerCancel={onEffectPointerCancel} />
-          </> : <p className="text-sm text-amber-100/70">Upload an interior background to place effects directly on the room.</p>}
-          {imagePreview && <>
+    </div>
+    {(showEffectChoices || selectedEffect) && <div aria-label="Edit building interior effects"
+      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto max-w-xl overflow-y-auto overscroll-contain rounded-xl border border-amber-500/60 bg-[#10291d]/95 px-3 py-3 text-amber-100 shadow-2xl"
+      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: showEffectChoices ? "48dvh" : "38dvh" }}>
+      <p className="mb-2 text-xs text-amber-100/75">Tap an effect to select it, then drag it directly on the room. Save when finished.</p>
             {showEffectChoices && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[...HOME_INTERIOR_EFFECT_OPTIONS, { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
                 className="rounded bg-teal-900 px-2 py-2 text-left text-xs disabled:opacity-50"
@@ -271,7 +255,61 @@ export default function PetParkBuildingDetails({
               <button type="button" className="rounded bg-slate-700 px-3 py-2 text-sm"
                 disabled={mutation.isPending} onClick={() => { setEffects(savedEffects.current); setSelectedEffectId(null); }}>Cancel effect changes</button>
             </div>
-          </>}
+
+    </div>}
+  </div>;
+
+  return <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))]"
+    role="dialog" aria-modal="true" aria-label={`Edit ${building.name}`} data-testid="pet-park-building-details">
+    <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#10271e] text-amber-100 shadow-xl">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-700/50 p-3">
+        <h2 className="font-semibold text-amber-300">Edit building: {building.name}</h2>
+        <div className="flex items-center gap-2">
+          {onPreview && <button type="button" onClick={onPreview} className="rounded border border-amber-500/50 bg-[#245037] px-3 py-2 text-sm">View inside</button>}
+          <button type="button" onClick={onClose} className="rounded bg-slate-700 px-3 py-2 text-sm">Close</button>
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-3">
+        <div className={`space-y-2 rounded-lg border border-amber-800/60 p-3 ${initialShowEffectChoices || initialSelectedEffectId ? "order-2" : "order-1"}`}>
+          <label className="block text-sm">Name
+            <input aria-label="Park building name" className="mt-1 w-full rounded bg-slate-900 p-2" maxLength={80}
+              value={name} onChange={event => setName(event.target.value)} />
+          </label>
+          <label className="block text-sm">Shared indoor capacity ({PET_PARK_BUILDING_CAPACITY_MIN}–{PET_PARK_BUILDING_CAPACITY_MAX})
+            <input type="number" inputMode="numeric" aria-label="Park building capacity" min={PET_PARK_BUILDING_CAPACITY_MIN}
+              max={PET_PARK_BUILDING_CAPACITY_MAX} step={1} className="mt-1 w-full rounded bg-slate-900 p-3"
+              value={capacity} onChange={event => setCapacity(Number(event.target.value))} />
+          </label>
+          <div className="grid grid-cols-3 gap-2" aria-label="Quick building capacity choices">
+            {[10, 15, 20, 25].map(value => <button type="button" key={value}
+              aria-pressed={capacity === value} disabled={value < occupantCount}
+              onClick={() => setCapacity(value)}
+              className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-2 py-2 text-xs disabled:opacity-30">
+              {value} {value === 1 ? "pet" : "pets"}
+            </button>)}
+          </div>
+          <p className="text-xs text-amber-100/70">{occupantCount} active {occupantCount === 1 ? "pet" : "pets"} inside. Move pets outside before lowering capacity.</p>
+          <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
+            disabled={mutation.isPending || !name.trim() || name.trim().length > 80 || !isValidPetParkBuildingCapacity(capacity) || capacity < occupantCount}
+            onClick={() => mutation.mutate({ name: name.trim(), maxPets: capacity })}>Save building details</button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block text-sm">Replace exterior artwork
+              <input type="file" accept="image/*" aria-label="Replace park building exterior" className="mt-1 block w-full text-xs"
+                disabled={mutation.isPending} onChange={event => { const file = event.target.files?.[0]; void upload(file, "imageData"); event.target.value = ""; }} />
+            </label>
+            <label className="block text-sm">Replace interior background
+              <input type="file" accept="image/*" aria-label="Replace park building interior" className="mt-1 block w-full text-xs"
+                disabled={mutation.isPending} onChange={event => { const file = event.target.files?.[0]; void upload(file, "interiorImageData"); event.target.value = ""; }} />
+            </label>
+          </div>
+        </div>
+        <div className="order-2 space-y-2 rounded-lg border border-amber-800/60 p-3">
+          <h3 className="font-semibold text-amber-300">Interior effects</h3>
+          <p className="text-xs text-amber-100/75">Place and drag effects directly on the full-height room, like Pet Home editing.</p>
+          <button type="button" aria-label="Edit effects on full-size room" disabled={!imagePreview}
+            className="w-full rounded-lg border border-amber-500/60 bg-[#245037] px-4 py-3 text-sm font-semibold text-[#f5cf64] disabled:opacity-50"
+            onClick={() => { setEffectMode(true); setShowEffectChoices(false); }}>Edit effects on room</button>
+          {!imagePreview && <p className="text-xs text-amber-100/60">Upload an interior background first.</p>}
         </div>
       </div>
     </div>
