@@ -64,7 +64,8 @@ test("admin editing and visitor portals have separate full-room and popup behavi
   const interior = readFileSync("client/src/components/PetParkInteriorRoom.tsx", "utf8");
   assert.match(editor, /aria-label="Add effect inside building"/);
   assert.match(editor, /aria-label="Upload room image"/);
-  assert.match(editor, /aria-label="Room pet capacity"/);
+  assert.doesNotMatch(editor, /aria-label="Room pet capacity"/);
+  assert.match(editor, /Pets remain outdoors in both modes/);
   assert.match(editor, /Room opening mode/);
   assert.match(interior, /HomeInteriorExitSparkle/);
   assert.match(interior, /onOpenRoom\?\.\(room\)/);
