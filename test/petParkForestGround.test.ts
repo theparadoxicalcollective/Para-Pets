@@ -12,7 +12,9 @@ test("Pet Park uses one original forest-green ground, not GrassTile or a compari
   assert.doesNotMatch(page, /Compare Pet Park grass|setGrassMode|GrassTile|grassMode/);
   assert.doesNotMatch(ground, /GrassTile|paintGrassTile|grassMode|new window\.Image/);
   assert.match(ground, /paintTerrain\(ctx, view\)/);
-  assert.match(ground, /ctx\.fillStyle = "#2c4934"/);
+  assert.match(ground, /ctx\.fillStyle = palette\.base/);
+  assert.match(ground, /PARK_GROUND_PALETTES/);
+  assert.match(readFileSync("client/src/lib/petParkGroundPalette.ts", "utf8"), /base: "#2c4934"/);
   assert.doesNotMatch(ground, /#6d8754/);
   assert.match(ground, /pointer-events-none/);
   assert.match(ground, /requestAnimationFrame/);
