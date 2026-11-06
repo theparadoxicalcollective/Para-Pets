@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { HOME_INTERIOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import { PARK_WATER_EFFECT_OPTIONS, isParkWaterEffect } from "@shared/petParkEffects";
 import { isParkRoomEffect, PARK_ROOM_DEFAULT_PETS, PARK_ROOM_MIN_PETS, PARK_ROOM_MAX_PETS, type ParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
 import { PET_PARK_BUILDING_CAPACITY_MIN, PET_PARK_BUILDING_CAPACITY_MAX } from "@shared/petParkBuildingCapacity";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
@@ -106,6 +107,7 @@ export default function PetParkBuildingDetails({
     const effect: ParkInteriorEffect = type === "room"
       ? { id, type: "room", x: 0.5, y: 0.5, size: defaultSize, name: "Magical Room",
           view: "full_page", imageUrl: null, maxPets: PARK_ROOM_DEFAULT_PETS }
+      : isParkWaterEffect(type) ? { id, type, x: 0.5, y: 0.5, size: defaultSize }
       : { id, type, x: 0.5, y: 0.5, size: defaultSize };
     setEffects(previous => [...previous, effect]);
     setSelectedEffectId(effect.id);
@@ -199,7 +201,7 @@ export default function PetParkBuildingDetails({
       style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: showEffectChoices ? "48dvh" : "38dvh" }}>
       <p className="mb-2 text-xs text-amber-100/75">Tap an effect to select it, then drag it directly on the room. Save when finished.</p>
             {showEffectChoices && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[...HOME_INTERIOR_EFFECT_OPTIONS, { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
+              {[...HOME_INTERIOR_EFFECT_OPTIONS, ...PARK_WATER_EFFECT_OPTIONS.map(option => ({ ...option, defaultSize: option.interiorSize })), { type: "room" as const, label: "Room", description: "Magical doorway to an interior or a popup", defaultSize: 14 }].map(option => <button key={option.type} type="button"
                 className="rounded bg-teal-900 px-2 py-2 text-left text-xs disabled:opacity-50"
                 disabled={effects.length >= HOUSE_INTERIOR_EFFECT_MAX_COUNT || mutation.isPending}
                 onClick={() => { addEffect(option.type, option.defaultSize); setShowEffectChoices(false); }}>{option.label}</button>)}
