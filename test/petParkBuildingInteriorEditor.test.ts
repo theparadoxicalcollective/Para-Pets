@@ -18,8 +18,8 @@ test("park building details are admin-only, contextual and use existing storage"
   assert.match(page, /scene\?\.canEditPark && !fullPageRoom/);
   assert.match(page, /setDetailsBuildingId\(selectedPlacement\.id\)/);
   assert.match(details, /Park building name/);
-  assert.doesNotMatch(details, /Park building capacity/);
-  assert.match(details, /Buildings and rooms are for interactive effects/);
+  assert.match(details, /Park building capacity/);
+  assert.match(details, /Players can share this building with their equipped pets/);
   assert.match(details, /Replace park building exterior/);
   assert.match(details, /Replace park building interior/);
   assert.match(details, /api\/admin\/pet-park\/buildings\/\$\{building\.id\}/);
