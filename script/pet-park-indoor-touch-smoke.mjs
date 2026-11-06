@@ -75,8 +75,9 @@ try {
     await rewards.waitFor({state:"visible"});
     assert.equal(await rewards.getByTestId("pet-park-reward-bars").count(),1,label+": details contain all reward meters");
     assert.equal(await rewards.getByRole("progressbar").count(),3,label+": coins, essence and XP show separately");
+    const claimRequest=page.waitForResponse(response=>response.url().includes("/api/pet-park/deposits/owner-deposit/claim"));
     await rewards.getByTestId("pet-park-collect-button").click();
-    await page.waitForTimeout(200);
+    await claimRequest;
     assert.deepEqual(claims,["POST"],label+": original claim action is preserved");
     await page.getByRole("button",{name:"Close pet spot"}).click();
     assert.equal(await page.getByRole("dialog",{name:"Park pet spot 1"}).count(),0);
