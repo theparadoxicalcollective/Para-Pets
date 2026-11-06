@@ -1358,7 +1358,7 @@ function AdminItemForm({
             <input type="checkbox" aria-label="Refillable" checked={isRefillable}
               onChange={event => setIsRefillable(event.target.checked)} className="h-4 w-4 accent-[#d4b66c]" />
             <span><strong className="block text-sm">Refillable</strong>
-              <small className="text-[#b4b095]">Can be filled at Pet Park decorations marked Water Source (100 water drops).</small></span>
+              <small className="text-[#b4b095]">Allow supported charged equipment to refill at designated Water Sources. This flag does not grant water by itself.</small></span>
           </label>}
 
           {/* Item-type-specific fields */}
