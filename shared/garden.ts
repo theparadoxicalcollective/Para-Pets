@@ -6,12 +6,17 @@ export const GARDEN_WATER_CAPACITY = 100;
 /** UI and server use the same eligibility rule for a refillable inventory
  * row. An unopened container (NULL charges) is already full, not empty. */
 export function gardenItemNeedsRefill(item: {
+  type?: string | null;
+  specialType?: string | null;
   isRefillable?: boolean | null;
   isListed?: boolean | null;
   quantity?: number | null;
   gardenWaterLeft?: number | null;
 }): boolean {
-  return item.isRefillable === true && item.isListed !== true &&
+  // A generic Refillable flag alone cannot turn a hoe or other item into
+  // a 100-drop watering container. Other charged item mechanics are separate.
+  return item.type === "garden_tool" && item.specialType === "watering_pail" &&
+    item.isRefillable === true && item.isListed !== true &&
     (item.quantity ?? 1) > 0 &&
     Number.isInteger(item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) &&
     (item.gardenWaterLeft ?? GARDEN_WATER_CAPACITY) >= 0 &&
