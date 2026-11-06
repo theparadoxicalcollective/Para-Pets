@@ -678,7 +678,7 @@ export default function PetParkPage() {
       aria-label="Edit selected park object">
       <div className="flex items-center justify-between gap-2">
         <strong className="truncate text-sm capitalize">{selectedPlacement.kind === "building" ? (selectedObject as ParkBuilding).name : ((selectedObject as ParkItem).effectType ?? (selectedObject as ParkItem).kind).replace(/_/g, " ")}</strong>
-        <span className="text-[11px] text-amber-100/80">{placementSave.isPending ? "Saving…" : "${moveArmed?.kind === selectedPlacement.kind && moveArmed.id === selectedPlacement.id ? "Move armed · drag artwork" : "Double-tap artwork to move"}"}</span>
+        <span className="text-[11px] text-amber-100/80">{placementSave.isPending ? "Saving…" : moveArmed?.kind === selectedPlacement.kind && moveArmed.id === selectedPlacement.id ? "Move armed · drag artwork" : "Double-tap artwork to move"}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <button type="button" aria-label="Decrease park object size" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ size: Math.max(1, placementDraft.size - 20) })}>− Size</button>
