@@ -48,6 +48,7 @@ export default function PetParkBuildingDetails({
   const [isShop, setIsShop] = useState(Boolean(building.isShop));
   const [darkness, setDarkness] = useState(building.interiorDarkness ?? 35);
   const darknessRef = useRef(building.interiorDarkness ?? 35);
+  const savedDarkness = useRef(building.interiorDarkness ?? 35);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
@@ -93,6 +94,7 @@ export default function PetParkBuildingDetails({
       if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
       if (typeof updated.isShop === "boolean") setIsShop(updated.isShop);
       if (typeof updated.interiorDarkness === "number") {
+        savedDarkness.current = updated.interiorDarkness;
         darknessRef.current = updated.interiorDarkness;
         setDarkness(updated.interiorDarkness);
       }
@@ -228,11 +230,11 @@ export default function PetParkBuildingDetails({
           }}
           onPointerUp={event => {
             event.stopPropagation();
-            if (!mutation.isPending && darknessRef.current !== (building.interiorDarkness ?? 35))
+            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
               mutation.mutate({ interiorDarkness: darknessRef.current });
           }}
           onBlur={() => {
-            if (!mutation.isPending && darknessRef.current !== (building.interiorDarkness ?? 35))
+            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
               mutation.mutate({ interiorDarkness: darknessRef.current });
           }}
           className="w-full accent-[#dcb970]" />
