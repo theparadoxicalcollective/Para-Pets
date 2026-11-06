@@ -176,6 +176,15 @@ try{
     };
     assert.equal(await menu.getByRole("button",{name:"Close garden tools"}).count(),0,
       name+": no extra X button is shown");
+    // A second tap on the plot itself counts as an outside-menu gesture.
+    // Pointer-down closes the bubbles and the trailing click must NOT
+    // immediately reopen them.
+    await ground.click();
+    await menu.waitFor({state:"hidden"});
+    await page.waitForTimeout(80);
+    assert.equal(await menu.count(),0,name+": off-menu plot tap stays dismissed");
+    await ground.click();
+    await menu.waitFor({state:"visible"});
     const apply=async(label,expectedPhase)=>{
       const count=requests.length;
       const button=menu.getByRole("button",{name:label,exact:true});
