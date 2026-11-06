@@ -569,10 +569,10 @@ export default function PetParkPage() {
         changeZoom(zoom * (e.deltaY > 0 ? 0.91 : 1.09),
           { x: e.clientX - (bounds?.left ?? 0), y: e.clientY - (bounds?.top ?? 0) });
       }}>
-      {scene && <PetParkTerrain viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
+      {scene && !activeBuilding && <PetParkTerrain viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
         worldWidth={geometry.worldWidth} worldHeight={geometry.worldHeight}
         scale={scale} panX={camera.x} panY={camera.y} dirtPatches={dirtPatches} />}
-      {scene && <div className="absolute top-0 left-0 pointer-events-none"
+      {scene && !activeBuilding && <div className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
         {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark &&
           parkImageHitAt(e.currentTarget.querySelector("img")!, e.clientX, e.clientY, building.flipped)) {
