@@ -81,3 +81,20 @@ test("effect depth is above all decorations while indoor artwork is passively la
   assert.match(page, /!activeBuilding && <div className="absolute top-0 left-0 pointer-events-none"/);
   assert.match(page, /\$\{buildingOccupants\.length\}\/\$\{activeBuilding\.maxPets\} pets inside/);
 });
+
+test("large shared parks index only active building occupants", () => {
+  assert.match(schema, /pet_park_deposits_building_active_idx/);
+  assert.match(schema, /\.on\(t\.buildingId, t\.roomEffectId\)\.where/);
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS pet_park_deposits_building_active_idx/);
+  assert.match(migration, /WHERE withdrawn_at IS NULL AND building_id IS NOT NULL/);
+});
+
+test("static indoor portraits unmount offscreen art and mini-pet renderers", () => {
+  const portrait = readFileSync("client/src/components/PetParkPetPortrait.tsx", "utf8");
+  assert.match(portrait, /IntersectionObserver\(entries =>/);
+  assert.match(portrait, /setVisible\(current => current === nearViewport \? current : nearViewport\)/);
+  assert.match(portrait, /return \(\) => observer\.disconnect\(\)/);
+  assert.match(portrait, /mode="static"/);
+  assert.match(portrait, /\{visible && <div/);
+  assert.doesNotMatch(portrait, /if \(visible\) return;/);
+});
