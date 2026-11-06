@@ -820,12 +820,17 @@ export default function PetParkPage() {
           return <div key={pet.petInventoryId} data-park-pet={pet.petInventoryId} className="absolute"
             style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%`,
               transform: "translate(-50%, -75%)", width: petSize * scale, height: petHeight * scale, zIndex: parkDepthIndex({ yPct: position.y, worldHeight: geometry.worldHeight, size: petHeight, kind: "pet" }) }}>
+            {/* The camera transforms the PET ONCE as one world-unit object.
+                PetAnimator, public costumes, mini pets, hit targets and stars
+                otherwise mix separately zoomed pixel sizes on pinch gestures. */}
+            <div data-park-pet-world-scale className="relative"
+              style={{ width: petSize, height: petHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}>
             <PetParkGroundShadow kind="pet" />
             <div data-park-pet-artwork className={`relative z-[1] pointer-events-none h-[80%] ${reduceMotion ? "" : sleeping ? "pet-park-rest" : activity.kind === "wander" ? "pet-park-wander" : "pet-park-idle"}`}
               style={{ animationDelay: `${activity.delaySeconds}s`, animationDuration: `${activity.durationSeconds}s`,
                 ["--pet-drift-x" as string]: `${activity.driftX}px`, ["--pet-drift-y" as string]: `${activity.driftY}px` }}>
               {pet.petTemplateId ? <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.petInventoryId}
-                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : sleeping ? "sleep" : "idle"} size={petSize * scale} fillContainer /> :
+                costumeAccess={isMine ? "owner" : "public"} mode={reduceMotion ? "static" : sleeping ? "sleep" : "idle"} size={petSize} fillContainer /> :
                 pet.hatchedImageUrl ? <img src={pet.hatchedImageUrl} alt="" className="h-full w-full object-contain"
                   onLoad={event => { if (pet.hatchedImageUrl) void getAlphaBounds(pet.hatchedImageUrl, event.currentTarget); }} /> : null}
               <div className="pointer-events-none absolute bottom-0 left-0 h-[25%] w-[25%]">
@@ -842,7 +847,8 @@ export default function PetParkPage() {
               onPointerCancel={myDeposit ? cancelOutdoorPetDrag : undefined}
               onLostPointerCapture={myDeposit ? cancelOutdoorPetDrag : undefined}
               onClick={() => { if (Date.now() >= suppressOutdoorInspectUntil.current) setInspectedPet(pet); }} />
-            <PetParkRarityStars rarity={pet.rarity} petSize={petSize * scale} />
+            <PetParkRarityStars rarity={pet.rarity} petSize={petSize} />
+            </div>
           </div>;
         })}
       </div>}
