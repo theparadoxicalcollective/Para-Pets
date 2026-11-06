@@ -3,6 +3,8 @@ import test from "node:test";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { getTableColumns } from "drizzle-orm";
+import { userInventory } from "../shared/schema";
 import { db } from "../server/db";
 import { registerGardenPlayerRoutes } from "../server/routes/gardenPlayer.routes";
 import { registerGardenRefillRoutes } from "../server/routes/gardenRefill.routes";
@@ -40,13 +42,6 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
         image_url text, special_type text, special_amount integer,
         is_refillable boolean NOT NULL DEFAULT false
       );
-      CREATE TABLE user_inventory (
-        id varchar PRIMARY KEY DEFAULT gen_random_uuid(), user_id varchar NOT NULL,
-        shop_item_id varchar NOT NULL, is_listed boolean NOT NULL DEFAULT false,
-        quantity integer NOT NULL DEFAULT 1 CHECK (quantity >= 0),
-        garden_water_left integer CHECK(garden_water_left BETWEEN 0 AND 100),
-        acquired_at timestamp NOT NULL DEFAULT now()
-      );
       CREATE TABLE clearing_shop_purchases (id varchar PRIMARY KEY, inventory_id varchar);
       CREATE TABLE garden_crops (
         id varchar PRIMARY KEY, seed_item_id varchar NOT NULL, fruit_item_id varchar NOT NULL,
@@ -70,6 +65,17 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
         UNIQUE(user_id, request_id)
       );
     `);
+    // A Drizzle INSERT includes DEFAULT for every shared inventory column,
+    // even for fields unrelated to gardens. Generate the test table from
+    // the actual column metadata instead of maintaining an incomplete copy.
+    const inventoryColumns = Object.values(getTableColumns(userInventory)).map(column => {
+      if (column.name === "id") return '"id" varchar PRIMARY KEY DEFAULT gen_random_uuid()';
+      if (column.name === "is_listed") return '"is_listed" boolean NOT NULL DEFAULT false';
+      if (column.name === "quantity") return '"quantity" integer NOT NULL DEFAULT 1 CHECK (quantity >= 0)';
+      if (column.name === "acquired_at") return '"acquired_at" timestamp NOT NULL DEFAULT now()';
+      return `"${column.name}" ${column.getSQLType()}`;
+    });
+    await pool.query(`CREATE TABLE user_inventory (${inventoryColumns.join(", ")})`);
     await pool.query(`
       INSERT INTO users (id) VALUES ('alice'),('bob');
       INSERT INTO pet_park_settings(id) VALUES ('main');
