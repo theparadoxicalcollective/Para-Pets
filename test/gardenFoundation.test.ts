@@ -120,7 +120,7 @@ function setup() {
       return { async returning() { return [{ id: "test-" + written.length, ...body }]; } };
     } };
   } };
-  const db = { insert: tx.insert, async transaction(fn: (tx: typeof tx) => Promise<unknown>) {
+  const db = { insert: tx.insert, async transaction(fn: (dbTx: any) => Promise<unknown>) {
     return fn(tx);
   } };
   const app = {
