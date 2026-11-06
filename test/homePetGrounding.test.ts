@@ -19,7 +19,7 @@ test("active animated pet has a responsive slab baseline and eggs retain the hom
   assert.doesNotMatch(page, /className="home-active-pet-stage"/);
 });
 
-test("Begin Journey keeps the enlarged active egg within its artwork stage", () => {
+test("Active Pet keeps the enlarged egg within its artwork stage", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
   assert.match(page, /width: "75%"/);
@@ -27,20 +27,19 @@ test("Begin Journey keeps the enlarged active egg within its artwork stage", () 
   assert.doesNotMatch(page, /max-h-\[calc\(55\*var\(--vh\)\)\]/);
 });
 
-test("Home excludes raid chrome and tutorial suppresses the duplicate hatch cinematic", () => {
+test("Home excludes raid chrome and normal hatch cinematic remains available", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
   assert.doesNotMatch(page, /raidBossData/);
   assert.doesNotMatch(page, /data-testid="display-raid-boss"/);
-  assert.match(page, /tutorialStep === 5 \|\| tutorialStep === 6/);
-  assert.match(page, /setHatchRevealing\(false\)/);
+  assert.doesNotMatch(page, /tutorialStep === 5|tutorialStep === 6/);
+  assert.match(page, /setHatchRevealing\(true\)/);
 });
 
-test("tutorial potion progress updates immediately and rejects duplicate in-flight drops", () => {
+test("normal potion progress reconciles inventory without legacy tutorial special handling", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-  assert.match(page, /tutorialPotionBusyRef\.current/);
-  assert.match(page, /onSettled: \(\) => \{ tutorialPotionBusyRef\.current = false; \}/);
+  assert.doesNotMatch(page, /tutorialPotionBusyRef|bj_step5_use_potion/);
   assert.match(page, /queryClient\.setQueryData<InventoryItem\[]>\(\["\/api\/inventory"\]/);
   assert.match(page, /hatchStartedAt: data\?\.hatchStartedAt/);
 });
