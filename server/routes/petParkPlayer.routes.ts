@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
@@ -54,6 +55,23 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)));
+      // A viewer sees ALL their own displayed pets, but only the first
+      // publicly placed OUTDOOR pet per other owner. Select that one at the
+      // database level so the scene payload and expensive pet animations/
+      // cosmetics don't scale with all three slots from every other player.
+      // If slot 1 is idle or indoors, show their lowest-numbered displayed
+      // outdoor slot. Indoor occupants remain unchanged and keep their
+      // existing room capacity, placements and owner interactions.
+      const firstOutdoor = alias(petParkDeposits, "first_outdoor");
+      const firstPublicOutdoorId = db.selectDistinctOn([firstOutdoor.userId], {
+        id: firstOutdoor.id,
+      }).from(firstOutdoor).where(and(
+        isNull(firstOutdoor.withdrawnAt),
+        eq(firstOutdoor.showInPark, true),
+        isNull(firstOutdoor.buildingId),
+        isNotNull(firstOutdoor.parkXPct), isNotNull(firstOutdoor.parkYPct),
+      )).orderBy(firstOutdoor.userId, firstOutdoor.slotNumber,
+        firstOutdoor.createdAt, firstOutdoor.id);
       // Public park roster is read-only; never expose wallet, private inventory,
       // reward checkpoints or another player's deposit mutation identifiers.
       const sharedPets = await db.select({
@@ -77,12 +95,14 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
-        // Equipping alone does not publish a pet. Only explicitly placed
-        // outdoor pets or occupants of a building/room are shared. Indoor
-        // records retain their position but never render in the outdoor scene.
+        // Equipping alone is private. Each visitor sees at most one outdoor
+        // pet per OTHER player; their own three remain movable/inspectable.
+        // Indoor residents are intentionally unaffected.
         .where(and(isNull(petParkDeposits.withdrawnAt), or(
           and(eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId),
-            isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct)),
+            isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct),
+            or(eq(petParkDeposits.userId, userId),
+              inArray(petParkDeposits.id, firstPublicOutdoorId))),
           isNotNull(petParkDeposits.buildingId),
         )))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
