@@ -9,6 +9,7 @@ import PetParkPetPortrait from "@/components/PetParkPetPortrait";
 import PetParkRewardBars from "@/components/PetParkRewardBars";
 import PetParkSlotProgress from "@/components/PetParkSlotProgress";
 import PetParkShopShelf from "@/components/PetParkShopShelf";
+import PetParkWaterRefillPopup from "@/components/PetParkWaterRefillPopup";
 import emptyParkPetArtwork from "@assets/generated_images/hub_para_pet_transparent.png";
 const coinImage = new URL("../../../attached_assets/uploads/MainGameCoinImage.PNG", import.meta.url).href;
 import PetParkAdminPanel from "@/components/PetParkAdminPanel";
@@ -256,21 +257,6 @@ export default function PetParkPage() {
       }
     },
     onError: (error: Error) => toast({ title: "Pet Park action failed", description: error.message, variant: "destructive" }),
-  });
-
-  const refillWater = useMutation({
-    mutationFn: async ({ sourceId, inventoryId }: { sourceId: string; inventoryId: string }) => {
-      const response = await apiRequest("POST", `/api/pet-park/water-sources/${sourceId}/refill`, { inventoryId });
-      return response.json() as Promise<{ itemName: string; waterLeft: number; capacity: number }>;
-    },
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
-      setSelectedWaterSourceId(null);
-      toast({ title: "Water refilled", description: `${result.itemName} now holds ${result.waterLeft} of ${result.capacity} drops.` });
-    },
-    onError: (error: Error) => toast({
-      title: "Could not refill", description: error.message, variant: "destructive",
-    }),
   });
 
   const expandGround = async () => {
@@ -1141,38 +1127,14 @@ export default function PetParkPage() {
       </div></ViewportModalPortal>
     )}
     {selectedWaterSourceId && !scene?.canEditPark && <ViewportModalPortal>
-      <div className="fixed inset-0 z-[75] flex items-center justify-center px-3 py-5"
-        data-testid="pet-park-refill-popup">
-        <button type="button" aria-label="Close Water Source" className="absolute inset-0 bg-black/75"
-          onClick={() => !refillWater.isPending && setSelectedWaterSourceId(null)} />
-        <section role="dialog" aria-modal="true" aria-label="Refill Water"
-          className="relative w-full max-w-sm overflow-y-auto rounded-2xl border-2 border-[#c9a65e] bg-[radial-gradient(ellipse_at_top,#2f6244,#102a1c_75%)] p-4 text-[#f2dcaa] shadow-[inset_0_0_0_2px_rgba(237,204,119,.17),0_16px_50px_rgba(0,0,0,.75)]"
-          style={{ maxHeight: "calc(100dvh - 40px)" }}>
-          <header className="mb-3 flex items-center justify-between border-b border-[#cead67]/40 pb-3">
-            <div className="flex items-center gap-2"><Droplets className="text-[#aadfd0]" size={24} />
-              <div><p className="text-[9px] uppercase tracking-widest text-amber-100/65">Pet Park</p>
-                <h2 className="font-fantasy text-lg font-bold text-[#ffdf90]">Water Source</h2></div>
-            </div>
-            <button type="button" aria-label="Close refill popup" onClick={() => setSelectedWaterSourceId(null)}
-              className="rounded-full border border-[#ceb073]/50 bg-[#123321] p-2"><X size={17} /></button>
-          </header>
-          <p className="mb-3 text-xs text-[#d1d2ad]">Choose a refillable item to fill it back to 100 drops.</p>
-          {isGardenInventoryLoading ? <p className="rounded-xl border border-[#b69b61]/40 bg-[#0a261a] px-3 py-4 text-center text-xs">Checking your refillable items…</p> : availableRefillables.length ? <div className="space-y-2">
-            {availableRefillables.map(item => <button key={item.inventoryId} type="button"
-              data-testid="pet-park-refill-item" disabled={refillWater.isPending}
-              onClick={() => refillWater.mutate({ sourceId: selectedWaterSourceId, inventoryId: item.inventoryId })}
-              className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-[#d4b97b]/55 bg-[#1c4530] px-3 py-2 text-left disabled:opacity-50 active:bg-[#365940]">
-              {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-10 w-10 shrink-0 object-contain" /> :
-                <Droplets size={20} className="shrink-0 text-[#b3e5d8]" />}
-              <span className="min-w-0 flex-1"><strong className="block truncate font-fantasy text-sm text-[#f5d98e]">{item.name}</strong>
-                <small className="text-[11px] text-[#c4ceaf]">{item.gardenWaterLeft ?? 100} / 100 drops</small></span>
-              <span className="rounded-full border border-[#bddaab]/45 bg-[#103324] px-2 py-1 text-xs">Fill</span>
-            </button>)}
-          </div> : <p className="rounded-xl border border-[#b69b61]/40 bg-[#0a261a] px-3 py-4 text-center text-xs text-[#e2d3a9]">
-            You have no refillable items that need water. Use a refillable tool in the garden, then return here.
-          </p>}
-        </section>
-      </div>
+      <PetParkWaterRefillPopup key={selectedWaterSourceId}
+        sourceId={selectedWaterSourceId}
+        pails={inventory.filter(item => item.type === "garden_tool" && item.specialType === "watering_pail")}
+        eligiblePails={availableRefillables}
+        inventoryLoading={isGardenInventoryLoading}
+        reduceMotion={reduceMotion}
+        onClose={() => setSelectedWaterSourceId(null)}
+        onRefilled={() => qc.invalidateQueries({ queryKey: ["/api/inventory"] })} />
     </ViewportModalPortal>}
     {inspectedPet && <ViewportModalPortal>
       <PlayerDetailPanel userId={inspectedPet.ownerId} currentUserId={viewingUser?.id}
