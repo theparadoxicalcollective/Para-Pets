@@ -149,7 +149,7 @@ export default function WorldTerrainBrush(props: Props) {
           aria-pressed={erasing} aria-label="Toggle terrain eraser"
           onClick={() => setErasing(current => !current)}
           className={`min-h-10 shrink-0 rounded-lg border px-2 text-xs font-semibold disabled:opacity-40 ${erasing ? "border-red-300 bg-[#5d2a29] text-red-100" : "border-[#b99a4c]/65 bg-[#0b2016]"}`}>
-          ${erasing ? "Erase ON" : "Erase"}
+          {erasing ? "Erase ON" : "Erase"}
         </button>
         <button type="button" disabled={saving || changingGround || draft.length > 0}
           onClick={props.onExit} className="min-h-10 shrink-0 rounded-lg border border-[#b99a4c]/65 bg-[#0b2016] px-2.5 text-xs disabled:opacity-40">
