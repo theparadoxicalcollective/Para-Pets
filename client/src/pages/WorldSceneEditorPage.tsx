@@ -10,7 +10,6 @@ import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
-import WorldGardenPreview from "@/components/world-editor/WorldGardenPreview";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
@@ -56,7 +55,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [zoom, setZoom] = useState(1);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
-  const [previewGarden, setPreviewGarden] = useState(false);
   const [showWorldOptions, setShowWorldOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
@@ -100,7 +98,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const groundTheme = settings?.groundTheme ?? "grass";
 
   useEffect(() => {
-    setEdited(null); setPan(null); setZoom(1); setPaintMode(false); setPreviewGarden(false);
+    setEdited(null); setPan(null); setZoom(1); setPaintMode(false);
     setShowWorldOptions(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     cameraDrag.current = null; objectDrag.current = null;
@@ -185,7 +183,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startObject = (event: ReactPointerEvent<HTMLButtonElement>, item: WorldScenePlacement | WorldSceneInteriorItem,
     kind: "outdoor" | "interior") => {
-    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || previewGarden || objectDrag.current) return;
+    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || objectDrag.current) return;
     const artwork = event.currentTarget.querySelector("img");
     if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
     event.stopPropagation();
@@ -364,7 +362,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   yPct: position.yPct, worldHeight: camera.worldHeight, size: p.size,
                   contact: 0.9,
                 }),
-                pointerEvents: previewGarden || p.kind === "terrain" ? "none" : undefined,
+                pointerEvents: p.kind === "terrain" ? "none" : undefined,
                 transform: "translate(-50%, -50%)",
                 outline: selectedId === p.id ? "2px solid #f6cf71" : undefined,
               }}
@@ -375,7 +373,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               onClick={event => {
                 const artwork = event.currentTarget.querySelector("img");
                 if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, p.flipped)) return;
-                if (previewGarden) return;
                 event.stopPropagation(); setSelectedId(p.id);
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
@@ -456,13 +453,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           setEdited(null);
         }} />}
     </div>
-    {previewGarden && !activeBuilding && !paintMode && !scene.isError && !draft.isError &&
-      <WorldGardenPreview worldId={worldId} placements={content.placements}
-        viewportWidth={size.width} viewportHeight={size.height}
-        sceneWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
-        worldHeight={camera.worldHeight} scale={camera.scale}
-        panX={actualPan.x} panY={actualPan.y}
-        onExit={() => setPreviewGarden(false)} />}
 
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-[max(12px,env(safe-area-inset-top))] font-fantasy">
       <div className="flex items-center justify-between gap-2">
@@ -477,14 +467,14 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-xs text-[#f5cf64]"
           onClick={() => { setActiveBuildingId(null); setSelectedInteriorId(null); }}>Exit Room</button> :
           <button type="button" aria-label="Expand Ground"
-            disabled={paintMode || previewGarden || saveDraft.isPending || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+            disabled={paintMode || saveDraft.isPending || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
             onClick={() => changeLevel(groundLevel + 1)}
             className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
             {saveDraft.isPending ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "⛶ Expand"}
           </button>}
       </div>
     </header>
-    {!activeBuilding && !paintMode && !previewGarden && <div
+    {!activeBuilding && !paintMode && <div
       className="pointer-events-none absolute right-3 z-30 flex flex-col items-end gap-2"
       style={{ top: "max(68px, calc(env(safe-area-inset-top, 0px) + 58px))" }}>
       <div className="pointer-events-auto flex items-center gap-1">
@@ -518,16 +508,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           className="mb-2 w-full rounded-lg border border-[#b99a4c]/65 bg-[#245037] px-3 py-2.5 text-xs font-semibold disabled:opacity-50">
           {saveDraft.isPending ? "Saving…" : "Save Ground Theme"}
         </button>
-        <button type="button" data-testid="button-world-garden-preview"
-          disabled={scene.isLoading || scene.isError || saveDraft.isPending}
-          onClick={() => { setSelectedId(null); setShowWorldOptions(false); setPreviewGarden(true); }}
-          className="w-full rounded-lg border border-[#b99a4c]/65 bg-[#245037] px-3 py-2.5 text-xs font-semibold disabled:opacity-50">
-          Test Gardening
-        </button>
-        <p className="mt-2 text-[10px] text-amber-100/75">Garden testing consumes your real shared inventory. Changes do not publish this world.</p>
       </section>}
     </div>}
-    {!paintMode && !previewGarden && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
+    {!paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
       style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
       <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
         Admin preview · Original world remains live
@@ -537,7 +520,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
         {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
-      </div> : !paintMode && !previewGarden && <WorldSceneControls
+      </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} placementPoint={createPoint}
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
