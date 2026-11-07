@@ -11,6 +11,7 @@ type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: 
 /** One actual-image coordinate surface for park visitors and administrators. */
 export default function PetParkInteriorRoom({
   imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false, darkness = 35,
+  sunlightStrength = 1,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
   onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect, onOpenRoom,
 }: {
@@ -18,6 +19,7 @@ export default function PetParkInteriorRoom({
   name: string;
   effects: ParkInteriorEffect[];
   darkness?: number;
+  sunlightStrength?: number;
   onOpenRoom?: (room: ParkRoomEffect) => void;
   /** Use measured image geometry for pets resting on admin-sized indoor spots. */
   children?: ReactNode | ((layout: { imageWidth: number; sceneHeight: number }) => ReactNode);
@@ -105,10 +107,11 @@ export default function PetParkInteriorRoom({
     <HomeInteriorDarknessLayer darkness={darkness}
       effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))}
       offEffectIds={offEffectIds} panX={0} imgWidth={imageWidth}
-      sceneHeight={dimensions.height} zIndex={2} />
+      sceneHeight={dimensions.height} sunlightStrength={sunlightStrength} zIndex={2} />
     <HomeInteriorEffectsLayer effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))} panX={0}
       imgWidth={imageWidth} sceneHeight={dimensions.height}
       offEffectIds={offEffectIds} onToggleEffect={onToggleEffect}
+      sunlightStrength={sunlightStrength}
       selectedId={selectedEffectId} interactive={editEffects}
       onEffectPointerDown={onEffectPointerDown} onEffectPointerMove={onEffectPointerMove}
       onEffectPointerUp={onEffectPointerUp} onEffectPointerCancel={onEffectPointerCancel} />
