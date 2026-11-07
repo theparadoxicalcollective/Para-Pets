@@ -19,7 +19,7 @@ import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { isParkEffect } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
-import { parkImageHitAt, parkImageHitClipPath } from "@/lib/petParkImageHit";
+import { parkImageHitAt, parkImageHitClipPath, parkImageVisualCenter } from "@/lib/petParkImageHit";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
@@ -67,6 +67,7 @@ export default function PetParkPage() {
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [imageContacts, setImageContacts] = useState<Record<string, number>>({});
   const [imageHitClips, setImageHitClips] = useState<Record<string, string>>({});
+  const [imageVisualCenters, setImageVisualCenters] = useState<Record<string, { xPct: number; yPct: number }>>({});
   const observeContact = (image: HTMLImageElement, url: string) => {
     const width = image.naturalWidth, height = image.naturalHeight;
     void getAlphaBounds(url, image).then(bounds => {
@@ -74,6 +75,9 @@ export default function PetParkPage() {
       setImageContacts(old => old[url] === contact ? old : { ...old, [url]: contact });
       const clipPath = parkImageHitClipPath(bounds, width, height);
       if (clipPath) setImageHitClips(old => old[url] === clipPath ? old : { ...old, [url]: clipPath });
+      const center = parkImageVisualCenter(bounds, width, height);
+      setImageVisualCenters(old => old[url]?.xPct === center.xPct && old[url]?.yPct === center.yPct
+        ? old : { ...old, [url]: center });
     });
   };
   const [selectedPet, setSelectedPet] = useState("");
@@ -904,7 +908,10 @@ export default function PetParkPage() {
                 setSelectedWaterSourceId(item.id);
               }
             }}>
-            <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c1d9b4]/65 bg-[#133b31]/85 p-1 text-[#b3e5d8] shadow-md" aria-hidden="true">
+            <span data-testid="pet-park-water-source-indicator"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c1d9b4]/65 bg-[#133b31]/85 p-1 text-[#b3e5d8] shadow-md"
+              style={{ left: `${imageVisualCenters[visibleDecorImage ?? ""]?.xPct ?? 50}%`,
+                top: `${imageVisualCenters[visibleDecorImage ?? ""]?.yPct ?? 50}%` }} aria-hidden="true">
               <Droplets size={13} />
             </span>
           </button>}
