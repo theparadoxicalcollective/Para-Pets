@@ -34,7 +34,7 @@ test("outdoor 80% and indoor 90% sizing preserve slots and world placements", ()
   assert.equal(parkIndoorScenePetSize(100), 90);
   const dimension = { width: 700, height: 1000 };
   const normal = parkIndoorPetSizeOnSleepSpot({ x: .3, y: .6 }, [], dimension, 104);
-  assert.equal(parkIndoorScenePetSize(normal), 93.6);
+  assert.ok(Math.abs(parkIndoorScenePetSize(normal) - 93.6) < 1e-9);
   const sleeping = parkIndoorPetSizeOnSleepSpot({ x: .5, y: .5 },
     [{ type: "sleep", x: .5, y: .5, size: 6 }], dimension, 104);
   assert.equal(parkIndoorScenePetSize(sleeping), sleeping * 0.9,
