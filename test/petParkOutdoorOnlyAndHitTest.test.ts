@@ -54,8 +54,12 @@ test("flipped building art mirrors its alpha hit zone", () => {
 
 test("player hit targets are clipped to visible art (including object-contain padding)", () => {
   const bounds = { left: .2, top: .1, width: .4, height: .5 };
-  assert.equal(parkImageHitClipPath(bounds, 200, 100),
-    "inset(28.799999999999997% 38.8% 43.8% 18.8%)");
+  const clip = parkImageHitClipPath(bounds, 200, 100)!;
+  assert.match(clip, /^inset\(/);
+  const sides = [...clip.matchAll(/(-?\d+(?:\.\d+)?)%/g)].map(match => Number(match[1]));
+  assert.equal(sides.length, 4);
+  for (const [i, expected] of [28.8, 38.8, 43.8, 18.8].entries())
+    assert.ok(Math.abs(sides[i] - expected) < .001, "correct object-contain inset " + i);
   assert.deepEqual(parkImageVisualCenter(bounds, 200, 100), { xPct: 40, yPct: 42.5 });
   assert.equal(parkImageHitClipPath(null, 200, 100), undefined);
   assert.deepEqual(parkImageVisualCenter(null, 200, 100), { xPct: 50, yPct: 50 });
