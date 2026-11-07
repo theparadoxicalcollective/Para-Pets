@@ -538,7 +538,8 @@ export function registerPetParkAdminRoutes(
       const tapImageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const updated = await db.update(petParkSceneItems).set({ tapImageUrl })
         .where(decorAppearanceWhere(original)).returning();
-      return res.json(updated.find(item => item.id === original.id) ?? original);
+      const selected = updated.find(item => item.id === original.id);
+      return selected ? res.json(selected) : res.status(404).json({ message: "Decoration not found" });
     } catch (error) {
       console.error("[pet-park] tap image update failed", error);
       return res.status(500).json({ message: "Could not update Tap Image" });
