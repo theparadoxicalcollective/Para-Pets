@@ -57,7 +57,7 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(menu, /ViewportModalPortal blocking=\{false\}/);
   assert.match(menu, /data-testid="pet-park-garden-anchor"/);
   assert.match(menu, /data-side=\{anchor\.side\}/, "tool arc can mirror near screen edge");
-  assert.match(menu, /className="relative h-\[249px\]"/, "tools curve vertically beside, not across, the plot");
+  assert.match(menu, /className="relative h-\[199px\]"/, "tools curve vertically beside, not across, the plot");
   assert.match(menu, /data-testid=\{"pet-park-garden-action-" \+ action\}/);
   assert.match(menu, /garden-tool-bubble/);
   assert.match(menu, /aria-disabled=\{!available\}/);
@@ -85,9 +85,15 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(page, /onWateringState=\{setWateringGardenPlotId\}/);
   assert.match(menu, /if \(action === "water"\) onWateringState\(plot\.plotItemId\)/);
   assert.match(menu, /setMotion\(null\); onWateringState\(null\)/);
-  assert.match(page, /plotX \+ 188 <= viewportSize\.width \? "right" : "left"/);
+  assert.match(page, /plotX \+ 158 <= viewportSize\.width \? "right" : "left"/);
   assert.match(page, /<ViewportModalPortal blocking=\{false\}>/);
+  assert.match(menu, /garden-tool-bubble pointer-events-auto absolute flex h-\[48px\] w-\[48px\]/,
+    "tool bubbles are smaller but keep 48px touch targets");
+  assert.match(menu, /anchor\.side === "right" \? x : 125 - x - 48/,
+    "compact arc still mirrors on narrow phones");
   const motionCss = source("client/src/components/PetParkGardenMenu.css");
+  assert.match(motionCss, /width: 82px;\s*height: 82px;/,
+    "the action artwork is scaled down above the plot");
   assert.match(motionCss, /garden-hoe-chops/);
   assert.match(motionCss, /garden-pail-tip/);
   assert.match(motionCss, /rotate\(-34deg\)/);
