@@ -55,6 +55,15 @@ export function validGardenStagePlacement(value: unknown): value is GardenStageP
 
 export type GardenToolKind = "watering_pail" | "hoe" | "scythe";
 export type GardenShopType = "garden_seed" | "garden_fruit" | "garden_tool";
+/** Base garden equipment is unique by *kind* across different catalog items.
+ * Seed packets, harvested fruit, and future consumables remain stackable. */
+export function baseGardenToolKind(item: { type?: string | null; specialType?: string | null }):
+  GardenToolKind | null {
+  return item.type === "garden_tool" &&
+    (item.specialType === "hoe" || item.specialType === "scythe" ||
+      item.specialType === "watering_pail") ? item.specialType : null;
+}
+
 export const GARDEN_TOOL_OPTIONS = [
   { key: "watering_pail", label: "Watering Pail", description: "Carries 100 drops of water" },
   { key: "hoe", label: "Hoe", description: "Prepares an empty garden plot" },
