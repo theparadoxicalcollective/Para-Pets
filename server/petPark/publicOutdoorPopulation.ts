@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { petParkDeposits, petParkPresence } from "@shared/schema";
 import type { db as database } from "../db";
@@ -46,8 +46,10 @@ export function visibleOtherParkOutdoorIds(
 
   return databaseClient.select({ id: rankedOutdoorOwners.id })
     .from(rankedOutdoorOwners)
-    .where(sql`(${rankedOutdoorOwners.ownerCount} <= ${PARK_PUBLIC_OUTDOOR_OWNER_BUDGET}
-      OR ${rankedOutdoorOwners.lastSeenAt} >= ${activeSince})`)
+    .where(or(
+      lte(rankedOutdoorOwners.ownerCount, PARK_PUBLIC_OUTDOOR_OWNER_BUDGET),
+      gte(rankedOutdoorOwners.lastSeenAt, activeSince),
+    ))
     .orderBy(desc(rankedOutdoorOwners.lastSeenAt), rankedOutdoorOwners.userId)
     .limit(PARK_PUBLIC_OUTDOOR_OWNER_BUDGET);
 }
