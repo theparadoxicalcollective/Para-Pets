@@ -16,6 +16,14 @@ export const PARK_SHOP_ROTATION_STEP = 15;
 export const PARK_SHOP_PRICE_TAG_MIN = .15;
 export const PARK_SHOP_PRICE_TAG_MAX = .85;
 export const PARK_SHOP_DEFAULT_PRICE_TAG = { xPct: .72, yPct: .78 } as const;
+// A 52px tag inside the admin editor's 148px merchandise preview. Use the
+// same image-relative proportion in the live shop, including small items:
+// fixed min/max pixel clamps made the player tag look larger than the preview.
+export const PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE = 148;
+export const PARK_SHOP_PRICE_TAG_PREVIEW_SIZE = 52;
+export function parkShopPriceTagSize(itemBoxPixels: number): number {
+  return itemBoxPixels * PARK_SHOP_PRICE_TAG_PREVIEW_SIZE / PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE;
+}
 
 /** Item-local price tag position. Existing shop JSON without tag coordinates
  * displays the same sensible lower-right default without a migration. */
