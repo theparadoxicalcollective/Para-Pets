@@ -19,7 +19,7 @@ import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { isParkEffect } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
-import { parkImageHitAt } from "@/lib/petParkImageHit";
+import { parkImageHitAt, parkImageHitClipPath, parkImageVisualCenter } from "@/lib/petParkImageHit";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
@@ -66,11 +66,18 @@ export default function PetParkPage() {
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [imageContacts, setImageContacts] = useState<Record<string, number>>({});
+  const [imageHitClips, setImageHitClips] = useState<Record<string, string>>({});
+  const [imageVisualCenters, setImageVisualCenters] = useState<Record<string, { xPct: number; yPct: number }>>({});
   const observeContact = (image: HTMLImageElement, url: string) => {
     const width = image.naturalWidth, height = image.naturalHeight;
     void getAlphaBounds(url, image).then(bounds => {
       const contact = parkImageGroundContact(width, height, bounds);
       setImageContacts(old => old[url] === contact ? old : { ...old, [url]: contact });
+      const clipPath = parkImageHitClipPath(bounds, width, height);
+      if (clipPath) setImageHitClips(old => old[url] === clipPath ? old : { ...old, [url]: clipPath });
+      const center = parkImageVisualCenter(bounds, width, height);
+      setImageVisualCenters(old => old[url]?.xPct === center.xPct && old[url]?.yPct === center.yPct
+        ? old : { ...old, [url]: center });
     });
   };
   const [selectedPet, setSelectedPet] = useState("");
@@ -851,18 +858,19 @@ export default function PetParkPage() {
         {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark &&
           parkImageHitAt(e.currentTarget.querySelector("img")!, e.clientX, e.clientY, building.flipped)) {
             setOpenedRoomId(null); setEnteredBuilding(building);
-          } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></button>)}
+          } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, clipPath: scene.canEditPark ? undefined : imageHitClips[building.imageUrl], zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></button>)}
         {scene.items.map(item => {
           const position = shownPosition("item", item);
           const visibleDecorImage = !scene.canEditPark && item.kind === "decor" &&
             item.tapImageUrl && tappedDecorIds.has(item.id) ? item.tapImageUrl : item.imageUrl;
           const isGardenPlot = item.kind === "terrain" && item.effectType === "garden_plot";
+          const isWaterTile = item.kind === "terrain" && item.effectType === "water_path";
           const savedGardenPlot = isGardenPlot ? garden?.plots?.find(plot => plot.plotItemId === item.id) : undefined;
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
             { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
-          return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : item.kind === "decor" && item.isWaterSource && scene.canEnterPark ? "pointer-events-auto" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && !item.imageUrl ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
+          return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && !item.imageUrl ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
           style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "effect" || item.kind === "sleep_spot" ? 12_000_000 : item.kind === "terrain" ? 500 : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: visibleDecorImage ? imageContacts[visibleDecorImage] : undefined }) }}>
           {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
@@ -878,6 +886,7 @@ export default function PetParkPage() {
             aria-label={tappedDecorIds.has(item.id) ? "Restore decoration" : "Tap decoration"}
             aria-pressed={tappedDecorIds.has(item.id)}
             className="pointer-events-auto absolute inset-0 z-[3] touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            style={{ clipPath: visibleDecorImage ? imageHitClips[visibleDecorImage] : undefined }}
             onClick={event => {
               event.stopPropagation();
               const image = event.currentTarget.parentElement?.querySelector("img");
@@ -890,6 +899,7 @@ export default function PetParkPage() {
             type="button" data-testid="pet-park-water-source"
             aria-label="Refill at Water Source"
             className="pointer-events-auto absolute inset-0 z-[3] touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            style={{ clipPath: visibleDecorImage ? imageHitClips[visibleDecorImage] : undefined }}
             onClick={event => {
               event.stopPropagation();
               const image = event.currentTarget.parentElement?.querySelector("img");
@@ -898,10 +908,23 @@ export default function PetParkPage() {
                 setSelectedWaterSourceId(item.id);
               }
             }}>
-            <span className="absolute -right-1 -top-2 rounded-full border border-[#c1d9b4]/65 bg-[#133b31]/85 p-1 text-[#b3e5d8] shadow-md" aria-hidden="true">
+            <span data-testid="pet-park-water-source-indicator"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c1d9b4]/65 bg-[#133b31]/85 p-1 text-[#b3e5d8] shadow-md"
+              style={{ left: `${imageVisualCenters[visibleDecorImage ?? ""]?.xPct ?? 50}%`,
+                top: `${imageVisualCenters[visibleDecorImage ?? ""]?.yPct ?? 50}%` }} aria-hidden="true">
               <Droplets size={13} />
             </span>
           </button>}
+          {!scene.canEditPark && scene.canEnterPark && isWaterTile && <button
+            type="button" data-testid="pet-park-water-tile-source"
+            aria-label="Refill at Water Tile"
+            className="pointer-events-auto absolute inset-0 z-[2] touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" }}
+            onPointerDown={event => event.stopPropagation()}
+            onClick={event => {
+              event.stopPropagation();
+              setSelectedWaterSourceId(item.id);
+            }} />}
         </div>;
         })}
         {/* Crop artwork is a depth-sorted world object above the soil, not
@@ -1306,7 +1329,7 @@ export default function PetParkPage() {
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
         </div>
       </div> : scene?.canEditPark ? (!scene.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : null) : scene && !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto flex max-w-sm flex-col" data-testid="pet-park-player-slots">
-        <div className="order-2 grid grid-cols-3 gap-2" aria-label="Your three park pet spots">
+        <div className="order-2 mx-auto grid w-full max-w-[294px] grid-cols-3 gap-2" aria-label="Your three park pet spots">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
             const pet = deposits.find(d => d.slotNumber === slot);
@@ -1325,18 +1348,16 @@ export default function PetParkPage() {
               onPointerCancel={cancelEquippedPetDrag}
               onLostPointerCapture={cancelEquippedPetDrag}
               onDoubleClick={() => { if (pet) { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(true); } }}
-              className={`pet-park-slot relative flex min-h-[116px] touch-none flex-col items-center justify-center gap-0 overflow-hidden px-1.5 py-2 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
-              <span aria-hidden="true" className="pointer-events-none absolute top-1.5 text-[9px] text-amber-200/65">✦</span>
-              <span className="relative z-[2] mt-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#f5d77b]">Spot {slot}</span>
-              {pet ? <div className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center pt-2">
-                <div className="absolute left-1/2 top-1 z-[3] w-[88%] -translate-x-1/2">
+              className={`pet-park-slot relative flex min-h-[96px] touch-none flex-col items-center justify-center gap-0 overflow-hidden px-1 py-1 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
+              {pet ? <div className="pointer-events-none relative z-[2] flex h-[68px] w-full items-center justify-center pt-1">
+                <div className="absolute left-1/2 top-0.5 z-[3] w-[88%] -translate-x-1/2">
                   <PetParkSlotProgress timing={pet} rates={scene.rates ?? { coinsPerHour: 0, essencePerHour: 0, petXpPerHour: 0 }} serverNow={scene.serverNow} />
                 </div>
                 <PetParkPetPortrait petTemplateId={pet.petTemplateId}
-                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={69} />
-              </div> : <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center">
+                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={58} />
+              </div> : <span className="pointer-events-none relative z-[2] flex h-[68px] w-full items-center justify-center">
                 <img src={emptyParkPetArtwork} alt="" draggable={false}
-                  className="pet-park-slot__empty-art h-[68px] w-[72px] object-contain" />
+                  className="pet-park-slot__empty-art h-[56px] w-[60px] object-contain" />
                 {unlocked
                   ? <span aria-hidden="true" className="pet-park-slot__add-symbol">+</span>
                   : <span aria-hidden="true" className="absolute right-2 top-0 rounded-full border border-[#bda168]/70 bg-[#091a13]/90 p-1 text-[#e3c576]"><LockKeyhole size={12} /></span>}

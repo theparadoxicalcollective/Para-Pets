@@ -1,4 +1,4 @@
-import { getAlphaBoundsSync } from "./alphaBounds";
+import { getAlphaBoundsSync, type AlphaBounds } from "./alphaBounds";
 
 /** Low-resolution alpha sampling is cached per artwork URL. This is only used
  * for admin pointer-down hit testing, never in animation or rendering loops.
@@ -48,4 +48,43 @@ export function parkImageHitAt(
   const bounds = getAlphaBoundsSync(url);
   return !bounds || (x >= bounds.left && y >= bounds.top &&
     x <= bounds.left + bounds.width && y <= bounds.top + bounds.height);
+}
+
+/**
+ * Shrink a player hit target to the visible artwork, including object-contain
+ * letterboxing. CSS clip-path affects actual pointer targeting, unlike an
+ * alpha check performed after the topmost button has already caught a click.
+ * Reuse the same alpha bounds that the park's depth/contact calculation reads.
+ * The visual art and saved positioning do not change.
+ */
+export function parkImageHitClipPath(
+  bounds: AlphaBounds | null | undefined,
+  naturalWidth: number,
+  naturalHeight: number,
+): string | undefined {
+  if (!bounds || naturalWidth <= 0 || naturalHeight <= 0) return undefined;
+  const fit = Math.max(naturalWidth, naturalHeight);
+  const width = naturalWidth / fit, height = naturalHeight / fit;
+  const padX = (1 - width) / 2, padY = (1 - height) / 2;
+  const margin = 0.012; // avoid shaving antialiased edges on high-DPI phones
+  const left = Math.max(0, padX + bounds.left * width - margin);
+  const top = Math.max(0, padY + bounds.top * height - margin);
+  const right = Math.max(0, 1 - padX - (bounds.left + bounds.width) * width - margin);
+  const bottom = Math.max(0, 1 - padY - (bounds.top + bounds.height) * height - margin);
+  return `inset(${top * 100}% ${right * 100}% ${bottom * 100}% ${left * 100}%)`;
+}
+
+/** Center affordances over the *visible* pixels, not transparent PNG padding. */
+export function parkImageVisualCenter(
+  bounds: AlphaBounds | null | undefined,
+  naturalWidth: number,
+  naturalHeight: number,
+): { xPct: number; yPct: number } {
+  if (!bounds || naturalWidth <= 0 || naturalHeight <= 0) return { xPct: 50, yPct: 50 };
+  const fit = Math.max(naturalWidth, naturalHeight);
+  const width = naturalWidth / fit, height = naturalHeight / fit;
+  return {
+    xPct: 100 * ((1 - width) / 2 + (bounds.left + bounds.width / 2) * width),
+    yPct: 100 * ((1 - height) / 2 + (bounds.top + bounds.height / 2) * height),
+  };
 }

@@ -4,7 +4,8 @@ import test from "node:test";
 import {
   defaultParkShopPlacement, flipParkShopPlacement, rotateParkShopPlacement, validParkShopPlacements,
   withParkShopDefaults, PARK_SHOP_ROTATION_STEP,
-  parkShopPriceTagPoint, parkShopPriceTagFromPointer, PARK_SHOP_DEFAULT_PRICE_TAG,
+  parkShopPriceTagPoint, parkShopPriceTagFromPointer, parkShopPriceTagSize,
+  PARK_SHOP_DEFAULT_PRICE_TAG, PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE,
 } from "../shared/petParkShopPlacements";
 
 const read = (filename: string) => readFileSync(filename, "utf8");
@@ -111,6 +112,29 @@ test("shop prices use bounded image-local tag positions without changing merchan
   ]) assert.equal(validParkShopPlacements([{ ...legacy, ...broken }]), false);
 });
 
+test("shop sticker uses the identical proportional size and anchor for editor and buyers", () => {
+  const preview = PARK_SHOP_PRICE_TAG_PREVIEW_BOX_SIZE;
+  assert.equal(preview, 148);
+  assert.equal(parkShopPriceTagSize(preview), 52);
+  for (const roomHeight of [844, 1194, 1700]) {
+    for (const merchandiseSize of [5, 8, 12, 16, 25]) {
+      const artworkBox = roomHeight * merchandiseSize / 100;
+      assert.ok(Math.abs(parkShopPriceTagSize(artworkBox) / artworkBox -
+        parkShopPriceTagSize(preview) / preview) < 1e-12,
+      "player and preview stickers share one ratio, including very small items");
+    }
+  }
+  const editor = read("client/src/components/PetParkShopShelf.tsx");
+  assert.match(editor, /const tagSize = parkShopPriceTagSize\(itemBoxSize\)/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{dimension\} \/>/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{148\} \/>/);
+  assert.match(editor, /style=\{priceTagAnchorStyle\(placement\)\}/);
+  assert.match(editor, /style=\{priceTagAnchorStyle\(editPlacement\)\}/);
+  assert.match(editor, /ring-1 ring-inset/, "preview's visual border may not shrink the item's coordinate box");
+  assert.doesNotMatch(editor, /Math\.max\(27, Math\.min\(54, dimension \* \.42\)\)/,
+    "fixed bounds previously changed the relative sticker size on small and large items");
+});
+
 test("admin price preview and shopper coin-only wooden tags reuse the authenticated merchandise placement", () => {
   const editor = read("client/src/components/PetParkShopShelf.tsx");
   const server = read("server/routes/petParkAdmin.routes.ts");
@@ -122,11 +146,11 @@ test("admin price preview and shopper coin-only wooden tags reuse the authentica
   assert.match(editor, /parkShopPriceTagFromPointer\(clientX, clientY, rect\)/);
   assert.match(editor, /changeStock\(ids, layout\.map/);
   assert.match(editor, /data-testid="pet-park-shop-price-on-art"/);
-  assert.match(editor, /<ShopPriceTag size=\{tagSize\} \/>/);
-  assert.match(editor, /<ShopPriceTag size=\{52\} \/>/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{dimension\} \/>/);
+  assert.match(editor, /<ShopPriceTag itemBoxSize=\{148\} \/>/);
   assert.match(editor, /src=\{PARK_SHOP_PRICE_TAG_IMAGE\}/);
   assert.match(editor, /from "@assets\/price_tag\.png\?url"/);
-  assert.match(editor, /const tagSize = Math\.max\(27, Math\.min\(54, dimension \* \.42\)\)/);
+  assert.match(editor, /const tagSize = parkShopPriceTagSize\(itemBoxSize\)/);
   const tag = editor.slice(editor.indexOf("function ShopPriceTag"), editor.indexOf("/** Merchandise is positioned"));
   assert.doesNotMatch(tag, /price\.toLocaleString|\{price\}|bg-\[#173c27\]/,
     "wood tag has only artwork and coin; no numeric price or old CSS badge");

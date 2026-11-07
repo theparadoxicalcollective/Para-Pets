@@ -10,7 +10,7 @@ import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
   defaultParkShopPlacement, flipParkShopPlacement, rotateParkShopPlacement, withParkShopDefaults,
-  parkShopPriceTagPoint, parkShopPriceTagFromPointer,
+  parkShopPriceTagPoint, parkShopPriceTagFromPointer, parkShopPriceTagSize,
   PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE, PARK_SHOP_ROTATION_STEP,
   type ParkShopPlacement,
 } from "@shared/petParkShopPlacements";
@@ -33,16 +33,25 @@ function itemArt(item: ParkShopItemPreview) {
 /** Existing wooden tag artwork, sized relative to the merchandise so small
  * items are not hidden behind a fixed-width price badge. The coin indicates
  * shop availability; the actual price is revealed in the purchase dialog. */
-function ShopPriceTag({ size }: { size: number }) {
+function ShopPriceTag({ itemBoxSize }: { itemBoxSize: number }) {
+  const tagSize = parkShopPriceTagSize(itemBoxSize);
   return <span data-testid="pet-park-shop-price-tag" aria-hidden="true"
     className="pointer-events-none relative inline-block shrink-0"
-    style={{ width: size, height: size }}>
+    style={{ width: tagSize, height: tagSize }}>
     <img src={PARK_SHOP_PRICE_TAG_IMAGE} alt="" data-testid="pet-park-shop-tag-art"
       className="absolute inset-0 h-full w-full object-contain" draggable={false} />
     <img src={PARA_PETS_COIN_IMAGE} alt="" data-testid="pet-park-shop-tag-coin"
       className="absolute object-contain drop-shadow-sm" draggable={false}
       style={{ width: "27%", height: "27%", left: "50%", top: "61%", transform: "translate(-50%, -50%)" }} />
   </span>;
+}
+
+/** The editor preview and the merchandise use the same saved image-local
+ * anchor, without either view introducing a different offset or transform. */
+function priceTagAnchorStyle(placement: ParkShopPlacement) {
+  const { xPct, yPct } = parkShopPriceTagPoint(placement);
+  return { left: `${xPct * 100}%`, top: `${yPct * 100}%`,
+    transform: "translate(-50%, -50%)" };
 }
 
 /** Merchandise is positioned directly over the *existing* room artwork,
@@ -63,6 +72,8 @@ export default function PetParkShopShelf({
   const [selectedEdit, setSelectedEdit] = useState<string | null>(null);
   const [isDraggingMerchandise, setIsDraggingMerchandise] = useState(false);
   const [selectedBuy, setSelectedBuy] = useState<ParkShopItemPreview | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+  const [purchaseConfirmation, setPurchaseConfirmation] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
@@ -105,9 +116,19 @@ export default function PetParkShopShelf({
   const selectedBaseKind = selectedBuy ? baseGardenToolKind(selectedBuy) : null;
   const selectedToolOwned = !!selectedBaseKind && ownedInventory.some(row =>
     (row.quantity ?? 1) > 0 && baseGardenToolKind(row) === selectedBaseKind);
+  // Match the existing server purchase policy: pets and one-per-kind garden
+  // tools remain single purchases; other shop merchandise may be bought 1–20.
+  const maxPurchaseQuantity = selectedBuy?.type === "pet" || selectedBaseKind ? 1 : 20;
+  const totalPurchasePrice = (selectedBuy?.price ?? 0) * purchaseQuantity;
   const { data: viewer } = useQuery<{ coins?: number }>({
     queryKey: ["/api/auth/me"], enabled: !canEditPark,
   });
+  const insufficientCoins = viewer?.coins !== undefined && viewer.coins < totalPurchasePrice;
+  useEffect(() => {
+    if (!purchaseConfirmation) return;
+    const timeout = window.setTimeout(() => setPurchaseConfirmation(null), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [purchaseConfirmation]);
   const save = useMutation({
     mutationFn: async (next: { ids: string[]; layout: ParkShopPlacement[] }) => {
       const response = await apiRequest("PATCH",
@@ -131,20 +152,25 @@ export default function PetParkShopShelf({
     },
   });
   const buy = useMutation({
-    mutationFn: async (item: ParkShopItemPreview) => {
+    mutationFn: async ({ item, quantity }: { item: ParkShopItemPreview; quantity: number }) => {
       const response = await apiRequest("POST",
         "/api/shop/pet-park/buy/" + encodeURIComponent(item.id),
-        { buildingId, quantity: 1 });
+        { buildingId, quantity });
       return response.json();
     },
-    onSuccess: (result, item) => {
+    onSuccess: (result, { item, quantity }) => {
       if (result.user) qc.setQueryData(["/api/auth/me"], result.user);
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/pet-park/garden"] });
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
-      toast({ title: "Purchase complete", description: item.name + " was added to your Bag." });
+      // Do not cover the shop with the global, centered success toast.
+      // A small scene-local acknowledgement is enough for routine purchases.
+      setPurchaseConfirmation(quantity === 1
+        ? item.name + " added to your Bag"
+        : quantity + " × " + item.name + " added to your Bag");
       setSelectedBuy(null);
+      setPurchaseQuantity(1);
       setBuyError(null);
     },
     onError: (error: Error) => setBuyError(error.message),
@@ -284,8 +310,7 @@ export default function PetParkShopShelf({
         const item = byId.get(placement.itemId);
         if (!item) return null;
         const dimension = imageHeight * placement.size / 100;
-        const tagSize = Math.max(27, Math.min(54, dimension * .42));
-        return <button key={item.id} type="button" data-testid={`pet-park-shop-item-${item.id}`}
+         return <button key={item.id} type="button" data-testid={`pet-park-shop-item-${item.id}`}
           aria-label={canEditPark ? "Place " + item.name : "Buy " + item.name}
           aria-pressed={canEditPark ? selectedEdit === item.id : undefined}
           disabled={save.isPending || buy.isPending}
@@ -295,7 +320,7 @@ export default function PetParkShopShelf({
           onClick={event => {
             event.stopPropagation();
             if (canEditPark) setSelectedEdit(item.id);
-            else { setSelectedBuy(item); setBuyError(null); }
+            else { setSelectedBuy(item); setPurchaseQuantity(1); setPurchaseConfirmation(null); setBuyError(null); }
           }}
           className={`pointer-events-auto absolute flex touch-none flex-col items-center justify-center rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 ${canEditPark && selectedEdit === item.id ? "outline outline-2 outline-[#f1d081]" : ""}`}
           style={{ left: placement.xPct * imageWidth, top: placement.yPct * imageHeight,
@@ -309,10 +334,8 @@ export default function PetParkShopShelf({
                 style={{ transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flippedX ? -1 : 1})` }}>✦</span>}
           <span data-testid="pet-park-shop-price-on-art"
             className="pointer-events-none absolute z-[1]"
-            style={{ left: `${parkShopPriceTagPoint(placement).xPct * 100}%`,
-              top: `${parkShopPriceTagPoint(placement).yPct * 100}%`,
-              transform: "translate(-50%, -50%)" }}>
-            <ShopPriceTag size={tagSize} />
+            style={priceTagAnchorStyle(placement)}>
+            <ShopPriceTag itemBoxSize={dimension} />
           </span>
           {/* No floating item names or numeric prices. The coin-only wooden tag
               marks a purchasable item; names and prices appear at checkout. */}
@@ -364,7 +387,7 @@ export default function PetParkShopShelf({
         onPointerDown={event => event.stopPropagation()}>
         <strong className="text-[11px]">Position price tag</strong>
         <div ref={pricePreviewRef} data-testid="pet-park-shop-price-preview-art"
-          className="relative h-[148px] w-[148px] touch-none rounded-lg border border-[#927e50]/45 bg-[#26452f]/75">
+          className="relative h-[148px] w-[148px] touch-none rounded-lg ring-1 ring-inset ring-[#927e50]/45 bg-[#26452f]/75">
           {itemArt(editItem) ? <img src={itemArt(editItem) ?? ""} alt=""
             draggable={false} className="pointer-events-none h-full w-full select-none object-contain"
             style={{ transform: `rotate(${editPlacement.rotation ?? 0}deg) scaleX(${editPlacement.flippedX ? -1 : 1})`, transformOrigin: "center center" }} />
@@ -376,10 +399,8 @@ export default function PetParkShopShelf({
             onPointerMove={onPriceTagMove} onPointerUp={onPriceTagUp}
             onPointerCancel={onPriceTagCancel} onLostPointerCapture={onPriceTagCancel}
             className="absolute z-[2] cursor-grab touch-none rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
-            style={{ left: `${parkShopPriceTagPoint(editPlacement).xPct * 100}%`,
-              top: `${parkShopPriceTagPoint(editPlacement).yPct * 100}%`,
-              transform: "translate(-50%, -50%)" }}>
-            <ShopPriceTag size={52} />
+            style={priceTagAnchorStyle(editPlacement)}>
+            <ShopPriceTag itemBoxSize={148} />
           </button>
         </div>
         <span className="text-center text-[10px] text-[#ead1a0]/80">Drag the tag onto the image</span>
@@ -424,39 +445,66 @@ export default function PetParkShopShelf({
         </section>
       </div>
     </ViewportModalPortal>}
+    {purchaseConfirmation && !canEditPark && <ViewportModalPortal blocking={false}>
+      <div data-testid="pet-park-shop-purchase-confirmation" role="status" aria-live="polite"
+        className="pointer-events-none absolute inset-x-4 z-[65] flex justify-center"
+        style={{ bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 64px))" }}>
+        <span className="max-w-[340px] rounded-full border border-[#d7b973]/85 bg-[#173c2b]/95 px-4 py-2 text-center text-xs font-semibold text-[#f6dfa7] shadow-[0_4px_15px_rgba(0,0,0,.45)]">
+          {purchaseConfirmation}
+        </span>
+      </div>
+    </ViewportModalPortal>}
     {selectedBuy && !canEditPark && <ViewportModalPortal>
       <div data-testid="pet-park-shop-purchase-dialog" className="pointer-events-auto absolute inset-0 z-[80] flex items-center justify-center px-4">
         <button className="absolute inset-0 bg-black/60" aria-label="Close purchase details"
           onClick={() => { if (!purchasing.current && !buy.isPending) { setSelectedBuy(null); setBuyError(null); } }} />
         <section role="dialog" aria-modal="true" aria-label={"Buy " + selectedBuy.name}
-          className="relative w-full max-w-[286px] rounded-2xl border-2 border-[#d7b973] bg-gradient-to-b from-[#25563c] to-[#10261c] p-4 text-center text-[#f6dfa7] shadow-[0_12px_36px_rgba(0,0,0,.65)]"
+          className="relative max-h-[min(88dvh,660px)] w-full max-w-[286px] overflow-y-auto overscroll-contain rounded-2xl border-2 border-[#d7b973] bg-gradient-to-b from-[#25563c] to-[#10261c] p-4 text-center text-[#f6dfa7] shadow-[0_12px_36px_rgba(0,0,0,.65)]"
           onPointerDown={event => event.stopPropagation()}>
           <p className="text-[10px] uppercase tracking-widest text-[#dfc285]">Pet Park Shop</p>
           {itemArt(selectedBuy) && <img src={itemArt(selectedBuy) ?? ""} alt=""
             className="mx-auto mt-2 h-[86px] w-[86px] object-contain drop-shadow-lg" />}
           <h2 className="mt-1 text-base font-semibold">{selectedBuy.name}</h2>
           {selectedBuy.description && <p className="mt-1 max-h-20 overflow-y-auto text-[11px] text-amber-100/75">{selectedBuy.description}</p>}
+          {maxPurchaseQuantity > 1 ? <div data-testid="pet-park-shop-quantity"
+            className="mt-3 flex items-center justify-center gap-3" aria-label="Purchase quantity">
+            <button type="button" data-testid="pet-park-shop-quantity-minus"
+              aria-label="Decrease quantity" disabled={buy.isPending || purchaseQuantity <= 1}
+              onClick={() => { setPurchaseQuantity(q => Math.max(1, q - 1)); setBuyError(null); }}
+              className="flex min-h-10 min-w-11 items-center justify-center rounded-lg border border-[#d7b973]/75 bg-[#214c34] text-xl font-semibold disabled:opacity-35">−</button>
+            <output data-testid="pet-park-shop-quantity-value" aria-live="off"
+              className="min-w-10 text-center text-lg font-semibold tabular-nums">{purchaseQuantity}</output>
+            <button type="button" data-testid="pet-park-shop-quantity-plus"
+              aria-label="Increase quantity" disabled={buy.isPending || purchaseQuantity >= maxPurchaseQuantity}
+              onClick={() => { setPurchaseQuantity(q => Math.min(maxPurchaseQuantity, q + 1)); setBuyError(null); }}
+              className="flex min-h-10 min-w-11 items-center justify-center rounded-lg border border-[#d7b973]/75 bg-[#214c34] text-xl font-semibold disabled:opacity-35">+</button>
+          </div> : <p className="mt-2 text-[10px] text-amber-100/65">
+            {selectedBaseKind ? "One per player" : "Pets are purchased individually"}
+          </p>}
+          <p className="mt-2 text-[10px] text-amber-100/65">
+            {selectedBuy.price.toLocaleString()} coins each
+          </p>
           <div className="my-3 flex items-center justify-center gap-2 rounded-xl border border-[#bca06a]/45 bg-[#0d261b]/80 py-2">
             <img src={PARA_PETS_COIN_IMAGE} alt="" className="h-6 w-6 object-contain" />
-            <strong className="text-base">{selectedBuy.price.toLocaleString()}</strong>
-            <span className="text-[10px] text-amber-100/60">coins</span>
+            <strong data-testid="pet-park-shop-total-price" className="text-base tabular-nums">{totalPurchasePrice.toLocaleString()}</strong>
+            <span className="text-[10px] text-amber-100/60">coins total</span>
           </div>
           {viewer?.coins !== undefined && <p className="text-[10px] text-amber-100/65">
             Your balance: {viewer.coins.toLocaleString()} coins</p>}
           {selectedToolOwned && <p data-testid="pet-park-garden-tool-owned" className="mt-2 text-xs font-semibold text-[#8fe2a0]">Already owned · One per player</p>}
           {buyError && <p role="alert" className="mt-2 rounded bg-[#593124] p-2 text-[11px] text-red-100">{buyError}</p>}
           <button type="button" data-testid="pet-park-confirm-purchase"
-            disabled={buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || (viewer?.coins !== undefined && viewer.coins < selectedBuy.price)}
+            disabled={buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || insufficientCoins}
             onClick={() => {
               // A ref guard closes the double-tap window before the pending
               // state triggers a rerender; duplicate taps must not place
               // two paid orders.
-              if (purchasing.current || buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading)) return;
+              if (purchasing.current || buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || insufficientCoins) return;
               purchasing.current = true;
-              buy.mutate(selectedBuy);
+              buy.mutate({ item: selectedBuy, quantity: purchaseQuantity });
             }}
             className="mt-3 min-h-11 w-full rounded-xl border border-[#e7c77e] bg-[#426746] px-3 text-sm font-semibold disabled:opacity-45">
-            {buy.isPending ? "Purchasing…" : selectedToolOwned ? "Owned" : selectedBaseKind && inventoryLoading ? "Checking tools…" : viewer?.coins !== undefined && viewer.coins < selectedBuy.price ? "Not enough coins" : "Purchase · 1 item"}
+            {buy.isPending ? "Purchasing…" : selectedToolOwned ? "Owned" : selectedBaseKind && inventoryLoading ? "Checking tools…" : insufficientCoins ? "Not enough coins" : `Purchase · ${purchaseQuantity} ${purchaseQuantity === 1 ? "item" : "items"}`}
           </button>
           <p className="mt-2 text-[10px] text-amber-100/60">Tap outside to close</p>
         </section>

@@ -45,6 +45,7 @@ try{
     const errors=[],requests=[],replays=new Map();
     let slotUnlockCalls=0;
     let shopPurchases=0;
+    let waterTileRefills=0;
     const plot={ plotItemId:"plot1",xPct:.5,yPct:.5,size:150,phase:"empty",
       cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null };
     const crop={id:"crop1",seedItemId:"seed-item",fruitItemId:"fruit-item",
@@ -86,6 +87,13 @@ try{
       if(p==="/api/pet-park/buildings/shop1/shop-items")return route.fulfill({json:[
         {id:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",price:125,imageUrl:art,eggImageUrl:null,hatchedImageUrl:null},
       ]});
+      if(p==="/api/pet-park/water-sources/water-tile/refill"){
+        const body=route.request().postDataJSON();
+        assert.equal(body.inventoryId,"pail",name+": water tiles refill existing owned equipment");
+        waterTileRefills++;
+        inventory=inventory.map(item=>item.inventoryId==="pail"?{...item,gardenWaterLeft:100}:item);
+        return route.fulfill({json:{itemName:"Watering Pail",waterLeft:100,capacity:100}});
+      }
       if(p==="/api/pet-park/slots/unlock"){
         const body=route.request().postDataJSON();
         assert.equal(body.slot,3);
@@ -137,6 +145,23 @@ try{
     await ground.waitFor({state:"visible",timeout:30000});
     await page.getByTestId("pet-park-untilled-soil").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("pet-park-untilled-soil").count(),1);
+
+    // Slots remain a compact, centered mobile/tablet HUD after removing the
+    // visible "Spot 1/2/3" titles; their accessible names still identify them.
+    // The row is an ordinary div, so locate it by its maintained aria-label.
+    const slotRow=page.locator('[aria-label="Your three park pet spots"]');
+    await slotRow.waitFor({state:"visible"});
+    const rowBounds=await slotRow.boundingBox();
+    const firstSlotBounds=await page.getByTestId("pet-park-slot-1").boundingBox();
+    assert.ok(rowBounds && firstSlotBounds,name+": slot geometry is measurable");
+    assert.ok(rowBounds.width<=295 && firstSlotBounds.width<100,
+      name+": three oval slots are smaller than the previous full-width row");
+    assert.ok(Math.abs(rowBounds.x+rowBounds.width/2-width/2)<2,
+      name+": the complete three-slot row stays centered");
+    assert.equal(await slotRow.getByText(/^Spot [123]$/).count(),0,
+      name+": visible spot numbers are removed");
+    assert.equal(await slotRow.getByRole("button",{name:"Pet Park spot 1"}).count(),1,
+      name+": accessible slot name remains available for tap/keyboard navigation");
 
     // The visitor's physical artwork and hit area must scale with the same
     // ratio as terrain, at zoom in AND zoom out, on phones and tablets.
@@ -433,7 +458,10 @@ try{
     await product.click();
     const confirmation=page.getByTestId("pet-park-shop-purchase-dialog");
     await confirmation.waitFor({state:"visible"});
-    await confirmation.getByText("125").waitFor();
+    await confirmation.getByTestId("pet-park-shop-total-price").waitFor({state:"visible"});
+    assert.equal(await confirmation.getByTestId("pet-park-shop-total-price").innerText(),"125");
+    assert.equal(await confirmation.getByText("125 coins each").count(),1,
+      name+": unit price and purchase total are separately displayed");
     assert.equal(await confirmation.locator('img[src*="MainGameCoinImage"]').count(),1,
       name+": purchase modal uses the game's real coin art");
     await confirmation.getByRole("button",{name:"Close purchase details"}).click({position:{x:5,y:5}});
@@ -444,6 +472,63 @@ try{
     await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-purchase-dialog"]')===null);
     assert.equal(shopPurchases,1,name+": confirmed park purchase uses one existing-coin transaction");
     await page.getByRole("button",{name:"Exit building"}).click();
+
+    // Previous scenarios deliberately remove tools from the mocked Bag.
+    // Refill checks require a real owned, unlisted, partially empty pail.
+    inventory.push({inventoryId:"pail",shopItemId:"pail-item",name:"Watering Pail",
+      type:"garden_tool",specialType:"watering_pail",quantity:1,isListed:false,
+      isRefillable:true,gardenWaterLeft:61,imageUrl:art});
+    // Reproduce the old overlap: a garden plot and transparent-padded
+    // building/decor art share a large rectangle, but only the small visible
+    // corner is interactive. Real pointer dispatch must reach the plot.
+    const cornerArt="data:image/svg+xml;base64,"+Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">'+
+      '<rect x="0" y="0" width="28" height="28" fill="#75ab68"/></svg>',
+    ).toString("base64");
+    scene.buildings=[{id:"overlap",name:"Canopy",imageUrl:cornerArt,interiorImageUrl:art,
+      xPct:.5,yPct:.5,size:300,flipped:false,layer:0,maxPets:10,isShop:false,interiorEffects:[]}];
+    scene.items=[
+      {id:"plot1",kind:"terrain",effectType:"garden_plot",imageUrl:null,
+        xPct:.5,yPct:.5,size:150,flipped:false,layer:0},
+      {id:"passive",kind:"decor",imageUrl:cornerArt,tapImageUrl:null,isWaterSource:false,
+        xPct:.5,yPct:.5,size:260,flipped:false,layer:0},
+      {id:"tap-decor",kind:"decor",imageUrl:cornerArt,tapImageUrl:cornerArt,isWaterSource:false,
+        xPct:.5,yPct:.5,size:260,flipped:false,layer:0},
+      {id:"refill-decor",kind:"decor",imageUrl:cornerArt,tapImageUrl:null,isWaterSource:true,
+        xPct:.5,yPct:.5,size:260,flipped:false,layer:0},
+      {id:"water-tile",kind:"terrain",effectType:"water_path",imageUrl:null,
+        xPct:.59,yPct:.57,size:150,flipped:false,layer:0},
+    ];
+    await page.reload({waitUntil:"commit"});
+    const overlappedPlot=page.getByTestId("pet-park-garden-plot");
+    await overlappedPlot.waitFor({state:"visible"});
+    await page.waitForFunction(()=>{
+      const water=document.querySelector('[data-testid="pet-park-water-source-indicator"]');
+      const building=document.querySelector('button[aria-label="Enter Canopy"]');
+      return !!water && parseFloat(water.style.left)<30 && !!building &&
+        getComputedStyle(building).clipPath!=="none";
+    });
+    const markerPosition=await page.getByTestId("pet-park-water-source-indicator").evaluate(el=>
+      ({left:parseFloat(el.style.left),top:parseFloat(el.style.top)}));
+    assert.ok(markerPosition.left<30 && markerPosition.top<30,
+      name+": droplet follows visible decor pixels, not a distant rectangle corner");
+    // No gameplay pointer target is added for passive decoration.
+    assert.equal(await page.locator('[data-park-world-artwork] [data-testid="pet-park-tappable-decor"]').count(),1);
+    await overlappedPlot.click();
+    await page.getByTestId("pet-park-garden-menu").waitFor({state:"visible"});
+    await dismiss(); // tool bubbles must not obscure the neighboring water tile
+    assert.equal(await page.getByRole("button",{name:"Enter Canopy"}).count(),1,
+      name+": building entrance remains accessible even with a trimmed touch box");
+    await page.getByTestId("pet-park-water-tile-source").click();
+    const waterPopup=page.getByTestId("pet-park-refill-popup");
+    await waterPopup.waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("pet-park-water-tile-source").locator("svg").count(),0,
+      name+": painted water has no floating water-drop indicator");
+    const refill=waterPopup.getByTestId("pet-park-refill-item");
+    await refill.first().waitFor({state:"visible"});
+    await refill.first().click();
+    await waterPopup.waitFor({state:"hidden"});
+    assert.equal(waterTileRefills,1,name+": painted water uses the existing refill endpoint");
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": actual Garden Plot alpha-art centering, stage water bar, six batched pours, outside dismissal, harvest, and shared camera zoom");
     await context.close();

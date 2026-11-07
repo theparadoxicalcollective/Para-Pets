@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import {
   petParkSceneItems, petParkSettings, shopItems, userInventory, users,
 } from "@shared/schema";
@@ -7,7 +7,8 @@ import { GARDEN_WATER_CAPACITY, gardenItemNeedsRefill } from "@shared/garden";
 import { db } from "../db";
 
 /**
- * Only a saved Water Source decor and an owned, explicitly refillable,
+ * Only a marked Water Source decoration or a saved painted water_path terrain
+ * tile and an owned, explicitly refillable,
  * unlisted item can participate. The inventory row is locked so a refill
  * cannot race a future garden watering transaction on the same item.
  */
@@ -38,10 +39,12 @@ export function registerGardenRefillRoutes(app: Express, isAuthenticated: Reques
           id: petParkSceneItems.id,
         }).from(petParkSceneItems).where(and(
           eq(petParkSceneItems.id, sourceId),
-          eq(petParkSceneItems.kind, "decor"),
-          eq(petParkSceneItems.isWaterSource, true),
+          or(
+            and(eq(petParkSceneItems.kind, "decor"), eq(petParkSceneItems.isWaterSource, true)),
+            and(eq(petParkSceneItems.kind, "terrain"), eq(petParkSceneItems.effectType, "water_path")),
+          ),
         ));
-        if (!source) return { status: 404 as const, message: "This decoration is not a water source" };
+        if (!source) return { status: 404 as const, message: "This item is not a water source" };
 
         // Same row lock must be reused by garden watering to prevent
         // concurrent fill-and-consume calls from overwriting one another.

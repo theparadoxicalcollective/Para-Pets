@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { parkImageHitAt } from "../client/src/lib/petParkImageHit";
+import { parkImageHitAt, parkImageHitClipPath, parkImageVisualCenter } from "../client/src/lib/petParkImageHit";
 
 function withMask(check: (x: number, y: number) => boolean, execute: (src: string) => void) {
   const old = (globalThis as any).document;
@@ -50,6 +50,29 @@ test("flipped building art mirrors its alpha hit zone", () => {
     assert.equal(parkImageHitAt(img, 14, 50, true), false);
     assert.equal(parkImageHitAt(img, 86, 50, true), true);
   });
+});
+
+test("player hit targets are clipped to visible art (including object-contain padding)", () => {
+  const bounds = { left: .2, top: .1, width: .4, height: .5 };
+  const clip = parkImageHitClipPath(bounds, 200, 100)!;
+  assert.match(clip, /^inset\(/);
+  const sides = [...clip.matchAll(/(-?\d+(?:\.\d+)?)%/g)].map(match => Number(match[1]));
+  assert.equal(sides.length, 4);
+  for (const [i, expected] of [28.8, 38.8, 43.8, 18.8].entries())
+    assert.ok(Math.abs(sides[i] - expected) < .001, "correct object-contain inset " + i);
+  assert.deepEqual(parkImageVisualCenter(bounds, 200, 100), { xPct: 40, yPct: 42.5 });
+  assert.equal(parkImageHitClipPath(null, 200, 100), undefined);
+  assert.deepEqual(parkImageVisualCenter(null, 200, 100), { xPct: 50, yPct: 50 });
+  const park = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
+  assert.match(park, /clipPath: scene\.canEditPark \? undefined : imageHitClips\[building\.imageUrl\]/);
+  assert.match(park, /style=\{\{ clipPath: visibleDecorImage \? imageHitClips\[visibleDecorImage\] : undefined \}\}/);
+  assert.match(park, /parkImageVisualCenter\(bounds, width, height\)/);
+  assert.match(park, /data-testid="pet-park-water-source-indicator"/);
+  assert.match(park, /scene\.canEditPark && !paintMode && !showCreator \? "pointer-events-auto touch-none" : "pointer-events-none"/,
+    "non-admin artwork containers never intercept clicks around the actual interactive child");
+  assert.doesNotMatch(park, /item\.kind === "decor" && item\.isWaterSource && scene\.canEnterPark \? "pointer-events-auto"/,
+    "water decor must not create a second full-rectangle player hit target");
+  assert.doesNotMatch(park, /absolute -right-1 -top-2 rounded-full border border-\[#c1d9b4\]/);
 });
 
 test("editor movement requires a second artwork tap and outdoor pets use owner-only drags", () => {
