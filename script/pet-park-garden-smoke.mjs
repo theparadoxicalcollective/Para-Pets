@@ -458,7 +458,9 @@ try{
     await product.click();
     const confirmation=page.getByTestId("pet-park-shop-purchase-dialog");
     await confirmation.waitFor({state:"visible"});
-    await confirmation.getByText("125").waitFor();
+    await confirmation.getByTestId("pet-park-shop-total-price").getByText("125",{exact:true}).waitFor();
+    assert.equal(await confirmation.getByText("125 coins each").count(),1,
+      name+": unit price and purchase total are separately displayed");
     assert.equal(await confirmation.locator('img[src*="MainGameCoinImage"]').count(),1,
       name+": purchase modal uses the game's real coin art");
     await confirmation.getByRole("button",{name:"Close purchase details"}).click({position:{x:5,y:5}});
