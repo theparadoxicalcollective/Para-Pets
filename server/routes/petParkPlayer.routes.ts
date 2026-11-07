@@ -357,6 +357,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
         hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
         description: shopItems.description,
+        specialType: shopItems.specialType,
       }).from(shopItems).where(inArray(shopItems.id, ids));
       const byId = new Map(catalog.map(item => [item.id, item]));
       const placementMap = new Map((building.shopItemPlacements ?? []).map(item => [item.itemId, item]));
