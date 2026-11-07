@@ -1585,3 +1585,30 @@ export const worldSceneInteriorItems = pgTable("world_scene_interior_items", {
   flipped: boolean("flipped").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
+
+/** Private per-world growing state. Existing crop catalog and player inventory are shared. */
+export const worldGardenPlayerPlots = pgTable("world_garden_player_plots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  plotItemId: varchar("plot_item_id").notNull(),
+  cropId: varchar("crop_id").references(() => gardenCrops.id, { onDelete: "restrict" }),
+  phase: text("phase").notNull().default("empty"),
+  waterApplied: integer("water_applied").notNull().default(0),
+  harvestReady: boolean("harvest_ready").notNull().default(false),
+  pickedUntil: timestamp("picked_until"),
+  passiveGrowthAt: timestamp("passive_growth_at"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, table => [uniqueIndex("world_garden_player_plot_unique").on(table.userId, table.worldId, table.plotItemId)]);
+
+export const worldGardenActionReceipts = pgTable("world_garden_action_receipts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: varchar("request_id").notNull(),
+  plotItemId: varchar("plot_item_id").notNull(),
+  action: text("action").notNull(),
+  inventoryId: varchar("inventory_id").notNull(),
+  result: jsonb("result").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [uniqueIndex("world_garden_action_owner_request_uidx").on(table.userId, table.requestId)]);
