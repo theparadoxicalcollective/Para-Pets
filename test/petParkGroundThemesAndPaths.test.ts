@@ -117,5 +117,6 @@ test("theme persists as an admin-only scene property, never as a paint stamp or 
   assert.match(scene, /groundTheme: settings\?\.groundTheme \?\? "grass"/);
   assert.match(routes, /set\(\{ groundTheme, updatedAt: new Date\(\) \}\)/);
   assert.doesNotMatch(routes.slice(routes.indexOf('app.patch("/api/admin/pet-park/ground-theme"'),routes.indexOf('app.post("/api/admin/pet-park/buildings"')), /petParkDeposits|petParkSceneItems|groundLevel|coinsPerHour/);
-  assert.match(painter, /pointer-events-none absolute inset-0/);
+  assert.match(painter, /className="pointer-events-none absolute"/, "overscanned ground still cannot intercept gameplay gestures");
+  assert.match(painter, /canvas\.style\.left = -marginX/, "overscan offsets the raster without shifting terrain placements");
 });
