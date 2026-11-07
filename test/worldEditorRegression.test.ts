@@ -72,7 +72,10 @@ test("new editor is isolated from the legacy worlds, Pet Park, pet rewards and p
   assert.match(app, /location\.startsWith\("\/world-editor\/"\) && user\.isAdmin/);
   assert.match(map, /button-new-world-edit-/);
   assert.match(editor, /<WorldSceneControls/);
-  assert.match(editor, /<WorldGardenPreview/);
+  assert.doesNotMatch(editor, /<WorldGardenPreview|Test Gardening|previewGarden/,
+    "the world creator should only author garden plots, not test player farming");
+  const brush = readFileSync("client/src/components/world-editor/WorldTerrainBrush.tsx", "utf8");
+  assert.match(brush, /garden_plot/);
   assert.match(editor, /<WorldTerrainBrush/);
   assert.match(editor, /safeSetPointerCapture/);
   assert.match(sceneRoutes, /registerWorldSceneContentRoutes/);
