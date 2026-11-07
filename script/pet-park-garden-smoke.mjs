@@ -473,6 +473,11 @@ try{
     assert.equal(shopPurchases,1,name+": confirmed park purchase uses one existing-coin transaction");
     await page.getByRole("button",{name:"Exit building"}).click();
 
+    // Previous scenarios deliberately remove tools from the mocked Bag.
+    // Refill checks require a real owned, unlisted, partially empty pail.
+    inventory.push({inventoryId:"pail",shopItemId:"pail-item",name:"Watering Pail",
+      type:"garden_tool",specialType:"watering_pail",quantity:1,isListed:false,
+      isRefillable:true,gardenWaterLeft:61,imageUrl:art});
     // Reproduce the old overlap: a garden plot and transparent-padded
     // building/decor art share a large rectangle, but only the small visible
     // corner is interactive. Real pointer dispatch must reach the plot.
