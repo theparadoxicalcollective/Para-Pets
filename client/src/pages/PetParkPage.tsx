@@ -19,7 +19,7 @@ import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
 import { isParkEffect } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
-import { parkImageHitAt } from "@/lib/petParkImageHit";
+import { parkImageHitAt, parkImageHitClipPath } from "@/lib/petParkImageHit";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import type { ParkEffectType } from "@shared/petParkEffects";
@@ -66,11 +66,14 @@ export default function PetParkPage() {
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [imageContacts, setImageContacts] = useState<Record<string, number>>({});
+  const [imageHitClips, setImageHitClips] = useState<Record<string, string>>({});
   const observeContact = (image: HTMLImageElement, url: string) => {
     const width = image.naturalWidth, height = image.naturalHeight;
     void getAlphaBounds(url, image).then(bounds => {
       const contact = parkImageGroundContact(width, height, bounds);
       setImageContacts(old => old[url] === contact ? old : { ...old, [url]: contact });
+      const clipPath = parkImageHitClipPath(bounds, width, height);
+      if (clipPath) setImageHitClips(old => old[url] === clipPath ? old : { ...old, [url]: clipPath });
     });
   };
   const [selectedPet, setSelectedPet] = useState("");
@@ -851,12 +854,13 @@ export default function PetParkPage() {
         {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark &&
           parkImageHitAt(e.currentTarget.querySelector("img")!, e.clientX, e.clientY, building.flipped)) {
             setOpenedRoomId(null); setEnteredBuilding(building);
-          } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></button>)}
+          } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, clipPath: scene.canEditPark ? undefined : imageHitClips[building.imageUrl], zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></button>)}
         {scene.items.map(item => {
           const position = shownPosition("item", item);
           const visibleDecorImage = !scene.canEditPark && item.kind === "decor" &&
             item.tapImageUrl && tappedDecorIds.has(item.id) ? item.tapImageUrl : item.imageUrl;
           const isGardenPlot = item.kind === "terrain" && item.effectType === "garden_plot";
+          const isWaterTile = item.kind === "terrain" && item.effectType === "water_path";
           const savedGardenPlot = isGardenPlot ? garden?.plots?.find(plot => plot.plotItemId === item.id) : undefined;
           if (item.kind === "terrain" && !isParkTerrainNearViewport(
             { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
@@ -878,6 +882,7 @@ export default function PetParkPage() {
             aria-label={tappedDecorIds.has(item.id) ? "Restore decoration" : "Tap decoration"}
             aria-pressed={tappedDecorIds.has(item.id)}
             className="pointer-events-auto absolute inset-0 z-[3] touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            style={{ clipPath: visibleDecorImage ? imageHitClips[visibleDecorImage] : undefined }}
             onClick={event => {
               event.stopPropagation();
               const image = event.currentTarget.parentElement?.querySelector("img");
@@ -890,6 +895,7 @@ export default function PetParkPage() {
             type="button" data-testid="pet-park-water-source"
             aria-label="Refill at Water Source"
             className="pointer-events-auto absolute inset-0 z-[3] touch-manipulation rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            style={{ clipPath: visibleDecorImage ? imageHitClips[visibleDecorImage] : undefined }}
             onClick={event => {
               event.stopPropagation();
               const image = event.currentTarget.parentElement?.querySelector("img");
@@ -898,10 +904,20 @@ export default function PetParkPage() {
                 setSelectedWaterSourceId(item.id);
               }
             }}>
-            <span className="absolute -right-1 -top-2 rounded-full border border-[#c1d9b4]/65 bg-[#133b31]/85 p-1 text-[#b3e5d8] shadow-md" aria-hidden="true">
+            <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c1d9b4]/65 bg-[#133b31]/85 p-1 text-[#b3e5d8] shadow-md" aria-hidden="true">
               <Droplets size={13} />
             </span>
           </button>}
+          {!scene.canEditPark && scene.canEnterPark && isWaterTile && <button
+            type="button" data-testid="pet-park-water-tile-source"
+            aria-label="Refill at Water Tile"
+            className="pointer-events-auto absolute inset-0 z-[2] touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+            style={{ clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" }}
+            onPointerDown={event => event.stopPropagation()}
+            onClick={event => {
+              event.stopPropagation();
+              setSelectedWaterSourceId(item.id);
+            }} />}
         </div>;
         })}
         {/* Crop artwork is a depth-sorted world object above the soil, not
