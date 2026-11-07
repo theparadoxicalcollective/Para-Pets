@@ -1081,7 +1081,8 @@ export default function PetParkPage() {
           deposits.find(item => item.id === indoorDragGhost.petId)?.petName ?? "Pet"}
       </div>}
       {popupRoom && <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/85 p-3 pt-[max(72px,env(safe-area-inset-top))] pb-[max(22px,env(safe-area-inset-bottom))]"
-        role="dialog" aria-modal="true" aria-label={popupRoom.name}>
+        role="dialog" aria-modal="true" aria-label={popupRoom.name}
+        onPointerDown={event => { if (event.target === event.currentTarget) setOpenedRoomId(null); }}>
         <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-400/75 bg-[#10291d] shadow-2xl">
           <div className="flex shrink-0 items-center justify-between gap-3 p-3">
             <h2 className="font-fantasy font-semibold text-[#f5cf64]">{popupRoom.name}</h2>
