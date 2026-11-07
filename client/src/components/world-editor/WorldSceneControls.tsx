@@ -60,10 +60,12 @@ export default function WorldSceneControls(props: Props) {
   const interiorAsset = props.scene.assets.find(asset => asset.id === props.activeBuilding?.assetId);
   const editingAsset = props.scene.assets.find(asset => asset.id === editingAssetId);
   const activeInteriorItems = props.scene.interiorItems.filter(item => item.buildingId === props.activeBuilding?.id);
+  const shopBuilding = props.activeBuilding ??
+    (props.selected?.kind === "building" ? props.selected : null);
 
   const catalog = useQuery<Array<{ id: string; name: string; type: string }>>({
     queryKey: [root, "shop-catalog", search],
-    enabled: panel === "shop" && !!props.selected && props.selected.kind === "building",
+    enabled: panel === "shop" && !!shopBuilding,
     queryFn: async () => {
       const response = await fetch(`${root}/shop-catalog?q=${encodeURIComponent(search)}`,
         { credentials: "include" });
@@ -141,9 +143,14 @@ export default function WorldSceneControls(props: Props) {
 
   const selectedItem = props.activeBuilding ? props.selectedInterior : props.selected;
   const isSelectedBuilding = props.selected?.kind === "building" && !props.activeBuilding;
+  const patchShop = async (values: Record<string, unknown>) => {
+    if (!shopBuilding) return;
+    await mutate("PATCH", `/placements/${shopBuilding.id}`, values);
+  };
   const tabs: Array<{ id: Panel; label: string }> = props.activeBuilding ? [
     { id: "interior", label: "Interior" }, { id: "library", label: "Decor" },
     { id: "effects", label: "Effects" }, { id: "selected", label: "Edit" },
+    { id: "shop", label: "Shop" },
   ] : [
     { id: "library", label: "Assets" }, { id: "terrain", label: "Terrain" },
     { id: "effects", label: "Effects" }, { id: "selected", label: "Edit" },
@@ -318,11 +325,11 @@ export default function WorldSceneControls(props: Props) {
           </>}
         </>}
 
-        {panel === "shop" && isSelectedBuilding && props.selected && <>
+        {panel === "shop" && shopBuilding && <>
           <h3 className={heading}>Building Shop</h3>
           <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={props.selected.isShop} disabled={busy}
-              onChange={e => void patchSelected({ isShop: e.target.checked })} /> Enable shop for future world integration
+            <input type="checkbox" checked={shopBuilding.isShop} disabled={busy}
+              onChange={e => void patchShop({ isShop: e.target.checked })} /> Enable shop for future world integration
           </label>
           <input aria-label="Search shared item catalog" value={search} onChange={e => setSearch(e.target.value)}
             className={field} placeholder="Find pets, seeds, tools, items..." />
@@ -332,17 +339,17 @@ export default function WorldSceneControls(props: Props) {
             <div className="max-h-40 overflow-y-auto space-y-1">
               {(catalog.data ?? []).map(item => <label key={item.id}
                 className="flex items-center gap-2 rounded-md border border-[#5d6f48] p-2 text-[11px]">
-                <input type="checkbox" checked={props.selected!.shopItemIds.includes(item.id)} disabled={busy}
+                <input type="checkbox" checked={shopBuilding.shopItemIds.includes(item.id)} disabled={busy}
                   onChange={e => {
                     const items = e.target.checked
-                      ? [...props.selected!.shopItemIds, item.id]
-                      : props.selected!.shopItemIds.filter(id => id !== item.id);
-                    void patchSelected({ shopItemIds: items });
+                      ? [...shopBuilding.shopItemIds, item.id]
+                      : shopBuilding.shopItemIds.filter(id => id !== item.id);
+                    void patchShop({ shopItemIds: items });
                   }} />
                 <span className="truncate">{item.name} <span className="opacity-60">({item.type})</span></span>
               </label>)}
             </div>}
-          <p className="text-[11px]">Selected stock: {props.selected.shopItemIds.length}</p>
+          <p className="text-[11px]">Selected stock: {shopBuilding.shopItemIds.length}</p>
         </>}
 
         {panel === "interior" && props.activeBuilding && <>
