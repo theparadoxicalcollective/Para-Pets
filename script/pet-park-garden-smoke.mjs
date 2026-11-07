@@ -508,6 +508,7 @@ try{
     assert.equal(await page.locator('[data-park-world-artwork] [data-testid="pet-park-tappable-decor"]').count(),1);
     await overlappedPlot.click();
     await page.getByTestId("pet-park-garden-menu").waitFor({state:"visible"});
+    await dismiss(); // tool bubbles must not obscure the neighboring water tile
     assert.equal(await page.getByRole("button",{name:"Enter Canopy"}).count(),1,
       name+": building entrance remains accessible even with a trimmed touch box");
     await page.getByTestId("pet-park-water-tile-source").click();
