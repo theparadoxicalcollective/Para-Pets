@@ -11,6 +11,7 @@ import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
+import { parkImageHitAt } from "@/lib/petParkImageHit";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
 import { PET_PARK_GROUND_THEMES, PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
@@ -177,7 +178,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startObject = (event: ReactPointerEvent<HTMLButtonElement>, item: WorldScenePlacement | WorldSceneInteriorItem,
     kind: "outdoor" | "interior") => {
-    if (event.button !== 0 && event.pointerType === "mouse" || busyPlacement || paintMode) return;
+    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode) return;
+    const artwork = event.currentTarget.querySelector("img");
+    if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
     event.stopPropagation();
     const start = kind === "outdoor" ? viewportPoint(event.clientX, event.clientY) : {
       xPct: event.clientX, yPct: event.clientY,
@@ -341,7 +344,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               onPointerDown={event => startObject(event, p, "outdoor")}
               onPointerMove={moveObject} onPointerUp={finishObject}
               onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
-              onClick={event => { event.stopPropagation(); setSelectedId(p.id); }}>
+              onClick={event => {
+                const artwork = event.currentTarget.querySelector("img");
+                if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, p.flipped)) return;
+                event.stopPropagation(); setSelectedId(p.id);
+              }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
                 {asset && <img src={asset.imageUrl} alt="" draggable={false}
                   className="absolute inset-0 h-full w-full object-contain" />}
@@ -386,7 +393,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             onPointerDown={event => startObject(event, item, "interior")}
             onPointerMove={moveObject} onPointerUp={finishObject}
             onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
-            onClick={event => { event.stopPropagation(); setSelectedInteriorId(item.id); }}>
+            onClick={event => {
+              const artwork = event.currentTarget.querySelector("img");
+              if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
+              event.stopPropagation(); setSelectedInteriorId(item.id);
+            }}>
             <span className="pointer-events-none absolute inset-0"
               style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
               {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain" draggable={false} />}
