@@ -62,10 +62,12 @@ export function validPlacementTransform(v: unknown): v is {
     typeof p.flipped === "boolean" && validLayer(p.layer);
 }
 export function validDecorEffects(value: unknown): value is ParkDecorEffect[] {
-  return isValidParkDecorEffects(value);
+  return isValidParkDecorEffects(value) &&
+    value.every(effect => validEffect(effect.type));
 }
 export function validEffect(value: unknown): value is ParkEffectType {
-  return isParkEffect(value);
+  // Sleep spots are Pet Park-only interactive areas, not world scenery.
+  return value !== "sleep" && isParkEffect(value);
 }
 export function validShopIds(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 40 &&
