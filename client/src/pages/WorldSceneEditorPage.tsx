@@ -9,6 +9,7 @@ import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
+import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
@@ -406,6 +407,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             </span>
           </button>;
         })}
+        {activeBuilding.isShop && <WorldShopShelf worldId={worldId} building={activeBuilding}
+          roomWidth={interiorW} roomHeight={interiorH}
+          onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })} />}
       </div> : <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-[#decba0]">
         This building has no interior artwork yet. Edit its asset to upload a room image.
       </div>}
