@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { RotateCw, Search } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
-  defaultParkShopPlacement, withParkShopDefaults,
-  PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE,
+  defaultParkShopPlacement, rotateParkShopPlacement, withParkShopDefaults,
+  PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE, PARK_SHOP_ROTATION_STEP,
   type ParkShopPlacement,
 } from "@shared/petParkShopPlacements";
 
@@ -152,6 +152,11 @@ export default function PetParkShopShelf({
       ? { ...p, size: Math.max(PARK_SHOP_MIN_SIZE, Math.min(PARK_SHOP_MAX_SIZE, p.size + delta)) } : p);
     changeStock(ids, next);
   };
+  const rotate = (itemId: string) => {
+    const next = layout.map(placement => placement.itemId === itemId
+      ? rotateParkShopPlacement(placement) : placement);
+    changeStock(ids, next);
+  };
   const onDown = (event: ReactPointerEvent<HTMLButtonElement>, placement: ParkShopPlacement) => {
     if (!canEditPark || save.isPending || !event.isPrimary) return;
     event.stopPropagation();
@@ -212,9 +217,13 @@ export default function PetParkShopShelf({
             width: dimension, height: dimension, transform: "translate(-50%,-50%)",
             filter: "drop-shadow(0 3px 4px rgba(0,0,0,.42))" }}>
           {itemArt(item) ? <img src={itemArt(item) ?? ""} alt="" draggable={false} loading="lazy"
-            className="pointer-events-none h-full w-full select-none object-contain" />
-            : <span aria-hidden="true" className="text-xl text-[#f3d58d]">✦</span>}
-          {(canEditPark || selectedEdit === item.id) && <span className="pointer-events-none absolute top-full max-w-[105px] truncate rounded bg-[#09261b]/90 px-1.5 py-0.5 text-[9px] text-[#f5dfa8]">{item.name}</span>}
+            data-testid="pet-park-shop-artwork"
+            className="pointer-events-none h-full w-full select-none object-contain"
+            style={{ transform: `rotate(${placement.rotation ?? 0}deg)`, transformOrigin: "center center" }} />
+            : <span aria-hidden="true" className="text-xl text-[#f3d58d]"
+                style={{ transform: `rotate(${placement.rotation ?? 0}deg)` }}>✦</span>}
+          {/* Labels only belong in the picker, editing controls and purchase
+              details. A shop's placed artwork should not have text below it. */}
         </button>;
       })}
       {loading && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-[#10291d]/90 p-2 text-xs text-amber-100">Loading merchandise…</span>}
@@ -222,13 +231,25 @@ export default function PetParkShopShelf({
     {canEditPark && editItem && !showPicker && <ViewportModalPortal blocking={false}>
       <div className="pointer-events-none absolute inset-x-2 z-[60] flex justify-center"
         style={{ bottom: "max(16px, env(safe-area-inset-bottom, 0px))" }}>
-        <div aria-label="Edit shop item artwork" className="pointer-events-auto flex max-w-[340px] items-center gap-2 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl">
+        <div aria-label="Edit shop item artwork" className="pointer-events-auto flex w-full max-w-[380px] flex-wrap items-center justify-center gap-2 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl">
           <span className="max-w-[84px] truncate text-[11px] font-semibold">{editItem.name}</span>
           <button type="button" aria-label="Smaller merchandise" disabled={save.isPending}
             onClick={() => resize(editItem.id, -2)} className="min-h-9 min-w-9 rounded-lg border border-[#d7b973]/55 bg-[#1b4630]">−</button>
           <span className="text-[11px]">{layout.find(item => item.itemId === editItem.id)?.size}%</span>
           <button type="button" aria-label="Larger merchandise" disabled={save.isPending}
             onClick={() => resize(editItem.id, 2)} className="min-h-9 min-w-9 rounded-lg border border-[#d7b973]/55 bg-[#1b4630]">+</button>
+          <button type="button" data-testid="pet-park-shop-rotate"
+            aria-label="Rotate merchandise clockwise 15 degrees"
+            title="Rotate selected item clockwise 15°"
+            disabled={save.isPending}
+            onClick={() => rotate(editItem.id)}
+            className="flex min-h-9 items-center gap-1 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] px-2 text-[11px]">
+            <RotateCw size={15} aria-hidden="true" />
+            <span>{PARK_SHOP_ROTATION_STEP}°</span>
+          </button>
+          <span data-testid="pet-park-shop-rotation" className="min-w-[30px] text-center text-[10px] text-[#f1d58f]">
+            {layout.find(item => item.itemId === editItem.id)?.rotation ?? 0}°
+          </span>
           <button type="button" aria-label="Remove merchandise" disabled={save.isPending}
             onClick={() => onRemove(editItem.id)} className="min-h-9 rounded-lg border border-[#b87f70]/55 bg-[#50312b] px-2 text-[10px]">Remove</button>
           <button type="button" aria-label="Done editing item" onClick={() => setSelectedEdit(null)}
