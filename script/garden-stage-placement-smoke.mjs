@@ -119,7 +119,7 @@ try {
   assert.deepEqual(Object.keys(crops[0].stagePlacements).sort(),["planted","seedling"],
     name+": stages save independently");
   await dropdown.click();
-  await editor.getByRole("option",{name:/Moonflower Seeds · Grown/}).click();
+  await editor.getByRole("option",{name:/Moonflower Seeds · Fully grown/}).click();
   await save.click();
   await editor.locator('[title="Saved placement"]').waitFor({state:"visible"});
   assert.deepEqual(Object.keys(crops[1].stagePlacements),["grown"]);
