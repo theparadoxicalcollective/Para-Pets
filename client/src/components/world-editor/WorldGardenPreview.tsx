@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PetParkGardenMenu, { type GardenOwnedItem } from "@/components/PetParkGardenMenu";
 import PetParkWaterRefillPopup from "@/components/PetParkWaterRefillPopup";
 import PetParkCropArtwork from "@/components/PetParkCropArtwork";
+import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { gardenCropProgress, gardenItemNeedsRefill, type GardenPlayerState } from "@shared/garden";
 import type { WorldScenePlacement } from "@shared/worlds/worldSceneContent";
@@ -77,6 +78,17 @@ export default function WorldGardenPreview(props: Props) {
       className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
       <div className="pointer-events-none absolute left-0 top-0"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${panX}px, ${panY}px)` }}>
+        {garden?.plots.filter(plot => plot.phase !== "empty" && plot.phase !== "picked").map(plot => {
+          const width = plot.size * scale;
+          if (!visible(panX + plot.xPct * sceneWidth, panY + plot.yPct * sceneHeight, width)) return null;
+          return <div key={plot.plotItemId + "-soil"} className="pointer-events-none absolute"
+            style={{
+              left: plot.xPct * sceneWidth, top: plot.yPct * sceneHeight,
+              width, height: width / 2, transform: "translate(-50%, -50%)", zIndex: 2,
+            }}>
+            <PetParkTerrainDetail type="garden_plot" tilled />
+          </div>;
+        })}
         {garden?.plots.map(plot => {
           const imageCrop = garden.crops.find(crop => crop.id === plot.cropId);
           const stage = plot.phase;
