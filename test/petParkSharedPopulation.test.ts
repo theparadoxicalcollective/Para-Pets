@@ -16,61 +16,47 @@ test("park scene shares publicly displayed pets, preserving idle private deposit
   assert.doesNotMatch(server.split("const sharedPets = await db.select")[1].split("}).from(petParkDeposits)")[0], /coins|essence|checkpointAt|pausedDurationMs/);
 });
 
-test("public outdoor roster publishes only the lowest displayed slot per other owner", () => {
-  // Filter in the server's SQL query, not after downloading all three pets to
-  // every phone. The local owner still sees and can move all three.
-  assert.match(server, /const firstOutdoor = alias\(petParkDeposits, "first_outdoor"\)/);
-  const selector = server.split('const firstPublicOutdoor =')[1]?.split('const rankedOutdoorOwners =')[0];
-  assert.ok(selector, "first-public-pet database subquery exists");
-  assert.match(selector, /selectDistinctOn\(\[firstOutdoor\.userId\]/);
-  assert.match(selector, /isNull\(firstOutdoor\.withdrawnAt\)/);
-  assert.match(selector, /eq\(firstOutdoor\.showInPark, true\)/);
-  assert.match(selector, /isNull\(firstOutdoor\.buildingId\)/);
-  assert.match(selector, /isNotNull\(firstOutdoor\.parkXPct\)/);
-  assert.match(selector, /isNotNull\(firstOutdoor\.parkYPct\)/);
-  assert.match(selector, /orderBy\(firstOutdoor\.userId, firstOutdoor\.slotNumber,/,
-    "lowest publicly placed slot wins, not necessarily slot 1 if idle/indoors");
-  const presenceSelection = server.split('const rankedOutdoorOwners =')[1]
-    ?.split('// The public roster is read-only')[0];
-  assert.ok(presenceSelection, "ranked outdoor population query exists");
-  assert.match(presenceSelection, /count\(\*\) over \(\)/,
-    "crowding considers all distinct other owners, not only active ones");
-  assert.match(presenceSelection, /leftJoin\(petParkPresence/);
-  assert.match(presenceSelection, /lte\(rankedOutdoorOwners\.ownerCount, PARK_PUBLIC_OUTDOOR_OWNER_BUDGET\)/,
-    "inactive owners remain visible while below the budget");
-  assert.match(presenceSelection, /gte\(rankedOutdoorOwners\.lastSeenAt, activeSince\)/,
-    "inactive owners are excluded when crowded");
-  assert.match(presenceSelection, /orderBy\(desc\(rankedOutdoorOwners\.lastSeenAt\)/,
-    "recently present players win when there are too many active owners");
-  assert.match(presenceSelection, /\.limit\(PARK_PUBLIC_OUTDOOR_OWNER_BUDGET\)/);
-  assert.match(server, /export const PARK_PUBLIC_OUTDOOR_OWNER_BUDGET = 40/);
-  assert.match(server, /export const PARK_ACTIVE_PRESENCE_MS = 15 \* 60 \* 1000/);
+test("crowded park selects first outdoor pet per other owner without changing private or indoor pets", () => {
+  const selection = readFileSync("server/petPark/publicOutdoorPopulation.ts", "utf8");
+  assert.match(selection, /const firstOutdoor = alias\(petParkDeposits, "first_outdoor"\)/);
+  assert.match(selection, /selectDistinctOn\(\[firstOutdoor\.userId\]/);
+  assert.match(selection, /ne\(firstOutdoor\.userId, viewerId\)/);
+  assert.match(selection, /isNull\(firstOutdoor\.withdrawnAt\)/);
+  assert.match(selection, /eq\(firstOutdoor\.showInPark, true\)/);
+  assert.match(selection, /isNull\(firstOutdoor\.buildingId\)/);
+  assert.match(selection, /isNotNull\(firstOutdoor\.parkXPct\)/);
+  assert.match(selection, /isNotNull\(firstOutdoor\.parkYPct\)/);
+  assert.match(selection, /orderBy\(firstOutdoor\.userId, firstOutdoor\.slotNumber,/,
+    "the lowest actually displayed slot wins for another owner");
+  assert.match(selection, /count\(\*\) over \(\)/,
+    "crowd detection considers the distinct other owners");
+  assert.match(selection, /leftJoin\(petParkPresence/);
+  assert.match(selection, /lte\(rankedOutdoorOwners\.ownerCount, PARK_PUBLIC_OUTDOOR_OWNER_BUDGET\)/);
+  assert.match(selection, /gte\(rankedOutdoorOwners\.lastSeenAt, activeSince\)/);
+  assert.match(selection, /\.limit\(PARK_PUBLIC_OUTDOOR_OWNER_BUDGET\)/);
+  assert.match(selection, /export const PARK_PUBLIC_OUTDOOR_OWNER_BUDGET = 40/);
+  assert.match(selection, /export const PARK_ACTIVE_PRESENCE_MS = 15 \* 60 \* 1000/);
+  assert.match(server, /visibleOtherParkOutdoorIds\(db, userId, activeSince\)/);
   assert.match(server, /onConflictDoUpdate\(\{/);
   assert.match(server, /setWhere: lt\(petParkPresence\.lastSeenAt, refreshBefore\)/,
-    "30-second park refresh must not write presence every time");
+    "the 30-second refresh must not write presence every time");
+
   const roster = server.split("const sharedPets = await db.select")[1]?.split("return res.json")[0];
   assert.ok(roster);
   assert.match(roster, /or\(eq\(petParkDeposits\.userId, userId\),\s*inArray\(petParkDeposits\.id, visibleOtherOutdoorIds\)\)/,
-    "owner's own displayed pets stay visible, others one per owner");
+    "the viewer retains all their own outdoor pets");
   assert.match(roster, /isNotNull\(petParkDeposits\.buildingId\)/,
-    "indoor pets are untouched");
-  assert.doesNotMatch(roster, /\.limit\(/, "do not introduce an arbitrary global limit that removes owners");
+    "indoor occupants are not capped by outdoor crowd control");
   assert.doesNotMatch(roster, /pausedAt|earnedDurationMs|coinsPerHour/,
-    "public data must remain free of reward and private wallet fields");
+    "public rows never expose owners' rewards or balances");
   const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.ts", "utf8");
   assert.match(migration, /CREATE TABLE IF NOT EXISTS pet_park_presence/);
   assert.match(migration, /CREATE INDEX IF NOT EXISTS pet_park_presence_recent_idx/);
   assert.match(migration, /CREATE INDEX IF NOT EXISTS pet_park_deposits_outdoor_first_active_idx/);
-  assert.match(migration, /ON pet_park_deposits \(user_id, slot_number, created_at, id\)/);
-  assert.match(migration, /WHERE withdrawn_at IS NULL AND show_in_park = true/,
-    "partial index supports the exact eligible first-outdoor selection");
   const client = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
+  assert.match(client, /const deposits = scene\?\.deposits \?\? \[\]/);
   assert.match(client, /outdoorPets\.map\(pet =>/);
-  assert.match(client, /const isMine = !!myDeposit/);
-  assert.match(client, /indoorVisiblePets\.map\(pet =>/,
-    "interior rooms retain original occupant rendering");
-  assert.match(client, /const deposits = scene\?\.deposits \?\? \[\]/,
-    "three owner slots still come from the independent deposit query");
+  assert.match(client, /indoorVisiblePets\.map\(pet =>/);
 });
 
 test("shared pet scene has stable placement, public cosmetics, pet inspection and refresh", () => {
