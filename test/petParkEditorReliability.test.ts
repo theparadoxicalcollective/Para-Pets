@@ -22,7 +22,9 @@ test("effect drafts use the most recently confirmed server save as their cancel 
 test("indoor deposits and capacity edits remain safe without affecting reward settlement", () => {
   assert.doesNotMatch(page, /occupantCount=\{/);
   assert.doesNotMatch(details, /capacity < occupantCount/);
-  assert.match(details, /Visitors share the building with placed pets/);
+  assert.match(details, /Regular buildings can house pets/);
+  assert.match(details, /Shops cannot hold pets/);
+  assert.match(page, /!popupRoom && !activeBuilding\.isShop && <div/, "shop interiors must never offer a pet placement control");
   assert.match(admin, /db\.transaction\(async tx =>/);
   assert.match(admin, /isNull\(petParkDeposits\.withdrawnAt\)/);
   assert.match(admin, /occupants\.length > \(updates\.maxPets as number\)/);

@@ -108,8 +108,9 @@ export default function PetParkBuildingDetails({
         else onClose();
       }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
       exitAfterSave.current = false;
+      if (variables.isShop !== undefined) setIsShop(Boolean(building.isShop));
       toast({ title: "Could not update building", description: error.message, variant: "destructive" });
     },
   });
@@ -308,7 +309,17 @@ export default function PetParkBuildingDetails({
   </div>;
 
   return <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))]"
-    role="dialog" aria-modal="true" aria-label={`Edit ${building.name}`} data-testid="pet-park-building-details">
+    role="dialog" aria-modal="true" aria-label={`Edit ${building.name}`} data-testid="pet-park-building-details"
+    onPointerDown={event => {
+      if (event.target !== event.currentTarget || mutation.isPending) return;
+      const dirty = name !== building.name || maxPets !== building.maxPets ||
+        JSON.stringify(effects) !== JSON.stringify(savedEffects.current);
+      if (dirty) {
+        toast({ title: "Unsaved building changes", description: "Save or cancel your edits before closing." });
+        return;
+      }
+      onClose();
+    }}>
     <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#10271e] text-amber-100 shadow-xl">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-700/50 p-3">
         <h2 className="font-semibold text-amber-300">Edit building: {building.name}</h2>
@@ -330,16 +341,44 @@ export default function PetParkBuildingDetails({
                 Math.min(PET_PARK_BUILDING_CAPACITY_MAX, Math.round(Number(event.target.value) || PET_PARK_BUILDING_CAPACITY_MIN))))}
               className="mt-1 w-full rounded bg-[#091e17] p-2" />
           </label>
-          <label className="flex min-h-11 items-center gap-3 rounded-lg border border-[#b99a4c]/50 bg-[#183b2a] p-3 text-sm">
-            <input type="checkbox" aria-label="Is Shop building" checked={isShop}
-              onChange={event => setIsShop(event.target.checked)} className="h-4 w-4 accent-[#e0bd75]" />
-            Is Shop
-          </label>
-          {isShop && <p className="text-xs text-amber-100/70">Upload an interior, then enter the building to use + Add Item. Existing catalog items appear with images and names.</p>}
-          <p className="text-xs text-amber-100/70">Visitors share the building with placed pets. Full-page rooms also have their own limits within the building's capacity.</p>
+          <div className={`rounded-xl border p-3 ${isShop ? "border-[#dbbc70] bg-[#245037]" : "border-[#887552]/65 bg-[#142b20]"}`}
+            data-testid="pet-park-building-shop-setting">
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm">
+              <span className="flex flex-col gap-1">
+                <strong>Is Shop</strong>
+                <span className={`text-xs ${isShop ? "text-[#f5d77b]" : "text-amber-100/65"}`}
+                  role="status" data-testid="pet-park-shop-status">
+                  {mutation.isPending ? (isShop ? "ON · Saving shop…" : "OFF · Saving building…") : isShop ? "ON · Shop enabled" : "OFF · Regular building"}
+                </span>
+              </span>
+              <span className={`relative flex h-8 w-14 shrink-0 items-center rounded-full border-2 p-1 transition-colors ${isShop ? "border-[#e5c66a] bg-[#47734b]" : "border-[#887552] bg-[#253529]"}`}>
+                <input type="checkbox" role="switch" aria-label="Is Shop building"
+                  checked={isShop} disabled={mutation.isPending}
+                  onChange={event => {
+                    const next = event.target.checked;
+                    setIsShop(next);
+                    // Save the shop toggle immediately. Previously the tiny
+                    // checkbox looked active but was not committed until the
+                    // separate building-details Save button was pressed.
+                    mutation.mutate({ isShop: next });
+                  }}
+                  className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait" />
+                <span aria-hidden="true" className={`pointer-events-none h-5 w-5 rounded-full bg-[#f5dfad] shadow-sm transition-transform ${isShop ? "translate-x-6" : "translate-x-0"}`} />
+              </span>
+            </label>
+            <p className="mt-2 text-[11px] text-amber-100/75">
+              {isShop
+                ? "Shop is ON. Enter its interior, use + Add Item, then drag the item images to stock and arrange the room."
+                : "Turn on to make this building a shop. Normal buildings do not show an item shelf."}
+            </p>
+            {isShop && !imagePreview && <p className="mt-1 text-[11px] text-[#f5d77b]">Upload an interior background before stocking items.</p>}
+          </div>
+          <p className="text-xs text-amber-100/70">{isShop
+            ? "Shops cannot hold pets. Any existing pets are returned to their earning spots when Shop is enabled."
+            : "Regular buildings can house pets. Full-page rooms also have individual pet limits."}</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
             disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
-            onClick={() => mutation.mutate({ name: name.trim(), maxPets, isShop })}>Save building details</button>
+            onClick={() => mutation.mutate({ name: name.trim(), maxPets })}>Save name & capacity</button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">Replace exterior artwork
               <input type="file" accept="image/*" aria-label="Replace park building exterior" className="mt-1 block w-full text-xs"

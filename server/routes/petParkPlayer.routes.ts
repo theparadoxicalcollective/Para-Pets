@@ -183,7 +183,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         // Serialize occupancy with all other placements and admin capacity edits.
         const [building] = await tx.select().from(petParkBuildings)
           .where(eq(petParkBuildings.id, buildingId)).for("update");
-        if (!building || !building.interiorImageUrl) return { status: 422 as const };
+        if (!building || !building.interiorImageUrl || building.isShop) return { status: 422 as const };
         const room = roomEffectId === null ? null :
           (building.interiorEffects ?? []).find(effect => effect.id === roomEffectId);
         if (roomEffectId !== null && !isPetAccessibleParkRoom(room))
@@ -347,6 +347,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       if (!allowed) return res.status(403).json({ message: "Pet Park is not open" });
       const [building] = await db.select({
         isShop: petParkBuildings.isShop, shopItemIds: petParkBuildings.shopItemIds,
+        shopItemPlacements: petParkBuildings.shopItemPlacements,
       }).from(petParkBuildings).where(eq(petParkBuildings.id, String(req.params.id)));
       if (!building?.isShop) return res.status(404).json({ message: "Shop building not found" });
       const ids = Array.isArray(building.shopItemIds) ? building.shopItemIds.slice(0, 80) : [];
@@ -355,11 +356,13 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         id: shopItems.id, name: shopItems.name, type: shopItems.type,
         imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
         hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
+        description: shopItems.description,
       }).from(shopItems).where(inArray(shopItems.id, ids));
       const byId = new Map(catalog.map(item => [item.id, item]));
+      const placementMap = new Map((building.shopItemPlacements ?? []).map(item => [item.itemId, item]));
       return res.json(ids.flatMap(id => {
         const item = byId.get(id);
-        return item ? [item] : [];
+        return item ? [{ ...item, placement: placementMap.get(id) ?? null }] : [];
       }));
     } catch (error) {
       console.error("[pet-park] shop item read failed", error);

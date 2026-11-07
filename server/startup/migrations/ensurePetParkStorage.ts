@@ -63,11 +63,13 @@ export async function ensurePetParkStorage(): Promise<void> {
       interior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
       is_shop boolean NOT NULL DEFAULT false,
       shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+      shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb,
       interior_darkness integer NOT NULL DEFAULT 35,
       created_at timestamp NOT NULL DEFAULT now()
     );
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS is_shop boolean NOT NULL DEFAULT false;
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;
     -- Additive default: existing rooms gain soft ambience without placement changes.
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS interior_darkness integer NOT NULL DEFAULT 35;
 
@@ -112,6 +114,13 @@ export async function ensurePetParkStorage(): Promise<void> {
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_x_pct real NOT NULL DEFAULT 0.5 CHECK (interior_x_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS interior_y_pct real NOT NULL DEFAULT 0.72 CHECK (interior_y_pct BETWEEN 0 AND 1);
     ALTER TABLE pet_park_deposits ADD COLUMN IF NOT EXISTS pose text NOT NULL DEFAULT 'idle' CHECK (pose IN ('idle', 'sit', 'sleep'));
+
+    -- Existing shop buildings must not continue housing pets after upgrading.
+    -- Idle display leaves deposits and their reward checkpoints intact.
+    UPDATE pet_park_deposits SET building_id = NULL, room_effect_id = NULL,
+      show_in_park = false, park_x_pct = NULL, park_y_pct = NULL, pose = 'idle'
+      WHERE withdrawn_at IS NULL AND building_id IN
+        (SELECT id FROM pet_park_buildings WHERE is_shop = true);
 
     CREATE UNIQUE INDEX IF NOT EXISTS pet_park_deposits_slot_active_uidx
       ON pet_park_deposits (user_id, slot_number) WHERE withdrawn_at IS NULL;

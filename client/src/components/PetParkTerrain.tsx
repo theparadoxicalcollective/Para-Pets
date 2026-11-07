@@ -3,7 +3,7 @@ import type { ParkGroundTheme } from "@shared/petParkGround";
 import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
 import {
   parkTerrainCellWindow, parkTerrainNoise, parkVisibleTerrainBounds,
-  type ParkTerrainViewport,
+  parkTerrainPreviewTransform, type ParkTerrainViewport,
 } from "@/lib/petParkTerrain";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
@@ -132,30 +132,93 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   waterPatches?: readonly ParkDirtPatch[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Camera movement used to re-run all watercolor and connected-path loops
+  // on *every pinch frame*. Keep the last raster and reproject it with a cheap
+  // GPU transform during gestures; repaint at full resolution once the camera
+  // settles. The modest overscan keeps the viewport covered while moving.
+  const painted = useRef<null | {
+    view: ParkTerrainViewport & { groundTheme?: ParkGroundTheme;
+      dirtPatches?: readonly ParkDirtPatch[]; stonePatches?: readonly ParkDirtPatch[];
+      waterPatches?: readonly ParkDirtPatch[] };
+    marginX: number; marginY: number;
+  }>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || view.viewportWidth < 2 || view.viewportHeight < 2) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
-    // Avoid 3x-resolution full-screen textures on high-DPI phones.
-    const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
-    const width = Math.max(1, Math.ceil(view.viewportWidth * ratio));
-    const height = Math.max(1, Math.ceil(view.viewportHeight * ratio));
-    if (canvas.width !== width) canvas.width = width;
-    if (canvas.height !== height) canvas.height = height;
-    const groundTheme = view.groundTheme ?? "grass";
-    const frame = window.requestAnimationFrame(() => {
+    const marginX = view.viewportWidth * 0.18;
+    const marginY = view.viewportHeight * 0.18;
+    const expanded: typeof view = {
+      ...view,
+      viewportWidth: view.viewportWidth + 2 * marginX,
+      viewportHeight: view.viewportHeight + 2 * marginY,
+      panX: view.panX + marginX,
+      panY: view.panY + marginY,
+    };
+    let frame: number | undefined;
+    let timer: number | undefined;
+    const paint = () => {
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) return;
+      // Keep raster size bounded on large tablets and high-DPI phones.
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+      const width = Math.max(1, Math.ceil(expanded.viewportWidth * ratio));
+      const height = Math.max(1, Math.ceil(expanded.viewportHeight * ratio));
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      canvas.style.left = -marginX + "px";
+      canvas.style.top = -marginY + "px";
+      canvas.style.width = expanded.viewportWidth + "px";
+      canvas.style.height = expanded.viewportHeight + "px";
+      canvas.style.transform = "";
+      canvas.dataset.parkCameraPreview = "false";
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      paintTerrain(ctx, view);
-      if (view.dirtPatches?.length) paintDirtPaths(ctx, view, view.dirtPatches, groundTheme);
-      if (view.stonePatches?.length) paintConnectedPaths(ctx, view, view.stonePatches, "stone_path", groundTheme);
-      if (view.waterPatches?.length) paintConnectedPaths(ctx, view, view.waterPatches, "water_path", groundTheme);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight, view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches, view.waterPatches, view.groundTheme]);
+      paintTerrain(ctx, expanded);
+      const theme = view.groundTheme ?? "grass";
+      if (view.dirtPatches?.length) paintDirtPaths(ctx, expanded, view.dirtPatches, theme);
+      if (view.stonePatches?.length) paintConnectedPaths(ctx, expanded, view.stonePatches, "stone_path", theme);
+      if (view.waterPatches?.length) paintConnectedPaths(ctx, expanded, view.waterPatches, "water_path", theme);
+      painted.current = { view, marginX, marginY };
+    };
+    const previous = painted.current;
+    const staticChanged = !previous ||
+      previous.view.viewportWidth !== view.viewportWidth ||
+      previous.view.viewportHeight !== view.viewportHeight ||
+      previous.view.worldWidth !== view.worldWidth ||
+      previous.view.worldHeight !== view.worldHeight ||
+      previous.view.groundTheme !== view.groundTheme ||
+      previous.view.dirtPatches !== view.dirtPatches ||
+      previous.view.stonePatches !== view.stonePatches ||
+      previous.view.waterPatches !== view.waterPatches;
+    if (staticChanged) {
+      // Persisted art / map geometry changes always draw immediately.
+      frame = window.requestAnimationFrame(paint);
+    } else {
+      const { ratio, dx, dy } = parkTerrainPreviewTransform(
+        previous.view, view, previous.marginX, previous.marginY);
+      if (Math.abs(dx) < .1 && Math.abs(dy) < .1 && Math.abs(ratio - 1) < .0001) {
+        canvas.style.transform = "";
+        canvas.dataset.parkCameraPreview = "false";
+      } else {
+        canvas.style.transformOrigin = "0 0";
+        canvas.style.transform = `translate(${dx}px, ${dy}px) scale(${ratio})`;
+        canvas.dataset.parkCameraPreview = "true";
+        // Cancel/restart as new camera frames arrive. One accurate raster
+        // rebuild at rest instead of dozens of heavy canvas repaints.
+        timer = window.setTimeout(() => {
+          frame = window.requestAnimationFrame(paint);
+        }, 110);
+      }
+    }
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+    };
+  }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight,
+      view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
+      view.waterPatches, view.groundTheme]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
-    className="pointer-events-none absolute inset-0 h-full w-full" style={{ backgroundColor: PARK_GROUND_PALETTES[view.groundTheme ?? "grass"].base }} />;
+    className="pointer-events-none absolute" style={{ backgroundColor: PARK_GROUND_PALETTES[view.groundTheme ?? "grass"].base }} />;
 }
 
 function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) {

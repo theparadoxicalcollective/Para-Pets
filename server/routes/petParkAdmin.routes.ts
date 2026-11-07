@@ -9,6 +9,7 @@ import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PAR
 import { isParkEffect } from "@shared/petParkEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
 import type { db as database } from "../db";
+import { validParkShopPlacements } from "@shared/petParkShopPlacements";
 
 type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain";
 function isKind(value: unknown): value is ParkKind {
@@ -43,6 +44,9 @@ export function registerPetParkAdminRoutes(
         imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
         hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
       }).from(shopItems).where(and(
+        // Garden fruit is harvest/market-only: never list an item that the
+        // existing coin shop transaction must refuse to sell.
+        sql`${shopItems.type} <> 'garden_fruit'`,
         search ? ilike(shopItems.name, "%" + search + "%") : undefined,
         type && type !== "all" ? eq(shopItems.type, type) : undefined,
       )).orderBy(asc(shopItems.name)).limit(100);
@@ -228,6 +232,11 @@ export function registerPetParkAdminRoutes(
       if (typeof body.isShop !== "boolean") return res.status(400).json({ message: "Is Shop must be on or off" });
       updates.isShop = body.isShop;
     }
+    if (body.shopItemPlacements !== undefined) {
+      if (!validParkShopPlacements(body.shopItemPlacements))
+        return res.status(400).json({ message: "Use up to 80 distinct image-relative merchandise positions and valid item sizes" });
+      updates.shopItemPlacements = body.shopItemPlacements;
+    }
     if (body.shopItemIds !== undefined) {
       const ids = body.shopItemIds;
       if (!Array.isArray(ids) || ids.length > 80 ||
@@ -266,25 +275,40 @@ export function registerPetParkAdminRoutes(
     if (updates.shopItemIds !== undefined && (updates.shopItemIds as string[]).length) {
       try {
         const ids = updates.shopItemIds as string[];
-        const found = await db.select({ id: shopItems.id }).from(shopItems).where(inArray(shopItems.id, ids));
+        const found = await db.select({ id: shopItems.id, type: shopItems.type })
+          .from(shopItems).where(inArray(shopItems.id, ids));
         if (found.length !== ids.length) return res.status(400).json({ message: "A selected shop item no longer exists" });
+        if (found.some(item => item.type === "garden_fruit"))
+          return res.status(400).json({ message: "Harvested fruit cannot be stocked in coin shops" });
       } catch (error) {
         console.error("[pet-park] shop catalog validation failed", error);
         return res.status(500).json({ message: "Could not validate shop items" });
       }
     }
     try {
-      if (updates.maxPets !== undefined || updates.interiorEffects !== undefined) {
+      if (updates.maxPets !== undefined || updates.interiorEffects !== undefined ||
+          updates.isShop === true || updates.shopItemPlacements !== undefined ||
+          updates.shopItemIds !== undefined) {
         // Room changes and pet placements serialize through the same building lock.
         // Never delete, shrink or convert a room that currently contains pets.
         const result = await db.transaction(async tx => {
           const [existing] = await tx.select().from(petParkBuildings)
             .where(eq(petParkBuildings.id, String(req.params.id))).for("update");
           if (!existing) return { status: 404 as const };
+          const currentIds = updates.shopItemIds !== undefined
+            ? updates.shopItemIds as string[] : existing.shopItemIds ?? [];
+          const newPlacements = updates.shopItemPlacements !== undefined
+            ? updates.shopItemPlacements as import("@shared/petParkShopPlacements").ParkShopPlacement[]
+            : existing.shopItemPlacements ?? [];
+          if (newPlacements.some(item => !currentIds.includes(item.itemId)))
+            return { status: 400 as const, message: "Placed shop artwork must belong to the shop catalog" };
+          if (updates.shopItemPlacements === undefined && updates.shopItemIds !== undefined)
+            updates.shopItemPlacements = newPlacements.filter(item => currentIds.includes(item.itemId));
           const occupants = await tx.select({ id: petParkDeposits.id, roomEffectId: petParkDeposits.roomEffectId })
             .from(petParkDeposits)
             .where(and(eq(petParkDeposits.buildingId, existing.id), isNull(petParkDeposits.withdrawnAt)));
-          if (updates.maxPets !== undefined && occupants.length > (updates.maxPets as number))
+          if (updates.maxPets !== undefined && updates.isShop !== true && !existing.isShop &&
+              occupants.length > (updates.maxPets as number))
             return { status: 409 as const, message: `This building has ${occupants.length} active pets. Move pets outside before lowering capacity.` };
           if (updates.interiorEffects !== undefined) {
             let proposed = sanitizeParkInteriorEffects(body.interiorEffects, existing.interiorEffects);
@@ -308,6 +332,15 @@ export function registerPetParkAdminRoutes(
                 return { status: 409 as const, message: "Move pets out before changing an occupied room or its capacity" };
             }
             updates.interiorEffects = proposed;
+          }
+          if (updates.isShop === true) {
+            // A newly opened shop cannot keep active indoor pets; return them
+            // to their earning ovals, preserving their deposit and checkpoint.
+            await tx.update(petParkDeposits).set({
+              buildingId: null, roomEffectId: null, showInPark: false,
+              parkXPct: null, parkYPct: null, pose: "idle",
+            }).where(and(eq(petParkDeposits.buildingId, existing.id),
+              isNull(petParkDeposits.withdrawnAt)));
           }
           const [building] = await tx.update(petParkBuildings).set(updates)
             .where(eq(petParkBuildings.id, existing.id)).returning();

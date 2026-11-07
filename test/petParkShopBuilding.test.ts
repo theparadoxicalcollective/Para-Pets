@@ -37,28 +37,57 @@ test("admin can size new buildings and mark older ones as shops, without rewriti
   assert.match(panel, /size: buildingSize, isShop: buildingIsShop/);
   assert.match(panel, /aria-label="Is Shop building"/);
   assert.match(details, /aria-label="Is Shop building"/);
-  assert.match(details, /mutation\.mutate\(\{ name: name\.trim\(\), maxPets, isShop \}\)/);
-  assert.match(park, /<PetParkShopShelf buildingId=\{activeBuilding\.id\}/);
+  assert.match(details, /mutation\.mutate\(\{ isShop: next \}\)/);
+  assert.match(details, /ON · Shop enabled/);
+  assert.match(details, /OFF · Regular building/);
+  assert.match(park, /<PetParkShopShelf/);
+  assert.match(park, /buildingId=\{activeBuilding\.id\}/);
   assert.match(park, /activeBuilding\.isShop && !fullPageRoom/);
   assert.doesNotMatch(park, /390\s*[x×]\s*844/);
 });
 
-test("shop shelf uses existing item records, images and a compact catalog filter", () => {
+test("shop merchandise is positioned on the room artwork with compact filtered picker and checkout", () => {
   const component = get("client/src/components/PetParkShopShelf.tsx");
-  assert.match(component, /data-testid="pet-park-shop-shelf"/);
-  assert.match(component, /aria-label="Add shop item"/);
+  assert.match(component, /data-testid="pet-park-shop-merchandise"/);
+  assert.match(component, /data-testid=\{\`pet-park-shop-item-\$\{item\.id\}\`\}/);
+  assert.match(component, /safeSetPointerCapture/);
+  assert.match(component, /changeStock\(ids, layout\.map/);
   assert.match(component, /aria-label="Search shop items"/);
   assert.match(component, /aria-label="Filter shop items"/);
+  assert.match(component, /aria-label="Choose a shop item"/);
   for (const category of ["All", "Pets", "Items", "Seeds", "Tools"]) {
     assert.match(component, new RegExp('name: "' + category + '"'));
   }
-  assert.match(component, /item\.imageUrl \|\| item\.eggImageUrl \|\| item\.hatchedImageUrl/);
-  assert.match(component, /disabled=\{itemIds\.includes\(item\.id\) \|\| save\.isPending\}/);
-  assert.match(component, /itemIds\.filter\(current => current !== id\)/);
-  assert.match(component, /shopItemIds: nextItemIds/);
+  assert.match(component, /shopItemIds: next\.ids, shopItemPlacements: next\.layout/);
   assert.match(component, /enabled: canEditPark && showPicker/);
   assert.match(component, /staleTime: 30_000/);
-  assert.doesNotMatch(component, /api\/shop\/:worldId\/buy/, "don't bypass existing coin shop purchase validation");
+  assert.match(component, /data-testid="pet-park-shop-purchase-dialog"/);
+  assert.match(component, /PARA_PETS_COIN_IMAGE/);
+  assert.match(component, /\/api\/shop\/pet-park\/buy\//);
+  assert.match(component, /buildingId, quantity: 1/);
+  assert.match(component, /qc\.invalidateQueries\(\{ queryKey: \["\/api\/inventory"\] \}\)/);
+  assert.doesNotMatch(component, /\/api\/pet-park\/buildings\/\:id\/buy/, "never introduce a second insecure coin checkout path");
+});
+
+test("shop purchases reuse the authenticated inventory ledger and reject unstocked merchandise", () => {
+  const routes = get("server/routes.ts");
+  const player = get("server/routes/petParkPlayer.routes.ts");
+  const admin = get("server/routes/petParkAdmin.routes.ts");
+  const migration = get("server/startup/migrations/ensurePetParkStorage.ts");
+  const schema = get("shared/schema.ts");
+  const page = get("client/src/pages/PetParkPage.tsx");
+  assert.match(routes, /req\.params\.worldId === "pet-park"/);
+  assert.match(routes, /!building\.shopItemIds\.includes\(itemId\)/);
+  assert.match(routes, /purchaseInventoryItem\(/);
+  assert.match(routes, /sql\`\$\{usersTable\.coins\} >= \$\{cost\}\`/);
+  assert.match(routes, /shopItem\.type === "garden_fruit"/);
+  assert.match(player, /building\.isShop\) return \{ status: 422 as const \}/);
+  assert.match(admin, /updates\.isShop === true/);
+  assert.match(admin, /await tx\.update\(petParkDeposits\)\.set/);
+  assert.match(page, /!popupRoom && !activeBuilding\.isShop && <div data-testid="pet-park-interior-slots"/);
+  assert.match(page, /activeBuilding\.isShop && !fullPageRoom && <PetParkShopShelf/);
+  assert.match(schema, /shopItemPlacements: jsonb\("shop_item_placements"\)/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT/);
 });
 
 test("stability fixes keep third-slot purchase state, bounded mobile picker, no pet foot shadows", () => {

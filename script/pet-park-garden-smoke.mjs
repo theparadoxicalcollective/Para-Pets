@@ -44,6 +44,7 @@ try{
     page.setDefaultTimeout(16000);
     const errors=[],requests=[],replays=new Map();
     let slotUnlockCalls=0;
+    let shopPurchases=0;
     const plot={ plotItemId:"plot1",xPct:.5,yPct:.5,size:150,phase:"empty",
       cropId:null,waterApplied:0,harvestReady:false,pickedUntil:null };
     const crop={id:"crop1",seedItemId:"seed-item",fruitItemId:"fruit-item",
@@ -74,6 +75,13 @@ try{
       if(p==="/api/inventory")return route.fulfill({json:inventory});
       if(p==="/api/pet-park/garden")return route.fulfill({json:{serverNow:new Date().toISOString(),plots:[plot],crops:[crop]}});
       if(p==="/api/pet-park/status")return route.fulfill({json:{enabledForPlayers:true,canEnterPark:true}});
+      if(p==="/api/auth/me")return route.fulfill({json:{id:"garden-fixture",coins:1000,isAdmin:false}});
+      if(p==="/api/shop/pet-park/buy/seed-item"){
+        const body=route.request().postDataJSON();
+        assert.deepEqual(body,{buildingId:"shop1",quantity:1});
+        shopPurchases++;
+        return route.fulfill({json:{user:{id:"garden-fixture",coins:875,isAdmin:false},quantity:1,inventory:{id:"bought-seed"}}});
+      }
       if(p==="/api/pet-park/buildings/shop1/shop-items")return route.fulfill({json:[
         {id:"seed-item",name:"Forest Tomato Seeds",type:"garden_seed",price:125,imageUrl:art,eggImageUrl:null,hatchedImageUrl:null},
       ]});
@@ -351,9 +359,12 @@ try{
     const shopEntrance=page.getByRole("button",{name:"Enter Woodland Shop"});
     await shopEntrance.waitFor({state:"visible"});
     await shopEntrance.click();
-    const shop=page.getByTestId("pet-park-shop-shelf");
-    await shop.waitFor({state:"visible"});
-    await shop.getByText("Forest Tomato Seeds").waitFor();
+    const merchandise=page.getByTestId("pet-park-shop-merchandise");
+    await merchandise.waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("pet-park-interior-slots").count(),0,
+      name+": shop interiors have no pet placement slots");
+    const product=page.getByRole("button",{name:"Buy Forest Tomato Seeds"});
+    await product.waitFor({state:"visible"});
     const dark=page.locator('[data-testid="pet-park-interior-room"] [data-testid="home-interior-darkness-layer"]');
     await dark.waitFor({state:"visible"});
     assert.equal(await dark.evaluate(node=>node.tagName.toLowerCase()),"svg",
@@ -370,10 +381,21 @@ try{
     });
     assert.ok(roomLayers.dark>=0 && roomLayers.light>roomLayers.dark,
       name+": glowing effect overlays are above the translucent dark background");
-    assert.equal(await shop.getByRole("button",{name:"Add shop item"}).count(),0,
-      name+": only administrators can curate shop merchandise");
-    assert.equal(await shop.getByText("125 coins").count(),1,
-      name+": stored catalog price and picture shown without fake checkout");
+    assert.equal(await page.getByTestId("pet-park-shop-add-item").count(),0,
+      name+": visitors cannot curate stock");
+    await product.click();
+    const confirmation=page.getByTestId("pet-park-shop-purchase-dialog");
+    await confirmation.waitFor({state:"visible"});
+    await confirmation.getByText("125").waitFor();
+    assert.equal(await confirmation.locator('img[src*="MainGameCoinImage"]').count(),1,
+      name+": purchase modal uses the game's real coin art");
+    await confirmation.getByRole("button",{name:"Close purchase details"}).click({position:{x:5,y:5}});
+    await confirmation.waitFor({state:"hidden"});
+    assert.equal(shopPurchases,0,name+": tap outside never places an order");
+    await product.click();
+    await page.getByTestId("pet-park-confirm-purchase").click();
+    await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-purchase-dialog"]')===null);
+    assert.equal(shopPurchases,1,name+": confirmed park purchase uses one existing-coin transaction");
     await page.getByRole("button",{name:"Exit building"}).click();
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": actual Garden Plot alpha-art centering, stage water bar, six batched pours, outside dismissal, harvest, and shared camera zoom");

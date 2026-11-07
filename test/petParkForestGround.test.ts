@@ -11,7 +11,8 @@ test("Pet Park uses one original forest-green ground, not GrassTile or a compari
   assert.match(page, /<PetParkTerrain viewportWidth=\{viewportSize\.width\}/);
   assert.doesNotMatch(page, /Compare Pet Park grass|setGrassMode|GrassTile|grassMode/);
   assert.doesNotMatch(ground, /GrassTile|paintGrassTile|grassMode|new window\.Image/);
-  assert.match(ground, /paintTerrain\(ctx, view\)/);
+  assert.match(ground, /paintTerrain\(ctx, expanded\)/, "terrain preview preserves the original painterly renderer");
+  assert.match(ground, /parkTerrainPreviewTransform\(/, "zoom preview reprojects the cached world-aligned ground");
   assert.match(ground, /ctx\.fillStyle = palette\.base/);
   assert.match(ground, /PARK_GROUND_PALETTES/);
   assert.match(readFileSync("client/src/lib/petParkGroundPalette.ts", "utf8"), /base: "#2c4934"/);
