@@ -524,11 +524,14 @@ try{
     await waterPopup.waitFor({state:"visible"});
     assert.equal(await page.getByTestId("pet-park-water-tile-source").locator("svg").count(),0,
       name+": painted water has no floating water-drop indicator");
-    const refill=waterPopup.getByTestId("pet-park-refill-item");
-    await refill.first().waitFor({state:"visible"});
-    await refill.first().click();
+    await waterPopup.getByTestId("pet-park-refill-complete").waitFor({state:"visible",timeout:10000});
+    assert.equal(await waterPopup.getByTestId("pet-park-refill-item").count(),0,
+      name+": one eligible watering pail fills automatically on water tile tap");
+    assert.ok((await waterPopup.getByTestId("pet-park-refill-pail-image").getAttribute("src"))===art,
+      name+": water tile refill displays owned pail artwork");
+    assert.equal(waterTileRefills,1,name+": painted water uses the existing refill endpoint once");
+    await waterPopup.getByRole("button",{name:"Done refilling"}).click();
     await waterPopup.waitFor({state:"hidden"});
-    assert.equal(waterTileRefills,1,name+": painted water uses the existing refill endpoint");
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": actual Garden Plot alpha-art centering, stage water bar, six batched pours, outside dismissal, harvest, and shared camera zoom");
     await context.close();

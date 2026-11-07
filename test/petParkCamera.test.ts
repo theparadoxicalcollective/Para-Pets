@@ -25,6 +25,35 @@ test("fixed camera scale stays constant across expanding ground on phones, table
   }
 });
 
+test("new minimum zoom expands the view without blank ground or changing saved item size", () => {
+  assert.equal(PARK_ZOOM_MIN, 0.6);
+  assert.equal(parkClampZoom(0.4), 0.6);
+  assert.equal(parkClampZoom(0.65), 0.65);
+  // The world is still larger than the viewport at the least zoomed-in
+  // setting, including tall phones, tablets and the gated desktop preview.
+  for (const [width, height] of [[360, 800], [390, 844], [430, 932], [768, 1024], [834, 1194], [900, 1300], [1440, 900]]) {
+    const prior = parkCameraGeometry(width, height, 1, 0.7);
+    const expanded = parkCameraGeometry(width, height, 1, PARK_ZOOM_MIN);
+    assert.ok(expanded.sceneWidth >= width && expanded.sceneHeight >= height,
+      `No empty margins at minimum zoom on ${width}×${height}`);
+    assert.ok(expanded.sceneWidth < prior.sceneWidth && expanded.sceneHeight < prior.sceneHeight);
+    const bounds = parkClampCamera({ x: -1e7, y: 1e7 }, expanded);
+    assert.deepEqual(bounds, { x: -expanded.limitX, y: 0 },
+      "camera stays on the available grass");
+    assert.equal(expanded.worldWidth, prior.worldWidth);
+    assert.equal(expanded.worldHeight, prior.worldHeight);
+    const anchor = { x: width * .4, y: height * .62 };
+    const pan = { x: -prior.limitX / 2, y: -prior.limitY / 2 };
+    const zoomed = parkZoomAnchorPan(pan, prior.scale, expanded.scale, anchor, expanded);
+    for (const axis of ["x", "y"] as const) {
+      const oldWorld = (anchor[axis] - pan[axis]) / prior.scale;
+      const newWorld = (anchor[axis] - zoomed[axis]) / expanded.scale;
+      assert.ok(Math.abs(oldWorld - newWorld) < .001,
+        "zoom must preserve the point under the pinch center when not edge-clamped");
+    }
+  }
+});
+
 test("expansion preserves placed object positions relative to scene center", () => {
   assert.equal(isParkGroundLevel(1), true);
   assert.equal(isParkGroundLevel(4), true);

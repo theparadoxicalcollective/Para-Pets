@@ -1369,6 +1369,13 @@ export const fishingLeaderboard = pgTable("fishing_leaderboard", {
 
 // Pet Park is independent of legacy Keeper's Central world data.
 // All server mutations remain disabled until a later audited service/API PR.
+// Park-only presence. The scene read refreshes at most every two minutes;
+// this is not a global online status or an earnings/eligibility flag.
+export const petParkPresence = pgTable("pet_park_presence", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  lastSeenAt: timestamp("last_seen_at").notNull().default(sql`now()`),
+});
+
 export const petParkSettings = pgTable("pet_park_settings", {
   id: varchar("id").primaryKey().default("main"),
   enabledForPlayers: boolean("enabled_for_players").notNull().default(false),
@@ -1434,6 +1441,8 @@ export const gardenPlayerPlots = pgTable("garden_player_plots", {
   waterApplied: integer("water_applied").notNull().default(0),
   harvestReady: boolean("harvest_ready").notNull().default(false),
   pickedUntil: timestamp("picked_until"),
+  // Independent natural-growth clock; watering does not restart the hour.
+  passiveGrowthAt: timestamp("passive_growth_at"),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, table => [uniqueIndex("garden_player_plot_unique").on(table.userId, table.plotItemId)]);
 

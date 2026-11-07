@@ -1,10 +1,13 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
+import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { petParkBuildings, petParkDeposits, petParkPresence, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
 import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
+import { PARK_ACTIVE_PRESENCE_MS, visibleOtherParkOutdoorIds } from "../petPark/publicOutdoorPopulation";
+
+const PARK_PRESENCE_WRITE_INTERVAL_MS = 2 * 60 * 1000;
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   registerPetParkDisplayRoutes(app, isAuthenticated);
@@ -33,6 +36,18 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       if (!canEnterPark) {
         return res.json({ enabledForPlayers: false, groundLevel: 1, backgroundUrl: null, items: [], deposits: [], unlockedSlots: 1 });
       }
+      // The park page polls this authenticated route every 30s while open.
+      // Refresh presence no more than every 2 minutes; do not use login
+      // events, which record sign-ins rather than ongoing activity.
+      const now = new Date();
+      const refreshBefore = new Date(now.getTime() - PARK_PRESENCE_WRITE_INTERVAL_MS);
+      const activeSince = new Date(now.getTime() - PARK_ACTIVE_PRESENCE_MS);
+      await db.insert(petParkPresence).values({ userId, lastSeenAt: now })
+        .onConflictDoUpdate({
+          target: petParkPresence.userId,
+          set: { lastSeenAt: now },
+          setWhere: lt(petParkPresence.lastSeenAt, refreshBefore),
+        });
       const [slots] = await db.select().from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
       const items = await db.select().from(petParkSceneItems);
       const buildings = await db.select().from(petParkBuildings);
@@ -54,7 +69,10 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)));
-      // Public park roster is read-only; never expose wallet, private inventory,
+      // Filter by first displayed pet and presence in SQL before loading
+      // public artwork, cosmetics and the rest of the scene payload.
+      const visibleOtherOutdoorIds = visibleOtherParkOutdoorIds(db, userId, activeSince);
+      // The public roster is read-only; never expose wallet, private inventory,
       // reward checkpoints or another player's deposit mutation identifiers.
       const sharedPets = await db.select({
         petInventoryId: petParkDeposits.petInventoryId,
@@ -77,12 +95,14 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .innerJoin(users, eq(petParkDeposits.userId, users.id))
-        // Equipping alone does not publish a pet. Only explicitly placed
-        // outdoor pets or occupants of a building/room are shared. Indoor
-        // records retain their position but never render in the outdoor scene.
+        // Equipping alone is private. Each visitor sees at most one outdoor
+        // pet per OTHER player; their own three remain movable/inspectable.
+        // Indoor residents are intentionally unaffected.
         .where(and(isNull(petParkDeposits.withdrawnAt), or(
           and(eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId),
-            isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct)),
+            isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct),
+            or(eq(petParkDeposits.userId, userId),
+              inArray(petParkDeposits.id, visibleOtherOutdoorIds))),
           isNotNull(petParkDeposits.buildingId),
         )))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);

@@ -3,7 +3,9 @@ import { parkGroundSize } from "@shared/petParkGround";
 /** Camera uses world coordinates, never background image size or a device reference stage. */
 const PARK_BASE_VIEW_WIDTH = 1100;
 export const PARK_BASE_VIEW_HEIGHT = 1700;
-export const PARK_ZOOM_MIN = 0.7;
+// Allow a slightly wider view without scaling or rewriting stored world placements.
+// At 0.6, even the smallest ground tier still fills portrait phone/tablet viewports.
+export const PARK_ZOOM_MIN = 0.6;
 export const PARK_ZOOM_MAX = 1.6;
 export const PARK_ZOOM_STEP = 0.15;
 

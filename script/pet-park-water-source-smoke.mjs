@@ -70,9 +70,10 @@ try{
       if(url.pathname==="/api/pet-park/water-sources/fountain/refill"){
         const body=route.request().postDataJSON();
         requests.push(body);
-        if(body.inventoryId!=="pail")return route.fulfill({status:422,json:{message:"Not refillable"}});
-        inventory=inventory.map(item=>item.inventoryId==="pail"?{...item,gardenWaterLeft:100}:item);
-        return route.fulfill({json:{inventoryId:"pail",itemName:"Forest Pail",waterLeft:100,capacity:100}});
+        if(!["pail","pail2","pail3"].includes(body.inventoryId))return route.fulfill({status:422,json:{message:"Not refillable"}});
+        const selected=inventory.find(item=>item.inventoryId===body.inventoryId);
+        inventory=inventory.map(item=>item.inventoryId===body.inventoryId?{...item,gardenWaterLeft:100}:item);
+        return route.fulfill({json:{inventoryId:body.inventoryId,itemName:selected.name,waterLeft:100,capacity:100}});
       }
       return route.fulfill({json:{}});
     });
@@ -114,22 +115,46 @@ try{
       name+": a water-source decor can switch artwork without losing refill behavior");
     const dialog=page.getByRole("dialog",{name:"Refill Water"});
     await dialog.waitFor({state:"visible"});
-    await dialog.getByTestId("pet-park-refill-item").waitFor({state:"visible"});
-    assert.equal(await dialog.getByTestId("pet-park-refill-item").count(),1,
-      name+": only partial, owned, unlisted, refillable equipment is offered");
-    assert.match(await dialog.innerText(),/Forest Pail/);
-    assert.match(await dialog.innerText(),/12 \/ 100 drops/);
-    const response=page.waitForResponse(r=>r.url().includes("/api/pet-park/water-sources/fountain/refill"));
-    await dialog.getByTestId("pet-park-refill-item").click();
-    await response;
-    await dialog.waitFor({state:"hidden"});
-    assert.deepEqual(requests,[{inventoryId:"pail"}],name+": only actual owned inventory ID is sent");
-    await water.click();
-    await dialog.waitFor({state:"visible"});
-    await dialog.getByText(/no refillable items that need water/i).waitFor({state:"visible"});
     assert.equal(await dialog.getByTestId("pet-park-refill-item").count(),0,
-      name+": full water containers are not refilled again");
+      name+": one eligible pail starts filling without an extra confirmation tap");
+    await dialog.getByTestId("pet-park-refill-animation").waitFor({state:"visible"});
+    await dialog.getByTestId("pet-park-refill-pail-image").waitFor({state:"visible"});
+    assert.equal(await dialog.getByTestId("pet-park-refill-pail-image").getAttribute("src"),art,
+      name+": refill uses the same actual watering pail inventory image");
+    await dialog.getByTestId("pet-park-refill-complete").waitFor({state:"visible",timeout:10000});
+    assert.match(await dialog.innerText(),/Watering Pail Filled!/);
+    assert.match(await dialog.innerText(),/100 \/ 100 drops/);
+    assert.deepEqual(requests,[{inventoryId:"pail"}],name+": exactly one authenticated refill request");
+    assert.equal(await page.getByText("Water refilled").count(),0,
+      name+": former large text-only toast is removed");
+    await dialog.waitFor({state:"hidden",timeout:6000});
+    await water.click();
+    await dialog.getByTestId("pet-park-refill-empty").waitFor({state:"visible"});
+    assert.match(await dialog.innerText(),/already full/i);
+    assert.deepEqual(requests,[{inventoryId:"pail"}],name+": full pails do not trigger another POST");
     await page.getByRole("button",{name:"Close refill popup"}).click();
+
+    // Multiple eligible pails still require an explicit image choice: never
+    // guess which inventory item to refill or issue duplicate requests.
+    inventory=[
+      {...inventory[0],inventoryId:"pail2",name:"Blue Pail",gardenWaterLeft:25},
+      {...inventory[0],inventoryId:"pail3",name:"Green Pail",gardenWaterLeft:33},
+      ...inventory.slice(1),
+    ];
+    await page.reload({waitUntil:"commit"});
+    const waterAgain=page.getByTestId("pet-park-water-source");
+    await waterAgain.waitFor({state:"visible"});
+    await waterAgain.click();
+    const choices=page.getByRole("dialog",{name:"Refill Water"});
+    await choices.getByTestId("pet-park-refill-item").first().waitFor({state:"visible"});
+    assert.equal(await choices.getByTestId("pet-park-refill-item").count(),2,
+      name+": only eligible owned pails are selectable");
+    assert.equal(requests.length,1,name+": multiple pails do not fill without selecting");
+    await choices.getByRole("button",{name:"Fill Green Pail"}).click();
+    await choices.getByTestId("pet-park-refill-complete").waitFor({state:"visible"});
+    assert.deepEqual(requests,[{inventoryId:"pail"},{inventoryId:"pail3"}],
+      name+": only selected inventory pail was refilled");
+    await choices.getByRole("button",{name:"Done refilling"}).click();
     assert.deepEqual(errors,[],name+": no client runtime errors");
     console.log("PASS "+name+": alpha-aware water-source tap, actual inventory filter, one refill and updated full pail");
     await context.close();

@@ -84,6 +84,15 @@ export async function ensurePetParkStorage(): Promise<void> {
       CHECK (max_pets BETWEEN 10 AND 25);
     -- Player slot limits (1–3) are separate and stay unchanged.
 
+    -- Park-only activity for scene crowd control. One small row per owner,
+    -- never an equipment, reward, public-profile or online-status change.
+    CREATE TABLE IF NOT EXISTS pet_park_presence (
+      user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      last_seen_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS pet_park_presence_recent_idx
+      ON pet_park_presence (last_seen_at DESC);
+
     CREATE TABLE IF NOT EXISTS pet_park_player_slots (
       user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       unlocked_slots integer NOT NULL DEFAULT 1 CHECK (unlocked_slots BETWEEN 1 AND 3),
@@ -132,6 +141,14 @@ export async function ensurePetParkStorage(): Promise<void> {
     CREATE INDEX IF NOT EXISTS pet_park_deposits_building_active_idx
       ON pet_park_deposits (building_id, room_effect_id)
       WHERE withdrawn_at IS NULL AND building_id IS NOT NULL;
+
+    -- Efficiently pick the lowest publicly displayed slot per owner without
+    -- scanning idle, withdrawn or indoor pets for each 30-second park refresh.
+    -- Keeps all three equipped slots and all indoor occupancy untouched.
+    CREATE INDEX IF NOT EXISTS pet_park_deposits_outdoor_first_active_idx
+      ON pet_park_deposits (user_id, slot_number, created_at, id)
+      WHERE withdrawn_at IS NULL AND show_in_park = true
+        AND building_id IS NULL AND park_x_pct IS NOT NULL AND park_y_pct IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS pet_park_reward_claims (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),

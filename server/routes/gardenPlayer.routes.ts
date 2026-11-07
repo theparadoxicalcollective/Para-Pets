@@ -6,7 +6,7 @@ import {
 } from "@shared/schema";
 import {
   GARDEN_PICKED_COOLDOWN_MS, GARDEN_WATER_CAPACITY,
-  gardenAfterWaterPour, gardenEffectivePhase, gardenHarvestQuantity,
+  gardenAfterWaterPour, gardenAfterPassiveTime, gardenEffectivePhase, gardenHarvestQuantity,
   isCompleteGardenCrop, type GardenPlotPhase,
 } from "@shared/garden";
 import { tryConsumeOneFromInventory } from "../inventoryConsumption";
@@ -27,13 +27,24 @@ class GardenActionError extends Error {
 function requireAction(condition: unknown, status: number, message: string): asserts condition {
   if (!condition) throw new GardenActionError(status, message);
 }
-function currentPlot(plotItemId: string, saved: SavedPlot | undefined, now: Date) {
+function cropRequirements(crop: SavedCrop) {
+  return { planted: crop.plantedDrops, seedling: crop.seedlingDrops,
+    partial: crop.partialDrops, grown: crop.grownDrops };
+}
+function currentPlot(plotItemId: string, saved: SavedPlot | undefined, now: Date, crop?: SavedCrop) {
   const phase = gardenEffectivePhase((saved?.phase ?? "empty") as GardenPlotPhase, saved?.pickedUntil, now);
   const reset = phase === "empty";
-  return {
-    plotItemId, phase, cropId: reset ? null : saved?.cropId ?? null,
-    waterApplied: reset ? 0 : saved?.waterApplied ?? 0,
+  const growth = {
+    phase, waterApplied: reset ? 0 : saved?.waterApplied ?? 0,
     harvestReady: reset ? false : saved?.harvestReady ?? false,
+  };
+  // Read-only resolution of elapsed hours: no cron, background job or
+  // unguarded GET mutations. POST actions resolve the same growth under lock.
+  const natural = crop && saved?.passiveGrowthAt
+    ? gardenAfterPassiveTime(growth, cropRequirements(crop), saved.passiveGrowthAt, now).growth
+    : growth;
+  return {
+    plotItemId, ...natural, cropId: reset ? null : saved?.cropId ?? null,
     pickedUntil: phase === "picked" ? saved?.pickedUntil?.toISOString() ?? null : null,
   };
 }
@@ -92,11 +103,12 @@ async function ownedEquipment(tx: GardenTx, userId: string, inventoryId: string)
   return { inventory, item };
 }
 async function savePlot(tx: GardenTx, userId: string, plotId: string, existing: SavedPlot | undefined,
-  values: Pick<SavedPlot, "phase" | "cropId" | "waterApplied" | "harvestReady" | "pickedUntil">) {
+  values: Pick<SavedPlot, "phase" | "cropId" | "waterApplied" | "harvestReady" | "pickedUntil">,
+  passiveGrowthAt: Date | null, now: Date) {
   const [saved] = existing
-    ? await tx.update(gardenPlayerPlots).set({ ...values, updatedAt: new Date() })
+    ? await tx.update(gardenPlayerPlots).set({ ...values, passiveGrowthAt, updatedAt: now })
       .where(and(eq(gardenPlayerPlots.id, existing.id), eq(gardenPlayerPlots.userId, userId))).returning()
-    : await tx.insert(gardenPlayerPlots).values({ userId, plotItemId: plotId, ...values }).returning();
+    : await tx.insert(gardenPlayerPlots).values({ userId, plotItemId: plotId, ...values, passiveGrowthAt }).returning();
   requireAction(saved, 409, "Garden state changed; reload the plot");
   return saved;
 }
@@ -135,10 +147,14 @@ export function registerGardenPlayerRoutes(
           : [];
         const byItem = new Map(catalog.map(item => [item.id, item]));
         const byPlot = new Map(ownStates.map(state => [state.plotItemId, state]));
+        const cropsById = new Map(crops.map(crop => [crop.id, crop]));
         const now = clock();
         return {
           serverNow: now.toISOString(),
-          plots: plots.map(plot => ({ ...plot, ...currentPlot(plot.id, byPlot.get(plot.id), now) })),
+          plots: plots.map(plot => {
+            const saved = byPlot.get(plot.id);
+            return { ...plot, ...currentPlot(plot.id, saved, now, cropsById.get(saved?.cropId ?? "")) };
+          }),
           crops: crops.map(crop => cropArt(crop, byItem.get(crop.seedItemId), byItem.get(crop.fruitItemId)))
             .filter(crop => crop.ready),
         };
@@ -184,7 +200,16 @@ export function registerGardenPlayerRoutes(
             .where(and(eq(gardenPlayerPlots.userId, userId),
               eq(gardenPlayerPlots.plotItemId, plotId))).for("update");
           const now = clock();
-          const previous = currentPlot(plotId, existing, now);
+          const [activeCrop] = existing?.cropId
+            ? await tx.select().from(gardenCrops).where(eq(gardenCrops.id, existing.cropId))
+            : [undefined];
+          const previous = currentPlot(plotId, existing, now, activeCrop);
+          const passiveCheckpoint = existing?.passiveGrowthAt && activeCrop
+            ? gardenAfterPassiveTime({
+                phase: (existing.phase as GardenPlotPhase),
+                waterApplied: existing.waterApplied, harvestReady: existing.harvestReady,
+              }, cropRequirements(activeCrop), existing.passiveGrowthAt, now).checkpoint
+            : existing?.passiveGrowthAt ?? null;
           const { inventory, item } = await ownedEquipment(tx, userId, inventoryId);
           let values: Pick<SavedPlot, "phase" | "cropId" | "waterApplied" | "harvestReady" | "pickedUntil">;
           let reward: { fruitItemId: string; quantity: number } | undefined;
@@ -220,7 +245,7 @@ export function registerGardenPlayerRoutes(
             422, "Choose a 100-drop Watering Pail");
             requireAction(previous.cropId && ["planted", "seedling", "partial", "grown"].includes(previous.phase) &&
               !previous.harvestReady, 409, "This crop cannot be watered");
-            const [crop] = await tx.select().from(gardenCrops).where(eq(gardenCrops.id, previous.cropId!));
+            const crop = activeCrop;
             requireAction(crop, 409, "This crop no longer exists");
             const remaining = inventory.gardenWaterLeft ?? GARDEN_WATER_CAPACITY;
             requireAction(Number.isSafeInteger(remaining) && remaining > 0 &&
@@ -228,10 +253,7 @@ export function registerGardenPlayerRoutes(
             // A single tap pours at most ten drops. The server decides the
             // exact debit and stops at the NEXT stage boundary; no client
             // stage skip, free watering, or surplus-drop loss is possible.
-            const { growth, dropsUsed } = gardenAfterWaterPour(previous, {
-              planted: crop.plantedDrops, seedling: crop.seedlingDrops,
-              partial: crop.partialDrops, grown: crop.grownDrops,
-            }, remaining);
+            const { growth, dropsUsed } = gardenAfterWaterPour(previous, cropRequirements(crop), remaining);
             const [charged] = await tx.update(userInventory).set({
               gardenWaterLeft: sql`COALESCE(${userInventory.gardenWaterLeft}, ${GARDEN_WATER_CAPACITY}) - ${dropsUsed}`,
             }).where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId),
@@ -247,7 +269,7 @@ export function registerGardenPlayerRoutes(
               422, "Choose a Scythe from your inventory");
             requireAction(previous.phase === "grown" && previous.harvestReady && previous.cropId,
               409, "This crop is not ready for harvesting");
-            const [crop] = await tx.select().from(gardenCrops).where(eq(gardenCrops.id, previous.cropId!));
+            const crop = activeCrop;
             requireAction(crop, 409, "This crop no longer exists");
             const [fruit] = await tx.select({ id: shopItems.id, type: shopItems.type }).from(shopItems)
               .where(eq(shopItems.id, crop.fruitItemId));
@@ -269,7 +291,9 @@ export function registerGardenPlayerRoutes(
               harvestReady: false, pickedUntil: new Date(now.getTime() + GARDEN_PICKED_COOLDOWN_MS) };
           }
 
-          const saved = await savePlot(tx, userId, plotId, existing, values);
+          const checkpoint = action === "plant" ? now
+            : action === "water" ? passiveCheckpoint ?? now : null;
+          const saved = await savePlot(tx, userId, plotId, existing, values, checkpoint, now);
           const result = {
             plot: currentPlot(plotId, saved, now),
             ...(remainingQuantity !== undefined ? { remainingQuantity } : {}),

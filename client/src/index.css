@@ -4340,3 +4340,44 @@ img[data-interactive], button img, a img {
 @media (prefers-reduced-motion: reduce) {
   .pet-park-slot-progress__fill, .pet-park-collect-button { transition: none !important; }
 }
+
+/* Garden watering-pail image motion reused for water-source refills.
+   Visual only: the server still decides when the pail is actually full. */
+.pet-park-refill-pail-motion {
+  transform-origin: 55% 78%;
+  animation: pet-park-refill-bob .8s ease-in-out infinite alternate;
+}
+.pet-park-refill-drops i {
+  position: absolute;
+  top: 5px;
+  left: 45%;
+  z-index: 2;
+  display: block;
+  width: 9px;
+  height: 12px;
+  border-radius: 70% 70% 75% 0;
+  transform: rotate(-45deg);
+  background: linear-gradient(145deg,#dcf8ed,#75bbc8 70%,#397d9e);
+  box-shadow: 0 0 7px rgba(118,217,231,.55);
+  opacity: 0;
+  animation: pet-park-refill-drop 1.05s linear infinite;
+}
+.pet-park-refill-drops i:nth-child(2) { left: 55%; animation-delay: .32s; }
+.pet-park-refill-drops i:nth-child(3) { left: 49%; animation-delay: .64s; }
+.pet-park-refill-meter { width: 6%; animation: pet-park-refill-rise 2s ease-out forwards; }
+@keyframes pet-park-refill-bob {
+  0% { transform: translateY(2px) rotate(-3deg); }
+  100% { transform: translateY(-2px) rotate(3deg); }
+}
+@keyframes pet-park-refill-drop {
+  0% { opacity: 0; translate: 0 0; }
+  12% { opacity: .95; }
+  85% { opacity: .9; }
+  100% { opacity: 0; translate: 0 46px; }
+}
+@keyframes pet-park-refill-rise { to { width: 94%; } }
+@media (prefers-reduced-motion: reduce) {
+  .pet-park-refill-pail-motion, .pet-park-refill-drops i, .pet-park-refill-meter {
+    animation: none !important;
+  }
+}

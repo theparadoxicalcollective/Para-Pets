@@ -39,9 +39,9 @@ const tools: Record<Exclude<GardenPlayerAction, "plant">, string> = {
 // The arc is mirrored when the plot sits near the viewport's right edge.
 const BUTTONS: Array<{ action: GardenPlayerAction; Icon: typeof Shovel; x: number; y: number }> = [
   { action: "hoe", Icon: Shovel, x: 4, y: 0 },
-  { action: "plant", Icon: Sprout, x: 61, y: 55 },
-  { action: "water", Icon: Droplets, x: 70, y: 126 },
-  { action: "harvest", Icon: Scissors, x: 4, y: 192 },
+  { action: "plant", Icon: Sprout, x: 50, y: 43 },
+  { action: "water", Icon: Droplets, x: 55, y: 99 },
+  { action: "harvest", Icon: Scissors, x: 5, y: 151 },
 ];
 function eligibleItem(item: GardenOwnedItem, action: GardenPlayerAction,
   crops: readonly GardenPlayerCrop[]): boolean {
@@ -164,9 +164,9 @@ export default function PetParkGardenMenu({
   return <ViewportModalPortal blocking={false}>
     <div ref={menuRef} data-testid="pet-park-garden-menu" className="pointer-events-none absolute inset-0 z-[76]"
       aria-label="Garden Plot tools">
-      <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[145px]"
+      <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[125px]"
         data-side={anchor.side} style={{ left: anchor.x, top: anchor.y }}>
-        <div className="relative h-[249px]" role="group" aria-label="Garden tools">
+        <div className="relative h-[199px]" role="group" aria-label="Garden tools">
           {!motion && BUTTONS.map(({ action, Icon, x, y }) => {
             const items = owned(action);
             const available = !inventoryLoading && suggested === action && items.length > 0 && !isBusy && !mutation.isPending;
@@ -182,15 +182,15 @@ export default function PetParkGardenMenu({
               title={actionNames[action]}
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); chooseAction(action); }}
-              className={"garden-tool-bubble pointer-events-auto absolute flex h-[57px] w-[57px] flex-col items-center justify-center rounded-full border text-[10px] font-semibold shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2d48a] " +
+              className={"garden-tool-bubble pointer-events-auto absolute flex h-[48px] w-[48px] flex-col items-center justify-center rounded-full border text-[10px] font-semibold shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2d48a] " +
                 (available ? "bg-[#1f5135] text-[#ffe9b0]" :
                   "bg-[#22382b]/90 text-[#a5ae96] opacity-45 grayscale") +
                 (suggested === action ? " border-[1.5px] border-[#f1d18a] ring-1 ring-[#cda55e]/80" :
                   " border border-[#7e816e]/70")}
-              style={{ left: anchor.side === "right" ? x : 145 - x - 57, top: y }}>
+              style={{ left: anchor.side === "right" ? x : 125 - x - 48, top: y }}>
               {sourceImage ? <img src={sourceImage} alt="" draggable={false}
-                className="h-[34px] w-[38px] object-contain" /> :
-                <Icon size={25} strokeWidth={1.8} aria-hidden="true" />}
+                className="h-[28px] w-[30px] object-contain" /> :
+                <Icon size={20} strokeWidth={1.8} aria-hidden="true" />}
               <span className="leading-none">{actionNames[action]}</span>
             </button>;
           })}
@@ -229,11 +229,11 @@ export default function PetParkGardenMenu({
       </div>
       {motion && <div data-testid="pet-park-garden-animation" data-action={motion.action}
         aria-hidden="true" className="pointer-events-none absolute"
-        style={{ left: anchor.plotX + 48, top: anchor.plotY - 38, transform: "translate(-50%, -50%)" }}>
+        style={{ left: anchor.plotX + 31, top: anchor.plotY - 20, transform: "translate(-50%, -50%)" }}>
         <div className={"garden-tool-motion garden-tool-motion-" + motion.action}>
           {motion.imageUrl ? <img src={motion.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" /> :
-            motion.action === "water" ? <Droplets size={75} /> : motion.action === "hoe" ? <Shovel size={75} /> :
-            motion.action === "harvest" ? <Scissors size={75} /> : <Sprout size={75} />}
+            motion.action === "water" ? <Droplets size={55} /> : motion.action === "hoe" ? <Shovel size={55} /> :
+            motion.action === "harvest" ? <Scissors size={55} /> : <Sprout size={55} />}
         </div>
         {motion.action === "water" && <div className="garden-pour-drops">
           <span /><span /><span />
