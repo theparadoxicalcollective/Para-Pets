@@ -1,23 +1,28 @@
 import { useState } from "react";
 import { FULL_BOUNDS, getAlphaBounds, getAlphaBoundsSync, type AlphaBounds } from "@/lib/alphaBounds";
+import { DEFAULT_GARDEN_STAGE_PLACEMENT, type GardenStagePlacement } from "@shared/garden";
 
 /** Plot-rooted crop sprite. The visible pixels, rather than transparent PNG
  * margins, determine horizontal center and bottom anchor. All coordinates
  * remain in the already transformed Pet Park world (no separate stage). */
 export default function PetParkCropArtwork({
-  image, xPct, yPct, size, scale, zIndex, progress,
+  image, xPct, yPct, size, scale, zIndex, progress, placement,
 }: {
   image: string; xPct: number; yPct: number; size: number; scale: number;
   zIndex: number; progress: { value: number; required: number } | null;
+  placement?: GardenStagePlacement;
 }) {
   const [bounds, setBounds] = useState<AlphaBounds>(() => getAlphaBoundsSync(image) ?? FULL_BOUNDS);
   const [aspect, setAspect] = useState(1);
-  const width = size * scale;
+  const position = placement ?? DEFAULT_GARDEN_STAGE_PLACEMENT;
+  const plotWidth = size * scale;
+  const width = plotWidth * position.scale;
   const visibleHeight = bounds.height * width * aspect;
   const percent = progress ? Math.min(100, Math.round(progress.value / progress.required * 100)) : 0;
   return <div data-testid="pet-park-garden-crop"
     className="pointer-events-none absolute" style={{
-      left: `${xPct * 100}%`, top: `${yPct * 100}%`, zIndex,
+      left: `calc(${xPct * 100}% + ${position.x * plotWidth}px)`,
+      top: `calc(${yPct * 100}% + ${position.y * plotWidth}px)`, zIndex,
     }}>
     <img data-testid="pet-park-garden-visible-art" src={image} alt="" draggable={false}
       className="pointer-events-none absolute block max-w-none select-none"
