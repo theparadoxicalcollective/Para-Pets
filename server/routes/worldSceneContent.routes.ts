@@ -342,6 +342,39 @@ export function registerWorldSceneContentRoutes(app: Express, {
     }
   });
 
+  // One direct erase stroke; only tiles of the chosen material in this world.
+  // No confirmation dialog, and never touches Pet Park or another realm.
+  app.post("/api/admin/world-editor/:worldId/terrain-erase", isAdmin, async (req, res) => {
+    const worldId = worldFrom(req);
+    if (!worldId) return res.status(404).json({ message: "Unknown world" });
+    const { type, size, points } = req.body ?? {};
+    if (!isWorldTerrainType(type) || !WORLD_TERRAIN_BRUSH_SIZES.includes(size) ||
+      !Array.isArray(points) || points.length < 1 || points.length > 60 ||
+      !points.every(p => p && validPosition(p.xPct) && validPosition(p.yPct))) {
+      return res.status(400).json({ message: "Invalid terrain erase stroke" });
+    }
+    try {
+      const [saved] = await db.select({ groundLevel: worldSceneDrafts.groundLevel })
+        .from(worldSceneDrafts).where(eq(worldSceneDrafts.worldId, worldId));
+      const dimensions = parkGroundSize(saved?.groundLevel ?? defaultWorldSceneDraft(worldId).groundLevel);
+      const keys = new Set<string>();
+      for (const point of points) {
+        const cell = worldTerrainCell(point, dimensions, type, size);
+        if (cell) keys.add(cell.key);
+      }
+      if (!keys.size) return res.json({ deleted: 0 });
+      const deleted = await db.delete(worldScenePlacements).where(and(
+        eq(worldScenePlacements.worldId, worldId),
+        eq(worldScenePlacements.kind, "terrain"),
+        inArray(worldScenePlacements.terrainKey, [...keys]),
+      )).returning({ id: worldScenePlacements.id });
+      return res.json({ deleted: deleted.length });
+    } catch (error) {
+      console.error("[world-editor] terrain erase failed", error);
+      return res.status(500).json({ message: "Could not erase terrain" });
+    }
+  });
+
   app.post("/api/admin/world-editor/:worldId/interior-items", isAdmin, async (req, res) => {
     const worldId = worldFrom(req);
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
