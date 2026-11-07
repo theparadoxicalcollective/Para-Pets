@@ -4,9 +4,10 @@ import { readFileSync } from "node:fs";
 const source = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
 test("Level Up groups title, pet, and items into readable responsive regions", () => {
   assert.ok(source.includes(".lupage-tray::before"));
-  assert.ok(source.includes("LEVEL UP ITEMS"));
+  assert.ok(source.includes('content:"XP ITEMS"'));
   assert.ok(source.includes("env(safe-area-inset-top, 0px) + 20px"));
-  assert.ok(source.includes(".lupage-nameplate{width:min(95%,440px)"));
+  assert.ok(source.includes("max-width:min(90%,420px)"));
+  assert.ok(source.includes("margin-top:clamp(16px,2.5vh,28px)"));
   assert.ok(source.includes(".lupage-pet-zone{width:min(86vw,42vh,390px)"));
 });
 test("Level Up retains pet drop and item pointer interactions", () => {
