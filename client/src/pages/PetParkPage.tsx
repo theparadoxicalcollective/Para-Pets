@@ -1306,7 +1306,7 @@ export default function PetParkPage() {
           <p className="mt-3 text-sm">The park is being prepared. Your pets and coins are safe.</p>
         </div>
       </div> : scene?.canEditPark ? (!scene.enabledForPlayers ? <div className="pointer-events-none absolute bottom-4 left-3 right-3 z-10 flex justify-center"><span className="rounded-lg bg-black/70 px-3 py-2 text-xs text-amber-200">Admin preview · Park closed to players</span></div> : null) : scene && !activeBuilding && !paintMode && !showCreator && !selectedPlacement && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] left-3 right-3 z-20 mx-auto flex max-w-sm flex-col" data-testid="pet-park-player-slots">
-        <div className="order-2 grid grid-cols-3 gap-2" aria-label="Your three park pet spots">
+        <div className="order-2 mx-auto grid w-full max-w-[294px] grid-cols-3 gap-2" aria-label="Your three park pet spots">
           {Array.from({ length: 3 }, (_, index) => {
             const slot = index + 1;
             const pet = deposits.find(d => d.slotNumber === slot);
@@ -1325,18 +1325,16 @@ export default function PetParkPage() {
               onPointerCancel={cancelEquippedPetDrag}
               onLostPointerCapture={cancelEquippedPetDrag}
               onDoubleClick={() => { if (pet) { setActiveSlot(slot); setSelectedPet(""); setShowPetChoices(true); } }}
-              className={`pet-park-slot relative flex min-h-[116px] touch-none flex-col items-center justify-center gap-0 overflow-hidden px-1.5 py-2 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
-              <span aria-hidden="true" className="pointer-events-none absolute top-1.5 text-[9px] text-amber-200/65">✦</span>
-              <span className="relative z-[2] mt-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#f5d77b]">Spot {slot}</span>
-              {pet ? <div className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center pt-2">
-                <div className="absolute left-1/2 top-1 z-[3] w-[88%] -translate-x-1/2">
+              className={`pet-park-slot relative flex min-h-[96px] touch-none flex-col items-center justify-center gap-0 overflow-hidden px-1 py-1 text-center font-fantasy text-[#f7d986] ${activeSlot === slot ? "pet-park-slot--active" : ""}`}>
+              {pet ? <div className="pointer-events-none relative z-[2] flex h-[68px] w-full items-center justify-center pt-1">
+                <div className="absolute left-1/2 top-0.5 z-[3] w-[88%] -translate-x-1/2">
                   <PetParkSlotProgress timing={pet} rates={scene.rates ?? { coinsPerHour: 0, essencePerHour: 0, petXpPerHour: 0 }} serverNow={scene.serverNow} />
                 </div>
                 <PetParkPetPortrait petTemplateId={pet.petTemplateId}
-                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={69} />
-              </div> : <span className="pointer-events-none relative z-[2] flex h-[79px] w-full items-center justify-center">
+                  hatchedImageUrl={pet.hatchedImageUrl} petInventoryId={pet.petInventoryId} size={58} />
+              </div> : <span className="pointer-events-none relative z-[2] flex h-[68px] w-full items-center justify-center">
                 <img src={emptyParkPetArtwork} alt="" draggable={false}
-                  className="pet-park-slot__empty-art h-[68px] w-[72px] object-contain" />
+                  className="pet-park-slot__empty-art h-[56px] w-[60px] object-contain" />
                 {unlocked
                   ? <span aria-hidden="true" className="pet-park-slot__add-symbol">+</span>
                   : <span aria-hidden="true" className="absolute right-2 top-0 rounded-full border border-[#bda168]/70 bg-[#091a13]/90 p-1 text-[#e3c576]"><LockKeyhole size={12} /></span>}
