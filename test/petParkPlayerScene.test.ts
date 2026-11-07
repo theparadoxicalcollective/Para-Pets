@@ -82,7 +82,9 @@ test("scene pans both axes with viewport clamping and uses existing pet artwork 
   assert.match(page, /petInventoryId=\{pet\.petInventoryId\}/);
   assert.match(page, /isParkSleepPosition\(position, scene\.items/);
   assert.match(page, /sleeping \? "sleep" : "idle"/);
-  assert.match(page, /reduceMotion \? "static"/);
+  assert.match(page, /const animateOutdoor = animateParkOutdoorPet\(zoom, reduceMotion, isMine\)/);
+  assert.match(page, /mode=\{!animateOutdoor \? "static" : sleeping \? "sleep" : "idle"\}/,
+    "the existing animator becomes static for reduced motion or distant visitors");
   assert.match(page, /data-testid="pet-park-player-slots"/);
 });
 
