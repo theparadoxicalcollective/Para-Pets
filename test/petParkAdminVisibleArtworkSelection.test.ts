@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { pickParkAdminArtwork } from "../client/src/lib/petParkAdminSelection";
 
 type TestBox = { left: number; top: number; width: number; height: number };
@@ -88,8 +89,7 @@ test("depth and flipped alpha sampling are respected without rewriting placement
 });
 
 test("scene uses one admin capture selector and preserves existing double-tap/drag workflow", () => {
-  const fs = require("node:fs") as typeof import("node:fs");
-  const page = fs.readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
+  const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
   assert.match(page, /onPointerDownCapture=\{e => \{/);
   assert.match(page, /pickParkAdminArtwork\(artwork, e\.clientX, e\.clientY/);
   assert.match(page, /startPlacement\(e, hit\.kind, object, hit\.image\)/);
