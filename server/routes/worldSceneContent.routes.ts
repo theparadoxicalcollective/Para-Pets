@@ -315,8 +315,23 @@ export function registerWorldSceneContentRoutes(app: Express, {
         changes.shopItemPlacements = body.shopItemPlacements;
       }
       if (!Object.keys(changes).length) return res.status(400).json({ message: "No changes supplied" });
-      const [updated] = await db.update(worldScenePlacements).set(changes).where(
-        and(eq(worldScenePlacements.worldId, worldId), eq(worldScenePlacements.id, saved.id))).returning();
+      const updated = await db.transaction(async tx => {
+        const [placed] = await tx.update(worldScenePlacements).set(changes).where(
+          and(eq(worldScenePlacements.worldId, worldId), eq(worldScenePlacements.id, saved.id))).returning();
+        // Match Pet Park linked decorations: artwork and attached visual effects
+        // belong to this world asset, but each copy keeps its own position,
+        // size and orientation. Never synchronize placements across worlds.
+        if (placed && saved.kind === "decor" && saved.assetId && "decorEffects" in changes) {
+          await tx.update(worldScenePlacements)
+            .set({ decorEffects: changes.decorEffects })
+            .where(and(
+              eq(worldScenePlacements.worldId, worldId),
+              eq(worldScenePlacements.kind, "decor"),
+              eq(worldScenePlacements.assetId, saved.assetId),
+            ));
+        }
+        return placed;
+      });
       return res.json(updated);
     } catch (error) {
       console.error("[world-editor] placement update failed", error);
