@@ -57,6 +57,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
   const [previewGarden, setPreviewGarden] = useState(false);
+  const [showWorldOptions, setShowWorldOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
@@ -100,6 +101,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
 
   useEffect(() => {
     setEdited(null); setPan(null); setZoom(1); setPaintMode(false); setPreviewGarden(false);
+    setShowWorldOptions(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     cameraDrag.current = null; objectDrag.current = null;
     touchPoints.current.clear(); pinch.current = null;
@@ -462,56 +464,75 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         panX={actualPan.x} panY={actualPan.y}
         onExit={() => setPreviewGarden(false)} />}
 
-    <header className="pointer-events-none absolute top-0 inset-x-0 z-20 flex items-start gap-3 px-3 py-3"
-      style={{ background: "linear-gradient(180deg, rgba(10,25,18,.97), rgba(10,25,18,0))" }}>
-      <button type="button" onClick={() => navigate("/map")}
-        className="pointer-events-auto rounded-lg border border-[#9b8246] bg-[#10251a] px-3 py-2 text-xs font-semibold"
-        data-testid="button-world-draft-back">Back</button>
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-sm font-semibold tracking-wide">{world.defaultName} — New World Edit</h1>
-        <p className="text-[10px] text-[#d5c58e]">Private admin draft · Original world remains live</p>
-      </div>
-      <div className="pointer-events-auto flex gap-1">
-        <button className="w-8 h-8 rounded border border-[#927a42] bg-[#173222] text-lg" type="button"
-          aria-label="Zoom out" onClick={() => changeZoom(zoom - 0.15)}>−</button>
-        <button className="w-8 h-8 rounded border border-[#927a42] bg-[#173222] text-lg" type="button"
-          aria-label="Zoom in" onClick={() => changeZoom(zoom + 0.15)}>+</button>
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-[max(12px,env(safe-area-inset-top))] font-fantasy">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" data-testid="button-world-draft-back" onClick={() => navigate("/map")}
+          className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64]">
+          ← Back
+        </button>
+        <h1 className="min-w-0 truncate rounded-full bg-black/65 px-3 py-2 text-center text-sm font-semibold tracking-wider text-[#f5cf64]">
+          {world.defaultName}
+        </h1>
+        {activeBuilding ? <button type="button"
+          className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-xs text-[#f5cf64]"
+          onClick={() => { setActiveBuildingId(null); setSelectedInteriorId(null); }}>Exit Room</button> :
+          <button type="button" aria-label="Expand Ground"
+            disabled={paintMode || previewGarden || saveDraft.isPending || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+            onClick={() => changeLevel(groundLevel + 1)}
+            className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
+            {saveDraft.isPending ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "⛶ Expand"}
+          </button>}
       </div>
     </header>
-
-    {!activeBuilding && !paintMode && !previewGarden && <section className="absolute z-20 left-3 top-[76px] w-[180px] rounded-lg border border-[#947846] bg-[#11281e]/90 p-2"
-      onPointerDown={event => event.stopPropagation()}>
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11px] font-semibold">Ground</span>
-        <span className="text-[10px] text-[#cab784]">{draft.data?.hasSavedDraft ? "Draft" : "New"}</span>
+    {!activeBuilding && !paintMode && !previewGarden && <div
+      className="pointer-events-none absolute right-3 z-30 flex flex-col items-end gap-2"
+      style={{ top: "max(68px, calc(env(safe-area-inset-top, 0px) + 58px))" }}>
+      <div className="pointer-events-auto flex items-center gap-1">
+        <button type="button" aria-label="Zoom out" onClick={() => changeZoom(zoom - 0.15)}
+          className="h-9 w-9 rounded-full border border-amber-500/35 bg-black/75 text-base text-[#f5cf64]">−</button>
+        <button type="button" aria-label="Zoom in" onClick={() => changeZoom(zoom + 0.15)}
+          className="h-9 w-9 rounded-full border border-amber-500/35 bg-black/75 text-base text-[#f5cf64]">+</button>
+        <button type="button" data-testid="button-world-options" aria-expanded={showWorldOptions}
+          onClick={() => setShowWorldOptions(value => !value)}
+          className="min-h-9 rounded-full border border-amber-500/35 bg-black/75 px-3 text-xs font-semibold text-[#f5cf64]">
+          World Options
+        </button>
       </div>
-      <select aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
-        value={groundTheme} disabled={saveDraft.isPending}
-        className="mb-2 w-full rounded bg-[#254536] p-1.5 text-[11px]"
-        onChange={event => { setEdited({ groundLevel, groundTheme: event.target.value as ParkGroundTheme }); }}>
-        {PET_PARK_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
-      </select>
-      <div className="mb-2 flex items-center justify-between gap-1">
-        <button type="button" aria-label="Shrink draft ground" disabled={groundLevel <= 1 || saveDraft.isPending}
-          className="rounded border border-[#856c41] px-2 py-1 text-xs disabled:opacity-40"
-          onClick={() => changeLevel(groundLevel - 1)}>−</button>
-        <span className="text-[11px]">Size {groundLevel}/{PET_PARK_MAX_GROUND_LEVEL}</span>
-        <button type="button" aria-label="Expand draft ground" disabled={groundLevel >= PET_PARK_MAX_GROUND_LEVEL || saveDraft.isPending}
-          className="rounded border border-[#856c41] px-2 py-1 text-xs disabled:opacity-40"
-          onClick={() => changeLevel(groundLevel + 1)}>+</button>
-      </div>
-      <button type="button" data-testid="button-save-world-draft" disabled={saveDraft.isPending || draft.isLoading || draft.isError}
-        className="w-full rounded border border-[#c8a45b] bg-[#31513a] px-2 py-2 text-[11px] font-semibold disabled:opacity-40"
-        onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}>
-        {saveDraft.isPending ? "Saving..." : "Save Ground"}
-      </button>
-      <button type="button" data-testid="button-world-garden-preview"
-        disabled={scene.isLoading || scene.isError || saveDraft.isPending}
-        className="mt-2 w-full rounded border border-[#c8a45b] bg-[#31513a] px-2 py-2 text-[11px] font-semibold disabled:opacity-40"
-        onClick={() => { setSelectedId(null); setPreviewGarden(true); }}>
-        Test Gardening
-      </button>
-    </section>}
+      {showWorldOptions && <section aria-label="World editor settings" data-testid="world-options-panel"
+        className="pointer-events-auto w-[min(270px,calc(100vw-24px))] max-h-[min(46dvh,330px)] overflow-y-auto rounded-xl border border-amber-500/45 bg-[#10291d]/95 p-3 text-[#f5cf64] shadow-xl"
+        onPointerDown={event => event.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between">
+          <strong className="text-sm">World Settings</strong>
+          <span className="text-[11px] opacity-80">{draft.data?.hasSavedDraft ? "Private draft" : "New draft"}</span>
+        </div>
+        <label htmlFor="world-ground-theme" className="mb-1 block text-xs">Ground theme</label>
+        <select id="world-ground-theme" aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
+          value={groundTheme} disabled={saveDraft.isPending}
+          className="mb-2 w-full rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-2 py-2 text-xs"
+          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as ParkGroundTheme })}>
+          {PET_PARK_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
+        </select>
+        <button type="button" data-testid="button-save-world-draft"
+          disabled={saveDraft.isPending || draft.isLoading || draft.isError}
+          onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}
+          className="mb-2 w-full rounded-lg border border-[#b99a4c]/65 bg-[#245037] px-3 py-2.5 text-xs font-semibold disabled:opacity-50">
+          {saveDraft.isPending ? "Saving…" : "Save Ground Theme"}
+        </button>
+        <button type="button" data-testid="button-world-garden-preview"
+          disabled={scene.isLoading || scene.isError || saveDraft.isPending}
+          onClick={() => { setSelectedId(null); setShowWorldOptions(false); setPreviewGarden(true); }}
+          className="w-full rounded-lg border border-[#b99a4c]/65 bg-[#245037] px-3 py-2.5 text-xs font-semibold disabled:opacity-50">
+          Test Gardening
+        </button>
+        <p className="mt-2 text-[10px] text-amber-100/75">Garden testing consumes your real shared inventory. Changes do not publish this world.</p>
+      </section>}
+    </div>}
+    {!paintMode && !previewGarden && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
+      style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
+      <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
+        Admin preview · Original world remains live
+      </span>
+    </div>}
 
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
