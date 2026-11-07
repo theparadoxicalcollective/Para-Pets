@@ -130,7 +130,11 @@ try{
     await groundButtons.getByRole('button',{name:label,exact:true}).click();
     await saved;
     await page.waitForFunction(expected=>document.querySelector('[data-testid="pet-park-painterly-terrain"]')?.style.backgroundColor===expected,rgb);
+    // Options collapse when a choice is made. Reopen briefly to inspect
+    // the authoritative selected ground without leaving a large menu up.
+    await toggleTools.click();
     assert.equal(await groundButtons.getByRole('button',{name:label,exact:true}).getAttribute('aria-pressed'),'true');
+    await toggleTools.click();
   }
   assert.deepEqual(groundUpdates,['snow','volcanic','grass']);
   assert.equal(patches.length,1,name+': changing base ground cannot mutate saved buildings');
