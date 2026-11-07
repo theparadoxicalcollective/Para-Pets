@@ -220,11 +220,11 @@ export default function PetParkPage() {
     const plotX = camera.x + chosenGardenPlot.xPct * sceneWidth;
     const plotY = camera.y + chosenGardenPlot.yPct * sceneHeight;
     const side: "right" | "left" = plotX + 158 <= viewportSize.width ? "right" : "left";
-    const preferredX = side === "right" ? plotX + 48 : plotX - 193;
+    const preferredX = side === "right" ? plotX + 42 : plotX - 167;
     return {
       plotX, plotY, side,
-      x: Math.max(6, Math.min(Math.max(6, viewportSize.width - 151), preferredX)),
-      y: Math.max(48, Math.min(Math.max(48, viewportSize.height - 274), plotY - 120)),
+      x: Math.max(6, Math.min(Math.max(6, viewportSize.width - 131), preferredX)),
+      y: Math.max(48, Math.min(Math.max(48, viewportSize.height - 224), plotY - 97)),
     };
   })() : null;
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }); qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] }); };
