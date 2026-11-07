@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parkGroundSize, parkExpandPoint } from "../shared/petParkGround";
-import { getWorldDefinition, WORLD_DEFINITIONS } from "../shared/worlds/worldRegistry";
+import { getWorldDefinition, WORLD_DEFINITION_LIST } from "../shared/worlds/worldRegistry";
 import {
   isEditableWorldSceneId, defaultWorldSceneDraft,
 } from "../shared/worlds/worldSceneDraft";
@@ -12,8 +12,8 @@ import {
 import { parkCameraGeometry, parkClampCamera, parkZoomAnchorPan } from "../client/src/lib/petParkCamera";
 
 test("one private editor covers every registered world without Pet Park becoming a world", () => {
-  assert.equal(WORLD_DEFINITIONS.length, 8);
-  for (const world of WORLD_DEFINITIONS) {
+  assert.equal(WORLD_DEFINITION_LIST.length, 8);
+  for (const world of WORLD_DEFINITION_LIST) {
     assert.ok(getWorldDefinition(world.id));
     assert.equal(isEditableWorldSceneId(world.id), true);
     assert.equal(defaultWorldSceneDraft(world.id).hasSavedDraft, false);
