@@ -56,14 +56,18 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(menu, /item\.type === "garden_tool"/);
   assert.match(menu, /ViewportModalPortal blocking=\{false\}/);
   assert.match(menu, /data-testid="pet-park-garden-anchor"/);
-  assert.match(menu, /translate\(-50%, -107px\)/, "bubble arc must not jump when notices or seed choices appear");
+  assert.match(menu, /data-side=\{anchor\.side\}/, "tool arc can mirror near screen edge");
+  assert.match(menu, /className="relative h-\[249px\]"/, "tools curve vertically beside, not across, the plot");
   assert.match(menu, /data-testid=\{"pet-park-garden-action-" \+ action\}/);
   assert.match(menu, /garden-tool-bubble/);
   assert.match(menu, /aria-disabled=\{!available\}/);
+  assert.match(menu, /aria-current=\{suggested === action \? "step" : undefined\}/);
+  assert.match(menu, /!motion && BUTTONS\.map/, "tools disappear for the whole animation");
   assert.match(menu, /missingMessage/);
   assert.match(menu, /Come back when you have your gardening tools/);
   assert.match(menu, /Find a Water Source to refill your pail/);
-  assert.match(menu, /data-testid="pet-park-garden-water-gauge"/);
+  assert.doesNotMatch(menu, /data-testid="pet-park-garden-water-gauge"|pet-park-garden-stage|pet-park-garden-progress/,
+    "do not stack pail gauge, soil labels, and duplicate plant water text");
   assert.match(menu, /data-testid="pet-park-garden-animation"/);
   assert.match(menu, /onClick=\{event => \{ event.stopPropagation\(\); chooseAction\(action\); \}\}/);
   assert.match(menu, /document\.addEventListener\("pointerdown", handlePointer, true\)/);
@@ -77,6 +81,11 @@ test("player Garden uses current Pet Park camera, Bag and server ownership, no d
   assert.match(page, /camera.x \+ chosenGardenPlot.xPct \* sceneWidth/);
   assert.match(page, /camera.y \+ chosenGardenPlot.yPct \* sceneHeight/);
   assert.match(page, /anchor=\{gardenToolAnchor\}/);
+  assert.match(page, /showWaterProgress=\{wateringGardenPlotId === plot\.plotItemId\}/);
+  assert.match(page, /onWateringState=\{setWateringGardenPlotId\}/);
+  assert.match(menu, /if \(action === "water"\) onWateringState\(plot\.plotItemId\)/);
+  assert.match(menu, /setMotion\(null\); onWateringState\(null\)/);
+  assert.match(page, /plotX \+ 188 <= viewportSize\.width \? "right" : "left"/);
   assert.match(page, /<ViewportModalPortal blocking=\{false\}>/);
   const motionCss = source("client/src/components/PetParkGardenMenu.css");
   assert.match(motionCss, /garden-hoe-chops/);
@@ -110,6 +119,9 @@ test("crop art centers its scanned visible pixels, not the transparent canvas, a
   assert.match(art, /bounds\.top \+ bounds\.height/);
   assert.match(art, /data-testid="pet-park-garden-visible-art"/);
   assert.match(art, /data-testid="pet-park-garden-growth-progress"/);
+  assert.match(art, /showWaterProgress && progress/);
+  assert.doesNotMatch(art, /Water \{progress\.value\}|rounded-lg border border-\[#d7b879\]/,
+    "progress bar must have no text or bulky container");
   assert.match(art, /role="progressbar" aria-label="Water to next growth stage"/);
   assert.match(art, /aria-valuenow=\{progress\.value\}/);
   assert.match(art, /bottom: Math\.max\(16, visibleHeight \+ 9\)/);

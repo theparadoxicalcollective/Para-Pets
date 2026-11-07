@@ -6,10 +6,11 @@ import { DEFAULT_GARDEN_STAGE_PLACEMENT, type GardenStagePlacement } from "@shar
  * margins, determine horizontal center and bottom anchor. All coordinates
  * remain in the already transformed Pet Park world (no separate stage). */
 export default function PetParkCropArtwork({
-  image, xPct, yPct, size, scale, zIndex, progress, placement,
+  image, xPct, yPct, size, scale, zIndex, progress, showWaterProgress = false, placement,
 }: {
   image: string; xPct: number; yPct: number; size: number; scale: number;
   zIndex: number; progress: { value: number; required: number } | null;
+  showWaterProgress?: boolean;
   placement?: GardenStagePlacement;
 }) {
   const [bounds, setBounds] = useState<AlphaBounds>(() => getAlphaBoundsSync(image) ?? FULL_BOUNDS);
@@ -43,16 +44,13 @@ export default function PetParkCropArtwork({
           old.left === next.left && old.top === next.top &&
           old.width === next.width && old.height === next.height ? old : next));
       }} />
-    {progress && <div data-testid="pet-park-garden-growth-progress"
-      className="pointer-events-none absolute flex -translate-x-1/2 flex-col items-center gap-0.5 rounded-lg border border-[#d7b879]/75 bg-[#102d20]/95 px-2 py-1 text-[#f5dea5] shadow-md"
-      style={{ left: 0, bottom: Math.max(16, visibleHeight + 9), width: Math.max(82, Math.min(115, width * .8)) }}>
-      <span className="whitespace-nowrap text-[9px] font-semibold">Water {progress.value} / {progress.required}</span>
-      <div role="progressbar" aria-label="Water to next growth stage"
-        aria-valuemin={0} aria-valuenow={progress.value} aria-valuemax={progress.required}
-        className="h-[6px] w-full overflow-hidden rounded-full bg-[#345144]">
-        <div className="h-full rounded-full bg-[#80c3bd] transition-[width] duration-300 ease-out"
-          style={{ width: percent + "%" }} />
-      </div>
+    {showWaterProgress && progress && <div data-testid="pet-park-garden-growth-progress"
+      role="progressbar" aria-label="Water to next growth stage"
+      aria-valuemin={0} aria-valuenow={progress.value} aria-valuemax={progress.required}
+      className="pointer-events-none absolute h-[7px] -translate-x-1/2 overflow-hidden rounded-full border border-[#c9ac69]/85 bg-[#17352a]/90"
+      style={{ left: 0, bottom: Math.max(16, visibleHeight + 9), width: Math.max(62, Math.min(92, width * .72)) }}>
+      <div className="h-full rounded-full bg-[#80c3bd] transition-[width] duration-300 ease-out"
+        style={{ width: percent + "%" }} />
     </div>}
   </div>;
 }

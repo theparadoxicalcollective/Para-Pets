@@ -3,7 +3,7 @@ import type { ParkGroundTheme } from "@shared/petParkGround";
 import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
 import {
   parkTerrainCellWindow, parkTerrainNoise, parkVisibleTerrainBounds,
-  parkTerrainPreviewTransform, type ParkTerrainViewport,
+  parkTerrainPreviewCoversViewport, parkTerrainPreviewTransform, type ParkTerrainViewport,
 } from "@/lib/petParkTerrain";
 
 export type ParkDirtPatch = { xPct: number; yPct: number; size: number };
@@ -195,7 +195,14 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     } else {
       const { ratio, dx, dy } = parkTerrainPreviewTransform(
         previous.view, view, previous.marginX, previous.marginY);
-      if (Math.abs(dx) < .1 && Math.abs(dy) < .1 && Math.abs(ratio - 1) < .0001) {
+      if (!parkTerrainPreviewCoversViewport(previous.view, view,
+        view.viewportWidth, view.viewportHeight, previous.marginX, previous.marginY)) {
+        // Overscan was exhausted by a long/fast pan (or zoom-out). The
+        // old bitmap would leave an obvious rectangular green/dark gap.
+        // Immediately repaint camera-visible world art instead of waiting
+        // for the 110ms idle debounce, which is continuously reset by drag.
+        paint();
+      } else if (Math.abs(dx) < .1 && Math.abs(dy) < .1 && Math.abs(ratio - 1) < .0001) {
         canvas.style.transform = "";
         canvas.dataset.parkCameraPreview = "false";
       } else {
