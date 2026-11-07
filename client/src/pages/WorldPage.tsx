@@ -17,6 +17,7 @@ import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, Flip
 import { readFileAsDataUrl } from "@/lib/utils";
 import WorldLocations, { type WorldLocationData } from "@/components/world/WorldLocations";
 import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldShopOverlay";
+import { baseGardenToolKind } from "@shared/garden";
 import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
 import { SOUL_EXCHANGE_LOCATION } from "@shared/worlds/hauntedWoods";
 import { getWorldDefinition, isWorldOpenToPlayers } from "@shared/worlds/worldRegistry";
@@ -126,6 +127,7 @@ interface InventoryItem {
   specialSkill?: string | null;
   rarity?: number | null;
   fishingType?: string | null;
+  specialType?: string | null;
 }
 
 
@@ -633,6 +635,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
 
   const ownedItemIds = useMemo(() => new Set(inventory.map((inv) => inv.shopItemId)), [inventory]);
+  const ownedGardenToolKinds = useMemo(() => new Set(inventory
+    .filter(item => (item.quantity ?? 1) > 0)
+    .map(item => baseGardenToolKind(item))
+    .filter((kind): kind is NonNullable<typeof kind> => kind !== null)), [inventory]);
 
   const buyMutation = useMutation({
     mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
@@ -2546,6 +2552,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           coins={currentUser.coins}
           isAdmin={currentUser.isAdmin}
           ownedShopItemIds={ownedItemIds}
+          ownedGardenToolKinds={ownedGardenToolKinds}
           ownedPetCount={(itemId) => inventory.filter(item => item.shopItemId === itemId).length}
           showSellPanel={showSellPanel}
           isPurchasePending={buyMutation.isPending}
