@@ -16,9 +16,11 @@ import { parkImageHitAt } from "@/lib/petParkImageHit";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
-import { PET_PARK_GROUND_THEMES, PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
+import { PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
+import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
+import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
 import type { ParkEffectType } from "@shared/petParkEffects";
-import type { ParkGroundTheme } from "@shared/petParkGround";
+
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
@@ -326,7 +328,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         });
       }}>
       {!activeBuilding ? <>
-        <PetParkTerrain groundTheme={groundTheme}
+        <PetParkTerrain groundTheme={worldGroundRenderTheme(groundTheme)}
+          groundPalette={worldGroundPalette(groundTheme)}
           viewportWidth={size.width} viewportHeight={size.height}
           worldWidth={camera.worldWidth} worldHeight={camera.worldHeight}
           scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
@@ -446,7 +449,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         panX={actualPan.x} panY={actualPan.y} scale={camera.scale}
         groundTheme={groundTheme} onExit={() => setPaintMode(false)}
         onSaved={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
-        onGroundTheme={async (theme: ParkGroundTheme) => {
+        onGroundTheme={async (theme: WorldGroundTheme) => {
           const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
             { groundLevel, groundTheme: theme });
           cache.setQueryData(queryKey, await response.json());
@@ -499,8 +502,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         <select id="world-ground-theme" aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
           value={groundTheme} disabled={saveDraft.isPending}
           className="mb-2 w-full rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-2 py-2 text-xs"
-          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as ParkGroundTheme })}>
-          {PET_PARK_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
+          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as WorldGroundTheme })}>
+          {WORLD_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
         </select>
         <button type="button" data-testid="button-save-world-draft"
           disabled={saveDraft.isPending || draft.isLoading || draft.isError}
