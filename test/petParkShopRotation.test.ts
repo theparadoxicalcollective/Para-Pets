@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  defaultParkShopPlacement, rotateParkShopPlacement, validParkShopPlacements,
+  defaultParkShopPlacement, flipParkShopPlacement, rotateParkShopPlacement, validParkShopPlacements,
   withParkShopDefaults, PARK_SHOP_ROTATION_STEP,
   parkShopPriceTagPoint, parkShopPriceTagFromPointer, PARK_SHOP_DEFAULT_PRICE_TAG,
 } from "../shared/petParkShopPlacements";
@@ -14,6 +14,7 @@ test("shop item rotation is backwards-compatible and validated in existing JSON 
   assert.equal(validParkShopPlacements([legacy]), true, "existing shops have no rotation field");
   assert.equal(PARK_SHOP_ROTATION_STEP, 15);
   assert.equal(defaultParkShopPlacement("hoe", 0).rotation, 0);
+  assert.equal(defaultParkShopPlacement("hoe", 0).flippedX, false);
   assert.deepEqual(rotateParkShopPlacement(legacy), { ...legacy, rotation: 15 });
   const nearlyFull = { ...legacy, rotation: 345 };
   assert.equal(rotateParkShopPlacement(nearlyFull).rotation, 0, "full rotations wrap");
@@ -29,6 +30,22 @@ test("shop item rotation is backwards-compatible and validated in existing JSON 
     "saved rotation is retained without changing positions, sizing or image coordinates");
 });
 
+test("shop artwork flip preserves existing item placement, tag anchor and legacy JSON", () => {
+  const legacy = { itemId: "hoe", xPct: .54, yPct: .36, size: 10 };
+  assert.equal(validParkShopPlacements([legacy]), true);
+  const mirrored = flipParkShopPlacement(legacy);
+  assert.deepEqual(mirrored, { ...legacy, flippedX: true });
+  assert.deepEqual(flipParkShopPlacement(mirrored), { ...legacy, flippedX: false });
+  assert.equal(validParkShopPlacements([mirrored]), true);
+  for (const bad of ["true", 1, null, [], {}]) {
+    assert.equal(validParkShopPlacements([{ ...legacy, flippedX: bad }]), false);
+  }
+  const placed = { ...mirrored, rotation: 45, priceTagXPct: .42, priceTagYPct: .59 };
+  assert.deepEqual(flipParkShopPlacement(placed), { ...placed, flippedX: false },
+    "flip does not change rotation, size, position or tag coordinates");
+  assert.deepEqual(withParkShopDefaults(["hoe"], [placed]), [placed]);
+});
+
 test("shop rotation saves through existing building PATCH, never a separate room coordinate or storage path", () => {
   const editor = read("client/src/components/PetParkShopShelf.tsx");
   const routes = read("server/routes/petParkAdmin.routes.ts");
@@ -40,7 +57,12 @@ test("shop rotation saves through existing building PATCH, never a separate room
   assert.match(editor, /aria-label="Rotate merchandise clockwise 15 degrees"/);
   assert.match(editor, /disabled=\{save\.isPending\}/);
   assert.match(editor, /data-testid="pet-park-shop-rotation"/);
-  assert.match(editor, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\)`/);
+  assert.ok(editor.includes("rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flippedX ? -1 : 1})"));
+  assert.ok(editor.includes("rotate(${editPlacement.rotation ?? 0}deg) scaleX(${editPlacement.flippedX ? -1 : 1})"));
+  assert.match(editor, /flipParkShopPlacement\(placement\)/);
+  assert.match(editor, /data-testid="pet-park-shop-flip"/);
+  assert.match(editor, /aria-label="Flip merchandise horizontally"/);
+  assert.match(editor, /aria-pressed=\{!!editPlacement\?\.flippedX\}/);
   assert.match(editor, /style=\{\{ left: placement\.xPct \* imageWidth, top: placement\.yPct \* imageHeight/);
   assert.match(editor, /width: dimension, height: dimension, transform: "translate\(-50%,-50%\)"/);
   assert.match(editor, /safeSetPointerCapture/);
@@ -89,7 +111,7 @@ test("shop prices use bounded image-local tag positions without changing merchan
   ]) assert.equal(validParkShopPlacements([{ ...legacy, ...broken }]), false);
 });
 
-test("admin price preview and shopper stickers reuse the authenticated merchandise placement", () => {
+test("admin price preview and shopper coin-only wooden tags reuse the authenticated merchandise placement", () => {
   const editor = read("client/src/components/PetParkShopShelf.tsx");
   const server = read("server/routes/petParkAdmin.routes.ts");
   const player = read("server/routes/petParkPlayer.routes.ts");
@@ -100,11 +122,21 @@ test("admin price preview and shopper stickers reuse the authenticated merchandi
   assert.match(editor, /parkShopPriceTagFromPointer\(clientX, clientY, rect\)/);
   assert.match(editor, /changeStock\(ids, layout\.map/);
   assert.match(editor, /data-testid="pet-park-shop-price-on-art"/);
-  assert.match(editor, /<ShopPriceTag price=\{item\.price\} \/>/);
-  assert.match(editor, /<ShopPriceTag price=\{editItem\.price\} \/>/);
+  assert.match(editor, /<ShopPriceTag size=\{tagSize\} \/>/);
+  assert.match(editor, /<ShopPriceTag size=\{52\} \/>/);
+  assert.match(editor, /src=\{PARK_SHOP_PRICE_TAG_IMAGE\}/);
+  assert.match(editor, /from "@assets\/price_tag\.png\?url"/);
+  assert.match(editor, /const tagSize = Math\.max\(27, Math\.min\(54, dimension \* \.42\)\)/);
+  const tag = editor.slice(editor.indexOf("function ShopPriceTag"), editor.indexOf("/** Merchandise is positioned"));
+  assert.doesNotMatch(tag, /price\.toLocaleString|\{price\}|bg-\[#173c27\]/,
+    "wood tag has only artwork and coin; no numeric price or old CSS badge");
+  assert.match(editor, /editPlacement && !isDraggingMerchandise/);
+  assert.match(editor, /setIsDraggingMerchandise\(true\)/);
+  assert.match(editor, /setIsDraggingMerchandise\(false\)/);
   assert.match(editor, /transform: "translate\(-50%, -50%\)"/);
   assert.ok(editor.includes("Move price tag for"));
-  assert.match(editor, /price\.toLocaleString\(\)/);
+  assert.match(editor, /selectedBuy\.price\.toLocaleString\(\)/);
+  assert.match(editor, /selectedBuy\.name/);
   assert.match(editor, /src=\{PARA_PETS_COIN_IMAGE\}/);
   assert.match(server, /validParkShopPlacements\(body\.shopItemPlacements\)/);
   assert.match(player, /price: shopItems\.price/);
