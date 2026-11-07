@@ -19,7 +19,8 @@ test("park building details are admin-only, contextual and use existing storage"
   assert.match(page, /setDetailsBuildingId\(selectedPlacement\.id\)/);
   assert.match(details, /Park building name/);
   assert.match(details, /aria-label="Park building capacity"/);
-  assert.match(details, /Visitors share the building with placed pets/);
+  assert.match(details, /Regular buildings can house pets/);
+  assert.match(details, /Shops cannot hold pets/);
   assert.match(details, /Replace park building exterior/);
   assert.match(details, /Replace park building interior/);
   assert.match(details, /api\/admin\/pet-park\/buildings\/\$\{building\.id\}/);
