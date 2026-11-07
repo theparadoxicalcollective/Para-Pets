@@ -14,7 +14,7 @@ export function registerWorldSceneDraftRoutes(
 ): void {
   app.get("/api/admin/world-editor/:worldId/draft", isAdmin, async (req, res) => {
     const worldId = req.params.worldId;
-    if (!isEditableWorldSceneId(worldId)) {
+    if (typeof worldId !== "string" || !isEditableWorldSceneId(worldId)) {
       return res.status(404).json({ message: "Unknown world" });
     }
     try {
@@ -37,7 +37,7 @@ export function registerWorldSceneDraftRoutes(
 
   app.put("/api/admin/world-editor/:worldId/draft", isAdmin, async (req, res) => {
     const worldId = req.params.worldId;
-    if (!isEditableWorldSceneId(worldId)) {
+    if (typeof worldId !== "string" || !isEditableWorldSceneId(worldId)) {
       return res.status(404).json({ message: "Unknown world" });
     }
     const settings = parseWorldSceneDraftSettings(req.body);
