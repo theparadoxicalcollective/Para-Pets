@@ -95,7 +95,9 @@ try{
   const status=details.getByTestId('pet-park-shop-status');
   assert.equal(await shop.isChecked(),false,name+': regular building is visibly OFF');
   await status.getByText('OFF · Regular building').waitFor({state:'visible'});
+  const sceneAfterShopOn=page.waitForResponse(response=>response.url().includes('/api/pet-park/scene')&&response.request().method()==='GET');
   await shop.click();
+  await sceneAfterShopOn;
   await status.getByText('ON · Shop enabled').waitFor({state:'visible'});
   assert.deepEqual(shopSaves,[{isShop:true}],name+': switch immediately persists ON');
   assert.equal(scene.buildings[0].isShop,true);
@@ -103,7 +105,9 @@ try{
   await page.getByRole('button',{name:'Edit building'}).click();
   await details.waitFor({state:'visible'});
   assert.equal(await shop.isChecked(),true,name+': reopening reads saved Shop ON');
+  const sceneAfterShopOff=page.waitForResponse(response=>response.url().includes('/api/pet-park/scene')&&response.request().method()==='GET');
   await shop.click();
+  await sceneAfterShopOff;
   await status.getByText('OFF · Regular building').waitFor({state:'visible'});
   assert.deepEqual(shopSaves,[{isShop:true},{isShop:false}],name+': switch immediately persists OFF');
   await details.getByRole('button',{name:'Close'}).click();
