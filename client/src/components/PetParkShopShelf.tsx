@@ -15,7 +15,7 @@ import {
 export type ParkShopItemPreview = {
   id: string; name: string; type: string; price: number;
   imageUrl: string | null; eggImageUrl: string | null; hatchedImageUrl: string | null;
-  description?: string | null; placement?: ParkShopPlacement | null;
+  description?: string | null; specialType?: string | null; placement?: ParkShopPlacement | null;
 };
 const filters = [
   { name: "All", type: "all" }, { name: "Pets", type: "pet" },
