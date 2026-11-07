@@ -35,6 +35,24 @@ test("water source and refillable are independent admin toggles, not item kinds"
   assert.match(readFileSync("server/routes.ts", "utf8"), /registerGardenRefillRoutes\(app, isAuthenticated\)/);
 });
 
+test("painted water terrain refills through the same secured route, without changing admin water toggles", () => {
+  const refill = readFileSync("server/routes/gardenRefill.routes.ts", "utf8");
+  const park = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
+  assert.match(refill, /eq\(petParkSceneItems\.kind, "decor"\), eq\(petParkSceneItems\.isWaterSource, true\)/);
+  assert.match(refill, /eq\(petParkSceneItems\.kind, "terrain"\), eq\(petParkSceneItems\.effectType, "water_path"\)/);
+  assert.match(refill, /or\(/);
+  assert.match(refill, /await database\.transaction/);
+  assert.match(refill, /FOR UPDATE/);
+  assert.match(park, /isWaterTile = item\.kind === "terrain" && item\.effectType === "water_path"/);
+  assert.match(park, /data-testid="pet-park-water-tile-source"/);
+  const tile = park.split('data-testid="pet-park-water-tile-source"')[1]?.split("</button>")[0];
+  assert.ok(tile);
+  assert.match(tile, /setSelectedWaterSourceId\(item\.id\)/);
+  assert.match(tile, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
+  assert.doesNotMatch(tile, /Droplets|water-source-indicator/,
+    "painted water is a source without a floating droplet indicator");
+});
+
 test("only non-full, unlisted, owned-capacity equipment is refillable", () => {
   assert.equal(GARDEN_WATER_CAPACITY, 100);
   const refillable = { isRefillable: true, gardenWaterLeft: 9, isListed: false, quantity: 1 };
