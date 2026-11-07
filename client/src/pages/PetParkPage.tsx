@@ -770,13 +770,15 @@ export default function PetParkPage() {
       setOpenedRoomId(room.id);
     }
   };
-  const toggleParkInteriorLight = (buildingId: string, effect: HouseInteriorEffect) =>
+  const toggleParkInteriorLight = (buildingId: string, effect: HouseInteriorEffect) => {
+    if (effect.type === "warm_glow") return;
     setOffParkInteriorLights(current => {
       const off = new Set(current[buildingId] ?? []);
       if (off.has(effect.id)) off.delete(effect.id);
       else off.add(effect.id);
       return { ...current, [buildingId]: Array.from(off) };
     });
+  };
   const availablePets = inventory.filter(p => p.isHatched && (p.petLevel ?? 1) >= 10 && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
   const matchingPets = availablePets.filter(p => !petSearch.trim() || `${p.petNickname || p.name} ${p.petLevel ?? ""}`.toLowerCase().includes(petSearch.trim().toLowerCase()));
   const visiblePetChoices = matchingPets.slice(0, 24);
