@@ -44,6 +44,9 @@ export function registerPetParkAdminRoutes(
         imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
         hatchedImageUrl: shopItems.hatchedImageUrl, price: shopItems.price,
       }).from(shopItems).where(and(
+        // Garden fruit is harvest/market-only: never list an item that the
+        // existing coin shop transaction must refuse to sell.
+        sql`${shopItems.type} <> 'garden_fruit'`,
         search ? ilike(shopItems.name, "%" + search + "%") : undefined,
         type && type !== "all" ? eq(shopItems.type, type) : undefined,
       )).orderBy(asc(shopItems.name)).limit(100);
@@ -272,8 +275,11 @@ export function registerPetParkAdminRoutes(
     if (updates.shopItemIds !== undefined && (updates.shopItemIds as string[]).length) {
       try {
         const ids = updates.shopItemIds as string[];
-        const found = await db.select({ id: shopItems.id }).from(shopItems).where(inArray(shopItems.id, ids));
+        const found = await db.select({ id: shopItems.id, type: shopItems.type })
+          .from(shopItems).where(inArray(shopItems.id, ids));
         if (found.length !== ids.length) return res.status(400).json({ message: "A selected shop item no longer exists" });
+        if (found.some(item => item.type === "garden_fruit"))
+          return res.status(400).json({ message: "Harvested fruit cannot be stocked in coin shops" });
       } catch (error) {
         console.error("[pet-park] shop catalog validation failed", error);
         return res.status(500).json({ message: "Could not validate shop items" });
