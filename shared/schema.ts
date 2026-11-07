@@ -1539,3 +1539,48 @@ export const worldSceneDrafts = pgTable("world_scene_drafts", {
   groundTheme: text("ground_theme").notNull().default("grass"),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
+
+/** Private World Editor content. Pet Park and live world state remain separate. */
+export const worldSceneAssets = pgTable("world_scene_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  tapImageUrl: text("tap_image_url"),
+  interiorImageUrl: text("interior_image_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const worldScenePlacements = pgTable("world_scene_placements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  kind: text("kind").notNull(),
+  assetId: varchar("asset_id"),
+  effectType: text("effect_type"),
+  terrainKey: text("terrain_key"),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(100),
+  flipped: boolean("flipped").notNull().default(false),
+  layer: integer("layer").notNull().default(0),
+  decorEffects: jsonb("decor_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
+  isWaterSource: boolean("is_water_source").notNull().default(false),
+  isShop: boolean("is_shop").notNull().default(false),
+  shopItemIds: jsonb("shop_item_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const worldSceneInteriorItems = pgTable("world_scene_interior_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: text("world_id").notNull(),
+  buildingId: varchar("building_id").notNull(),
+  kind: text("kind").notNull(),
+  assetId: varchar("asset_id"),
+  effectType: text("effect_type"),
+  xPct: real("x_pct").notNull().default(0.5),
+  yPct: real("y_pct").notNull().default(0.5),
+  size: integer("size").notNull().default(100),
+  flipped: boolean("flipped").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
