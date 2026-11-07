@@ -138,6 +138,23 @@ try{
     await page.getByTestId("pet-park-untilled-soil").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("pet-park-untilled-soil").count(),1);
 
+    // Slots remain a compact, centered mobile/tablet HUD after removing the
+    // visible "Spot 1/2/3" titles; their accessible names still identify them.
+    // The row is an ordinary div, so locate it by its maintained aria-label.
+    const slotRow=page.locator('[aria-label="Your three park pet spots"]');
+    await slotRow.waitFor({state:"visible"});
+    const rowBounds=await slotRow.boundingBox();
+    const firstSlotBounds=await page.getByTestId("pet-park-slot-1").boundingBox();
+    assert.ok(rowBounds && firstSlotBounds,name+": slot geometry is measurable");
+    assert.ok(rowBounds.width<=295 && firstSlotBounds.width<100,
+      name+": three oval slots are smaller than the previous full-width row");
+    assert.ok(Math.abs(rowBounds.x+rowBounds.width/2-width/2)<2,
+      name+": the complete three-slot row stays centered");
+    assert.equal(await slotRow.getByText(/^Spot [123]$/).count(),0,
+      name+": visible spot numbers are removed");
+    assert.equal(await slotRow.getByRole("button",{name:"Pet Park spot 1"}).count(),1,
+      name+": accessible slot name remains available for tap/keyboard navigation");
+
     // The visitor's physical artwork and hit area must scale with the same
     // ratio as terrain, at zoom in AND zoom out, on phones and tablets.
     const pet=page.locator('[data-park-pet="another-pet"]');
