@@ -224,7 +224,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
 export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const {
     deviceSurface = false, petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
-    itemsRemaining, items, isPending, subtitle, showBuyButton = false,
+    itemsRemaining, items, isPending, showBuyButton = false,
     successEffect, onUseItem, onSuccessAnimEnd, onClose,
   } = props;
   const [z] = useState(() => getNextZ());
@@ -393,13 +393,12 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     {/* Embedded legacy modals retain their existing background composition. */}
     {!deviceSurface && <div data-testid="level-up-authored-background" className="lupage-authored-background" style={{ backgroundImage: `url(${forestBg})` }} />}
 
+    <button type="button" className="lupage-close" onClick={onClose}
+      data-testid="button-close-levelup-modal" aria-label="Close Level Up"><X size={26} /></button>
     <div className="lupage-scroll">
       <header className="lupage-head">
         <h2 className="lupage-title">LEVEL UP</h2>
-        <div className="lupage-sub">{subtitle || `Drag a Level Up item onto ${petName} to gain XP`}</div>
-        <button type="button" className="lupage-close" onClick={onClose} data-testid="button-close-levelup-modal" aria-label="Close Level Up"><X size={28} /></button>
       </header>
-      <div className="lupage-rule">{itemsRemaining === Infinity ? "✦ No limit — use as many as you like!" : `✦ ${Math.max(0, itemsRemaining)} uses remaining`}</div>
       <section className="lupage-stage">
         <div ref={zoneRef} className={`lupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-levelup-pet-drop" role="button" tabIndex={0} aria-label="Show pet stats" aria-expanded={showStats} onClick={() => { if (!dragRef.current) setShowStats((open) => !open); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowStats((open) => !open); } }}>
           <div className="lupage-stars" data-testid="levelup-active-pet-style-stars" aria-label={`${rarity} out of 5 stars`}>{Array.from({ length: 5 }, (_, i) => { const t = (i - 2) / 2; const curveY = -(1 - t * t) * 12; const filled = i < rarity; return <img key={i} src={cardStarImg} alt="" style={{ transform: `translateY(${curveY}px)`, opacity: filled ? 1 : 0.15, filter: filled ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 5px rgba(240,192,64,.5))" : "grayscale(1) drop-shadow(0 0 1px #000)" }} />; })}</div>
@@ -412,10 +411,8 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
         {stats.map((stat) => <div key={stat.key} className={`lupage-stat ${stat.key}`}><b>{stat.label}</b><div className="lupage-track"><div className="lupage-fill" style={{ width: `${Math.min(100, Math.max(3, stat.value / stat.max * 100))}%` }} /></div><span className="lupage-value">{stat.value}</span></div>)}
       </section>
       </div>}
-      {!showStats && <div className="lupage-stats-hint">Tap your pet to view ATK · DEF · HP</div>}
       </section>
-      <img src={bagIcon} className="lupage-bag" alt="" />
-      <section className="lupage-tray">
+      <section className="lupage-tray" data-empty={items.length === 0}>
         {items.length ? <div className="lupage-items">{items.map((item) => <button
           type="button"
           key={item.inventoryId}
@@ -432,8 +429,9 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
             if (event.detail === 0 && !dragRef.current) useItem(item);
           }}
           disabled={disabled(item)}
-        ><span className="lupage-caption">{labelFor(item)}</span>{item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}{item.quantity > 1 && <span className="lupage-qty">{item.quantity}</span>}</button>)}</div> : <div className="lupage-empty">No Level Up items in your bag.</div>}
-        <div className="lupage-hint">Tap an item or drag it onto {petName} to level up</div>
+        ><span className="lupage-caption">{labelFor(item)}</span>{item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}{item.quantity > 1 && <span className="lupage-qty">{item.quantity}</span>}</button>)}</div> : <div className="lupage-empty"><img src={bagIcon} alt="" />No XP items in your bag</div>}
+        {items.length > 0 && <div className="lupage-hint">Tap or drag XP onto your pet</div>}
+        {Number.isFinite(itemsRemaining) && <div className="lupage-uses">{Math.max(0, itemsRemaining)} uses left</div>}
         {showBuyButton && <button className="lupage-buy" onClick={() => { window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004"; }}>Find Level Up Items</button>}
       </section>
     </div>
