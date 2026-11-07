@@ -54,7 +54,7 @@ try {
     page.setDefaultTimeout(14000);
     const errors=[],writes=[];
     let layout=[{itemId:"scythe",xPct:.5,yPct:.4,size:12}]; // historic shop without rotation
-    const item={id:"scythe",name:"Scythe",type:"garden_tool",price:250,
+    const item={id:"scythe",name:"Scythe",type:"garden_tool",specialType:"scythe",price:250,
       imageUrl:art,eggImageUrl:null,hatchedImageUrl:null,description:"Harvest crops"};
     page.on("pageerror",e=>errors.push(e.message));
     await page.route("**/api/**",async route=>{
@@ -66,6 +66,7 @@ try {
         return route.fulfill({json:[item]});
       if(pathname==="/api/admin/pet-park/shop-catalog")
         return route.fulfill({json:[item]});
+      if(pathname==="/api/inventory")return route.fulfill({json:[]});
       if(pathname==="/api/auth/me")return route.fulfill({json:{coins:5000}});
       if(pathname==="/api/admin/pet-park/buildings/shop1" && route.request().method()==="PATCH"){
         const body=route.request().postDataJSON();
