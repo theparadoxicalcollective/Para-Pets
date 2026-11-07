@@ -14,7 +14,7 @@ test("merchandise coordinates are image relative and safely bounded, not legacy 
   assert.equal(placements[0].xPct, 0.5, "first stocked item is visible on a portrait mobile room");
   assert.ok(validParkShopPlacements(placements));
   assert.deepEqual(withParkShopDefaults(ids, [ { ...defaultParkShopPlacement(ids[0], 0), xPct: .71 } ])[0],
-    { itemId: ids[0], xPct: .71, yPct: .38, size: 12 });
+    { itemId: ids[0], xPct: .71, yPct: .38, size: 12, rotation: 0, priceTagXPct: .72, priceTagYPct: .78 });
   assert.ok(!validParkShopPlacements([{ itemId: "one", xPct: -1, yPct: .5, size: 12 }]));
   assert.ok(!validParkShopPlacements([{ itemId: "one", xPct: .2, yPct: 1.01, size: 12 }]));
   assert.ok(!validParkShopPlacements([{ itemId: "one", xPct: .2, yPct: .5, size: 999 }]));
