@@ -28,6 +28,7 @@ export default function WorldTerrainBrush(props: Props) {
   const savingRef = useRef(false);
   const [type, setType] = useState<ParkTerrainDetailType>("dirt_path");
   const [size, setSize] = useState(150);
+  const [erasing, setErasing] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [draft, setDraft] = useState<ParkBrushPoint[]>([]);
   const [saving, setSaving] = useState(false);
@@ -47,14 +48,14 @@ export default function WorldTerrainBrush(props: Props) {
     setSaving(true);
     setSaveFailed(false);
     try {
-      await apiRequest("POST", `/api/admin/world-editor/${props.worldId}/terrain-strokes`, { type, size, points });
+      await apiRequest("POST", `/api/admin/world-editor/${props.worldId}/${erasing ? "terrain-erase" : "terrain-strokes"}`, { type, size, points });
       props.onSaved();
       draftRef.current = [];
       setDraft([]);
     } catch (error) {
       setSaveFailed(true);
       setShowOptions(true); // Keep retry and clear available after a failed write.
-      toast({ title: "Could not save terrain stroke", description: String(error), variant: "destructive" });
+      toast({ title: erasing ? "Could not erase terrain" : "Could not save terrain stroke", description: String(error), variant: "destructive" });
       // Keep the completed stroke visible so the admin can retry or clear it.
     } finally {
       savingRef.current = false;
@@ -126,6 +127,7 @@ export default function WorldTerrainBrush(props: Props) {
         top: point.yPct * props.sceneHeight + props.panY,
         width: size * props.scale, height: size * props.scale * parkTerrainHeightRatio(type),
         transform: "translate(-50%, -50%)",
+        filter: erasing ? "hue-rotate(155deg) saturate(2)" : undefined,
       }}><PetParkTerrainDetail type={type} /></div>)}
     {/* Keep the painting canvas visible: a small edge toolbar stays compact
         until the admin explicitly opens tool/ground settings. This does not
@@ -143,6 +145,12 @@ export default function WorldTerrainBrush(props: Props) {
           className="min-h-10 shrink-0 rounded-lg border border-[#e5c66a]/70 bg-[#245037] px-2.5 text-xs font-semibold">
           {showOptions ? "Hide" : "Tools"}
         </button>
+        <button type="button" disabled={saving || draft.length > 0}
+          aria-pressed={erasing} aria-label="Toggle terrain eraser"
+          onClick={() => setErasing(current => !current)}
+          className={`min-h-10 shrink-0 rounded-lg border px-2 text-xs font-semibold disabled:opacity-40 ${erasing ? "border-red-300 bg-[#5d2a29] text-red-100" : "border-[#b99a4c]/65 bg-[#0b2016]"}`}>
+          ${erasing ? "Erase ON" : "Erase"}
+        </button>
         <button type="button" disabled={saving || changingGround || draft.length > 0}
           onClick={props.onExit} className="min-h-10 shrink-0 rounded-lg border border-[#b99a4c]/65 bg-[#0b2016] px-2.5 text-xs disabled:opacity-40">
           Done
@@ -153,7 +161,7 @@ export default function WorldTerrainBrush(props: Props) {
       </p>}
       {showOptions && <div data-testid="world-editor-terrain-brush-palette"
         className="mt-2 max-h-[min(50dvh,360px)] space-y-3 overflow-y-auto overscroll-contain border-t border-[#b99a4c]/40 pt-2">
-        <p className="text-[11px] text-amber-100/75">Choose a path or plot, then tap or drag on the park. Release to save.</p>
+        <p className="text-[11px] text-amber-100/75">Choose a path or plot, then tap or drag on the world. Release to save. Enable Erase to remove only that material.</p>
         <div>
           <p className="mb-1 text-xs font-semibold">Paths, Water & Garden Plots (player farming in PR 3)</p>
           <div className="grid grid-cols-2 gap-1.5">
