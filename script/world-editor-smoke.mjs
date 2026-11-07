@@ -162,6 +162,11 @@ try {
         record.scene.placements.push(...items);
         return route.fulfill({ status: 201, json: { items } });
       }
+      if (req.method() === "DELETE" && tail === "terrain") {
+        const initial = record.scene.placements.length;
+        record.scene.placements = record.scene.placements.filter(p => p.kind !== "terrain");
+        return route.fulfill({ json: { deleted: initial - record.scene.placements.length } });
+      }
       if (req.method() === "POST" && tail === "terrain-erase") {
         const type = req.postDataJSON().type;
         record.scene.placements = record.scene.placements.filter(p => p.kind !== "terrain" || p.effectType !== type || p.id === ids.plot);
@@ -181,7 +186,16 @@ try {
     await page.goto("http://127.0.0.1:4194/fixture?world=haunted_woods",
       { waitUntil: "commit", timeout: 30_000 });
     await page.getByTestId("world-scene-editor").waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByRole("button", { name: "Test Gardening" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "+ Building" }).click();
+    await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.getByRole("button", { name: "+ Decor" }).click();
+    await page.getByRole("heading", { name: "Decor / Objects" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.getByRole("button", { name: "+ Effects" }).click();
+    await page.getByRole("heading", { name: "World Effects" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
     const rect = await page.getByTestId("world-scene-placement-" + ids.decor).boundingBox();
@@ -196,8 +210,9 @@ try {
       w.method === "PATCH" && w.body.xPct !== .38),
       name + ": editor drag must save to its world-specific endpoint");
 
-    // The same ground and camera continue into paint mode; no additional stage.
-    await page.getByRole("button", { name: "Paint Ground" }).click();
+    // Direct scene actions appear when the selected item is dismissed.
+    await page.getByRole("button", { name: "Deselect world object" }).click();
+    await page.getByRole("button", { name: "Paint terrain" }).click();
     await page.getByTestId("world-editor-terrain-brush-surface").waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Choose terrain brush" }).click();
     await page.getByRole("button", { name: "Stone Path" }).click();
@@ -217,6 +232,7 @@ try {
       name + ": direct eraser only targets selected material");
     await page.getByRole("button", { name: "Done", exact: true }).click();
 
+    await page.getByTestId("button-world-options").click();
     await page.getByTestId("button-world-garden-preview").click();
     await page.getByTestId("world-garden-preview").waitFor({ state: "visible" });
     await page.getByTestId("world-garden-plot-" + ids.plot).click();
@@ -225,11 +241,15 @@ try {
       name + ": garden action UI uses the existing game tools");
     await page.getByTestId("world-garden-preview-done").click();
     await page.getByTestId("world-garden-preview").waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "Clear all world terrain" }).click();
+    await page.waitForResponse(r => r.url().endsWith("/terrain") && r.request().method() === "DELETE");
+    assert.ok(apiWrites.some(write => write.worldId === "haunted_woods" && write.tail === "terrain" &&
+      write.method === "DELETE"), name + ": one-tap terrain cleanup belongs only to the current world");
 
     // Crossing to another draft cannot display or edit Haunted Woods assets.
     await page.goto("http://127.0.0.1:4194/fixture?world=swamp", { waitUntil: "commit" });
     await page.getByTestId("world-scene-editor").waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "+ Add" }).click();
+    await page.getByRole("button", { name: "+ Decor" }).click();
     await page.getByText("Bayou Willow").waitFor({ state: "visible" });
     assert.equal(await page.getByText("Haunted Cedar").count(), 0,
       name + ": no asset or selection leaks across world identifiers");
