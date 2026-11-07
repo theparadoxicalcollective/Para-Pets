@@ -39,6 +39,11 @@ test("public outdoor roster publishes only the lowest displayed slot per other o
   assert.doesNotMatch(roster, /\.limit\(/, "do not introduce an arbitrary global limit that removes owners");
   assert.doesNotMatch(roster, /pausedAt|earnedDurationMs|coinsPerHour/,
     "public data must remain free of reward and private wallet fields");
+  const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.ts", "utf8");
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS pet_park_deposits_outdoor_first_active_idx/);
+  assert.match(migration, /ON pet_park_deposits \(user_id, slot_number, created_at, id\)/);
+  assert.match(migration, /WHERE withdrawn_at IS NULL AND show_in_park = true/,
+    "partial index supports the exact eligible first-outdoor selection");
   const client = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
   assert.match(client, /outdoorPets\.map\(pet =>/);
   assert.match(client, /const isMine = !!myDeposit/);
