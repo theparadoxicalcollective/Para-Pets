@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
-  gardenActionForPlot, gardenCropProgress,
+  gardenActionForPlot,
   type GardenActionResult, type GardenPlayerAction,
   type GardenPlayerCrop, type GardenPlayerPlot,
 } from "@shared/garden";
@@ -16,11 +16,7 @@ export type GardenOwnedItem = {
   isListed?: boolean; quantity?: number; gardenWaterLeft?: number | null;
 };
 type Request = { action: GardenPlayerAction; inventoryId: string; requestId: string };
-type ToolMotion = {
-  action: GardenPlayerAction; imageUrl: string | null;
-  requestId: string; waterBefore: number | null; waterAfter: number | null;
-  confirmed: boolean;
-};
+type ToolMotion = { action: GardenPlayerAction; imageUrl: string | null; requestId: string };
 type Props = {
   plot: GardenPlayerPlot;
   crops: readonly GardenPlayerCrop[];
@@ -28,9 +24,10 @@ type Props = {
   inventoryLoading: boolean;
   // Position is projected from the EXISTING Pet Park camera in screen pixels.
   // It is never saved and cannot alter the scene or admin plot placement.
-  anchor: { x: number; y: number };
+  anchor: { x: number; y: number; plotX: number; plotY: number; side: "right" | "left" };
   onClose: () => void;
   onChanged: () => void;
+  onWateringState: (plotId: string | null) => void;
 };
 const actionNames: Record<GardenPlayerAction, string> = {
   hoe: "Hoe", plant: "Plant", water: "Water", harvest: "Harvest",
@@ -38,11 +35,13 @@ const actionNames: Record<GardenPlayerAction, string> = {
 const tools: Record<Exclude<GardenPlayerAction, "plant">, string> = {
   hoe: "hoe", water: "watering_pail", harvest: "scythe",
 };
+// Compact vertical arc beside the plot, instead of a horizontal row over it.
+// The arc is mirrored when the plot sits near the viewport's right edge.
 const BUTTONS: Array<{ action: GardenPlayerAction; Icon: typeof Shovel; x: number; y: number }> = [
-  { action: "hoe", Icon: Shovel, x: 7, y: 29 },
-  { action: "plant", Icon: Sprout, x: 70, y: 4 },
-  { action: "water", Icon: Droplets, x: 136, y: 4 },
-  { action: "harvest", Icon: Scissors, x: 199, y: 29 },
+  { action: "hoe", Icon: Shovel, x: 4, y: 0 },
+  { action: "plant", Icon: Sprout, x: 61, y: 55 },
+  { action: "water", Icon: Droplets, x: 70, y: 126 },
+  { action: "harvest", Icon: Scissors, x: 4, y: 192 },
 ];
 function eligibleItem(item: GardenOwnedItem, action: GardenPlayerAction,
   crops: readonly GardenPlayerCrop[]): boolean {
@@ -54,7 +53,7 @@ function eligibleItem(item: GardenOwnedItem, action: GardenPlayerAction,
 }
 
 export default function PetParkGardenMenu({
-  plot, crops, inventory, inventoryLoading, anchor, onClose, onChanged,
+  plot, crops, inventory, inventoryLoading, anchor, onClose, onChanged, onWateringState,
 }: Props) {
   const suggested = gardenActionForPlot(plot);
   const [showSeeds, setShowSeeds] = useState(false);
@@ -65,8 +64,6 @@ export default function PetParkGardenMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rewardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeCrop = crops.find(crop => crop.id === plot.cropId);
-  const progress = gardenCropProgress(plot, activeCrop);
   const owned = (action: GardenPlayerAction) => inventory.filter(item => eligibleItem(item, action, crops));
   const seeds = owned("plant");
   const hasTools = inventory.some(item => !item.isListed && (item.quantity ?? 0) > 0 && item.type === "garden_tool");
@@ -93,9 +90,6 @@ export default function PetParkGardenMenu({
       setRetry(null);
       setErrorMessage(null);
       setShowSeeds(false);
-      setMotion(previous => previous?.requestId === request.requestId
-        ? { ...previous, waterAfter: typeof result.waterLeft === "number" ? result.waterLeft : null, confirmed: true }
-        : previous);
       onChanged();
       if (result.reward) {
         const crop = crops.find(entry => entry.fruitItemId === result.reward?.fruitItemId);
@@ -107,13 +101,14 @@ export default function PetParkGardenMenu({
         rewardTimer.current = setTimeout(() => setLastReward(null), 3400);
       }
       if (finishTimer.current) clearTimeout(finishTimer.current);
-      finishTimer.current = setTimeout(() => setMotion(null), 1280);
+      finishTimer.current = setTimeout(() => { setMotion(null); onWateringState(null); }, 1280);
     },
     onError: (error: Error) => {
       // A mobile request may commit before its response is lost. An explicit
       // retry must reuse the very same UUID, never charge another water drop.
       setErrorMessage(error.message || "Garden action could not be completed.");
       setMotion(null);
+      onWateringState(null);
       onChanged();
     },
   });
@@ -143,7 +138,8 @@ export default function PetParkGardenMenu({
   useEffect(() => () => {
     if (finishTimer.current) clearTimeout(finishTimer.current);
     if (rewardTimer.current) clearTimeout(rewardTimer.current);
-  }, []);
+    onWateringState(null);
+  }, [onWateringState]);
   const submit = (action: GardenPlayerAction, item: GardenOwnedItem) => {
     if (action !== suggested || mutation.isPending || motion || inventoryLoading ||
         !eligibleItem(item, action, crops)) return;
@@ -152,11 +148,8 @@ export default function PetParkGardenMenu({
     setRetry(pending);
     setErrorMessage(null);
     setShowSeeds(false);
-    setMotion({
-      action, imageUrl: item.imageUrl ?? null, requestId: pending.requestId,
-      waterBefore: action === "water" ? (item.gardenWaterLeft ?? 100) : null,
-      waterAfter: null, confirmed: false,
-    });
+    if (action === "water") onWateringState(plot.plotItemId);
+    setMotion({ action, imageUrl: item.imageUrl ?? null, requestId: pending.requestId });
     mutation.mutate(pending);
   };
   const chooseAction = (action: GardenPlayerAction) => {
@@ -168,20 +161,13 @@ export default function PetParkGardenMenu({
       submit(action, items[0]);
     }
   };
-  const stageLabel = plot.phase === "empty" ? "Unprepared soil"
-    : plot.phase === "tilled" ? "Tilled soil"
-    : plot.phase === "picked" ? "Recently harvested"
-    : plot.harvestReady ? "Ready to harvest"
-    : plot.phase === "grown" ? "Fully grown"
-    : plot.phase === "partial" ? "Partially grown"
-    : plot.phase === "seedling" ? "Seedling" : "Planted seed";
   return <ViewportModalPortal blocking={false}>
     <div ref={menuRef} data-testid="pet-park-garden-menu" className="pointer-events-none absolute inset-0 z-[76]"
       aria-label="Garden Plot tools">
-      <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[260px]"
-        style={{ left: anchor.x, top: anchor.y, transform: "translate(-50%, -107px)" }}>
-        <div className="relative h-[107px]" role="group" aria-label="Garden tools">
-          {BUTTONS.map(({ action, Icon, x, y }) => {
+      <div data-testid="pet-park-garden-anchor" className="pointer-events-none absolute w-[145px]"
+        data-side={anchor.side} style={{ left: anchor.x, top: anchor.y }}>
+        <div className="relative h-[249px]" role="group" aria-label="Garden tools">
+          {!motion && BUTTONS.map(({ action, Icon, x, y }) => {
             const items = owned(action);
             const available = !inventoryLoading && suggested === action && items.length > 0 && !isBusy && !mutation.isPending;
             const catalogItem = items[0] ?? inventory.find(item => action === "plant"
@@ -191,14 +177,17 @@ export default function PetParkGardenMenu({
             return <button type="button" key={action}
               data-testid={"pet-park-garden-action-" + action}
               aria-label={actionNames[action]} aria-disabled={!available}
+              aria-current={suggested === action ? "step" : undefined}
               disabled={!available}
               title={actionNames[action]}
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); chooseAction(action); }}
               className={"garden-tool-bubble pointer-events-auto absolute flex h-[57px] w-[57px] flex-col items-center justify-center rounded-full border text-[10px] font-semibold shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f2d48a] " +
-                (available ? "border-[#f1d18a] bg-[#1f5135] text-[#ffe9b0]" :
-                  "border-[#7e816e]/70 bg-[#22382b]/90 text-[#a5ae96] opacity-45 grayscale")}
-              style={{ left: x, top: y }}>
+                (available ? "bg-[#1f5135] text-[#ffe9b0]" :
+                  "bg-[#22382b]/90 text-[#a5ae96] opacity-45 grayscale") +
+                (suggested === action ? " border-[1.5px] border-[#f1d18a] ring-1 ring-[#cda55e]/80" :
+                  " border border-[#7e816e]/70")}
+              style={{ left: anchor.side === "right" ? x : 145 - x - 57, top: y }}>
               {sourceImage ? <img src={sourceImage} alt="" draggable={false}
                 className="h-[34px] w-[38px] object-contain" /> :
                 <Icon size={25} strokeWidth={1.8} aria-hidden="true" />}
@@ -206,12 +195,6 @@ export default function PetParkGardenMenu({
             </button>;
           })}
         </div>
-        <div className="mx-auto w-fit max-w-[240px] rounded-full border border-[#bd9e62]/70 bg-[#092719]/90 px-3 py-1 text-center font-fantasy text-[11px] text-[#f4d69c] shadow-lg"
-          data-testid="pet-park-garden-stage">{stageLabel}</div>
-        {progress && <div className="mx-auto mt-1.5 w-fit max-w-[220px] rounded-full border border-[#b5ae80]/35 bg-[#102e23]/90 px-3 py-1 text-center text-[10px] text-[#e3d7b1]"
-          data-testid="pet-park-garden-progress">
-          Water: {progress.value} / {progress.required} drops
-        </div>}
         {missingMessage && !motion && <div data-testid="pet-park-garden-no-items"
           role="status" className="mx-auto mt-2 max-w-[255px] rounded-xl border border-[#c7a96b]/65 bg-[#102d20]/95 px-3 py-2 text-center text-xs text-[#f0dba9] shadow-lg">
           {missingMessage}
@@ -234,9 +217,8 @@ export default function PetParkGardenMenu({
             onClick={() => {
               const original = inventory.find(item => item.inventoryId === retry.inventoryId);
               if (original && !motion) {
-                setMotion({ action: retry.action, requestId: retry.requestId, imageUrl: original.imageUrl ?? null,
-                  waterBefore: retry.action === "water" ? (original.gardenWaterLeft ?? 100) : null,
-                  waterAfter: null, confirmed: false });
+                if (retry.action === "water") onWateringState(plot.plotItemId);
+                setMotion({ action: retry.action, requestId: retry.requestId, imageUrl: original.imageUrl ?? null });
                 mutation.mutate(retry);
               }
             }}
@@ -247,15 +229,7 @@ export default function PetParkGardenMenu({
       </div>
       {motion && <div data-testid="pet-park-garden-animation" data-action={motion.action}
         aria-hidden="true" className="pointer-events-none absolute"
-        style={{ left: anchor.x, top: anchor.y + 12, transform: "translate(-50%, -50%)" }}>
-        {motion.action === "water" && <div className="absolute bottom-[110px] left-1/2 z-20 w-[88px] -translate-x-1/2 rounded-lg border border-[#d3bf80] bg-[#102d24]/95 px-2 py-1 shadow-lg"
-          data-testid="pet-park-garden-water-gauge">
-          <div className="text-center text-[9px] font-bold text-[#eddaa5]">{motion.waterAfter ?? motion.waterBefore ?? 100} / 100</div>
-          <div className="mt-0.5 h-[6px] overflow-hidden rounded-full bg-[#27453b]">
-            <div className="h-full rounded-full bg-[#83c6c7] transition-[width] duration-700 ease-in-out"
-              style={{ width: (((motion.waterAfter ?? motion.waterBefore ?? 100) / 100) * 100) + "%" }} />
-          </div>
-        </div>}
+        style={{ left: anchor.plotX + 48, top: anchor.plotY - 38, transform: "translate(-50%, -50%)" }}>
         <div className={"garden-tool-motion garden-tool-motion-" + motion.action}>
           {motion.imageUrl ? <img src={motion.imageUrl} alt="" draggable={false} className="h-full w-full object-contain" /> :
             motion.action === "water" ? <Droplets size={75} /> : motion.action === "hoe" ? <Shovel size={75} /> :
@@ -268,7 +242,7 @@ export default function PetParkGardenMenu({
       </div>}
       {lastReward && <div data-testid="pet-park-garden-harvest"
         className="pointer-events-auto absolute z-[2] flex min-w-[180px] max-w-[240px] items-center gap-2 rounded-xl border-2 border-[#d8b873] bg-[#123d2b]/95 px-3 py-2 text-[#f2d69a] shadow-xl"
-        role="status" style={{ left: anchor.x, top: anchor.y + 36, transform: "translateX(-50%)" }}>
+        role="status" style={{ left: anchor.plotX, top: anchor.plotY + 36, transform: "translateX(-50%)" }}>
         {lastReward.imageUrl ? <img src={lastReward.imageUrl} alt="" className="h-11 w-11 object-contain" /> : <Sprout size={31} />}
         <div className="min-w-0 flex-1"><strong className="font-fantasy text-sm">Harvested!</strong>
           <p className="text-[11px]">{lastReward.quantity} × {lastReward.fruitName}</p>
