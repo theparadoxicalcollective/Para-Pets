@@ -306,6 +306,14 @@ export function registerWorldSceneContentRoutes(app: Express, {
         changes.shopItemIds = body.shopItemIds;
         changes.shopItemPlacements = saved.shopItemPlacements.filter(p => body.shopItemIds.includes(p.itemId));
       }
+      if ("shopItemPlacements" in body) {
+        const activeStock = changes.shopItemIds ?? saved.shopItemIds;
+        if (saved.kind !== "building" || !validParkShopPlacements(body.shopItemPlacements) ||
+          body.shopItemPlacements.some(p => !activeStock.includes(p.itemId))) {
+          return res.status(400).json({ message: "Invalid shop merchandise layout" });
+        }
+        changes.shopItemPlacements = body.shopItemPlacements;
+      }
       if (!Object.keys(changes).length) return res.status(400).json({ message: "No changes supplied" });
       const [updated] = await db.update(worldScenePlacements).set(changes).where(
         and(eq(worldScenePlacements.worldId, worldId), eq(worldScenePlacements.id, saved.id))).returning();
@@ -460,14 +468,6 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if ("flipped" in body) {
         if (typeof body.flipped !== "boolean") return res.status(400).json({ message: "Invalid flip" });
         changes.flipped = body.flipped;
-      }
-      if ("shopItemPlacements" in body) {
-        const activeStock = changes.shopItemIds ?? saved.shopItemIds;
-        if (saved.kind !== "building" || !validParkShopPlacements(body.shopItemPlacements) ||
-          body.shopItemPlacements.some(p => !activeStock.includes(p.itemId))) {
-          return res.status(400).json({ message: "Invalid shop merchandise layout" });
-        }
-        changes.shopItemPlacements = body.shopItemPlacements;
       }
       if (!Object.keys(changes).length) return res.status(400).json({ message: "No changes supplied" });
       const [updated] = await db.update(worldSceneInteriorItems).set(changes).where(
