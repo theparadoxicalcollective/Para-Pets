@@ -849,9 +849,6 @@ export default function PetParkPage() {
         touchPoints.current.delete(e.pointerId);
         if (touchPoints.current.size < 2) pinch.current = null;
       }}
-      onLostPointerCapture={e => {
-        if (placementPointer.current?.id === e.pointerId) cancelPlacement(e);
-      }}
       onPointerDown={e => {
         if (scene?.canEditPark && !paintMode && !showCreator && e.target === e.currentTarget) {
           setSelectedPlacement(null); setPlacementDraft(null);
@@ -921,6 +918,7 @@ export default function PetParkPage() {
         if (pointer.current?.id === e.pointerId) pointer.current = null;
       }}
       onLostPointerCapture={e => {
+        if (placementPointer.current?.id === e.pointerId) cancelPlacement(e);
         touchPoints.current.delete(e.pointerId);
         if (touchPoints.current.size < 2) pinch.current = null;
         if (pointer.current?.id === e.pointerId) pointer.current = null;
