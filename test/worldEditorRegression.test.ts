@@ -93,6 +93,30 @@ test("new editor is isolated from the legacy worlds, Pet Park, pet rewards and p
   assert.doesNotMatch(editor, /390\s*[*x×]\s*844/);
 });
 
+test("world creator keeps Pet Park-style one-step forms without a mandatory asset library", () => {
+  const form = readFileSync("client/src/components/world-editor/WorldSceneCreateForm.tsx", "utf8");
+  const controls = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
+  const routes = readFileSync("server/routes/worldSceneContent.routes.ts", "utf8");
+  assert.match(form, /Building Name/);
+  assert.match(form, /Starting building size/);
+  assert.match(form, /Is Shop/);
+  assert.match(form, /Interior Background \(optional\)/);
+  assert.match(form, /WorldDecorEffectEditor/);
+  assert.match(form, /Tap Image/);
+  assert.match(form, /Starting size/);
+  assert.match(form, /Water Source/);
+  assert.match(form, /\/assets/);
+  assert.match(form, /\/placements/);
+  assert.match(controls, /<WorldSceneCreateForm/);
+  assert.doesNotMatch(controls, /Artwork Library|Save to This World's Library/,
+    "creating a world decoration should not require a separate library workflow");
+  assert.match(controls, /Duplicate world decoration/);
+  assert.match(controls, /Replace Decoration Artwork/);
+  assert.match(controls, /Edit decoration Tap Image/);
+  assert.match(routes, /eq\(worldScenePlacements\.worldId, worldId\)/);
+  assert.match(routes, /saved\.kind === "decor" && saved\.assetId && "decorEffects" in changes/);
+});
+
 test("browser CI includes an actual world editor phone/tablet fixture", () => {
   const workflow = readFileSync(".github/workflows/browser-smoke-pilot.yml", "utf8");
   const smoke = readFileSync("script/world-editor-smoke.mjs", "utf8");

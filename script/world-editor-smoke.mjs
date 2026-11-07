@@ -106,6 +106,7 @@ try {
       images: { seedPack: art, planted: art, seedling: art, partial: art, grown: art, picked: art, fruit: art },
       drops: { planted: 2, seedling: 2, partial: 2, grown: 2 }, stagePlacements: {},
     };
+    let createdIndex = 1;
     let inventory = [
       { inventoryId: "pail", shopItemId: "pail-item", name: "Shared Watering Pail",
         type: "garden_tool", specialType: "watering_pail", quantity: 1, isRefillable: true,
@@ -138,6 +139,23 @@ try {
           })), crops: [crop],
         } });
       if (req.method() !== "GET") apiWrites.push({ worldId, tail, method: req.method(), body: req.postDataJSON() });
+      if (req.method() === "POST" && tail === "assets") {
+        const body = req.postDataJSON();
+        const id = `30000000-0000-4000-8000-${String(createdIndex++).padStart(12, "0")}`;
+        const asset = {
+          id, worldId, kind: body.kind, name: body.name,
+          imageUrl: art, tapImageUrl: body.tapImageData ? art : null,
+          interiorImageUrl: body.interiorImageData ? interior : null,
+        };
+        record.scene.assets.push(asset);
+        return route.fulfill({ status: 201, json: asset });
+      }
+      if (req.method() === "POST" && tail === "placements") {
+        const id = `40000000-0000-4000-8000-${String(createdIndex++).padStart(12, "0")}`;
+        const created = { id, worldId, ...req.postDataJSON() };
+        record.scene.placements.push(created);
+        return route.fulfill({ status: 201, json: created });
+      }
       if (req.method() === "PUT" && tail === "draft") {
         record.draft = { ...record.draft, ...req.postDataJSON(), updatedAt: new Date().toISOString() };
         return route.fulfill({ json: record.draft });
@@ -189,10 +207,45 @@ try {
     await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "+ Building" }).click();
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "Close editor" }).click();
+    assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
+    await page.getByLabel("Building name").fill("Enchanted Cottage");
+    await page.getByRole("switch", { name: "Is Shop building" }).check();
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64");
+    await page.getByLabel("Building exterior image").setInputFiles({
+      name: "Cottage.png", mimeType: "image/png", buffer: png,
+    });
+    const createdBuilding = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
+    await page.getByTestId("button-create-world-building").click();
+    await createdBuilding;
+    assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "building" &&
+      w.body.size === 300 && w.body.isShop === true), name + ": building created in one step with Pet Park shop/size settings");
+    await page.getByRole("button", { name: "Deselect world object" }).click();
+
     await page.getByRole("button", { name: "+ Decor" }).click();
     await page.getByRole("heading", { name: "Decor / Objects" }).waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "Close editor" }).click();
+    assert.equal(await page.getByLabel("Decoration starting size").inputValue(), "100");
+    assert.equal(await page.getByLabel("Water Source").count(), 1);
+    assert.equal(await page.getByLabel("Decoration Tap Image").count(), 1);
+    assert.equal(await page.getByText("Artwork Library").count(), 0,
+      name + ": creating a decoration must not require a separate asset library");
+    await page.getByLabel("Scene item artwork").setInputFiles({
+      name: "Haunted Lantern.png", mimeType: "image/png", buffer: png,
+    });
+    const createdDecor = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
+    await page.getByTestId("button-create-world-decoration").click();
+    await createdDecor;
+    assert.ok(apiWrites.some(w => w.tail === "assets" && w.body.name === "Haunted Lantern"),
+      name + ": decor upload uses its filename without extra naming steps");
+    assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "decor" &&
+      w.body.size === 100), name + ": decor is placed in one operation");
+    const duplicateSaved = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
+    await page.getByRole("button", { name: "Duplicate world decoration" }).click();
+    await duplicateSaved;
+    assert.ok(apiWrites.filter(w => w.tail === "placements" && w.body.kind === "decor").length >= 2,
+      name + ": linked decoration duplicates reuse one uploaded asset");
+    await page.getByRole("button", { name: "Deselect world object" }).click();
+
     await page.getByRole("button", { name: "+ Effects" }).click();
     await page.getByRole("heading", { name: "World Effects" }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Close editor" }).click();
@@ -257,10 +310,13 @@ try {
     // Crossing to another draft cannot display or edit Haunted Woods assets.
     await page.goto("http://127.0.0.1:4194/fixture?world=swamp", { waitUntil: "commit" });
     await page.getByTestId("world-scene-editor").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "+ Decor" }).waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 0,
+      name + ": Haunted Woods decoration placements are absent from the Bayou world");
     await page.getByRole("button", { name: "+ Decor" }).click();
-    await page.getByText("Bayou Willow").waitFor({ state: "visible" });
-    assert.equal(await page.getByText("Haunted Cedar").count(), 0,
-      name + ": no asset or selection leaks across world identifiers");
+    assert.equal(await page.getByText("Artwork Library").count(), 0,
+      name + ": the same direct creation form works in every world");
+    await page.getByRole("button", { name: "Close editor" }).click();
     assert.deepEqual(petParkRequests, [], name + ": no Pet Park editing or gameplay APIs");
     assert.deepEqual(publicWorldRequests, [], name + ": no original world API writes");
     assert.deepEqual(errors, [], name + ": no browser runtime exceptions");

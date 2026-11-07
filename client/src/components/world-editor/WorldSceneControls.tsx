@@ -6,15 +6,24 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { PARK_WATER_EFFECT_OPTIONS } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
+import WorldSceneCreateForm from "./WorldSceneCreateForm";
 import type {
-  WorldSceneContent, WorldSceneAsset, WorldSceneInteriorItem, WorldScenePlacement,
+  WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
 import type { ParkEffectType } from "@shared/petParkEffects";
 
 type Panel = "library" | "effects" | "selected" | "terrain" | "shop" | "interior";
-const EFFECT_CHOICES: Array<{ type: ParkEffectType; label: string; size: number }> = [
-  ...HOME_OUTDOOR_EFFECT_OPTIONS.filter(o => o.type !== "sleep").map(o => ({ type: o.type, label: o.label, size: Math.max(60, o.defaultSize * 6) })),
-  ...PARK_WATER_EFFECT_OPTIONS.map(o => ({ type: o.type, label: o.label, size: o.defaultSize })),
+const EFFECT_CHOICES: Array<{
+  type: ParkEffectType; label: string; description: string; size: number; group: "outdoor" | "water";
+}> = [
+  ...HOME_OUTDOOR_EFFECT_OPTIONS.filter(o => o.type !== "sleep").map(o => ({
+    type: o.type, label: o.label, description: o.description,
+    size: Math.max(60, o.defaultSize * 6), group: "outdoor" as const,
+  })),
+  ...PARK_WATER_EFFECT_OPTIONS.map(o => ({
+    type: o.type, label: o.label, description: o.description,
+    size: o.defaultSize, group: "water" as const,
+  })),
 ];
 
 type Props = {
@@ -35,24 +44,14 @@ export default function WorldSceneControls(props: Props) {
   const { toast } = useToast();
   const [panel, setPanel] = useState<Panel>("library");
   const [busy, setBusy] = useState(false);
-  const [uploadName, setUploadName] = useState("");
-  const [uploadKind, setUploadKind] = useState<"decor" | "building">("decor");
-  const [uploadArt, setUploadArt] = useState<string | null>(null);
-  const [uploadTap, setUploadTap] = useState<string | null>(null);
-  const [uploadInterior, setUploadInterior] = useState<string | null>(null);
-  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
-  const [previewTappedArtwork, setPreviewTappedArtwork] = useState(false);
   const [search, setSearch] = useState("");
-  const [assetSearch, setAssetSearch] = useState("");
+  const [buildingNameDraft, setBuildingNameDraft] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
 
   useEffect(() => {
     setPanel("library");
-    setEditingAssetId(null);
-    setPreviewTappedArtwork(false);
-    setAssetSearch("");
     setExpanded(false);
     setAssetKindFilter(null);
   }, [props.worldId]);
@@ -62,8 +61,7 @@ export default function WorldSceneControls(props: Props) {
 
   const currentAsset = props.scene.assets.find(asset => asset.id === props.selected?.assetId);
   const interiorAsset = props.scene.assets.find(asset => asset.id === props.activeBuilding?.assetId);
-  const editingAsset = props.scene.assets.find(asset => asset.id === editingAssetId);
-  const activeInteriorItems = props.scene.interiorItems.filter(item => item.buildingId === props.activeBuilding?.id);
+  useEffect(() => { setBuildingNameDraft(currentAsset?.name ?? ""); }, [currentAsset?.id, currentAsset?.name]);
   const shopBuilding = props.activeBuilding ??
     (props.selected?.kind === "building" ? props.selected : null);
 
@@ -95,22 +93,6 @@ export default function WorldSceneControls(props: Props) {
     }
   };
 
-  const chooseFile = async (file: File | undefined, setter: (v: string) => void) => {
-    if (!file) return;
-    try { setter(await readPetParkImageData(file)); }
-    catch (error) { toast({ title: "Invalid image", description: String(error), variant: "destructive" }); }
-  };
-  const handleUpload = async () => {
-    if (!uploadArt || !uploadName.trim()) return;
-    const result = await mutate("POST", "/assets", {
-      kind: uploadKind, name: uploadName.trim(), imageData: uploadArt,
-      tapImageData: uploadTap, interiorImageData: uploadKind === "building" ? uploadInterior : null,
-    }) as WorldSceneAsset | null;
-    if (result) {
-      setUploadName(""); setUploadArt(null); setUploadTap(null); setUploadInterior(null);
-      setEditingAssetId(result.id);
-    }
-  };
   const add = async (kind: "decor" | "building" | "effect", assetId: string | null, effectType: string | null, size: number) => {
     const result = await mutate("POST", "/placements", {
       kind, assetId, effectType, xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
@@ -134,6 +116,30 @@ export default function WorldSceneControls(props: Props) {
     if (!props.selectedInterior) return;
     await mutate("PATCH", `/interior-items/${props.selectedInterior.id}`, values);
   };
+  const duplicateSelected = async () => {
+    const source = props.selected;
+    if (!source || source.kind !== "decor" || !source.assetId) return;
+    // The same world asset powers linked copies; individual positioning stays independent.
+    const offset = .02;
+    const result = await mutate("POST", "/placements", {
+      kind: "decor", assetId: source.assetId, effectType: null,
+      xPct: Math.max(0, Math.min(1, source.xPct + offset)),
+      yPct: Math.max(0, Math.min(1, source.yPct + offset)),
+      size: source.size, flipped: source.flipped, layer: source.layer,
+      decorEffects: source.decorEffects, isWaterSource: source.isWaterSource,
+      isShop: false, shopItemIds: [],
+    }) as WorldScenePlacement | null;
+    if (result) props.onSelect(result.id);
+  };
+  const patchArtwork = async (assetId: string, name: "imageData" | "tapImageData" | "interiorImageData",
+    file?: File) => {
+    if (!file) return;
+    try {
+      await mutate("PATCH", `/assets/${assetId}`, { [name]: await readPetParkImageData(file) });
+    } catch (error) {
+      toast({ title: "Artwork could not be read", description: String(error), variant: "destructive" });
+    }
+  };
   const removeSelected = async () => {
     if (!props.selected) return;
     const changed = await mutate("DELETE", `/placements/${props.selected.id}`);
@@ -146,36 +152,17 @@ export default function WorldSceneControls(props: Props) {
   };
 
   const selectedItem = props.activeBuilding ? props.selectedInterior : props.selected;
-  const isSelectedBuilding = props.selected?.kind === "building" && !props.activeBuilding;
   const patchShop = async (values: Record<string, unknown>) => {
     if (!shopBuilding) return;
     await mutate("PATCH", `/placements/${shopBuilding.id}`, values);
   };
-  const tabs: Array<{ id: Panel; label: string }> = props.activeBuilding ? [
-    { id: "interior", label: "Interior" }, { id: "library", label: "Decor" },
-    { id: "effects", label: "Effects" }, { id: "selected", label: "Edit" },
-    { id: "shop", label: "Shop" },
-  ] : [
-    { id: "library", label: "Assets" }, { id: "terrain", label: "Terrain" },
-    { id: "effects", label: "Effects" }, { id: "selected", label: "Edit" },
-    ...(isSelectedBuilding ? [{ id: "shop" as const, label: "Shop" }] : []),
-  ];
-
   const control = "rounded-md border border-[#a88b49]/70 bg-[#21422c] px-2.5 py-2 text-[11px] font-semibold disabled:opacity-40";
   const danger = "rounded-md border border-red-300/40 bg-[#451f25] px-2.5 py-2 text-[11px] text-[#ffd4c9] disabled:opacity-40";
   const field = "w-full rounded-md border border-[#a88b49]/60 bg-[#132a20] p-2 text-xs text-[#f5e5bb]";
   const heading = "text-xs font-semibold text-[#f7d783]";
 
-  const matchingAssets = props.scene.assets.filter(asset =>
-    (!props.activeBuilding || asset.kind === "decor") &&
-    (!assetKindFilter || asset.kind === assetKindFilter) &&
-    asset.name.toLowerCase().includes(assetSearch.trim().toLowerCase()));
-  // Limit mounted image previews on Safari: each image may be a large artwork.
-  const assetList = matchingAssets.slice(0, 40);
-
   const openCreator = (mode: Panel, kind: "decor" | "building" | null = null) => {
     setAssetKindFilter(kind);
-    if (kind) setUploadKind(kind);
     setPanel(mode);
     setExpanded(true);
   };
@@ -218,7 +205,7 @@ export default function WorldSceneControls(props: Props) {
     {!expanded && selectedItem && <section
       data-testid="world-scene-selected-controls" aria-label="Edit selected world object"
       className="pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl"
-      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: "38dvh" }}
+      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: "min(65dvh, 620px)" }}
       onPointerDown={event => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-2">
         <strong className="truncate text-sm capitalize">{selectedName}</strong>
@@ -244,16 +231,90 @@ export default function WorldSceneControls(props: Props) {
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
       </div>
       {!props.activeBuilding && props.selected?.kind === "decor" && <>
+        <button type="button" aria-label="Duplicate world decoration" className={control}
+          disabled={busy} onClick={() => void duplicateSelected()}>Duplicate</button>
         <button type="button" aria-pressed={props.selected.isWaterSource} className={control}
           disabled={busy} onClick={() => void patchSelected({ isWaterSource: !props.selected!.isWaterSource })}>
           Water Source: {props.selected.isWaterSource ? "ON" : "OFF"}
         </button>
-        <button type="button" className={quickAccent} onClick={() => openCreator("selected")}>Edit Decoration Effects</button>
+        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
+          data-testid="world-decoration-artwork-editor">
+          <span className="block text-xs font-semibold">Artwork · all linked copies</span>
+          {currentAsset && <img src={currentAsset.imageUrl} alt="Selected decoration artwork"
+            className="mx-auto h-20 w-full object-contain"/>}
+          {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+            Replace Decoration Artwork
+            <input type="file" aria-label="Replace linked decoration artwork" accept="image/png,image/jpeg"
+              className="sr-only" disabled={busy} onChange={event => {
+                void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
+                event.target.value = "";
+              }}/>
+          </label>}
+        </div>
+        {currentAsset && <WorldDecorEffectEditor key={props.selected.id}
+          imageUrl={currentAsset.imageUrl} effects={props.selected.decorEffects} disabled={busy}
+          onChange={effects => void patchSelected({ decorEffects: effects })}/>}
+        {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
+          data-testid="world-decoration-tap-image-editor">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-[#f5d98e]">Tap Image
+              <span className="ml-1 font-normal text-amber-100/70">(optional)</span>
+            </span>
+            {currentAsset.tapImageUrl && <button type="button" className={danger} disabled={busy}
+              onClick={() => void mutate("PATCH", `/assets/${currentAsset.id}`, { tapImageData: null })}>Remove</button>}
+          </div>
+          {currentAsset.tapImageUrl && <img src={currentAsset.tapImageUrl}
+            alt="Current decoration Tap Image" className="mx-auto h-20 w-full object-contain"/>}
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+            {currentAsset.tapImageUrl ? "Replace Tap Image" : "Upload Tap Image"}
+            <input type="file" aria-label="Edit decoration Tap Image" accept="image/png,image/jpeg"
+              className="sr-only" disabled={busy} onChange={event => {
+                void patchArtwork(currentAsset.id, "tapImageData", event.target.files?.[0]);
+                event.target.value = "";
+              }}/>
+          </label>
+          <p className="text-[11px] text-amber-100/70">
+            Alternate artwork changes every linked copy; each copy keeps its own position and size.
+          </p>
+        </div>}
       </>}
-      {!props.activeBuilding && props.selected?.kind === "building" && <div className="flex flex-wrap gap-2">
-        <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>
-        <button type="button" className={control} onClick={() => openCreator("shop")}>Shop Setup</button>
-        <button type="button" className={control} onClick={() => openCreator("library", "building")}>Edit Building Art</button>
+      {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
+        <label className="block space-y-1 text-xs">Building Name
+          <input aria-label="Rename world building" value={buildingNameDraft}
+            onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
+            className={field}/>
+        </label>
+        <button type="button" className={control}
+          disabled={busy || !buildingNameDraft.trim() || buildingNameDraft === currentAsset?.name}
+          onClick={() => currentAsset && void mutate("PATCH", `/assets/${currentAsset.id}`,
+            { name: buildingNameDraft.trim() })}>Save Name</button>
+        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+          Replace Building Artwork
+          <input type="file" aria-label="Replace building artwork" accept="image/png,image/jpeg"
+            className="sr-only" disabled={busy} onChange={event => {
+              void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
+              event.target.value = "";
+            }}/>
+        </label>}
+        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+          {currentAsset.interiorImageUrl ? "Replace Interior Background" : "Upload Interior Background (optional)"}
+          <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
+            className="sr-only" disabled={busy} onChange={event => {
+              void patchArtwork(currentAsset.id, "interiorImageData", event.target.files?.[0]);
+              event.target.value = "";
+            }}/>
+        </label>}
+        <label className="flex items-center justify-between rounded-lg border border-[#b99a4c]/55 p-3 text-xs">
+          <span>Is Shop · {props.selected.isShop ? "ON" : "OFF"}</span>
+          <input type="checkbox" role="switch" aria-label="Is Shop building"
+            checked={props.selected.isShop} disabled={busy}
+            onChange={event => void patchSelected({ isShop: event.target.checked })}/>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>
+          {props.selected.isShop && <button type="button" className={control}
+            onClick={() => openCreator("shop")}>Shop Setup</button>}
+        </div>
       </div>}
       {props.activeBuilding && <button type="button" className={control}
         onClick={() => openCreator("selected")}>Edit Interior Object</button>}
@@ -278,107 +339,65 @@ export default function WorldSceneControls(props: Props) {
             className="rounded-full border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-[#f5cf64]">×</button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-        {panel === "library" && <>
-          {!props.activeBuilding && <div className="space-y-2 border-b border-[#75613c] pb-3">
-            <h3 className={heading}>Upload world-only artwork</h3>
-            <input aria-label="Asset name" className={field} placeholder="Decoration or building name"
-              value={uploadName} onChange={e => setUploadName(e.target.value)} />
-            {!assetKindFilter && <select value={uploadKind} className={field}
-              aria-label="New asset type" onChange={e => setUploadKind(e.target.value as "decor" | "building")}>
-              <option value="decor">Decoration</option><option value="building">Building</option>
-            </select>}
-            <label className="block text-[11px]">Artwork (transparent PNG recommended)
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="mt-1 block w-full text-[11px]"
-                onChange={e => void chooseFile(e.target.files?.[0], setUploadArt)} />
-            </label>
-            {uploadArt && <img src={uploadArt} alt="Pending asset" className="h-20 max-w-full object-contain" />}
-            <label className="block text-[11px]">Optional tapped appearance
-              <input type="file" accept="image/*" className="mt-1 block w-full text-[11px]"
-                onChange={e => void chooseFile(e.target.files?.[0], setUploadTap)} />
-            </label>
-            {uploadKind === "building" && <label className="block text-[11px]">Interior room image
-              <input type="file" accept="image/*" className="mt-1 block w-full text-[11px]"
-                onChange={e => void chooseFile(e.target.files?.[0], setUploadInterior)} />
-            </label>}
-            <button type="button" className={control} disabled={busy || !uploadArt || !uploadName.trim()}
-              onClick={() => void handleUpload()}>Save to This World's Library</button>
-          </div>}
-          <h3 className={heading}>Artwork Library — {matchingAssets.length} matching assets</h3>
-          <input aria-label="Search world artwork library" className={field}
-            placeholder="Find decorations and buildings…" value={assetSearch}
-            onChange={event => setAssetSearch(event.target.value)} />
-          {matchingAssets.length > assetList.length && <p className="text-[11px] text-[#cabd99]">
-            Showing the first {assetList.length}. Search by name for more.
-          </p>}
-          {!assetList.length && <p className="text-xs text-[#cabd99]">Upload the first asset to begin placing it.</p>}
-          <div className="grid grid-cols-2 gap-2">
-            {assetList.map(asset => <div key={asset.id} className="rounded-lg border border-[#6d6645] p-2">
-              <img src={asset.imageUrl} alt="" loading="lazy" decoding="async" className="mx-auto h-20 w-full object-contain" />
-              <p className="truncate py-1 text-[11px]">{asset.name}</p>
-              <div className="flex flex-wrap gap-1">
-                <button className={control} disabled={busy} onClick={() =>
-                  props.activeBuilding
-                    ? void addInside("decor", asset.id, null, 130)
-                    : void add(asset.kind, asset.id, null, asset.kind === "building" ? 300 : 140)}>
-                  {props.activeBuilding ? "Add Inside" : "Place"}
-                </button>
-                {!props.activeBuilding && <button className={control} onClick={() => setEditingAssetId(asset.id)}>Edit Art</button>}
-              </div>
-            </div>)}
-          </div>
-          {!props.activeBuilding && editingAsset && <div className="space-y-2 border-t border-[#75613c] pt-3">
-            <h3 className={heading}>Edit {editingAsset.name}</h3>
-            {editingAsset.tapImageUrl && <>
-              <button type="button" className={control} aria-pressed={previewTappedArtwork}
-                onClick={() => setPreviewTappedArtwork(value => !value)}>
-                {previewTappedArtwork ? "Show regular artwork" : "Preview tapped artwork"}
-              </button>
-              <img src={previewTappedArtwork ? editingAsset.tapImageUrl : editingAsset.imageUrl}
-                alt={previewTappedArtwork ? "Tapped art preview" : "Regular art preview"}
-                className="mx-auto h-28 max-w-full object-contain" />
-            </>}
-            <input aria-label="Rename asset" defaultValue={editingAsset.name} key={editingAsset.id}
-              id="world-asset-name" className={field} />
-            <button type="button" className={control} disabled={busy}
-              onClick={() => {
-                const el = document.getElementById("world-asset-name") as HTMLInputElement | null;
-                if (el) void mutate("PATCH", `/assets/${editingAsset.id}`, { name: el.value });
-              }}>Save Name</button>
-            {(["imageData", "tapImageData", ...(editingAsset.kind === "building" ? ["interiorImageData"] : [])] as const).map(fieldName =>
-              <label key={fieldName} className="block text-[11px]">{fieldName === "imageData" ? "Replace artwork" : fieldName === "tapImageData" ? "Replace tapped artwork" : "Replace interior image"}
-                <input type="file" accept="image/*" className="mt-1 block w-full text-[11px]" disabled={busy}
-                  onChange={async e => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    try { await mutate("PATCH", `/assets/${editingAsset.id}`,
-                      { [fieldName]: await readPetParkImageData(file) }); }
-                    catch (error) { toast({ title: "Could not read image", description: String(error), variant: "destructive" }); }
-                  }} />
-              </label>)}
-            <button type="button" className={danger} disabled={busy} onClick={async () => {
-              if (await mutate("DELETE", `/assets/${editingAsset.id}`)) setEditingAssetId(null);
-            }}>Delete Unused Asset</button>
-          </div>}
-        </>}
-
+        {panel === "library" && <WorldSceneCreateForm
+          key={`${props.worldId}:${props.activeBuilding?.id ?? "world"}:${assetKindFilter ?? "decor"}`}
+          worldId={props.worldId}
+          kind={props.activeBuilding ? "decor" : (assetKindFilter ?? "decor")}
+          buildingId={props.activeBuilding?.id}
+          creationPosition={props.placementPoint}
+          onCreated={(item, inside) => {
+            props.onChanged();
+            if (inside) props.onSelectInterior(item.id);
+            else props.onSelect(item.id);
+            setPanel("selected");
+            setExpanded(false);
+          }}/>}
+        
         {panel === "terrain" && <div className="space-y-2">
           <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
           <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
           <p className="text-[11px] text-[#d0c094]">Paint Garden Plot tiles here. Planting and harvesting are player-world features, not editor controls.</p>
         </div>}
 
-        {panel === "effects" && <div className="space-y-2">
-          <h3 className={heading}>Scene effects</h3>
-          <p className="text-[11px]">Tap to add an animated effect in the scene or inside the selected building.</p>
-          <div className="grid grid-cols-2 gap-2">
-            {EFFECT_CHOICES.map(effect => <button key={effect.type} className={control} disabled={busy}
-              onClick={() => props.activeBuilding
-                ? void addInside("effect", null, effect.type, effect.size)
-                : void add("effect", null, effect.type, effect.size)}>
-              {effect.label}
-            </button>)}
+        {panel === "effects" && <section aria-label="World outdoor effects" className="space-y-3">
+          <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
+            Outdoor Effects
           </div>
-        </div>}
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_CHOICES.filter(effect => effect.group === "outdoor").map(effect =>
+              <button key={effect.type} type="button"
+                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
+                onClick={() => props.activeBuilding
+                  ? void addInside("effect", null, effect.type, effect.size)
+                  : void add("effect", null, effect.type, effect.size)}
+                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
+                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
+                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
+                  {effect.description}
+                </span>
+              </button>)}
+          </div>
+          <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
+            Water Effects
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_CHOICES.filter(effect => effect.group === "water").map(effect =>
+              <button key={effect.type} type="button"
+                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
+                onClick={() => props.activeBuilding
+                  ? void addInside("effect", null, effect.type, effect.size)
+                  : void add("effect", null, effect.type, effect.size)}
+                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
+                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
+                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
+                  {effect.description}
+                </span>
+              </button>)}
+          </div>
+          <p className="text-center text-xs text-amber-100/60">
+            Tap an effect to place it, then drag it into position.
+          </p>
+        </section>}
 
         {panel === "selected" && <>
           {!selectedItem ? <p className="text-xs">Tap a decoration, building, effect, or interior object to edit it.</p> : <>
@@ -449,10 +468,10 @@ export default function WorldSceneControls(props: Props) {
         {panel === "interior" && props.activeBuilding && <>
           <h3 className={heading}>Interior for {interiorAsset?.name}</h3>
           {interiorAsset?.interiorImageUrl ? <p className="text-xs">Tap and drag objects over the room artwork. Decorations and effects save only in this building.</p> :
-            <p className="text-xs text-[#f4caa6]">Add an interior image to the building asset in the outside asset library before decorating.</p>}
-          <p className="text-xs">Objects: {activeInteriorItems.length} / 120</p>
+            <p className="text-xs text-[#f4caa6]">Select the building in the world, then upload its Interior Background before decorating.</p>}
+          <p className="text-xs">Objects: {props.scene.interiorItems.filter(item => item.buildingId === props.activeBuilding?.id).length} / 120</p>
           <div className="grid grid-cols-2 gap-1">
-            {activeInteriorItems.map(item => <button key={item.id} className={control}
+            {props.scene.interiorItems.filter(item => item.buildingId === props.activeBuilding?.id).map(item => <button key={item.id} className={control}
               onClick={() => { props.onSelectInterior(item.id); setPanel("selected"); }}>{item.kind} · {item.size}</button>)}
           </div>
         </>}
