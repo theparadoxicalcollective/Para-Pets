@@ -432,7 +432,7 @@ export default function WorldSceneControls(props: Props) {
         {panel === "interior" && props.activeBuilding && <>
           <h3 className={heading}>Interior for {interiorAsset?.name}</h3>
           {interiorAsset?.interiorImageUrl ? <p className="text-xs">Tap and drag objects over the room artwork. Decorations and effects save only in this building.</p> :
-            <p className="text-xs text-[#f4caa6]">Add an interior image to the building asset in the outside asset library before decorating.</p>}
+            <p className="text-xs text-[#f4caa6]">Select the building in the world, then upload its Interior Background before decorating.</p>}
           <p className="text-xs">Objects: {props.scene.interiorItems.filter(item => item.buildingId === props.activeBuilding?.id).length} / 120</p>
           <div className="grid grid-cols-2 gap-1">
             {props.scene.interiorItems.filter(item => item.buildingId === props.activeBuilding?.id).map(item => <button key={item.id} className={control}
