@@ -18,6 +18,7 @@ import worldSwamp from "@assets/uploads/NewBayou.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import ViewportScenePortal from "@/components/ViewportScenePortal";
+import { isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 
@@ -598,6 +599,23 @@ export default function MapPage({ user }: MapPageProps) {
                           </div>
                         )}
                       </div>
+                      {currentUser.isAdmin && isEditableWorldSceneId(w.id) && (
+                        <button
+                          type="button"
+                          data-testid={`button-new-world-edit-${w.id}`}
+                          aria-label={`New World Edit for ${w.name}`}
+                          className="relative z-40 mt-1 rounded-full border border-[#c2a04c] bg-[#152a1d] px-2 py-1 font-fantasy text-[9px] font-semibold whitespace-nowrap text-[#f7db8c] shadow-lg"
+                          style={{ touchAction: "manipulation" }}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            navigate(`/world-editor/${w.id}`);
+                          }}
+                        >
+                          New World Edit
+                        </button>
+                      )}
                       {selectedWorldId === w.id && (
                         <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "map-fadeIn 0.2s ease-out" }}>
                           <span

@@ -103,6 +103,7 @@ import { registerPetStateRoutes } from "./routes/petState.routes";
 import { registerPetParkSlotRoutes } from "./routes/petParkSlots.routes";
 import { registerPetParkPlayerRoutes } from "./routes/petParkPlayer.routes";
 import { registerPetParkAdminRoutes } from "./routes/petParkAdmin.routes";
+import { registerWorldSceneDraftRoutes } from "./routes/worldSceneDraft.routes";
 import { registerGardenAdminRoutes } from "./routes/gardenAdmin.routes";
 import { registerGardenRefillRoutes } from "./routes/gardenRefill.routes";
 import { registerGardenPlayerRoutes } from "./routes/gardenPlayer.routes";
@@ -1484,6 +1485,7 @@ export async function registerRoutes(
   registerPetParkSlotRoutes(app, isAuthenticated);
   registerPetParkPlayerRoutes(app, isAuthenticated, applyPetXp);
   registerPetParkAdminRoutes(app, { db, isAdmin, processWorldImage });
+  registerWorldSceneDraftRoutes(app, { db, isAdmin });
   registerGardenAdminRoutes(app, { db, isAdmin, processWorldImage });
   registerGardenRefillRoutes(app, isAuthenticated);
   registerGardenPlayerRoutes(app, isAuthenticated);

@@ -1530,3 +1530,12 @@ export const petParkRewardClaims = pgTable("pet_park_reward_claims", {
   petXp: integer("pet_xp").notNull().default(0),
   claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
 }, (t) => [uniqueIndex("pet_park_claim_interval_uidx").on(t.depositId, t.intervalStartAt, t.intervalEndAt)]);
+
+// Independent admin-only 2.5D world drafts. Existing maps and Pet Park use
+// their original tables; no publication switch or player data lives here.
+export const worldSceneDrafts = pgTable("world_scene_drafts", {
+  worldId: text("world_id").primaryKey(),
+  groundLevel: integer("ground_level").notNull().default(1),
+  groundTheme: text("ground_theme").notNull().default("grass"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});

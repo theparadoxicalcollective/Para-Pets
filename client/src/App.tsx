@@ -51,6 +51,7 @@ const CoinShopPage       = lazy(() => import("@/pages/CoinShopPage"));
 const ResetPasswordPage  = lazy(() => import("@/pages/ResetPasswordPage"));
 const PetHousePage       = lazy(() => import("@/pages/PetHousePage"));
 const PetParkPage        = lazy(() => import("@/pages/PetParkPage"));
+const WorldSceneEditorPage = lazy(() => import("@/pages/WorldSceneEditorPage"));
 const VisitPetHousePage  = lazy(() => import("@/pages/VisitPetHousePage"));
 const PrivacyPolicyPage  = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const ParaPetsHubPage    = lazy(() => import("@/pages/ParaPetsHubPage"));
@@ -499,6 +500,12 @@ function AppRouter() {
         {location === "/map" && (
           <StagePageSurface layout="viewport">
             <MapPage user={user} />
+          </StagePageSurface>
+        )}
+        {location.startsWith("/world-editor/") && (!user.isAdmin || !user.emailVerified) && <Redirect to="/map" />}
+        {location.startsWith("/world-editor/") && user.isAdmin && user.emailVerified && (
+          <StagePageSurface key={location} layout="viewport">
+            <WorldSceneEditorPage worldId={location.slice("/world-editor/".length).split("/")[0]} />
           </StagePageSurface>
         )}
         {location.startsWith("/world/") && (
