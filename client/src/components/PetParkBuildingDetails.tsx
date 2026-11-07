@@ -309,7 +309,17 @@ export default function PetParkBuildingDetails({
   </div>;
 
   return <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))]"
-    role="dialog" aria-modal="true" aria-label={`Edit ${building.name}`} data-testid="pet-park-building-details">
+    role="dialog" aria-modal="true" aria-label={`Edit ${building.name}`} data-testid="pet-park-building-details"
+    onPointerDown={event => {
+      if (event.target !== event.currentTarget || mutation.isPending) return;
+      const dirty = name !== building.name || maxPets !== building.maxPets ||
+        JSON.stringify(effects) !== JSON.stringify(savedEffects.current);
+      if (dirty) {
+        toast({ title: "Unsaved building changes", description: "Save or cancel your edits before closing." });
+        return;
+      }
+      onClose();
+    }}>
     <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-500 bg-[#10271e] text-amber-100 shadow-xl">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-700/50 p-3">
         <h2 className="font-semibold text-amber-300">Edit building: {building.name}</h2>
@@ -358,12 +368,14 @@ export default function PetParkBuildingDetails({
             </label>
             <p className="mt-2 text-[11px] text-amber-100/75">
               {isShop
-                ? "Saved shops display a catalog shelf inside their interior. Enter the building and use + Add Item to stock it."
+                ? "Shop is ON. Enter its interior, use + Add Item, then drag the item images to stock and arrange the room."
                 : "Turn on to make this building a shop. Normal buildings do not show an item shelf."}
             </p>
             {isShop && !imagePreview && <p className="mt-1 text-[11px] text-[#f5d77b]">Upload an interior background before stocking items.</p>}
           </div>
-          <p className="text-xs text-amber-100/70">Visitors share the building with placed pets. Full-page rooms also have their own limits within the building's capacity.</p>
+          <p className="text-xs text-amber-100/70">{isShop
+            ? "Shops cannot hold pets. Any existing pets are returned to their earning spots when Shop is enabled."
+            : "Regular buildings can house pets. Full-page rooms also have individual pet limits."}</p>
           <button type="button" className="rounded bg-amber-700 px-3 py-2 text-sm disabled:opacity-50"
             disabled={mutation.isPending || !name.trim() || name.trim().length > 80}
             onClick={() => mutation.mutate({ name: name.trim(), maxPets })}>Save name & capacity</button>
