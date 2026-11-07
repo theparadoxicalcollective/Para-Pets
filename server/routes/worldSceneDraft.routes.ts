@@ -49,8 +49,9 @@ export function registerWorldSceneDraftRoutes(
       // Keep authored world-space positions fixed when expanding the scene.
       // This transaction never touches Pet Park or the original world.
       const saved = await db.transaction(async (tx) => {
+        const defaults = defaultWorldSceneDraft(worldId);
         await tx.insert(worldSceneDrafts)
-          .values({ worldId, ...defaultWorldSceneDraft(worldId) })
+          .values({ worldId, groundLevel: defaults.groundLevel, groundTheme: defaults.groundTheme })
           .onConflictDoNothing();
         const [previous] = await tx.select().from(worldSceneDrafts)
           .where(eq(worldSceneDrafts.worldId, worldId)).for("update");
