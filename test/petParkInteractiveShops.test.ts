@@ -68,7 +68,8 @@ test("shop visual UI uses no extra camera, ensures tap-away closing and keeps pl
   assert.match(view, /\/api\/shop\/pet-park\/buy\//);
   assert.match(view, /aria-label="Close purchase details"/);
   assert.match(view, /aria-label="Close shop item picker"/);
-  assert.match(view, /if \(!buy\.isPending\)/);
+  assert.match(view, /!purchasing\.current && !buy\.isPending/);
+  assert.match(view, /onSettled: \(\) => \{ purchasing\.current = false; \}/);
   assert.match(room, /\{typeof children === "function" \? children/);
   assert.match(page, /!popupRoom && !activeBuilding\.isShop && <div data-testid="pet-park-interior-slots"/);
   assert.match(page, /activeBuilding\.isShop && !fullPageRoom && <PetParkShopShelf/);
