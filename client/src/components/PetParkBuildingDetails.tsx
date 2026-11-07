@@ -348,7 +348,7 @@ export default function PetParkBuildingDetails({
                 <strong>Is Shop</strong>
                 <span className={`text-xs ${isShop ? "text-[#f5d77b]" : "text-amber-100/65"}`}
                   role="status" data-testid="pet-park-shop-status">
-                  {mutation.isPending ? "Saving shop setting…" : isShop ? "ON · Shop enabled" : "OFF · Regular building"}
+                  {mutation.isPending ? (isShop ? "ON · Saving shop…" : "OFF · Saving building…") : isShop ? "ON · Shop enabled" : "OFF · Regular building"}
                 </span>
               </span>
               <span className={`relative flex h-8 w-14 shrink-0 items-center rounded-full border-2 p-1 transition-colors ${isShop ? "border-[#e5c66a] bg-[#47734b]" : "border-[#887552] bg-[#253529]"}`}>
@@ -362,8 +362,8 @@ export default function PetParkBuildingDetails({
                     // separate building-details Save button was pressed.
                     mutation.mutate({ isShop: next });
                   }}
-                  className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait" />
-                <span aria-hidden="true" className={`h-5 w-5 rounded-full bg-[#f5dfad] shadow-sm transition-transform ${isShop ? "translate-x-6" : "translate-x-0"}`} />
+                  className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait" />
+                <span aria-hidden="true" className={`pointer-events-none h-5 w-5 rounded-full bg-[#f5dfad] shadow-sm transition-transform ${isShop ? "translate-x-6" : "translate-x-0"}`} />
               </span>
             </label>
             <p className="mt-2 text-[11px] text-amber-100/75">
