@@ -5,6 +5,7 @@ export type ParkShopPlacement = {
   yPct: number;
   size: number; // percentage of the interior image's height
   rotation?: number; // clockwise degrees, omitted in older saved shops = 0
+  flippedX?: boolean; // mirrored artwork, omitted in older shops = false
   priceTagXPct?: number; // price tag anchor within the item artwork, 0..1
   priceTagYPct?: number;
 };
@@ -51,6 +52,11 @@ export function rotateParkShopPlacement(placement: ParkShopPlacement): ParkShopP
   return { ...placement, rotation: ((placement.rotation ?? 0) + PARK_SHOP_ROTATION_STEP) % 360 };
 }
 
+/** Mirror only the item artwork; the independently positioned price marker stays upright. */
+export function flipParkShopPlacement(placement: ParkShopPlacement): ParkShopPlacement {
+  return { ...placement, flippedX: !(placement.flippedX ?? false) };
+}
+
 export function validParkShopPlacements(value: unknown): value is ParkShopPlacement[] {
   return Array.isArray(value) && value.length <= PARK_SHOP_MAX_ITEMS &&
     new Set(value.map(item => item?.itemId)).size === value.length &&
@@ -58,7 +64,8 @@ export function validParkShopPlacements(value: unknown): value is ParkShopPlacem
       typeof item.itemId === "string" && item.itemId.length > 0 && item.itemId.length <= 100 &&
       isFraction(item.xPct) && isFraction(item.yPct) &&
       Number.isInteger(item.size) && item.size >= PARK_SHOP_MIN_SIZE && item.size <= PARK_SHOP_MAX_SIZE &&
-      validParkShopRotation(item.rotation) && validParkShopPriceTag(item));
+      validParkShopRotation(item.rotation) &&
+      (item.flippedX === undefined || typeof item.flippedX === "boolean") && validParkShopPriceTag(item));
 }
 function isFraction(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -68,7 +75,7 @@ export function defaultParkShopPlacement(itemId: string, index: number): ParkSho
   // extend well outside the visible viewport horizontally.
   const columns = [.5, .35, .65];
   return { itemId, xPct: columns[index % columns.length],
-    yPct: .38 + (Math.floor(index / columns.length) % 4) * .14, size: 12, rotation: 0,
+    yPct: .38 + (Math.floor(index / columns.length) % 4) * .14, size: 12, rotation: 0, flippedX: false,
     priceTagXPct: PARK_SHOP_DEFAULT_PRICE_TAG.xPct,
     priceTagYPct: PARK_SHOP_DEFAULT_PRICE_TAG.yPct };
 }

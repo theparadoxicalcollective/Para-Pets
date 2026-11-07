@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RotateCw, Search } from "lucide-react";
+import { FlipHorizontal, RotateCw, Search } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
+import PARK_SHOP_PRICE_TAG_IMAGE from "@assets/price_tag.png?url";
 import { baseGardenToolKind } from "@shared/garden";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
-  defaultParkShopPlacement, rotateParkShopPlacement, withParkShopDefaults,
+  defaultParkShopPlacement, flipParkShopPlacement, rotateParkShopPlacement, withParkShopDefaults,
   parkShopPriceTagPoint, parkShopPriceTagFromPointer,
   PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE, PARK_SHOP_ROTATION_STEP,
   type ParkShopPlacement,
@@ -29,11 +30,18 @@ function itemArt(item: ParkShopItemPreview) {
     : item.imageUrl || item.eggImageUrl || item.hatchedImageUrl;
 }
 
-function ShopPriceTag({ price }: { price: number }) {
-  return <span data-testid="pet-park-shop-price-tag"
-    className="pointer-events-none inline-flex min-h-[20px] items-center gap-0.5 whitespace-nowrap rounded-md border border-[#dfbb6f] bg-[#173c27]/95 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#ffe3a0] shadow-[0_2px_5px_rgba(0,0,0,.55)]">
-    <img src={PARA_PETS_COIN_IMAGE} alt="" className="h-3 w-3 shrink-0 object-contain" />
-    {price.toLocaleString()}
+/** Existing wooden tag artwork, sized relative to the merchandise so small
+ * items are not hidden behind a fixed-width price badge. The coin indicates
+ * shop availability; the actual price is revealed in the purchase dialog. */
+function ShopPriceTag({ size }: { size: number }) {
+  return <span data-testid="pet-park-shop-price-tag" aria-hidden="true"
+    className="pointer-events-none relative inline-block shrink-0"
+    style={{ width: size, height: size }}>
+    <img src={PARK_SHOP_PRICE_TAG_IMAGE} alt="" data-testid="pet-park-shop-tag-art"
+      className="absolute inset-0 h-full w-full object-contain" draggable={false} />
+    <img src={PARA_PETS_COIN_IMAGE} alt="" data-testid="pet-park-shop-tag-coin"
+      className="absolute object-contain drop-shadow-sm" draggable={false}
+      style={{ width: "27%", height: "27%", left: "50%", top: "61%", transform: "translate(-50%, -50%)" }} />
   </span>;
 }
 
@@ -53,6 +61,7 @@ export default function PetParkShopShelf({
   const [ids, setIds] = useState<string[]>(() => [...itemIds]);
   const [layout, setLayout] = useState<ParkShopPlacement[]>(() => withParkShopDefaults(itemIds, placements));
   const [selectedEdit, setSelectedEdit] = useState<string | null>(null);
+  const [isDraggingMerchandise, setIsDraggingMerchandise] = useState(false);
   const [selectedBuy, setSelectedBuy] = useState<ParkShopItemPreview | null>(null);
   const [search, setSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -176,6 +185,11 @@ export default function PetParkShopShelf({
       ? rotateParkShopPlacement(placement) : placement);
     changeStock(ids, next);
   };
+  const flip = (itemId: string) => {
+    const next = layout.map(placement => placement.itemId === itemId
+      ? flipParkShopPlacement(placement) : placement);
+    changeStock(ids, next);
+  };
   const priceTagPointAt = (clientX: number, clientY: number) => {
     const rect = pricePreviewRef.current?.getBoundingClientRect();
     return rect ? parkShopPriceTagFromPointer(clientX, clientY, rect) : null;
@@ -225,6 +239,7 @@ export default function PetParkShopShelf({
     drag.current = { pointerId: event.pointerId, itemId: placement.itemId,
       x: event.clientX, y: event.clientY, start: placement, moved: false };
     setSelectedEdit(placement.itemId);
+    setIsDraggingMerchandise(false);
     safeSetPointerCapture(event.currentTarget, event.pointerId);
   };
   const onMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -232,7 +247,11 @@ export default function PetParkShopShelf({
     if (!current || current.pointerId !== event.pointerId) return;
     event.stopPropagation();
     if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < 5 && !current.moved) return;
-    current.moved = true;
+    if (!current.moved) {
+      current.moved = true;
+      // Clear the large price-position panel while moving shop artwork.
+      setIsDraggingMerchandise(true);
+    }
     const x = Math.max(.03, Math.min(.97, current.start.xPct + (event.clientX - current.x) / imageWidth));
     const y = Math.max(.03, Math.min(.97, current.start.yPct + (event.clientY - current.y) / imageHeight));
     setLayout(previous => previous.map(item => item.itemId === current.itemId ? { ...item, xPct: x, yPct: y } : item));
@@ -242,6 +261,7 @@ export default function PetParkShopShelf({
     if (!current || current.pointerId !== event.pointerId) return;
     event.stopPropagation();
     drag.current = null;
+    setIsDraggingMerchandise(false);
     if (!current.moved || save.isPending) return;
     const x = Math.max(.03, Math.min(.97, current.start.xPct + (event.clientX - current.x) / imageWidth));
     const y = Math.max(.03, Math.min(.97, current.start.yPct + (event.clientY - current.y) / imageHeight));
@@ -252,6 +272,7 @@ export default function PetParkShopShelf({
     event.stopPropagation();
     const current = drag.current;
     drag.current = null;
+    setIsDraggingMerchandise(false);
     setLayout(previous => previous.map(item => item.itemId === current.itemId ? current.start : item));
   };
   const byId = new Map(selected.map(item => [item.id, item]));
@@ -263,6 +284,7 @@ export default function PetParkShopShelf({
         const item = byId.get(placement.itemId);
         if (!item) return null;
         const dimension = imageHeight * placement.size / 100;
+        const tagSize = Math.max(27, Math.min(54, dimension * .42));
         return <button key={item.id} type="button" data-testid={`pet-park-shop-item-${item.id}`}
           aria-label={canEditPark ? "Place " + item.name : "Buy " + item.name}
           aria-pressed={canEditPark ? selectedEdit === item.id : undefined}
@@ -282,18 +304,18 @@ export default function PetParkShopShelf({
           {itemArt(item) ? <img src={itemArt(item) ?? ""} alt="" draggable={false} loading="lazy"
             data-testid="pet-park-shop-artwork"
             className="pointer-events-none h-full w-full select-none object-contain"
-            style={{ transform: `rotate(${placement.rotation ?? 0}deg)`, transformOrigin: "center center" }} />
+            style={{ transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flippedX ? -1 : 1})`, transformOrigin: "center center" }} />
             : <span aria-hidden="true" className="text-xl text-[#f3d58d]"
-                style={{ transform: `rotate(${placement.rotation ?? 0}deg)` }}>✦</span>}
+                style={{ transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flippedX ? -1 : 1})` }}>✦</span>}
           <span data-testid="pet-park-shop-price-on-art"
             className="pointer-events-none absolute z-[1]"
             style={{ left: `${parkShopPriceTagPoint(placement).xPct * 100}%`,
               top: `${parkShopPriceTagPoint(placement).yPct * 100}%`,
               transform: "translate(-50%, -50%)" }}>
-            <ShopPriceTag price={item.price} />
+            <ShopPriceTag size={tagSize} />
           </span>
-          {/* No floating item-name labels: the sticker is the item price only.
-              Names remain accessible in the editor, item picker and checkout. */}
+          {/* No floating item names or numeric prices. The coin-only wooden tag
+              marks a purchasable item; names and prices appear at checkout. */}
         </button>;
       })}
       {loading && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-[#10291d]/90 p-2 text-xs text-amber-100">Loading merchandise…</span>}
@@ -317,6 +339,16 @@ export default function PetParkShopShelf({
             <RotateCw size={15} aria-hidden="true" />
             <span>{PARK_SHOP_ROTATION_STEP}°</span>
           </button>
+          <button type="button" data-testid="pet-park-shop-flip"
+            aria-label="Flip merchandise horizontally"
+            title="Mirror selected item left to right"
+            aria-pressed={!!editPlacement?.flippedX}
+            disabled={save.isPending}
+            onClick={() => flip(editItem.id)}
+            className="flex min-h-9 items-center gap-1 rounded-lg border border-[#d7b973]/55 bg-[#1b4630] px-2 text-[11px]">
+            <FlipHorizontal size={15} aria-hidden="true" />
+            <span>Flip</span>
+          </button>
           <span data-testid="pet-park-shop-rotation" className="min-w-[30px] text-center text-[10px] text-[#f1d58f]">
             {layout.find(item => item.itemId === editItem.id)?.rotation ?? 0}°
           </span>
@@ -326,7 +358,7 @@ export default function PetParkShopShelf({
             className="min-h-9 rounded-lg border border-[#d7b973]/55 bg-[#214c34] px-2 text-[10px]">Done</button>
         </div>
       </div>
-      {editPlacement && <div data-testid="pet-park-shop-price-preview"
+      {editPlacement && !isDraggingMerchandise && <div data-testid="pet-park-shop-price-preview"
         className="pointer-events-auto absolute right-2 z-[60] flex w-[174px] flex-col items-center gap-1.5 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl"
         style={{ bottom: "max(132px, calc(env(safe-area-inset-bottom, 0px) + 122px))" }}
         onPointerDown={event => event.stopPropagation()}>
@@ -335,7 +367,7 @@ export default function PetParkShopShelf({
           className="relative h-[148px] w-[148px] touch-none rounded-lg border border-[#927e50]/45 bg-[#26452f]/75">
           {itemArt(editItem) ? <img src={itemArt(editItem) ?? ""} alt=""
             draggable={false} className="pointer-events-none h-full w-full select-none object-contain"
-            style={{ transform: `rotate(${editPlacement.rotation ?? 0}deg)`, transformOrigin: "center center" }} />
+            style={{ transform: `rotate(${editPlacement.rotation ?? 0}deg) scaleX(${editPlacement.flippedX ? -1 : 1})`, transformOrigin: "center center" }} />
             : <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center text-3xl">✦</span>}
           <button type="button" data-testid="pet-park-shop-price-drag-handle"
             aria-label={`Move price tag for ${editItem.name}`}
@@ -347,7 +379,7 @@ export default function PetParkShopShelf({
             style={{ left: `${parkShopPriceTagPoint(editPlacement).xPct * 100}%`,
               top: `${parkShopPriceTagPoint(editPlacement).yPct * 100}%`,
               transform: "translate(-50%, -50%)" }}>
-            <ShopPriceTag price={editItem.price} />
+            <ShopPriceTag size={52} />
           </button>
         </div>
         <span className="text-center text-[10px] text-[#ead1a0]/80">Drag the tag onto the image</span>
