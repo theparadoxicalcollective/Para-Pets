@@ -13,7 +13,7 @@ import type { ParkEffectType } from "@shared/petParkEffects";
 
 type Panel = "library" | "effects" | "selected" | "terrain" | "shop" | "interior";
 const EFFECT_CHOICES: Array<{ type: ParkEffectType; label: string; size: number }> = [
-  ...HOME_OUTDOOR_EFFECT_OPTIONS.map(o => ({ type: o.type, label: o.label, size: Math.max(60, o.defaultSize * 6) })),
+  ...HOME_OUTDOOR_EFFECT_OPTIONS.filter(o => o.type !== "sleep").map(o => ({ type: o.type, label: o.label, size: Math.max(60, o.defaultSize * 6) })),
   ...PARK_WATER_EFFECT_OPTIONS.map(o => ({ type: o.type, label: o.label, size: o.defaultSize })),
 ];
 
