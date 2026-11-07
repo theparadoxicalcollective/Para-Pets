@@ -306,7 +306,7 @@ export default function WorldSceneControls(props: Props) {
           {props.selected.isShop && <button type="button" className={control}
             onClick={() => openCreator("shop")}>Shop Setup</button>}
         </div>
-      </div>
+      </div>}
       {props.activeBuilding && <button type="button" className={control}
         onClick={() => openCreator("selected")}>Edit Interior Object</button>}
     </section>}
