@@ -1,5 +1,5 @@
 import type { Express, Request, RequestHandler } from "express";
-import { and, asc, count, eq, ilike, inArray } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, ne } from "drizzle-orm";
 import {
   shopItems, worldSceneAssets, worldSceneDrafts, worldScenePlacements, worldSceneInteriorItems,
 } from "@shared/schema";
@@ -43,10 +43,8 @@ async function findPlacement(db: Store, worldId: string, id: unknown): Promise<P
 }
 async function validGlobalCatalogItems(db: Store, ids: string[]): Promise<boolean> {
   if (!ids.length) return true;
-  const rows = await db.select({ id: shopItems.id }).from(shopItems)
-    .where(and(inArray(shopItems.id, ids), eq(shopItems.type, "garden_fruit")));
-  if (rows.length) return false;
-  const existing = await db.select({ id: shopItems.id }).from(shopItems).where(inArray(shopItems.id, ids));
+  const existing = await db.select({ id: shopItems.id }).from(shopItems)
+    .where(and(inArray(shopItems.id, ids), ne(shopItems.type, "garden_fruit")));
   return existing.length === ids.length;
 }
 async function withinLimit(db: Store, table: typeof worldSceneAssets | typeof worldScenePlacements, worldId: string, limit: number) {
@@ -180,12 +178,14 @@ export function registerWorldSceneContentRoutes(app: Express, {
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     try {
       const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 60) : "";
-      const items = await db.select({ id: shopItems.id, name: shopItems.name, type: shopItems.type })
-        .from(shopItems).where(and(
-          ilike(shopItems.type, "%"), // Keeps the shared catalog query scoped to the existing table.
-          q ? ilike(shopItems.name, "%" + q + "%") : undefined,
-        )).orderBy(asc(shopItems.name)).limit(100);
-      return res.json(items.filter(item => item.type !== "garden_fruit"));
+      const items = await db.select({
+        id: shopItems.id, name: shopItems.name, type: shopItems.type,
+        price: shopItems.price, imageUrl: shopItems.imageUrl,
+      }).from(shopItems).where(and(
+        ne(shopItems.type, "garden_fruit"),
+        q ? ilike(shopItems.name, "%" + q + "%") : undefined,
+      )).orderBy(asc(shopItems.name)).limit(100);
+      return res.json(items);
     } catch (error) {
       console.error("[world-editor] catalog read failed", error);
       return res.status(500).json({ message: "Could not load catalog" });
@@ -326,8 +326,10 @@ export function registerWorldSceneContentRoutes(app: Express, {
         if (!cell) return res.status(400).json({ message: "Terrain stroke is outside the ground" });
         cells.set(cell.key, cell);
       }
-      if (!(await withinLimit(db, worldScenePlacements, worldId, MAX_OBJECTS)) ||
-        cells.size > MAX_OBJECTS) return res.status(409).json({ message: "World terrain is full" });
+      const [countRow] = await db.select({ total: count() }).from(worldScenePlacements)
+        .where(eq(worldScenePlacements.worldId, worldId));
+      if (countRow.total + cells.size > MAX_OBJECTS)
+        return res.status(409).json({ message: "World terrain is full" });
       const created = await db.insert(worldScenePlacements).values([...cells.values()].map(cell => ({
         worldId, kind: "terrain", effectType: type, terrainKey: cell.key,
         xPct: cell.xPct, yPct: cell.yPct, size,
