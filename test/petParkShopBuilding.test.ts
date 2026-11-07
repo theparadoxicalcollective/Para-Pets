@@ -64,7 +64,18 @@ test("shop merchandise is positioned on the room artwork with compact filtered p
   assert.match(component, /data-testid="pet-park-shop-purchase-dialog"/);
   assert.match(component, /PARA_PETS_COIN_IMAGE/);
   assert.match(component, /\/api\/shop\/pet-park\/buy\//);
-  assert.match(component, /buildingId, quantity: 1/);
+  assert.match(component, /\{ buildingId, quantity \}/);
+  assert.match(component, /buy\.mutate\(\{ item: selectedBuy, quantity: purchaseQuantity \}\)/);
+  assert.match(component, /totalPurchasePrice = \(selectedBuy\?\.price \?\? 0\) \* purchaseQuantity/);
+  assert.match(component, /selectedBuy\?\.type === "pet" \|\| selectedBaseKind \? 1 : 20/);
+  assert.match(component, /viewer\.coins < totalPurchasePrice/);
+  assert.match(component, /data-testid="pet-park-shop-quantity-plus"/);
+  assert.match(component, /data-testid="pet-park-shop-quantity-minus"/);
+  assert.match(component, /data-testid="pet-park-shop-total-price"/);
+  assert.match(component, /data-testid="pet-park-shop-purchase-confirmation"/);
+  assert.doesNotMatch(component, /toast\(\{ title: "Purchase complete"/,
+    "routine shop successes must not create the large centered notification");
+  assert.match(component, /role="status" aria-live="polite"/);
   assert.match(component, /qc\.invalidateQueries\(\{ queryKey: \["\/api\/inventory"\] \}\)/);
   assert.doesNotMatch(component, /\/api\/pet-park\/buildings\/\:id\/buy/, "never introduce a second insecure coin checkout path");
 });
