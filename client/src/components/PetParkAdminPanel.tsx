@@ -204,12 +204,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           <span className={`relative flex h-8 w-14 shrink-0 items-center rounded-full border-2 p-1 ${buildingIsShop ? "border-[#e5c66a] bg-[#47734b]" : "border-[#887552] bg-[#253529]"}`}>
             <input type="checkbox" role="switch" aria-label="Is Shop building" checked={buildingIsShop}
               onChange={event => setBuildingIsShop(event.target.checked)}
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
-            <span aria-hidden="true" className={`h-5 w-5 rounded-full bg-[#f5dfad] shadow-sm transition-transform ${buildingIsShop ? "translate-x-6" : "translate-x-0"}`} />
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+            <span aria-hidden="true" className={`pointer-events-none h-5 w-5 rounded-full bg-[#f5dfad] shadow-sm transition-transform ${buildingIsShop ? "translate-x-6" : "translate-x-0"}`} />
           </span>
         </label>
         <p className="text-[11px] text-amber-100/70">After creating a shop, enter its uploaded interior to select merchandise with + Add Item.</p>
-        <p className="text-xs text-amber-100/75">Buildings are interactive spaces for effects and magical room entrances. Equipped pets are placed outdoors only.</p>
+        <p className="text-xs text-amber-100/75">{buildingIsShop
+          ? "Shops display merchandise indoors and do not house pets."
+          : "Regular buildings can house park pets and display interior effects and magical rooms."}</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
           {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
           <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
