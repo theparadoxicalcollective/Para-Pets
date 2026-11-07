@@ -316,6 +316,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             const position = objectPosition(p);
             const asset = assetFor(p.assetId);
             const connected = p.kind === "terrain" && isParkConnectedPath(p.effectType);
+            // Connected paths are painted on the camera canvas. Do not create
+            // thousands of transparent hit targets that block panning.
+            if (connected) return null;
             const garden = p.kind === "terrain" && p.effectType === "garden_plot";
             const height = p.size * camera.scale * (p.kind === "terrain" ? parkTerrainHeightRatio(p.effectType) : 1);
             return <button key={p.id} type="button"
@@ -330,7 +333,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   yPct: position.yPct, worldHeight: camera.worldHeight, size: p.size,
                   contact: 0.9,
                 }),
-                opacity: connected ? 0.01 : 1,
+                pointerEvents: p.kind === "terrain" ? "none" : undefined,
                 transform: "translate(-50%, -50%)",
                 outline: selectedId === p.id ? "2px solid #f6cf71" : undefined,
               }}
