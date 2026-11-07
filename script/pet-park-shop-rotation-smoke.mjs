@@ -88,6 +88,28 @@ try {
     assert.equal(await image.evaluate(el=>el.style.transform),"rotate(0deg)",
       label+": old layouts render without rotation");
     await artButton.click();
+    const preview=page.getByTestId("pet-park-shop-price-preview");
+    await preview.waitFor({state:"visible"});
+    assert.equal(await preview.getByTestId("pet-park-shop-price-tag").getByText("250").count(),1,
+      label+": admin previews the actual item price");
+    assert.equal(await artButton.getByTestId("pet-park-shop-price-tag").getByText("250").count(),1,
+      label+": shop artwork has its own compact price sticker");
+    const handle=preview.getByTestId("pet-park-shop-price-drag-handle");
+    const tagBounds=await handle.boundingBox();
+    const tagX=tagBounds.x+tagBounds.width/2,tagY=tagBounds.y+tagBounds.height/2;
+    await page.mouse.move(tagX,tagY);
+    await page.mouse.down();
+    await page.mouse.move(tagX-24,tagY-20,{steps:6});
+    await page.mouse.up();
+    await page.waitForFunction(() => {
+      const handle=document.querySelector('[data-testid="pet-park-shop-price-drag-handle"]');
+      const sticker=document.querySelector('[data-testid="pet-park-shop-price-on-art"]');
+      return handle && !handle.hasAttribute("disabled") && sticker && parseFloat(sticker.style.left)<70;
+    });
+    const tagPosition={x:layout[0].priceTagXPct,y:layout[0].priceTagYPct};
+    assert.ok(tagPosition.x<.72 && tagPosition.y<.78,label+": drag stores an image-local tag position");
+    assert.deepEqual({xPct:layout[0].xPct,yPct:layout[0].yPct,size:layout[0].size},
+      {xPct:.5,yPct:.4,size:12},label+": moving a tag does not move the merchandise");
     const rotate=page.getByTestId("pet-park-shop-rotate");
     await rotate.waitFor({state:"visible"});
     await rotate.click();
@@ -98,6 +120,8 @@ try {
     await rotate.click();
     await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(30deg)");
     assert.equal(layout[0].rotation,30,label+": rotation advances by 15 degrees each tap");
+    assert.equal(layout[0].priceTagXPct,tagPosition.x,label+": rotation does not reset the price tag X");
+    assert.equal(layout[0].priceTagYPct,tagPosition.y,label+": rotation does not reset the price tag Y");
     // React applies the new angle optimistically, before PATCH completes.
     // Dragging is intentionally disabled during saves: wait for server
     // confirmation rather than racing the toolbar on slower tablets.
@@ -114,9 +138,13 @@ try {
     await page.mouse.up();
     await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-item-scythe"]')?.style.left !== (window.innerWidth*.5)+"px");
     assert.equal(layout[0].rotation,30,label+": drag retains stored rotation");
+    assert.equal(layout[0].priceTagXPct,tagPosition.x,label+": merchandise drag keeps tag X");
+    assert.equal(layout[0].priceTagYPct,tagPosition.y,label+": merchandise drag keeps tag Y");
     await page.reload({waitUntil:"domcontentloaded"});
     await image.waitFor({state:"visible"});
     assert.equal(await image.evaluate(el=>el.style.transform),"rotate(30deg)",label+": saved rotation survives reload");
+    assert.ok(Math.abs(parseFloat(await page.getByTestId("pet-park-shop-price-on-art").evaluate(el=>el.style.left))/100-tagPosition.x)<.001,
+      label+": saved tag placement survives reload");
     assert.equal(await page.getByTestId("pet-park-shop-merchandise").getByText("Scythe").count(),0);
     await page.getByTestId("open-shop-picker").click();
     await page.getByTestId("pet-park-shop-picker").getByText("Scythe").waitFor({state:"visible"});
@@ -130,11 +158,15 @@ try {
       label+": players see the stored orientation");
     assert.equal(await page.getByTestId("pet-park-shop-merchandise").getByText("Scythe").count(),0,
       label+": visitors never see floating labels");
+    assert.equal(await buyButton.getByTestId("pet-park-shop-price-tag").getByText("250").count(),1,
+      label+": visitors see the price on the item");
+    assert.ok(Math.abs(parseFloat(await page.getByTestId("pet-park-shop-price-on-art").evaluate(el=>el.style.top))/100-tagPosition.y)<.001,
+      label+": visitors see the saved tag position");
     await buyButton.click();
     await page.getByRole("dialog",{name:"Buy Scythe"}).getByRole("heading",{name:"Scythe"}).waitFor();
-    assert.ok(writes.length>=3,label+": rotate and drag reuse the original saving route");
+    assert.ok(writes.length>=4,label+": sticker placement, rotation and drag reuse the existing save route");
     assert.deepEqual(errors,[],label+": no client errors");
-    console.log("PASS "+label+": 15-degree rotation saves with drag, survives reload, no floating labels, picker and checkout names retained");
+    console.log("PASS "+label+": rotate and drag persist, editable price sticker appears on merch and survives reload, no name labels, checkout remains readable");
     await ctx.close();
   }
 } finally { await browser.close(); await server.close(); }
