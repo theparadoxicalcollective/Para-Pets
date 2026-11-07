@@ -32,7 +32,7 @@ import { isParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms"
 import { parkPetActivity } from "@/lib/petParkActivity";
 import { animateParkOutdoorPet, parkOutdoorPetSize } from "@/lib/petParkOutdoorPresentation";
 import { arrangeParkVisitors, isParkPetNearViewport } from "@/lib/petParkPopulation";
-import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot, isParkIndoorSleepPosition } from "@/lib/petParkSleepSpots";
+import { isParkSleepPosition, parkPetSizeOnSleepSpot, parkIndoorPetSizeOnSleepSpot, parkIndoorScenePetSize, isParkIndoorSleepPosition } from "@/lib/petParkSleepSpots";
 import { parkProjectedPetBounds, parkVisiblePetArtworkBounds, parkPetWouldObscureAnother, parkInteriorArtworkRect } from "@/lib/petParkVisibleOverlap";
 import PetParkRarityStars from "@/components/PetParkRarityStars";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
@@ -559,8 +559,8 @@ export default function PetParkPage() {
     const effects = fullPageRoom ? [] : activeBuilding.interiorEffects.filter(effect => !isParkRoomEffect(effect));
     const dimensions = { width: artworkBounds.width, height: artworkBounds.height };
     const position = { x: point.xPct, y: point.yPct };
-    const size = parkIndoorPetSizeOnSleepSpot(position, effects, dimensions,
-      Math.max(68, Math.min(104, dimensions.height * .12)));
+    const size = parkIndoorScenePetSize(parkIndoorPetSizeOnSleepSpot(position, effects, dimensions,
+      Math.max(68, Math.min(104, dimensions.height * .12))));
     const existing = Array.from(artworkElement.querySelectorAll<HTMLElement>("[data-park-pet]"));
     const source = existing.find(element => element.dataset.parkPet === petInventoryId);
     const sourceSize = source ? source.getBoundingClientRect().width : 0;
@@ -1053,7 +1053,7 @@ export default function PetParkPage() {
           const effects = fullPageRoom ? [] : activeBuilding.interiorEffects.filter(effect => !isParkRoomEffect(effect));
           const dimensions = { width: imageWidth, height: roomHeight };
           const basePetSize = Math.max(68, Math.min(104, roomHeight * 0.12));
-          const petSize = parkIndoorPetSizeOnSleepSpot(position, effects, dimensions, basePetSize);
+          const petSize = parkIndoorScenePetSize(parkIndoorPetSizeOnSleepSpot(position, effects, dimensions, basePetSize));
           const sleeping = isParkIndoorSleepPosition(position, effects, dimensions);
           const deposit = deposits.find(item => item.petInventoryId === pet.petInventoryId);
           const isMine = !!deposit;
