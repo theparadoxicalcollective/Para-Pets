@@ -63,6 +63,8 @@ export default function PetParkShopShelf({
   const [selectedEdit, setSelectedEdit] = useState<string | null>(null);
   const [isDraggingMerchandise, setIsDraggingMerchandise] = useState(false);
   const [selectedBuy, setSelectedBuy] = useState<ParkShopItemPreview | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+  const [purchaseConfirmation, setPurchaseConfirmation] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
@@ -105,9 +107,19 @@ export default function PetParkShopShelf({
   const selectedBaseKind = selectedBuy ? baseGardenToolKind(selectedBuy) : null;
   const selectedToolOwned = !!selectedBaseKind && ownedInventory.some(row =>
     (row.quantity ?? 1) > 0 && baseGardenToolKind(row) === selectedBaseKind);
+  // Match the existing server purchase policy: pets and one-per-kind garden
+  // tools remain single purchases; other shop merchandise may be bought 1–20.
+  const maxPurchaseQuantity = selectedBuy?.type === "pet" || selectedBaseKind ? 1 : 20;
+  const totalPurchasePrice = (selectedBuy?.price ?? 0) * purchaseQuantity;
   const { data: viewer } = useQuery<{ coins?: number }>({
     queryKey: ["/api/auth/me"], enabled: !canEditPark,
   });
+  const insufficientCoins = viewer?.coins !== undefined && viewer.coins < totalPurchasePrice;
+  useEffect(() => {
+    if (!purchaseConfirmation) return;
+    const timeout = window.setTimeout(() => setPurchaseConfirmation(null), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [purchaseConfirmation]);
   const save = useMutation({
     mutationFn: async (next: { ids: string[]; layout: ParkShopPlacement[] }) => {
       const response = await apiRequest("PATCH",
@@ -131,20 +143,25 @@ export default function PetParkShopShelf({
     },
   });
   const buy = useMutation({
-    mutationFn: async (item: ParkShopItemPreview) => {
+    mutationFn: async ({ item, quantity }: { item: ParkShopItemPreview; quantity: number }) => {
       const response = await apiRequest("POST",
         "/api/shop/pet-park/buy/" + encodeURIComponent(item.id),
-        { buildingId, quantity: 1 });
+        { buildingId, quantity });
       return response.json();
     },
-    onSuccess: (result, item) => {
+    onSuccess: (result, { item, quantity }) => {
       if (result.user) qc.setQueryData(["/api/auth/me"], result.user);
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/pet-park/garden"] });
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
-      toast({ title: "Purchase complete", description: item.name + " was added to your Bag." });
+      // Do not cover the shop with the global, centered success toast.
+      // A small scene-local acknowledgement is enough for routine purchases.
+      setPurchaseConfirmation(quantity === 1
+        ? item.name + " added to your Bag"
+        : quantity + " × " + item.name + " added to your Bag");
       setSelectedBuy(null);
+      setPurchaseQuantity(1);
       setBuyError(null);
     },
     onError: (error: Error) => setBuyError(error.message),
@@ -295,7 +312,7 @@ export default function PetParkShopShelf({
           onClick={event => {
             event.stopPropagation();
             if (canEditPark) setSelectedEdit(item.id);
-            else { setSelectedBuy(item); setBuyError(null); }
+            else { setSelectedBuy(item); setPurchaseQuantity(1); setPurchaseConfirmation(null); setBuyError(null); }
           }}
           className={`pointer-events-auto absolute flex touch-none flex-col items-center justify-center rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 ${canEditPark && selectedEdit === item.id ? "outline outline-2 outline-[#f1d081]" : ""}`}
           style={{ left: placement.xPct * imageWidth, top: placement.yPct * imageHeight,
@@ -424,39 +441,66 @@ export default function PetParkShopShelf({
         </section>
       </div>
     </ViewportModalPortal>}
+    {purchaseConfirmation && !canEditPark && <ViewportModalPortal blocking={false}>
+      <div data-testid="pet-park-shop-purchase-confirmation" role="status" aria-live="polite"
+        className="pointer-events-none absolute inset-x-4 z-[65] flex justify-center"
+        style={{ bottom: "max(80px, calc(env(safe-area-inset-bottom, 0px) + 64px))" }}>
+        <span className="max-w-[340px] rounded-full border border-[#d7b973]/85 bg-[#173c2b]/95 px-4 py-2 text-center text-xs font-semibold text-[#f6dfa7] shadow-[0_4px_15px_rgba(0,0,0,.45)]">
+          {purchaseConfirmation}
+        </span>
+      </div>
+    </ViewportModalPortal>}
     {selectedBuy && !canEditPark && <ViewportModalPortal>
       <div data-testid="pet-park-shop-purchase-dialog" className="pointer-events-auto absolute inset-0 z-[80] flex items-center justify-center px-4">
         <button className="absolute inset-0 bg-black/60" aria-label="Close purchase details"
           onClick={() => { if (!purchasing.current && !buy.isPending) { setSelectedBuy(null); setBuyError(null); } }} />
         <section role="dialog" aria-modal="true" aria-label={"Buy " + selectedBuy.name}
-          className="relative w-full max-w-[286px] rounded-2xl border-2 border-[#d7b973] bg-gradient-to-b from-[#25563c] to-[#10261c] p-4 text-center text-[#f6dfa7] shadow-[0_12px_36px_rgba(0,0,0,.65)]"
+          className="relative max-h-[min(88dvh,660px)] w-full max-w-[286px] overflow-y-auto overscroll-contain rounded-2xl border-2 border-[#d7b973] bg-gradient-to-b from-[#25563c] to-[#10261c] p-4 text-center text-[#f6dfa7] shadow-[0_12px_36px_rgba(0,0,0,.65)]"
           onPointerDown={event => event.stopPropagation()}>
           <p className="text-[10px] uppercase tracking-widest text-[#dfc285]">Pet Park Shop</p>
           {itemArt(selectedBuy) && <img src={itemArt(selectedBuy) ?? ""} alt=""
             className="mx-auto mt-2 h-[86px] w-[86px] object-contain drop-shadow-lg" />}
           <h2 className="mt-1 text-base font-semibold">{selectedBuy.name}</h2>
           {selectedBuy.description && <p className="mt-1 max-h-20 overflow-y-auto text-[11px] text-amber-100/75">{selectedBuy.description}</p>}
+          {maxPurchaseQuantity > 1 ? <div data-testid="pet-park-shop-quantity"
+            className="mt-3 flex items-center justify-center gap-3" aria-label="Purchase quantity">
+            <button type="button" data-testid="pet-park-shop-quantity-minus"
+              aria-label="Decrease quantity" disabled={buy.isPending || purchaseQuantity <= 1}
+              onClick={() => { setPurchaseQuantity(q => Math.max(1, q - 1)); setBuyError(null); }}
+              className="flex min-h-10 min-w-11 items-center justify-center rounded-lg border border-[#d7b973]/75 bg-[#214c34] text-xl font-semibold disabled:opacity-35">−</button>
+            <output data-testid="pet-park-shop-quantity-value" aria-live="off"
+              className="min-w-10 text-center text-lg font-semibold tabular-nums">{purchaseQuantity}</output>
+            <button type="button" data-testid="pet-park-shop-quantity-plus"
+              aria-label="Increase quantity" disabled={buy.isPending || purchaseQuantity >= maxPurchaseQuantity}
+              onClick={() => { setPurchaseQuantity(q => Math.min(maxPurchaseQuantity, q + 1)); setBuyError(null); }}
+              className="flex min-h-10 min-w-11 items-center justify-center rounded-lg border border-[#d7b973]/75 bg-[#214c34] text-xl font-semibold disabled:opacity-35">+</button>
+          </div> : <p className="mt-2 text-[10px] text-amber-100/65">
+            {selectedBaseKind ? "One per player" : "Pets are purchased individually"}
+          </p>}
+          <p className="mt-2 text-[10px] text-amber-100/65">
+            {selectedBuy.price.toLocaleString()} coins each
+          </p>
           <div className="my-3 flex items-center justify-center gap-2 rounded-xl border border-[#bca06a]/45 bg-[#0d261b]/80 py-2">
             <img src={PARA_PETS_COIN_IMAGE} alt="" className="h-6 w-6 object-contain" />
-            <strong className="text-base">{selectedBuy.price.toLocaleString()}</strong>
-            <span className="text-[10px] text-amber-100/60">coins</span>
+            <strong data-testid="pet-park-shop-total-price" className="text-base tabular-nums">{totalPurchasePrice.toLocaleString()}</strong>
+            <span className="text-[10px] text-amber-100/60">coins total</span>
           </div>
           {viewer?.coins !== undefined && <p className="text-[10px] text-amber-100/65">
             Your balance: {viewer.coins.toLocaleString()} coins</p>}
           {selectedToolOwned && <p data-testid="pet-park-garden-tool-owned" className="mt-2 text-xs font-semibold text-[#8fe2a0]">Already owned · One per player</p>}
           {buyError && <p role="alert" className="mt-2 rounded bg-[#593124] p-2 text-[11px] text-red-100">{buyError}</p>}
           <button type="button" data-testid="pet-park-confirm-purchase"
-            disabled={buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || (viewer?.coins !== undefined && viewer.coins < selectedBuy.price)}
+            disabled={buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || insufficientCoins}
             onClick={() => {
               // A ref guard closes the double-tap window before the pending
               // state triggers a rerender; duplicate taps must not place
               // two paid orders.
-              if (purchasing.current || buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading)) return;
+              if (purchasing.current || buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || insufficientCoins) return;
               purchasing.current = true;
-              buy.mutate(selectedBuy);
+              buy.mutate({ item: selectedBuy, quantity: purchaseQuantity });
             }}
             className="mt-3 min-h-11 w-full rounded-xl border border-[#e7c77e] bg-[#426746] px-3 text-sm font-semibold disabled:opacity-45">
-            {buy.isPending ? "Purchasing…" : selectedToolOwned ? "Owned" : selectedBaseKind && inventoryLoading ? "Checking tools…" : viewer?.coins !== undefined && viewer.coins < selectedBuy.price ? "Not enough coins" : "Purchase · 1 item"}
+            {buy.isPending ? "Purchasing…" : selectedToolOwned ? "Owned" : selectedBaseKind && inventoryLoading ? "Checking tools…" : insufficientCoins ? "Not enough coins" : `Purchase · ${purchaseQuantity} ${purchaseQuantity === 1 ? "item" : "items"}`}
           </button>
           <p className="mt-2 text-[10px] text-amber-100/60">Tap outside to close</p>
         </section>
