@@ -45,6 +45,24 @@ export async function ensurePetParkStorage(): Promise<void> {
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_type text;
     -- Additive and nullable: existing decorations retain their normal image.
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS tap_image_url text;
+    ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS appearance_group_id varchar;
+    ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS decor_effects jsonb NOT NULL DEFAULT '[]'::jsonb;
+    -- Older duplicates copied the original processed image URL verbatim.
+    -- Recover these links once without changing artwork or placement. Newly
+    -- created decorations receive an explicit UUID group ID.
+    UPDATE pet_park_scene_items AS item
+      SET appearance_group_id = source.group_id
+      FROM (
+        SELECT image_url, MIN(id) AS group_id
+        FROM pet_park_scene_items
+        WHERE kind = 'decor' AND image_url IS NOT NULL
+        GROUP BY image_url
+      ) AS source
+      WHERE item.kind = 'decor' AND item.image_url = source.image_url
+        AND item.appearance_group_id IS NULL;
+    CREATE INDEX IF NOT EXISTS pet_park_scene_items_appearance_group_idx
+      ON pet_park_scene_items (appearance_group_id)
+      WHERE kind = 'decor';
     ALTER TABLE pet_park_scene_items DROP CONSTRAINT IF EXISTS pet_park_scene_items_kind_check;
     ALTER TABLE pet_park_scene_items ADD CONSTRAINT pet_park_scene_items_kind_check
       CHECK (kind IN ('decor', 'sleep_spot', 'effect', 'terrain'));
