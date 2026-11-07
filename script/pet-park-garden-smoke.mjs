@@ -50,7 +50,8 @@ try{
     const crop={id:"crop1",seedItemId:"seed-item",fruitItemId:"fruit-item",
       seedName:"Forest Tomato Seeds",fruitName:"Forest Tomato",ready:true,
       images:{seedPack:art,planted:cropArt,seedling:cropArt,partial:cropArt,grown:cropArt,picked:cropArt,fruit:art},
-      drops:{planted:15,seedling:7,partial:12,grown:5} };
+      drops:{planted:15,seedling:7,partial:12,grown:5},
+      stagePlacements:{planted:{x:.12,y:-.05,scale:.35}} };
     const scene={
       enabledForPlayers:true,canEnterPark:true,canEditPark:false,groundLevel:1,backgroundUrl:null,
       groundTheme:"grass",buildings:[],deposits:[],unlockedSlots:1,
@@ -237,8 +238,9 @@ try{
       if(!image||!plot)return false;
       const visibleX=image.left+image.width*(167.5/200);
       const visibleBottom=image.top+image.height*(70/200);
-      return Math.abs(visibleX-(plot.left+plot.width/2))<5 &&
-        Math.abs(visibleBottom-(plot.top+plot.height/2))<5;
+      return Math.abs(visibleX-(plot.left+plot.width/2+plot.width*.12))<5 &&
+        Math.abs(visibleBottom-(plot.top+plot.height/2-plot.width*.05))<5 &&
+        Math.abs(image.width/plot.width-.35)<.02;
     },null,{timeout:12000});
     const progress=page.getByTestId("pet-park-garden-growth-progress");
     await progress.waitFor({state:"visible"});
