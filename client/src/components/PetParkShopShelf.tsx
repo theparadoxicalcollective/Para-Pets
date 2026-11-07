@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
@@ -48,6 +48,7 @@ export default function PetParkShopShelf({
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [buyError, setBuyError] = useState<string | null>(null);
+  const purchasing = useRef(false);
   const drag = useRef<null | { pointerId: number; itemId: string; x: number; y: number;
     start: ParkShopPlacement; moved: boolean }>(null);
   useEffect(() => {
@@ -119,13 +120,14 @@ export default function PetParkShopShelf({
       setBuyError(null);
     },
     onError: (error: Error) => setBuyError(error.message),
+    onSettled: () => { purchasing.current = false; },
   });
   useEffect(() => {
     if (!showPicker && !selectedBuy) return;
     const onEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (showPicker && !save.isPending) onShowPickerChange(false);
-      if (selectedBuy && !buy.isPending) setSelectedBuy(null);
+      if (selectedBuy && !purchasing.current && !buy.isPending) setSelectedBuy(null);
     };
     document.addEventListener("keydown", onEscape);
     return () => document.removeEventListener("keydown", onEscape);
@@ -276,7 +278,7 @@ export default function PetParkShopShelf({
     {selectedBuy && !canEditPark && <ViewportModalPortal>
       <div data-testid="pet-park-shop-purchase-dialog" className="pointer-events-auto absolute inset-0 z-[80] flex items-center justify-center px-4">
         <button className="absolute inset-0 bg-black/60" aria-label="Close purchase details"
-          onClick={() => { if (!buy.isPending) { setSelectedBuy(null); setBuyError(null); } }} />
+          onClick={() => { if (!purchasing.current && !buy.isPending) { setSelectedBuy(null); setBuyError(null); } }} />
         <section role="dialog" aria-modal="true" aria-label={"Buy " + selectedBuy.name}
           className="relative w-full max-w-[286px] rounded-2xl border-2 border-[#d7b973] bg-gradient-to-b from-[#25563c] to-[#10261c] p-4 text-center text-[#f6dfa7] shadow-[0_12px_36px_rgba(0,0,0,.65)]"
           onPointerDown={event => event.stopPropagation()}>
@@ -295,7 +297,14 @@ export default function PetParkShopShelf({
           {buyError && <p role="alert" className="mt-2 rounded bg-[#593124] p-2 text-[11px] text-red-100">{buyError}</p>}
           <button type="button" data-testid="pet-park-confirm-purchase"
             disabled={buy.isPending || (viewer?.coins !== undefined && viewer.coins < selectedBuy.price)}
-            onClick={() => buy.mutate(selectedBuy)}
+            onClick={() => {
+              // A ref guard closes the double-tap window before the pending
+              // state triggers a rerender; duplicate taps must not place
+              // two paid orders.
+              if (purchasing.current || buy.isPending) return;
+              purchasing.current = true;
+              buy.mutate(selectedBuy);
+            }}
             className="mt-3 min-h-11 w-full rounded-xl border border-[#e7c77e] bg-[#426746] px-3 text-sm font-semibold disabled:opacity-45">
             {buy.isPending ? "Purchasing…" : viewer?.coins !== undefined && viewer.coins < selectedBuy.price ? "Not enough coins" : "Purchase · 1 item"}
           </button>
