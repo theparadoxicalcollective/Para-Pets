@@ -4,6 +4,8 @@ import { Image, Minus, Plus, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
+import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
+import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
 import { PARK_WATER_EFFECT_OPTIONS, type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
@@ -35,6 +37,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [pendingTapImage, setPendingTapImage] = useState<string | null>(null);
   const [newWaterSource, setNewWaterSource] = useState(false);
+  const [newDecorEffects, setNewDecorEffects] = useState<ParkDecorEffect[]>([]);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
   const [buildingSize, setBuildingSize] = useState(300);
@@ -63,7 +66,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       if (!isBuilding && !isItem) return;
       const created = result?.building ?? result?.item ?? result;
       if (isBuilding) { setBuildingImage(null); setInteriorImage(null); setBuildingIsShop(false); }
-      if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewWaterSource(false); }
+      if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewWaterSource(false); setNewDecorEffects([]); }
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       if (typeof created?.id === "string") {
         onCreated?.({
@@ -247,6 +250,8 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
               onChange={event => { void selectFile(event.target.files?.[0], setPendingTapImage); event.target.value = ""; }} />
           </label>
         </div>
+        <PetParkDecorEffectEditor imageUrl={pendingImage} effects={newDecorEffects}
+          onChange={setNewDecorEffects} />
         <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: GOLD_BORDER, background: "rgba(255,215,0,.04)" }}>
           <div className="flex items-center justify-between text-sm"><label htmlFor="park-decor-size">Starting size</label><span className="font-semibold">{itemSize} world units</span></div>
           <div className="flex items-center gap-3">
@@ -271,7 +276,8 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           data-testid="button-create-park-item" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
-            kind: "decor", imageData: pendingImage, tapImageData: pendingTapImage, effectType: null, isWaterSource: newWaterSource,
+            kind: "decor", imageData: pendingImage, tapImageData: pendingTapImage,
+            decorEffects: newDecorEffects, effectType: null, isWaterSource: newWaterSource,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
             size: itemSize, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding…" : "Add Decoration"}</button>
