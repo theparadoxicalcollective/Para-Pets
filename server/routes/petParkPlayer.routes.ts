@@ -1,17 +1,12 @@
 import type { Express, RequestHandler } from "express";
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { petParkBuildings, petParkDeposits, petParkPresence, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
 import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
+import { PARK_ACTIVE_PRESENCE_MS, visibleOtherParkOutdoorIds } from "../petPark/publicOutdoorPopulation";
 
-// Maximum other owners displayed outdoors on one device, in addition to
-// this viewer's three own pets. Independently configurable without affecting
-// pet slots, reward calculations, placements or building occupancy.
-export const PARK_PUBLIC_OUTDOOR_OWNER_BUDGET = 40;
-export const PARK_ACTIVE_PRESENCE_MS = 15 * 60 * 1000;
 const PARK_PRESENCE_WRITE_INTERVAL_MS = 2 * 60 * 1000;
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
@@ -74,41 +69,9 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)));
-      // Pick one actually displayed outdoor pet per OTHER owner. Then rank
-      // those owners by park presence before constructing public pet images.
-      // Below capacity, older visitors remain visible. Once crowded, only
-      // recently active park visitors remain, up to the performance budget.
-      // No client-side hiding, reward changes or mutation of saved placements.
-      const firstOutdoor = alias(petParkDeposits, "first_outdoor");
-      const firstPublicOutdoor = db.selectDistinctOn([firstOutdoor.userId], {
-        id: firstOutdoor.id,
-        userId: firstOutdoor.userId,
-      }).from(firstOutdoor).where(and(
-        ne(firstOutdoor.userId, userId),
-        isNull(firstOutdoor.withdrawnAt),
-        eq(firstOutdoor.showInPark, true),
-        isNull(firstOutdoor.buildingId),
-        isNotNull(firstOutdoor.parkXPct), isNotNull(firstOutdoor.parkYPct),
-      )).orderBy(firstOutdoor.userId, firstOutdoor.slotNumber,
-        firstOutdoor.createdAt, firstOutdoor.id).as("first_public_outdoor");
-
-      const rankedOutdoorOwners = db.select({
-        id: firstPublicOutdoor.id,
-        userId: firstPublicOutdoor.userId,
-        lastSeenAt: petParkPresence.lastSeenAt,
-        ownerCount: sql<number>`count(*) over ()`.as("owner_count"),
-      }).from(firstPublicOutdoor)
-        .leftJoin(petParkPresence, eq(petParkPresence.userId, firstPublicOutdoor.userId))
-        .as("ranked_outdoor_owners");
-
-      const visibleOtherOutdoorIds = db.select({ id: rankedOutdoorOwners.id })
-        .from(rankedOutdoorOwners)
-        .where(or(
-          lte(rankedOutdoorOwners.ownerCount, PARK_PUBLIC_OUTDOOR_OWNER_BUDGET),
-          gte(rankedOutdoorOwners.lastSeenAt, activeSince),
-        ))
-        .orderBy(desc(rankedOutdoorOwners.lastSeenAt), rankedOutdoorOwners.userId)
-        .limit(PARK_PUBLIC_OUTDOOR_OWNER_BUDGET);
+      // Filter by first displayed pet and presence in SQL before loading
+      // public artwork, cosmetics and the rest of the scene payload.
+      const visibleOtherOutdoorIds = visibleOtherParkOutdoorIds(db, userId, activeSince);
       // The public roster is read-only; never expose wallet, private inventory,
       // reward checkpoints or another player's deposit mutation identifiers.
       const sharedPets = await db.select({
