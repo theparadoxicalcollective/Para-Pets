@@ -5,8 +5,8 @@
 .garden-tool-bubble:disabled { cursor: default; box-shadow: 0 2px 12px rgba(0, 0, 0, .34); }
 .garden-tool-motion {
   position: relative;
-  width: 110px;
-  height: 110px;
+  width: 82px;
+  height: 82px;
   filter: drop-shadow(0 7px 5px rgba(0,0,0,.54));
   color: #dec585;
   will-change: transform;
@@ -29,10 +29,10 @@
 }
 .garden-pour-drops {
   position: absolute;
-  top: 39px;
-  left: -26px;
-  width: 65px;
-  height: 60px;
+  top: 29px;
+  left: -16px;
+  width: 50px;
+  height: 44px;
   overflow: visible;
 }
 .garden-pour-drops span {
@@ -48,12 +48,12 @@
   opacity: 0;
   animation: garden-falling-drop 460ms ease-in 360ms both;
 }
-.garden-pour-drops span:nth-child(2) { left: 16px; animation-delay: 500ms; }
-.garden-pour-drops span:nth-child(3) { left: 31px; animation-delay: 650ms; }
+.garden-pour-drops span:nth-child(2) { left: 12px; animation-delay: 500ms; }
+.garden-pour-drops span:nth-child(3) { left: 24px; animation-delay: 650ms; }
 .garden-plant-sparkle {
   position: absolute;
-  left: -15px;
-  top: 55px;
+  left: -10px;
+  top: 41px;
   color: #f7dc83;
   animation: garden-seed-sparkle 850ms ease-out both;
 }
@@ -86,7 +86,7 @@
   0% { opacity: 0; transform: translate(5px,0) rotate(10deg) scale(.6); }
   18% { opacity: 1; }
   90% { opacity: .9; }
-  100% { opacity: 0; transform: translate(-9px,54px) rotate(-15deg) scale(.8); }
+  100% { opacity: 0; transform: translate(-9px,40px) rotate(-15deg) scale(.8); }
 }
 @keyframes garden-seed-sparkle {
   0%, 30% { opacity: 0; transform: scale(.1); }
