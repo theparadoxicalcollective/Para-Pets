@@ -39,7 +39,8 @@ test("building-wide capacity and separate player slots remain editable", () => {
   assert.doesNotMatch(form, /aria-label="Building pet capacity"/);
   assert.match(form, /maxPets: PET_PARK_BUILDING_CAPACITY_MIN/);
   assert.match(details, /aria-label="Park building capacity"/);
-  assert.match(details, /Visitors share the building with placed pets/);
+  assert.match(details, /Regular buildings can house pets/);
+  assert.match(details, /Shops cannot hold pets/);
 });
 
 test("the building creation route accepts 10 to 25 pets and rejects invalid values", async () => {
