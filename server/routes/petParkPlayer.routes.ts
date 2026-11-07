@@ -1,11 +1,18 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { petParkBuildings, petParkDeposits, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
+import { petParkBuildings, petParkDeposits, petParkPresence, petParkRewardClaims, petParkPlayerSlots, petParkSceneItems, petParkSettings, shopItems, userInventory, users } from "@shared/schema";
 import { db } from "../db";
 import { claimablePetParkDurationMs, checkpointPetParkClaim } from "@shared/petParkAccrual";
 import { registerPetParkDisplayRoutes } from "./petParkDisplay.routes";
 import { isPetAccessibleParkRoom } from "@shared/petParkRooms";
+
+// Maximum other owners displayed outdoors on one device, in addition to
+// this viewer's three own pets. Independently configurable without affecting
+// pet slots, reward calculations, placements or building occupancy.
+export const PARK_PUBLIC_OUTDOOR_OWNER_BUDGET = 40;
+export const PARK_ACTIVE_PRESENCE_MS = 15 * 60 * 1000;
+const PARK_PRESENCE_WRITE_INTERVAL_MS = 2 * 60 * 1000;
 
 export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: RequestHandler, applyPetXp: (level: number, points: number, earned: number) => { newLevel: number; newPoints: number }): void {
   registerPetParkDisplayRoutes(app, isAuthenticated);
@@ -34,6 +41,18 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
       if (!canEnterPark) {
         return res.json({ enabledForPlayers: false, groundLevel: 1, backgroundUrl: null, items: [], deposits: [], unlockedSlots: 1 });
       }
+      // The park page polls this authenticated route every 30s while open.
+      // Refresh presence no more than every 2 minutes; do not use login
+      // events, which record sign-ins rather than ongoing activity.
+      const now = new Date();
+      const refreshBefore = new Date(now.getTime() - PARK_PRESENCE_WRITE_INTERVAL_MS);
+      const activeSince = new Date(now.getTime() - PARK_ACTIVE_PRESENCE_MS);
+      await db.insert(petParkPresence).values({ userId, lastSeenAt: now })
+        .onConflictDoUpdate({
+          target: petParkPresence.userId,
+          set: { lastSeenAt: now },
+          setWhere: lt(petParkPresence.lastSeenAt, refreshBefore),
+        });
       const [slots] = await db.select().from(petParkPlayerSlots).where(eq(petParkPlayerSlots.userId, userId));
       const items = await db.select().from(petParkSceneItems);
       const buildings = await db.select().from(petParkBuildings);
@@ -55,24 +74,42 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
         .innerJoin(userInventory, eq(petParkDeposits.petInventoryId, userInventory.id))
         .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
         .where(and(eq(petParkDeposits.userId, userId), isNull(petParkDeposits.withdrawnAt)));
-      // A viewer sees ALL their own displayed pets, but only the first
-      // publicly placed OUTDOOR pet per other owner. Select that one at the
-      // database level so the scene payload and expensive pet animations/
-      // cosmetics don't scale with all three slots from every other player.
-      // If slot 1 is idle or indoors, show their lowest-numbered displayed
-      // outdoor slot. Indoor occupants remain unchanged and keep their
-      // existing room capacity, placements and owner interactions.
+      // Pick one actually displayed outdoor pet per OTHER owner. Then rank
+      // those owners by park presence before constructing public pet images.
+      // Below capacity, older visitors remain visible. Once crowded, only
+      // recently active park visitors remain, up to the performance budget.
+      // No client-side hiding, reward changes or mutation of saved placements.
       const firstOutdoor = alias(petParkDeposits, "first_outdoor");
-      const firstPublicOutdoorId = db.selectDistinctOn([firstOutdoor.userId], {
+      const firstPublicOutdoor = db.selectDistinctOn([firstOutdoor.userId], {
         id: firstOutdoor.id,
+        userId: firstOutdoor.userId,
       }).from(firstOutdoor).where(and(
+        ne(firstOutdoor.userId, userId),
         isNull(firstOutdoor.withdrawnAt),
         eq(firstOutdoor.showInPark, true),
         isNull(firstOutdoor.buildingId),
         isNotNull(firstOutdoor.parkXPct), isNotNull(firstOutdoor.parkYPct),
       )).orderBy(firstOutdoor.userId, firstOutdoor.slotNumber,
-        firstOutdoor.createdAt, firstOutdoor.id);
-      // Public park roster is read-only; never expose wallet, private inventory,
+        firstOutdoor.createdAt, firstOutdoor.id).as("first_public_outdoor");
+
+      const rankedOutdoorOwners = db.select({
+        id: firstPublicOutdoor.id,
+        userId: firstPublicOutdoor.userId,
+        lastSeenAt: petParkPresence.lastSeenAt,
+        ownerCount: sql<number>`count(*) over ()`.as("owner_count"),
+      }).from(firstPublicOutdoor)
+        .leftJoin(petParkPresence, eq(petParkPresence.userId, firstPublicOutdoor.userId))
+        .as("ranked_outdoor_owners");
+
+      const visibleOtherOutdoorIds = db.select({ id: rankedOutdoorOwners.id })
+        .from(rankedOutdoorOwners)
+        .where(or(
+          lte(rankedOutdoorOwners.ownerCount, PARK_PUBLIC_OUTDOOR_OWNER_BUDGET),
+          gte(rankedOutdoorOwners.lastSeenAt, activeSince),
+        ))
+        .orderBy(desc(rankedOutdoorOwners.lastSeenAt), rankedOutdoorOwners.userId)
+        .limit(PARK_PUBLIC_OUTDOOR_OWNER_BUDGET);
+      // The public roster is read-only; never expose wallet, private inventory,
       // reward checkpoints or another player's deposit mutation identifiers.
       const sharedPets = await db.select({
         petInventoryId: petParkDeposits.petInventoryId,
@@ -102,7 +139,7 @@ export function registerPetParkPlayerRoutes(app: Express, isAuthenticated: Reque
           and(eq(petParkDeposits.showInPark, true), isNull(petParkDeposits.buildingId),
             isNotNull(petParkDeposits.parkXPct), isNotNull(petParkDeposits.parkYPct),
             or(eq(petParkDeposits.userId, userId),
-              inArray(petParkDeposits.id, firstPublicOutdoorId))),
+              inArray(petParkDeposits.id, visibleOtherOutdoorIds))),
           isNotNull(petParkDeposits.buildingId),
         )))
         .orderBy(petParkDeposits.createdAt, petParkDeposits.id);
