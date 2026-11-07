@@ -67,7 +67,8 @@ test("building visits show their shared indoor pets and keep popup rooms non-pla
   assert.match(page, /onToggleEffect=\{effect => toggleParkInteriorLight/);
   assert.match(page, /indoorVisiblePets\.map\(pet =>/);
   assert.match(page, /data-testid="pet-park-interior-slots"/);
-  assert.match(page, /!popupRoom && <div/);
+  assert.match(page, /!popupRoom && !activeBuilding\.isShop && <div/, "pet slots only render in regular building interiors");
+  assert.match(page, /activeBuilding\.isShop \|\| popupRoom/, "shop buildings reject indoor pet dragging");
   assert.match(page, /Move armed · drag artwork/);
   assert.match(page, /parkImageHitAt\(/);
 });
