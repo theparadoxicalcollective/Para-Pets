@@ -174,8 +174,13 @@ try{
     assert.equal(await menu.locator(".garden-tool-bubble").count(),4);
     const anchor=await menu.getByTestId("pet-park-garden-anchor").boundingBox();
     const plotBounds=await ground.boundingBox();
-    assert.ok(anchor && plotBounds && Math.abs(anchor.x+anchor.width/2-(plotBounds.x+plotBounds.width/2))<4,
-      name+": tool bubbles follow the world-positioned plot");
+    assert.ok(anchor && plotBounds,name+": garden arc and plot are visible");
+    assert.equal(await menu.getByTestId("pet-park-garden-anchor").getAttribute("data-side"),"right",
+      name+": ordinary plot opens tools on its right instead of across its top");
+    assert.ok(anchor.x>plotBounds.x+plotBounds.width/2,
+      name+": tool arc is beside, not centered over, the garden plot");
+    assert.ok(anchor.x+anchor.width<=width+2,
+      name+": tool arc stays inside mobile/tablet screen");
 
     const dismiss=async()=>{
       // Background tap dismisses the tool arc, without a blocking backdrop
@@ -209,24 +214,34 @@ try{
       const actualAnimation=await motion.locator(".garden-tool-motion").evaluate(node=>
         getComputedStyle(node).animationName);
       assert.equal(actualAnimation,expectedAnimation,name+": tool motion matches intended image orientation");
-      await menu.getByTestId("pet-park-garden-stage").getByText(expectedPhase,{exact:true}).waitFor({state:"visible"});
-      if(label==="Water"){
-        const bar=menu.getByTestId("pet-park-garden-water-gauge");
+      assert.equal(await menu.locator(".garden-tool-bubble").count(),0,
+        name+": tools disappear while "+label+" is animated");
+      assert.equal(await menu.getByTestId("pet-park-garden-stage").count(),0,
+        name+": soil phase label removed");
+      assert.equal(await menu.getByTestId("pet-park-garden-progress").count(),0,
+        name+": duplicate text progress removed");
+      if(label==="Water" && !plot.harvestReady){
+        const bar=page.getByTestId("pet-park-garden-growth-progress");
         await bar.waitFor({state:"visible"});
-        const expectedLeft=inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft;
-        await bar.getByText(expectedLeft+" / 100").waitFor({state:"visible"});
+        assert.equal((await bar.innerText()).trim(),"",name+": only thin water bar, no text or box");
+        assert.equal(await bar.getAttribute("role"),"progressbar");
       }
+      assert.equal(await menu.getByTestId("pet-park-garden-water-gauge").count(),0,
+        name+": no second pail gauge above garden tool animation");
       await motion.waitFor({state:"hidden",timeout:8000});
+      await page.getByTestId("pet-park-garden-growth-progress").waitFor({state:"hidden"});
+      await menu.locator(".garden-tool-bubble").first().waitFor({state:"visible"});
+      assert.equal(plot.phase,expectedPhase,name+": server crop phase remains correct");
       assert.equal(requests.length,count+1,name+": one request for one "+label+" tap");
     };
     for(const other of ["Plant","Water","Harvest"])
       assert.equal(await menu.getByRole("button",{name:other,exact:true}).isDisabled(),true,
         name+": future tools are visibly disabled");
-    await apply("Hoe","Tilled soil");
+    await apply("Hoe","tilled");
     await page.getByTestId("pet-park-tilled-soil").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("pet-park-tilled-soil").locator("path").count(),2,
       name+": tilled soil has only its two diamond borders; no curved interior furrows");
-    await apply("Plant","Planted seed");
+    await apply("Plant","planted");
     assert.equal(await menu.getByText("Market Seeds").count(),0,"listed seeds cannot be selected");
     await page.getByTestId("pet-park-garden-crop").waitFor({state:"attached"});
     await page.getByTestId("pet-park-garden-visible-art").waitFor({state:"visible"});
@@ -243,24 +258,16 @@ try{
         Math.abs(image.width/plot.width-.35)<.02;
     },null,{timeout:12000});
     const progress=page.getByTestId("pet-park-garden-growth-progress");
-    await progress.waitFor({state:"visible"});
-    assert.equal(await progress.getByRole("progressbar").getAttribute("aria-valuemax"),"15",
-      name+": visible crop bar uses admin-defined stage water requirement");
-    await apply("Water","Planted seed"); // first pour fills 10 of 15
-    await page.waitForFunction(() =>
-      document.querySelector('[data-testid="pet-park-garden-growth-progress"] [role="progressbar"]')
-        ?.getAttribute("aria-valuenow")==="10");
+    assert.equal(await progress.count(),0,name+": all plant progress bars are hidden while idle");
+    await apply("Water","planted"); // first pour fills 10 of 15
     assert.equal(inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,90);
-    await apply("Water","Seedling");  // only 5 remaining for this stage
-    await apply("Water","Partially grown"); // only 7 for seedling
-    await apply("Water","Partially grown"); // 10 of 12
-    await page.waitForFunction(() =>
-      document.querySelector('[data-testid="pet-park-garden-growth-progress"] [role="progressbar"]')
-        ?.getAttribute("aria-valuenow")==="10");
-    await apply("Water","Fully grown"); // only 2 to complete
-    await apply("Water","Ready to harvest"); // only 5
+    await apply("Water","seedling"); // only 5 remaining for this stage
+    await apply("Water","partial"); // only 7 for seedling
+    await apply("Water","partial"); // 10 of 12
+    await apply("Water","grown"); // only 2 to complete
+    await apply("Water","grown"); // only 5, now harvest ready
     assert.equal(inventory.find(x=>x.inventoryId==="pail").gardenWaterLeft,61);
-    await apply("Harvest","Recently harvested");
+    await apply("Harvest","picked");
     await menu.getByTestId("pet-park-garden-harvest").waitFor({state:"visible"});
     assert.match(await menu.getByTestId("pet-park-garden-harvest").innerText(),/2 × Forest Tomato/);
     assert.equal(inventory.find(x=>x.inventoryId==="fruit").quantity,2);
@@ -268,7 +275,8 @@ try{
     await menu.getByRole("button",{name:"Close harvest notice"}).click();
     await dismiss();
     await ground.click();
-    await menu.getByTestId("pet-park-garden-stage").getByText("Recently harvested").waitFor({state:"visible"});
+    await menu.getByRole("button",{name:"Harvest",exact:true}).waitFor({state:"visible"});
+    assert.equal(await menu.getByTestId("pet-park-garden-stage").count(),0);
     await dismiss();
 
     // A new player with no gardening equipment should see a small message,
@@ -321,7 +329,8 @@ try{
     assert.equal(await seedPicker.getByTestId("pet-park-garden-seed-choice").count(),2);
     assert.equal(await seedPicker.getByText("Market Seeds").count(),0);
     await seedPicker.getByRole("button",{name:"Plant Forest Tomato Seeds"}).click();
-    await menu.getByTestId("pet-park-garden-stage").getByText("Planted seed").waitFor();
+    await page.getByTestId("pet-park-garden-crop").waitFor({state:"visible"});
+    assert.equal(plot.phase,"planted");
     assert.equal(requests.length,10,name+": one seed choice submits one plant request");
     await dismiss();
 
