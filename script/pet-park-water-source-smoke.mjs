@@ -85,8 +85,13 @@ try{
     const gateImage=gate.locator("..").locator("img");
     await gateImage.evaluate(img=>img.decode());
     assert.equal(await gateImage.getAttribute("src"),art);
-    await gate.click({position:{x:3,y:3}});
-    assert.equal(await gateImage.getAttribute("src"),art,name+": transparent art does not toggle");
+    // Pointer events now pass through clipped transparent pixels; clicking
+    // Playwright's button at (3,3) waits forever because it is correctly
+    // outside the browser's hit-tested shape. Click scene coordinates instead.
+    const gateRect=await gate.boundingBox();
+    assert.ok(gateRect,name+": tappable decor has a visible image region");
+    await page.mouse.click(gateRect.x+3,gateRect.y+3);
+    assert.equal(await gateImage.getAttribute("src"),art,name+": transparent area passes through without toggling");
     await gate.click();
     assert.equal(await gateImage.getAttribute("src"),altArt,name+": first tap shows alternate image");
     await gateImage.evaluate(img=>img.decode());
@@ -100,8 +105,10 @@ try{
     await water.waitFor({state:"visible",timeout:30000});
     assert.equal(await water.count(),1,name+": only marked decor is interactive");
     await water.evaluate(button=>button.parentElement.querySelector("img").decode());
-    await water.click({position:{x:3,y:3}});
-    assert.equal(await page.getByTestId("pet-park-refill-popup").count(),0,name+": transparent art cannot start a refill");
+    const waterRect=await water.boundingBox();
+    assert.ok(waterRect,name+": water source has a visible image region");
+    await page.mouse.click(waterRect.x+3,waterRect.y+3);
+    assert.equal(await page.getByTestId("pet-park-refill-popup").count(),0,name+": transparent art passes through without refill");
     await water.click();
     assert.equal(await water.locator("..").locator("img").getAttribute("src"),altArt,
       name+": a water-source decor can switch artwork without losing refill behavior");
