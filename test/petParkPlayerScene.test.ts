@@ -107,6 +107,21 @@ test("moderator-only park access keeps ordinary players out and preserves reward
   assert.equal(access(false,false,true,false), true);
 });
 
+test("park pet slots stay compact and centered, with no visible spot-number labels", () => {
+  const slots = page.split('data-testid="pet-park-player-slots"')[1]?.split('{activeSlot != null &&')[0];
+  assert.ok(slots, "the player slots render in their existing viewport HUD");
+  assert.match(slots, /mx-auto grid w-full max-w-\[294px\] grid-cols-3/);
+  assert.match(slots, /min-h-\[96px\]/);
+  assert.match(slots, /size=\{58\}/, "equipped portrait scales with smaller oval");
+  assert.match(slots, /pet-park-slot__empty-art h-\[56px\] w-\[60px\]/);
+  assert.doesNotMatch(slots, />Spot \{slot\}<\/span>/, "remove spot numbers from the ovals only");
+  assert.match(slots, /aria-label=\{\`Pet Park spot \$\{slot\}\`\}/,
+    "slot access remains named for screen readers");
+  assert.match(slots, /<PetParkSlotProgress/, "reward progress stays visible");
+  assert.match(slots, /onPointerDown=\{event => \{ if \(pet\) startEquippedPetDrag/,
+    "equipped pets can still be dragged into the park");
+});
+
 test("visitor park shows three oval spots with existing equip and unlock paths", () => {
   assert.ok(page.includes('data-testid="pet-park-player-slots"'));
   assert.ok(page.includes("Array.from({ length: 3 }"));
