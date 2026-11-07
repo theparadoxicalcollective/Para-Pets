@@ -14,6 +14,7 @@ import WorldGardenPreview from "@/components/world-editor/WorldGardenPreview";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
+import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
 import { PET_PARK_GROUND_THEMES, PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
@@ -146,8 +147,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const changeLevel = (next: number) => {
     if (next < 1 || next > PET_PARK_MAX_GROUND_LEVEL || saveDraft.isPending) return;
     // The server updates saved placement coordinates atomically on expansion.
-    saveDraft.mutate({ groundLevel: next, groundTheme });
-    setPan(null);
+    saveDraft.mutate({ groundLevel: next, groundTheme }, {
+      onSuccess: () => setPan(null),
+    });
   };
   const changeZoom = (next: number, anchor = { x: size.width / 2, y: size.height / 2 }) => {
     const value = parkClampZoom(next);
@@ -181,7 +183,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startObject = (event: ReactPointerEvent<HTMLButtonElement>, item: WorldScenePlacement | WorldSceneInteriorItem,
     kind: "outdoor" | "interior") => {
-    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || previewGarden) return;
+    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || previewGarden || objectDrag.current) return;
     const artwork = event.currentTarget.querySelector("img");
     if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
     event.stopPropagation();
@@ -193,7 +195,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       startX: start.xPct, startY: start.yPct,
       xPct: item.xPct, yPct: item.yPct, latest: { xPct: item.xPct, yPct: item.yPct }, moved: false,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
     if (kind === "outdoor") setSelectedId(item.id); else setSelectedInteriorId(item.id);
   };
   const moveObject = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -218,8 +220,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (!drag || drag.id !== event.pointerId) return;
     event.stopPropagation();
     objectDrag.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId))
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId))
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Safari may implicitly release capture before pointerup arrives.
+    }
     if (drag.moved) void updatePosition(drag.kind, drag.itemId, drag.latest);
     else setObjectPreview(null);
   };
@@ -228,7 +234,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
     touchPoints.current.delete(event.pointerId);
     if (cameraDrag.current?.id === event.pointerId) cameraDrag.current = null;
-    if (touchPoints.current.size < 2) pinch.current = null;
+    if (touchPoints.current.size < 2) {
+      pinch.current = null;
+      if (touchPoints.current.size === 1) {
+        const [id, remaining] = [...touchPoints.current.entries()][0];
+        // One finger can continue panning after a two-finger zoom ends.
+        cameraDrag.current = {
+          id, x: remaining.x, y: remaining.y, panX: actualPan.x, panY: actualPan.y,
+        };
+      }
+    }
   };
   const startCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (paintMode || activeBuilding || (event.button !== 0 && event.pointerType === "mouse")) return;
@@ -244,7 +259,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         panX: actualPan.x, panY: actualPan.y,
       };
     }
-    event.currentTarget.setPointerCapture(event.pointerId);
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
   };
   const moveCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!touchPoints.current.has(event.pointerId) || paintMode || activeBuilding) return;
@@ -301,6 +316,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
       onPointerDown={startCamera} onPointerMove={moveCamera}
       onPointerUp={endTouch} onPointerCancel={endTouch}
+      onLostPointerCapture={endTouch}
       onWheel={event => {
         if (!event.ctrlKey && !event.shiftKey) return;
         const rect = event.currentTarget.getBoundingClientRect();
@@ -320,6 +336,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             transform: `translate(${actualPan.x}px, ${actualPan.y}px)` }}>
           {content.placements.map(p => {
             const position = objectPosition(p);
+            // Only mount visible sprites. Large worlds may contain thousands of
+            // authored items; invisible images/effects must not animate on iOS.
+            const left = actualPan.x + position.xPct * camera.sceneWidth;
+            const top = actualPan.y + position.yPct * camera.sceneHeight;
+            const margin = p.size * camera.scale;
+            if (left < -margin || left > size.width + margin ||
+                top < -margin || top > size.height + margin) return null;
             const asset = assetFor(p.assetId);
             const connected = p.kind === "terrain" && isParkConnectedPath(p.effectType);
             // Connected paths are painted on the camera canvas. Do not create
