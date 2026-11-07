@@ -219,7 +219,7 @@ export default function PetParkPage() {
   const gardenToolAnchor = chosenGardenPlot ? (() => {
     const plotX = camera.x + chosenGardenPlot.xPct * sceneWidth;
     const plotY = camera.y + chosenGardenPlot.yPct * sceneHeight;
-    const side: "right" | "left" = plotX + 188 <= viewportSize.width ? "right" : "left";
+    const side: "right" | "left" = plotX + 158 <= viewportSize.width ? "right" : "left";
     const preferredX = side === "right" ? plotX + 48 : plotX - 193;
     return {
       plotX, plotY, side,
