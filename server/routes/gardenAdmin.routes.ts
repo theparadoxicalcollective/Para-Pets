@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, inArray } from "drizzle-orm";
 import { gardenCrops, shopItems } from "@shared/schema";
 import {
-  GARDEN_IMAGE_KEYS, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
+  GARDEN_IMAGE_KEYS, GARDEN_PHASES, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
   isCompleteGardenCrop, validGardenArtwork, validGardenDrops, validGardenPrice,
   type GardenImageKey, type GardenToolKind, type GardenPhase,
   validGardenStagePlacement,
