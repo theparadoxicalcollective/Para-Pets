@@ -9,7 +9,7 @@ import {
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 
 const OPTIONS: { type: ParkEffectType; label: string; size: number }[] = [
-  ...HOME_OUTDOOR_EFFECT_OPTIONS.map(option => ({
+  ...HOME_OUTDOOR_EFFECT_OPTIONS.filter(option => option.type !== "sleep").map(option => ({
     type: option.type, label: option.label,
     size: Math.max(24, Math.min(80, option.defaultSize * 2.4)),
   })),
