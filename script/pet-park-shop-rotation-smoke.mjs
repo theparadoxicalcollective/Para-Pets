@@ -203,6 +203,8 @@ try {
     assert.equal(await image.evaluate(el=>el.style.transform),"rotate(30deg) scaleX(-1)",label+": saved rotation and flip survive reload");
     assert.ok(Math.abs(parseFloat(await page.getByTestId("pet-park-shop-price-on-art").evaluate(el=>el.style.left))/100-tagPosition.x)<.001,
       label+": saved tag placement survives reload");
+    await artButton.click();
+    await preview.waitFor({state:"visible"});
     compareTags(await previewGeometry(),await sceneGeometry(),"saved editor reload");
     const savedGeometry=await sceneGeometry();
     assert.equal(await page.getByTestId("pet-park-shop-merchandise").getByText("Scythe").count(),0);
