@@ -10,7 +10,7 @@ import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
   defaultParkShopPlacement, flipParkShopPlacement, rotateParkShopPlacement, withParkShopDefaults,
-  parkShopPriceTagPoint, parkShopPriceTagFromPointer,
+  parkShopPriceTagPoint, parkShopPriceTagFromPointer, parkShopPriceTagSize,
   PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE, PARK_SHOP_ROTATION_STEP,
   type ParkShopPlacement,
 } from "@shared/petParkShopPlacements";
@@ -33,16 +33,25 @@ function itemArt(item: ParkShopItemPreview) {
 /** Existing wooden tag artwork, sized relative to the merchandise so small
  * items are not hidden behind a fixed-width price badge. The coin indicates
  * shop availability; the actual price is revealed in the purchase dialog. */
-function ShopPriceTag({ size }: { size: number }) {
+function ShopPriceTag({ itemBoxSize }: { itemBoxSize: number }) {
+  const tagSize = parkShopPriceTagSize(itemBoxSize);
   return <span data-testid="pet-park-shop-price-tag" aria-hidden="true"
     className="pointer-events-none relative inline-block shrink-0"
-    style={{ width: size, height: size }}>
+    style={{ width: tagSize, height: tagSize }}>
     <img src={PARK_SHOP_PRICE_TAG_IMAGE} alt="" data-testid="pet-park-shop-tag-art"
       className="absolute inset-0 h-full w-full object-contain" draggable={false} />
     <img src={PARA_PETS_COIN_IMAGE} alt="" data-testid="pet-park-shop-tag-coin"
       className="absolute object-contain drop-shadow-sm" draggable={false}
       style={{ width: "27%", height: "27%", left: "50%", top: "61%", transform: "translate(-50%, -50%)" }} />
   </span>;
+}
+
+/** The editor preview and the merchandise use the same saved image-local
+ * anchor, without either view introducing a different offset or transform. */
+function priceTagAnchorStyle(placement: ParkShopPlacement) {
+  const { xPct, yPct } = parkShopPriceTagPoint(placement);
+  return { left: `${xPct * 100}%`, top: `${yPct * 100}%`,
+    transform: "translate(-50%, -50%)" };
 }
 
 /** Merchandise is positioned directly over the *existing* room artwork,
@@ -301,8 +310,7 @@ export default function PetParkShopShelf({
         const item = byId.get(placement.itemId);
         if (!item) return null;
         const dimension = imageHeight * placement.size / 100;
-        const tagSize = Math.max(27, Math.min(54, dimension * .42));
-        return <button key={item.id} type="button" data-testid={`pet-park-shop-item-${item.id}`}
+         return <button key={item.id} type="button" data-testid={`pet-park-shop-item-${item.id}`}
           aria-label={canEditPark ? "Place " + item.name : "Buy " + item.name}
           aria-pressed={canEditPark ? selectedEdit === item.id : undefined}
           disabled={save.isPending || buy.isPending}
@@ -326,10 +334,8 @@ export default function PetParkShopShelf({
                 style={{ transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flippedX ? -1 : 1})` }}>✦</span>}
           <span data-testid="pet-park-shop-price-on-art"
             className="pointer-events-none absolute z-[1]"
-            style={{ left: `${parkShopPriceTagPoint(placement).xPct * 100}%`,
-              top: `${parkShopPriceTagPoint(placement).yPct * 100}%`,
-              transform: "translate(-50%, -50%)" }}>
-            <ShopPriceTag size={tagSize} />
+            style={priceTagAnchorStyle(placement)}>
+            <ShopPriceTag itemBoxSize={dimension} />
           </span>
           {/* No floating item names or numeric prices. The coin-only wooden tag
               marks a purchasable item; names and prices appear at checkout. */}
@@ -381,7 +387,7 @@ export default function PetParkShopShelf({
         onPointerDown={event => event.stopPropagation()}>
         <strong className="text-[11px]">Position price tag</strong>
         <div ref={pricePreviewRef} data-testid="pet-park-shop-price-preview-art"
-          className="relative h-[148px] w-[148px] touch-none rounded-lg border border-[#927e50]/45 bg-[#26452f]/75">
+          className="relative h-[148px] w-[148px] touch-none rounded-lg ring-1 ring-inset ring-[#927e50]/45 bg-[#26452f]/75">
           {itemArt(editItem) ? <img src={itemArt(editItem) ?? ""} alt=""
             draggable={false} className="pointer-events-none h-full w-full select-none object-contain"
             style={{ transform: `rotate(${editPlacement.rotation ?? 0}deg) scaleX(${editPlacement.flippedX ? -1 : 1})`, transformOrigin: "center center" }} />
@@ -393,10 +399,8 @@ export default function PetParkShopShelf({
             onPointerMove={onPriceTagMove} onPointerUp={onPriceTagUp}
             onPointerCancel={onPriceTagCancel} onLostPointerCapture={onPriceTagCancel}
             className="absolute z-[2] cursor-grab touch-none rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
-            style={{ left: `${parkShopPriceTagPoint(editPlacement).xPct * 100}%`,
-              top: `${parkShopPriceTagPoint(editPlacement).yPct * 100}%`,
-              transform: "translate(-50%, -50%)" }}>
-            <ShopPriceTag size={52} />
+            style={priceTagAnchorStyle(editPlacement)}>
+            <ShopPriceTag itemBoxSize={148} />
           </button>
         </div>
         <span className="text-center text-[10px] text-[#ead1a0]/80">Drag the tag onto the image</span>
