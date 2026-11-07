@@ -5,10 +5,13 @@ import {
   animateParkOutdoorPet, PARK_OUTDOOR_PET_SIZE_RATIO,
   PARK_OUTDOOR_QUIET_ZOOM, parkOutdoorPetSize,
 } from "../client/src/lib/petParkOutdoorPresentation";
+import {
+  parkIndoorScenePetSize, PARK_INDOOR_SCENE_PET_RATIO, parkIndoorPetSizeOnSleepSpot,
+} from "../client/src/lib/petParkSleepSpots";
 
 const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
 
-test("outdoor pets scale together without resizing indoor pets, slots or saved world placements", () => {
+test("outdoor 80% and indoor 90% sizing preserve slots and world placements", () => {
   assert.equal(PARK_OUTDOOR_PET_SIZE_RATIO, 0.8);
   for (const natural of [68, 120, 160, 200, 300]) {
     assert.equal(parkOutdoorPetSize(natural), natural * .8);
@@ -22,8 +25,20 @@ test("outdoor pets scale together without resizing indoor pets, slots or saved w
   assert.match(outdoor, /<PetParkRarityStars rarity=\{pet\.rarity\} petSize=\{petSize\}/);
   const indoor = page.split("indoorVisiblePets.map(pet => {")[1]?.split("{activeBuilding.isShop")[0];
   assert.ok(indoor);
-  assert.match(indoor, /const petSize = parkIndoorPetSizeOnSleepSpot/);
+  assert.match(indoor, /const petSize = parkIndoorScenePetSize\(parkIndoorPetSizeOnSleepSpot/);
   assert.doesNotMatch(indoor, /parkOutdoorPetSize/);
+  assert.match(page, /const size = parkIndoorScenePetSize\(parkIndoorPetSizeOnSleepSpot/,
+    "indoor overlap bounds match the smaller visible indoor pets");
+  assert.equal(PARK_INDOOR_SCENE_PET_RATIO, 0.9);
+  assert.ok(PARK_INDOOR_SCENE_PET_RATIO > PARK_OUTDOOR_PET_SIZE_RATIO);
+  assert.equal(parkIndoorScenePetSize(100), 90);
+  const dimension = { width: 700, height: 1000 };
+  const normal = parkIndoorPetSizeOnSleepSpot({ x: .3, y: .6 }, [], dimension, 104);
+  assert.equal(parkIndoorScenePetSize(normal), 93.6);
+  const sleeping = parkIndoorPetSizeOnSleepSpot({ x: .5, y: .5 },
+    [{ type: "sleep", x: .5, y: .5, size: 6 }], dimension, 104);
+  assert.equal(parkIndoorScenePetSize(sleeping), sleeping * 0.9,
+    "resting pet art is reduced along with nonresting resident art");
   assert.match(page, /petInventoryId=\{pet\.petInventoryId\} size=\{58\}/,
     "main equipped portraits retain their existing sizes");
 });
