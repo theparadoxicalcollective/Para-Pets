@@ -60,6 +60,7 @@ export default function WorldSceneControls(props: Props) {
   }, [props.activeBuilding?.id]);
 
   const currentAsset = props.scene.assets.find(asset => asset.id === props.selected?.assetId);
+  const interiorAsset = props.scene.assets.find(asset => asset.id === props.activeBuilding?.assetId);
   useEffect(() => { setBuildingNameDraft(currentAsset?.name ?? ""); }, [currentAsset?.id, currentAsset?.name]);
   const shopBuilding = props.activeBuilding ??
     (props.selected?.kind === "building" ? props.selected : null);
