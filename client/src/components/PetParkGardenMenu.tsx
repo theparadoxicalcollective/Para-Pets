@@ -28,6 +28,8 @@ type Props = {
   onClose: () => void;
   onChanged: () => void;
   onWateringState: (plotId: string | null) => void;
+  /** World Editor can reuse the same garden interaction without changing Pet Park's default. */
+  actionUrlPrefix?: string;
 };
 const actionNames: Record<GardenPlayerAction, string> = {
   hoe: "Hoe", plant: "Plant", water: "Water", harvest: "Harvest",
@@ -54,6 +56,7 @@ function eligibleItem(item: GardenOwnedItem, action: GardenPlayerAction,
 
 export default function PetParkGardenMenu({
   plot, crops, inventory, inventoryLoading, anchor, onClose, onChanged, onWateringState,
+  actionUrlPrefix = "/api/pet-park/garden",
 }: Props) {
   const suggested = gardenActionForPlot(plot);
   const [showSeeds, setShowSeeds] = useState(false);
@@ -82,7 +85,7 @@ export default function PetParkGardenMenu({
   const mutation = useMutation({
     mutationFn: async (request: Request) => {
       const response = await apiRequest("POST",
-        "/api/pet-park/garden/plots/" + encodeURIComponent(plot.plotItemId) + "/" + request.action,
+        actionUrlPrefix + "/plots/" + encodeURIComponent(plot.plotItemId) + "/" + request.action,
         { requestId: request.requestId, inventoryId: request.inventoryId });
       return response.json() as Promise<GardenActionResult>;
     },

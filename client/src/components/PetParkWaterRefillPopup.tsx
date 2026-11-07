@@ -18,6 +18,7 @@ type RefillStage = "checking" | "choose" | "filling" | "filled" | "empty" | "err
  */
 export default function PetParkWaterRefillPopup({
   sourceId, pails, eligiblePails, inventoryLoading, onClose, onRefilled, reduceMotion,
+  refillPathPrefix = "/api/pet-park/water-sources",
 }: {
   sourceId: string;
   pails: readonly WateringPail[];
@@ -26,6 +27,7 @@ export default function PetParkWaterRefillPopup({
   onClose: () => void;
   onRefilled: () => void;
   reduceMotion: boolean;
+  refillPathPrefix?: string;
 }) {
   const [stage, setStage] = useState<RefillStage>("checking");
   const [activePail, setActivePail] = useState<WateringPail | null>(null);
@@ -43,7 +45,7 @@ export default function PetParkWaterRefillPopup({
   const refill = useMutation({
     mutationFn: async (item: WateringPail) => {
       const response = await apiRequest("POST",
-        `/api/pet-park/water-sources/${sourceId}/refill`, { inventoryId: item.inventoryId });
+        `${refillPathPrefix}/${encodeURIComponent(sourceId)}/refill`, { inventoryId: item.inventoryId });
       return response.json() as Promise<RefillResult>;
     },
     onSuccess: (filled) => {
