@@ -913,6 +913,7 @@ export default function PetParkPage() {
             image={image} xPct={plot.xPct} yPct={plot.yPct} size={plot.size} scale={scale}
             zIndex={parkDepthIndex({ yPct: plot.yPct, worldHeight: geometry.worldHeight,
               size: plot.size, kind: "item" })}
+            placement={crop?.stagePlacements?.[plot.phase as "planted" | "seedling" | "partial" | "grown" | "picked"]}
             progress={gardenCropProgress(plot, crop)} />;
         })}
         {outdoorPets.map(pet => {

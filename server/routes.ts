@@ -12,7 +12,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
@@ -32,6 +32,7 @@ import { PurchaseMilestoneError } from "./milestones/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
 import { isConfiguredQaIdentity, isDedicatedQaTester } from "./qaTester";
 import { purchaseInventoryItem } from "./inventoryPurchase";
+import { baseGardenToolKind } from "@shared/garden";
 import { tryConsumeOneFromInventory } from "./inventoryConsumption";
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerSupportRoutes } from "./routes/support.routes";
@@ -1244,7 +1245,8 @@ export async function registerRoutes(
     containsBadWord,
   });
 
-  app.post("/api/shop/:worldId/buy/:itemId", isAuthenticated, async (req, res) => {
+  class GardenToolAlreadyOwnedError extends Error {}
+    app.post("/api/shop/:worldId/buy/:itemId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const { itemId } = req.params as Record<string, string>;
@@ -1292,6 +1294,14 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Harvested fruit is not sold by shops" });
       }
 
+      const baseTool = baseGardenToolKind(shopItem);
+      // A watering pail can be refilled: replacement tool purchases must
+      // not be used to bypass the 100-drop capacity. Likewise Hoe and Scythe
+      // are one-per-kind owned equipment, never bulk consumables.
+      if (baseTool && quantity !== 1) {
+        return res.status(400).json({ message: "You can own only one of each gardening tool" });
+      }
+
       let isFirstPetAcquisition = false;
       if (shopItem.type === "pet") {
         const petCount = await storage.countInventoryPetCopies(user.id, itemId);
@@ -1316,7 +1326,26 @@ export async function registerRoutes(
         },
         grant: async (tx: ShopPurchaseTransaction, { userId, quantity: requestedQuantity }) => {
           let invItem: any = null;
-          if (shopItem.fishingType === "bait") {
+          if (baseTool) {
+            // deductCoins has already acquired this player's row lock. All
+            // checkout requests for the same account serialize here, so a
+            // simultaneous second purchase cannot slip through this check.
+            // Includes listed/escrowed rows and alternate catalog IDs of
+            // the same base tool kind; none may mint a second physical copy.
+            const [owned] = await tx.select({ id: userInventory.id })
+              .from(userInventory)
+              .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+              .where(and(eq(userInventory.userId, userId), eq(shopItems.type, "garden_tool"),
+                eq(shopItems.specialType, baseTool), gt(userInventory.quantity, 0)))
+              .limit(1);
+            if (owned) throw new GardenToolAlreadyOwnedError("You already own a " +
+              (baseTool === "watering_pail" ? "Watering Pail" : baseTool === "hoe" ? "Hoe" : "Scythe"));
+            const [saved] = await tx.insert(userInventory).values({
+              userId, shopItemId: itemId, quantity: 1,
+              ...(baseTool === "watering_pail" ? { gardenWaterLeft: 100 } : {}),
+            }).returning();
+            invItem = saved;
+          } else if (shopItem.fishingType === "bait") {
             const baitChargesPerPurchase = 5;
             const [existing] = await tx.select().from(userInventory)
               .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId)));
@@ -1399,6 +1428,8 @@ export async function registerRoutes(
 
       return res.json({ inventory: purchase.inventory, user: safeUser, quantity: purchaseCount });
     } catch (err) {
+      if (err instanceof GardenToolAlreadyOwnedError)
+        return res.status(409).json({ message: err.message });
       console.error("Buy item error:", err);
       return res.status(500).json({ message: "Failed to purchase item" });
     }

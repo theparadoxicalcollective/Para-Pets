@@ -13,6 +13,7 @@ const crop: GardenPlayerCrop = {
     seedling: "/sprout.png", partial: "/partial.png", grown: "/grown.png",
     picked: "/picked.png", fruit: "/tomato.png" },
   drops: { planted: 2, seedling: 5, partial: 3, grown: 1 },
+  stagePlacements: {},
 };
 function plot(phase: GardenPlayerPlot["phase"], waterApplied = 0, harvestReady = false): GardenPlayerPlot {
   return { plotItemId: "one", xPct: .5, yPct: .5, size: 150,

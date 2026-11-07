@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
+import { baseGardenToolKind } from "@shared/garden";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
@@ -15,7 +16,7 @@ import {
 export type ParkShopItemPreview = {
   id: string; name: string; type: string; price: number;
   imageUrl: string | null; eggImageUrl: string | null; hatchedImageUrl: string | null;
-  description?: string | null; placement?: ParkShopPlacement | null;
+  description?: string | null; specialType?: string | null; placement?: ParkShopPlacement | null;
 };
 const filters = [
   { name: "All", type: "all" }, { name: "Pets", type: "pet" },
@@ -77,6 +78,12 @@ export default function PetParkShopShelf({
     },
     staleTime: 30_000,
   });
+  const { data: ownedInventory = [], isLoading: inventoryLoading } = useQuery<Array<{ type?: string | null; specialType?: string | null; quantity?: number | null }>>({
+    queryKey: ["/api/inventory"], enabled: !canEditPark && !!selectedBuy,
+  });
+  const selectedBaseKind = selectedBuy ? baseGardenToolKind(selectedBuy) : null;
+  const selectedToolOwned = !!selectedBaseKind && ownedInventory.some(row =>
+    (row.quantity ?? 1) > 0 && baseGardenToolKind(row) === selectedBaseKind);
   const { data: viewer } = useQuery<{ coins?: number }>({
     queryKey: ["/api/auth/me"], enabled: !canEditPark,
   });
@@ -294,19 +301,20 @@ export default function PetParkShopShelf({
           </div>
           {viewer?.coins !== undefined && <p className="text-[10px] text-amber-100/65">
             Your balance: {viewer.coins.toLocaleString()} coins</p>}
+          {selectedToolOwned && <p data-testid="pet-park-garden-tool-owned" className="mt-2 text-xs font-semibold text-[#8fe2a0]">Already owned · One per player</p>}
           {buyError && <p role="alert" className="mt-2 rounded bg-[#593124] p-2 text-[11px] text-red-100">{buyError}</p>}
           <button type="button" data-testid="pet-park-confirm-purchase"
-            disabled={buy.isPending || (viewer?.coins !== undefined && viewer.coins < selectedBuy.price)}
+            disabled={buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading) || (viewer?.coins !== undefined && viewer.coins < selectedBuy.price)}
             onClick={() => {
               // A ref guard closes the double-tap window before the pending
               // state triggers a rerender; duplicate taps must not place
               // two paid orders.
-              if (purchasing.current || buy.isPending) return;
+              if (purchasing.current || buy.isPending || selectedToolOwned || (!!selectedBaseKind && inventoryLoading)) return;
               purchasing.current = true;
               buy.mutate(selectedBuy);
             }}
             className="mt-3 min-h-11 w-full rounded-xl border border-[#e7c77e] bg-[#426746] px-3 text-sm font-semibold disabled:opacity-45">
-            {buy.isPending ? "Purchasing…" : viewer?.coins !== undefined && viewer.coins < selectedBuy.price ? "Not enough coins" : "Purchase · 1 item"}
+            {buy.isPending ? "Purchasing…" : selectedToolOwned ? "Owned" : selectedBaseKind && inventoryLoading ? "Checking tools…" : viewer?.coins !== undefined && viewer.coins < selectedBuy.price ? "Not enough coins" : "Purchase · 1 item"}
           </button>
           <p className="mt-2 text-[10px] text-amber-100/60">Tap outside to close</p>
         </section>
