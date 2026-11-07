@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { PARK_TERRAIN_DETAIL_OPTIONS, isParkConnectedPath, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
-import { PET_PARK_GROUND_THEMES, type ParkGroundTheme } from "@shared/petParkGround";
+import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 import { parkBrushWorldPoint, parkExtendBrushStroke, parkExtendPathStroke, PARK_BRUSH_MAX_STAMPS, type ParkBrushPoint } from "@/lib/petParkTerrainBrush";
 
 type Props = {
@@ -13,9 +13,9 @@ type Props = {
   worldWidth: number; worldHeight: number;
   panX: number; panY: number; scale: number;
   raised: boolean; onSaved: () => void; onExit: () => void;
-  groundTheme: ParkGroundTheme;
+  groundTheme: WorldGroundTheme;
   worldId: string;
-  onGroundTheme: (theme: ParkGroundTheme) => Promise<void>;
+  onGroundTheme: (theme: WorldGroundTheme) => Promise<void>;
 };
 
 /** The only painting surface is an overlay on the EXISTING World Editor camera.
@@ -176,7 +176,7 @@ export default function WorldTerrainBrush(props: Props) {
         <div className="border-t border-[#b99a4c]/35 pt-2">
           <p className="mb-1 text-xs font-semibold">Ground appearance</p>
           <div className="grid grid-cols-3 gap-1" role="group" aria-label="World Editor ground style">
-            {PET_PARK_GROUND_THEMES.map(option => <button key={option.type} type="button"
+            {WORLD_GROUND_THEMES.map(option => <button key={option.type} type="button"
               disabled={changingGround || saving || draft.length > 0}
               aria-pressed={props.groundTheme === option.type}
               onClick={() => { void selectGround(option.type); setShowOptions(false); }}
