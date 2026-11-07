@@ -73,3 +73,18 @@ export function parkImageHitClipPath(
   const bottom = Math.max(0, 1 - padY - (bounds.top + bounds.height) * height - margin);
   return `inset(${top * 100}% ${right * 100}% ${bottom * 100}% ${left * 100}%)`;
 }
+
+/** Center affordances over the *visible* pixels, not transparent PNG padding. */
+export function parkImageVisualCenter(
+  bounds: AlphaBounds | null | undefined,
+  naturalWidth: number,
+  naturalHeight: number,
+): { xPct: number; yPct: number } {
+  if (!bounds || naturalWidth <= 0 || naturalHeight <= 0) return { xPct: 50, yPct: 50 };
+  const fit = Math.max(naturalWidth, naturalHeight);
+  const width = naturalWidth / fit, height = naturalHeight / fit;
+  return {
+    xPct: 100 * ((1 - width) / 2 + (bounds.left + bounds.width / 2) * width),
+    yPct: 100 * ((1 - height) / 2 + (bounds.top + bounds.height / 2) * height),
+  };
+}
