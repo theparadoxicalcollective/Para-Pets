@@ -165,7 +165,7 @@ export default function PetParkTerrainBrush(props: Props) {
         </div>
         <div className="border-t border-[#b99a4c]/35 pt-2">
           <p className="mb-1 text-xs font-semibold">Ground appearance</p>
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-3 gap-1" role="group" aria-label="Pet Park ground style">
             {PET_PARK_GROUND_THEMES.map(option => <button key={option.type} type="button"
               disabled={changingGround || saving || draft.length > 0}
               aria-pressed={props.groundTheme === option.type}
