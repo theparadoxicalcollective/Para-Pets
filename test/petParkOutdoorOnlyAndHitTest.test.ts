@@ -68,6 +68,10 @@ test("player hit targets are clipped to visible art (including object-contain pa
   assert.match(park, /style=\{\{ clipPath: visibleDecorImage \? imageHitClips\[visibleDecorImage\] : undefined \}\}/);
   assert.match(park, /parkImageVisualCenter\(bounds, width, height\)/);
   assert.match(park, /data-testid="pet-park-water-source-indicator"/);
+  assert.match(park, /scene\.canEditPark && !paintMode && !showCreator \? "pointer-events-auto touch-none" : "pointer-events-none"/,
+    "non-admin artwork containers never intercept clicks around the actual interactive child");
+  assert.doesNotMatch(park, /item\.kind === "decor" && item\.isWaterSource && scene\.canEnterPark \? "pointer-events-auto"/,
+    "water decor must not create a second full-rectangle player hit target");
   assert.doesNotMatch(park, /absolute -right-1 -top-2 rounded-full border border-\[#c1d9b4\]/);
 });
 
