@@ -52,6 +52,15 @@ export function isParkSleepPosition(
   return parkSleepSpotAtPosition(position, items, world) !== null;
 }
 
+/** Modest indoor-only presentation shrink (less than the 20% outdoor reduction).
+ * Apply AFTER sleep-spot sizing to scale resting and ordinary room pets alike.
+ * The same function must be used by scene rendering and drag collision bounds.
+ */
+export const PARK_INDOOR_SCENE_PET_RATIO = 0.9;
+export function parkIndoorScenePetSize(size: number): number {
+  return size * PARK_INDOOR_SCENE_PET_RATIO;
+}
+
 /** Interior sleep squares are authored as a percentage of the room height.
  * Use the visible artwork's dimensions, not the phone viewport, for both
  * interaction and pet size. All other indoor pets retain the 225-unit base.
