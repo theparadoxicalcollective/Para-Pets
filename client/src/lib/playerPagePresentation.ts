@@ -37,6 +37,7 @@ const NAV_HIDDEN_PREFIXES = [
   "/pet-care/",
   "/equip-accessories/",
   "/pet-level-up/",
+  "/world-editor/",
 ] as const;
 
 function hasPrefix(path: string, prefixes: readonly string[]) {
