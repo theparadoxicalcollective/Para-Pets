@@ -6,6 +6,7 @@ import { isAdornmentSlotKey } from "./costumeFeature";
 import { isAdornmentItemEffect } from "./adornmentAnimation";
 import type { HouseInteriorEffect } from "./housing";
 import type { ParkInteriorEffect } from "./petParkRooms";
+import type { ParkDecorEffect } from "./petParkDecorEffects";
 import type { GardenStagePlacements } from "./garden";
 
 export const users = pgTable("users", {
@@ -1398,6 +1399,10 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   imageUrl: text("image_url"),
   // Optional player-tappable alternate artwork for gates and similar decor.
   tapImageUrl: text("tap_image_url"),
+  // Only copied artwork, tap artwork and attached effects are linked.
+  // Each duplicated scene item still owns its own size, flip, position and depth.
+  appearanceGroupId: varchar("appearance_group_id"),
+  decorEffects: jsonb("decor_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(100),
