@@ -110,6 +110,7 @@ export default function PetParkPage() {
     return next;
   });
   const [selectedGardenPlotId, setSelectedGardenPlotId] = useState<string | null>(null);
+  const [wateringGardenPlotId, setWateringGardenPlotId] = useState<string | null>(null);
   const suppressGardenPlotClickUntil = useRef(0);
   const [enteredBuilding, setEnteredBuilding] = useState<ParkBuilding | null>(null);
   const [openedRoomId, setOpenedRoomId] = useState<string | null>(null);
@@ -204,16 +205,20 @@ export default function PetParkPage() {
   const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
-  // Float the garden action bubbles over the selected plot using the SAME
-  // world→screen camera projection as the terrain. The HUD's bubble size
-  // stays readable while zooming; the saved plot's position never changes.
-  const gardenToolAnchor = chosenGardenPlot ? {
-    x: Math.max(132, Math.min(viewportSize.width - 132,
-      camera.x + chosenGardenPlot.xPct * sceneWidth)),
-    y: Math.max(166, Math.min(viewportSize.height - 100,
-      camera.y + chosenGardenPlot.yPct * sceneHeight -
-      chosenGardenPlot.size * scale * parkTerrainHeightRatio("garden_plot") / 2 - 10)),
-  } : null;
+  // The compact action arc uses the existing camera's world-to-screen
+  // projection. Prefer the RIGHT side of the touched plot; flip left only
+  // when it would otherwise be clipped at a mobile/tablet edge.
+  const gardenToolAnchor = chosenGardenPlot ? (() => {
+    const plotX = camera.x + chosenGardenPlot.xPct * sceneWidth;
+    const plotY = camera.y + chosenGardenPlot.yPct * sceneHeight;
+    const side: "right" | "left" = plotX + 188 <= viewportSize.width ? "right" : "left";
+    const preferredX = side === "right" ? plotX + 48 : plotX - 193;
+    return {
+      plotX, plotY, side,
+      x: Math.max(6, Math.min(Math.max(6, viewportSize.width - 151), preferredX)),
+      y: Math.max(48, Math.min(Math.max(48, viewportSize.height - 274), plotY - 120)),
+    };
+  })() : null;
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] }); qc.invalidateQueries({ queryKey: ["/api/pet-park/status"] }); };
   const action = useMutation({
     mutationFn: async ({ method = "POST", path, body }: { method?: "POST" | "PATCH"; path: string; body?: object }) => {
@@ -914,7 +919,8 @@ export default function PetParkPage() {
             zIndex={parkDepthIndex({ yPct: plot.yPct, worldHeight: geometry.worldHeight,
               size: plot.size, kind: "item" })}
             placement={crop?.stagePlacements?.[plot.phase as "planted" | "seedling" | "partial" | "grown" | "picked"]}
-            progress={gardenCropProgress(plot, crop)} />;
+            progress={gardenCropProgress(plot, crop)}
+            showWaterProgress={wateringGardenPlotId === plot.plotItemId} />;
         })}
         {outdoorPets.map(pet => {
           const position = outdoorPetDraft?.petInventoryId === pet.petInventoryId
@@ -1102,7 +1108,7 @@ export default function PetParkPage() {
         anchor={gardenToolAnchor}
         crops={garden?.crops ?? []} inventory={inventory} inventoryLoading={isGardenInventoryLoading}
         onClose={() => { suppressGardenPlotClickUntil.current = Date.now() + 300; setSelectedGardenPlotId(null); }}
-        onChanged={invalidateGarden} /> :
+        onChanged={invalidateGarden} onWateringState={setWateringGardenPlotId} /> :
       <ViewportModalPortal blocking={false}><div data-testid="pet-park-garden-loading"
         className="pointer-events-none absolute inset-x-3 top-[28%] z-[76] flex justify-center">
         <div className="pointer-events-auto flex max-w-[260px] items-center gap-2 rounded-xl border border-[#c9a65e]/80 bg-[#143925]/95 p-2 text-xs text-[#f4dda6] shadow-lg"
