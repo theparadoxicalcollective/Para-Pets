@@ -32,12 +32,14 @@ try{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const art='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="40" y="20" width="120" height="120" fill="#c2ad74"/></svg>').toString('base64');
   let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,groundTheme:"grass",items:[{id:'decor',kind:'decor',effectType:null,imageUrl:art,xPct:0.72,yPct:0.58,size:100,flipped:false,layer:0}],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
-  const strokes=[],patches=[],groundUpdates=[];
+  const strokes=[],patches=[],groundUpdates=[],shopSaves=[];
   await page.route('**/api/**',route=>{
    const path=new URL(route.request().url()).pathname;
    if(path==='/api/pet-park/scene')return route.fulfill({json:scene});
    if(path==='/api/admin/pet-park/buildings/cottage'){
-    const body=route.request().postDataJSON();patches.push(body);
+    const body=route.request().postDataJSON();
+    if (Object.prototype.hasOwnProperty.call(body,'isShop')) shopSaves.push(body);
+    else patches.push(body);
     scene={...scene,buildings:[{...scene.buildings[0],...body}]};
     return route.fulfill({json:scene.buildings[0]});
    }
@@ -85,6 +87,26 @@ try{
   await page.waitForFunction(()=>!document.body.textContent.includes('Saving…'));
   assert.equal(patches.length,1,name+': armed double-tap drag uses the existing placement PATCH');
   assert.ok(patches[0].xPct>0.5&&patches[0].yPct>0.5);
+  // Shop status is visible and persists immediately, including on re-entry.
+  await page.getByRole('button',{name:'Edit building'}).click();
+  const details=page.getByTestId('pet-park-building-details');
+  await details.waitFor({state:'visible'});
+  const shop=details.getByRole('switch',{name:'Is Shop building'});
+  const status=details.getByTestId('pet-park-shop-status');
+  assert.equal(await shop.isChecked(),false,name+': regular building is visibly OFF');
+  await status.getByText('OFF · Regular building').waitFor({state:'visible'});
+  await shop.click();
+  await status.getByText('ON · Shop enabled').waitFor({state:'visible'});
+  assert.deepEqual(shopSaves,[{isShop:true}],name+': switch immediately persists ON');
+  assert.equal(scene.buildings[0].isShop,true);
+  await details.getByRole('button',{name:'Close'}).click();
+  await page.getByRole('button',{name:'Edit building'}).click();
+  await details.waitFor({state:'visible'});
+  assert.equal(await shop.isChecked(),true,name+': reopening reads saved Shop ON');
+  await shop.click();
+  await status.getByText('OFF · Regular building').waitFor({state:'visible'});
+  assert.deepEqual(shopSaves,[{isShop:true},{isShop:false}],name+': switch immediately persists OFF');
+  await details.getByRole('button',{name:'Close'}).click();
 
   // The transparent corner of the SVG must not select or drag the building.
   const after=await cottage.boundingBox();
