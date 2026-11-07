@@ -1434,6 +1434,8 @@ export const gardenPlayerPlots = pgTable("garden_player_plots", {
   waterApplied: integer("water_applied").notNull().default(0),
   harvestReady: boolean("harvest_ready").notNull().default(false),
   pickedUntil: timestamp("picked_until"),
+  // Independent natural-growth clock; watering does not restart the hour.
+  passiveGrowthAt: timestamp("passive_growth_at"),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, table => [uniqueIndex("garden_player_plot_unique").on(table.userId, table.plotItemId)]);
 
