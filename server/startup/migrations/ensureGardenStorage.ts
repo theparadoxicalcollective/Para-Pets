@@ -58,10 +58,20 @@ export async function ensureGardenStorage(): Promise<void> {
       water_applied integer NOT NULL DEFAULT 0 CHECK (water_applied >= 0),
       harvest_ready boolean NOT NULL DEFAULT false,
       picked_until timestamp,
+      passive_growth_at timestamp,
       updated_at timestamp NOT NULL DEFAULT now(),
       CONSTRAINT garden_plot_plant_requires_crop
         CHECK (phase IN ('empty','tilled') OR crop_id IS NOT NULL)
     );
+    -- Existing active crops start their slow-growth clock at deployment,
+    -- not retroactively from an old watering timestamp.
+    ALTER TABLE garden_player_plots
+      ADD COLUMN IF NOT EXISTS passive_growth_at timestamp;
+    UPDATE garden_player_plots
+      SET passive_growth_at = now()
+      WHERE passive_growth_at IS NULL AND
+        phase IN ('planted', 'seedling', 'partial', 'grown') AND
+        harvest_ready = false;
     -- Keep response and mutation in the same transaction so duplicate HTTP
     -- requests can never double-charge a pail or double-award fruit.
     CREATE TABLE IF NOT EXISTS garden_action_receipts (
