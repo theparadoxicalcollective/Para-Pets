@@ -113,8 +113,8 @@ export type GardenGrowth = {
   waterApplied: number;
   harvestReady: boolean;
 };
-/** Exactly one water drop advances at most one phase. No elapsed-time growth,
- * client-provided stage skips or implicit free watering.
+/** Exactly one actual watering drop advances at most one phase; natural
+ * hourly growth is a separate server-authorized progression path.
  */
 export function gardenAfterWaterDrop(current: GardenGrowth, required: GardenWaterRequirements): GardenGrowth {
   if (!(current.phase === "planted" || current.phase === "seedling" ||
@@ -134,6 +134,40 @@ export function gardenAfterWaterDrop(current: GardenGrowth, required: GardenWate
     ? { phase: "grown", waterApplied: threshold, harvestReady: true }
     : { phase: next[current.phase], waterApplied: 0, harvestReady: false };
 }
+/** Natural growth adds the equivalent of ONE drop of stage progress per
+ * completed hour. This uses server time and never debits a Watering Pail.
+ * Keep the partial-hour remainder when a player waters, reopens, or switches
+ * devices; progress can span crop stages but never harvest automatically. */
+export const GARDEN_PASSIVE_GROWTH_INTERVAL_MS = 60 * 60 * 1000;
+export function gardenAfterPassiveTime(
+  current: GardenGrowth, required: GardenWaterRequirements,
+  checkpoint: Date | null | undefined, now: Date,
+): { growth: GardenGrowth; checkpoint: Date | null; hoursApplied: number } {
+  if (!checkpoint || !Number.isFinite(checkpoint.getTime()) || !Number.isFinite(now.getTime()))
+    return { growth: current, checkpoint: checkpoint ?? null, hoursApplied: 0 };
+  const elapsed = Math.max(0, Math.floor((now.getTime() - checkpoint.getTime()) / GARDEN_PASSIVE_GROWTH_INTERVAL_MS));
+  if (!elapsed || current.harvestReady ||
+      !["planted", "seedling", "partial", "grown"].includes(current.phase))
+    return { growth: current, checkpoint, hoursApplied: 0 };
+  const remaining = (["planted", "seedling", "partial", "grown"] as const)
+    .slice(["planted", "seedling", "partial", "grown"].indexOf(current.phase))
+    .reduce((total, phase, index) =>
+      total + (index === 0 ? required[phase] - current.waterApplied : required[phase]), 0);
+  // Admin-authored stage requirements are bounded to 1000 each. Even after
+  // years away, no request iterates more than the drops left in this crop.
+  const hoursApplied = Math.min(elapsed, Math.max(0, remaining));
+  let growth = current;
+  for (let i = 0; i < hoursApplied; i++) {
+    growth = gardenAfterWaterDrop(growth, required);
+    if (growth.harvestReady) break;
+  }
+  return {
+    growth,
+    checkpoint: new Date(checkpoint.getTime() + elapsed * GARDEN_PASSIVE_GROWTH_INTERVAL_MS),
+    hoursApplied,
+  };
+}
+
 /** One authenticated watering action uses up to ten real drops. It stops at
  * the next stage, harvest readiness, or the remaining water in the pail.
  * No surplus drops vanish and the next stage must be watered separately. */
