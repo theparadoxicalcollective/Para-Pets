@@ -239,8 +239,9 @@ try {
       name + ": decor upload uses its filename without extra naming steps");
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "decor" &&
       w.body.size === 100), name + ": decor is placed in one operation");
+    const duplicateSaved = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
     await page.getByRole("button", { name: "Duplicate world decoration" }).click();
-    await page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
+    await duplicateSaved;
     assert.ok(apiWrites.filter(w => w.tail === "placements" && w.body.kind === "decor").length >= 2,
       name + ": linked decoration duplicates reuse one uploaded asset");
     await page.getByRole("button", { name: "Deselect world object" }).click();
