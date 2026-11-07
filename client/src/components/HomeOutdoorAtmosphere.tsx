@@ -179,6 +179,7 @@ export function HomeOutdoorAtmosphereLayer({
   nightStrength,
   effects,
   panX,
+  panY = 0,
   imgWidth,
   sceneHeight,
   zIndex = 20,
@@ -188,6 +189,7 @@ export function HomeOutdoorAtmosphereLayer({
   nightStrength: number;
   effects: HouseInteriorEffect[];
   panX: number;
+  panY?: number;
   imgWidth: number;
   sceneHeight: number;
   zIndex?: number;
@@ -247,7 +249,7 @@ export function HomeOutdoorAtmosphereLayer({
           position: "absolute",
           ...(hasSceneBox ? {
             left: panX,
-            top: 0,
+            top: panY,
             width: imgWidth,
             height: sceneHeight,
           } : {

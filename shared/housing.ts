@@ -196,7 +196,8 @@ export function getHouseInteriorLocalLightBoost(
   let totalBoost = 0;
 
   for (const effect of effects) {
-    if (!isHouseInteriorLightEffectType(effect.type) || offEffectIds.has(effect.id)) continue;
+    if (!isHouseInteriorLightEffectType(effect.type) ||
+        (effect.type !== "warm_glow" && offEffectIds.has(effect.id))) continue;
     const radius = getHouseInteriorLightRadiusRatio(effect);
     if (radius <= 0) continue;
 

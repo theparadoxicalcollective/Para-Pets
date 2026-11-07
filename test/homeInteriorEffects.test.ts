@@ -54,22 +54,24 @@ test("room darkness stays the lights-off baseline while active lights brighten l
     { id: "center-candle", type: "candle_light" as const, x: 0.5, y: 0.5, size: 10 },
   ];
   const allOff = new Set(lights.map(light => light.id));
+  // Sunlight cannot be turned off by a stored toggle. Use real night time
+  // (daylightStrength=0) when asserting an unlit room baseline.
 
-  assert.equal(getHouseInteriorLocalLightBoost(lights, allOff, 0.2, 0.5, 2), 0);
-  assert.equal(getHouseInteriorPointDarkness(60, lights, allOff, 0.2, 0.5, 2), 60);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, allOff, 0.2, 0.5, 2, 0), 0);
+  assert.equal(getHouseInteriorPointDarkness(60, lights, allOff, 0.2, 0.5, 2, 0), 60);
 
   const fireOnlyOff = new Set(["right-lamp", "center-candle"]);
-  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2, 0.5, 2), getHouseInteriorLightPeakBoost("fire"));
+  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2, 0.5, 2, 0), getHouseInteriorLightPeakBoost("fire"));
   assert.equal(
-    getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.2, 0.5, 2),
+    getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.2, 0.5, 2, 0),
     60 * (1 - getHouseInteriorLightCutoutStrength("fire")),
   );
-  assert.equal(getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.8, 0.5, 2), 60);
+  assert.equal(getHouseInteriorPointDarkness(60, lights, fireOnlyOff, 0.8, 0.5, 2, 0), 60);
 
   const fireRadius = getHouseInteriorLightRadiusRatio(lights[0]);
   assert.equal(fireRadius > lights[0].size / 100, true);
-  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2 + fireRadius / 2 / 2, 0.5, 2) > 0, true);
-  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2 + fireRadius / 2 + 0.01, 0.5, 2), 0);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2 + fireRadius / 2 / 2, 0.5, 2, 0) > 0, true);
+  assert.equal(getHouseInteriorLocalLightBoost(lights, fireOnlyOff, 0.2 + fireRadius / 2 + 0.01, 0.5, 2, 0), 0);
 
   const stackedLights = Array.from({ length: 10 }, (_, index) => ({
     id: `light-${index}`,
@@ -268,7 +270,7 @@ test("player building exits use a world-style sparkle while Admin keeps the mova
   assert.match(admin, /data-testid="button-leave-draggable"[\s\S]{0,1600}>\s*Outside\s*<\/button>/);
 });
 
-test("player and visitor interiors fade Sunlight with the outside day-night cycle while keeping it tappable", () => {
+test("player and visitor interiors fade Sunlight automatically without a tap target", () => {
   const effects = read("client/src/components/HomeInteriorEffect.tsx");
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
@@ -425,7 +427,7 @@ test("owner light toggles persist while visitor light toggles stay session-only"
   const owner = read("client/src/pages/PetHousePage.tsx");
   const visitor = read("client/src/pages/VisitPetHousePage.tsx");
 
-  assert.match(effects, /return isHouseInteriorLightEffectType\(type\)/);
+  assert.match(effects, /type !== "warm_glow" && isHouseInteriorLightEffectType\(type\)/);
   assert.match(effects, /offEffectIds/);
   assert.match(effects, /onToggleEffect/);
   assert.match(effects, /data-effect-off=\{isOff \? "true" : undefined\}/);

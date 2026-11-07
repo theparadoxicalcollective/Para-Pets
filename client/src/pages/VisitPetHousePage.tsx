@@ -598,6 +598,7 @@ export default function VisitPetHousePage() {
   }, []);
 
   const toggleVisitorInteriorLight = useCallback((buildingId: string, effect: HouseInteriorEffect) => {
+    if (effect.type === "warm_glow") return;
     setVisitorInteriorLightOff(current => {
       const base = current[buildingId]
         ?? activeBundle?.playerLighting?.offInteriorEffectIds?.[buildingId]

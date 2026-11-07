@@ -21,8 +21,14 @@ import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type 
 import { isParkEffect } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
 import { parkImageHitAt, parkImageHitClipPath, parkImageVisualCenter } from "@/lib/petParkImageHit";
+import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
+import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import { parkOutdoorLightEffects } from "@shared/petParkAtmosphere";
+import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
+import PetParkDecorEffects from "@/components/PetParkDecorEffects";
+import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { X, Expand, LockKeyhole, Droplets, RotateCcw } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
@@ -48,7 +54,7 @@ import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -65,6 +71,8 @@ export default function PetParkPage() {
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  // Automatic clock only. Park visitors have no day/night override control.
+  const parkLighting = useHomeOutdoorLighting("auto");
   const touchPoints = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number; pan: { x: number; y: number }; midpoint: { x: number; y: number } } | null>(null);
   const [imageContacts, setImageContacts] = useState<Record<string, number>>({});
@@ -217,6 +225,9 @@ export default function PetParkPage() {
   const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
+  const parkLights = useMemo(() => parkOutdoorLightEffects(scene?.items ?? [],
+    { width: sceneWidth, height: sceneHeight, scale }, camera, viewportSize),
+    [scene?.items, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
   // The compact action arc uses the existing camera's world-to-screen
   // projection. Prefer the RIGHT side of the touched plot; flip left only
   // when it would otherwise be clipped at a mobile/tablet edge.
@@ -325,6 +336,28 @@ export default function PetParkPage() {
       toast({ title: "Unable to read Tap Image", description: String(error), variant: "destructive" });
     }
   };
+  const decorAppearanceSave = useMutation({
+    mutationFn: async ({ id, ...patch }: { id: string; imageData?: string;
+      tapImageData?: string | null; decorEffects?: ParkDecorEffect[] }) =>
+      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/appearance`, patch),
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["/api/admin/pet-park"] });
+    },
+    onError: (error: Error) => toast({
+      title: "Could not update decoration appearance",
+      description: error.message, variant: "destructive",
+    }),
+  });
+  const replaceDecorArtwork = async (id: string, file?: File) => {
+    if (!file || decorAppearanceSave.isPending) return;
+    try {
+      decorAppearanceSave.mutate({ id, imageData: await readPetParkImageData(file) });
+    } catch (error) {
+      toast({ title: "Could not read decoration artwork",
+        description: String(error), variant: "destructive" });
+    }
+  };
   const waterSourceSave = useMutation({
     mutationFn: async ({ id, isWaterSource }: { id: string; isWaterSource: boolean }) =>
       apiRequest("PATCH", `/api/admin/pet-park/items/${id}/water-source`, { isWaterSource }),
@@ -372,10 +405,11 @@ export default function PetParkPage() {
   };
   // A first tap selects an object; a double-tap on its visible art arms moving.
   // The next drag moves it once, without interfering with normal camera panning.
-  const startPlacement = (e: React.PointerEvent<HTMLElement>, kind: "building" | "item", object: ParkBuilding | ParkItem) => {
+  const startPlacement = (e: React.PointerEvent<HTMLElement>, kind: "building" | "item",
+    object: ParkBuilding | ParkItem, selectedImage?: HTMLImageElement | null) => {
     if (!scene?.canEditPark || paintMode || showCreator || activeBuilding ||
         placementSave.isPending || placementDelete.isPending || !e.isPrimary) return;
-    const image = e.currentTarget.querySelector("img");
+    const image = selectedImage === undefined ? e.currentTarget.querySelector("img") : selectedImage;
     if (image && !parkImageHitAt(image, e.clientX, e.clientY, object.flipped)) return;
     const current = selectedPlacement?.kind === kind && selectedPlacement.id === object.id && placementDraft
       ? placementDraft : { xPct: object.xPct, yPct: object.yPct, size: object.size, flipped: object.flipped, layer: object.layer };
@@ -738,13 +772,15 @@ export default function PetParkPage() {
       setOpenedRoomId(room.id);
     }
   };
-  const toggleParkInteriorLight = (buildingId: string, effect: HouseInteriorEffect) =>
+  const toggleParkInteriorLight = (buildingId: string, effect: HouseInteriorEffect) => {
+    if (effect.type === "warm_glow") return;
     setOffParkInteriorLights(current => {
       const off = new Set(current[buildingId] ?? []);
       if (off.has(effect.id)) off.delete(effect.id);
       else off.add(effect.id);
       return { ...current, [buildingId]: Array.from(off) };
     });
+  };
   const availablePets = inventory.filter(p => p.isHatched && (p.petLevel ?? 1) >= 10 && !p.isListed && !occupied.has(p.inventoryId) && (p.type == null || p.type === "pet"));
   const matchingPets = availablePets.filter(p => !petSearch.trim() || `${p.petNickname || p.name} ${p.petLevel ?? ""}`.toLowerCase().includes(petSearch.trim().toLowerCase()));
   const visiblePetChoices = matchingPets.slice(0, 24);
@@ -772,6 +808,47 @@ export default function PetParkPage() {
       }
     `}</style>
     <div ref={viewport} className="absolute inset-0 overflow-hidden" style={HOME_TOUCH_SURFACE_STYLE}
+      onPointerDownCapture={e => {
+        if (!scene?.canEditPark || paintMode || showCreator || activeBuilding || !e.isPrimary) return;
+        const target = e.target as HTMLElement;
+        // HUD, pets and independent player controls keep their own gestures.
+        if (target.closest("[data-park-pet]") ||
+            (target.closest("button, input, select, textarea, a") &&
+              !target.closest("[data-park-draggable]"))) return;
+        const artwork = viewport.current?.querySelector("[data-park-world-artwork]");
+        if (!artwork) return;
+        const hit = pickParkAdminArtwork(artwork, e.clientX, e.clientY, (kind, id) =>
+          kind === "building"
+            ? scene.buildings?.find(building => building.id === id) ?? null
+            : scene.items.find(item => item.id === id) ?? null);
+        if (!hit) return; // transparent area behaves like empty grass
+        const object = hit.kind === "building"
+          ? scene.buildings?.find(building => building.id === hit.id)
+          : scene.items.find(item => item.id === hit.id);
+        if (!object) return;
+        if (e.pointerType === "touch") {
+          touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        }
+        startPlacement(e, hit.kind, object, hit.image);
+        // A hit belongs to the truly visible object even when a larger
+        // transparent PNG above it received the browser's pointer event.
+        e.stopPropagation();
+      }}
+      onPointerMoveCapture={e => {
+        if (placementPointer.current?.id === e.pointerId) movePlacement(e);
+      }}
+      onPointerUpCapture={e => {
+        if (placementPointer.current?.id !== e.pointerId) return;
+        endPlacement(e);
+        touchPoints.current.delete(e.pointerId);
+        if (touchPoints.current.size < 2) pinch.current = null;
+      }}
+      onPointerCancelCapture={e => {
+        if (placementPointer.current?.id !== e.pointerId) return;
+        cancelPlacement(e);
+        touchPoints.current.delete(e.pointerId);
+        if (touchPoints.current.size < 2) pinch.current = null;
+      }}
       onPointerDown={e => {
         if (scene?.canEditPark && !paintMode && !showCreator && e.target === e.currentTarget) {
           setSelectedPlacement(null); setPlacementDraft(null);
@@ -841,6 +918,7 @@ export default function PetParkPage() {
         if (pointer.current?.id === e.pointerId) pointer.current = null;
       }}
       onLostPointerCapture={e => {
+        if (placementPointer.current?.id === e.pointerId) cancelPlacement(e);
         touchPoints.current.delete(e.pointerId);
         if (touchPoints.current.size < 2) pinch.current = null;
         if (pointer.current?.id === e.pointerId) pointer.current = null;
@@ -857,7 +935,8 @@ export default function PetParkPage() {
         dirtPatches={dirtPatches} stonePatches={stonePatches} waterPatches={waterPatches} />}
       {scene && !activeBuilding && <div data-park-world-artwork className="absolute top-0 left-0 pointer-events-none"
         style={{ width: sceneWidth, height: sceneHeight, transform: `translate(${camera.x}px, ${camera.y}px)` }}>
-        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark &&
+        {(scene.buildings ?? []).map(building => <button key={building.id} type="button" data-park-draggable data-park-object-kind="building"
+          data-park-object-id={building.id} aria-label={`Enter ${building.name}`} onClick={e => { e.stopPropagation(); if (!scene.canEditPark &&
           parkImageHitAt(e.currentTarget.querySelector("img")!, e.clientX, e.clientY, building.flipped)) {
             setOpenedRoomId(null); setEnteredBuilding(building);
           } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, clipPath: scene.canEditPark ? undefined : imageHitClips[building.imageUrl], zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></button>)}
@@ -872,9 +951,20 @@ export default function PetParkPage() {
             { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
-          return <div key={item.id} data-park-draggable onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && !item.imageUrl ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
+          return <div key={item.id} data-park-draggable data-park-object-kind="item" data-park-object-id={item.id}
+            onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && !item.imageUrl ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
           style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "effect" || item.kind === "sleep_spot" ? 12_000_000 : item.kind === "terrain" ? 500 : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: visibleDecorImage ? imageContacts[visibleDecorImage] : undefined }) }}>
-          {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} /></> :
+          {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <div
+              data-testid={`park-standalone-effect-${item.id}`}
+              className="pointer-events-none h-full w-full"
+              style={{ opacity: item.effectType === "warm_glow" ? parkLighting.daylightStrength : 1,
+                transition: "opacity 1200ms linear" }}>
+              <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} />
+            </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
+              {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
+                sunlightStrength={parkLighting.daylightStrength}
+                reducedMotion={reduceMotion || zoom <= 0.85} />}
+            </> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
           {!scene.canEditPark && scene.canEnterPark && isGardenPlot && <button
             type="button" data-testid="pet-park-garden-plot" aria-label="Open Garden Plot"
@@ -1008,6 +1098,16 @@ export default function PetParkPage() {
           </div>;
         })}
       </div>}
+      {/* One camera-following Home atmosphere layer dims terrain, buildings,
+          pets and decor together. It stays below all player/admin controls. */}
+      {scene && !activeBuilding && <div data-testid="pet-park-auto-day-night"
+        className="pointer-events-none absolute inset-0 z-[10] overflow-hidden">
+        <HomeOutdoorAtmosphereLayer darkness={parkLighting.darkness}
+          nightStrength={parkLighting.nightStrength}
+          effects={parkLights} panX={camera.x} panY={camera.y}
+          imgWidth={sceneWidth} sceneHeight={sceneHeight}
+          transitionMs={parkLighting.transitionMs} zIndex={2} />
+      </div>}
       {paintMode && scene?.canEditPark && <PetParkTerrainBrush
         viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
         sceneWidth={sceneWidth} sceneHeight={sceneHeight}
@@ -1043,7 +1143,8 @@ export default function PetParkPage() {
         effects={fullPageRoom ? [] : activeBuilding.interiorEffects ?? []}
         onOpenRoom={showRoomEffect}
         offEffectIds={new Set(offParkInteriorLights[activeBuilding.id] ?? [])}
-        onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}>
+        onToggleEffect={effect => toggleParkInteriorLight(activeBuilding.id, effect)}
+        sunlightStrength={parkLighting.daylightStrength}>
         {({ imageWidth, sceneHeight: roomHeight }) => <>
         <div className="pointer-events-none absolute inset-0" style={{ zIndex: 5 }}>
           {indoorVisiblePets.map(pet => {
@@ -1249,6 +1350,25 @@ export default function PetParkPage() {
       </button>}
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <div
         className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
+        data-testid="park-decoration-artwork-editor">
+        <span className="block text-xs font-semibold">Artwork · all linked copies</span>
+        <img src={(selectedObject as ParkItem).imageUrl ?? ""} alt="Selected decoration artwork"
+          className="mx-auto h-20 w-full object-contain" />
+        <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+          {decorAppearanceSave.isPending ? "Updating artwork…" : "Replace Decoration Artwork"}
+          <input type="file" className="sr-only" accept="image/png,image/jpeg"
+            aria-label="Replace linked decoration artwork"
+            disabled={decorAppearanceSave.isPending}
+            onChange={event => { void replaceDecorArtwork(selectedPlacement.id, event.target.files?.[0]); event.target.value = ""; }} />
+        </label>
+      </div>}
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <PetParkDecorEffectEditor
+        key={selectedPlacement.id} imageUrl={(selectedObject as ParkItem).imageUrl}
+        effects={(selectedObject as ParkItem).decorEffects ?? []}
+        disabled={decorAppearanceSave.isPending}
+        onChange={decorEffects => decorAppearanceSave.mutate({ id: selectedPlacement.id, decorEffects })} />}
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <div
+        className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
         data-testid="park-decoration-tap-image-editor">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold text-[#f5d98e]">Tap Image <span className="font-normal text-amber-100/70">(optional)</span></span>
@@ -1267,7 +1387,7 @@ export default function PetParkPage() {
             className="sr-only" disabled={tapImageSave.isPending || placementDelete.isPending}
             onChange={event => { void updateTapImage(selectedPlacement.id, event.target.files?.[0]); event.target.value = ""; }} />
         </label>
-        <p className="text-[11px] text-amber-100/70">Players tap to switch between this art and the original. Placement and size stay unchanged.</p>
+        <p className="text-[11px] text-amber-100/70">Alternate artwork changes all linked copies. Each copy keeps its own position, size and orientation.</p>
       </div>}
       <p className="text-xs text-amber-100/75">Depth follows ground position automatically. Move lower to bring in front.</p>
       <div className="flex flex-wrap items-center gap-2">

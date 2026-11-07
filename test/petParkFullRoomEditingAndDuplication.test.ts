@@ -86,7 +86,9 @@ function setup(known: any) {
 }
 
 test("duplicating decor creates a new row with unchanged art, size, flip and layer", async () => {
-  const original = { kind: "decor", imageUrl: "/uploads/tree.png", tapImageUrl: "/uploads/open-gate.png",
+  const original = { id: "original", kind: "decor", imageUrl: "/uploads/tree.png",
+    tapImageUrl: "/uploads/open-gate.png", appearanceGroupId: "linked-tree",
+    decorEffects: [{ id: "glow-1", type: "warm_glow", x: 0.25, y: 0.6, size: 48 }],
     size: 480, flipped: true, layer: 42, xPct: 0.2, yPct: 0.4, effectType: null, isWaterSource: true };
   const route = setup(original);
   const res = await route.invoke(0.33, 0.56);
@@ -94,6 +96,8 @@ test("duplicating decor creates a new row with unchanged art, size, flip and lay
   assert.equal(res.body.id, "duplicate-id");
   assert.deepEqual(route.getSaved(), {
     kind: "decor", imageUrl: "/uploads/tree.png", tapImageUrl: "/uploads/open-gate.png", effectType: null,
+    appearanceGroupId: "linked-tree",
+    decorEffects: [{ id: "glow-1", type: "warm_glow", x: 0.25, y: 0.6, size: 48 }],
     size: 480, flipped: true, layer: 42, xPct: 0.33, yPct: 0.56, isWaterSource: true,
   });
   assert.equal(route.imageProcessingCalls(), 0, "duplication must never require another image upload");

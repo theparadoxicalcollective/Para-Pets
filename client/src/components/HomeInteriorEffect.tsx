@@ -29,7 +29,9 @@ type EffectPointerHandler = (
 type EffectToggleHandler = (effect: HouseInteriorEffect) => void;
 
 export function isPlayerToggleableInteriorEffect(type: HouseInteriorEffectType): boolean {
-  return isHouseInteriorLightEffectType(type);
+  // Sunlight is a daylight ambience, not a switchable lamp. This also
+  // removes its player hit-target/keyboard toggle in homes and park rooms.
+  return type !== "warm_glow" && isHouseInteriorLightEffectType(type);
 }
 
 interface HomeInteriorEffectsLayerProps {
@@ -520,7 +522,8 @@ export function HomeInteriorDarknessLayer({
   const useImageSpace = Number.isFinite(panX) && Number.isFinite(imgWidth) && Number.isFinite(sceneHeight)
     && (imgWidth ?? 0) > 0 && (sceneHeight ?? 0) > 0;
   const activeLights = effects?.filter(effect =>
-    isHouseInteriorLightEffectType(effect.type) && !offEffectIds?.has(effect.id)
+    isHouseInteriorLightEffectType(effect.type) &&
+    (effect.type === "warm_glow" || !offEffectIds?.has(effect.id))
   ) ?? [];
 
   if (!useImageSpace || activeLights.length === 0) {
@@ -658,8 +661,8 @@ export function HomeInteriorEffectsLayer({
         const daylightOpacity = effect.type === "warm_glow" && !interactive ? safeSunlight : 1;
         const playerToggleable = !interactive && !!onToggleEffect && isPlayerToggleableInteriorEffect(effect.type);
         const isOff = playerToggleable && offEffectIds?.has(effect.id) === true;
-        // Keep a reliable player tap target even when synced Sunlight fades
-        // almost completely at night. Only the visual fades; the hit target does not.
+        // Only lamps and flames keep a player hit target. Sunlight must
+        // neither intercept taps nor expose a toggle at any brightness.
         const hitSizePx = playerToggleable ? Math.max(48, sizePx) : sizePx;
         return (
           <div

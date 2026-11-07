@@ -1244,7 +1244,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [activeBundle, currentOutdoorLightingMode, persistPlayerLightingPatch, setCachedOutdoorMode]);
 
   const toggleSavedInteriorLight = useCallback((buildingId: string, effect: HouseInteriorEffect) => {
-    if (!activeBundle) return;
+    if (!activeBundle || effect.type === "warm_glow") return;
     const queryKey = ["/api/users", user.id, "active-house-bundle"] as const;
     let nextOff = true;
     qc.setQueryData<ActiveBundle | null>(queryKey, current => {
