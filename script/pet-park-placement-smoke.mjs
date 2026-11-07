@@ -32,10 +32,16 @@ try{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const art='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect x="40" y="20" width="120" height="120" fill="#c2ad74"/></svg>').toString('base64');
   let scene={enabledForPlayers:false,canEditPark:true,preview:true,backgroundUrl:null,groundLevel:1,groundTheme:"grass",items:[{id:'decor',kind:'decor',effectType:null,imageUrl:art,xPct:0.72,yPct:0.58,size:100,flipped:false,layer:0}],deposits:[],sharedPets:[],unlockedSlots:1,buildings:[{id:'cottage',name:'Fixture Cottage',imageUrl:art,interiorImageUrl:null,xPct:0.5,yPct:0.5,size:400,flipped:false,layer:0,maxPets:10,interiorEffects:[]}]};
-  const strokes=[],patches=[],groundUpdates=[],shopSaves=[];
+  const strokes=[],patches=[],decorPatches=[],groundUpdates=[],shopSaves=[];
   await page.route('**/api/**',route=>{
    const path=new URL(route.request().url()).pathname;
    if(path==='/api/pet-park/scene')return route.fulfill({json:scene});
+   if(path==='/api/admin/pet-park/items/overlap-flower'){
+    const body=route.request().postDataJSON();
+    decorPatches.push(body);
+    scene={...scene,items:scene.items.map(item=>item.id==='overlap-flower'?{...item,...body}:item)};
+    return route.fulfill({json:scene.items.find(item=>item.id==='overlap-flower')});
+   }
    if(path==='/api/admin/pet-park/buildings/cottage'){
     const body=route.request().postDataJSON();
     if (Object.prototype.hasOwnProperty.call(body,'isShop')) shopSaves.push(body);
@@ -65,8 +71,55 @@ try{
   await cottage.waitFor({state:'visible',timeout:30000});
   assert.equal(await page.getByTestId('pet-park-contact-shadow').count(),0,name+': buildings and decor must have no added ground shadows');
   assert.equal(patches.length,0,'loading must never move saved objects');
+
+  // Place a small decoration where a large foreground building's transparent
+  // top-right PNG padding covers it in the browser's rectangular hit layer.
+  // Actual artwork alpha says the smaller flower should receive the tap.
+  const buildingBounds=await cottage.boundingBox();
+  const worldBounds=await page.locator('[data-park-world-artwork]').boundingBox();
+  const flowerPoint={x:buildingBounds.x+buildingBounds.width*.90,
+                     y:buildingBounds.y+buildingBounds.height*.12};
+  const flowerPlacement={xPct:(flowerPoint.x-worldBounds.x)/worldBounds.width,
+                         yPct:(flowerPoint.y-worldBounds.y)/worldBounds.height};
+  assert.ok(flowerPlacement.xPct>0 && flowerPlacement.xPct<1 &&
+    flowerPlacement.yPct>0 && flowerPlacement.yPct<1,
+    name+': overlap fixture fits inside park world');
+  scene={...scene,items:[...scene.items,{
+    id:'overlap-flower',kind:'decor',effectType:null,imageUrl:art,
+    ...flowerPlacement,size:80,flipped:false,layer:0,
+  }]};
+  await page.reload({waitUntil:'commit'});
+  const small=page.locator('[data-park-object-id="overlap-flower"]');
+  await small.waitFor({state:'visible'});
+  const newCottage=page.getByRole('button',{name:'Enter Fixture Cottage',exact:true});
+  const smallBounds=await small.boundingBox();
+  const flowerTap={x:smallBounds.x+smallBounds.width/2,y:smallBounds.y+smallBounds.height/2};
+  const browserTopObject=await page.evaluate(point=>
+    document.elementFromPoint(point.x,point.y)?.closest('[data-park-object-id]')?.getAttribute('data-park-object-id'),
+    flowerTap);
+  assert.equal(browserTopObject,'cottage',name+': topmost rectangle really blocks small flower without alpha selection');
+  await page.mouse.click(flowerTap.x,flowerTap.y);
+  await page.getByTestId('park-decoration-artwork-editor').waitFor({state:'visible'});
+  assert.equal(await page.getByRole('button',{name:'Edit building'}).count(),0,
+    name+': transparent foreground building does not steal smaller decor selection');
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await page.mouse.click(flowerTap.x,flowerTap.y);
+  await page.mouse.click(flowerTap.x,flowerTap.y);
+  await page.getByText('Move armed · drag artwork').waitFor({state:'visible'});
+  const beforeDecorDrag=await small.boundingBox();
+  const dragStart={x:beforeDecorDrag.x+beforeDecorDrag.width/2,y:beforeDecorDrag.y+beforeDecorDrag.height/2};
+  await page.mouse.move(dragStart.x,dragStart.y);
+  await page.mouse.down();
+  await page.mouse.move(dragStart.x+27,dragStart.y+22,{steps:6});
+  await page.mouse.up();
+  await page.waitForFunction(()=>!document.body.textContent.includes('Saving…'));
+  assert.equal(decorPatches.length,1,name+': dragging a small hidden-behind-padding decor saves its own placement');
+  assert.ok(decorPatches[0].xPct>flowerPlacement.xPct && decorPatches[0].yPct>flowerPlacement.yPct);
+  assert.equal(patches.length,0,name+': moving the flower does not move its overlapping building');
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+
   // One drag may pan the camera or select, but must NOT move admin objects.
-  const box=await cottage.boundingBox();
+  const box=await newCottage.boundingBox();
   await page.mouse.move(box.x+box.width/2,box.y+box.height*.4);await page.mouse.down();
   await page.mouse.move(box.x+box.width/2+30,box.y+box.height*.4+20,{steps:6});await page.mouse.up();
   assert.equal(patches.length,0,name+': single drag cannot move a building');
@@ -74,12 +127,12 @@ try{
   // A double-tap on the visible artwork arms a subsequent drag; remeasure
   // after camera panning instead of assuming the object stayed in one place.
   await page.waitForTimeout(440);
-  const armedBox=await cottage.boundingBox();
+  const armedBox=await newCottage.boundingBox();
   const x=armedBox.x+armedBox.width/2,y=armedBox.y+armedBox.height*.4;
   await page.mouse.click(x,y);
   await page.mouse.click(x,y);
   await page.getByText('Move armed · drag artwork').waitFor({state:'visible'});
-  const movedBox=await cottage.boundingBox();
+  const movedBox=await newCottage.boundingBox();
   await page.mouse.move(movedBox.x+movedBox.width/2,movedBox.y+movedBox.height*.4);
   await page.mouse.down();
   await page.mouse.move(movedBox.x+movedBox.width/2+30,movedBox.y+movedBox.height*.4+20,{steps:6});
@@ -113,7 +166,7 @@ try{
   await details.getByRole('button',{name:'Close'}).click();
 
   // The transparent corner of the SVG must not select or drag the building.
-  const after=await cottage.boundingBox();
+  const after=await newCottage.boundingBox();
   await page.mouse.move(after.x+3,after.y+3);await page.mouse.down();
   await page.mouse.move(after.x+33,after.y+23,{steps:6});await page.mouse.up();
   assert.equal(patches.length,1,name+': transparent image padding cannot move an object');
