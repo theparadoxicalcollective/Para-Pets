@@ -1369,6 +1369,13 @@ export const fishingLeaderboard = pgTable("fishing_leaderboard", {
 
 // Pet Park is independent of legacy Keeper's Central world data.
 // All server mutations remain disabled until a later audited service/API PR.
+// Park-only presence. The scene read refreshes at most every two minutes;
+// this is not a global online status or an earnings/eligibility flag.
+export const petParkPresence = pgTable("pet_park_presence", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  lastSeenAt: timestamp("last_seen_at").notNull().default(sql`now()`),
+});
+
 export const petParkSettings = pgTable("pet_park_settings", {
   id: varchar("id").primaryKey().default("main"),
   enabledForPlayers: boolean("enabled_for_players").notNull().default(false),
