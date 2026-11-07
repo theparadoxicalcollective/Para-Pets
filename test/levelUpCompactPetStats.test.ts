@@ -18,7 +18,10 @@ test("Level Up stats open on pet tap without changing item drop, oval, or upgrad
   assert.match(level, /const \[showStats, setShowStats\] = useState\(false\)/);
   assert.match(level, /aria-expanded=\{showStats\}/);
   assert.match(level, /data-testid="levelup-pet-stats-popover"/);
-  assert.match(level, /Tap your pet to view ATK/);
+  assert.doesNotMatch(level, /Tap your pet to view ATK/,
+    "the instructional strip is removed while stats remain available by tap");
+  assert.match(level, /aria-label="Show pet stats"/);
+  assert.match(level, /onClick=\{\(\) => \{ if \(!dragRef\.current\) setShowStats/);
   assert.match(level, /onPointerUp=\{onPointerUp\}/);
   assert.match(level, /onUseItem\(item\)/);
   assert.match(level, /PetPageOvalPlacement page="levelUp"/);
