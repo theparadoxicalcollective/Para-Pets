@@ -170,7 +170,6 @@ export default function PetLevelUpRoute() {
         itemsRemaining={Infinity}
         items={levelItems}
         isPending={useItemMutation.isPending}
-        subtitle={`Drag an XP item onto ${pet.petNickname || pet.name} to gain levels`}
         successEffect={successEffect}
         onUseItem={(item) => useItemMutation.mutate(item)}
         onSuccessAnimEnd={() => setSuccessEffect(null)}

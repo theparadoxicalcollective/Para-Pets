@@ -9,6 +9,8 @@ on:
       - 'client/src/components/JansonQuestOverlay.tsx'
       - 'client/src/components/GinnyQuestOverlay.tsx'
       - 'client/src/components/PetCostumeEquipmentSection.tsx'
+      - 'client/src/components/PetLevelUpPage.tsx'
+      - 'client/src/pages/PetLevelUpRoute.tsx'
       - 'client/src/components/PetPark*.tsx'
       - 'client/src/pages/PetParkPage.tsx'
       - 'client/src/lib/petPark*.ts'
@@ -76,6 +78,7 @@ jobs:
           node script/browser-smoke.mjs
           node script/desktop-coming-soon-smoke.mjs
           node script/desktop-portrait-shell-smoke.mjs
+          node script/level-up-game-layout-smoke.mjs
           node script/pet-park-placement-smoke.mjs
           node script/pet-park-player-profile-smoke.mjs
           node script/pet-park-indoor-touch-smoke.mjs

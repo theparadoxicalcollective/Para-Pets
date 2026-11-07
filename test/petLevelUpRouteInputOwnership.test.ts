@@ -33,5 +33,8 @@ test("Level Up accepts touch taps and preserves drag and keyboard activation", (
   assert.match(page, /if \(!moved \|\| dropped\) useItem\(current\.item\)/);
   assert.match(page, /suppressNextClickRef\.current = true/);
   assert.match(page, /event\.detail === 0 && !dragRef\.current/);
-  assert.match(page, /Tap an item or drag it onto/);
+  assert.match(page, /items\.length > 0 && <div className="lupage-hint">Tap or drag XP onto your pet<\/div>/,
+    "the shorter help text appears only with actual XP items");
+  assert.doesNotMatch(page, /Tap an item or drag it onto/,
+    "the previous long instruction row is removed");
 });
