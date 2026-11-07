@@ -186,11 +186,12 @@ try {
       name + ": world-only decor is rendered");
     const rect = await page.getByTestId("world-scene-placement-" + ids.decor).boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
+    const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
     await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
     await page.mouse.down();
     await page.mouse.move(rect.x + rect.width / 2 + 22, rect.y + rect.height / 2 + 28, { steps: 6 });
     await page.mouse.up();
-    await page.waitForFunction(() => !!document.querySelector('[data-world-editor-placement]'));
+    await moveSaved;
     assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" && w.tail === "placements/" + ids.decor &&
       w.method === "PATCH" && w.body.xPct !== .38),
       name + ": editor drag must save to its world-specific endpoint");
@@ -202,13 +203,16 @@ try {
     await page.getByRole("button", { name: "Stone Path" }).click();
     const surface = await page.getByTestId("world-editor-terrain-brush-surface").boundingBox();
     const sx = surface.x + surface.width * .52, sy = surface.y + surface.height * .62;
+    const painted = page.waitForResponse(r => r.url().endsWith("/terrain-strokes") && r.request().method() === "POST");
     await page.mouse.move(sx, sy); await page.mouse.down();
     await page.mouse.move(sx + 30, sy + 25, { steps: 5 }); await page.mouse.up();
-    await page.waitForFunction(() => !!document.querySelector('[data-testid="world-editor-terrain-brush-surface"]'));
+    await painted;
     assert.ok(apiWrites.some(w => w.tail === "terrain-strokes" && w.body.type === "stone_path"),
       name + ": painter saves stone tiles into the world draft");
     await page.getByRole("button", { name: "Toggle terrain eraser" }).click();
+    const erased = page.waitForResponse(r => r.url().endsWith("/terrain-erase") && r.request().method() === "POST");
     await page.mouse.move(sx, sy); await page.mouse.down(); await page.mouse.up();
+    await erased;
     assert.ok(apiWrites.some(w => w.tail === "terrain-erase" && w.body.type === "stone_path"),
       name + ": direct eraser only targets selected material");
     await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -225,6 +229,7 @@ try {
     // Crossing to another draft cannot display or edit Haunted Woods assets.
     await page.goto("http://127.0.0.1:4194/fixture?world=swamp", { waitUntil: "commit" });
     await page.getByTestId("world-scene-editor").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "+ Add" }).click();
     await page.getByText("Bayou Willow").waitFor({ state: "visible" });
     assert.equal(await page.getByText("Haunted Cedar").count(), 0,
       name + ": no asset or selection leaks across world identifiers");
