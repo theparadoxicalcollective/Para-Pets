@@ -502,7 +502,8 @@ function AppRouter() {
             <MapPage user={user} />
           </StagePageSurface>
         )}
-        {location.startsWith("/world-editor/") && user.isAdmin && (
+        {location.startsWith("/world-editor/") && (!user.isAdmin || !user.emailVerified) && <Redirect to="/map" />}
+        {location.startsWith("/world-editor/") && user.isAdmin && user.emailVerified && (
           <StagePageSurface key={location} layout="viewport">
             <WorldSceneEditorPage worldId={location.slice("/world-editor/".length).split("/")[0]} />
           </StagePageSurface>
