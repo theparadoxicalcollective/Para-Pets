@@ -57,7 +57,8 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(), user_id varchar NOT NULL,
         plot_item_id varchar NOT NULL, crop_id varchar, phase text NOT NULL DEFAULT 'empty',
         water_applied integer NOT NULL DEFAULT 0, harvest_ready boolean NOT NULL DEFAULT false,
-        picked_until timestamp, updated_at timestamp NOT NULL DEFAULT now(),
+        picked_until timestamp, passive_growth_at timestamp,
+        updated_at timestamp NOT NULL DEFAULT now(),
         UNIQUE(user_id, plot_item_id)
       );
       CREATE TABLE garden_action_receipts (
@@ -259,6 +260,48 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
 
     const receiptCount = Number((await pool.query("SELECT count(*)::int AS n FROM garden_action_receipts WHERE user_id='alice'")).rows[0].n);
     assert.equal(receiptCount, 9, "only successful unique mutations have committed receipts");
+
+    // Server-clock accelerated time: natural progression is resolved on GET
+    // (no background job or untrusted client clock), then incorporated into
+    // the next serial, idempotent watering/harvest transaction.
+    await pool.query("INSERT INTO pet_park_scene_items(id,kind,effect_type) VALUES ('plot2','terrain','garden_plot')");
+    const plot2 = { plotId: "plot2" };
+    assert.equal((await request(path("hoe"), plot2,
+      { requestId: key(), inventoryId: "alice-hoe" })).statusCode, 200);
+    assert.equal((await request(path("plant"), plot2,
+      { requestId: key(), inventoryId: "alice-seed" })).payload.plot.phase, "planted");
+    const getPlot2 = async () => (await request("GET /api/pet-park/garden")).payload.plots.find(
+      (plot: { plotItemId: string }) => plot.plotItemId === "plot2");
+    const startingWater = await charges();
+    now += 59 * 60_000;
+    assert.equal((await getPlot2()).waterApplied, 0, "59 minutes adds nothing");
+    now += 60_000;
+    assert.equal((await getPlot2()).waterApplied, 1, "one hour adds one passive stage unit");
+    now += 2 * 3_600_000;
+    assert.equal((await getPlot2()).waterApplied, 3);
+    assert.equal(await charges(), startingWater, "natural growth never spends equipment water");
+    const poured = await request(path("water"), plot2,
+      { requestId: key(), inventoryId: "alice-pail" });
+    assert.equal(poured.statusCode, 200);
+    assert.equal(poured.payload.waterUsed, 10);
+    assert.equal(poured.payload.plot.waterApplied, 13);
+    now += 3_600_000;
+    assert.equal((await getPlot2()).waterApplied, 14,
+      "watering cannot reset the natural-growth hour checkpoint");
+    now += 3 * 3_600_000;
+    assert.equal((await getPlot2()).phase, "seedling",
+      "passive growth crosses the first saved stage requirement");
+    now += 26 * 3_600_000;
+    const ripe = await getPlot2();
+    assert.equal(ripe.phase, "grown");
+    assert.equal(ripe.harvestReady, true);
+    assert.equal(await charges(), startingWater - 10, "26 offline hours spent no pail water");
+    const reaped = await request(path("harvest"), plot2,
+      { requestId: key(), inventoryId: "alice-scythe" });
+    assert.equal(reaped.statusCode, 200, "scythe is still required after natural ripening");
+    assert.deepEqual(reaped.payload.reward, { fruitItemId: "fruit", quantity: 2 });
+    assert.equal((await getPlot2()).phase, "picked");
+
   } finally {
     await pool.end();
     await setupPool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
