@@ -13,9 +13,17 @@ import type {
 import type { ParkEffectType } from "@shared/petParkEffects";
 
 type Panel = "library" | "effects" | "selected" | "terrain" | "shop" | "interior";
-const EFFECT_CHOICES: Array<{ type: ParkEffectType; label: string; size: number }> = [
-  ...HOME_OUTDOOR_EFFECT_OPTIONS.filter(o => o.type !== "sleep").map(o => ({ type: o.type, label: o.label, size: Math.max(60, o.defaultSize * 6) })),
-  ...PARK_WATER_EFFECT_OPTIONS.map(o => ({ type: o.type, label: o.label, size: o.defaultSize })),
+const EFFECT_CHOICES: Array<{
+  type: ParkEffectType; label: string; description: string; size: number; group: "outdoor" | "water";
+}> = [
+  ...HOME_OUTDOOR_EFFECT_OPTIONS.filter(o => o.type !== "sleep").map(o => ({
+    type: o.type, label: o.label, description: o.description,
+    size: Math.max(60, o.defaultSize * 6), group: "outdoor" as const,
+  })),
+  ...PARK_WATER_EFFECT_OPTIONS.map(o => ({
+    type: o.type, label: o.label, description: o.description,
+    size: o.defaultSize, group: "water" as const,
+  })),
 ];
 
 type Props = {
@@ -350,18 +358,45 @@ export default function WorldSceneControls(props: Props) {
           <p className="text-[11px] text-[#d0c094]">Paint Garden Plot tiles here. Planting and harvesting are player-world features, not editor controls.</p>
         </div>}
 
-        {panel === "effects" && <div className="space-y-2">
-          <h3 className={heading}>Scene effects</h3>
-          <p className="text-[11px]">Tap to add an animated effect in the scene or inside the selected building.</p>
-          <div className="grid grid-cols-2 gap-2">
-            {EFFECT_CHOICES.map(effect => <button key={effect.type} className={control} disabled={busy}
-              onClick={() => props.activeBuilding
-                ? void addInside("effect", null, effect.type, effect.size)
-                : void add("effect", null, effect.type, effect.size)}>
-              {effect.label}
-            </button>)}
+        {panel === "effects" && <section aria-label="World outdoor effects" className="space-y-3">
+          <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
+            Outdoor Effects
           </div>
-        </div>}
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_CHOICES.filter(effect => effect.group === "outdoor").map(effect =>
+              <button key={effect.type} type="button"
+                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
+                onClick={() => props.activeBuilding
+                  ? void addInside("effect", null, effect.type, effect.size)
+                  : void add("effect", null, effect.type, effect.size)}
+                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
+                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
+                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
+                  {effect.description}
+                </span>
+              </button>)}
+          </div>
+          <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
+            Water Effects
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_CHOICES.filter(effect => effect.group === "water").map(effect =>
+              <button key={effect.type} type="button"
+                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
+                onClick={() => props.activeBuilding
+                  ? void addInside("effect", null, effect.type, effect.size)
+                  : void add("effect", null, effect.type, effect.size)}
+                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
+                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
+                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
+                  {effect.description}
+                </span>
+              </button>)}
+          </div>
+          <p className="text-center text-xs text-amber-100/60">
+            Tap an effect to place it, then drag it into position.
+          </p>
+        </section>}
 
         {panel === "selected" && <>
           {!selectedItem ? <p className="text-xs">Tap a decoration, building, effect, or interior object to edit it.</p> : <>
