@@ -52,22 +52,33 @@ try {
     const ctx=await browser.newContext({viewport:{width,height},hasTouch:true,isMobile:true});
     const page=await ctx.newPage();
     page.setDefaultTimeout(14000);
-    const errors=[],writes=[];
+    const errors=[],writes=[],purchases=[];
+    let coins=5000;
     let layout=[{itemId:"scythe",xPct:.5,yPct:.4,size:12}]; // historic shop without rotation
-    const item={id:"scythe",name:"Scythe",type:"garden_tool",specialType:"scythe",price:250,
+    let item={id:"scythe",name:"Scythe",type:"garden_tool",specialType:"scythe",price:250,
       imageUrl:art,eggImageUrl:null,hatchedImageUrl:null,description:"Harvest crops"};
     page.on("pageerror",e=>errors.push(e.message));
     await page.route("**/api/**",async route=>{
       const pathname=new URL(route.request().url()).pathname;
       if(pathname==="/api/pet-park/scene")return route.fulfill({json:{buildings:[{
-        id:"shop1",isShop:true,shopItemIds:["scythe"],shopItemPlacements:layout,
+        id:"shop1",isShop:true,shopItemIds:[item.id],shopItemPlacements:layout,
       }]}});
       if(pathname==="/api/pet-park/buildings/shop1/shop-items")
         return route.fulfill({json:[item]});
       if(pathname==="/api/admin/pet-park/shop-catalog")
         return route.fulfill({json:[item]});
       if(pathname==="/api/inventory")return route.fulfill({json:[]});
-      if(pathname==="/api/auth/me")return route.fulfill({json:{coins:5000}});
+      if(pathname==="/api/auth/me")return route.fulfill({json:{coins}});
+      if(pathname==="/api/shop/pet-park/buy/"+item.id && route.request().method()==="POST"){
+        const body=route.request().postDataJSON();
+        purchases.push(body);
+        assert.equal(body.buildingId,"shop1",label+": purchase keeps the verified building");
+        assert.ok(Number.isSafeInteger(body.quantity) && body.quantity>=1 && body.quantity<=20);
+        const total=item.price*body.quantity;
+        assert.ok(total<=coins,label+": no purchase can overspend");
+        coins-=total;
+        return route.fulfill({json:{user:{coins},quantity:body.quantity}});
+      }
       if(pathname==="/api/admin/pet-park/buildings/shop1" && route.request().method()==="PATCH"){
         const body=route.request().postDataJSON();
         assert.deepEqual(body.shopItemIds,["scythe"]);
@@ -195,9 +206,55 @@ try {
     const purchaseDialog=page.getByRole("dialog",{name:"Buy Scythe"});
     await purchaseDialog.getByRole("heading",{name:"Scythe"}).waitFor();
     await purchaseDialog.getByText("250",{exact:true}).waitFor({state:"visible"});
+    assert.equal(await purchaseDialog.getByTestId("pet-park-shop-quantity-plus").count(),0,
+      label+": one-per-kind gardening tools cannot be bulk ordered");
+    assert.equal(await purchaseDialog.getByText("One per player").count(),1);
     assert.ok(writes.length>=5,label+": tag placement, rotation, flip and drag reuse the existing save route");
+
+    // Switch the mocked inventory to ordinary garden seeds. Exercise the
+    // real checkout with touch-sized controls on both phone and tablet.
+    item={...item,id:"seed",name:"Blueberry Seeds",type:"garden_seed",specialType:null,price:10};
+    layout=[{itemId:"seed",xPct:.5,yPct:.4,size:12}];
+    coins=35;
+    await page.reload({waitUntil:"domcontentloaded"});
+    const seedButton=page.getByRole("button",{name:"Buy Blueberry Seeds"});
+    await seedButton.waitFor({state:"visible"});
+    await seedButton.click();
+    const seedDialog=page.getByRole("dialog",{name:"Buy Blueberry Seeds"});
+    await seedDialog.waitFor({state:"visible"});
+    const minus=seedDialog.getByTestId("pet-park-shop-quantity-minus");
+    const plus=seedDialog.getByTestId("pet-park-shop-quantity-plus");
+    const quantity=seedDialog.getByTestId("pet-park-shop-quantity-value");
+    const total=seedDialog.getByTestId("pet-park-shop-total-price");
+    const checkout=seedDialog.getByTestId("pet-park-confirm-purchase");
+    assert.equal(await quantity.innerText(),"1",label+": quantity starts at one");
+    assert.equal(await minus.isDisabled(),true,label+": cannot decrement below one");
+    assert.equal(await total.innerText(),"10",label+": starts at unit price");
+    await plus.click();
+    await plus.click();
+    await plus.click();
+    assert.equal(await quantity.innerText(),"4",label+": plus updates quantity");
+    assert.equal(await total.innerText(),"40",label+": total updates with quantity");
+    assert.equal(await checkout.isDisabled(),true,label+": bulk total cannot exceed available coins");
+    assert.ok((await checkout.innerText()).includes("Not enough coins"));
+    await minus.click();
+    assert.equal(await quantity.innerText(),"3",label+": minus updates quantity");
+    assert.equal(await total.innerText(),"30",label+": total recalculates after decrement");
+    assert.equal(await checkout.isEnabled(),true,label+": affordable quantity can be purchased");
+    assert.ok((await checkout.innerText()).includes("3 items"));
+    await checkout.click();
+    await page.getByTestId("pet-park-shop-purchase-confirmation").waitFor({state:"visible"});
+    assert.deepEqual(purchases,[{buildingId:"shop1",quantity:3}],
+      label+": one atomic checkout submits the exact requested quantity");
+    assert.equal(coins,5,label+": server-calculated total is deducted only once");
+    assert.equal(await page.getByText("Purchase complete").count(),0,
+      label+": generic purchase-complete toast is gone");
+    assert.ok((await page.getByTestId("pet-park-shop-purchase-confirmation").innerText()).includes("3 × Blueberry Seeds"));
+    await seedButton.click();
+    await seedDialog.waitFor({state:"visible"});
+    assert.equal(await quantity.innerText(),"1",label+": next purchase resets quantity");
     assert.deepEqual(errors,[],label+": no client errors");
-    console.log("PASS "+label+": wooden coin tags, flip, rotation and drag persist; tag panel hides while moving; numeric prices only at checkout");
+    console.log("PASS "+label+": shop art, quiet purchase confirmation, quantity +/- and atomic multi-seed checkout");
     await ctx.close();
   }
 } finally { await browser.close(); await server.close(); }
