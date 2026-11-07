@@ -1,4 +1,5 @@
 import type { ParkDecorEffect } from "../petParkDecorEffects";
+import type { ParkShopPlacement } from "../petParkShopPlacements";
 import { isValidParkDecorEffects } from "../petParkDecorEffects";
 import { isParkEffect, type ParkEffectType } from "../petParkEffects";
 import { isPaintableParkTerrainDetail } from "../petParkTerrainDetails";
@@ -17,7 +18,7 @@ export type WorldScenePlacement = {
   assetId: string | null; effectType: string | null; terrainKey: string | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
   decorEffects: ParkDecorEffect[]; isWaterSource: boolean;
-  isShop: boolean; shopItemIds: string[];
+  isShop: boolean; shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
 };
 
 export type WorldSceneInteriorItem = {
