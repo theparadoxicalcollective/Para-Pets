@@ -10,6 +10,7 @@ import {
   isWorldTerrainType, WORLD_TERRAIN_BRUSH_SIZES, worldTerrainCell,
 } from "@shared/worlds/worldSceneContent";
 import { parkGroundSize } from "@shared/petParkGround";
+import type { WorldId } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
 
 type Store = typeof database;
@@ -19,7 +20,7 @@ const MAX_ASSETS = 300;
 const MAX_OBJECTS = 4500;
 const MAX_INTERIOR = 120;
 
-function worldFrom(req: Request): string | null {
+function worldFrom(req: Request): WorldId | null {
   const id = req.params.worldId;
   return typeof id === "string" && isEditableWorldSceneId(id) ? id : null;
 }
