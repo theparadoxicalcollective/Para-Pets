@@ -41,6 +41,7 @@ export default function WorldSceneControls(props: Props) {
   const [uploadTap, setUploadTap] = useState<string | null>(null);
   const [uploadInterior, setUploadInterior] = useState<string | null>(null);
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [previewTappedArtwork, setPreviewTappedArtwork] = useState(false);
   const [search, setSearch] = useState("");
   const [assetSearch, setAssetSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -49,6 +50,7 @@ export default function WorldSceneControls(props: Props) {
   useEffect(() => {
     setPanel("library");
     setEditingAssetId(null);
+    setPreviewTappedArtwork(false);
     setAssetSearch("");
     setExpanded(false);
   }, [props.worldId]);
@@ -243,6 +245,15 @@ export default function WorldSceneControls(props: Props) {
           </div>
           {!props.activeBuilding && editingAsset && <div className="space-y-2 border-t border-[#75613c] pt-3">
             <h3 className={heading}>Edit {editingAsset.name}</h3>
+            {editingAsset.tapImageUrl && <>
+              <button type="button" className={control} aria-pressed={previewTappedArtwork}
+                onClick={() => setPreviewTappedArtwork(value => !value)}>
+                {previewTappedArtwork ? "Show regular artwork" : "Preview tapped artwork"}
+              </button>
+              <img src={previewTappedArtwork ? editingAsset.tapImageUrl : editingAsset.imageUrl}
+                alt={previewTappedArtwork ? "Tapped art preview" : "Regular art preview"}
+                className="mx-auto h-28 max-w-full object-contain" />
+            </>}
             <input aria-label="Rename asset" defaultValue={editingAsset.name} key={editingAsset.id}
               id="world-asset-name" className={field} />
             <button type="button" className={control} disabled={busy}
@@ -270,7 +281,7 @@ export default function WorldSceneControls(props: Props) {
         {panel === "terrain" && <div className="space-y-2">
           <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
           <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
-          <p className="text-[11px] text-[#d0c094]">Soil plots can be designed now. Planting and harvesting will use the shared inventory when PR 3 adds player actions.</p>
+          <p className="text-[11px] text-[#d0c094]">Garden plots are active in the private Test Gardening preview. Seeds, tools and water share the player inventory with Pet Park.</p>
         </div>}
 
         {panel === "effects" && <div className="space-y-2">
@@ -310,7 +321,7 @@ export default function WorldSceneControls(props: Props) {
               <label className="flex items-center gap-2 text-[11px]">
                 <input type="checkbox" checked={props.selected.isWaterSource} disabled={busy}
                   onChange={e => void patchSelected({ isWaterSource: e.target.checked })} />
-                Water refill source (active in PR 3)
+                Water refill source for the shared watering pail
               </label>
               <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
                 effects={props.selected.decorEffects} disabled={busy}
