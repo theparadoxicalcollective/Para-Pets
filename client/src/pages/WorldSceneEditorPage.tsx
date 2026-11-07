@@ -190,11 +190,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 disabled={groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
                 onClick={() => changeLevel(groundLevel + 1)} aria-label="Expand draft ground">+</button>
             </div>
-            <button type="button" disabled={!edited || save.isPending}
+            <button type="button" disabled={(!edited && draft.data?.hasSavedDraft) || save.isPending}
               data-testid="button-save-world-draft"
               className="w-full rounded-md border border-[#d3ae56] bg-[#355239] p-2 text-xs font-semibold disabled:opacity-50"
               onClick={() => save.mutate({ groundLevel, groundTheme })}>
-              {save.isPending ? "Saving..." : "Save World Draft"}
+              {save.isPending ? "Saving..." : draft.data?.hasSavedDraft ? "Save World Draft" : "Create World Draft"}
             </button>
           </>
         )}
