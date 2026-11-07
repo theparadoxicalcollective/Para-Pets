@@ -84,6 +84,15 @@ export async function ensurePetParkStorage(): Promise<void> {
       CHECK (max_pets BETWEEN 10 AND 25);
     -- Player slot limits (1–3) are separate and stay unchanged.
 
+    -- Park-only activity for scene crowd control. One small row per owner,
+    -- never an equipment, reward, public-profile or online-status change.
+    CREATE TABLE IF NOT EXISTS pet_park_presence (
+      user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      last_seen_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS pet_park_presence_recent_idx
+      ON pet_park_presence (last_seen_at DESC);
+
     CREATE TABLE IF NOT EXISTS pet_park_player_slots (
       user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       unlocked_slots integer NOT NULL DEFAULT 1 CHECK (unlocked_slots BETWEEN 1 AND 3),
