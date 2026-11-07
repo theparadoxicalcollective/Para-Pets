@@ -45,6 +45,7 @@ export default function WorldSceneControls(props: Props) {
   const [search, setSearch] = useState("");
   const [assetSearch, setAssetSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function WorldSceneControls(props: Props) {
     setPreviewTappedArtwork(false);
     setAssetSearch("");
     setExpanded(false);
+    setAssetKindFilter(null);
   }, [props.worldId]);
   useEffect(() => {
     setPanel(props.activeBuilding ? "interior" : "library");
@@ -114,7 +116,7 @@ export default function WorldSceneControls(props: Props) {
       kind, assetId, effectType, xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
       size, flipped: false, layer: 0, decorEffects: [], isWaterSource: false, isShop: false, shopItemIds: [],
     }) as WorldScenePlacement | null;
-    if (result) { props.onSelect(result.id); setPanel("selected"); }
+    if (result) { props.onSelect(result.id); setPanel("selected"); setExpanded(false); }
   };
   const addInside = async (kind: "decor" | "effect", assetId: string | null, effectType: string | null, size: number) => {
     if (!props.activeBuilding) return;
@@ -122,7 +124,7 @@ export default function WorldSceneControls(props: Props) {
       buildingId: props.activeBuilding.id, kind, assetId, effectType,
       xPct: 0.5, yPct: 0.5, size, flipped: false,
     }) as WorldSceneInteriorItem | null;
-    if (result) props.onSelectInterior(result.id);
+    if (result) { props.onSelectInterior(result.id); setPanel("selected"); setExpanded(false); }
   };
   const patchSelected = async (values: Record<string, unknown>) => {
     if (!props.selected) return;
@@ -166,44 +168,125 @@ export default function WorldSceneControls(props: Props) {
 
   const matchingAssets = props.scene.assets.filter(asset =>
     (!props.activeBuilding || asset.kind === "decor") &&
+    (!assetKindFilter || asset.kind === assetKindFilter) &&
     asset.name.toLowerCase().includes(assetSearch.trim().toLowerCase()));
   // Limit mounted image previews on Safari: each image may be a large artwork.
   const assetList = matchingAssets.slice(0, 40);
 
-  return <section data-testid="world-scene-controls"
-    className="absolute z-30 bottom-2 inset-x-2 mx-auto max-w-lg rounded-xl border border-[#9a8146] bg-[#11271b]/95 text-[#f5dfad] shadow-2xl"
-    style={{ bottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}
-    onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}>
-    <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
-      <h2 className={heading}>{props.activeBuilding ? "Interior: " + (interiorAsset?.name ?? "Building") : "World Creator"}</h2>
-      <div className="flex gap-2">
-        {props.activeBuilding && <button className={control} type="button" onClick={props.onExit}>Exit Interior</button>}
-        <button type="button" className={control} aria-expanded={expanded}
-          onClick={() => setExpanded(v => !v)}>{expanded ? "Collapse" : "Edit Tools"}</button>
+  const openCreator = (mode: Panel, kind: "decor" | "building" | null = null) => {
+    setAssetKindFilter(kind);
+    if (kind) setUploadKind(kind);
+    setPanel(mode);
+    setExpanded(true);
+  };
+  const clearTerrain = async () => {
+    if (busy || !props.scene.placements.some(item => item.kind === "terrain")) return;
+    const result = await mutate("DELETE", "/terrain");
+    if (result) toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
+  };
+  const selectedName = props.activeBuilding
+    ? props.scene.assets.find(asset => asset.id === props.selectedInterior?.assetId)?.name ??
+      props.selectedInterior?.effectType?.replaceAll("_", " ") ?? "Interior object"
+    : props.scene.assets.find(asset => asset.id === props.selected?.assetId)?.name ??
+      props.selected?.effectType?.replaceAll("_", " ") ?? "World object";
+  const quickButton = "min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg disabled:opacity-40";
+  const quickAccent = "min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#20442e]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg disabled:opacity-40";
+  const quickDanger = "min-h-12 rounded-xl border border-[#be8d62]/65 bg-[#463028]/95 px-2 py-2 text-xs font-semibold text-[#f9d6a6] shadow-lg disabled:opacity-40";
+
+  return <>
+    {!expanded && !selectedItem && <div
+      data-testid="world-scene-controls" aria-label="World editing toolbar"
+      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg grid-cols-3 gap-1.5 sm:grid-cols-5"
+      style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
+      onPointerDown={event => event.stopPropagation()}>
+      {props.activeBuilding ? <>
+        <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
+        <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
+        <button type="button" className={quickButton} onClick={() => openCreator("shop")}>Shop Setup</button>
+        <button type="button" className={quickAccent} onClick={props.onExit}>Exit Interior</button>
+      </> : <>
+        <button type="button" className={quickButton} onClick={() => openCreator("library", "building")}>+ Building</button>
+        <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
+        <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
+        <button type="button" className={quickAccent} aria-label="Paint terrain"
+          onClick={props.onPaint}>Paint terrain</button>
+        <button type="button" className={quickDanger} aria-label="Clear all world terrain"
+          disabled={busy || !props.scene.placements.some(item => item.kind === "terrain")}
+          onClick={() => void clearTerrain()}>{busy ? "Saving…" : "Clear terrain"}</button>
+      </>}
+    </div>}
+    {!expanded && selectedItem && <section
+      data-testid="world-scene-selected-controls" aria-label="Edit selected world object"
+      className="pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl"
+      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: "38dvh" }}
+      onPointerDown={event => event.stopPropagation()}>
+      <div className="flex items-center justify-between gap-2">
+        <strong className="truncate text-sm capitalize">{selectedName}</strong>
+        <button type="button" aria-label="Deselect world object" className={control}
+          onClick={() => props.activeBuilding ? props.onSelectInterior(null) : props.onSelect(null)}>Done</button>
       </div>
-    </div>
-    {!expanded ? <div className="flex justify-between gap-1 px-3 pb-2">
-      {props.activeBuilding && <button className={control} onClick={() => setExpanded(true)}>Add interior items</button>}
-      <button className={control} onClick={() => { setPanel("library"); setExpanded(true); }}>+ Add</button>
-      {!props.activeBuilding && <button className={control} onClick={props.onPaint}>Paint Ground</button>}
-      {selectedItem && <button className={control} onClick={() => { setPanel("selected"); setExpanded(true); }}>Edit Selected</button>}
-    </div> : <>
-      <nav className="flex gap-1 overflow-x-auto px-3 py-1">
-        {tabs.map(t => <button key={t.id} type="button" onClick={() => setPanel(t.id)}
-          aria-pressed={panel === t.id} className={`min-w-[55px] rounded-md border px-2 py-2 text-[10px] font-semibold ${panel === t.id ? "border-[#e7c46d] bg-[#31583c]" : "border-[#705f3c] bg-[#152e21]"}`}>
-          {t.label}
-        </button>)}
-      </nav>
-      <div className="max-h-[min(46dvh,340px)] space-y-3 overflow-y-auto overscroll-contain p-3 pt-2">
+      <p className="text-[11px] text-amber-100/75">Drag the artwork to reposition it. Changes save automatically.</p>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <button type="button" className={control} disabled={busy || selectedItem.size <= 1}
+          onClick={() => void (props.activeBuilding
+            ? patchInterior({ size: Math.max(1, selectedItem.size - 20) })
+            : patchSelected({ size: Math.max(1, selectedItem.size - 20) }))}>− Size</button>
+        <span className="tabular-nums">Size {selectedItem.size}</span>
+        <button type="button" className={control} disabled={busy || selectedItem.size >= 1000}
+          onClick={() => void (props.activeBuilding
+            ? patchInterior({ size: Math.min(1000, selectedItem.size + 20) })
+            : patchSelected({ size: Math.min(1000, selectedItem.size + 20) }))}>+ Size</button>
+        <button type="button" className={control} disabled={busy}
+          onClick={() => void (props.activeBuilding
+            ? patchInterior({ flipped: !selectedItem.flipped })
+            : patchSelected({ flipped: !selectedItem.flipped }))}>Flip</button>
+        <button type="button" className={danger} disabled={busy}
+          onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
+      </div>
+      {!props.activeBuilding && props.selected?.kind === "decor" && <>
+        <button type="button" aria-pressed={props.selected.isWaterSource} className={control}
+          disabled={busy} onClick={() => void patchSelected({ isWaterSource: !props.selected!.isWaterSource })}>
+          Water Source: {props.selected.isWaterSource ? "ON" : "OFF"}
+        </button>
+        <button type="button" className={quickAccent} onClick={() => openCreator("selected")}>Edit Decoration Effects</button>
+      </>}
+      {!props.activeBuilding && props.selected?.kind === "building" && <div className="flex flex-wrap gap-2">
+        <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>
+        <button type="button" className={control} onClick={() => openCreator("shop")}>Shop Setup</button>
+        <button type="button" className={control} onClick={() => openCreator("library", "building")}>Edit Building Art</button>
+      </div>}
+      {props.activeBuilding && <button type="button" className={control}
+        onClick={() => openCreator("selected")}>Edit Interior Object</button>}
+    </section>}
+    {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
+      role="dialog" aria-modal="true"
+      aria-label={panel === "library" ? "Add world object" : panel === "effects" ? "Add world effects" : "Edit world object"}>
+      <button type="button" aria-label="Close add object" className="absolute inset-0 bg-black/65"
+        onClick={() => setExpanded(false)} />
+      <section data-testid="world-scene-creator-panel"
+        className="relative z-10 flex max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] font-fantasy text-amber-100 shadow-2xl"
+        onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
+          <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
+            {panel === "library" ? (props.activeBuilding || assetKindFilter === "decor" ? "Decor / Objects" : "Add Building")
+              : panel === "effects" ? "World Effects"
+              : panel === "selected" ? "Edit " + selectedName
+              : panel === "shop" ? "Building Shop Setup"
+              : panel === "interior" ? "Building Interior" : "World Tools"}
+          </h2>
+          <button type="button" aria-label="Close editor" onClick={() => setExpanded(false)}
+            className="rounded-full border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-[#f5cf64]">×</button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
         {panel === "library" && <>
           {!props.activeBuilding && <div className="space-y-2 border-b border-[#75613c] pb-3">
             <h3 className={heading}>Upload world-only artwork</h3>
             <input aria-label="Asset name" className={field} placeholder="Decoration or building name"
               value={uploadName} onChange={e => setUploadName(e.target.value)} />
-            <select value={uploadKind} className={field}
+            {!assetKindFilter && <select value={uploadKind} className={field}
               aria-label="New asset type" onChange={e => setUploadKind(e.target.value as "decor" | "building")}>
               <option value="decor">Decoration</option><option value="building">Building</option>
-            </select>
+            </select>}
             <label className="block text-[11px]">Artwork (transparent PNG recommended)
               <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="mt-1 block w-full text-[11px]"
                 onChange={e => void chooseFile(e.target.files?.[0], setUploadArt)} />
@@ -373,7 +456,8 @@ export default function WorldSceneControls(props: Props) {
               onClick={() => { props.onSelectInterior(item.id); setPanel("selected"); }}>{item.kind} · {item.size}</button>)}
           </div>
         </>}
-      </div>
-    </>}
-  </section>;
+        </div>
+      </section>
+    </div>}
+  </>;
 }
