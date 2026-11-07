@@ -46,11 +46,19 @@ export function pickParkAdminArtwork(
     const image = node.querySelector<HTMLImageElement>("img");
     if (image && (kind === "building" || object.kind === "decor")) {
       if (!parkImageHitAt(image, clientX, clientY, object.flipped)) continue;
-    } else if (object.kind === "terrain" && isParkConnectedPath(object.effectType)) {
-      // Painted paths/water follow the existing isometric diamond footprint.
+    } else if (object.kind === "terrain" &&
+        (isParkConnectedPath(object.effectType) || object.effectType === "garden_plot")) {
+      // Painted paths, water and garden plots use the actual isometric diamond.
       const x = (clientX - rect.left) / rect.width;
       const y = (clientY - rect.top) / rect.height;
       if (Math.abs(x - 0.5) + Math.abs(y - 0.5) > 0.5) continue;
+    } else if (object.kind === "effect" || object.kind === "sleep_spot") {
+      // Many glow/mist effects have a huge transparent rectangular element at
+      // depth 12M. Their center is the admin's drag handle; the invisible
+      // outskirts should never block decor or plots below them.
+      const radius = Math.min(28, Math.min(rect.width, rect.height) * 0.38);
+      if (Math.hypot(clientX - (rect.left + rect.width / 2),
+        clientY - (rect.top + rect.height / 2)) > radius) continue;
     }
     return { kind, id, image };
   }
