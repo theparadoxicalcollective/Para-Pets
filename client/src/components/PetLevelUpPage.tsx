@@ -34,33 +34,53 @@ const CSS = String.raw`
   gap:clamp(8px,1.3vh,15px);
   padding:calc(env(safe-area-inset-top, 0px) + 20px) clamp(12px,3vw,32px) calc(env(safe-area-inset-bottom, 0px) + 16px);
 }
+/* Keep game artwork unobstructed: simple title and independent close control. */
 .lupage-head{
-  min-height:0;padding:8px 64px 12px 12px;border-radius:22px;
-  background:linear-gradient(180deg,rgba(5,19,13,.84),rgba(5,19,13,.4));
-  border:1px solid rgba(212,176,89,.35);box-shadow:0 7px 22px #0005;
+  min-height:0;padding:6px 64px 0;
+  border:0;border-radius:0;background:none;box-shadow:none;
 }
-.lupage-title{font-size:clamp(31px,7vw,47px);line-height:1.12;margin:0 0 6px;letter-spacing:.045em;text-shadow:0 2px 5px #000,0 0 14px #0009}
-.lupage-sub{font:500 clamp(12px,2.8vw,15px)/1.35 system-ui,sans-serif;color:#fff1c6;text-shadow:0 2px 4px #000}
-.lupage-close{top:50%;right:8px;transform:translateY(-50%);width:48px;height:48px;z-index:4;touch-action:manipulation}
-.lupage-rule{width:min(100%,470px);margin:0 auto;padding:9px 14px;font:700 clamp(12px,2.8vw,15px)/1.3 system-ui,sans-serif;box-shadow:0 5px 14px #0007}
+.lupage-title{font-size:clamp(32px,8vw,50px);line-height:1.1;margin:0;letter-spacing:.055em;text-shadow:0 2px 5px #000,0 0 16px #000b}
+.lupage-close{
+  top:calc(env(safe-area-inset-top, 0px) + 18px);
+  right:clamp(12px,3vw,28px);transform:none;
+  width:46px;height:46px;z-index:30;touch-action:manipulation;
+}
 .lupage-stage{gap:clamp(6px,1.3vh,15px);justify-content:center;min-height:0;margin:0 auto}
 .lupage-pet-zone{width:min(86vw,42vh,390px);height:min(86vw,42vh,390px);flex-shrink:1}
-.lupage-stars{top:-8%;filter:drop-shadow(0 3px 6px #000)}
-.lupage-nameplate{width:min(95%,440px);min-height:44px;padding:8px 12px;border-width:1.5px;background:linear-gradient(90deg,rgba(6,21,13,.95),rgba(18,31,18,.9));box-shadow:0 4px 15px #0008}
-.lupage-stats-hint{font-size:clamp(11px,2.6vw,13px);padding:4px 9px;border-radius:999px;background:rgba(5,17,12,.75)}
-.lupage-tray{margin:0 auto;max-width:620px;padding:13px 12px 11px;border:1.5px solid #d4ac56;border-radius:20px;background:linear-gradient(180deg,rgba(7,22,15,.97),rgba(21,24,14,.97));box-shadow:0 0 0 2px #07180e80,inset 0 1px 12px #b28c3a22,0 9px 22px #0009}
-.lupage-tray::before{content:"LEVEL UP ITEMS";display:block;margin:0 0 9px;text-align:center;color:#ffe4a0;font:700 12px/1.2 system-ui,sans-serif;letter-spacing:.14em}
-.lupage-empty{padding:12px 8px;font:500 clamp(13px,3vw,16px)/1.4 system-ui,sans-serif;color:#fff0cc}
-.lupage-hint{font:600 clamp(11px,2.6vw,13px)/1.4 system-ui,sans-serif;color:#f5d889;padding:7px 4px 3px}
-.lupage-items{min-height:82px;align-items:center}
+/* The previous -8% star anchor floated above the pet's head. */
+.lupage-stars{top:24%;filter:drop-shadow(0 3px 6px #000)}
+.lupage-stars img{width:clamp(40px,11.5vw,62px);margin:0 -2px}
+.lupage-nameplate{
+  width:max-content;max-width:min(90%,420px);min-height:40px;
+  margin-top:clamp(16px,2.5vh,28px);padding:6px 16px;
+  border:1px solid rgba(204,167,81,.7);
+  background:rgba(8,25,17,.88);box-shadow:0 3px 11px #0008;
+}
+.lupage-nameplate>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lupage-tray{
+  margin:0 auto;width:min(88%,480px);max-width:480px;
+  padding:9px 12px 10px;border:1px solid rgba(210,170,88,.75);
+  border-radius:19px;background:rgba(8,23,17,.85);
+  box-shadow:0 4px 18px #0009;
+}
+.lupage-tray[data-empty="true"]{width:min(84%,340px);padding:8px 12px}
+.lupage-tray::before{content:"XP ITEMS";display:block;margin:0 0 5px;text-align:center;color:#ffe4a0;font:700 11px/1.2 system-ui,sans-serif;letter-spacing:.15em}
+.lupage-empty{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:6px 4px;font:500 clamp(12px,2.8vw,14px)/1.3 system-ui,sans-serif;
+  color:#fff0cc;
+}
+.lupage-empty img{width:28px;height:28px;object-fit:contain}
+.lupage-hint{font:600 clamp(10px,2.5vw,12px)/1.3 system-ui,sans-serif;color:#f5d889;padding:5px 2px 0}
+.lupage-uses{color:#ead4a0;text-align:center;font:600 11px/1.3 system-ui,sans-serif;padding:4px 2px}
+.lupage-items{min-height:75px;align-items:center}
 .lupage-item{flex-basis:70px;height:74px}
 .lupage-item img{width:54px;height:54px}
 @media(max-height:740px){
   .lupage-scroll{gap:6px;padding-top:calc(env(safe-area-inset-top, 0px) + 10px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
-  .lupage-head{padding-top:5px;padding-bottom:7px}
-  .lupage-rule{padding:6px 10px}
+  .lupage-head{padding-top:5px;padding-bottom:0}
   .lupage-pet-zone{width:min(66vw,35vh,290px);height:min(66vw,35vh,290px)}
-  .lupage-tray{padding:8px}
+  .lupage-tray{padding:7px}
   .lupage-item{height:58px;flex-basis:60px}
   .lupage-items{min-height:65px}
 }
@@ -88,8 +108,9 @@ const CSS = String.raw`
   flex-shrink:0;
 }
 [data-page-presentation="full-viewport"] .lupage-tray{
-  flex-shrink:0;width:min(100%,680px);
+  flex-shrink:0;width:min(88%,480px);
 }
+[data-page-presentation="full-viewport"] .lupage-tray[data-empty="true"]{width:min(84%,340px)}
 [data-page-presentation="full-viewport"] .lupage-title{font-size:clamp(30px,4vw,46px)}
 @media (max-width:600px){
   [data-page-presentation="full-viewport"] .lupage-stage{min-height:280px}
