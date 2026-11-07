@@ -188,6 +188,15 @@ try{
     },null,{timeout:9000});
     assert.equal(await coversViewport(),true,name+": fast pan cannot reveal flat dark canvas edge");
     await page.mouse.up();
+    // This is a separate gardening interaction scenario. Restore the
+    // starting camera after deliberately panning the garden offscreen.
+    // Reloading this isolated fixture does not change garden or inventory.
+    await page.reload({waitUntil:"commit"});
+    await ground.waitFor({state:"visible"});
+    await page.waitForFunction(() => {
+      const plot=document.querySelector('[data-testid="pet-park-garden-plot"]')?.getBoundingClientRect();
+      return !!plot && plot.left>=0 && plot.right<=innerWidth && plot.top>=0 && plot.bottom<=innerHeight;
+    },null,{timeout:12000});
 
     await ground.click();
     const menu=page.getByTestId("pet-park-garden-menu");
