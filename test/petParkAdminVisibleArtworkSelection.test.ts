@@ -88,6 +88,28 @@ test("depth and flipped alpha sampling are respected without rewriting placement
   });
 });
 
+test("transparent effect regions and isometric garden corners do not steal scene taps", () => {
+  const make = (id: string, z: number, kind: string, effectType?: string) => ({
+    dataset: { parkObjectId: id, parkObjectKind: "item" },
+    style: { zIndex: String(z) },
+    getBoundingClientRect: () => box(50, 50, 200, 200),
+    querySelector: () => null,
+    kind, effectType,
+  });
+  const glow = make("glow", 12_000_000, "effect", "warm_glow");
+  const garden = make("garden", 500, "terrain", "garden_plot");
+  const scene = { querySelectorAll: () => [garden, glow] } as any;
+  const lookup = (_kind: string, id: string) =>
+    id === "glow" ? { kind: "effect", flipped: false, effectType: "warm_glow" }
+      : { kind: "terrain", flipped: false, effectType: "garden_plot" };
+  assert.equal(pickParkAdminArtwork(scene, 149, 150, lookup)?.id, "glow",
+    "effect centers remain editable");
+  assert.equal(pickParkAdminArtwork(scene, 75, 150, lookup)?.id, "garden",
+    "transparent glow outskirts let the lower garden through");
+  assert.equal(pickParkAdminArtwork(scene, 51, 51, lookup), null,
+    "transparent glow and outside the garden diamond equals empty grass");
+});
+
 test("scene uses one admin capture selector and preserves existing double-tap/drag workflow", () => {
   const page = readFileSync("client/src/pages/PetParkPage.tsx", "utf8");
   assert.match(page, /onPointerDownCapture=\{e => \{/);
