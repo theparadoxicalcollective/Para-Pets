@@ -2,6 +2,7 @@ import { ensurePetParkStorage } from "./ensurePetParkStorage";
 import { ensureGardenStorage } from "./ensureGardenStorage";
 import { ensureWorldSceneDraftStorage } from "./ensureWorldSceneDraftStorage";
 import { ensureWorldSceneContentStorage } from "./ensureWorldSceneContentStorage";
+import { ensureWorldGardenStorage } from "./ensureWorldGardenStorage";
 import { db } from "../../db";
 import { sql } from "drizzle-orm";
 
@@ -13,6 +14,7 @@ export async function runEssentialBoot(): Promise<void> {
   // Private world drafts must exist before admin endpoints begin serving.
   await ensureWorldSceneDraftStorage();
   await ensureWorldSceneContentStorage();
+  await ensureWorldGardenStorage();
   // Required by inventory/catalog reads: do not start with a partial schema.
   await db.execute(sql`
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS evolution_image_url TEXT;
