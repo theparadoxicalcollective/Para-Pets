@@ -364,7 +364,7 @@ export default function WorldSceneControls(props: Props) {
         {panel === "terrain" && <div className="space-y-2">
           <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
           <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
-          <p className="text-[11px] text-[#d0c094]">Garden plots are active in the private Test Gardening preview. Seeds, tools and water share the player inventory with Pet Park.</p>
+          <p className="text-[11px] text-[#d0c094]">Paint Garden Plot tiles here. Planting and harvesting are player-world features, not editor controls.</p>
         </div>}
 
         {panel === "effects" && <div className="space-y-2">
