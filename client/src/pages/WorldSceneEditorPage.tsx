@@ -10,6 +10,7 @@ import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
+import WorldGardenPreview from "@/components/world-editor/WorldGardenPreview";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
@@ -54,6 +55,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [zoom, setZoom] = useState(1);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
+  const [previewGarden, setPreviewGarden] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const groundTheme = settings?.groundTheme ?? "grass";
 
   useEffect(() => {
-    setEdited(null); setPan(null); setZoom(1); setPaintMode(false);
+    setEdited(null); setPan(null); setZoom(1); setPaintMode(false); setPreviewGarden(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     cameraDrag.current = null; objectDrag.current = null;
     touchPoints.current.clear(); pinch.current = null;
@@ -179,7 +181,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startObject = (event: ReactPointerEvent<HTMLButtonElement>, item: WorldScenePlacement | WorldSceneInteriorItem,
     kind: "outdoor" | "interior") => {
-    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode) return;
+    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || previewGarden) return;
     const artwork = event.currentTarget.querySelector("img");
     if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
     event.stopPropagation();
@@ -337,7 +339,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   yPct: position.yPct, worldHeight: camera.worldHeight, size: p.size,
                   contact: 0.9,
                 }),
-                pointerEvents: p.kind === "terrain" ? "none" : undefined,
+                pointerEvents: previewGarden || p.kind === "terrain" ? "none" : undefined,
                 transform: "translate(-50%, -50%)",
                 outline: selectedId === p.id ? "2px solid #f6cf71" : undefined,
               }}
@@ -348,6 +350,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               onClick={event => {
                 const artwork = event.currentTarget.querySelector("img");
                 if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, p.flipped)) return;
+                if (previewGarden) return;
                 event.stopPropagation(); setSelectedId(p.id);
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
@@ -428,6 +431,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           setEdited(null);
         }} />}
     </div>
+    {previewGarden && !activeBuilding && !paintMode && !scene.isError && !draft.isError &&
+      <WorldGardenPreview worldId={worldId} placements={content.placements}
+        viewportWidth={size.width} viewportHeight={size.height}
+        sceneWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
+        worldHeight={camera.worldHeight} scale={camera.scale}
+        panX={actualPan.x} panY={actualPan.y}
+        onExit={() => setPreviewGarden(false)} />}
 
     <header className="pointer-events-none absolute top-0 inset-x-0 z-20 flex items-start gap-3 px-3 py-3"
       style={{ background: "linear-gradient(180deg, rgba(10,25,18,.97), rgba(10,25,18,0))" }}>
@@ -446,7 +456,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       </div>
     </header>
 
-    {!activeBuilding && !paintMode && <section className="absolute z-20 left-3 top-[76px] w-[180px] rounded-lg border border-[#947846] bg-[#11281e]/90 p-2"
+    {!activeBuilding && !paintMode && !previewGarden && <section className="absolute z-20 left-3 top-[76px] w-[180px] rounded-lg border border-[#947846] bg-[#11281e]/90 p-2"
       onPointerDown={event => event.stopPropagation()}>
       <div className="mb-1 flex items-center justify-between">
         <span className="text-[11px] font-semibold">Ground</span>
@@ -472,12 +482,18 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}>
         {saveDraft.isPending ? "Saving..." : "Save Ground"}
       </button>
+      <button type="button" data-testid="button-world-garden-preview"
+        disabled={scene.isLoading || scene.isError || saveDraft.isPending}
+        className="mt-2 w-full rounded border border-[#c8a45b] bg-[#31513a] px-2 py-2 text-[11px] font-semibold disabled:opacity-40"
+        onClick={() => { setSelectedId(null); setPreviewGarden(true); }}>
+        Test Gardening
+      </button>
     </section>}
 
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
         {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
-      </div> : !paintMode && <WorldSceneControls
+      </div> : !paintMode && !previewGarden && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} placementPoint={createPoint}
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
