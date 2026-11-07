@@ -365,7 +365,7 @@ try{
     assert.equal(await seedPicker.getByTestId("pet-park-garden-seed-choice").count(),2);
     assert.equal(await seedPicker.getByText("Market Seeds").count(),0);
     await seedPicker.getByRole("button",{name:"Plant Forest Tomato Seeds"}).click();
-    await page.getByTestId("pet-park-garden-crop").waitFor({state:"visible"});
+    await page.getByTestId("pet-park-garden-visible-art").waitFor({state:"visible"});
     assert.equal(plot.phase,"planted");
     assert.equal(requests.length,10,name+": one seed choice submits one plant request");
     await dismiss();
