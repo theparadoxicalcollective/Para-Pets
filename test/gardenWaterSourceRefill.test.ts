@@ -29,8 +29,19 @@ test("water source and refillable are independent admin toggles, not item kinds"
   assert.match(gardenAdmin, /\/api\/admin\/garden\/tools\/\$\{item\.id\}\/refillable/);
   assert.match(page, /data-testid="pet-park-water-source"/);
   assert.match(page, /parkImageHitAt\(image, event\.clientX, event\.clientY, item\.flipped\)/);
-  assert.match(page, /data-testid="pet-park-refill-item"/);
+  const refill = readFileSync("client/src/components/PetParkWaterRefillPopup.tsx", "utf8");
+  assert.match(page, /<PetParkWaterRefillPopup/);
   assert.match(page, /gardenItemNeedsRefill/);
+  assert.match(refill, /data-testid="pet-park-refill-item"/,
+    "multiple eligible pails still let the player pick a specific tool by image");
+  assert.match(refill, /eligiblePails\.length === 1\) beginFill\(eligiblePails\[0\]\)/,
+    "one eligible pail starts without a text-based confirmation step");
+  assert.match(refill, /data-testid="pet-park-refill-pail-image"/);
+  assert.match(refill, /data-testid="pet-park-refill-complete"/);
+  assert.match(refill, /role="progressbar"/);
+  assert.match(refill, /stage === "filled"/);
+  assert.doesNotMatch(page, /toast\(\{ title: "Water refilled"/,
+    "refill success no longer uses a large generic toast");
   assert.match(page, /qc\.invalidateQueries\(\{ queryKey: \["\/api\/inventory"\] \}\)/);
   assert.match(readFileSync("server/routes.ts", "utf8"), /registerGardenRefillRoutes\(app, isAuthenticated\)/);
 });
