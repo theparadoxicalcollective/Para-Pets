@@ -149,8 +149,8 @@ export function gardenAfterPassiveTime(
   if (!elapsed || current.harvestReady ||
       !["planted", "seedling", "partial", "grown"].includes(current.phase))
     return { growth: current, checkpoint, hoursApplied: 0 };
-  const remaining = (["planted", "seedling", "partial", "grown"] as const)
-    .slice(["planted", "seedling", "partial", "grown"].indexOf(current.phase))
+  const stages: GardenGrowingPhase[] = ["planted", "seedling", "partial", "grown"];
+  const remaining = stages.slice(stages.indexOf(current.phase as GardenGrowingPhase))
     .reduce((total, phase, index) =>
       total + (index === 0 ? required[phase] - current.waterApplied : required[phase]), 0);
   // Admin-authored stage requirements are bounded to 1000 each. Even after
