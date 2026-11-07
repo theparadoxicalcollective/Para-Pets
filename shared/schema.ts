@@ -6,6 +6,7 @@ import { isAdornmentSlotKey } from "./costumeFeature";
 import { isAdornmentItemEffect } from "./adornmentAnimation";
 import type { HouseInteriorEffect } from "./housing";
 import type { ParkInteriorEffect } from "./petParkRooms";
+import type { GardenStagePlacements } from "./garden";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1410,6 +1411,7 @@ export const gardenCrops = pgTable("garden_crops", {
   partialImageUrl: text("partial_image_url"),
   grownImageUrl: text("grown_image_url"),
   pickedImageUrl: text("picked_image_url"),
+  stagePlacements: jsonb("stage_placements").$type<GardenStagePlacements>().notNull().default(sql`'{}'::jsonb`),
   plantedDrops: integer("planted_drops").notNull().default(10),
   seedlingDrops: integer("seedling_drops").notNull().default(10),
   partialDrops: integer("partial_drops").notNull().default(10),
