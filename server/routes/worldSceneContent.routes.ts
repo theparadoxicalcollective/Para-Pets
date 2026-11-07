@@ -10,6 +10,7 @@ import {
   isWorldTerrainType, WORLD_TERRAIN_BRUSH_SIZES, worldTerrainCell,
 } from "@shared/worlds/worldSceneContent";
 import { parkGroundSize } from "@shared/petParkGround";
+import { validParkShopPlacements } from "@shared/petParkShopPlacements";
 import type { WorldId } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
 
@@ -182,6 +183,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       const items = await db.select({
         id: shopItems.id, name: shopItems.name, type: shopItems.type,
         price: shopItems.price, imageUrl: shopItems.imageUrl,
+        eggImageUrl: shopItems.eggImageUrl, hatchedImageUrl: shopItems.hatchedImageUrl,
       }).from(shopItems).where(and(
         ne(shopItems.type, "garden_fruit"),
         q ? ilike(shopItems.name, "%" + q + "%") : undefined,
@@ -226,7 +228,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         worldId, kind, assetId: kind === "effect" ? null : assetId, effectType,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,
-        decorEffects, isWaterSource, isShop, shopItemIds,
+        decorEffects, isWaterSource, isShop, shopItemIds, shopItemPlacements: [],
       }).returning();
       return res.status(201).json(placed);
     } catch (error) {
@@ -279,6 +281,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
           !(await validGlobalCatalogItems(db, body.shopItemIds)))
           return res.status(400).json({ message: "Invalid shop stock" });
         changes.shopItemIds = body.shopItemIds;
+        changes.shopItemPlacements = saved.shopItemPlacements.filter(p => body.shopItemIds.includes(p.itemId));
       }
       if (!Object.keys(changes).length) return res.status(400).json({ message: "No changes supplied" });
       const [updated] = await db.update(worldScenePlacements).set(changes).where(
@@ -434,6 +437,14 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if ("flipped" in body) {
         if (typeof body.flipped !== "boolean") return res.status(400).json({ message: "Invalid flip" });
         changes.flipped = body.flipped;
+      }
+      if ("shopItemPlacements" in body) {
+        const activeStock = changes.shopItemIds ?? saved.shopItemIds;
+        if (saved.kind !== "building" || !validParkShopPlacements(body.shopItemPlacements) ||
+          body.shopItemPlacements.some(p => !activeStock.includes(p.itemId))) {
+          return res.status(400).json({ message: "Invalid shop merchandise layout" });
+        }
+        changes.shopItemPlacements = body.shopItemPlacements;
       }
       if (!Object.keys(changes).length) return res.status(400).json({ message: "No changes supplied" });
       const [updated] = await db.update(worldSceneInteriorItems).set(changes).where(
