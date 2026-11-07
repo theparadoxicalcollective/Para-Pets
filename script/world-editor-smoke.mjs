@@ -230,19 +230,27 @@ try {
     await erased;
     assert.ok(apiWrites.some(w => w.tail === "terrain-erase" && w.body.type === "stone_path"),
       name + ": direct eraser only targets selected material");
+    // Garden plots are ordinary snapped terrain; there is no planting/test
+    // popup in the private world creator.
+    await page.getByRole("button", { name: "Toggle terrain eraser" }).click();
+    await page.getByRole("button", { name: "Choose terrain brush" }).click();
+    await page.getByRole("button", { name: "Garden Plot" }).click();
+    const gardenPainted = page.waitForResponse(r => r.url().endsWith("/terrain-strokes") &&
+      r.request().method() === "POST");
+    await page.mouse.move(sx, sy); await page.mouse.down(); await page.mouse.up();
+    await gardenPainted;
+    assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" &&
+      w.tail === "terrain-strokes" && w.body.type === "garden_plot"),
+      name + ": garden plots can be painted without opening player farming UI");
     await page.getByRole("button", { name: "Done", exact: true }).click();
-
     await page.getByTestId("button-world-options").click();
-    await page.getByTestId("button-world-garden-preview").click();
-    await page.getByTestId("world-garden-preview").waitFor({ state: "visible" });
-    await page.getByTestId("world-garden-plot-" + ids.plot).click();
-    await page.getByTestId("pet-park-garden-menu").waitFor({ state: "visible" });
-    assert.ok(await page.getByText("Garden tools").count() >= 1 || await page.getByTestId("pet-park-garden-anchor").count(),
-      name + ": garden action UI uses the existing game tools");
-    await page.getByTestId("world-garden-preview-done").click();
-    await page.getByTestId("world-garden-preview").waitFor({ state: "hidden" });
+    assert.equal(await page.getByRole("button", { name: "Test Gardening" }).count(), 0,
+      name + ": no Test Gardening mode in the world editor");
+    await page.getByTestId("button-world-options").click();
+    const cleared = page.waitForResponse(r => r.url().endsWith("/terrain") &&
+      r.request().method() === "DELETE");
     await page.getByRole("button", { name: "Clear all world terrain" }).click();
-    await page.waitForResponse(r => r.url().endsWith("/terrain") && r.request().method() === "DELETE");
+    await cleared;
     assert.ok(apiWrites.some(write => write.worldId === "haunted_woods" && write.tail === "terrain" &&
       write.method === "DELETE"), name + ": one-tap terrain cleanup belongs only to the current world");
 
@@ -256,7 +264,7 @@ try {
     assert.deepEqual(petParkRequests, [], name + ": no Pet Park editing or gameplay APIs");
     assert.deepEqual(publicWorldRequests, [], name + ": no original world API writes");
     assert.deepEqual(errors, [], name + ": no browser runtime exceptions");
-    console.log("PASS " + name + ": world drafts isolated; scenery drag, painting, erasing, garden preview and shared inventory controls");
+    console.log("PASS " + name + ": isolated world drafts, scenery drag, painting, erasing, and garden plot terrain");
     await context.close();
   }
 } finally {
