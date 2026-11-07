@@ -195,6 +195,29 @@ export function registerWorldSceneContentRoutes(app: Express, {
     }
   });
 
+  app.get("/api/admin/world-editor/:worldId/buildings/:buildingId/shop-stock", isAdmin, async (req, res) => {
+    const worldId = worldFrom(req);
+    if (!worldId) return res.status(404).json({ message: "Unknown world" });
+    try {
+      const building = await findPlacement(db, worldId, req.params.buildingId);
+      if (!building || building.kind !== "building")
+        return res.status(404).json({ message: "World building not found" });
+      if (!building.shopItemIds.length) return res.json([]);
+      const items = await db.select({
+        id: shopItems.id, name: shopItems.name, type: shopItems.type, price: shopItems.price,
+        imageUrl: shopItems.imageUrl, eggImageUrl: shopItems.eggImageUrl,
+        hatchedImageUrl: shopItems.hatchedImageUrl,
+      }).from(shopItems).where(and(
+        inArray(shopItems.id, building.shopItemIds),
+        ne(shopItems.type, "garden_fruit"),
+      ));
+      return res.json(items);
+    } catch (error) {
+      console.error("[world-editor] shop stock read failed", error);
+      return res.status(500).json({ message: "Could not load shop merchandise" });
+    }
+  });
+
   app.post("/api/admin/world-editor/:worldId/placements", isAdmin, async (req, res) => {
     const worldId = worldFrom(req);
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
