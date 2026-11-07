@@ -33,8 +33,37 @@ export const GARDEN_PHASES = [
   { key: "picked", label: "Picked", waterLabel: "" },
 ] as const;
 export type GardenPhase = typeof GARDEN_PHASES[number]["key"];
+/** Each crop growth image has an independent plot-relative placement.
+ * x/y are offsets measured in plot-width units; scale is a multiplier of
+ * the plot width. Admin preview and player renderer share this contract. */
+export type GardenStagePlacement = { x: number; y: number; scale: number };
+export type GardenStagePlacements = Partial<Record<GardenPhase, GardenStagePlacement>>;
+export const DEFAULT_GARDEN_STAGE_PLACEMENT: GardenStagePlacement = { x: 0, y: 0, scale: 0.55 };
+export const GARDEN_PLACEMENT_MIN_SCALE = 0.15;
+export const GARDEN_PLACEMENT_MAX_SCALE = 1.5;
+export const GARDEN_PLACEMENT_MAX_OFFSET = 1.25;
+export function validGardenStagePlacement(value: unknown): value is GardenStagePlacement {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return Object.keys(data).length === 3 &&
+    ["x", "y", "scale"].every(key => typeof data[key] === "number" && Number.isFinite(data[key])) &&
+    Math.abs(data.x as number) <= GARDEN_PLACEMENT_MAX_OFFSET &&
+    Math.abs(data.y as number) <= GARDEN_PLACEMENT_MAX_OFFSET &&
+    (data.scale as number) >= GARDEN_PLACEMENT_MIN_SCALE &&
+    (data.scale as number) <= GARDEN_PLACEMENT_MAX_SCALE;
+}
+
 export type GardenToolKind = "watering_pail" | "hoe" | "scythe";
 export type GardenShopType = "garden_seed" | "garden_fruit" | "garden_tool";
+/** Base garden equipment is unique by *kind* across different catalog items.
+ * Seed packets, harvested fruit, and future consumables remain stackable. */
+export function baseGardenToolKind(item: { type?: string | null; specialType?: string | null }):
+  GardenToolKind | null {
+  return item.type === "garden_tool" &&
+    (item.specialType === "hoe" || item.specialType === "scythe" ||
+      item.specialType === "watering_pail") ? item.specialType : null;
+}
+
 export const GARDEN_TOOL_OPTIONS = [
   { key: "watering_pail", label: "Watering Pail", description: "Carries 100 drops of water" },
   { key: "hoe", label: "Hoe", description: "Prepares an empty garden plot" },
@@ -146,6 +175,7 @@ export type GardenPlayerCrop = {
   id: string; seedItemId: string; fruitItemId: string;
   seedName: string; fruitName: string; ready: boolean;
   images: GardenImages; drops: GardenWaterRequirements;
+  stagePlacements: GardenStagePlacements;
 };
 export type GardenPlayerState = {
   serverNow: string; plots: GardenPlayerPlot[]; crops: GardenPlayerCrop[];

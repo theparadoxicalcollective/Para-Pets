@@ -46,7 +46,9 @@ test("Garden server: real Postgres ownership, serial taps, escrow, cooldown, har
       CREATE TABLE garden_crops (
         id varchar PRIMARY KEY, seed_item_id varchar NOT NULL, fruit_item_id varchar NOT NULL,
         planted_image_url text, seedling_image_url text, partial_image_url text,
-        grown_image_url text, picked_image_url text, planted_drops integer NOT NULL,
+        grown_image_url text, picked_image_url text,
+        stage_placements jsonb NOT NULL DEFAULT '{}'::jsonb,
+        planted_drops integer NOT NULL,
         seedling_drops integer NOT NULL, partial_drops integer NOT NULL,
         grown_drops integer NOT NULL, created_at timestamp NOT NULL DEFAULT now(),
         updated_at timestamp NOT NULL DEFAULT now()

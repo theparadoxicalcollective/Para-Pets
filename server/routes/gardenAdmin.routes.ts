@@ -2,9 +2,10 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, inArray } from "drizzle-orm";
 import { gardenCrops, shopItems } from "@shared/schema";
 import {
-  GARDEN_IMAGE_KEYS, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
+  GARDEN_IMAGE_KEYS, GARDEN_PHASES, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
   isCompleteGardenCrop, validGardenArtwork, validGardenDrops, validGardenPrice,
-  type GardenImageKey, type GardenToolKind,
+  type GardenImageKey, type GardenToolKind, type GardenPhase,
+  validGardenStagePlacement,
 } from "@shared/garden";
 import type { db as database } from "../db";
 
@@ -148,6 +149,39 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
     }
   });
 
+  // Crop-specific, per-stage positioning. Only a real uploaded growth image
+  // can be adjusted. The row lock protects edits by two admin sessions.
+  app.patch("/api/admin/garden/crops/:id/stage-placement", isAdmin, async (req, res) => {
+    const body = req.body ?? {};
+    const { stage, placement } = body;
+    if (Object.keys(body).some(key => key !== "stage" && key !== "placement") ||
+        !GARDEN_PHASES.some(phase => phase.key === stage) ||
+        !validGardenStagePlacement(placement))
+      return res.status(400).json({ message: "Choose an uploaded stage and a valid plant placement" });
+    try {
+      const result = await db.transaction(async tx => {
+        const [existing] = await tx.select().from(gardenCrops)
+          .where(eq(gardenCrops.id, String(req.params.id))).for("update");
+        if (!existing) return null;
+        const imageField = (stage + "ImageUrl") as
+          "plantedImageUrl" | "seedlingImageUrl" | "partialImageUrl" | "grownImageUrl" | "pickedImageUrl";
+        if (!existing[imageField]) return "missing-image";
+        const [saved] = await tx.update(gardenCrops).set({
+          stagePlacements: { ...existing.stagePlacements, [stage as GardenPhase]: placement },
+          updatedAt: new Date(),
+        }).where(eq(gardenCrops.id, existing.id)).returning();
+        return saved;
+      });
+      if (!result) return res.status(404).json({ message: "Garden seed not found" });
+      if (result === "missing-image")
+        return res.status(422).json({ message: "Upload this stage image before positioning it" });
+      return res.json({ stage, placement, stagePlacements: result.stagePlacements });
+    } catch (error) {
+      console.error("[garden] stage placement save failed", error);
+      return res.status(500).json({ message: "Could not save the plant position" });
+    }
+  });
+
   app.patch("/api/admin/garden/crops/:id", isAdmin, async (req, res) => {
     const body = req.body ?? {};
     const images = imagePayload(body);
@@ -181,7 +215,14 @@ export function registerGardenAdminRoutes(app: Express, { db, isAdmin, processWo
             ...(saved.fruit ? { imageUrl: saved.fruit } : {}),
           }).where(eq(shopItems.id, existing.fruitItemId));
         }
+        // A replacement sprite needs its own fresh visual adjustment. Do
+        // not show the saved dot from an old image as if it applied to a new one.
+        const replacedStages = GARDEN_PHASES.map(phase => phase.key)
+          .filter(stage => !!saved[stage]);
+        const preservedPlacements = { ...existing.stagePlacements };
+        for (const stage of replacedStages) delete preservedPlacements[stage];
         const [crop] = await tx.update(gardenCrops).set({
+          ...(replacedStages.length ? { stagePlacements: preservedPlacements } : {}),
           ...(saved.planted ? { plantedImageUrl: saved.planted } : {}),
           ...(saved.seedling ? { seedlingImageUrl: saved.seedling } : {}),
           ...(saved.partial ? { partialImageUrl: saved.partial } : {}),

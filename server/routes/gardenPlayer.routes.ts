@@ -51,7 +51,7 @@ function cropArt(crop: SavedCrop, seed?: CatalogItem, fruit?: CatalogItem) {
   return {
     id: crop.id, seedItemId: crop.seedItemId, fruitItemId: crop.fruitItemId,
     seedName: seed?.name ?? "Seed", fruitName: fruit?.name ?? "Fruit",
-    images, drops,
+    images, drops, stagePlacements: crop.stagePlacements ?? {},
     ready: seed?.type === "garden_seed" && fruit?.type === "garden_fruit" &&
       isCompleteGardenCrop({ images, drops: Object.values(drops) }),
   };

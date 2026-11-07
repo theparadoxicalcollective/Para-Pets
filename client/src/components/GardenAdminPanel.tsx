@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Sprout, Droplets, Scissors, Shovel, X, Pencil } from "lucide-react";
+import { Plus, Sprout, Droplets, Scissors, Shovel, X, Pencil, Move } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { GARDEN_IMAGE_KEYS, GARDEN_PHASES, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY, type GardenImageKey, type GardenToolKind } from "@shared/garden";
+import { GARDEN_IMAGE_KEYS, GARDEN_PHASES, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY, type GardenImageKey, type GardenToolKind, type GardenStagePlacements } from "@shared/garden";
+import GardenStagePlacementEditor from "@/components/GardenStagePlacementEditor";
 
 type CatalogItem = { id: string; name: string; description: string | null; imageUrl: string | null; price: number; specialType?: string | null; isRefillable?: boolean };
 type GardenCrop = {
@@ -11,6 +12,7 @@ type GardenCrop = {
   plantedImageUrl: string | null; seedlingImageUrl: string | null;
   partialImageUrl: string | null; grownImageUrl: string | null; pickedImageUrl: string | null;
   plantedDrops: number; seedlingDrops: number; partialDrops: number; grownDrops: number;
+  stagePlacements: GardenStagePlacements;
 };
 type Catalog = { tools: CatalogItem[]; crops: GardenCrop[] };
 type CropDraft = {
@@ -51,6 +53,7 @@ export default function GardenAdminPanel() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<Catalog>({ queryKey: ["/api/admin/garden"] });
   const [form, setForm] = useState<FormSelection | null>(null);
+  const [stageEditorOpen, setStageEditorOpen] = useState(false);
   const [draft, setDraft] = useState<CropDraft>({ ...initialDraft });
   const [images, setImages] = useState<Partial<Record<GardenImageKey, string>>>({});
   const [toolName, setToolName] = useState("");
@@ -145,10 +148,18 @@ export default function GardenAdminPanel() {
     } finally { setSaving(false); }
   };
 
+  if (stageEditorOpen) return <GardenStagePlacementEditor crops={data?.crops ?? []}
+    onBack={() => setStageEditorOpen(false)} />;
+
   return <section data-testid="garden-admin-section" className="space-y-4 pb-16 font-fantasy text-[#f6e0a6]">
     <div className="rounded-2xl border border-[#aa9558]/55 bg-[linear-gradient(150deg,#284c33,#0e271b)] p-4 shadow-[inset_0_1px_15px_rgba(243,205,113,.07)]">
       <h2 className="text-lg font-semibold text-[#f9db8e]">Garden Supplies</h2>
       <p className="mt-1 text-xs leading-relaxed text-[#d0c5a4]">Add watering pails, tools and seeds for the garden. Seed packets and harvested fruit use the game’s normal Shop, Bag and Market artwork.</p>
+      <button type="button" data-testid="garden-adjust-plants-on-plot"
+        onClick={() => setStageEditorOpen(true)}
+        className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#e6cc82]/70 bg-[#245238] px-3 py-2 text-sm font-semibold text-[#f5dfa8] shadow-md active:bg-[#326249]">
+        <Move size={18}/> Adjust Plants on Plot
+      </button>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {GARDEN_TOOL_OPTIONS.map(tool => <button key={tool.key} type="button"
           data-testid={`garden-add-${tool.key}`} onClick={() => openTool(tool.key)}
@@ -242,7 +253,7 @@ export default function GardenAdminPanel() {
             </div>
             <div className="space-y-3 border-t border-[#b99752]/35 pt-3">
               <h4 className="text-sm font-semibold text-[#f4d98e]">Plant Growth Stages</h4>
-              <p className="text-[11px] text-[#d0c0a1]">The bottom of each stage image is centered on the garden plot. Set how many water drops are needed to advance to the next phase.</p>
+              <p className="text-[11px] text-[#d0c0a1]">Upload each stage here, then use Adjust Plants on Plot to set its exact size and position. Each phase has its own saved placement. Set the water needed to advance to the next phase.</p>
               {GARDEN_PHASES.map(phase => <div key={phase.key} className="flex gap-3 rounded-xl border border-[#baa15f]/35 bg-[#09251a]/65 p-2">
                 <div className="w-[110px] shrink-0"><ImageSlot label={phase.label.toLowerCase()} image={preview(phase.key)}
                   onFile={f => void setImage(phase.key, f)} /></div>

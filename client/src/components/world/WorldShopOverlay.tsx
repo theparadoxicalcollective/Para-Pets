@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Package, Plus, X } from "lucide-react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playTick } from "@/lib/sounds";
+import { baseGardenToolKind, type GardenToolKind } from "@shared/garden";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import coinIconImg from "@assets/icon_coin.webp";
 import bgShopMystical from "@assets/bg_shop_mystical.webp";
@@ -25,7 +26,7 @@ export interface WorldShopBundle { id: string; name: string; shopImageUrl: strin
 export interface WorldShopDecor { id: string; name: string; imageUrl: string | null; price: number; }
 
 interface WorldShopOverlayProps {
-  worldId: string; worldName: string; accent: string; location: WorldShopLocation | undefined; items: WorldShopItem[]; itemsLoading: boolean; bundles: WorldShopBundle[]; decor: WorldShopDecor[]; coins: number; isAdmin: boolean; ownedShopItemIds: ReadonlySet<string>; ownedPetCount: (shopItemId: string) => number; showSellPanel: boolean; isPurchasePending: boolean; isBundlePurchasePending: boolean; onPurchase: (itemId: string, quantity: number) => Promise<unknown>; onBuyBundle: (bundleId: string) => void; onUnassignItem: (itemId: string) => void; onOpenItemPicker: () => void; onToggleSellPanel: () => void; onClose: () => void;
+  worldId: string; worldName: string; accent: string; location: WorldShopLocation | undefined; items: WorldShopItem[]; itemsLoading: boolean; bundles: WorldShopBundle[]; decor: WorldShopDecor[]; coins: number; isAdmin: boolean; ownedShopItemIds: ReadonlySet<string>; ownedGardenToolKinds: ReadonlySet<GardenToolKind>; ownedPetCount: (shopItemId: string) => number; showSellPanel: boolean; isPurchasePending: boolean; isBundlePurchasePending: boolean; onPurchase: (itemId: string, quantity: number) => Promise<unknown>; onBuyBundle: (bundleId: string) => void; onUnassignItem: (itemId: string) => void; onOpenItemPicker: () => void; onToggleSellPanel: () => void; onClose: () => void;
 }
 
 function getItemDescription(item: WorldShopItem): string[] {
@@ -40,7 +41,7 @@ function getItemDescription(item: WorldShopItem): string[] {
 }
 
 export default function WorldShopOverlay(props: WorldShopOverlayProps) {
-  const { worldId, worldName, accent, location, items, itemsLoading, bundles: shopBundlesForSale, decor: shopDecorForSale, coins, isAdmin, ownedShopItemIds: ownedItemIds, ownedPetCount, showSellPanel, isPurchasePending, isBundlePurchasePending, onPurchase, onBuyBundle, onUnassignItem, onOpenItemPicker, onToggleSellPanel, onClose } = props;
+  const { worldId, worldName, accent, location, items, itemsLoading, bundles: shopBundlesForSale, decor: shopDecorForSale, coins, isAdmin, ownedShopItemIds: ownedItemIds, ownedGardenToolKinds, ownedPetCount, showSellPanel, isPurchasePending, isBundlePurchasePending, onPurchase, onBuyBundle, onUnassignItem, onOpenItemPicker, onToggleSellPanel, onClose } = props;
   const currentUser = { coins, isAdmin };
   const locations = location ? [location] : [];
   const activeLocationId = location?.id ?? null;
@@ -331,6 +332,8 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                           {groupItems.map(item => {
                             const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
                             const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+                            const toolKind = baseGardenToolKind(item);
+                            const toolOwned = !!toolKind && ownedGardenToolKinds.has(toolKind);
                             const canAfford = currentUser.coins >= item.price;
                             const descLines = getItemDescription(item);
                             return (
@@ -343,7 +346,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                                 {currentUser.isAdmin && (
                                   <button data-testid={`button-unassign-item-${item.id}`} onClick={e => { e.stopPropagation(); if (activeLocationId) onUnassignItem(item.id); }} className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}><X className="w-3 h-3 text-white" /></button>
                                 )}
-                                {isOwned && (
+                                {(isOwned || toolOwned) && (
                                   <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>Owned</div>
                                 )}
                                 <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
@@ -414,6 +417,8 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
         const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
         const descLines = getItemDescription(item);
         const ownedCount = item.type === "pet" ? ownedPetCount(item.id) : 0;
+        const toolKind = baseGardenToolKind(item);
+        const toolOwned = !!toolKind && ownedGardenToolKinds.has(toolKind);
         const canAfford = currentUser.coins >= item.price;
         const shopAccent = staticWorld?.accent || "#d4af37";
         return (
@@ -443,6 +448,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                 </div>
 
                 {/* Owned badge */}
+                {toolOwned && <p data-testid="garden-tool-owned" className="mb-2 text-center font-fantasy text-xs font-bold text-[#84de94]">Already owned · One per player</p>}
                 {ownedCount > 0 && item.type === "pet" && (
                   <div className="text-center font-fantasy font-bold" style={{ fontSize: 9.5, color: "#e8a800", textShadow: "0 0 6px rgba(232,168,0,0.5)", marginBottom: 4 }}>
                     Owned{ownedCount > 1 ? ` ×${ownedCount}` : ""}
@@ -536,13 +542,13 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                     <button
                       data-testid="button-price-buy"
                       onClick={(e) => {
-                        if (!canAfford || isPurchasePending) return;
+                        if (!canAfford || isPurchasePending || toolOwned) return;
                         const requiresConfirm = item.type === "pet" || item.price > 500;
                         if (requiresConfirm) { setBuyConfirmPending(true); return; }
                         burstGoldenOrbs(e.clientX, e.clientY);
                         handlePurchase(item.id);
                       }}
-                      disabled={!canAfford || isPurchasePending}
+                      disabled={!canAfford || isPurchasePending || toolOwned}
                       className="flex-1 font-fantasy font-bold tracking-wide transition-transform active:scale-95 disabled:opacity-50"
                       style={{
                         padding: "11px 0",
@@ -556,7 +562,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                         letterSpacing: "0.08em",
                       }}
                     >
-                      {isPurchasePending ? "Buying…" : "Buy"}
+                      {isPurchasePending ? "Buying…" : toolOwned ? "Owned" : "Buy"}
                     </button>
                   </>
                 ) : (
@@ -574,11 +580,11 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                     <button
                       data-testid="button-confirm-buy"
                       onClick={(e) => {
-                        if (!canAfford || isPurchasePending) return;
+                        if (!canAfford || isPurchasePending || toolOwned) return;
                         burstGoldenOrbs(e.clientX, e.clientY);
                         handlePurchase(item.id);
                       }}
-                      disabled={!canAfford || isPurchasePending}
+                      disabled={!canAfford || isPurchasePending || toolOwned}
                       className="flex-1 font-fantasy font-bold tracking-wide transition-transform active:scale-95 disabled:opacity-50"
                       style={{
                         padding: "11px 0",
@@ -592,7 +598,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                         letterSpacing: "0.06em",
                       }}
                     >
-                      {isPurchasePending ? "Buying…" : "Confirm!"}
+                      {isPurchasePending ? "Buying…" : toolOwned ? "Owned" : "Confirm!"}
                     </button>
                   </>
                 )}
