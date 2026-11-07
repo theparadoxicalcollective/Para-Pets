@@ -33,6 +33,7 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       is_water_source boolean NOT NULL DEFAULT false,
       is_shop boolean NOT NULL DEFAULT false,
       shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+      shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb,
       created_at timestamp NOT NULL DEFAULT now(),
       CONSTRAINT world_scene_placements_asset_fk FOREIGN KEY (asset_id, world_id)
         REFERENCES world_scene_assets (id, world_id) ON DELETE RESTRICT,
@@ -42,6 +43,8 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
         OR (kind IN ('effect','terrain') AND asset_id IS NULL AND effect_type IS NOT NULL)
       )
     );
+    ALTER TABLE world_scene_placements
+      ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;
     CREATE INDEX IF NOT EXISTS world_scene_placements_world_idx ON world_scene_placements (world_id);
     CREATE UNIQUE INDEX IF NOT EXISTS world_scene_terrain_cell_unique
       ON world_scene_placements (world_id, terrain_key) WHERE terrain_key IS NOT NULL;
