@@ -162,6 +162,33 @@ try{
     const afterZoomOut=await dimensions();
     assert.ok(afterZoomOut.pet<afterZoomIn.pet && afterZoomOut.tile<afterZoomIn.tile && afterZoomOut.hit<afterZoomIn.hit,name+": visitor, hit target and terrain all shrink together");
 
+    // The canvas used to expose a hard-edged dark rectangle after fast
+    // landscape pans exceeded its small cached-raster overscan. Assert the
+    // actual canvas still covers the entire visible Pet Park during a swipe.
+    const terrain=page.getByTestId("pet-park-painterly-terrain");
+    await terrain.waitFor({state:"visible"});
+    const coversViewport=async()=>terrain.evaluate(canvas=>{
+      const viewport=canvas.parentElement.getBoundingClientRect();
+      const painted=canvas.getBoundingClientRect();
+      return canvas.width>0 && canvas.height>0 &&
+        painted.left<=viewport.left+.5 && painted.top<=viewport.top+.5 &&
+        painted.right>=viewport.right-.5 && painted.bottom>=viewport.bottom-.5;
+    });
+    assert.equal(await coversViewport(),true,name+": grass raster initially covers full screen");
+    await page.mouse.move(width*.80,height*.24);
+    await page.mouse.down();
+    await page.mouse.move(width*.14,height*.24,{steps:5});
+    await page.waitForFunction(()=>{
+      const canvas=document.querySelector('[data-testid="pet-park-painterly-terrain"]');
+      if(!canvas)return false;
+      const viewport=canvas.parentElement.getBoundingClientRect();
+      const painted=canvas.getBoundingClientRect();
+      return painted.left<=viewport.left+.5 && painted.top<=viewport.top+.5 &&
+        painted.right>=viewport.right-.5 && painted.bottom>=viewport.bottom-.5;
+    },null,{timeout:9000});
+    assert.equal(await coversViewport(),true,name+": fast pan cannot reveal flat dark canvas edge");
+    await page.mouse.up();
+
     await ground.click();
     const menu=page.getByTestId("pet-park-garden-menu");
     await menu.waitFor({state:"visible"});
