@@ -36,7 +36,7 @@ try {
     const context = await browser.newContext({viewport:{width,height},hasTouch:true,isMobile:true});
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
-    const errors=[],saves=[],claims=[];
+    const errors=[],saves=[],claims=[],idleReturns=[];
     page.on("pageerror",error=>errors.push(error.message));
     const owned={petInventoryId:"owner-pet",petTemplateId:null,hatchedImageUrl:petImage,petName:"Pet",petNickname:"My Pet",rarity:4,petLevel:32,ownerName:"Owner",ownerId:"owner",buildingId:"cottage",roomEffectId:null,interiorXPct:.37,interiorYPct:.60,parkXPct:null,parkYPct:null,pose:"idle"};
     const guest={...owned,petInventoryId:"guest-pet",ownerName:"Guest",ownerId:"guest",interiorXPct:.77,rarity:3};
@@ -51,6 +51,16 @@ try {
       if(path==="/api/pet-park/deposits/owner-deposit/claim"){
         claims.push(route.request().method());
         return route.fulfill({json:{coins:1,essence:0,petXp:1}});
+      }
+      if(path==="/api/pet-park/deposits/owner-deposit/display"){
+        const body=route.request().postDataJSON();
+        idleReturns.push(body);
+        assert.equal(body.display,"idle",label+": an owner tap only returns the pet to idle");
+        scene={...scene,
+          sharedPets:scene.sharedPets.filter(pet=>pet.petInventoryId!=="owner-pet"),
+          deposits:[{...scene.deposits[0],buildingId:null,roomEffectId:null,showInPark:false,
+            parkXPct:null,parkYPct:null,pose:"idle"}]};
+        return route.fulfill({json:{id:"owner-deposit",...body}});
       }
       if(path==="/api/pet-park/deposits/owner-deposit/placement"){
         const body=route.request().postDataJSON();
@@ -113,6 +123,17 @@ try {
     await page.getByTestId("pet-park-interior-room").waitFor({state:"visible"});
     const petButton=page.getByTestId("pet-park-indoor-pet-drag");
     await petButton.waitFor({state:"visible"});
+    const roomSlot=page.getByTestId("pet-park-room-slot-1");
+    await roomSlot.waitFor({state:"visible"});
+    const slotBounds=await roomSlot.boundingBox();
+    assert.ok(slotBounds && Math.abs(slotBounds.width-slotBounds.height)<2 && slotBounds.width<=69,
+      label+": building tray uses a compact circular pet button");
+    assert.equal(await roomSlot.getByTestId("pet-park-pet-portrait").count(),1,
+      label+": the circular button renders the equipped pet's picture");
+    assert.equal(await roomSlot.locator("span").filter({hasText:"My Pet"}).count(),0,
+      label+": visible pet name is removed from the draggable tray");
+    assert.equal(await roomSlot.getAttribute("aria-label"),"Drag My Pet into the room",
+      label+": pet name is still accessible to screen readers");
     assert.equal(await page.locator("[data-park-interior-artwork] [data-park-pet]").count(),2);
     assert.equal(await page.getByTestId("pet-park-rarity-stars").count(),2);
     const art=await page.locator("[data-park-interior-artwork]").boundingBox();
@@ -135,11 +156,41 @@ try {
     await page.waitForTimeout(450);
     assert.equal(saves.length,2,label+": repositioning again works");
     assert.equal(saves[1].pose,"idle",label+": leaving sleep spot restores idle");
+
+    // The equipped tray's pointer capture must still create a portrait ghost,
+    // not a text-only label, while the player drags a pet into the room.
+    const trayRect=await roomSlot.boundingBox();
+    const fromTray={x:trayRect.x+trayRect.width/2,y:trayRect.y+trayRect.height/2};
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{...fromTray,id:2}]});
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{
+      id:2,x:fromTray.x+16,y:fromTray.y-25}]});
+    const ghost=page.getByTestId("pet-park-indoor-portrait-ghost");
+    await ghost.waitFor({state:"visible"});
+    assert.equal(await ghost.getByTestId("pet-park-pet-portrait").count(),1,
+      label+": dragging a tray portrait carries pet artwork");
+    assert.equal(await ghost.innerText(),"",label+": drag ghost has no textual pet name");
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+
     await movePet(.77,.60);
     await page.waitForTimeout(450);
     assert.equal(saves.length,2,label+": completely covering another pet is rejected");
+
+    // Tapping one's own placed resident offers only Return to idle, not the
+    // public player-profile card. This is separate from dragging the pet.
+    await petButton.click();
+    const returnToIdle=page.getByTestId("pet-park-own-return-idle");
+    await returnToIdle.waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("player-detail-panel").count(),0,
+      label+": tapping own pet never opens player profile");
+    await returnToIdle.click();
+    await page.waitForFunction(()=>!document.querySelector('[data-park-pet="owner-pet"]'));
+    assert.deepEqual(idleReturns,[{display:"idle"}],label+": return is one owner-bound display request");
+    assert.equal(await page.getByTestId("pet-park-room-slot-1").count(),1,
+      label+": pet remains in equipped portrait tray after returning to idle");
+    assert.equal(await page.getByTestId("pet-park-indoor-pet-drag").count(),0,
+      label+": pet no longer occupies the building scene");
     assert.deepEqual(errors,[],label+": no browser exceptions");
-    console.log("PASS "+label+": direct resident touch, normalized persistence, sleep/idle, overlap guard, curved stars");
+    console.log("PASS "+label+": circular pet tray/ghost, resident dragging, overlap, and owner-only return-to-idle");
     await context.close();
   }
 } finally { await browser.close(); await server.close(); }
