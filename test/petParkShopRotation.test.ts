@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   defaultParkShopPlacement, rotateParkShopPlacement, validParkShopPlacements,
   withParkShopDefaults, PARK_SHOP_ROTATION_STEP,
+  parkShopPriceTagPoint, parkShopPriceTagFromPointer, PARK_SHOP_DEFAULT_PRICE_TAG,
 } from "../shared/petParkShopPlacements";
 
 const read = (filename: string) => readFileSync(filename, "utf8");
@@ -60,4 +61,52 @@ test("shop item names disappear only from the room artwork, not search, editing 
   assert.match(editor, /\{item\.name\}/, "the filtered admin picker still shows item names");
   assert.match(editor, /<h2[^>]*>\{selectedBuy\.name\}<\/h2>/,
     "buyer sees the item name and details after tapping its artwork");
+});
+
+test("shop prices use bounded image-local tag positions without changing merchandise", () => {
+  const legacy = { itemId: "hoe", xPct: .52, yPct: .46, size: 12, rotation: 45 };
+  assert.deepEqual(parkShopPriceTagPoint(legacy), PARK_SHOP_DEFAULT_PRICE_TAG,
+    "old shops display a lower-right default without migrations");
+  assert.deepEqual(parkShopPriceTagPoint(defaultParkShopPlacement("hoe", 0)), PARK_SHOP_DEFAULT_PRICE_TAG);
+  const rect = { left: 20, top: 60, width: 200, height: 180 };
+  const point = parkShopPriceTagFromPointer(90, 100, rect);
+  assert.deepEqual(point, { priceTagXPct: .35, priceTagYPct: 40 / 180 });
+  const positioned = { ...legacy, ...point };
+  assert.equal(validParkShopPlacements([positioned]), true);
+  assert.deepEqual(parkShopPriceTagPoint(positioned), { xPct: .35, yPct: 40 / 180 });
+  assert.deepEqual(rotateParkShopPlacement(positioned), { ...positioned, rotation: 60 },
+    "rotating the artwork retains the price tag coordinates");
+  assert.deepEqual(withParkShopDefaults(["hoe"], [positioned]), [positioned]);
+  assert.deepEqual(parkShopPriceTagFromPointer(-999, 3000, rect),
+    { priceTagXPct: .15, priceTagYPct: .85 });
+  for (const broken of [
+    { priceTagXPct: -1, priceTagYPct: .5 }, { priceTagXPct: 1.01, priceTagYPct: .5 },
+    { priceTagXPct: .4, priceTagYPct: -.01 }, { priceTagXPct: .4, priceTagYPct: .99 },
+    { priceTagXPct: .4 }, { priceTagYPct: .6 },
+    { priceTagXPct: null, priceTagYPct: .5 },
+    { priceTagXPct: "0.5", priceTagYPct: .5 },
+    { priceTagXPct: NaN, priceTagYPct: .5 },
+  ]) assert.equal(validParkShopPlacements([{ ...legacy, ...broken }]), false);
+});
+
+test("admin price preview and shopper stickers reuse the authenticated merchandise placement", () => {
+  const editor = read("client/src/components/PetParkShopShelf.tsx");
+  const server = read("server/routes/petParkAdmin.routes.ts");
+  const player = read("server/routes/petParkPlayer.routes.ts");
+  assert.match(editor, /data-testid="pet-park-shop-price-preview"/);
+  assert.match(editor, /data-testid="pet-park-shop-price-preview-art"/);
+  assert.match(editor, /data-testid="pet-park-shop-price-drag-handle"/);
+  assert.match(editor, /onPointerMove=\{onPriceTagMove\} onPointerUp=\{onPriceTagUp\}/);
+  assert.match(editor, /parkShopPriceTagFromPointer\(clientX, clientY, rect\)/);
+  assert.match(editor, /changeStock\(ids, layout\.map/);
+  assert.match(editor, /data-testid="pet-park-shop-price-on-art"/);
+  assert.match(editor, /<ShopPriceTag price=\{item\.price\} \/>/);
+  assert.match(editor, /<ShopPriceTag price=\{editItem\.price\} \/>/);
+  assert.match(editor, /transform: "translate\(-50%, -50%\)"/);
+  assert.ok(editor.includes("Move price tag for"));
+  assert.match(editor, /price\.toLocaleString\(\)/);
+  assert.match(editor, /src=\{PARA_PETS_COIN_IMAGE\}/);
+  assert.match(server, /validParkShopPlacements\(body\.shopItemPlacements\)/);
+  assert.match(player, /price: shopItems\.price/);
+  assert.doesNotMatch(editor, /priceTagMutation|\/api\/pet-park\/price-tag/);
 });
