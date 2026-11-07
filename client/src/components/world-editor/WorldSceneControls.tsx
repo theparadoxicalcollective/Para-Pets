@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -42,14 +42,19 @@ export default function WorldSceneControls(props: Props) {
   const [uploadInterior, setUploadInterior] = useState<string | null>(null);
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [assetSearch, setAssetSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
   const root = `/api/admin/world-editor/${props.worldId}`;
 
   useEffect(() => {
     setPanel("library");
     setEditingAssetId(null);
+    setAssetSearch("");
     setExpanded(false);
   }, [props.worldId]);
+  useEffect(() => {
+    setPanel(props.activeBuilding ? "interior" : "library");
+  }, [props.activeBuilding?.id]);
 
   const currentAsset = props.scene.assets.find(asset => asset.id === props.selected?.assetId);
   const interiorAsset = props.scene.assets.find(asset => asset.id === props.activeBuilding?.assetId);
@@ -150,7 +155,11 @@ export default function WorldSceneControls(props: Props) {
   const field = "w-full rounded-md border border-[#a88b49]/60 bg-[#132a20] p-2 text-xs text-[#f5e5bb]";
   const heading = "text-xs font-semibold text-[#f7d783]";
 
-  const assetList = props.scene.assets.filter(asset => props.activeBuilding ? asset.kind === "decor" : true);
+  const matchingAssets = props.scene.assets.filter(asset =>
+    (!props.activeBuilding || asset.kind === "decor") &&
+    asset.name.toLowerCase().includes(assetSearch.trim().toLowerCase()));
+  // Limit mounted image previews on Safari: each image may be a large artwork.
+  const assetList = matchingAssets.slice(0, 40);
 
   return <section data-testid="world-scene-controls"
     className="absolute z-30 bottom-2 inset-x-2 mx-auto max-w-lg rounded-xl border border-[#9a8146] bg-[#11271b]/95 text-[#f5dfad] shadow-2xl"
@@ -202,11 +211,17 @@ export default function WorldSceneControls(props: Props) {
             <button type="button" className={control} disabled={busy || !uploadArt || !uploadName.trim()}
               onClick={() => void handleUpload()}>Save to This World's Library</button>
           </div>}
-          <h3 className={heading}>Artwork Library — {assetList.length} assets</h3>
+          <h3 className={heading}>Artwork Library — {matchingAssets.length} matching assets</h3>
+          <input aria-label="Search world artwork library" className={field}
+            placeholder="Find decorations and buildings…" value={assetSearch}
+            onChange={event => setAssetSearch(event.target.value)} />
+          {matchingAssets.length > assetList.length && <p className="text-[11px] text-[#cabd99]">
+            Showing the first {assetList.length}. Search by name for more.
+          </p>}
           {!assetList.length && <p className="text-xs text-[#cabd99]">Upload the first asset to begin placing it.</p>}
           <div className="grid grid-cols-2 gap-2">
             {assetList.map(asset => <div key={asset.id} className="rounded-lg border border-[#6d6645] p-2">
-              <img src={asset.imageUrl} alt="" className="mx-auto h-20 w-full object-contain" />
+              <img src={asset.imageUrl} alt="" loading="lazy" decoding="async" className="mx-auto h-20 w-full object-contain" />
               <p className="truncate py-1 text-[11px]">{asset.name}</p>
               <div className="flex flex-wrap gap-1">
                 <button className={control} disabled={busy} onClick={() =>
