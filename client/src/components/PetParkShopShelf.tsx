@@ -9,6 +9,7 @@ import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import {
   defaultParkShopPlacement, rotateParkShopPlacement, withParkShopDefaults,
+  parkShopPriceTagPoint, parkShopPriceTagFromPointer,
   PARK_SHOP_MIN_SIZE, PARK_SHOP_MAX_SIZE, PARK_SHOP_ROTATION_STEP,
   type ParkShopPlacement,
 } from "@shared/petParkShopPlacements";
@@ -26,6 +27,14 @@ const filters = [
 function itemArt(item: ParkShopItemPreview) {
   return item.type === "pet" ? item.eggImageUrl || item.imageUrl || item.hatchedImageUrl
     : item.imageUrl || item.eggImageUrl || item.hatchedImageUrl;
+}
+
+function ShopPriceTag({ price }: { price: number }) {
+  return <span data-testid="pet-park-shop-price-tag"
+    className="pointer-events-none inline-flex min-h-[20px] items-center gap-0.5 whitespace-nowrap rounded-md border border-[#dfbb6f] bg-[#173c27]/95 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#ffe3a0] shadow-[0_2px_5px_rgba(0,0,0,.55)]">
+    <img src={PARA_PETS_COIN_IMAGE} alt="" className="h-3 w-3 shrink-0 object-contain" />
+    {price.toLocaleString()}
+  </span>;
 }
 
 /** Merchandise is positioned directly over the *existing* room artwork,
@@ -50,6 +59,9 @@ export default function PetParkShopShelf({
   const [filter, setFilter] = useState("all");
   const [buyError, setBuyError] = useState<string | null>(null);
   const purchasing = useRef(false);
+  const pricePreviewRef = useRef<HTMLDivElement>(null);
+  const priceTagDrag = useRef<null | { pointerId: number; itemId: string; x: number; y: number;
+    start: ParkShopPlacement; moved: boolean }>(null);
   const drag = useRef<null | { pointerId: number; itemId: string; x: number; y: number;
     start: ParkShopPlacement; moved: boolean }>(null);
   useEffect(() => {
@@ -164,6 +176,49 @@ export default function PetParkShopShelf({
       ? rotateParkShopPlacement(placement) : placement);
     changeStock(ids, next);
   };
+  const priceTagPointAt = (clientX: number, clientY: number) => {
+    const rect = pricePreviewRef.current?.getBoundingClientRect();
+    return rect ? parkShopPriceTagFromPointer(clientX, clientY, rect) : null;
+  };
+  const onPriceTagDown = (event: ReactPointerEvent<HTMLButtonElement>, placement: ParkShopPlacement) => {
+    if (save.isPending || !event.isPrimary) return;
+    event.stopPropagation();
+    priceTagDrag.current = { pointerId: event.pointerId, itemId: placement.itemId,
+      x: event.clientX, y: event.clientY, start: placement, moved: false };
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
+  };
+  const onPriceTagMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const current = priceTagDrag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < 3 && !current.moved) return;
+    const point = priceTagPointAt(event.clientX, event.clientY);
+    if (!point) return;
+    current.moved = true;
+    setLayout(previous => previous.map(placement =>
+      placement.itemId === current.itemId ? { ...placement, ...point } : placement));
+  };
+  const onPriceTagUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const current = priceTagDrag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    priceTagDrag.current = null;
+    if (!current.moved || save.isPending) return;
+    const point = priceTagPointAt(event.clientX, event.clientY);
+    if (!point) return;
+    // Commit once through the same authenticated building placement PATCH as
+    // moving, resizing and rotating merchandise. Existing placement fields stay.
+    changeStock(ids, layout.map(placement =>
+      placement.itemId === current.itemId ? { ...placement, ...point } : placement));
+  };
+  const onPriceTagCancel = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const current = priceTagDrag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    priceTagDrag.current = null;
+    setLayout(previous => previous.map(placement =>
+      placement.itemId === current.itemId ? current.start : placement));
+  };
   const onDown = (event: ReactPointerEvent<HTMLButtonElement>, placement: ParkShopPlacement) => {
     if (!canEditPark || save.isPending || !event.isPrimary) return;
     event.stopPropagation();
@@ -201,6 +256,7 @@ export default function PetParkShopShelf({
   };
   const byId = new Map(selected.map(item => [item.id, item]));
   const editItem = selected.find(item => item.id === selectedEdit);
+  const editPlacement = layout.find(item => item.itemId === selectedEdit);
   return <>
     <div data-testid="pet-park-shop-merchandise" className="pointer-events-none absolute inset-0" style={{ zIndex: 16 }}>
       {layout.map(placement => {
@@ -229,8 +285,15 @@ export default function PetParkShopShelf({
             style={{ transform: `rotate(${placement.rotation ?? 0}deg)`, transformOrigin: "center center" }} />
             : <span aria-hidden="true" className="text-xl text-[#f3d58d]"
                 style={{ transform: `rotate(${placement.rotation ?? 0}deg)` }}>✦</span>}
-          {/* Labels only belong in the picker, editing controls and purchase
-              details. A shop's placed artwork should not have text below it. */}
+          <span data-testid="pet-park-shop-price-on-art"
+            className="pointer-events-none absolute z-[1]"
+            style={{ left: `${parkShopPriceTagPoint(placement).xPct * 100}%`,
+              top: `${parkShopPriceTagPoint(placement).yPct * 100}%`,
+              transform: "translate(-50%, -50%)" }}>
+            <ShopPriceTag price={item.price} />
+          </span>
+          {/* No floating item-name labels: the sticker is the item price only.
+              Names remain accessible in the editor, item picker and checkout. */}
         </button>;
       })}
       {loading && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-[#10291d]/90 p-2 text-xs text-amber-100">Loading merchandise…</span>}
@@ -263,6 +326,32 @@ export default function PetParkShopShelf({
             className="min-h-9 rounded-lg border border-[#d7b973]/55 bg-[#214c34] px-2 text-[10px]">Done</button>
         </div>
       </div>
+      {editPlacement && <div data-testid="pet-park-shop-price-preview"
+        className="pointer-events-auto absolute right-2 z-[60] flex w-[174px] flex-col items-center gap-1.5 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl"
+        style={{ bottom: "max(132px, calc(env(safe-area-inset-bottom, 0px) + 122px))" }}
+        onPointerDown={event => event.stopPropagation()}>
+        <strong className="text-[11px]">Position price tag</strong>
+        <div ref={pricePreviewRef} data-testid="pet-park-shop-price-preview-art"
+          className="relative h-[148px] w-[148px] touch-none rounded-lg border border-[#927e50]/45 bg-[#26452f]/75">
+          {itemArt(editItem) ? <img src={itemArt(editItem) ?? ""} alt=""
+            draggable={false} className="pointer-events-none h-full w-full select-none object-contain"
+            style={{ transform: `rotate(${editPlacement.rotation ?? 0}deg)`, transformOrigin: "center center" }} />
+            : <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center text-3xl">✦</span>}
+          <button type="button" data-testid="pet-park-shop-price-drag-handle"
+            aria-label={`Move price tag for ${editItem.name}`}
+            disabled={save.isPending}
+            onPointerDown={event => onPriceTagDown(event, editPlacement)}
+            onPointerMove={onPriceTagMove} onPointerUp={onPriceTagUp}
+            onPointerCancel={onPriceTagCancel} onLostPointerCapture={onPriceTagCancel}
+            className="absolute z-[2] cursor-grab touch-none rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
+            style={{ left: `${parkShopPriceTagPoint(editPlacement).xPct * 100}%`,
+              top: `${parkShopPriceTagPoint(editPlacement).yPct * 100}%`,
+              transform: "translate(-50%, -50%)" }}>
+            <ShopPriceTag price={editItem.price} />
+          </button>
+        </div>
+        <span className="text-center text-[10px] text-[#ead1a0]/80">Drag the tag onto the image</span>
+      </div>}
     </ViewportModalPortal>}
     {showPicker && canEditPark && <ViewportModalPortal>
       <div data-testid="pet-park-shop-picker" className="pointer-events-auto absolute inset-0 z-[75] flex items-end justify-center">
