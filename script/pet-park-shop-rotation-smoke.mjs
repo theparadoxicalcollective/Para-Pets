@@ -97,6 +97,13 @@ try {
     await rotate.click();
     await page.waitForFunction(()=>document.querySelector('[data-testid="pet-park-shop-artwork"]')?.style.transform==="rotate(30deg)");
     assert.equal(layout[0].rotation,30,label+": rotation advances by 15 degrees each tap");
+    // React applies the new angle optimistically, before PATCH completes.
+    // Dragging is intentionally disabled during saves: wait for server
+    // confirmation rather than racing the toolbar on slower tablets.
+    await page.waitForFunction(() => {
+      const rotateButton = document.querySelector('[data-testid="pet-park-shop-rotate"]');
+      return rotateButton && !rotateButton.disabled;
+    });
     // Admin editor remains capable of moving a rotated item with the same
     // touch pointer math and retaining its orientation.
     const bounds=await artButton.boundingBox();
