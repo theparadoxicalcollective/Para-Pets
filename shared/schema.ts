@@ -1568,6 +1568,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   isWaterSource: boolean("is_water_source").notNull().default(false),
   isShop: boolean("is_shop").notNull().default(false),
   shopItemIds: jsonb("shop_item_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  shopItemPlacements: jsonb("shop_item_placements").$type<import("./petParkShopPlacements").ParkShopPlacement[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
