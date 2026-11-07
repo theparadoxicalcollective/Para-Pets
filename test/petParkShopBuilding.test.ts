@@ -136,7 +136,7 @@ test("Park building interiors reuse home translucent darkness with active light 
   assert.match(room, /import \{ HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle \}/);
   assert.match(room, /<HomeInteriorDarknessLayer darkness=\{darkness\}/);
   assert.match(room, /offEffectIds=\{offEffectIds\} panX=\{0\} imgWidth=\{imageWidth\}/);
-  assert.match(room, /sceneHeight=\{dimensions\.height\} zIndex=\{2\}/);
+  assert.match(room, /sceneHeight=\{dimensions\.height\} sunlightStrength=\{sunlightStrength\} zIndex=\{2\}/);
   const background = room.indexOf('<img src={imageUrl}');
   const dark = room.indexOf('<HomeInteriorDarknessLayer');
   const effects = room.indexOf('<HomeInteriorEffectsLayer');
