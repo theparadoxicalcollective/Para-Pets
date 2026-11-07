@@ -20,7 +20,7 @@ test("public outdoor roster publishes only the lowest displayed slot per other o
   // Filter in the server's SQL query, not after downloading all three pets to
   // every phone. The local owner still sees and can move all three.
   assert.match(server, /const firstOutdoor = alias\(petParkDeposits, "first_outdoor"\)/);
-  const selector = server.split('const firstPublicOutdoorId =')[1]?.split('// Public park roster')[0];
+  const selector = server.split('const firstPublicOutdoor =')[1]?.split('const rankedOutdoorOwners =')[0];
   assert.ok(selector, "first-public-pet database subquery exists");
   assert.match(selector, /selectDistinctOn\(\[firstOutdoor\.userId\]/);
   assert.match(selector, /isNull\(firstOutdoor\.withdrawnAt\)/);
@@ -30,9 +30,27 @@ test("public outdoor roster publishes only the lowest displayed slot per other o
   assert.match(selector, /isNotNull\(firstOutdoor\.parkYPct\)/);
   assert.match(selector, /orderBy\(firstOutdoor\.userId, firstOutdoor\.slotNumber,/,
     "lowest publicly placed slot wins, not necessarily slot 1 if idle/indoors");
+  const presenceSelection = server.split('const rankedOutdoorOwners =')[1]
+    ?.split('// The public roster is read-only')[0];
+  assert.ok(presenceSelection, "ranked outdoor population query exists");
+  assert.match(presenceSelection, /count\(\*\) over \(\)/,
+    "crowding considers all distinct other owners, not only active ones");
+  assert.match(presenceSelection, /leftJoin\(petParkPresence/);
+  assert.match(presenceSelection, /lte\(rankedOutdoorOwners\.ownerCount, PARK_PUBLIC_OUTDOOR_OWNER_BUDGET\)/,
+    "inactive owners remain visible while below the budget");
+  assert.match(presenceSelection, /gte\(rankedOutdoorOwners\.lastSeenAt, activeSince\)/,
+    "inactive owners are excluded when crowded");
+  assert.match(presenceSelection, /orderBy\(desc\(rankedOutdoorOwners\.lastSeenAt\)/,
+    "recently present players win when there are too many active owners");
+  assert.match(presenceSelection, /\.limit\(PARK_PUBLIC_OUTDOOR_OWNER_BUDGET\)/);
+  assert.match(server, /export const PARK_PUBLIC_OUTDOOR_OWNER_BUDGET = 40/);
+  assert.match(server, /export const PARK_ACTIVE_PRESENCE_MS = 15 \* 60 \* 1000/);
+  assert.match(server, /onConflictDoUpdate\(\{/);
+  assert.match(server, /setWhere: lt\(petParkPresence\.lastSeenAt, refreshBefore\)/,
+    "30-second park refresh must not write presence every time");
   const roster = server.split("const sharedPets = await db.select")[1]?.split("return res.json")[0];
   assert.ok(roster);
-  assert.match(roster, /or\(eq\(petParkDeposits\.userId, userId\),\s*inArray\(petParkDeposits\.id, firstPublicOutdoorId\)\)/,
+  assert.match(roster, /or\(eq\(petParkDeposits\.userId, userId\),\s*inArray\(petParkDeposits\.id, visibleOtherOutdoorIds\)\)/,
     "owner's own displayed pets stay visible, others one per owner");
   assert.match(roster, /isNotNull\(petParkDeposits\.buildingId\)/,
     "indoor pets are untouched");
@@ -40,6 +58,8 @@ test("public outdoor roster publishes only the lowest displayed slot per other o
   assert.doesNotMatch(roster, /pausedAt|earnedDurationMs|coinsPerHour/,
     "public data must remain free of reward and private wallet fields");
   const migration = readFileSync("server/startup/migrations/ensurePetParkStorage.ts", "utf8");
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS pet_park_presence/);
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS pet_park_presence_recent_idx/);
   assert.match(migration, /CREATE INDEX IF NOT EXISTS pet_park_deposits_outdoor_first_active_idx/);
   assert.match(migration, /ON pet_park_deposits \(user_id, slot_number, created_at, id\)/);
   assert.match(migration, /WHERE withdrawn_at IS NULL AND show_in_park = true/,
