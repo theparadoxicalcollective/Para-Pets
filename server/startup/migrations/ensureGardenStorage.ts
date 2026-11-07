@@ -34,6 +34,7 @@ export async function ensureGardenStorage(): Promise<void> {
       partial_image_url text,
       grown_image_url text,
       picked_image_url text,
+      stage_placements jsonb NOT NULL DEFAULT '{}'::jsonb,
       planted_drops integer NOT NULL DEFAULT 10 CHECK (planted_drops BETWEEN 1 AND 1000),
       seedling_drops integer NOT NULL DEFAULT 10 CHECK (seedling_drops BETWEEN 1 AND 1000),
       partial_drops integer NOT NULL DEFAULT 10 CHECK (partial_drops BETWEEN 1 AND 1000),
@@ -41,6 +42,9 @@ export async function ensureGardenStorage(): Promise<void> {
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now()
     );
+    -- Existing production gardens predate per-stage placements.
+    ALTER TABLE garden_crops
+      ADD COLUMN IF NOT EXISTS stage_placements jsonb NOT NULL DEFAULT '{}'::jsonb;
     CREATE UNIQUE INDEX IF NOT EXISTS garden_crops_seed_unique ON garden_crops(seed_item_id);
     CREATE UNIQUE INDEX IF NOT EXISTS garden_crops_fruit_unique ON garden_crops(fruit_item_id);
 
