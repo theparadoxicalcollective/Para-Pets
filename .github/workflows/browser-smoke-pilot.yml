@@ -81,6 +81,7 @@ jobs:
           node script/pet-park-indoor-touch-smoke.mjs
           node script/pet-park-water-source-smoke.mjs
           node script/pet-park-garden-smoke.mjs
+          node script/pet-park-shop-rotation-smoke.mjs
           node script/pet-park-isometric-smoke.mjs
           # Independent story quests remain covered; the retired introduction tour is not run.
           node script/lonelle-quest-smoke.mjs
