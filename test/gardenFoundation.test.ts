@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import {
   GARDEN_HARVEST_COUNTS, GARDEN_IMAGE_KEYS, GARDEN_PHASES,
   GARDEN_PICKED_COOLDOWN_MS, GARDEN_TOOL_OPTIONS, GARDEN_WATER_CAPACITY,
-  GARDEN_PLANT_ANCHOR, gardenHarvestQuantity, gardenAfterWaterDrop, gardenEffectivePhase,
+  GARDEN_PLANT_ANCHOR, gardenHarvestQuantity, gardenAfterWaterDrop,
+  gardenAfterPassiveTime, GARDEN_PASSIVE_GROWTH_INTERVAL_MS, gardenEffectivePhase,
   isCompleteGardenCrop, validGardenArtwork, validGardenDrops, validGardenPrice,
 } from "../shared/garden";
 import { getGameItemCategory } from "../shared/itemTaxonomy";
@@ -53,6 +54,41 @@ test("water only grows one phase per earned drop and never bypasses harvest read
   assert.equal(gardenEffectivePhase("picked", new Date(pickedAt.getTime()+30_000), new Date(pickedAt.getTime()+29_999)), "picked");
   assert.equal(gardenEffectivePhase("picked", new Date(pickedAt.getTime()+30_000), new Date(pickedAt.getTime()+30_000)), "empty");
   assert.equal(gardenEffectivePhase("tilled", null, pickedAt), "tilled");
+});
+
+test("passive garden progress accumulates hourly without spending pail water or skipping harvest", () => {
+  assert.equal(GARDEN_PASSIVE_GROWTH_INTERVAL_MS, 3_600_000);
+  const required = { planted: 3, seedling: 2, partial: 1, grown: 2 };
+  const start = new Date("2026-11-07T00:00:00Z");
+  const planted = { phase: "planted" as const, waterApplied: 0, harvestReady: false };
+  const at = (minutes: number) => new Date(start.getTime() + minutes * 60_000);
+  const early = gardenAfterPassiveTime(planted, required, start, at(59));
+  assert.deepEqual(early.growth, planted, "no client-side partial-hour minting");
+  assert.equal(early.hoursApplied, 0);
+  const first = gardenAfterPassiveTime(planted, required, start, at(65));
+  assert.equal(first.hoursApplied, 1);
+  assert.deepEqual(first.growth, { phase: "planted", waterApplied: 1, harvestReady: false });
+  assert.equal(first.checkpoint?.toISOString(), at(60).toISOString());
+  // A watering action updates the crop, not its natural-growth clock.
+  const watered = gardenAfterWaterDrop(first.growth, required);
+  const next = gardenAfterPassiveTime(watered, required, first.checkpoint, at(121));
+  assert.deepEqual(next.growth, { phase: "seedling", waterApplied: 0, harvestReady: false });
+  assert.equal(next.checkpoint?.toISOString(), at(120).toISOString());
+  const offline = gardenAfterPassiveTime(next.growth, required, next.checkpoint, at(60 * 40));
+  assert.deepEqual(offline.growth, { phase: "grown", waterApplied: 2, harvestReady: true },
+    "offline hours move across all growth stages, but only to harvest readiness");
+  assert.equal(offline.hoursApplied, 5, "long offline periods cannot grow past the crop's remaining stages");
+  assert.deepEqual(gardenAfterPassiveTime(offline.growth, required, offline.checkpoint, at(60 * 90)).growth, offline.growth);
+  assert.deepEqual(gardenAfterPassiveTime(planted, required, null, at(60 * 12)).growth, planted,
+    "old plots without a checkpoint must not gain retroactive hours");
+  assert.deepEqual(gardenAfterPassiveTime({ phase: "tilled", waterApplied: 0, harvestReady: false },
+    required, start, at(60 * 5)).growth,
+    { phase: "tilled", waterApplied: 0, harvestReady: false },
+    "unplanted soil never grows itself");
+  const migration = readFileSync("server/startup/migrations/ensureGardenStorage.ts", "utf8");
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS passive_growth_at timestamp/);
+  assert.match(migration, /SET passive_growth_at = now\(\)/,
+    "legacy active plants start natural growth when the feature is deployed");
 });
 
 test("garden image, stages and water amounts reject malformed or dangerous payloads", () => {
