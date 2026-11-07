@@ -58,17 +58,6 @@ export default function PetParkShopShelf({
     const timer = window.setTimeout(() => setSearchTerm(search), 240);
     return () => window.clearTimeout(timer);
   }, [search]);
-  useEffect(() => {
-    if (!showPicker && !selectedBuy) return;
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (showPicker) onShowPickerChange(false);
-        if (selectedBuy && !buy.isPending) setSelectedBuy(null);
-      }
-    };
-    document.addEventListener("keydown", onEscape);
-    return () => document.removeEventListener("keydown", onEscape);
-  }, [showPicker, selectedBuy, onShowPickerChange]);
   const { data: selected = [], isLoading: loading } = useQuery<ParkShopItemPreview[]>({
     queryKey: ["/api/pet-park/buildings", buildingId, "shop-items"],
     queryFn: async () => {
@@ -131,6 +120,16 @@ export default function PetParkShopShelf({
     },
     onError: (error: Error) => setBuyError(error.message),
   });
+  useEffect(() => {
+    if (!showPicker && !selectedBuy) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (showPicker && !save.isPending) onShowPickerChange(false);
+      if (selectedBuy && !buy.isPending) setSelectedBuy(null);
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [showPicker, selectedBuy, onShowPickerChange, buy.isPending, save.isPending]);
   const changeStock = (nextIds: string[], nextLayout: ParkShopPlacement[]) => {
     if (save.isPending) return;
     setIds(nextIds);
