@@ -340,6 +340,24 @@ export function registerWorldSceneContentRoutes(app: Express, {
     }
   });
 
+  // Private-draft equivalent of Pet Park's one-tap Clear terrain control.
+  // Restrict deletion to this world's terrain placements; other scene content,
+  // Pet Park and existing player worlds remain untouched.
+  app.delete("/api/admin/world-editor/:worldId/terrain", isAdmin, async (req, res) => {
+    const worldId = worldFrom(req);
+    if (!worldId) return res.status(404).json({ message: "Unknown world" });
+    try {
+      const deleted = await db.delete(worldScenePlacements).where(and(
+        eq(worldScenePlacements.worldId, worldId),
+        eq(worldScenePlacements.kind, "terrain"),
+      )).returning({ id: worldScenePlacements.id });
+      return res.json({ deleted: deleted.length });
+    } catch (error) {
+      console.error("[world-editor] clearing terrain failed", error);
+      return res.status(500).json({ message: "Could not clear world terrain" });
+    }
+  });
+
   // The same centered isometric grid as Pet Park, but no Pet Park table writes.
   app.post("/api/admin/world-editor/:worldId/terrain-strokes", isAdmin, async (req, res) => {
     const worldId = worldFrom(req);

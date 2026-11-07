@@ -163,7 +163,7 @@ export default function WorldTerrainBrush(props: Props) {
         className="mt-2 max-h-[min(50dvh,360px)] space-y-3 overflow-y-auto overscroll-contain border-t border-[#b99a4c]/40 pt-2">
         <p className="text-[11px] text-amber-100/75">Choose a path or plot, then tap or drag on the world. Release to save. Enable Erase to remove only that material.</p>
         <div>
-          <p className="mb-1 text-xs font-semibold">Paths, Water & Garden Plots (player farming in PR 3)</p>
+          <p className="mb-1 text-xs font-semibold">Paths, Water & Garden Plots</p>
           <div className="grid grid-cols-2 gap-1.5">
             {PARK_TERRAIN_DETAIL_OPTIONS.map(option => <button key={option.type} type="button"
               disabled={!!draft.length || saving || changingGround} aria-pressed={type === option.type}

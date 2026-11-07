@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { PARA_PETS_COIN_IMAGE } from "@/lib/coinAssets";
 import {
   withParkShopDefaults, parkShopPriceTagPoint, parkShopPriceTagSize,
@@ -99,7 +100,7 @@ export default function WorldShopShelf({ worldId, building, roomWidth, roomHeigh
       start: placement, latest: placement, moved: false,
     };
     setSelectedId(placement.itemId);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
   };
   const move = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const d = drag.current;
@@ -127,8 +128,12 @@ export default function WorldShopShelf({ worldId, building, roomWidth, roomHeigh
     if (!d || d.id !== event.pointerId) return;
     event.stopPropagation();
     drag.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId))
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId))
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Mobile Safari can end pointer capture before the release handler.
+    }
     if (d.moved) void save(layoutRef.current, layout.map(p => p.itemId === d.itemId ? d.start : p));
   };
   const cancel = () => {
