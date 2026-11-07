@@ -458,7 +458,8 @@ try{
     await product.click();
     const confirmation=page.getByTestId("pet-park-shop-purchase-dialog");
     await confirmation.waitFor({state:"visible"});
-    await confirmation.getByTestId("pet-park-shop-total-price").getByText("125",{exact:true}).waitFor();
+    await confirmation.getByTestId("pet-park-shop-total-price").waitFor({state:"visible"});
+    assert.equal(await confirmation.getByTestId("pet-park-shop-total-price").innerText(),"125");
     assert.equal(await confirmation.getByText("125 coins each").count(),1,
       name+": unit price and purchase total are separately displayed");
     assert.equal(await confirmation.locator('img[src*="MainGameCoinImage"]').count(),1,
