@@ -10,10 +10,10 @@ import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
-import WorldGardenPreview from "@/components/world-editor/WorldGardenPreview";
 import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
+import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
 import { PET_PARK_GROUND_THEMES, PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
@@ -55,7 +55,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [zoom, setZoom] = useState(1);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
-  const [previewGarden, setPreviewGarden] = useState(false);
+  const [showWorldOptions, setShowWorldOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
@@ -98,7 +98,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const groundTheme = settings?.groundTheme ?? "grass";
 
   useEffect(() => {
-    setEdited(null); setPan(null); setZoom(1); setPaintMode(false); setPreviewGarden(false);
+    setEdited(null); setPan(null); setZoom(1); setPaintMode(false);
+    setShowWorldOptions(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     cameraDrag.current = null; objectDrag.current = null;
     touchPoints.current.clear(); pinch.current = null;
@@ -146,8 +147,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const changeLevel = (next: number) => {
     if (next < 1 || next > PET_PARK_MAX_GROUND_LEVEL || saveDraft.isPending) return;
     // The server updates saved placement coordinates atomically on expansion.
-    saveDraft.mutate({ groundLevel: next, groundTheme });
-    setPan(null);
+    saveDraft.mutate({ groundLevel: next, groundTheme }, {
+      onSuccess: () => setPan(null),
+    });
   };
   const changeZoom = (next: number, anchor = { x: size.width / 2, y: size.height / 2 }) => {
     const value = parkClampZoom(next);
@@ -181,7 +183,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   };
   const startObject = (event: ReactPointerEvent<HTMLButtonElement>, item: WorldScenePlacement | WorldSceneInteriorItem,
     kind: "outdoor" | "interior") => {
-    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || previewGarden) return;
+    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || objectDrag.current) return;
     const artwork = event.currentTarget.querySelector("img");
     if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
     event.stopPropagation();
@@ -193,7 +195,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       startX: start.xPct, startY: start.yPct,
       xPct: item.xPct, yPct: item.yPct, latest: { xPct: item.xPct, yPct: item.yPct }, moved: false,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
     if (kind === "outdoor") setSelectedId(item.id); else setSelectedInteriorId(item.id);
   };
   const moveObject = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -218,8 +220,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (!drag || drag.id !== event.pointerId) return;
     event.stopPropagation();
     objectDrag.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId))
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId))
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Safari may implicitly release capture before pointerup arrives.
+    }
     if (drag.moved) void updatePosition(drag.kind, drag.itemId, drag.latest);
     else setObjectPreview(null);
   };
@@ -228,7 +234,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
     touchPoints.current.delete(event.pointerId);
     if (cameraDrag.current?.id === event.pointerId) cameraDrag.current = null;
-    if (touchPoints.current.size < 2) pinch.current = null;
+    if (touchPoints.current.size < 2) {
+      pinch.current = null;
+      if (touchPoints.current.size === 1) {
+        const [id, remaining] = [...touchPoints.current.entries()][0];
+        // One finger can continue panning after a two-finger zoom ends.
+        cameraDrag.current = {
+          id, x: remaining.x, y: remaining.y, panX: actualPan.x, panY: actualPan.y,
+        };
+      }
+    }
   };
   const startCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (paintMode || activeBuilding || (event.button !== 0 && event.pointerType === "mouse")) return;
@@ -244,7 +259,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         panX: actualPan.x, panY: actualPan.y,
       };
     }
-    event.currentTarget.setPointerCapture(event.pointerId);
+    safeSetPointerCapture(event.currentTarget, event.pointerId);
   };
   const moveCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!touchPoints.current.has(event.pointerId) || paintMode || activeBuilding) return;
@@ -301,6 +316,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
       onPointerDown={startCamera} onPointerMove={moveCamera}
       onPointerUp={endTouch} onPointerCancel={endTouch}
+      onLostPointerCapture={endTouch}
       onWheel={event => {
         if (!event.ctrlKey && !event.shiftKey) return;
         const rect = event.currentTarget.getBoundingClientRect();
@@ -320,6 +336,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             transform: `translate(${actualPan.x}px, ${actualPan.y}px)` }}>
           {content.placements.map(p => {
             const position = objectPosition(p);
+            // Only mount visible sprites. Large worlds may contain thousands of
+            // authored items; invisible images/effects must not animate on iOS.
+            const left = actualPan.x + position.xPct * camera.sceneWidth;
+            const top = actualPan.y + position.yPct * camera.sceneHeight;
+            const margin = p.size * camera.scale;
+            if (left < -margin || left > size.width + margin ||
+                top < -margin || top > size.height + margin) return null;
             const asset = assetFor(p.assetId);
             const connected = p.kind === "terrain" && isParkConnectedPath(p.effectType);
             // Connected paths are painted on the camera canvas. Do not create
@@ -339,7 +362,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   yPct: position.yPct, worldHeight: camera.worldHeight, size: p.size,
                   contact: 0.9,
                 }),
-                pointerEvents: previewGarden || p.kind === "terrain" ? "none" : undefined,
+                pointerEvents: p.kind === "terrain" ? "none" : undefined,
                 transform: "translate(-50%, -50%)",
                 outline: selectedId === p.id ? "2px solid #f6cf71" : undefined,
               }}
@@ -350,7 +373,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               onClick={event => {
                 const artwork = event.currentTarget.querySelector("img");
                 if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, p.flipped)) return;
-                if (previewGarden) return;
                 event.stopPropagation(); setSelectedId(p.id);
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
@@ -431,69 +453,74 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           setEdited(null);
         }} />}
     </div>
-    {previewGarden && !activeBuilding && !paintMode && !scene.isError && !draft.isError &&
-      <WorldGardenPreview worldId={worldId} placements={content.placements}
-        viewportWidth={size.width} viewportHeight={size.height}
-        sceneWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
-        worldHeight={camera.worldHeight} scale={camera.scale}
-        panX={actualPan.x} panY={actualPan.y}
-        onExit={() => setPreviewGarden(false)} />}
 
-    <header className="pointer-events-none absolute top-0 inset-x-0 z-20 flex items-start gap-3 px-3 py-3"
-      style={{ background: "linear-gradient(180deg, rgba(10,25,18,.97), rgba(10,25,18,0))" }}>
-      <button type="button" onClick={() => navigate("/map")}
-        className="pointer-events-auto rounded-lg border border-[#9b8246] bg-[#10251a] px-3 py-2 text-xs font-semibold"
-        data-testid="button-world-draft-back">Back</button>
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-sm font-semibold tracking-wide">{world.defaultName} — New World Edit</h1>
-        <p className="text-[10px] text-[#d5c58e]">Private admin draft · Original world remains live</p>
-      </div>
-      <div className="pointer-events-auto flex gap-1">
-        <button className="w-8 h-8 rounded border border-[#927a42] bg-[#173222] text-lg" type="button"
-          aria-label="Zoom out" onClick={() => changeZoom(zoom - 0.15)}>−</button>
-        <button className="w-8 h-8 rounded border border-[#927a42] bg-[#173222] text-lg" type="button"
-          aria-label="Zoom in" onClick={() => changeZoom(zoom + 0.15)}>+</button>
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-[max(12px,env(safe-area-inset-top))] font-fantasy">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" data-testid="button-world-draft-back" onClick={() => navigate("/map")}
+          className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64]">
+          ← Back
+        </button>
+        <h1 className="min-w-0 truncate rounded-full bg-black/65 px-3 py-2 text-center text-sm font-semibold tracking-wider text-[#f5cf64]">
+          {world.defaultName}
+        </h1>
+        {activeBuilding ? <button type="button"
+          className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-xs text-[#f5cf64]"
+          onClick={() => { setActiveBuildingId(null); setSelectedInteriorId(null); }}>Exit Room</button> :
+          <button type="button" aria-label="Expand Ground"
+            disabled={paintMode || saveDraft.isPending || groundLevel >= PET_PARK_MAX_GROUND_LEVEL}
+            onClick={() => changeLevel(groundLevel + 1)}
+            className="pointer-events-auto shrink-0 rounded-full border border-amber-500/30 bg-black/75 px-3 py-2 text-sm text-[#f5cf64] disabled:opacity-50">
+            {saveDraft.isPending ? "Expanding…" : groundLevel >= PET_PARK_MAX_GROUND_LEVEL ? "Full" : "⛶ Expand"}
+          </button>}
       </div>
     </header>
-
-    {!activeBuilding && !paintMode && !previewGarden && <section className="absolute z-20 left-3 top-[76px] w-[180px] rounded-lg border border-[#947846] bg-[#11281e]/90 p-2"
-      onPointerDown={event => event.stopPropagation()}>
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11px] font-semibold">Ground</span>
-        <span className="text-[10px] text-[#cab784]">{draft.data?.hasSavedDraft ? "Draft" : "New"}</span>
+    {!activeBuilding && !paintMode && <div
+      className="pointer-events-none absolute right-3 z-30 flex flex-col items-end gap-2"
+      style={{ top: "max(68px, calc(env(safe-area-inset-top, 0px) + 58px))" }}>
+      <div className="pointer-events-auto flex items-center gap-1">
+        <button type="button" aria-label="Zoom out" onClick={() => changeZoom(zoom - 0.15)}
+          className="h-9 w-9 rounded-full border border-amber-500/35 bg-black/75 text-base text-[#f5cf64]">−</button>
+        <button type="button" aria-label="Zoom in" onClick={() => changeZoom(zoom + 0.15)}
+          className="h-9 w-9 rounded-full border border-amber-500/35 bg-black/75 text-base text-[#f5cf64]">+</button>
+        <button type="button" data-testid="button-world-options" aria-expanded={showWorldOptions}
+          onClick={() => setShowWorldOptions(value => !value)}
+          className="min-h-9 rounded-full border border-amber-500/35 bg-black/75 px-3 text-xs font-semibold text-[#f5cf64]">
+          World Options
+        </button>
       </div>
-      <select aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
-        value={groundTheme} disabled={saveDraft.isPending}
-        className="mb-2 w-full rounded bg-[#254536] p-1.5 text-[11px]"
-        onChange={event => { setEdited({ groundLevel, groundTheme: event.target.value as ParkGroundTheme }); }}>
-        {PET_PARK_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
-      </select>
-      <div className="mb-2 flex items-center justify-between gap-1">
-        <button type="button" aria-label="Shrink draft ground" disabled={groundLevel <= 1 || saveDraft.isPending}
-          className="rounded border border-[#856c41] px-2 py-1 text-xs disabled:opacity-40"
-          onClick={() => changeLevel(groundLevel - 1)}>−</button>
-        <span className="text-[11px]">Size {groundLevel}/{PET_PARK_MAX_GROUND_LEVEL}</span>
-        <button type="button" aria-label="Expand draft ground" disabled={groundLevel >= PET_PARK_MAX_GROUND_LEVEL || saveDraft.isPending}
-          className="rounded border border-[#856c41] px-2 py-1 text-xs disabled:opacity-40"
-          onClick={() => changeLevel(groundLevel + 1)}>+</button>
-      </div>
-      <button type="button" data-testid="button-save-world-draft" disabled={saveDraft.isPending || draft.isLoading || draft.isError}
-        className="w-full rounded border border-[#c8a45b] bg-[#31513a] px-2 py-2 text-[11px] font-semibold disabled:opacity-40"
-        onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}>
-        {saveDraft.isPending ? "Saving..." : "Save Ground"}
-      </button>
-      <button type="button" data-testid="button-world-garden-preview"
-        disabled={scene.isLoading || scene.isError || saveDraft.isPending}
-        className="mt-2 w-full rounded border border-[#c8a45b] bg-[#31513a] px-2 py-2 text-[11px] font-semibold disabled:opacity-40"
-        onClick={() => { setSelectedId(null); setPreviewGarden(true); }}>
-        Test Gardening
-      </button>
-    </section>}
+      {showWorldOptions && <section aria-label="World editor settings" data-testid="world-options-panel"
+        className="pointer-events-auto w-[min(270px,calc(100vw-24px))] max-h-[min(46dvh,330px)] overflow-y-auto rounded-xl border border-amber-500/45 bg-[#10291d]/95 p-3 text-[#f5cf64] shadow-xl"
+        onPointerDown={event => event.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between">
+          <strong className="text-sm">World Settings</strong>
+          <span className="text-[11px] opacity-80">{draft.data?.hasSavedDraft ? "Private draft" : "New draft"}</span>
+        </div>
+        <label htmlFor="world-ground-theme" className="mb-1 block text-xs">Ground theme</label>
+        <select id="world-ground-theme" aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
+          value={groundTheme} disabled={saveDraft.isPending}
+          className="mb-2 w-full rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-2 py-2 text-xs"
+          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as ParkGroundTheme })}>
+          {PET_PARK_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
+        </select>
+        <button type="button" data-testid="button-save-world-draft"
+          disabled={saveDraft.isPending || draft.isLoading || draft.isError}
+          onClick={() => saveDraft.mutate({ groundLevel, groundTheme })}
+          className="mb-2 w-full rounded-lg border border-[#b99a4c]/65 bg-[#245037] px-3 py-2.5 text-xs font-semibold disabled:opacity-50">
+          {saveDraft.isPending ? "Saving…" : "Save Ground Theme"}
+        </button>
+      </section>}
+    </div>}
+    {!paintMode && !activeBuilding && <div className="pointer-events-none absolute inset-x-3 z-10 flex justify-center"
+      style={{ bottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
+      <span className="rounded-lg bg-black/70 px-3 py-1.5 text-[11px] text-amber-200">
+        Admin preview · Original world remains live
+      </span>
+    </div>}
 
     {(draft.isLoading || scene.isLoading || draft.isError || scene.isError) ?
       <div className="absolute z-40 inset-0 flex items-center justify-center bg-[#0d1f17]/90 p-5 text-center text-sm">
         {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
-      </div> : !paintMode && !previewGarden && <WorldSceneControls
+      </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} placementPoint={createPoint}
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
