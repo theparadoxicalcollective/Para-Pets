@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  validWorldArtwork, validPlacementTransform, validDecorEffects,
+  validWorldArtwork, validPlacementTransform, validDecorEffects, validEffect,
   validShopIds, worldTerrainCell, belongsToWorld, isWorldTerrainType,
 } from "../shared/worlds/worldSceneContent";
 import { parkGroundSize } from "../shared/petParkGround";
@@ -18,6 +18,9 @@ test("world scene transforms and effect payloads are validated", () => {
   assert.equal(validPlacementTransform({ xPct: 1.1, yPct: 0.3, size: 150, flipped: false, layer: 0 }), false);
   assert.equal(validPlacementTransform({ xPct: 0.2, yPct: 0.3, size: "150", flipped: false, layer: 0 }), false);
   assert.equal(validDecorEffects([]), true);
+  assert.equal(validEffect("sleep"), false);
+  assert.equal(validDecorEffects([{ id: "pet-sleep", type: "sleep", x: 0.5, y: 0.5, size: 40 }]), false);
+  assert.equal(validEffect("waterfall_mist"), true);
   assert.equal(validShopIds([]), true);
   assert.equal(validShopIds(["not-uuid"]), false);
   assert.equal(isWorldTerrainType("garden_plot"), true);
