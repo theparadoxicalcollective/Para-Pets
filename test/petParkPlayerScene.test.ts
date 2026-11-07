@@ -108,7 +108,9 @@ test("moderator-only park access keeps ordinary players out and preserves reward
 });
 
 test("park pet slots stay compact and centered, with no visible spot-number labels", () => {
-  const slots = page.split('data-testid="pet-park-player-slots"')[1]?.split('{activeSlot != null &&')[0];
+  // Earlier pointer handlers also query this test ID. Slice from its actual
+  // rendered JSX occurrence instead of matching the first JS selector string.
+  const slots = page.slice(page.lastIndexOf('data-testid="pet-park-player-slots"')).split('{activeSlot != null &&')[0];
   assert.ok(slots, "the player slots render in their existing viewport HUD");
   assert.match(slots, /mx-auto grid w-full max-w-\[294px\] grid-cols-3/);
   assert.match(slots, /min-h-\[96px\]/);
