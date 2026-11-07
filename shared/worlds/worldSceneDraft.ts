@@ -1,4 +1,5 @@
-import { isParkGroundLevel, isParkGroundTheme, type ParkGroundTheme } from "../petParkGround";
+import { isParkGroundLevel } from "../petParkGround";
+import { isWorldGroundTheme, type WorldGroundTheme } from "./worldGroundTheme";
 import { isKnownWorldId, type WorldId } from "./worldRegistry";
 
 /**
@@ -7,7 +8,7 @@ import { isKnownWorldId, type WorldId } from "./worldRegistry";
  */
 export type WorldSceneDraftSettings = {
   groundLevel: number;
-  groundTheme: ParkGroundTheme;
+  groundTheme: WorldGroundTheme;
 };
 
 export type WorldSceneDraft = WorldSceneDraftSettings & {
@@ -16,7 +17,7 @@ export type WorldSceneDraft = WorldSceneDraftSettings & {
   updatedAt: string | null;
 };
 
-const THEMES_BY_WORLD: Partial<Record<WorldId, ParkGroundTheme>> = {
+const THEMES_BY_WORLD: Partial<Record<WorldId, WorldGroundTheme>> = {
   snowy_mountain: "snow",
   haunted_woods: "haunted",
   swamp: "swamp",
@@ -37,7 +38,7 @@ export function defaultWorldSceneDraft(worldId: WorldId): WorldSceneDraft {
 export function parseWorldSceneDraftSettings(value: unknown): WorldSceneDraftSettings | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
-  if (!isParkGroundLevel(input.groundLevel) || !isParkGroundTheme(input.groundTheme)) return null;
+  if (!isParkGroundLevel(input.groundLevel) || !isWorldGroundTheme(input.groundTheme)) return null;
   return { groundLevel: input.groundLevel, groundTheme: input.groundTheme };
 }
 
