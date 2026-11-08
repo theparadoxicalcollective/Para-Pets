@@ -198,7 +198,7 @@ export default function WorldSceneControls(props: Props) {
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       {props.activeBuilding ? <>
-        <label className="col-span-3 flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs sm:col-span-5">
+        <div className="col-span-3 flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs sm:col-span-5">
           <span className="flex justify-between text-[#f0d69d]">
             <span>Daytime darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
           </span>
@@ -240,7 +240,7 @@ export default function WorldSceneControls(props: Props) {
               className={`rounded border px-2 py-1 capitalize ${props.interiorPreviewClock === mode
                 ? "border-[#f5cf64] bg-[#245037]" : "border-[#b99a4c]/40 bg-[#112c20]"}`}>{mode}</button>)}
           </span>
-        </label>
+        </div>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
         <button type="button" className={quickButton} onClick={() => openCreator("shop")}>Shop Setup</button>
