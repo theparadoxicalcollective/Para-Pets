@@ -18,6 +18,7 @@ export type WorldScenePlacement = {
   assetId: string | null; effectType: string | null; effectColor: string | null; terrainKey: string | null;
   /** Per-placed-building room dimming, unaffected by the outdoor day/night clock. */
   interiorDarkness: number;
+  interiorNightDarkness: number | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
   decorEffects: ParkDecorEffect[]; isWaterSource: boolean;
   isShop: boolean; shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
