@@ -1365,10 +1365,10 @@ export default function PetParkPage() {
         </>}
       </div>
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "effect" &&
-        (selectedObject as ParkItem).effectType === "colored_light" && <label
+        ((selectedObject as ParkItem).effectType === "lamp_light" || (selectedObject as ParkItem).effectType === "colored_light") && <label
         className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 bg-[#173b28] p-2 text-xs">
-        Colored light orb
-        <input type="color" aria-label="Edit Pet Park colored light orb color"
+        Lamp Light color
+        <input type="color" aria-label="Edit Pet Park lamp light color"
           value={(selectedObject as ParkItem).effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
           disabled={standaloneLightColorSave.isPending}
           onChange={event => standaloneLightColorSave.mutate({
