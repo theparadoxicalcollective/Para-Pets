@@ -406,6 +406,9 @@ try {
     assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").inputValue(), "90",
       name + ": reopening preserves the separately saved nighttime target");
     await page.getByRole("button", { name: "Exit Interior" }).click();
+    // The previously selected building intentionally stays selected when
+    // leaving its room. Deselect before using the outdoor terrain toolbar.
+    await page.getByRole("button", { name: "Deselect world object" }).click();
     await page.getByRole("button", { name: "Paint terrain" }).click();
     await page.getByTestId("world-editor-terrain-brush-surface").waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Choose terrain brush" }).click();
