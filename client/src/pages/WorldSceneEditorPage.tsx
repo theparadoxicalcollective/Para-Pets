@@ -418,7 +418,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         </div>
         <div data-testid="world-editor-auto-day-night"
           className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
-          <HomeOutdoorAtmosphereLayer darkness={parkSceneDarkness(worldLighting.nightStrength)}
+          <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(worldLighting.nightStrength)}
             nightStrength={worldLighting.nightStrength} effects={exteriorLights}
             panX={actualPan.x} panY={actualPan.y}
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}

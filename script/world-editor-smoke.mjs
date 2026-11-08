@@ -66,9 +66,11 @@ function makeScene(worldId) {
     isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
   };
   const placements = [
-    { ...common, id: ids.decor, kind: "decor", assetId: ids.decor, xPct: .38, yPct: .43 },
+    { ...common, id: ids.decor, kind: "decor", assetId: ids.decor, xPct: .38, yPct: .43,
+      decorEffects: [{ id: "lantern-amber", type: "lamp_light", x: .5, y: .5, size: 42 }] },
     { ...common, id: ids.building, kind: "building", assetId: ids.building,
-      xPct: .64, yPct: .63, size: 190 },
+      xPct: .64, yPct: .63, size: 190,
+      decorEffects: [{ id: "porch-amber", type: "lamp_light", x: .5, y: .4, size: 30 }] },
     { ...common, id: ids.plot, kind: "terrain", effectType: "garden_plot",
       terrainKey: "garden_plot:150:0:0", xPct: .5, yPct: .53, size: 150 },
     { ...common, id: ids.spring, kind: "terrain", effectType: "water_path",
@@ -251,6 +253,15 @@ try {
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
+    assert.ok(await page.getByTestId("park-outdoor-lamp-warm-spill").count() >= 1,
+      name + ": world editor uses warm radius-based lamp illumination");
+    const gradients = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-warm"]')
+      .count();
+    assert.ok(gradients >= 1,
+      name + ": the scene lamp renders its soft amber falloff in the existing darkness SVG");
+    assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
+      name + ": attached lantern uses the amber lamp artwork");
+
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
     const atNormalZoom = await worldSprite.boundingBox();
     assert.ok(atNormalZoom);
