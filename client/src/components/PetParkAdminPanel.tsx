@@ -163,7 +163,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent" />
         </label>
         <div className="grid grid-cols-2 gap-2">
-          {[...HOME_OUTDOOR_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION].map(option => <button key={option.type} type="button"
+          {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
             data-testid={`add-park-effect-${option.type}`}
             disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (PARK_BASE_VIEW_HEIGHT)))))}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
@@ -171,6 +171,15 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             <span className="block text-sm text-[#f5cf64]">{option.type === "sleep" ? "Rest Spot (Sleep Square)" : option.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
           </button>)}
+          <button type="button" data-testid="add-park-effect-colored_light"
+            disabled={mutation.isPending}
+            onClick={() => addEffect("colored_light",
+              Math.max(24, Math.min(1000, Math.round(PARK_COLORED_LIGHT_OPTION.defaultSize / 100 * PARK_BASE_VIEW_HEIGHT))))}
+            className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
+            style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
+            <span className="block text-sm text-[#f5cf64]">{PARK_COLORED_LIGHT_OPTION.label}</span>
+            <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{PARK_COLORED_LIGHT_OPTION.description}</span>
+          </button>
         </div>
         <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Water Effects</div>
         <div className="grid grid-cols-2 gap-2">
