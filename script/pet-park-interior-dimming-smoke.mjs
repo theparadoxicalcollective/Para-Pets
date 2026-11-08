@@ -58,12 +58,12 @@ try {
     const nightImage = page.getByTestId("pet-park-night-interior-image");
     await nightImage.waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Preview night interior lighting" }).click();
-    assert.equal(await nightImage.evaluate(el => Number(el.style.opacity)), 1,
+    assert.equal(await nightImage.evaluate(el => el.style.display), "block",
       name + ": night preview switches to the alternate artwork");
     assert.equal(await mask.locator('rect[fill="black"]').evaluate(el => Number(el.style.fillOpacity)), .35,
       name + ": night uses the same 35% darkness mask");
     await page.getByRole("button", { name: "Preview day interior lighting" }).click();
-    assert.equal(await nightImage.evaluate(el => Number(el.style.opacity)), 0,
+    assert.equal(await nightImage.evaluate(el => el.style.display), "none",
       name + ": day preview restores the original image");
     await page.getByRole("button", { name: "Preview live interior lighting" }).click();
     const response = page.waitForResponse(r => r.url().endsWith("/buildings/cottage") && r.request().method() === "PATCH");
