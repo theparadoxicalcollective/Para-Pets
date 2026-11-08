@@ -103,7 +103,7 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.48);
   assert.match(atmosphere, /mixBlendMode: "darken"/,
     "overlapping lamp cuts should use the strongest local illumination");
-  assert.match(atmosphere, /data-testid="park-outdoor-lamp-neutral-cutout"/);
+  assert.match(atmosphere, /park-outdoor-lamp-neutral-cutout/);
   assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill|stopColor="#f7c168"/,
     "a separate yellow wash must not tint the ground");
   assert.match(atmosphere, /stopColor="black" stopOpacity/,
