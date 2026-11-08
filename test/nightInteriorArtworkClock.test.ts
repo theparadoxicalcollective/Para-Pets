@@ -38,10 +38,10 @@ test("park/world lamps and fireflies are completely off by 06:00, with later day
   assert.equal(getParkLampStrength("auto", local(20)), 1);
   assert.ok(getParkLampStrength("auto", local(5, 59)) > 0);
   assert.equal(getParkLampStrength("auto", local(6)), 0);
-  assert.equal(getParkFireflyStrength("auto", local(19, 29)), 0);
-  assert.equal(getParkFireflyStrength("auto", local(19, 30)), 0);
-  assert.ok(getParkFireflyStrength("auto", local(19, 31)) > 0);
-  assert.equal(getParkFireflyStrength("auto", local(20, 15)), 1);
+  assert.equal(getParkFireflyStrength("auto", local(18, 59, 59)), 0);
+  assert.equal(getParkFireflyStrength("auto", local(19)), 0);
+  assert.ok(getParkFireflyStrength("auto", local(19, 1)) > 0);
+  assert.equal(getParkFireflyStrength("auto", local(19, 45)), 1);
   assert.ok(getParkFireflyStrength("auto", local(5, 59)) > 0);
   assert.equal(getParkFireflyStrength("auto", local(6)), 0);
   assert.ok(getAutomaticHomeNightStrength(local(6)) > 0,
