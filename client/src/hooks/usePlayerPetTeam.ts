@@ -1,0 +1,88 @@
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  playerPetTeamQueryKey, samePetTeam, type PlayerPetTeam,
+} from "@/lib/playerPetTeam";
+
+/**
+ * One account-scoped source of truth for PvP, Raids and future main-page slots.
+ * Writes are serialized (React Query v5 mutation scope) so quick taps cannot
+ * cause a slower earlier response to replace a newer team. The local draft
+ * stays visible until the final save succeeds; failures revert to the latest
+ * server-confirmed selection and surface an error.
+ */
+export async function fetchPlayerPetTeam(): Promise<PlayerPetTeam> {
+  const response = await apiRequest("GET", "/api/player/pet-team");
+  return response.json();
+}
+
+type SaveRequest = { userId: string; ids: string[]; revision: number };
+
+export function usePlayerPetTeam(userId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  const teamQuery = useQuery<PlayerPetTeam>({
+    queryKey: playerPetTeamQueryKey(userId),
+    queryFn: fetchPlayerPetTeam,
+    enabled: !!userId,
+    staleTime: 3_000,
+    refetchOnMount: "always",
+  });
+
+  const [draft, setDraft] = useState<{ userId: string; ids: string[] } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const revisionRef = useRef(0);
+  const currentDraft = userId && draft?.userId === userId ? draft.ids : null;
+  const selectedPetIds = currentDraft ?? teamQuery.data?.petInventoryIds ?? [];
+
+  const saveMutation = useMutation({
+    // Network calls for this roster are serialized, including rapid taps.
+    scope: { id: "para-pets-player-team" },
+    mutationFn: async ({ userId: savedUserId, ids }: SaveRequest) => {
+      const response = await apiRequest("PUT", "/api/player/pet-team", { petInventoryIds: ids });
+      const confirmed = await response.json() as PlayerPetTeam;
+      // Update the account-scoped cache even if this screen has since unmounted.
+      queryClient.setQueryData(playerPetTeamQueryKey(savedUserId), confirmed);
+      // PvP's legacy server route still reads the same underlying database row.
+      queryClient.invalidateQueries({ queryKey: ["/api/pvp/battle-group"] });
+      return confirmed;
+    },
+    onSuccess: (_result, request) => {
+      if (request.revision !== revisionRef.current) return;
+      setDraft(null);
+      setSaveError(null);
+      setSaved(true);
+    },
+    onError: (error: unknown, request) => {
+      if (request.revision !== revisionRef.current) return;
+      setDraft(null);
+      setSaved(false);
+      setSaveError(error instanceof Error ? error.message : "Could not save your pet team.");
+    },
+  });
+
+  const saveTeam = (ids: string[], force = false): boolean => {
+    if (!userId || !teamQuery.isSuccess) return false;
+    if (!force && samePetTeam(ids, selectedPetIds)) return true;
+    if (ids.length > 5 || new Set(ids).size !== ids.length ||
+        ids.some((id) => typeof id !== "string" || !id.trim())) return false;
+    const revision = ++revisionRef.current;
+    setSaved(false);
+    setSaveError(null);
+    setDraft({ userId, ids: [...ids] });
+    saveMutation.mutate({ userId, ids: [...ids], revision });
+    return true;
+  };
+
+  return {
+    team: teamQuery.data,
+    selectedPetIds,
+    isReady: teamQuery.isSuccess && !!userId,
+    isLoading: teamQuery.isPending || teamQuery.isFetching && !teamQuery.data,
+    isSaving: currentDraft !== null,
+    saved,
+    saveError: teamQuery.isError ? "Could not load your pet team." : saveError,
+    saveTeam,
+  };
+}
