@@ -253,12 +253,14 @@ try {
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
-    assert.ok(await page.getByTestId("park-outdoor-lamp-warm-spill").count() >= 1,
-      name + ": world editor uses warm radius-based lamp illumination");
-    const gradients = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-warm"]')
-      .count();
-    assert.ok(gradients >= 1,
-      name + ": the scene lamp renders its soft amber falloff in the existing darkness SVG");
+    const lampCutouts = page.getByTestId("park-outdoor-lamp-neutral-cutout");
+    assert.ok(await lampCutouts.count() >= 2,
+      name + ": building and decoration lamps use scene-linked, neutral darkness reveals");
+    assert.equal(await page.getByTestId("park-outdoor-lamp-warm-spill").count(), 0,
+      name + ": no extra amber wash should tint an entire section of the ground");
+    assert.ok(await lampCutouts.evaluateAll(circles =>
+      circles.every(circle => circle.style.mixBlendMode === "darken")),
+      name + ": overlapping fence lamps must not stack brightness toward daylight");
     assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
       name + ": attached lantern uses the amber lamp artwork");
     // Test the actual SVG radius against the rendered lamp art on phone and
@@ -266,7 +268,7 @@ try {
     // broader illuminated scene for both decorations and building facades.
     const decorFlare = await page.getByTestId("world-editor-decor-effect-lantern-amber").boundingBox();
     const buildingFlare = await page.getByTestId("world-editor-decor-effect-porch-amber").boundingBox();
-    const sceneRadii = await page.getByTestId("park-outdoor-lamp-warm-spill").evaluateAll(
+    const sceneRadii = await lampCutouts.evaluateAll(
       circles => circles.map(circle => Number(circle.getAttribute("r"))));
     assert.ok(decorFlare && buildingFlare && sceneRadii.length >= 2,
       name + ": decor and building lamps each have independently sized illumination");
@@ -276,8 +278,14 @@ try {
       name + ": building facade lamp illuminates beyond its artwork");
     const fadeOffsets = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("offset")));
-    assert.deepEqual(fadeOffsets, ["0%", "14%", "32%", "52%", "72%", "88%", "100%"],
-      name + ": seven gradual reveal stops prevent an abrupt circular lit boundary");
+    assert.deepEqual(fadeOffsets, ["0%", "15%", "32%", "52%", "72%", "88%", "100%"],
+      name + ": seven neutral grayscale stops fade the light to full night");
+    const fadeColors = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
+      .evaluateAll(stops => stops.map(stop => stop.getAttribute("stop-color")));
+    assert.ok(fadeColors.every(color => /^rgb\\((\\d+), \\1, \\1\\)$/.test(color)),
+      name + ": scene brightness must be neutral, not yellow-brown");
+    assert.equal(fadeColors.at(-1), "rgb(255, 255, 255)",
+      name + ": light edges return smoothly to the original night darkness");
 
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
     const atNormalZoom = await worldSprite.boundingBox();
