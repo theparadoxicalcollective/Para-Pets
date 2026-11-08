@@ -1131,7 +1131,7 @@ export default function PetParkPage() {
         <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(parkLighting.nightStrength)}
           nightStrength={parkLighting.nightStrength}
           effects={parkLights} fireflies={parkFireflies} fireflyStrength={parkLighting.fireflyStrength}
-           lampStrength={parkLighting.lampStrength} lampStrength={parkLighting.lampStrength}
+           lampStrength={parkLighting.lampStrength}
            reducedMotion={reduceMotion || zoom <= .85} panX={camera.x} panY={camera.y}
           imgWidth={sceneWidth} sceneHeight={sceneHeight}
           transitionMs={parkLighting.transitionMs} zIndex={2} />
@@ -1489,7 +1489,7 @@ export default function PetParkPage() {
     </div>}
     {scene?.canEditPark && detailsBuilding && <PetParkBuildingDetails key={`${detailsBuilding.id}:${focusedRoomEffectId ?? ""}`}
       building={detailsBuilding} initialSelectedEffectId={focusedRoomEffectId} initialShowEffectChoices={openInteriorEffectChoices}
-      nightStrength={parkLighting.nightStrength} sunlightStrength={parkLighting.daylightStrength}
+      sunlightStrength={parkLighting.daylightStrength}
        nightInteriorArtworkActive={parkLighting.nightInteriorArtworkActive}
       onPreview={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(false); setOpenedRoomId(null); setEnteredBuilding(detailsBuilding); }}
       onClose={() => { setDetailsBuildingId(null); setFocusedRoomEffectId(null); setOpenInteriorEffectChoices(false); }} onUpdated={invalidate} />}
