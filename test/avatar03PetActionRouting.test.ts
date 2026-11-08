@@ -72,7 +72,11 @@ test("Power Up route is stage-owned, native-device, and hides the global navigat
   assert.match(power, /\/api\/pet\/\$\{inventoryId\}\/power-up/); // target-specific server endpoint
   assert.match(power, /getPetPowerUpItems\(inventoryQuery\.data \?\? \[\]\)/);
   assert.match(power, /item\.inventoryId/);
-  assert.doesNotMatch(power, /activePetId|activePetForModal|currentUser\.activePetId/);
+  assert.match(power, /item\.inventoryId === inventoryId && item\.type === "pet" && item\.isHatched/);
+  // Inspect executable source, not the migration comment documenting the
+  // historical activePetId coupling that this route deliberately replaces.
+  const executablePowerRoute = power.replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(executablePowerRoute, /\bactivePetId\b|activePetForModal|currentUser\.activePetId/);
 });
 
 test("Home's existing modal and inventory egg hatch flow remain available during migration", () => {
