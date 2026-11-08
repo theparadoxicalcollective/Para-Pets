@@ -64,6 +64,26 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  // Match Pet Park: camera pointer samples can arrive much faster than the
+  // display refresh. Batch pan/pinch commits to a single scene render per
+  // animation frame, especially helpful with dense phone/tablet worlds.
+  const cameraFrame = useRef<number | null>(null);
+  const queuedCamera = useRef<{ pan: { x: number; y: number }; zoom?: number } | null>(null);
+  const queueCameraUpdate = (nextPan: { x: number; y: number }, nextZoom?: number) => {
+    queuedCamera.current = { pan: nextPan, zoom: nextZoom };
+    if (cameraFrame.current !== null) return;
+    cameraFrame.current = window.requestAnimationFrame(() => {
+      cameraFrame.current = null;
+      const next = queuedCamera.current;
+      queuedCamera.current = null;
+      if (!next) return;
+      setPan(next.pan);
+      if (next.zoom !== undefined) setZoom(next.zoom);
+    });
+  };
+  useEffect(() => () => {
+    if (cameraFrame.current !== null) window.cancelAnimationFrame(cameraFrame.current);
+  }, []);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
   const [showWorldOptions, setShowWorldOptions] = useState(false);
@@ -123,6 +143,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     interiorDarknessDraftRef.current = null; setInteriorDarknessDraft(null);
     cameraDrag.current = null; objectDrag.current = null;
+    if (cameraFrame.current !== null) {
+      window.cancelAnimationFrame(cameraFrame.current);
+      cameraFrame.current = null;
+      queuedCamera.current = null;
+    }
     setMoveArmedId(null); lastObjectTap.current = null;
     touchPoints.current.clear(); pinch.current = null;
   }, [worldId]);
@@ -356,7 +381,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         const [id, remaining] = [...touchPoints.current.entries()][0];
         // One finger can continue panning after a two-finger zoom ends.
         cameraDrag.current = {
-          id, x: remaining.x, y: remaining.y, panX: actualPan.x, panY: actualPan.y,
+          id, x: remaining.x, y: remaining.y,
+          panX: (queuedCamera.current?.pan ?? actualPan).x,
+          panY: (queuedCamera.current?.pan ?? actualPan).y,
         };
       }
     }
@@ -397,16 +424,15 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         y: (pinch.current.midpoint.y - (rect?.top ?? 0)) * ratioY,
       };
       const nextPan = parkZoomAnchorPan(pinch.current.pan, startCamera.scale, nextCamera.scale, originalMid, nextCamera);
-      setPan(parkClampCamera({
+      queueCameraUpdate(parkClampCamera({
         x: nextPan.x + mid.x - originalMid.x,
         y: nextPan.y + mid.y - originalMid.y,
-      }, nextCamera));
-      setZoom(nextZoom);
+      }, nextCamera), nextZoom);
     } else if (cameraDrag.current?.id === event.pointerId) {
       const rect = viewportRef.current?.getBoundingClientRect();
       const dx = (event.clientX - cameraDrag.current.x) * size.width / Math.max(1, rect?.width ?? size.width);
       const dy = (event.clientY - cameraDrag.current.y) * size.height / Math.max(1, rect?.height ?? size.height);
-      setPan(parkClampCamera({
+      queueCameraUpdate(parkClampCamera({
         x: cameraDrag.current.panX + dx, y: cameraDrag.current.panY + dy,
       }, camera));
     }
