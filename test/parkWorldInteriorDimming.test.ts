@@ -14,7 +14,7 @@ test("Pet Park keeps the room mask mounted while editing and protects unsaved da
   assert.equal(HOUSE_INTERIOR_DARKNESS_MAX, 90);
   assert.match(editor, /darknessSaveInFlight\.current/);
   assert.match(editor, /variables\.interiorDarkness !== undefined/);
-  assert.match(editor, /onBlur=\{commitDarkness\}/);
+  assert.match(editor, /onBlur=\{\(\) => commitDarkness\(\)\}/);
   assert.match(editor, /onPointerUp=\{event => \{ event\.stopPropagation\(\); commitDarkness\(\); \}\}/);
   assert.match(room, /keepMaskMounted=\{editEffects\} transitionMs=\{editEffects \? 0 : 260\}/);
   assert.match(renderer, /!keepMaskMounted && activeLights\.length === 0/);
