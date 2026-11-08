@@ -1,75 +1,79 @@
-# Player avatar, player progression and shared pet team — delivery tracker
+# Player Avatar, Player Level and Shared Companion Team — Program Roadmap
 
-**Status:** Implementation underway. This is a living record, not a claim that a feature works because its PR merged.
-**Last reviewed:** 2026-11-06
-**Branch policy:** Each PR starts from the latest `main`; do not stack fixes on unmerged branches.
-**Device scope:** iOS/Android phones and tablets. PC gameplay remains behind Coming Soon; admin/auth exemptions stay intact.
-**Excluded:** Murk Cave redesign, cave battle-party expansion, unrelated combat balancing, PC gameplay.
+**Updated:** 2026-11-08  
+**Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
+**Progress:** 1 of 12 phases merged; **Avatar 02/12 in implementation**. A merged PR does not mean the feature is confirmed on physical devices.  
+**Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
+**Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
-## Product boundaries
+## Approved user-facing target
 
-- **Player account:** identity and eventually independent player level/XP.
-- **Avatar:** a distinct animated 2D player character (seven front-facing base parts initially).
-- **Owned pets:** retain independent inventory, pet level, care, evolution, equipment and rewards.
-- **Pet team:** one ordered selection of at most five eligible owned, hatched, unlisted pets for PvP/Raid and future compatible group activities.
-- **Pet Park:** separate deposit/equip slots and pet-specific idle XP; not part of the battle team.
-- **Murk Cave:** keeps its existing legacy active-pet and three-pet combat behavior until a separate, approved redesign.
+1. A distinct 2D **player avatar**, not a fake pet inventory record, takes the central active-pet position on the main-page stone platform. The main page no longer shows the pet or its Pet Menu.
+2. The **player's name, level and XP bar** live in the former pet name/level area *beneath the central avatar*. The top-left profile picture remains; it is not the new animated avatar or the XP location.
+3. The **five curved main-page stars** remain, all empty initially. Future player-star rules are deferred and must not be inferred from pet rarity or player level.
+4. The **saved five-pet team** is shown as five compact, editable portraits in the lower main-page area and is shared across PvP and Raids, with no forced active pet in slot one.
+5. Each **hatched pet's inventory Select/Active button becomes Pet Menu**. Tapping it opens four buttons (Pet Care, Level Up, Power Up, Closet) as a small garden-tool-like expansion arc; reuse uploaded icon art and existing pet pages, keeping actions scoped to that *pet inventory ID*. Eggs retain inventory-based hatching and speed-up.
+6. Admin Realm → Add Character gains an **Avatar** tab. Default front-facing base parts: head, open eyes, body, left arm, right arm, left leg, right leg. Each part supports relative placement, pivot, order and an animated preview.
+7. Admin item catalog gains a distinct **clothing** type (current `costume` means pet adornment). Avatar clothing fitting/equipment follow part pivots and remain separate from pet adornments.
 
-## Delivery sequence
+## Explicit boundaries
 
-| PR | Scope | Status | Verified vs. outstanding |
+- Owned pets keep individual care, levels, power-ups, adornments, evolution and inventory records.
+- **Murk Cave redesign is deferred.** Keep its three-pet roster, existing active-pet compatibility, per-pet progress and combat behavior intact for now. Do not quietly expand it to five.
+- Pet Park deposit/equip slots and its pet XP remain independent of the battle team.
+- Existing player worlds stay live. New World Editor scenes are private admin drafts until an independent publishing project; avoid binding the avatar renderer to unpublished editor content.
+- Continue native device-viewport positioning and mobile Safari lifecycle/memory protection. Never restore 390 × 844 hard constraints or enable desktop gameplay.
+- No forced changes to PvP matchmaking, Raid tickets, boss HP, potions, currencies or combat rewards.
+- Player XP sources, starting levels, Clearing combat stats and future player-star progression require separate, explicit design decisions.
+
+## Numbered delivery ledger
+
+| Program PR | Implemented feature/scope | Code/PR status | CI/behavior verification |
 | --- | --- | --- | --- |
-| 1 | Shared pet-team backend: validate, persist, authenticated API, PvP compatibility | **In review** | Implementation and new automated tests added; CI, reviewer approval and merge pending |
-| 2 | PvP and Raid consume one account-wide team; remove forced active-pet first slot | Planned | Must not alter PvP matchmaking, defensive rosters, Raids rewards or potions |
-| 3 | Independent player level/XP persistence and transactional award policy | Planned | XP source policy and starting levels must be approved first |
-| 4 | Admin avatar base-part editor and one shared avatar renderer | Planned | Seven transparent front-facing layers, validated sizing and positioning |
-| 5 | Avatar clothing catalog, attachment, fittings and player equipment | Planned | Keep pet adornments unchanged |
-| 6 | Main page avatar, player-level HUD and five pet portraits | Planned | Preserve scene/background and mobile/tablet layout |
-| 7 | Per-pet action menu and Begin Journey/tutorial migration | Planned | Safely migrate in-progress tutorials; keep all pet care actions |
-| 8 | Avatar presentation in supported walk-around scenes | Planned | Do not redesign Murk Cave or silently change combat rules |
-| 9 | Approved XP sources and remaining avatar/combat compatibility | Planned | No duplicate XP, reward or session regressions |
-| 10 | Scoped cleanup, regression verification, release hardening | Planned | Delete legacy behavior only after every dependency is migrated |
+| **Avatar 01/12** | Server-authoritative five-pet team, existing PvP table, validation and account API | **Merged — GitHub #995** | CI passed; post-merge live-device verification not recorded |
+| **Avatar 02/12** | PvP and Raids consume/edit the **same** roster; no active-pet slot lock; Raid battle consumes saved-team snapshot | **Implementation on `feature/avatar-02-shared-pvp-raid-team`** | Automated checks and mobile/tablet verification pending |
+| **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | Planned | Preserve pet-targeted mutations, rewards and page navigation |
+| **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | Planned | Popup hit areas/scroll/viewport tests; preserve eggs |
+| **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | Planned | Transaction/retry tests; decide starting level and XP curve first |
+| **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | Planned | Save/reload, image boundaries, role checks and device editing |
+| **Avatar 07/12** | One lightweight PlayerCharacterRenderer with idle/walk; same rendering in admin preview and game | Planned | Motion/pivots/depth, low-memory lifecycle tests |
+| **Avatar 08/12** | Avatar clothing type, fitting editor, owned equipment and wardrobe | Planned; split into 08A/08B if necessary | Ownership, equip/unequip, animation follow; pet adornments unchanged |
+| **Avatar 09/12** | Main page lower HUD: player name/XP, five unfilled stars, five saved team portraits | Planned | Small-phone/tablet layout, empty team, long names, safe-area |
+| **Avatar 10/12** | Central avatar replaces Home active pet; main-page pet menu removed; onboarding/quest pointers migrate | Planned | Guarded coordinated release after 03–09; preserve welcome rewards |
+| **Avatar 11/12** | Avatar walking in existing exploration scenes; separate actor visuals from combat source | Planned | Camera/bounds/ordering/clearing-session tests; no new world publishing |
+| **Avatar 12/12** | Approved player XP awards, legacy compatibility audit, performance regression and cleanup | Planned; split if necessary | No duplicated XP; all mobile/tablet acceptance gates |
 
-PR numbering is an implementation outline, not a commitment to batch unrelated changes. Split a PR when necessary to preserve an independently testable change.
+**Do not mark a phase complete because its PR merged.** Record separately: code implemented → CI passed → merged → live behavior verified. A feature may be marked *released and verified* only with recorded behavior evidence.
 
-## PR 1 contract / handoff
+## Avatar 02/12 implementation contract and acceptance
 
-- Reuse `pvp_battle_groups`: **no second team table, schema change, team reset or backfill**.
-- Preserve `GET/POST /api/pvp/battle-group` as compatibility APIs, and expose `GET/PUT /api/player/pet-team` for future screens.
-- All saves are validated at the storage boundary, not trusted because a client picker filtered pets.
-- Selection is ordered, max five, without duplicates or unowned/unhatched/listed/non-pet items.
-- Writes are atomic upserts. Concurrent initial saves cannot create duplicate team rows.
-- Reads resolve stale legacy IDs non-destructively. Client-visible power uses current pet stats, not an old cached value.
-- Preserve existing PvP scoring, rank, tickets, rewards, battle composition, and active-pet UI in this PR.
-- Do not add the main-page team selector until its own PR.
+- PvP and Raid lobby selection must use `GET/PUT /api/player/pet-team` with the server roster; do not add a new team database or migrate the old Raid localStorage roster over a saved PvP team.
+- Both screens can add/remove any eligible pet from **all five slots**, including the first. The old `activePetId` remains available only for features not yet migrated.
+- Shared account-scoped query and serialized writes prevent a rapid earlier selection response from restoring an older roster in the same client.
+- Failed saves display a clear error and roll back to the most recent server-confirmed roster; loading cannot be treated as an empty saved roster.
+- Raid battle uses a one-time confirmed roster snapshot for that active session, never `raid:petIds:v1` or an arbitrary first-five fallback; potion selections remain unchanged.
+- PvP battle start and Raid ticket consumption must not begin while the team save is pending or with zero selected pets.
+- Keep PvP opponents/defender handling, tickets, ranks and outcomes unchanged; keep Raid boss, rewards and potions unchanged; **Murk Cave untouched**.
 
-### PR 1 acceptance status
+## QA acceptance for every PR
 
-- [x] Shared domain validation and read reconciliation implemented
-- [x] Account-level authenticated endpoint introduced; legacy PvP endpoint retained
-- [x] Persistent save uses transaction and conflict-safe upsert
-- [x] Tests added for eligibility, order, duplicates, max slots and API compatibility
-- [ ] CI type checks, tests, production build verified
-- [ ] PR reviewed; no unapproved regressions
-- [ ] PR merged
-- [ ] Live behavior verified after merge
+- Inspect the current code and compare against working behavior before editing. Change the smallest complete unit; no parallel duplicate renderers/services.
+- Include domain tests for owner scope, invalid rows, duplicated IDs, async races and retry paths where relevant. Review actual UI event wiring rather than only text snapshots.
+- Run `npm run check`, `npm run check:tests`, `npm test`, `npm run build`. Record CI results.
+- Run targeted phone/tablet browser smoke tests, then physically verify relevant flows on an iPhone, Android phone and tablet where available. Emulation is **not** proof of real-device success.
+- Confirm PC Coming Soon, forest-green/gold UI, current navigation/viewport, Pet Park, World Editor and unrelated features remain intact.
+- On regression, investigate the responsible PR before stacking changes. Track merged and verified outcomes separately.
 
-**Known migration consideration:** Old saved teams may include pets no longer eligible. The GET projection excludes these pets without editing the saved record; a later explicit team save commits a clean lineup. Pet selection from active-pet UI and Raid-local storage remain unchanged until PR 2.
+## Remaining design decisions
 
-## Decisions to settle before later phases
+1. Player XP: which general rewards transfer from active-pet progression to account XP; which remain individual pet XP?
+2. Initial player level for existing players; level curve/cap.
+3. Clearing combat actor/stats: player avatar or selected companion? Do not change combat formula until agreed.
+4. Avatar default artwork/base selection and whether a player customization screen launches with first-time onboarding.
+5. Future star-award rules — not part of the first release.
 
-1. Which activities award **player XP** versus XP to individual pets? Pet Park pet XP and pet-care-specific XP remain pet-owned by default.
-2. Should newly introduced player levels start at 1 for everyone or recognize pre-existing accomplishments?
-3. Clearing combat: should the avatar have its own combat stats/equipment, or should a selected companion power combat? Do not alter combat math before approval.
-4. Which avatar base is the initial default, and when does the avatar customization become player-facing?
+## Historical context
 
-## Required review and testing record per PR
-
-- Trace relevant state, storage, event and viewport paths and compare with a working implementation.
-- List files changed and explain scope/exclusions.
-- Test authorization, concurrent/retried actions and preservation of existing records where relevant.
-- Pass `npm run check`, `npm run check:tests`, `npm test`, `npm run build`.
-- Run appropriate browser smoke checks; distinguish emulator/browser results from actual iOS/Android device verification.
-- Verify the PC restriction and forest-green/gold popup appearance wherever touched.
-- Record CI and actual device behavior; **merged is not the same as verified working**.
-- If regression appears, diagnose its responsible PR before beginning another.
+- #995 introduced `server/petTeam.ts`, `server/routes/playerPetTeam.routes.ts` and server-side validation. No player-facing team UI was added at that stage.
+- #1002 retired the old Begin Journey walkthrough. Later onboarding should build on `WelcomeGiftScreen` rather than resurrect the old active-egg selection tutorial.
+- #1014–#1027 developed and stabilized the private World Editor and Pet Park tools. Do not publish those draft worlds as a side effect of the avatar program.
