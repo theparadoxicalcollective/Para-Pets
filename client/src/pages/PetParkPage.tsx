@@ -55,7 +55,7 @@ import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -971,7 +971,7 @@ export default function PetParkPage() {
               className="pointer-events-none h-full w-full"
               style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength),
                 transition: "opacity 1200ms linear" }}>
-              <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} />
+              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} />
             </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
               {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
                 sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
