@@ -1,6 +1,7 @@
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { fishBagItems, type FishBagRecord } from "@/lib/fishBagInventory";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
 import { playSpeedUp, playPowerUp } from "@/lib/sounds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -41,6 +42,9 @@ import MiniPetRenderer from "@/components/MiniPetRenderer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
+import PetActionMenu from "@/components/PetActionMenu";
+import { petInventoryActionHref, type PetAction } from "@/lib/petActionRoutes";
+import petMenuIconImg from "@assets/uploads/NewPetMenuButton.PNG?url";
 import { clientPointInRenderedElement, clientToStage } from "@/lib/stage";
 
 function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, isEvolved }: {
@@ -858,6 +862,16 @@ function PetView({
   const { toast } = useToast();
   const [hatchingId, setHatchingId] = useState<string | null>(null);
   const [flippedPets, setFlippedPets] = useState<Set<string>>(new Set());
+  const [openPetMenu, setOpenPetMenu] = useState<{
+    inventoryId: string;
+    anchor: HTMLButtonElement;
+  } | null>(null);
+  const [, navigate] = useLocation();
+  const closePetMenu = useCallback(() => setOpenPetMenu(null), []);
+  const choosePetAction = (action: PetAction, inventoryId: string) => {
+    closePetMenu();
+    navigate(petInventoryActionHref(action, inventoryId));
+  };
 
   const hatchCheckMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
@@ -906,6 +920,7 @@ function PetView({
   });
 
   return (
+    <>
     <div className="grid grid-cols-2 gap-3">
       {sortedPets.map((pet) => {
         const isActive = activePetId === pet.inventoryId;
@@ -1162,49 +1177,76 @@ function PetView({
                 </>
               )}
 
-              {/* Only the main Pet Companions inventory may change the active pet. */}
-              {!readOnly && (
-              <button
-                data-testid={`button-select-pet-${pet.shopItemId}`}
-                data-inventory-id={pet.inventoryId}
-                onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
-                disabled={isPending}
-                className="w-full mt-2 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
-                style={{
-                  background: isActive
-                    ? "linear-gradient(135deg, rgba(240,192,64,0.22) 0%, rgba(240,192,64,0.10) 100%)"
-                    : "rgba(240,192,64,0.05)",
-                  border: isActive
-                    ? "1px solid rgba(240,192,64,0.65)"
-                    : "1px solid rgba(240,192,64,0.18)",
-                  borderRadius: 8,
-                  padding: "5px 0",
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    width: 5, height: 5,
-                    borderRadius: "50%",
-                    background: isActive ? "#f0c040" : "rgba(240,192,64,0.22)",
-                    boxShadow: isActive ? "0 0 5px rgba(240,192,64,0.8)" : "none",
-                    transition: "all 0.2s",
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  className="font-fantasy"
-                  style={{ fontSize: 9, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
-                >
-                  {isPending && pendingPetId === pet.inventoryId ? "UPDATING…" : isActive ? "ACTIVE" : "SELECT"}
-                </span>
-              </button>
+              {/* Hatched companions expose their individual actions here,
+                  without changing Home's still-live active pet automatically. */}
+              {!readOnly && !isEgg && (
+                <div className="relative z-10 mt-2 w-full">
+                  <button
+                    type="button"
+                    data-pet-menu-trigger
+                    data-testid={`button-pet-menu-${pet.inventoryId}`}
+                    data-inventory-id={pet.inventoryId}
+                    aria-label={`Open Pet Menu for ${pet.petNickname || pet.name}`}
+                    aria-expanded={openPetMenu?.inventoryId === pet.inventoryId}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      const anchor = event.currentTarget;
+                      setOpenPetMenu(previous =>
+                        previous?.inventoryId === pet.inventoryId ? null : {
+                          inventoryId: pet.inventoryId,
+                          anchor,
+                        });
+                    }}
+                    className="flex w-full min-h-[34px] items-center justify-center gap-2 rounded-lg border border-[#cda653]/65 bg-[#173824]/85 px-2 py-1 text-[#f4d28a] font-fantasy text-[11px] font-bold tracking-wider transition-transform active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]"
+                    style={{ touchAction: "manipulation" }}
+                  >
+                    <img src={petMenuIconImg} alt="" aria-hidden="true" draggable={false}
+                      className="h-[25px] w-[25px] object-contain" />
+                    <span>PET MENU</span>
+                  </button>
+                  {/* Transitional compatibility only: the Home pet and Murk
+                      Cave still depend on the legacy featured-pet field.
+                      Remove this link when Avatar 10/12 replaces Home's pet. */}
+                  <button
+                    type="button"
+                    data-testid={`button-feature-main-pet-${pet.inventoryId}`}
+                    disabled={isActive || isPending}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      closePetMenu();
+                      if (!isActive && !isPending) onToggle(pet.inventoryId);
+                    }}
+                    className="mt-1 w-full min-h-[24px] rounded-md px-1 font-fantasy text-[9px] tracking-wide text-[#c7b585] underline-offset-2 enabled:hover:underline disabled:opacity-55"
+                    style={{ touchAction: "manipulation" }}
+                    aria-label={isActive
+                      ? `${pet.petNickname || pet.name} is currently shown on Main`
+                      : `Show ${pet.petNickname || pet.name} on Main`}
+                  >
+                    {isPending && pendingPetId === pet.inventoryId
+                      ? "Updating main pet…"
+                      : isActive ? "Shown on Main" : "Show on Main"}
+                  </button>
+                </div>
               )}
             </div>
           </div>
         );
       })}
     </div>
+    {openPetMenu && (() => {
+      const selectedPet = sortedPets.find(p => p.inventoryId === openPetMenu.inventoryId && p.isHatched);
+      return selectedPet ? (
+        <PetActionMenu
+          key={selectedPet.inventoryId}
+          petInventoryId={selectedPet.inventoryId}
+          petName={selectedPet.petNickname || selectedPet.name}
+          anchor={openPetMenu.anchor}
+          onSelect={choosePetAction}
+          onClose={closePetMenu}
+        />
+      ) : null;
+    })()}
+    </>
   );
 }
 

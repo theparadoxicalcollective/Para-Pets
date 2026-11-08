@@ -1,0 +1,16 @@
+/* Inventory pet actions reuse the garden tool's compact pop-out language,
+   but own no garden state or gardening styles. */
+.pet-action-bubble {
+  animation: pet-action-bubble-appear 180ms cubic-bezier(.16, .78, .28, 1.08) both;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter 120ms ease;
+}
+.pet-action-bubble:active { filter: brightness(1.18); }
+.pet-action-bubble-label { text-rendering: optimizeLegibility; }
+@keyframes pet-action-bubble-appear {
+  from { opacity: 0; transform: translateY(8px) scale(.78); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-action-bubble { animation: none; transition: none; }
+}

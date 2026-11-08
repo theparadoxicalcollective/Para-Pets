@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-08  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 2 of 12 phases merged; **Avatar 03/12 implemented in an open feature branch, pending checks and review**. Merged does not mean verified on physical devices.  
+**Progress:** 3 of 12 phases merged; **Avatar 04/12 implemented on a review branch, pending CI and merge**. Merged does not mean verified on physical devices.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -32,8 +32,8 @@
 | --- | --- | --- | --- |
 | **Avatar 01/12** | Server-authoritative five-pet team, existing PvP table, validation and account API | **Merged — GitHub #995** | CI passed; post-merge live-device verification not recorded |
 | **Avatar 02/12** | PvP and Raids consume/edit the **same** roster; no active-pet slot lock; Raid battle consumes saved-team snapshot | **Merged — GitHub #1028** | User confirms checks passed; deployed mobile/tablet verification not recorded |
-| **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | **Open GitHub PR #1029** (`feature/avatar-03-pet-id-action-routing`) | Code and focused tests added; CI/PR review and device verification pending |
-| **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | Planned | Popup hit areas/scroll/viewport tests; preserve eggs |
+| **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | **Merged — GitHub #1029** | CI passed; user confirms merged; physical device verification not recorded |
+| **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | **Open GitHub PR #1030** (`feature/avatar-04-inventory-pet-menu`) | Source and geometry tests added; CI, review, and device verification pending |
 | **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | Planned | Transaction/retry tests; decide starting level and XP curve first |
 | **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | Planned | Save/reload, image boundaries, role checks and device editing |
 | **Avatar 07/12** | One lightweight PlayerCharacterRenderer with idle/walk; same rendering in admin preview and game | Planned | Motion/pivots/depth, low-memory lifecycle tests |
@@ -72,6 +72,24 @@
 - [ ] Merge only after review; record deployed behavior separately.
 
 **Deferred to 04/12:** Replace inventory Select with expanding Pet Menu. This PR does not expose a second player-facing Pet Menu or remove Home's existing controls.
+
+## Avatar 04/12 acceptance contract
+
+**Scope:** Hatched owned pets now open Pet Care, Level Up, Power Up and Closet directly through the prepared inventory-ID routes. The old Home Pet Menu remains alive until Avatar 10/12.
+
+- [x] Reuse the approved uploaded menu/action images and the *visual interaction* of garden-tool bubbles, without importing garden state or mutations.
+- [x] Put one menu trigger where Select/Active used to appear on every hatched pet in the main Pets inventory. Show the four action bubbles in a compact viewport-HUD arc, mirroring toward the available screen space and flipping down when near the top.
+- [x] Only one menu open at once, with outside pointer dismissal that doesn't block underlying scroll/click, keyboard Escape and scroll/resize dismissal.
+- [x] Each action passes the selected **owned pet inventory row ID** into the matching /pet-care, /pet-level-up, /pet-power-up or /equip-accessories route with an inventory return marker; action pages remain responsible for ownership/hatching validation.
+- [x] Egg hatching, hatch-check and hatch-time items stay unchanged. No pet action menu for unhatched eggs.
+- [x] **Temporary compatibility:** a small “Show on Main” link remains on hatched pet cards while the current Home active pet and Murk Cave still depend on the legacy activePetId field. This is not a fifth bubble or an automatic active-pet selection. Remove it during Avatar 10/12 after verifying legacy feature migration.
+- [x] Keep existing Home Pet Menu, quest spotlights, petting and modal routing for now; do not remove pet-specific behaviors early.
+- [x] Add viewport geometry, target-ID, active-pet compatibility, touch/scroll and egg regression assertions.
+- [ ] Confirm type check, test compilation, full tests, build, and existing public-route smoke checks on the **PR head commit**.
+- [ ] Manual phone/tablet verification: menu on top/bottom/left/right cards; no clipping and pass-through scroll; tap-outside and Escape dismissal; correct pet on all four destination pages; Closet close returns to inventory; eggs still hatch; main pet can still be changed for the old Home.
+- [ ] Merge after review; separately record post-merge live verification.
+
+**Deferred:** Player level, main-page team HUD, avatar art/clothing, replacement of Home active pet, and Murk Cave redesign.
 
 ## QA acceptance for every PR
 
