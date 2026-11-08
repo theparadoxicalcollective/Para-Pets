@@ -74,7 +74,7 @@ test("admin can select and persist orb color in both editors, not scene wash", (
   assert.match(world, /Edit world colored light orb color/);
   assert.match(read("client/src/pages/PetParkPage.tsx"), /Edit Pet Park colored light orb color/);
   assert.match(sceneVisual, /type === "colored_light"/);
-  assert.match(sceneVisual, /orbColor=\{color\}/);
+  assert.match(sceneVisual, /orbColor=\{parkLightColor\(color\)\}/);
   assert.match(visual, /const channels = orbColor &&/);
   assert.match(visual, /background: channels/);
   assert.match(visual, /if \(type === "fire"\) return <CampfireVisual/);
