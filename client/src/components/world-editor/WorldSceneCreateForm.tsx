@@ -70,7 +70,7 @@ export default function WorldSceneCreateForm({
       } : {
         kind, assetId: asset.id, effectType: null,
         xPct: creationPosition.xPct, yPct: creationPosition.yPct,
-        size, flipped: false, layer: 0, decorEffects: isBuilding ? [] : effects,
+        size, flipped: false, layer: 0, decorEffects: effects,
         isWaterSource: isBuilding ? false : waterSource,
         isShop: isBuilding ? isShop : false, shopItemIds: [],
       };
