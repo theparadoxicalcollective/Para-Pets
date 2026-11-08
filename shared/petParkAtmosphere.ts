@@ -34,7 +34,8 @@ export function parkOutdoorLightEffects(
           x: item.xPct, y: item.yPct, size: item.size * geometry.scale / geometry.height * 100 });
       }
     }
-    if (item.kind !== "decor") continue;
+    // Outdoor lamps may be attached to building facades or decorations.
+    if (item.kind !== "decor" && item.kind !== "building") continue;
     for (const effect of item.decorEffects ?? []) {
       if (!isHouseInteriorEffectType(effect.type) || !isHouseInteriorLightEffectType(effect.type)) continue;
       const position = parkDecorEffectWorldPosition(item, effect, geometry);

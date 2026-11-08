@@ -10,15 +10,23 @@ import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
-import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
+import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
+import { parkOutdoorLightEffects } from "@shared/petParkAtmosphere";
+import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
+import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
+import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
-import { PET_PARK_GROUND_THEMES, PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
+import { PET_PARK_MAX_GROUND_LEVEL } from "@shared/petParkGround";
+import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
+import { worldGroundPalette, worldGroundRenderTheme } from "@/lib/worldGroundPalette";
 import type { ParkEffectType } from "@shared/petParkEffects";
-import type { ParkGroundTheme } from "@shared/petParkGround";
+
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
@@ -62,6 +70,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [objectPreview, setObjectPreview] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const [interiorRatio, setInteriorRatio] = useState(4 / 3);
   const [busyPlacement, setBusyPlacement] = useState(false);
+  // World drafts preview the same automatic outdoor and sunlight clock as Pet Park.
+  const worldLighting = useHomeOutdoorLighting("auto");
 
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);
@@ -116,9 +126,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     return () => observer.disconnect();
   }, [known]);
 
-  const camera = parkCameraGeometry(size.width, size.height, groundLevel, zoom);
+  const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
   const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = parkClampCamera(pan ?? initialPan, camera);
+  const exteriorLights = useMemo(() => parkOutdoorLightEffects(
+    content.placements.map(item => objectPreview?.id === item.id ? { ...item, ...objectPreview } : item),
+    { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale }, actualPan, size),
+    [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const selected = content.placements.find(p => p.id === selectedId) ?? null;
@@ -126,6 +140,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorAsset = activeBuilding ? assetFor(activeBuilding.assetId) : null;
   const interiorW = Math.min(size.width, size.height * interiorRatio);
   const interiorH = interiorW / interiorRatio;
+  const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
+    .filter(item => item.buildingId === activeBuilding.id && isHouseInteriorEffectType(item.effectType))
+    .map(item => ({ id: item.id, type: item.effectType as HouseInteriorEffect["type"],
+      x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
 
   useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorAsset?.interiorImageUrl]);
 
@@ -152,8 +170,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     });
   };
   const changeZoom = (next: number, anchor = { x: size.width / 2, y: size.height / 2 }) => {
-    const value = parkClampZoom(next);
-    const nextGeometry = parkCameraGeometry(size.width, size.height, groundLevel, value);
+    const value = worldEditorClampZoom(next, size.width, size.height, groundLevel);
+    const nextGeometry = worldEditorCameraGeometry(size.width, size.height, groundLevel, value);
     setPan(parkZoomAnchorPan(actualPan, camera.scale, nextGeometry.scale, anchor, nextGeometry));
     setZoom(value);
   };
@@ -267,10 +285,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (pinch.current && touchPoints.current.size >= 2) {
       const [a, b] = [...touchPoints.current.values()];
       const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      const nextZoom = parkClampZoom(pinch.current.zoom *
-        Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, pinch.current.distance));
-      const startCamera = parkCameraGeometry(size.width, size.height, groundLevel, pinch.current.zoom);
-      const nextCamera = parkCameraGeometry(size.width, size.height, groundLevel, nextZoom);
+      const nextZoom = worldEditorClampZoom(pinch.current.zoom *
+        Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, pinch.current.distance),
+        size.width, size.height, groundLevel);
+      const startCamera = worldEditorCameraGeometry(size.width, size.height, groundLevel, pinch.current.zoom);
+      const nextCamera = worldEditorCameraGeometry(size.width, size.height, groundLevel, nextZoom);
       const rect = viewportRef.current?.getBoundingClientRect();
       const ratioX = size.width / Math.max(1, rect?.width ?? size.width);
       const ratioY = size.height / Math.max(1, rect?.height ?? size.height);
@@ -326,7 +345,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         });
       }}>
       {!activeBuilding ? <>
-        <PetParkTerrain groundTheme={groundTheme}
+        <PetParkTerrain groundTheme={worldGroundRenderTheme(groundTheme)}
+          groundPalette={worldGroundPalette(groundTheme)}
           viewportWidth={size.width} viewportHeight={size.height}
           worldWidth={camera.worldWidth} worldHeight={camera.worldHeight}
           scale={camera.scale} panX={actualPan.x} panY={actualPan.y}
@@ -378,10 +398,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
                 {asset && <img src={asset.imageUrl} alt="" draggable={false}
                   className="absolute inset-0 h-full w-full object-contain" />}
-                {p.kind === "decor" && asset && <WorldDecorEffects effects={p.decorEffects}
-                  sunlightStrength={1} reducedMotion={false} />}
-                {p.kind === "effect" && p.effectType && <ParkEffectVisual type={p.effectType as ParkEffectType}
-                  reducedMotion={false} adminPreview />}
+                {(p.kind === "decor" || p.kind === "building") && asset &&
+                  <WorldDecorEffects effects={p.decorEffects}
+                    sunlightStrength={worldLighting.daylightStrength}
+                    nightStrength={worldLighting.nightStrength} reducedMotion={false} />}
+                {p.kind === "effect" && p.effectType && <span className="absolute inset-0"
+                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength),
+                    transition: "opacity 1200ms linear" }}>
+                  <ParkEffectVisual type={p.effectType as ParkEffectType}
+                    reducedMotion={false} adminPreview />
+                </span>}
                 {garden && <PetParkTerrainDetail type="garden_plot" />}
                 {p.kind === "terrain" && !connected && !garden && isParkTerrainDetail(p.effectType) &&
                   <PetParkTerrainDetail type={p.effectType} />}
@@ -389,6 +415,14 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               {p.kind === "building" && p.isShop && <span className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 rounded bg-[#153421]/90 px-1 text-[9px] text-[#ffe1a1]">Shop</span>}
             </button>;
           })}
+        </div>
+        <div data-testid="world-editor-auto-day-night"
+          className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
+          <HomeOutdoorAtmosphereLayer darkness={parkSceneDarkness(worldLighting.nightStrength)}
+            nightStrength={worldLighting.nightStrength} effects={exteriorLights}
+            panX={actualPan.x} panY={actualPan.y}
+            imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
+            transitionMs={worldLighting.transitionMs} zIndex={2}/>
         </div>
       </> : interiorAsset?.interiorImageUrl ? <div
         ref={interiorRef} data-testid="world-editor-interior"
@@ -404,6 +438,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             if (img.naturalWidth > 0 && img.naturalHeight > 0)
               setInteriorRatio(img.naturalWidth / img.naturalHeight);
           }} />
+        <HomeInteriorDarknessLayer darkness={35} effects={interiorLights}
+          panX={0} imgWidth={interiorW} sceneHeight={interiorH}
+          sunlightStrength={worldLighting.daylightStrength} zIndex={2}/>
         {content.interiorItems.filter(item => item.buildingId === activeBuilding.id).map(item => {
           const pos = objectPosition(item);
           const asset = assetFor(item.assetId);
@@ -428,7 +465,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
               {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain" draggable={false} />}
               {item.kind === "effect" && item.effectType &&
-                <ParkEffectVisual type={item.effectType as ParkEffectType} reducedMotion={false} adminPreview />}
+                <span className="absolute inset-0" style={{
+                  opacity: item.effectType === "warm_glow" ? worldLighting.daylightStrength : 1,
+                  transition: "opacity 1200ms linear",
+                }}>
+                  <ParkEffectVisual type={item.effectType as ParkEffectType} reducedMotion={false} adminPreview />
+                </span>}
             </span>
           </button>;
         })}
@@ -446,7 +488,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         panX={actualPan.x} panY={actualPan.y} scale={camera.scale}
         groundTheme={groundTheme} onExit={() => setPaintMode(false)}
         onSaved={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
-        onGroundTheme={async (theme: ParkGroundTheme) => {
+        onGroundTheme={async (theme: WorldGroundTheme) => {
           const response = await apiRequest("PUT", `/api/admin/world-editor/${worldId}/draft`,
             { groundLevel, groundTheme: theme });
           cache.setQueryData(queryKey, await response.json());
@@ -499,8 +541,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         <select id="world-ground-theme" aria-label="Ground theme" data-testid="select-world-draft-ground-theme"
           value={groundTheme} disabled={saveDraft.isPending}
           className="mb-2 w-full rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-2 py-2 text-xs"
-          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as ParkGroundTheme })}>
-          {PET_PARK_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
+          onChange={event => setEdited({ groundLevel, groundTheme: event.target.value as WorldGroundTheme })}>
+          {WORLD_GROUND_THEMES.map(theme => <option key={theme.type} value={theme.type}>{theme.label}</option>)}
         </select>
         <button type="button" data-testid="button-save-world-draft"
           disabled={saveDraft.isPending || draft.isLoading || draft.isError}

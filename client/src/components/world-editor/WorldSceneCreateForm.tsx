@@ -70,7 +70,7 @@ export default function WorldSceneCreateForm({
       } : {
         kind, assetId: asset.id, effectType: null,
         xPct: creationPosition.xPct, yPct: creationPosition.yPct,
-        size, flipped: false, layer: 0, decorEffects: isBuilding ? [] : effects,
+        size, flipped: false, layer: 0, decorEffects: effects,
         isWaterSource: isBuilding ? false : waterSource,
         isShop: isBuilding ? isShop : false, shopItemIds: [],
       };
@@ -147,6 +147,9 @@ export default function WorldSceneCreateForm({
       <p className="text-[11px] text-amber-100/70">
         After creating a shop, enter its interior to choose merchandise.
       </p>
+      <div className="space-y-2"><p className="text-sm text-[#f5d98e]">Exterior building lights & effects</p>
+        <WorldDecorEffectEditor imageUrl={pendingImage} effects={effects} onChange={setEffects} disabled={saving} />
+      </div>
       <label className={picker}>
         {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
         <input aria-label="Building interior image" type="file" accept="image/png,image/jpeg"

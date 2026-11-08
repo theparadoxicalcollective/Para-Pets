@@ -78,6 +78,7 @@ export async function ensurePetParkStorage(): Promise<void> {
       flipped boolean NOT NULL DEFAULT false,
       layer integer NOT NULL DEFAULT 0,
       max_pets integer NOT NULL DEFAULT 10 CHECK (max_pets BETWEEN 10 AND 25),
+      exterior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
       interior_effects jsonb NOT NULL DEFAULT '[]'::jsonb,
       is_shop boolean NOT NULL DEFAULT false,
       shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -85,6 +86,7 @@ export async function ensurePetParkStorage(): Promise<void> {
       interior_darkness integer NOT NULL DEFAULT 35,
       created_at timestamp NOT NULL DEFAULT now()
     );
+    ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS exterior_effects jsonb NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS is_shop boolean NOT NULL DEFAULT false;
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS shop_item_ids jsonb NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE pet_park_buildings ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;

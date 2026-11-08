@@ -103,7 +103,8 @@ test("stone and water render as merged world-space diamonds with only outer edge
     assert.ok(trace.filter(x=>x==="gradient").length >= 6,"only exposed edges receive alpha-blended bank gradients");
     assert.ok(trace.includes("stroke"),"stone grout and flowing water highlights need subtle variation");
   }
-  assert.match(painter, /const ground = PARK_GROUND_PALETTES\[groundTheme\]/);
+  assert.ok(painter.includes("const ground = groundPalette ?? PARK_GROUND_PALETTES[groundTheme]"),
+    "World Editor can supply an optional palette while Pet Park keeps its normal ground default");
   assert.match(painter, /rgba\(\$\{ground\.rgb\.join\(","\)\},0\)/);
   assert.match(painter, /kind === "stone_path"/);
   assert.match(painter, /kind === "water_path"/);

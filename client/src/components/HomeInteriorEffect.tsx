@@ -265,7 +265,7 @@ function LampLightVisual() {
           inset: "2%",
           borderRadius: "50%",
           background:
-            "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.25) 0%, rgba(255,219,126,0.20) 24%, rgba(255,183,74,0.11) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
+            "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.16) 0%, rgba(255,219,126,0.15) 24%, rgba(255,183,74,0.09) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
           filter: "blur(6px)",
           mixBlendMode: "screen",
           opacity: 0.9,
@@ -278,7 +278,7 @@ function LampLightVisual() {
           inset: "22%",
           borderRadius: "50%",
           background:
-            "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.30) 0%, rgba(255,224,143,0.22) 32%, rgba(255,188,80,0.09) 62%, transparent 86%)",
+            "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.19) 0%, rgba(255,224,143,0.16) 32%, rgba(255,188,80,0.07) 62%, transparent 86%)",
           filter: "blur(4px)",
           mixBlendMode: "screen",
           opacity: 0.78,
@@ -295,10 +295,10 @@ function LampLightVisual() {
           borderRadius: "50%",
           transform: "translate(-50%, -50%)",
           background:
-            "radial-gradient(circle, rgba(255,253,229,0.58) 0%, rgba(255,236,174,0.44) 34%, rgba(255,202,103,0.18) 68%, transparent 100%)",
-          boxShadow: "0 0 7px rgba(255,232,159,0.34), 0 0 15px rgba(255,193,82,0.16)",
+            "radial-gradient(circle, rgba(255,253,229,0.34) 0%, rgba(255,236,174,0.26) 34%, rgba(255,202,103,0.13) 68%, transparent 100%)",
+          boxShadow: "0 0 7px rgba(255,232,159,0.22), 0 0 15px rgba(255,193,82,0.12)",
           filter: "blur(2px)",
-          opacity: 0.68,
+          opacity: 0.57,
           mixBlendMode: "screen",
         }}
       />
@@ -572,7 +572,7 @@ export function HomeInteriorDarknessLayer({
       <defs>
         {activeLights.map((effect, index) => {
           const gradientId = `${maskId}-light-${index}`;
-          const radius = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * height);
+          const radius = Math.max(12, getHouseInteriorLightRadiusRatio(effect) * height);
           const strength = getHouseInteriorLightCutoutStrength(effect.type)
             * (effect.type === "warm_glow" ? safeSunlight : 1);
           return (
@@ -603,7 +603,7 @@ export function HomeInteriorDarknessLayer({
         >
           <rect x={0} y={0} width={width} height={height} fill="white" />
           {activeLights.map((effect, index) => {
-            const radius = Math.max(40, getHouseInteriorLightRadiusRatio(effect) * height);
+            const radius = Math.max(12, getHouseInteriorLightRadiusRatio(effect) * height);
             return (
               <circle
                 key={effect.id}

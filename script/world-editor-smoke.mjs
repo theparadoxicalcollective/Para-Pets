@@ -251,7 +251,17 @@ try {
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
-    const rect = await page.getByTestId("world-scene-placement-" + ids.decor).boundingBox();
+    const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
+    const atNormalZoom = await worldSprite.boundingBox();
+    assert.ok(atNormalZoom);
+    // The World Editor must zoom out a little farther than the Pet Park 0.6
+    // minimum, while letting admins use the existing scene after zooming.
+    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom out" }).click();
+    const atWideZoom = await worldSprite.boundingBox();
+    assert.ok(atWideZoom && atWideZoom.width < atNormalZoom.width * .6,
+      name + ": Zoom out reaches a wider world view than the old 0.6 minimum");
+    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
+    const rect = await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
     const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
     await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
@@ -262,6 +272,20 @@ try {
     assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" && w.tail === "placements/" + ids.decor &&
       w.method === "PATCH" && w.body.xPct !== .38),
       name + ": editor drag must save to its world-specific endpoint");
+
+    // Selecting artwork must leave almost all of the scene accessible for
+    // touch dragging. Heavy preview/effects only render in the opt-in sheet.
+    const movementBar = page.getByTestId("world-scene-selected-controls");
+    const movementBox = await movementBar.boundingBox();
+    assert.ok(movementBox && movementBox.height < height * .25,
+      name + ": selected controls must not block the upper world canvas");
+    assert.equal(await movementBar.locator('[data-testid="world-decoration-artwork-editor"]').count(), 0,
+      name + ": selected movement controls must not include the large artwork preview");
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    await page.getByTestId("world-scene-details-panel").waitFor({ state: "visible" });
+    await page.getByTestId("world-decoration-artwork-editor").waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await movementBar.waitFor({ state: "visible" });
 
     // Direct scene actions appear when the selected item is dismissed.
     await page.getByRole("button", { name: "Deselect world object" }).click();
@@ -296,7 +320,19 @@ try {
       w.tail === "terrain-strokes" && w.body.type === "garden_plot"),
       name + ": garden plots can be painted without opening player farming UI");
     await page.getByRole("button", { name: "Done", exact: true }).click();
+    const ground = page.getByTestId("pet-park-painterly-terrain");
+    assert.equal(await ground.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(57, 52, 65)",
+      name + ": Haunted Woods uses a subtle purple world ground");
     await page.getByTestId("button-world-options").click();
+    const themeControl = page.getByTestId("select-world-draft-ground-theme");
+    await themeControl.selectOption("city");
+    const savedCity = page.waitForResponse(r => r.url().endsWith("/draft") && r.request().method() === "PUT");
+    await page.getByTestId("button-save-world-draft").click();
+    await savedCity;
+    await page.waitForFunction(() =>
+      getComputedStyle(document.querySelector('[data-testid="pet-park-painterly-terrain"]')).backgroundColor === "rgb(52, 62, 59)");
+    assert.equal(await themeControl.inputValue(), "city",
+      name + ": City saves as its own world theme using the original gray palette");
     assert.equal(await page.getByRole("button", { name: "Test Gardening" }).count(), 0,
       name + ": no Test Gardening mode in the world editor");
     await page.getByTestId("button-world-options").click();

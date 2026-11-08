@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ParkGroundTheme } from "@shared/petParkGround";
-import { PARK_GROUND_PALETTES } from "@/lib/petParkGroundPalette";
+import { PARK_GROUND_PALETTES, type ParkGroundPalette } from "@/lib/petParkGroundPalette";
 import {
   parkTerrainCellWindow, parkTerrainNoise, parkVisibleTerrainBounds,
   parkTerrainPreviewCoversViewport, parkTerrainPreviewTransform, type ParkTerrainViewport,
@@ -127,6 +127,8 @@ export function exposedDirtEdges(
  */
 export default function PetParkTerrain(view: ParkTerrainViewport & {
   groundTheme?: ParkGroundTheme;
+  /** Optional world-only appearance override; omitted for all Pet Park scenes. */
+  groundPalette?: ParkGroundPalette;
   dirtPatches?: readonly ParkDirtPatch[];
   stonePatches?: readonly ParkDirtPatch[];
   waterPatches?: readonly ParkDirtPatch[];
@@ -137,7 +139,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
   // GPU transform during gestures; repaint at full resolution once the camera
   // settles. The modest overscan keeps the viewport covered while moving.
   const painted = useRef<null | {
-    view: ParkTerrainViewport & { groundTheme?: ParkGroundTheme;
+    view: ParkTerrainViewport & { groundTheme?: ParkGroundTheme; groundPalette?: ParkGroundPalette;
       dirtPatches?: readonly ParkDirtPatch[]; stonePatches?: readonly ParkDirtPatch[];
       waterPatches?: readonly ParkDirtPatch[] };
     marginX: number; marginY: number;
@@ -174,9 +176,9 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       paintTerrain(ctx, expanded);
       const theme = view.groundTheme ?? "grass";
-      if (view.dirtPatches?.length) paintDirtPaths(ctx, expanded, view.dirtPatches, theme);
-      if (view.stonePatches?.length) paintConnectedPaths(ctx, expanded, view.stonePatches, "stone_path", theme);
-      if (view.waterPatches?.length) paintConnectedPaths(ctx, expanded, view.waterPatches, "water_path", theme);
+      if (view.dirtPatches?.length) paintDirtPaths(ctx, expanded, view.dirtPatches, theme, view.groundPalette);
+      if (view.stonePatches?.length) paintConnectedPaths(ctx, expanded, view.stonePatches, "stone_path", theme, view.groundPalette);
+      if (view.waterPatches?.length) paintConnectedPaths(ctx, expanded, view.waterPatches, "water_path", theme, view.groundPalette);
       painted.current = { view, marginX, marginY };
     };
     const previous = painted.current;
@@ -186,6 +188,7 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
       previous.view.worldWidth !== view.worldWidth ||
       previous.view.worldHeight !== view.worldHeight ||
       previous.view.groundTheme !== view.groundTheme ||
+      previous.view.groundPalette !== view.groundPalette ||
       previous.view.dirtPatches !== view.dirtPatches ||
       previous.view.stonePatches !== view.stonePatches ||
       previous.view.waterPatches !== view.waterPatches;
@@ -222,14 +225,16 @@ export default function PetParkTerrain(view: ParkTerrainViewport & {
     };
   }, [view.viewportWidth, view.viewportHeight, view.worldWidth, view.worldHeight,
       view.scale, view.panX, view.panY, view.dirtPatches, view.stonePatches,
-      view.waterPatches, view.groundTheme]);
+      view.waterPatches, view.groundTheme, view.groundPalette]);
 
   return <canvas ref={canvasRef} aria-hidden="true" data-testid="pet-park-painterly-terrain"
-    className="pointer-events-none absolute" style={{ backgroundColor: PARK_GROUND_PALETTES[view.groundTheme ?? "grass"].base }} />;
+    className="pointer-events-none absolute" style={{ backgroundColor: (view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"]).base }} />;
 }
 
-function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) {
-  const palette = PARK_GROUND_PALETTES[(view as ParkTerrainViewport & { groundTheme?: ParkGroundTheme }).groundTheme ?? "grass"];
+function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport & {
+  groundTheme?: ParkGroundTheme; groundPalette?: ParkGroundPalette;
+}) {
+  const palette = view.groundPalette ?? PARK_GROUND_PALETTES[view.groundTheme ?? "grass"];
   const bounds = parkVisibleTerrainBounds(view);
   ctx.clearRect(0, 0, view.viewportWidth, view.viewportHeight);
   ctx.fillStyle = palette.base;
@@ -331,8 +336,8 @@ function paintTerrain(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport) 
  * No new stage, stored stroke format, asset URL or hit-testing layer is needed.
  */
 export function paintDirtPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport,
-  stamps: readonly ParkDirtPatch[], groundTheme: ParkGroundTheme = "grass") {
-  return paintConnectedPaths(ctx, view, stamps, "dirt_path", groundTheme);
+  stamps: readonly ParkDirtPatch[], groundTheme: ParkGroundTheme = "grass", groundPalette?: ParkGroundPalette) {
+  return paintConnectedPaths(ctx, view, stamps, "dirt_path", groundTheme, groundPalette);
 }
 
 export type ParkConnectedPathKind = "dirt_path" | "stone_path" | "water_path";
@@ -340,7 +345,7 @@ export type ParkConnectedPathKind = "dirt_path" | "stone_path" | "water_path";
  * All materials use the identical 2:1 snapped diamond union, never separate
  * translucent DOM tiles or an additional map interaction layer. */
 export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTerrainViewport,
-  stamps: readonly ParkDirtPatch[], kind: ParkConnectedPathKind, groundTheme: ParkGroundTheme = "grass") {
+  stamps: readonly ParkDirtPatch[], kind: ParkConnectedPathKind, groundTheme: ParkGroundTheme = "grass", groundPalette?: ParkGroundPalette) {
   const visible = parkVisibleTerrainBounds(view);
   if (visible.left >= visible.right || visible.top >= visible.bottom) return;
 
@@ -447,7 +452,7 @@ export function paintConnectedPaths(ctx: CanvasRenderingContext2D, view: ParkTer
   // grass tint blends the outer few pixels without extra stages or any
   // per-tile alpha (which would create seams at adjoining diamonds).
   // All randomness is world-anchored: dragging or zooming never reshuffles it.
-  const ground = PARK_GROUND_PALETTES[groundTheme];
+  const ground = groundPalette ?? PARK_GROUND_PALETTES[groundTheme];
   for (const edge of exposedDirtEdges(stamps, view.worldWidth, view.worldHeight, visible)) {
     const dx = edge.bx - edge.ax, dy = edge.by - edge.ay;
     const segmentCount = Math.max(2, Math.ceil(Math.hypot(dx, dy) / 24));

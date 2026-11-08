@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { parkGroundSize, parkExpandPoint } from "../shared/petParkGround";
+import {
+  parkGroundSize, parkExpandPoint, PET_PARK_GROUND_THEMES,
+} from "../shared/petParkGround";
+import { WORLD_GROUND_THEMES, isWorldGroundTheme } from "../shared/worlds/worldGroundTheme";
+import { parseWorldSceneDraftSettings } from "../shared/worlds/worldSceneDraft";
+import { PARK_GROUND_PALETTES } from "../client/src/lib/petParkGroundPalette";
+import { worldGroundPalette, worldGroundRenderTheme } from "../client/src/lib/worldGroundPalette";
 import { getWorldDefinition, WORLD_DEFINITION_LIST } from "../shared/worlds/worldRegistry";
 import {
   isEditableWorldSceneId, defaultWorldSceneDraft,
@@ -10,6 +16,49 @@ import {
   worldTerrainCell, validDecorEffects, validEffect, validShopIds,
 } from "../shared/worlds/worldSceneContent";
 import { parkCameraGeometry, parkClampCamera, parkZoomAnchorPan } from "../client/src/lib/petParkCamera";
+import { WORLD_EDITOR_ZOOM_MIN, worldEditorMinZoom, worldEditorClampZoom, worldEditorCameraGeometry } from "../client/src/lib/worldEditorCamera";
+
+test("Haunted Woods has a subtle purple world-only palette; City preserves original gray", () => {
+  assert.equal(isWorldGroundTheme("city"), true);
+  assert.equal(isWorldGroundTheme("haunted"), true);
+  assert.equal(isWorldGroundTheme("nonexistent"), false);
+  assert.ok(WORLD_GROUND_THEMES.some(theme => theme.type === "city" && theme.label === "City"));
+  assert.equal(PET_PARK_GROUND_THEMES.some(theme => String(theme.type) === "city"), false,
+    "City is a World Editor preset, not a new Pet Park mode");
+  assert.deepEqual(worldGroundPalette("city"), PARK_GROUND_PALETTES.haunted,
+    "City is visually identical to the preexisting gray Haunted palette");
+  assert.equal(worldGroundRenderTheme("city"), "haunted");
+  assert.notEqual(worldGroundPalette("haunted")?.base, PARK_GROUND_PALETTES.haunted.base,
+    "world Haunted gets a distinct purple-tinted palette");
+  const tinted = worldGroundPalette("haunted")!;
+  assert.ok(tinted.rgb[2] > tinted.rgb[1] && tinted.rgb[0] > 0,
+    "Haunted tint leans purple without introducing a different terrain system");
+  assert.equal(worldGroundPalette("grass"), undefined,
+    "normal biomes use existing Pet Park ground drawing untouched");
+  assert.deepEqual(parseWorldSceneDraftSettings({ groundLevel: 2, groundTheme: "city" }),
+    { groundLevel: 2, groundTheme: "city" });
+  const storageMigration = readFileSync("server/startup/migrations/ensureWorldSceneDraftStorage.ts", "utf8");
+  assert.match(storageMigration, /CHECK \(ground_theme IN \([^)]*'city'\)\)/);
+  assert.match(storageMigration, /pg_get_constraintdef\(oid\) NOT LIKE '%city%'/,
+    "existing world drafts must migrate their old five-theme DB constraint once");
+  const editor = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
+  const brush = readFileSync("client/src/components/world-editor/WorldTerrainBrush.tsx", "utf8");
+  assert.match(editor, /worldGroundPalette\(groundTheme\)/);
+  assert.match(brush, /WORLD_GROUND_THEMES\.map/);
+});
+
+test("object editing defaults to compact movement controls, with details opened only on demand", () => {
+  const source = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
+  const compact = source.split('data-testid="world-scene-selected-controls"')[1]
+    ?.split("    {expanded && <div")[0];
+  assert.ok(compact);
+  assert.match(compact, /openCreator\("selected"\)/);
+  assert.doesNotMatch(compact, /<WorldDecorEffectEditor|Replace Decoration Artwork/,
+    "expensive previews should never block moving decorations on initial selection");
+  assert.match(source, /data-testid="world-scene-details-panel"/);
+  assert.match(source, /<WorldDecorEffectEditor/,
+    "detailed effects editing is still available when explicitly opened");
+});
 
 test("one private editor covers every registered world without Pet Park becoming a world", () => {
   assert.equal(WORLD_DEFINITION_LIST.length, 8);
@@ -35,6 +84,38 @@ test("world terrain grid keys remain valid when the author expands the ground", 
     assert.ok(Math.abs(resized.xPct - grown.xPct) < 1e-9);
     assert.ok(Math.abs(resized.yPct - grown.yPct) < 1e-9);
   }
+});
+
+test("world editor zooms out beyond Pet Park without revealing blank edges", () => {
+  assert.equal(WORLD_EDITOR_ZOOM_MIN, 0.5);
+  for (const [width, height] of [[390, 844], [834, 1194], [320, 768], [768, 1024]]) {
+    const min = worldEditorMinZoom(width, height, 1);
+    assert.ok(min >= .5 && min < .6, `world editor should allow extra zoom-out at ${width}x${height}`);
+    assert.equal(worldEditorClampZoom(0, width, height, 1), min);
+    const zoomed = worldEditorCameraGeometry(width, height, 1, min);
+    const park = parkCameraGeometry(width, height, 1, .6);
+    assert.ok(zoomed.sceneWidth >= width && zoomed.sceneHeight >= height,
+      `no outside-ground margins at ${width}x${height}`);
+    assert.ok(zoomed.scale < park.scale, "zoom-out is actually wider than the original 0.6 floor");
+    const pan = parkClampCamera({ x: -100000, y: 100000 }, zoomed);
+    assert.ok(pan.x <= 0 && pan.x >= -zoomed.limitX);
+    assert.ok(pan.y <= 0 && pan.y >= -zoomed.limitY);
+    const zoomedIn = worldEditorCameraGeometry(width, height, 1, 1);
+    const centered = parkZoomAnchorPan(
+      { x: -zoomedIn.limitX / 2, y: -zoomedIn.limitY / 2 },
+      zoomedIn.scale, zoomed.scale, { x: width / 2, y: height / 2 }, zoomed,
+    );
+    assert.ok(centered.x <= 0 && centered.x >= -zoomed.limitX);
+    assert.ok(centered.y <= 0 && centered.y >= -zoomed.limitY);
+  }
+  // Pet Park callers retain exactly the prior minimum and geometry semantics.
+  assert.equal(parkCameraGeometry(390, 844, 1, 0.1).scale,
+    parkCameraGeometry(390, 844, 1, 0.6).scale);
+  assert.equal(worldEditorCameraGeometry(390, 844, 4, 0.1).scale,
+    worldEditorCameraGeometry(390, 844, 4, 0.5).scale);
+  const page = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
+  assert.match(page, /worldEditorClampZoom\(pinch\.current\.zoom/);
+  assert.match(page, /worldEditorCameraGeometry\(size\.width, size\.height, groundLevel, nextZoom\)/);
 });
 
 test("camera zoom stays bounded on phone and tablet without a 390 by 844 reference stage", () => {

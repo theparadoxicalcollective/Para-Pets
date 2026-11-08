@@ -230,7 +230,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
       !validShopIds(shopItemIds)) {
       return res.status(400).json({ message: "Invalid placement details" });
     }
-    if ((kind !== "decor" && (isWaterSource || decorEffects.length)) ||
+    if (((kind !== "decor" && isWaterSource) || (kind === "effect" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
       (kind === "effect" ? !validEffect(effectType) || assetId != null : effectType != null)) {
       return res.status(400).json({ message: "Invalid object-specific settings" });
@@ -285,7 +285,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         changes.layer = body.layer;
       }
       if ("decorEffects" in body) {
-        if (saved.kind !== "decor" || !validDecorEffects(body.decorEffects))
+        if ((saved.kind !== "decor" && saved.kind !== "building") || !validDecorEffects(body.decorEffects))
           return res.status(400).json({ message: "Invalid attached effects" });
         changes.decorEffects = body.decorEffects;
       }

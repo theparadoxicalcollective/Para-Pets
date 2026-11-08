@@ -7,6 +7,8 @@ import { PARK_WATER_EFFECT_OPTIONS, isParkWaterEffect } from "@shared/petParkEff
 import { isParkRoomEffect, PARK_ROOM_DEFAULT_PETS, PARK_ROOM_MIN_PETS, PARK_ROOM_MAX_PETS, type ParkRoomEffect, type ParkInteriorEffect } from "@shared/petParkRooms";
 import { PET_PARK_BUILDING_CAPACITY_MIN, PET_PARK_BUILDING_CAPACITY_MAX } from "@shared/petParkBuildingCapacity";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
+import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
+import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { scenePointToPlacement } from "@/lib/coordinateContracts";
@@ -28,6 +30,7 @@ export type ParkBuildingDetails = {
   shopItemIds?: string[];
   interiorDarkness?: number;
   interiorEffects: ParkInteriorEffect[];
+  exteriorEffects?: ParkDecorEffect[];
 };
 
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
@@ -50,6 +53,7 @@ export default function PetParkBuildingDetails({
   const darknessRef = useRef(building.interiorDarkness ?? 35);
   const savedDarkness = useRef(building.interiorDarkness ?? 35);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
+  const [exteriorEffects, setExteriorEffects] = useState<ParkDecorEffect[]>(building.exteriorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
   const savedEffects = useRef<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(initialSelectedEffectId);
@@ -90,6 +94,7 @@ export default function PetParkBuildingDetails({
         setEffects(confirmed);
         setSelectedEffectId(variables.roomImageData !== undefined ? String(variables.roomEffectId) : null);
       }
+      if (variables.exteriorEffects !== undefined) setExteriorEffects(updated.exteriorEffects ?? []);
       if (typeof updated.name === "string") setName(updated.name);
       if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
       if (typeof updated.isShop === "boolean") setIsShop(updated.isShop);
@@ -329,6 +334,20 @@ export default function PetParkBuildingDetails({
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-3">
+        <section data-testid="pet-park-building-exterior-lamps"
+          className="order-1 space-y-2 rounded-xl border border-[#b99a4c]/60 bg-[#153625] p-3">
+          <h3 className="text-sm font-semibold text-amber-200">Exterior building lights & effects</h3>
+          <p className="text-[11px] text-amber-100/75">
+            Position lamps over the building artwork. Their brightness follows the automatic
+            outdoor day/night cycle, and each lamp illuminates an area based on its size.
+          </p>
+          <PetParkDecorEffectEditor key={building.id} imageUrl={building.imageUrl}
+            effects={exteriorEffects} disabled={mutation.isPending}
+            onChange={next => {
+              setExteriorEffects(next);
+              mutation.mutate({ exteriorEffects: next });
+            }}/>
+        </section>
         <div className={`space-y-2 rounded-lg border border-amber-800/60 p-3 ${initialShowEffectChoices || initialSelectedEffectId ? "order-2" : "order-1"}`}>
           <label className="block text-sm">Name
             <input aria-label="Park building name" className="mt-1 w-full rounded bg-slate-900 p-2" maxLength={80}

@@ -203,23 +203,24 @@ export default function WorldSceneControls(props: Props) {
       </>}
     </div>}
     {!expanded && selectedItem && <section
-      data-testid="world-scene-selected-controls" aria-label="Edit selected world object"
-      className="pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl"
-      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: "min(65dvh, 620px)" }}
+      data-testid="world-scene-selected-controls" aria-label="Move selected world object"
+      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-xl"
+      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
-      <div className="flex items-center justify-between gap-2">
-        <strong className="truncate text-sm capitalize">{selectedName}</strong>
+      <div className="flex items-center gap-2">
+        <strong className="min-w-0 flex-1 truncate text-xs capitalize">{selectedName}</strong>
+        <span className="shrink-0 text-[11px] tabular-nums text-amber-100/80">Size {selectedItem.size}</span>
         <button type="button" aria-label="Deselect world object" className={control}
           onClick={() => props.activeBuilding ? props.onSelectInterior(null) : props.onSelect(null)}>Done</button>
       </div>
-      <p className="text-[11px] text-amber-100/75">Drag the artwork to reposition it. Changes save automatically.</p>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <button type="button" className={control} disabled={busy || selectedItem.size <= 1}
+      <div className="grid grid-cols-4 gap-1.5">
+        <button type="button" aria-label="Decrease selected object size" className={control}
+          disabled={busy || selectedItem.size <= 1}
           onClick={() => void (props.activeBuilding
             ? patchInterior({ size: Math.max(1, selectedItem.size - 20) })
             : patchSelected({ size: Math.max(1, selectedItem.size - 20) }))}>− Size</button>
-        <span className="tabular-nums">Size {selectedItem.size}</span>
-        <button type="button" className={control} disabled={busy || selectedItem.size >= 1000}
+        <button type="button" aria-label="Increase selected object size" className={control}
+          disabled={busy || selectedItem.size >= 1000}
           onClick={() => void (props.activeBuilding
             ? patchInterior({ size: Math.min(1000, selectedItem.size + 20) })
             : patchSelected({ size: Math.min(1000, selectedItem.size + 20) }))}>+ Size</button>
@@ -227,97 +228,21 @@ export default function WorldSceneControls(props: Props) {
           onClick={() => void (props.activeBuilding
             ? patchInterior({ flipped: !selectedItem.flipped })
             : patchSelected({ flipped: !selectedItem.flipped }))}>Flip</button>
+        <button type="button" className={quickAccent}
+          aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
+      </div>
+      <div className="flex gap-1.5">
+        {!props.activeBuilding && props.selected?.kind === "decor" &&
+          <button type="button" aria-label="Duplicate world decoration"
+            className={control} disabled={busy}
+            onClick={() => void duplicateSelected()}>Duplicate</button>}
+        {!props.activeBuilding && props.selected?.kind === "building" &&
+          <button type="button" className={control}
+            onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
+        <span className="ml-auto self-center text-[10px] text-amber-100/65">Drag artwork to move</span>
       </div>
-      {!props.activeBuilding && props.selected?.kind === "decor" && <>
-        <button type="button" aria-label="Duplicate world decoration" className={control}
-          disabled={busy} onClick={() => void duplicateSelected()}>Duplicate</button>
-        <button type="button" aria-pressed={props.selected.isWaterSource} className={control}
-          disabled={busy} onClick={() => void patchSelected({ isWaterSource: !props.selected!.isWaterSource })}>
-          Water Source: {props.selected.isWaterSource ? "ON" : "OFF"}
-        </button>
-        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
-          data-testid="world-decoration-artwork-editor">
-          <span className="block text-xs font-semibold">Artwork · all linked copies</span>
-          {currentAsset && <img src={currentAsset.imageUrl} alt="Selected decoration artwork"
-            className="mx-auto h-20 w-full object-contain"/>}
-          {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
-            Replace Decoration Artwork
-            <input type="file" aria-label="Replace linked decoration artwork" accept="image/png,image/jpeg"
-              className="sr-only" disabled={busy} onChange={event => {
-                void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
-                event.target.value = "";
-              }}/>
-          </label>}
-        </div>
-        {currentAsset && <WorldDecorEffectEditor key={props.selected.id}
-          imageUrl={currentAsset.imageUrl} effects={props.selected.decorEffects} disabled={busy}
-          onChange={effects => void patchSelected({ decorEffects: effects })}/>}
-        {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
-          data-testid="world-decoration-tap-image-editor">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-[#f5d98e]">Tap Image
-              <span className="ml-1 font-normal text-amber-100/70">(optional)</span>
-            </span>
-            {currentAsset.tapImageUrl && <button type="button" className={danger} disabled={busy}
-              onClick={() => void mutate("PATCH", `/assets/${currentAsset.id}`, { tapImageData: null })}>Remove</button>}
-          </div>
-          {currentAsset.tapImageUrl && <img src={currentAsset.tapImageUrl}
-            alt="Current decoration Tap Image" className="mx-auto h-20 w-full object-contain"/>}
-          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
-            {currentAsset.tapImageUrl ? "Replace Tap Image" : "Upload Tap Image"}
-            <input type="file" aria-label="Edit decoration Tap Image" accept="image/png,image/jpeg"
-              className="sr-only" disabled={busy} onChange={event => {
-                void patchArtwork(currentAsset.id, "tapImageData", event.target.files?.[0]);
-                event.target.value = "";
-              }}/>
-          </label>
-          <p className="text-[11px] text-amber-100/70">
-            Alternate artwork changes every linked copy; each copy keeps its own position and size.
-          </p>
-        </div>}
-      </>}
-      {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
-        <label className="block space-y-1 text-xs">Building Name
-          <input aria-label="Rename world building" value={buildingNameDraft}
-            onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
-            className={field}/>
-        </label>
-        <button type="button" className={control}
-          disabled={busy || !buildingNameDraft.trim() || buildingNameDraft === currentAsset?.name}
-          onClick={() => currentAsset && void mutate("PATCH", `/assets/${currentAsset.id}`,
-            { name: buildingNameDraft.trim() })}>Save Name</button>
-        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
-          Replace Building Artwork
-          <input type="file" aria-label="Replace building artwork" accept="image/png,image/jpeg"
-            className="sr-only" disabled={busy} onChange={event => {
-              void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
-              event.target.value = "";
-            }}/>
-        </label>}
-        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
-          {currentAsset.interiorImageUrl ? "Replace Interior Background" : "Upload Interior Background (optional)"}
-          <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
-            className="sr-only" disabled={busy} onChange={event => {
-              void patchArtwork(currentAsset.id, "interiorImageData", event.target.files?.[0]);
-              event.target.value = "";
-            }}/>
-        </label>}
-        <label className="flex items-center justify-between rounded-lg border border-[#b99a4c]/55 p-3 text-xs">
-          <span>Is Shop · {props.selected.isShop ? "ON" : "OFF"}</span>
-          <input type="checkbox" role="switch" aria-label="Is Shop building"
-            checked={props.selected.isShop} disabled={busy}
-            onChange={event => void patchSelected({ isShop: event.target.checked })}/>
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>
-          {props.selected.isShop && <button type="button" className={control}
-            onClick={() => openCreator("shop")}>Shop Setup</button>}
-        </div>
-      </div>}
-      {props.activeBuilding && <button type="button" className={control}
-        onClick={() => openCreator("selected")}>Edit Interior Object</button>}
     </section>}
     {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
       role="dialog" aria-modal="true"
@@ -399,44 +324,107 @@ export default function WorldSceneControls(props: Props) {
           </p>
         </section>}
 
-        {panel === "selected" && <>
-          {!selectedItem ? <p className="text-xs">Tap a decoration, building, effect, or interior object to edit it.</p> : <>
-            <h3 className={heading}>Selected {selectedItem.kind}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <button className={control} disabled={busy || selectedItem.size <= 1}
-                onClick={() => void (props.activeBuilding
-                  ? patchInterior({ size: Math.max(1, selectedItem.size - 15) })
-                  : patchSelected({ size: Math.max(1, selectedItem.size - 15) }))}>Smaller</button>
-              <span className="text-xs">{selectedItem.size}</span>
-              <button className={control} disabled={busy || selectedItem.size >= 1000}
-                onClick={() => void (props.activeBuilding
-                  ? patchInterior({ size: Math.min(1000, selectedItem.size + 15) })
-                  : patchSelected({ size: Math.min(1000, selectedItem.size + 15) }))}>Larger</button>
-              <button className={control} disabled={busy}
-                onClick={() => void (props.activeBuilding
-                  ? patchInterior({ flipped: !selectedItem.flipped })
-                  : patchSelected({ flipped: !selectedItem.flipped }))}>Flip</button>
-              <button className={danger} disabled={busy} onClick={() =>
-                void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-            </div>
-            {!props.activeBuilding && props.selected?.kind === "decor" && currentAsset && <>
-              <label className="flex items-center gap-2 text-[11px]">
-                <input type="checkbox" checked={props.selected.isWaterSource} disabled={busy}
-                  onChange={e => void patchSelected({ isWaterSource: e.target.checked })} />
-                Water refill source for the shared watering pail
-              </label>
-              <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
-                effects={props.selected.decorEffects} disabled={busy}
-                onChange={effects => void patchSelected({ decorEffects: effects })} />
-            </>}
-            {!props.activeBuilding && props.selected?.kind === "building" && <>
-              <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>
-                Enter Building / Edit Interior
-              </button>
-              <button type="button" className={control} onClick={() => setPanel("shop")}>Shop Setup</button>
-            </>}
+        {panel === "selected" && <div className="space-y-3" data-testid="world-scene-details-panel">
+          {!selectedItem ? <p className="text-xs">Select an object to edit its artwork and settings.</p> : <>
+            <p className="text-[11px] text-amber-100/75">
+              Close this panel to move the selected object. Size, flip and duplicate stay available on the scene.
+            </p>
+      {!props.activeBuilding && props.selected?.kind === "decor" && <>
+        <button type="button" aria-pressed={props.selected.isWaterSource} className={control}
+          disabled={busy} onClick={() => void patchSelected({ isWaterSource: !props.selected!.isWaterSource })}>
+          Water Source: {props.selected.isWaterSource ? "ON" : "OFF"}
+        </button>
+        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
+          data-testid="world-decoration-artwork-editor">
+          <span className="block text-xs font-semibold">Artwork · all linked copies</span>
+          {currentAsset && <img src={currentAsset.imageUrl} alt="Selected decoration artwork"
+            className="mx-auto h-20 w-full object-contain"/>}
+          {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+            Replace Decoration Artwork
+            <input type="file" aria-label="Replace linked decoration artwork" accept="image/png,image/jpeg"
+              className="sr-only" disabled={busy} onChange={event => {
+                void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
+                event.target.value = "";
+              }}/>
+          </label>}
+        </div>
+        {currentAsset && <WorldDecorEffectEditor key={props.selected.id}
+          imageUrl={currentAsset.imageUrl} effects={props.selected.decorEffects} disabled={busy}
+          onChange={effects => void patchSelected({ decorEffects: effects })}/>}
+        {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
+          data-testid="world-decoration-tap-image-editor">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-[#f5d98e]">Tap Image
+              <span className="ml-1 font-normal text-amber-100/70">(optional)</span>
+            </span>
+            {currentAsset.tapImageUrl && <button type="button" className={danger} disabled={busy}
+              onClick={() => void mutate("PATCH", `/assets/${currentAsset.id}`, { tapImageData: null })}>Remove</button>}
+          </div>
+          {currentAsset.tapImageUrl && <img src={currentAsset.tapImageUrl}
+            alt="Current decoration Tap Image" className="mx-auto h-20 w-full object-contain"/>}
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+            {currentAsset.tapImageUrl ? "Replace Tap Image" : "Upload Tap Image"}
+            <input type="file" aria-label="Edit decoration Tap Image" accept="image/png,image/jpeg"
+              className="sr-only" disabled={busy} onChange={event => {
+                void patchArtwork(currentAsset.id, "tapImageData", event.target.files?.[0]);
+                event.target.value = "";
+              }}/>
+          </label>
+          <p className="text-[11px] text-amber-100/70">
+            Alternate artwork changes every linked copy; each copy keeps its own position and size.
+          </p>
+        </div>}
+      </>}
+      {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
+        {currentAsset && <section className="space-y-2">
+          <p className="text-xs font-semibold text-amber-200">Exterior building lights & effects</p>
+          <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>
+          <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
+            effects={props.selected.decorEffects} disabled={busy}
+            onChange={effects => void patchSelected({ decorEffects: effects })}/>
+        </section>}
+        <label className="block space-y-1 text-xs">Building Name
+          <input aria-label="Rename world building" value={buildingNameDraft}
+            onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
+            className={field}/>
+        </label>
+        <button type="button" className={control}
+          disabled={busy || !buildingNameDraft.trim() || buildingNameDraft === currentAsset?.name}
+          onClick={() => currentAsset && void mutate("PATCH", `/assets/${currentAsset.id}`,
+            { name: buildingNameDraft.trim() })}>Save Name</button>
+        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+          Replace Building Artwork
+          <input type="file" aria-label="Replace building artwork" accept="image/png,image/jpeg"
+            className="sr-only" disabled={busy} onChange={event => {
+              void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
+              event.target.value = "";
+            }}/>
+        </label>}
+        {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
+          {currentAsset.interiorImageUrl ? "Replace Interior Background" : "Upload Interior Background (optional)"}
+          <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
+            className="sr-only" disabled={busy} onChange={event => {
+              void patchArtwork(currentAsset.id, "interiorImageData", event.target.files?.[0]);
+              event.target.value = "";
+            }}/>
+        </label>}
+        <label className="flex items-center justify-between rounded-lg border border-[#b99a4c]/55 p-3 text-xs">
+          <span>Is Shop · {props.selected.isShop ? "ON" : "OFF"}</span>
+          <input type="checkbox" role="switch" aria-label="Is Shop building"
+            checked={props.selected.isShop} disabled={busy}
+            onChange={event => void patchSelected({ isShop: event.target.checked })}/>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>
+          {props.selected.isShop && <button type="button" className={control}
+            onClick={() => openCreator("shop")}>Shop Setup</button>}
+        </div>
+      </div>}
+            {props.activeBuilding && <p className="text-xs text-amber-100/80">
+              Use the on-scene controls to move, resize or flip this interior object.
+            </p>}
           </>}
-        </>}
+        </div>}
 
         {panel === "shop" && shopBuilding && <>
           <h3 className={heading}>Building Shop</h3>

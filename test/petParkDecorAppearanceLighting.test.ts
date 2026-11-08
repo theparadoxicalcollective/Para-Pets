@@ -104,7 +104,7 @@ test("park scene uses time-only lighting, dims decor and pets, and preserves tap
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
   assert.match(park, /useHomeOutdoorLighting\("auto"\)/);
   assert.match(park, /data-testid="pet-park-auto-day-night"/);
-  assert.match(park, /<HomeOutdoorAtmosphereLayer darkness=\{parkLighting\.darkness\}/);
+  assert.match(park, /<HomeOutdoorAtmosphereLayer darkness=\{parkSceneDarkness\(parkLighting\.nightStrength\)\}/);
   assert.match(park, /panX=\{camera\.x\} panY=\{camera\.y\}/);
   assert.match(park, /sunlightStrength=\{parkLighting\.daylightStrength\}/);
   assert.match(park, /<PetParkDecorEffects effects=\{item\.decorEffects \?\? \[\]\}/);
