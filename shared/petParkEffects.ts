@@ -4,7 +4,22 @@ import { HOUSE_OUTDOOR_EFFECT_TYPES, type HouseOutdoorEffectType } from "./housi
 // outdoor effect types used by Home Bundle editing.
 export const PARK_WATER_EFFECT_TYPES = ["waterfall_mist", "water_ripple", "water_shimmer", "water_flow", "water_drop"] as const;
 export type ParkWaterEffect = (typeof PARK_WATER_EFFECT_TYPES)[number];
-export type ParkEffectType = ParkWaterEffect | HouseOutdoorEffectType;
+export type ParkEffectType = ParkWaterEffect | HouseOutdoorEffectType | "colored_light";
+
+/** Only Pet Park and the new World Editor support configurable colored orbs. */
+export const DEFAULT_PARK_LIGHT_COLOR = "#f4bd65";
+export const PARK_COLORED_LIGHT_OPTION = {
+  type: "colored_light" as const,
+  label: "Colored Light",
+  description: "Choose the color of the small glowing orb; scenery illumination stays neutral",
+  defaultSize: 16,
+};
+export function isValidParkLightColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+export function parkLightColor(color: unknown): string {
+  return isValidParkLightColor(color) ? color : DEFAULT_PARK_LIGHT_COLOR;
+}
 
 export function isParkWaterEffect(value: unknown): value is ParkWaterEffect {
   return typeof value === "string" && (PARK_WATER_EFFECT_TYPES as readonly string[]).includes(value);
@@ -15,7 +30,7 @@ export function isParkOutdoorEffect(value: unknown): value is HouseOutdoorEffect
 }
 
 export function isParkEffect(value: unknown): value is ParkEffectType {
-  return isParkWaterEffect(value) || isParkOutdoorEffect(value);
+  return value === "colored_light" || isParkWaterEffect(value) || isParkOutdoorEffect(value);
 }
 
 /** One source of truth for Pet Park water effects in BOTH scene and building editors. */
