@@ -38,7 +38,7 @@ test("outdoor lamps follow nightfall, sunlight follows daytime, fires remain ind
   }
   const masks = source("client/src/components/HomeOutdoorAtmosphere.tsx");
   assert.match(masks, /effect\.type === "lamp_light" \|\| effect\.type === "candle_light"/);
-  assert.match(masks, /baseStrength \* safeNight/);
+  assert.match(masks, /baseStrength \* \(parkLampFalloff \? safeLamp : safeNight\)/);
   assert.match(masks, /baseStrength \* \(1 - safeNight\)/);
   assert.match(masks, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
   assert.match(source("client/src/components/PetParkDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength\)/);
