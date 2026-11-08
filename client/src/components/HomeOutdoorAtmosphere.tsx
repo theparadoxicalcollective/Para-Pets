@@ -30,7 +30,7 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
     let timer: number | null = null;
     const clearTimer = () => {
       if (timer !== null) {
-        window.clearInterval(timer);
+        window.clearTimeout(timer);
         timer = null;
       }
     };
@@ -41,9 +41,19 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
     const startTimer = () => {
       clearTimer();
       if (document.visibilityState === "hidden") return;
-      timer = window.setInterval(() => {
-        syncNow(HOME_OUTDOOR_AUTO_TRANSITION_MS);
-      }, 30_000);
+      // Align clock sampling to :00 and :30 instead of 30 seconds after
+      // page entry. Night artwork and the lamp/firefly cutoffs then switch
+      // at the authored minute boundary rather than up to 30 seconds late.
+      const nextTick = () => {
+        if (document.visibilityState === "hidden") return;
+        const delay = Math.max(10, 30_000 - (Date.now() % 30_000));
+        timer = window.setTimeout(() => {
+          timer = null;
+          syncNow(HOME_OUTDOOR_AUTO_TRANSITION_MS);
+          nextTick();
+        }, delay);
+      };
+      nextTick();
     };
     const syncFromLifecycle = () => {
       if (document.visibilityState === "hidden") {
