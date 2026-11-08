@@ -67,7 +67,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       const isItem = variables.url === "/api/admin/pet-park/items";
       if (!isBuilding && !isItem) return;
       const created = result?.building ?? result?.item ?? result;
-      if (isBuilding) { setBuildingImage(null); setInteriorImage(null); setBuildingIsShop(false); }
+      if (isBuilding) { setBuildingImage(null); setInteriorImage(null); setNightInteriorImage(null); setBuildingIsShop(false); }
       if (isItem) { setPendingImage(null); setPendingTapImage(null); setNewWaterSource(false); setNewDecorEffects([]); }
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
       if (typeof created?.id === "string") {
