@@ -33,6 +33,7 @@ type Props = {
   selectedInterior: WorldSceneInteriorItem | null;
   activeBuilding: WorldScenePlacement | null;
   placementPoint: { xPct: number; yPct: number };
+  moveArmedId: string | null;
   interiorDarkness: number;
   interiorPreviewClock: "live" | "day" | "night";
   onInteriorPreviewClockChange: (value: "live" | "day" | "night") => void;
@@ -276,7 +277,11 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        <span className="ml-auto self-center text-[10px] text-amber-100/65">Drag artwork to move</span>
+        <span className="ml-auto self-center text-[10px] text-amber-100/65">
+          {props.activeBuilding ? "Drag artwork to move"
+            : props.moveArmedId === props.selected?.id
+              ? "Move armed · drag artwork" : "Double-tap artwork to move"}
+        </span>
       </div>
     </section>}
     {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
