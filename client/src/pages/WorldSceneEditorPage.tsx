@@ -10,7 +10,8 @@ import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
-import { parkCameraGeometry, parkClampCamera, parkClampZoom, parkZoomAnchorPan } from "@/lib/petParkCamera";
+import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
+import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
@@ -118,7 +119,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     return () => observer.disconnect();
   }, [known]);
 
-  const camera = parkCameraGeometry(size.width, size.height, groundLevel, zoom);
+  const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
   const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = parkClampCamera(pan ?? initialPan, camera);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
@@ -154,8 +155,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     });
   };
   const changeZoom = (next: number, anchor = { x: size.width / 2, y: size.height / 2 }) => {
-    const value = parkClampZoom(next);
-    const nextGeometry = parkCameraGeometry(size.width, size.height, groundLevel, value);
+    const value = worldEditorClampZoom(next, size.width, size.height, groundLevel);
+    const nextGeometry = worldEditorCameraGeometry(size.width, size.height, groundLevel, value);
     setPan(parkZoomAnchorPan(actualPan, camera.scale, nextGeometry.scale, anchor, nextGeometry));
     setZoom(value);
   };
@@ -269,10 +270,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     if (pinch.current && touchPoints.current.size >= 2) {
       const [a, b] = [...touchPoints.current.values()];
       const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      const nextZoom = parkClampZoom(pinch.current.zoom *
-        Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, pinch.current.distance));
-      const startCamera = parkCameraGeometry(size.width, size.height, groundLevel, pinch.current.zoom);
-      const nextCamera = parkCameraGeometry(size.width, size.height, groundLevel, nextZoom);
+      const nextZoom = worldEditorClampZoom(pinch.current.zoom *
+        Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, pinch.current.distance),
+        size.width, size.height, groundLevel);
+      const startCamera = worldEditorCameraGeometry(size.width, size.height, groundLevel, pinch.current.zoom);
+      const nextCamera = worldEditorCameraGeometry(size.width, size.height, groundLevel, nextZoom);
       const rect = viewportRef.current?.getBoundingClientRect();
       const ratioX = size.width / Math.max(1, rect?.width ?? size.width);
       const ratioY = size.height / Math.max(1, rect?.height ?? size.height);
