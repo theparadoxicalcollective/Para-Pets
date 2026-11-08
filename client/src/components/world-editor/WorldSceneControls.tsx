@@ -376,6 +376,13 @@ export default function WorldSceneControls(props: Props) {
         </div>}
       </>}
       {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
+        {currentAsset && <section className="space-y-2">
+          <p className="text-xs font-semibold text-amber-200">Exterior building lights & effects</p>
+          <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>
+          <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
+            effects={props.selected.decorEffects} disabled={busy}
+            onChange={effects => void patchSelected({ decorEffects: effects })}/>
+        </section>
         <label className="block space-y-1 text-xs">Building Name
           <input aria-label="Rename world building" value={buildingNameDraft}
             onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
