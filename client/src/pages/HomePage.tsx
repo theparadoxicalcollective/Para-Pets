@@ -36,7 +36,7 @@ import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
-import { getPetPowerUpItems } from "@/lib/petPowerUpInventory";
+import { getPetPowerUpItems, remainingPetPowerUpSlots } from "@/lib/petPowerUpInventory";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
@@ -1609,7 +1609,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           petAtk={activePetForModal.petAtk ?? 50}
           petDef={activePetForModal.petDef ?? 50}
           petHealth={activePetForModal.petHealth ?? 1000}
-          itemsRemaining={(() => { const r = activePetForModal.rarity || 1; const slotsPerLvl = r <= 2 ? 1 : r === 3 ? 2 : 3; return Math.max(0, (activePetForModal.petLevel || 1) * slotsPerLvl - (activePetForModal.itemsUsedThisLevel || 0)); })()}
+          itemsRemaining={remainingPetPowerUpSlots(activePetForModal.rarity, activePetForModal.petLevel, activePetForModal.itemsUsedThisLevel)}
           items={powerUpItems}
           specialItems={powerUpSpecialItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
