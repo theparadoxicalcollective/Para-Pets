@@ -11,7 +11,7 @@ export const DEFAULT_PARK_LIGHT_COLOR = "#f4bd65";
 export const PARK_FIREFLIES_OPTION = {
   type: "fireflies" as const,
   label: "Fireflies",
-  description: "Tiny fluttering lights with soft halos; appear after 7 PM",
+  description: "Tiny fluttering lights with soft halos; begin appearing at 7:30 PM",
   defaultSize: 190,
 };
 export const PARK_COLORED_LIGHT_OPTION = {
