@@ -47,9 +47,9 @@ test("one shared darkness mask and optional nighttime artwork in both editors", 
   const worldPage = read("client/src/pages/WorldSceneEditorPage.tsx");
   assert.match(parkRoom, /<HomeInteriorDarknessLayer darkness=\{darkness\}/);
   assert.match(parkRoom, /nightImageUrl && <img/);
-  assert.match(parkRoom, /opacity: Math\.max\(0, Math\.min\(1, nightStrength\)\)/);
+  assert.match(parkRoom, /display: isNightInteriorArtworkActive\(nightStrength\) \? "block" : "none"/);
   assert.match(worldPage, /interiorAsset\.nightInteriorImageUrl && <img/);
-  assert.match(worldPage, /opacity: previewNightStrength/);
+  assert.match(worldPage, /display: isNightInteriorArtworkActive\(previewNightStrength\) \? "block" : "none"/);
   assert.match(worldPage, /darkness=\{interiorDarkness\}/);
   assert.match(read("client/src/pages/PetParkPage.tsx"), /nightImageUrl=\{fullPageRoom \? null : activeBuilding\.nightInteriorImageUrl\}/);
   for (const editor of [park, world]) {
