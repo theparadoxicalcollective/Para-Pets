@@ -1477,7 +1477,7 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   flipped: boolean("flipped").notNull().default(false),
   layer: integer("layer").notNull().default(0),
   maxPets: integer("max_pets").notNull().default(10),
-  exteriorEffects: jsonb("exterior_effects").$type<ParkDecorEffect[]>().notNull().default(sql`\'[]\'::jsonb`),
+  exteriorEffects: jsonb("exterior_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   interiorEffects: jsonb("interior_effects").$type<ParkInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   isShop: boolean("is_shop").notNull().default(false),
   shopItemIds: jsonb("shop_item_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
