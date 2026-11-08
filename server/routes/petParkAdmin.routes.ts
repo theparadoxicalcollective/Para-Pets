@@ -7,7 +7,7 @@ import { HOUSE_INTERIOR_DARKNESS_MIN, HOUSE_INTERIOR_DARKNESS_MAX } from "@share
 import { sanitizeHouseInteriorEffects } from "@shared/housing";
 import { sanitizeParkInteriorEffects, isPetAccessibleParkRoom } from "@shared/petParkRooms";
 import { isValidPetParkBuildingCapacity, PET_PARK_BUILDING_CAPACITY_MAX, PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
-import { isParkEffect } from "@shared/petParkEffects";
+import { isParkEffect, isValidParkLightColor } from "@shared/petParkEffects";
 import { isValidParkDecorEffects, type ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
 import type { db as database } from "../db";
@@ -435,7 +435,7 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
-    const { kind, effectType, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false } = req.body ?? {};
+    const { kind, effectType, effectColor = null, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||
         !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000)) ||
@@ -449,13 +449,18 @@ export function registerPetParkAdminRoutes(
       return res.status(400).json({ message: "Choose valid decorative effects" });
     if (kind !== "decor" && tapImageData != null) return res.status(400).json({ message: "Only decorations support Tap Images" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
+    if (effectType === "colored_light" && kind === "effect"
+      ? !isValidParkLightColor(effectColor) : effectColor != null)
+      return res.status(400).json({ message: "Choose a valid colored light orb color" });
     if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
     if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
     try {
       const imageUrl = imageData ? await processWorldImage(imageData, 1200) : null;
       const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
-        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null, imageUrl, tapImageUrl,
+        .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null,
+          effectColor: kind === "effect" && effectType === "colored_light" ? effectColor : null,
+          imageUrl, tapImageUrl,
           appearanceGroupId: kind === "decor" ? randomUUID() : null,
           decorEffects: kind === "decor" ? decorEffects : [],
           xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer), isWaterSource }).returning();
@@ -566,6 +571,22 @@ export function registerPetParkAdminRoutes(
     } catch (error) {
       console.error("[pet-park] water source update failed", error);
       return res.status(500).json({ message: "Could not change Water Source" });
+    }
+  });
+
+  app.patch("/api/admin/pet-park/items/:id/color", isAdmin, async (req, res) => {
+    if (!isValidParkLightColor(req.body?.effectColor))
+      return res.status(400).json({ message: "Choose a valid colored light orb color" });
+    try {
+      const [item] = await db.update(petParkSceneItems)
+        .set({ effectColor: req.body.effectColor })
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)),
+          eq(petParkSceneItems.kind, "effect"),
+          eq(petParkSceneItems.effectType, "colored_light"))).returning();
+      return item ? res.json(item) : res.status(404).json({ message: "Colored light not found" });
+    } catch (error) {
+      console.error("[pet-park] effect color update failed", error);
+      return res.status(500).json({ message: "Unable to update colored light" });
     }
   });
 

@@ -405,7 +405,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 {p.kind === "effect" && p.effectType && <span className="absolute inset-0"
                   style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength),
                     transition: "opacity 1200ms linear" }}>
-                  <ParkEffectVisual type={p.effectType as ParkEffectType}
+                  <ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
                     reducedMotion={false} adminPreview />
                 </span>}
                 {garden && <PetParkTerrainDetail type="garden_plot" />}

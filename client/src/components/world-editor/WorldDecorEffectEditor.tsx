@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import {
   PARK_DECOR_EFFECT_MAX_COUNT, PARK_DECOR_EFFECT_MAX_SIZE,
   PARK_DECOR_EFFECT_MIN_SIZE, type ParkDecorEffect,
@@ -13,6 +13,7 @@ const OPTIONS: { type: ParkEffectType; label: string; size: number }[] = [
     type: option.type, label: option.label,
     size: Math.max(24, Math.min(80, option.defaultSize * 2.4)),
   })),
+  { type: "colored_light", label: PARK_COLORED_LIGHT_OPTION.label, size: 38 },
   ...PARK_WATER_EFFECT_OPTIONS.map(option => ({
     type: option.type, label: option.label, size: 55,
   })),
@@ -57,7 +58,8 @@ export default function WorldDecorEffectEditor({
   const add = (type: ParkEffectType, size: number) => {
     if (draftRef.current.length >= PARK_DECOR_EFFECT_MAX_COUNT) return;
     const id = `decor-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-    persist([...draftRef.current, { id, type, x: 0.5, y: 0.5, size }]);
+    persist([...draftRef.current, { id, type, x: 0.5, y: 0.5, size,
+      ...(type === "colored_light" || type === "lamp_light" ? { color: DEFAULT_PARK_LIGHT_COLOR } : {}) }]);
     setSelectedId(id);
     setShowOptions(false);
   };
@@ -138,7 +140,7 @@ export default function WorldDecorEffectEditor({
         <span aria-hidden="true" className="pointer-events-none absolute"
           style={{ width: `${effect.size / 100 * 150}px`,
             height: `${effect.size / 100 * 150}px` }}>
-          <ParkEffectVisual type={effect.type} adminPreview reducedMotion />
+          <ParkEffectVisual type={effect.type} color={effect.color} adminPreview reducedMotion />
         </span>
         <span aria-hidden="true" className="pointer-events-none relative z-10 h-4 w-4 rounded-full border-2 border-[#f6e4a8] bg-[#345f47]/90 shadow-lg" />
       </button>)}
@@ -154,6 +156,15 @@ export default function WorldDecorEffectEditor({
         onClick={() => { persist(draftRef.current.filter(effect => effect.id !== selected.id)); setSelectedId(null); }}
         className="rounded-lg border border-red-400/50 p-2 text-red-200"><Trash2 size={15}/></button>
     </div>}
+    {(selected?.type === "colored_light" || selected?.type === "lamp_light") && <label className="flex items-center justify-between gap-3 rounded-lg border border-[#bda464]/40 p-2 text-xs">
+      Lamp orb color
+      <input type="color" aria-label="Colored light orb color"
+        data-testid="park-colored-light-picker" value={selected.color ?? DEFAULT_PARK_LIGHT_COLOR}
+        disabled={disabled}
+        onChange={event => persist(draftRef.current.map(effect => effect.id === selected.id
+          ? { ...effect, color: event.target.value } : effect))}
+        className="h-9 w-14 cursor-pointer rounded border border-[#bda464]/70 bg-transparent" />
+    </label>}
     {draft.length > 0 && <p className="text-center text-[10px] text-[#e8d7a9]/75">
       Drag an effect marker over the artwork to position it. Effects belong to this world decoration only.
     </p>}

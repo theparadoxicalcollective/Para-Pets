@@ -249,7 +249,14 @@ function CandleLightVisual() {
   );
 }
 
-function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean }) {
+function LampLightVisual({ warmSceneLamp = false, orbColor }: { warmSceneLamp?: boolean; orbColor?: string }) {
+  // Only the orb and close halo use the chosen color; surrounding scenery
+  // remains lit exclusively by the neutral mask in the outdoor renderer.
+  const channels = orbColor && /^#[0-9a-fA-F]{6}$/.test(orbColor)
+    ? [1, 3, 5].map(index => Number.parseInt(orbColor.slice(index, index + 2), 16))
+    : null;
+  const tint = (alpha: number) => channels
+    ? `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})` : null;
   return (
     <div
       aria-hidden
@@ -270,7 +277,9 @@ function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean })
           position: "absolute",
           inset: "2%",
           borderRadius: "50%",
-          background: warmSceneLamp
+          background: channels
+            ? `radial-gradient(circle at 50% 50%, ${tint(.20)} 0%, ${tint(.15)} 28%, ${tint(.08)} 54%, ${tint(.02)} 78%, transparent 100%)`
+            : warmSceneLamp
             ? "radial-gradient(circle at 50% 50%, rgba(255,197,89,0.20) 0%, rgba(247,165,57,0.16) 28%, rgba(230,139,39,0.09) 54%, rgba(205,109,26,0.03) 78%, transparent 100%)"
             : "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.16) 0%, rgba(255,219,126,0.15) 24%, rgba(255,183,74,0.09) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
           filter: "blur(6px)",
@@ -284,7 +293,9 @@ function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean })
           position: "absolute",
           inset: "22%",
           borderRadius: "50%",
-          background: warmSceneLamp
+          background: channels
+            ? `radial-gradient(circle at 50% 50%, ${tint(.23)} 0%, ${tint(.14)} 36%, ${tint(.055)} 70%, transparent 100%)`
+            : warmSceneLamp
             ? "radial-gradient(circle at 50% 50%, rgba(255,206,101,0.21) 0%, rgba(247,171,58,0.16) 36%, rgba(221,130,32,0.065) 70%, transparent 100%)"
             : "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.19) 0%, rgba(255,224,143,0.16) 32%, rgba(255,188,80,0.07) 62%, transparent 86%)",
           filter: "blur(4px)",
@@ -302,10 +313,14 @@ function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean })
           height: warmSceneLamp ? "34%" : "16%",
           borderRadius: "50%",
           transform: "translate(-50%, -50%)",
-          background: warmSceneLamp
+          background: channels
+            ? `radial-gradient(circle, ${tint(.56)} 0%, ${tint(.36)} 44%, ${tint(.12)} 78%, transparent 100%)`
+            : warmSceneLamp
             ? "radial-gradient(circle, rgba(255,212,117,0.56) 0%, rgba(251,186,71,0.37) 44%, rgba(236,155,45,0.13) 78%, transparent 100%)"
             : "radial-gradient(circle, rgba(255,253,229,0.34) 0%, rgba(255,236,174,0.26) 34%, rgba(255,202,103,0.13) 68%, transparent 100%)",
-          boxShadow: warmSceneLamp
+          boxShadow: channels
+            ? `0 0 7px ${tint(.13)}, 0 0 15px ${tint(.07)}`
+            : warmSceneLamp
             ? "0 0 7px rgba(255,184,75,0.13), 0 0 15px rgba(235,148,44,0.07)"
             : "0 0 7px rgba(255,232,159,0.22), 0 0 15px rgba(255,193,82,0.12)",
           filter: "blur(2px)",
@@ -473,10 +488,10 @@ function SleepSpotHintVisual() {
   );
 }
 
-function EffectVisual({ type, adminPreview, warmSceneLamp = false }: { type: HouseInteriorEffectType; adminPreview: boolean; warmSceneLamp?: boolean }) {
+function EffectVisual({ type, adminPreview, warmSceneLamp = false, orbColor }: { type: HouseInteriorEffectType; adminPreview: boolean; warmSceneLamp?: boolean; orbColor?: string }) {
   if (type === "fire") return <CampfireVisual />;
   if (type === "candle_light") return <CandleLightVisual />;
-  if (type === "lamp_light") return <LampLightVisual warmSceneLamp={warmSceneLamp} />;
+  if (type === "lamp_light") return <LampLightVisual warmSceneLamp={warmSceneLamp} orbColor={orbColor} />;
   if (type === "warm_glow") return <WarmGlowVisual />;
   if (type === "sparkles") return <SparklesVisual />;
   if (type === "dust_motes") return <DustMotesVisual />;
@@ -486,7 +501,7 @@ function EffectVisual({ type, adminPreview, warmSceneLamp = false }: { type: Hou
 
 /** Reuse the Home Bundle effect artwork for world-scene effect objects.
  * Placement, sizing, and hit targets remain owned by each scene editor. */
-export function HomeOutdoorEffectVisual({ type, reducedMotion = false, adminPreview = false, warmSceneLamp = false }: { type: HouseOutdoorEffectType; reducedMotion?: boolean; adminPreview?: boolean; warmSceneLamp?: boolean }) {
+export function HomeOutdoorEffectVisual({ type, reducedMotion = false, adminPreview = false, warmSceneLamp = false, orbColor }: { type: HouseOutdoorEffectType; reducedMotion?: boolean; adminPreview?: boolean; warmSceneLamp?: boolean; orbColor?: string }) {
   return <div className={`relative h-full w-full pointer-events-none ${reducedMotion ? "home-outdoor-effect-still" : ""}`} data-testid={`home-outdoor-effect-${type}`}>
     <style>{EFFECT_STYLES}</style>
     <style>{`
@@ -495,7 +510,7 @@ export function HomeOutdoorEffectVisual({ type, reducedMotion = false, adminPrev
         [data-testid^="home-outdoor-effect-"] *, [data-testid^="home-outdoor-effect-"] *::before, [data-testid^="home-outdoor-effect-"] *::after { animation: none !important; }
       }
     `}</style>
-    <EffectVisual type={type} adminPreview={adminPreview} warmSceneLamp={warmSceneLamp} />
+    <EffectVisual type={type} adminPreview={adminPreview} warmSceneLamp={warmSceneLamp} orbColor={orbColor} />
   </div>;
 }
 

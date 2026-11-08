@@ -18,7 +18,7 @@ import PetParkTerrainBrush from "@/components/PetParkTerrainBrush";
 import { isParkTerrainNearViewport } from "@/lib/petParkTerrainVisibility";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
-import { isParkEffect } from "@shared/petParkEffects";
+import { isParkEffect, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
 import { parkImageHitAt, parkImageHitClipPath, parkImageVisualCenter } from "@/lib/petParkImageHit";
 import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
@@ -55,7 +55,7 @@ import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -366,6 +366,14 @@ export default function PetParkPage() {
         description: String(error), variant: "destructive" });
     }
   };
+  const standaloneLightColorSave = useMutation({
+    mutationFn: async ({ id, effectColor }: { id: string; effectColor: string }) =>
+      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/color`, { effectColor }),
+    onSuccess: invalidate,
+    onError: (error: Error) => toast({
+      title: "Unable to update colored light", description: error.message, variant: "destructive",
+    }),
+  });
   const waterSourceSave = useMutation({
     mutationFn: async ({ id, isWaterSource }: { id: string; isWaterSource: boolean }) =>
       apiRequest("PATCH", `/api/admin/pet-park/items/${id}/water-source`, { isWaterSource }),
@@ -971,7 +979,7 @@ export default function PetParkPage() {
               className="pointer-events-none h-full w-full"
               style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength),
                 transition: "opacity 1200ms linear" }}>
-              <ParkEffectVisual type={item.effectType} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} />
+              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} />
             </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
               {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
                 sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
@@ -1347,6 +1355,18 @@ export default function PetParkPage() {
           <button type="button" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ flipped: !placementDraft.flipped })}>Flip</button>
         </>}
       </div>
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "effect" &&
+        (selectedObject as ParkItem).effectType === "colored_light" && <label
+        className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 bg-[#173b28] p-2 text-xs">
+        Colored light orb
+        <input type="color" aria-label="Edit Pet Park colored light orb color"
+          value={(selectedObject as ParkItem).effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
+          disabled={standaloneLightColorSave.isPending}
+          onChange={event => standaloneLightColorSave.mutate({
+            id: selectedPlacement.id, effectColor: event.target.value,
+          })}
+          className="h-9 w-14 rounded border border-[#b99a4c]/55 bg-transparent"/>
+      </label>}
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
         type="button" aria-label="Water Source" aria-pressed={Boolean((selectedObject as ParkItem).isWaterSource)}
         data-testid="park-decoration-water-source"

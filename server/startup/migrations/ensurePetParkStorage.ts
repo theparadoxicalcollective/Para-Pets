@@ -43,6 +43,7 @@ export async function ensurePetParkStorage(): Promise<void> {
     );
 
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_type text;
+    ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS effect_color text;
     -- Additive and nullable: existing decorations retain their normal image.
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS tap_image_url text;
     ALTER TABLE pet_park_scene_items ADD COLUMN IF NOT EXISTS appearance_group_id varchar;

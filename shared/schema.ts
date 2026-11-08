@@ -1394,6 +1394,7 @@ export const petParkSceneItems = pgTable("pet_park_scene_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   kind: text("kind").notNull(), // decor | sleep_spot | effect
   effectType: text("effect_type"), // waterfall_mist | water_ripple | water_shimmer
+  effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   // Tagged decor is a refill station; visual depth and placement are unchanged.
   isWaterSource: boolean("is_water_source").notNull().default(false),
   imageUrl: text("image_url"),
@@ -1559,6 +1560,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   kind: text("kind").notNull(),
   assetId: varchar("asset_id"),
   effectType: text("effect_type"),
+  effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   terrainKey: text("terrain_key"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { HomeOutdoorEffectVisual } from "@/components/HomeInteriorEffect";
-import { isParkOutdoorEffect, type ParkEffectType } from "@shared/petParkEffects";
+import { isParkOutdoorEffect, parkLightColor, type ParkEffectType } from "@shared/petParkEffects";
 export type { ParkWaterEffect } from "@shared/petParkEffects";
 
 const MIST_CSS = [
@@ -154,8 +154,11 @@ function ParkVerticalWaterFlow({ reducedMotion }: { reducedMotion: boolean }) {
   </div>;
 }
 
-export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean }) {
-  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp />;
+export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false, color }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean; color?: string }) {
+  if (type === "colored_light") return <HomeOutdoorEffectVisual type="lamp_light"
+    reducedMotion={reducedMotion} adminPreview={adminPreview}
+    warmSceneLamp orbColor={parkLightColor(color)} />;
+  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp orbColor={type === "lamp_light" && color ? parkLightColor(color) : undefined} />;
   if (type === "waterfall_mist") return <ParkWaterfallMist reducedMotion={reducedMotion} />;
   if (type === "water_shimmer") return <ParkWaterShimmer reducedMotion={reducedMotion} />;
   if (type === "water_flow") return <ParkVerticalWaterFlow reducedMotion={reducedMotion} />;

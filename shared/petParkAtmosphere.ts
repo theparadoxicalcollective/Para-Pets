@@ -24,14 +24,13 @@ export function parkOutdoorLightRadius(
   sceneLamp = false,
 ): number {
   const height = Number.isFinite(sceneHeight) && sceneHeight > 0 ? sceneHeight : 1;
-  // The tiny lamp orb is not the radius of the area it illuminates. A
-  // campfire lights a sizable patch of ground even when its flame is small;
-  // outdoors a lamp needs that same room around its artwork. The constant
-  // is a baseline scene-space reach, while the authored light size steadily
-  // increases the illuminated area. Neither editor changes its saved size.
+  // The lamp orb and its illumination reach are independent. Use the
+  // saved lamp size as the *only* scalable input: as the orb gets smaller,
+  // its illumination pool shrinks too, with no large fixed baseline radius.
+  // The campfire and interior light calculations below remain untouched.
   if (sceneLamp && effect.type === "lamp_light") {
     const orbDiameter = Math.max(0, effect.size / 100 * height);
-    return Math.max(12, Math.min(height * 0.68, 130 + orbDiameter * 2.8));
+    return Math.max(8, Math.min(height * 0.46, orbDiameter * 5.5));
   }
   const spread = sceneLamp && effect.type === "candle_light" ? 2.35 : 1;
   return Math.max(12, Math.min(height * 0.68,
@@ -56,18 +55,20 @@ export function parkOutdoorLightEffects(
       px <= viewport.width + margin && py <= viewport.height + margin;
   };
   for (const item of items) {
-    if (item.kind === "effect" && isHouseInteriorEffectType(item.effectType) &&
-        isHouseInteriorLightEffectType(item.effectType)) {
-      const light = { id: item.id, type: item.effectType,
+    if (item.kind === "effect" &&
+        (item.effectType === "colored_light" ||
+          (isHouseInteriorEffectType(item.effectType) && isHouseInteriorLightEffectType(item.effectType)))) {
+      const light = { id: item.id,
+        type: item.effectType === "colored_light" ? "lamp_light" as const : item.effectType,
         x: item.xPct, y: item.yPct, size: item.size * geometry.scale / geometry.height * 100 };
       if (inView(light)) result.push(light);
     }
     // Outdoor lamps may be attached to building facades or decorations.
     if (item.kind !== "decor" && item.kind !== "building") continue;
     for (const effect of item.decorEffects ?? []) {
-      if (!isHouseInteriorEffectType(effect.type) || !isHouseInteriorLightEffectType(effect.type)) continue;
+      if (effect.type !== "colored_light" && (!isHouseInteriorEffectType(effect.type) || !isHouseInteriorLightEffectType(effect.type))) continue;
       const position = parkDecorEffectWorldPosition(item, effect, geometry);
-      const light = { id: `${item.id}-${effect.id}`, type: effect.type,
+      const light = { id: `${item.id}-${effect.id}`, type: effect.type === "colored_light" ? "lamp_light" as const : effect.type,
         x: position.x, y: position.y, size: position.size };
       if (inView(light)) result.push(light);
     }

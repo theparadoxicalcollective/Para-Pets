@@ -45,6 +45,7 @@ const ids = {
   plot: "10000000-0000-4000-8000-000000000003",
   spring: "10000000-0000-4000-8000-000000000004",
   room: "10000000-0000-4000-8000-000000000005",
+  colored: "10000000-0000-4000-8000-000000000006",
 };
 function makeScene(worldId) {
   if (worldId === "swamp") return {
@@ -61,7 +62,7 @@ function makeScene(worldId) {
       tapImageUrl: null, interiorImageUrl: interior },
   ];
   const common = {
-    worldId, assetId: null, terrainKey: null, effectType: null,
+    worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
     size: 120, flipped: false, layer: 0, decorEffects: [],
     isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
   };
@@ -75,6 +76,8 @@ function makeScene(worldId) {
       terrainKey: "garden_plot:150:0:0", xPct: .5, yPct: .53, size: 150 },
     { ...common, id: ids.spring, kind: "terrain", effectType: "water_path",
       terrainKey: "water_path:150:1:1", xPct: .62, yPct: .5, size: 150 },
+    { ...common, id: ids.colored, kind: "effect", effectType: "colored_light",
+      effectColor: "#7b5cff", xPct: .50, yPct: .25, size: 80 },
   ];
   return {
     assets, placements,
@@ -250,23 +253,36 @@ try {
 
     await page.getByRole("button", { name: "+ Effects" }).click();
     await page.getByRole("heading", { name: "World Effects" }).waitFor({ state: "visible" });
+    assert.ok(await page.getByTestId("world-standalone-light-color").count() === 1,
+      name + ": standalone world effects have an admin orb color picker");
+    assert.ok(await page.getByTestId("add-world-effect-colored_light").count() === 1,
+      name + ": Colored Light is available in the World Editor effects list");
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
-    assert.ok(await page.getByTestId("park-outdoor-lamp-warm-spill").count() >= 1,
-      name + ": world editor uses warm radius-based lamp illumination");
-    const gradients = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-warm"]')
-      .count();
-    assert.ok(gradients >= 1,
-      name + ": the scene lamp renders its soft amber falloff in the existing darkness SVG");
+    const lampCutouts = page.getByTestId("park-outdoor-lamp-neutral-cutout");
+    assert.ok(await lampCutouts.count() >= 2,
+      name + ": building and decoration lamps use scene-linked, neutral darkness reveals");
+    assert.equal(await page.getByTestId("park-outdoor-lamp-warm-spill").count(), 0,
+      name + ": no extra amber wash should tint an entire section of the ground");
+    assert.ok(await lampCutouts.evaluateAll(circles =>
+      circles.every(circle => circle.style.mixBlendMode === "darken")),
+      name + ": overlapping fence lamps must not stack brightness toward daylight");
     assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
       name + ": attached lantern uses the amber lamp artwork");
+    const coloredCore = page.getByTestId("world-scene-placement-" + ids.colored)
+      .getByTestId("home-lamp-light-core");
+    assert.equal(await coloredCore.count(), 1,
+      name + ": standalone colored orb renders using the lamp core");
+    const orbGradient = await coloredCore.evaluate(node => node.style.backgroundImage);
+    assert.match(orbGradient, /123,\s*92,\s*255/,
+      name + ": the orb color reaches the rendered CSS gradient, not the scenery mask");
     // Test the actual SVG radius against the rendered lamp art on phone and
     // tablet. The small artwork should stay small, with an independently
     // broader illuminated scene for both decorations and building facades.
     const decorFlare = await page.getByTestId("world-editor-decor-effect-lantern-amber").boundingBox();
     const buildingFlare = await page.getByTestId("world-editor-decor-effect-porch-amber").boundingBox();
-    const sceneRadii = await page.getByTestId("park-outdoor-lamp-warm-spill").evaluateAll(
+    const sceneRadii = await lampCutouts.evaluateAll(
       circles => circles.map(circle => Number(circle.getAttribute("r"))));
     assert.ok(decorFlare && buildingFlare && sceneRadii.length >= 2,
       name + ": decor and building lamps each have independently sized illumination");
@@ -276,8 +292,17 @@ try {
       name + ": building facade lamp illuminates beyond its artwork");
     const fadeOffsets = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("offset")));
-    assert.deepEqual(fadeOffsets, ["0%", "14%", "32%", "52%", "72%", "88%", "100%"],
-      name + ": seven gradual reveal stops prevent an abrupt circular lit boundary");
+    assert.deepEqual(fadeOffsets, ["0%", "15%", "32%", "52%", "72%", "88%", "100%"],
+      name + ": seven neutral grayscale stops fade the light to full night");
+    const fadeColors = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
+      .evaluateAll(stops => stops.map(stop => stop.getAttribute("stop-color")));
+    assert.ok(fadeColors.every(color => {
+      const channels = String(color).match(/[0-9]+/g)?.map(Number);
+      return channels?.length === 3 && channels.every(channel => channel === channels[0]);
+    }),
+      name + ": scene brightness must be neutral, not yellow-brown");
+    assert.equal(fadeColors.at(-1), "rgb(255, 255, 255)",
+      name + ": light edges return smoothly to the original night darkness");
 
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
     const atNormalZoom = await worldSprite.boundingBox();

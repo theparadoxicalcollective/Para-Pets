@@ -1,4 +1,4 @@
-import { isParkEffect, type ParkEffectType } from "./petParkEffects";
+import { isParkEffect, isValidParkLightColor, type ParkEffectType } from "./petParkEffects";
 
 /** Effects are authored relative to each decoration's own image box.
  * Each duplicate retains independent placement, size, flip and depth.
@@ -11,6 +11,8 @@ export type ParkDecorEffect = {
   y: number;
   /** Percentage of the placed decoration's square artwork size. */
   size: number;
+  /** Optional orb color for Lamp Light; required for Colored Light. */
+  color?: string;
 };
 
 export const PARK_DECOR_EFFECT_MAX_COUNT = 8;
@@ -26,7 +28,12 @@ export function isValidParkDecorEffects(value: unknown): value is ParkDecorEffec
     if (typeof item.id !== "string" || !/^[a-zA-Z0-9_-]{1,90}$/.test(item.id) || ids.has(item.id) ||
       !isParkEffect(item.type) || !validNormalized(item.x) || !validNormalized(item.y) ||
       typeof item.size !== "number" || !Number.isFinite(item.size) ||
-      item.size < PARK_DECOR_EFFECT_MIN_SIZE || item.size > PARK_DECOR_EFFECT_MAX_SIZE) return false;
+      item.size < PARK_DECOR_EFFECT_MIN_SIZE || item.size > PARK_DECOR_EFFECT_MAX_SIZE ||
+      (item.type === "colored_light"
+        ? !isValidParkLightColor(item.color)
+        : item.type === "lamp_light"
+          ? item.color !== undefined && !isValidParkLightColor(item.color)
+          : item.color !== undefined)) return false;
     ids.add(item.id);
   }
   return true;

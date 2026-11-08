@@ -1,7 +1,8 @@
-import { Fragment, useEffect, useId, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
 import { getHouseInteriorLightCutoutStrength, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkOutdoorLightRadius } from "@shared/petParkAtmosphere";
+import { parkSceneLampMaskChannel } from "@/lib/parkSceneLighting";
 import {
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
@@ -175,6 +176,16 @@ export function HomeDayNightToggle({
   );
 }
 
+/**
+ * Neutral scenery reveal, not a yellow overlay. Each source contributes at
+ * most its strongest cutout even when many fence lamps overlap.
+ * The campfire uses its existing unmodified SVG gradient below.
+ */
+const PARK_LAMP_FALLOFF_STOPS = [
+  [0, 1], [15, 0.94], [32, 0.75], [52, 0.46],
+  [72, 0.20], [88, 0.055], [100, 0],
+] as const;
+
 export function HomeOutdoorAtmosphereLayer({
   darkness,
   nightStrength,
@@ -196,7 +207,7 @@ export function HomeOutdoorAtmosphereLayer({
   sceneHeight: number;
   zIndex?: number;
   transitionMs?: number;
-  /** Only park/world scenes use the warmer, wider lamp falloff; homes remain unchanged. */
+  /** Park/world lamp masks reveal neutral scenery; existing Pet Home lighting stays unchanged. */
   parkLampFalloff?: boolean;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
@@ -275,10 +286,9 @@ export function HomeOutdoorAtmosphereLayer({
           {activeLights.map((effect, index) => {
             const gradientId = `${maskId}-light-${index}`;
             const radius = lightRadius(effect);
+            const isNeutralLamp = parkLampFalloff && effect.type === "lamp_light";
             const soft = isSceneLamp(effect);
-            // The outdoor orb stays translucent; the ground beneath it
-            // should light up as clearly as it does around a campfire.
-            const baseStrength = soft
+            const baseStrength = soft && !isNeutralLamp
               ? getHouseInteriorLightCutoutStrength("fire")
               : getHouseInteriorLightCutoutStrength(effect.type);
             const cutoutStrength = effect.type === "warm_glow"
@@ -286,49 +296,37 @@ export function HomeOutdoorAtmosphereLayer({
               : effect.type === "lamp_light" || effect.type === "candle_light"
                 ? baseStrength * safeNight
                 : baseStrength;
-
-
             return (
-              <Fragment key={gradientId}>
-                <radialGradient
-                  id={gradientId}
-                  gradientUnits="userSpaceOnUse"
-                  cx={effect.x * maskWidth}
-                  cy={effect.y * maskHeight}
-                  r={radius}
-                >
-                  {soft ? <>
-                    {/* Softer center and long tail: illuminate the scenery well
-                        beyond the small visual lantern flare, with no hard ring. */}
-                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
-                    <stop offset="14%" stopColor="black" stopOpacity={cutoutStrength * 0.96} />
-                    <stop offset="32%" stopColor="black" stopOpacity={cutoutStrength * 0.82} />
-                    <stop offset="52%" stopColor="black" stopOpacity={cutoutStrength * 0.59} />
-                    <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.33} />
-                    <stop offset="88%" stopColor="black" stopOpacity={cutoutStrength * 0.10} />
-                    <stop offset="100%" stopColor="black" stopOpacity={0} />
-                  </> : <>
-                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
-                    <stop offset="38%" stopColor="black" stopOpacity={cutoutStrength * 0.70} />
-                    <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.25} />
-                    <stop offset="100%" stopColor="black" stopOpacity={0} />
-                  </>}
-                </radialGradient>
-                {soft && <radialGradient
-                  id={`${gradientId}-warm`}
-                  gradientUnits="userSpaceOnUse"
-                  cx={effect.x * maskWidth}
-                  cy={effect.y * maskHeight}
-                  r={radius}
-                >
-                  <stop offset="0%" stopColor="#f7c168" stopOpacity="0.12" />
-                  <stop offset="24%" stopColor="#efb055" stopOpacity="0.085" />
-                  <stop offset="48%" stopColor="#de993f" stopOpacity="0.043" />
-                  <stop offset="72%" stopColor="#bd7d34" stopOpacity="0.017" />
-                  <stop offset="90%" stopColor="#a86c27" stopOpacity="0.004" />
-                  <stop offset="100%" stopColor="#a86c27" stopOpacity="0" />
-                </radialGradient>}
-              </Fragment>
+              <radialGradient
+                id={gradientId}
+                key={gradientId}
+                gradientUnits="userSpaceOnUse"
+                cx={effect.x * maskWidth}
+                cy={effect.y * maskHeight}
+                r={radius}
+              >
+                {isNeutralLamp ? PARK_LAMP_FALLOFF_STOPS.map(([offset, falloff]) => {
+                  // Opaque grayscale allows 'darken' composition in the mask:
+                  // adjacent lamps reveal the stronger local light, rather
+                  // than summing into a near-daylight patch.
+                  const channel = parkSceneLampMaskChannel(safeNight, falloff);
+                  return <stop key={offset} offset={`${offset}%`}
+                    stopColor={`rgb(${channel}, ${channel}, ${channel})`} />;
+                }) : soft ? <>
+                  <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
+                  <stop offset="14%" stopColor="black" stopOpacity={cutoutStrength * 0.96} />
+                  <stop offset="32%" stopColor="black" stopOpacity={cutoutStrength * 0.82} />
+                  <stop offset="52%" stopColor="black" stopOpacity={cutoutStrength * 0.59} />
+                  <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.33} />
+                  <stop offset="88%" stopColor="black" stopOpacity={cutoutStrength * 0.10} />
+                  <stop offset="100%" stopColor="black" stopOpacity={0} />
+                </> : <>
+                  <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
+                  <stop offset="38%" stopColor="black" stopOpacity={cutoutStrength * 0.70} />
+                  <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.25} />
+                  <stop offset="100%" stopColor="black" stopOpacity={0} />
+                </>}
+              </radialGradient>
             );
           })}
           <mask
@@ -351,6 +349,10 @@ export function HomeOutdoorAtmosphereLayer({
                   cy={effect.y * maskHeight}
                   r={radius}
                   fill={`url(#${maskId}-light-${index})`}
+                  data-testid={parkLampFalloff && effect.type === "lamp_light"
+                    ? "park-outdoor-lamp-neutral-cutout" : undefined}
+                  style={parkLampFalloff && effect.type === "lamp_light"
+                    ? { mixBlendMode: "darken" } : undefined}
                 />
               );
             })}
@@ -368,19 +370,6 @@ export function HomeOutdoorAtmosphereLayer({
             transition: `fill-opacity ${transitionMs}ms linear`,
           }}
         />
-        {parkLampFalloff && activeLights.map((effect, index) => {
-          if (!isSceneLamp(effect)) return null;
-          return <circle
-            key={`${effect.id}-warm-spill`}
-            data-testid="park-outdoor-lamp-warm-spill"
-            cx={effect.x * maskWidth}
-            cy={effect.y * maskHeight}
-            r={lightRadius(effect)}
-            fill={`url(#${maskId}-light-${index}-warm)`}
-            style={{ opacity: safeNight, transition: `opacity ${transitionMs}ms linear`,
-              pointerEvents: "none" }}
-          />;
-        })}
       </svg>
     </>
   );
