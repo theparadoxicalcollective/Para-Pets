@@ -282,7 +282,10 @@ try {
       name + ": seven neutral grayscale stops fade the light to full night");
     const fadeColors = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("stop-color")));
-    assert.ok(fadeColors.every(color => /^rgb\\((\\d+), \\1, \\1\\)$/.test(color)),
+    assert.ok(fadeColors.every(color => {
+      const channels = String(color).match(/[0-9]+/g)?.map(Number);
+      return channels?.length === 3 && channels.every(channel => channel === channels[0]);
+    }),
       name + ": scene brightness must be neutral, not yellow-brown");
     assert.equal(fadeColors.at(-1), "rgb(255, 255, 255)",
       name + ": light edges return smoothly to the original night darkness");
