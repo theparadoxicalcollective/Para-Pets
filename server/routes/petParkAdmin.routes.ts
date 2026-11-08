@@ -239,6 +239,13 @@ export function registerPetParkAdminRoutes(
       }
       updates.interiorDarkness = body.interiorDarkness;
     }
+    if (body.interiorNightDarkness !== undefined) {
+      if (!Number.isInteger(body.interiorNightDarkness) ||
+          body.interiorNightDarkness < HOUSE_INTERIOR_DARKNESS_MIN ||
+          body.interiorNightDarkness > HOUSE_INTERIOR_DARKNESS_MAX)
+        return res.status(400).json({ message: "Peak night darkness must be between 0 and 90 percent" });
+      updates.interiorNightDarkness = body.interiorNightDarkness;
+    }
     if (body.isShop !== undefined) {
       if (typeof body.isShop !== "boolean") return res.status(400).json({ message: "Is Shop must be on or off" });
       updates.isShop = body.isShop;

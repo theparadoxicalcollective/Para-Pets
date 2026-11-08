@@ -303,6 +303,13 @@ export function registerWorldSceneContentRoutes(app: Express, {
           return res.status(400).json({ message: "Interior darkness must be from 0 to 90%" });
         changes.interiorDarkness = body.interiorDarkness;
       }
+      if ("interiorNightDarkness" in body) {
+        if (saved.kind !== "building" || !Number.isInteger(body.interiorNightDarkness) ||
+            body.interiorNightDarkness < HOUSE_INTERIOR_DARKNESS_MIN ||
+            body.interiorNightDarkness > HOUSE_INTERIOR_DARKNESS_MAX)
+          return res.status(400).json({ message: "Peak night darkness must be from 0 to 90%" });
+        changes.interiorNightDarkness = body.interiorNightDarkness;
+      }
       if ("decorEffects" in body) {
         if ((saved.kind !== "decor" && saved.kind !== "building") || !validDecorEffects(body.decorEffects))
           return res.status(400).json({ message: "Invalid attached effects" });
