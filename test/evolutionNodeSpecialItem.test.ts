@@ -45,7 +45,11 @@ test("node-fill specials stay in Special Bag filtering and use their own Power U
   const powerUp = read("client/src/components/PetPowerUpPage.tsx");
   const modalTypes = read("client/src/components/powerup/PowerUpModalTypes.ts");
 
-  assert.match(home, /inventoryItem\.type === "special" && inventoryItem\.specialType === "fill_evolution_node"/);
+  // Power Up item filtering is shared by Home and the new pet-ID route.
+  // Keep this contract aligned with that helper, not the old inline Home implementation.
+  const powerUpInventory = read("client/src/lib/petPowerUpInventory.ts");
+  assert.match(home, /getPetPowerUpItems\(inventory\)/);
+  assert.match(powerUpInventory, /item\.type === "special" && item\.specialType === "fill_evolution_node"/);
   assert.match(home, /items=\{powerUpItems\}/);
   assert.match(home, /specialItems=\{powerUpSpecialItems\}/);
   assert.match(modalTypes, /specialItems\?: PowerUpItem\[\]/);
