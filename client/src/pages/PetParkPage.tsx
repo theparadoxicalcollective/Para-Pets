@@ -25,7 +25,7 @@ import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
-import { parkOutdoorLightEffects } from "@shared/petParkAtmosphere";
+import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import PetParkDecorEffects from "@/components/PetParkDecorEffects";
@@ -226,7 +226,8 @@ export default function PetParkPage() {
   const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
-  const parkLights = useMemo(() => parkOutdoorLightEffects([
+  const { parkLights, parkFireflies } = useMemo(() => {
+    const items = [
       ...(scene?.items ?? []).map(item => selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementDraft
         ? { ...item, ...placementDraft } : item),
       ...(scene?.buildings ?? []).map(building => ({
@@ -234,8 +235,11 @@ export default function PetParkPage() {
         ...(selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementDraft ? placementDraft : {}),
         kind: "building",
       })),
-    ], { width: sceneWidth, height: sceneHeight, scale }, camera, viewportSize),
-    [scene?.items, scene?.buildings, selectedPlacement, placementDraft, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
+    ];
+    const shape = { width: sceneWidth, height: sceneHeight, scale };
+    return { parkLights: parkOutdoorLightEffects(items, shape, camera, viewportSize),
+      parkFireflies: parkOutdoorFireflyFields(items, shape, camera, viewportSize) };
+  }, [scene?.items, scene?.buildings, selectedPlacement, placementDraft, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
   // The compact action arc uses the existing camera's world-to-screen
   // projection. Prefer the RIGHT side of the touched plot; flip left only
   // when it would otherwise be clipped at a mobile/tablet edge.
@@ -980,7 +984,7 @@ export default function PetParkPage() {
               className="pointer-events-none h-full w-full"
               style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength, parkLighting.fireflyStrength),
                 transition: "opacity 1200ms linear" }}>
-              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} fireflyStrength={parkLighting.fireflyStrength} />
+              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} fireflyStrength={parkLighting.fireflyStrength} sceneFireflies />
             </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
               {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
                 sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
@@ -1126,7 +1130,8 @@ export default function PetParkPage() {
         className="pointer-events-none absolute inset-0 z-[10] overflow-hidden">
         <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(parkLighting.nightStrength)}
           nightStrength={parkLighting.nightStrength}
-          effects={parkLights} panX={camera.x} panY={camera.y}
+          effects={parkLights} fireflies={parkFireflies} fireflyStrength={parkLighting.fireflyStrength}
+           reducedMotion={reduceMotion || zoom <= .85} panX={camera.x} panY={camera.y}
           imgWidth={sceneWidth} sceneHeight={sceneHeight}
           transitionMs={parkLighting.transitionMs} zIndex={2} />
       </div>}

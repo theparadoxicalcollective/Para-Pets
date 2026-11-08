@@ -12,7 +12,7 @@ import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
 import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
-import { parkOutdoorLightEffects } from "@shared/petParkAtmosphere";
+import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkInteriorDarkness } from "@shared/parkInteriorDarkness";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
@@ -144,10 +144,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
   const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = parkClampCamera(pan ?? initialPan, camera);
-  const exteriorLights = useMemo(() => parkOutdoorLightEffects(
-    content.placements.map(item => objectPreview?.id === item.id ? { ...item, ...objectPreview } : item),
-    { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale }, actualPan, size),
-    [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
+  const { exteriorLights, exteriorFireflies } = useMemo(() => {
+    const items = content.placements.map(item => objectPreview?.id === item.id ? { ...item, ...objectPreview } : item);
+    const shape = { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale };
+    return { exteriorLights: parkOutdoorLightEffects(items, shape, actualPan, size),
+      exteriorFireflies: parkOutdoorFireflyFields(items, shape, actualPan, size) };
+  }, [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const interiorDarkness = activeBuilding && interiorDarknessDraft &&
@@ -481,7 +483,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                   style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength, worldLighting.fireflyStrength),
                     transition: "opacity 1200ms linear" }}>
                   <ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
-                    reducedMotion={false} adminPreview fireflyStrength={worldLighting.fireflyStrength} />
+                    reducedMotion={false} adminPreview fireflyStrength={worldLighting.fireflyStrength} sceneFireflies />
                 </span>}
                 {garden && <PetParkTerrainDetail type="garden_plot" />}
                 {p.kind === "terrain" && !connected && !garden && isParkTerrainDetail(p.effectType) &&
@@ -495,6 +497,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
           <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(worldLighting.nightStrength)}
             nightStrength={worldLighting.nightStrength} effects={exteriorLights}
+            fireflies={exteriorFireflies} fireflyStrength={worldLighting.fireflyStrength}
             panX={actualPan.x} panY={actualPan.y}
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
             transitionMs={worldLighting.transitionMs} zIndex={2}/>
