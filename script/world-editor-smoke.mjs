@@ -261,6 +261,23 @@ try {
       name + ": the scene lamp renders its soft amber falloff in the existing darkness SVG");
     assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
       name + ": attached lantern uses the amber lamp artwork");
+    // Test the actual SVG radius against the rendered lamp art on phone and
+    // tablet. The small artwork should stay small, with an independently
+    // broader illuminated scene for both decorations and building facades.
+    const decorFlare = await page.getByTestId("world-editor-decor-effect-lantern-amber").boundingBox();
+    const buildingFlare = await page.getByTestId("world-editor-decor-effect-porch-amber").boundingBox();
+    const sceneRadii = await page.getByTestId("park-outdoor-lamp-warm-spill").evaluateAll(
+      circles => circles.map(circle => Number(circle.getAttribute("r"))));
+    assert.ok(decorFlare && buildingFlare && sceneRadii.length >= 2,
+      name + ": decor and building lamps each have independently sized illumination");
+    assert.ok(sceneRadii[0] > 5 * decorFlare.width,
+      name + ": small decoration lamp softly lights ground far outside its visible flare");
+    assert.ok(sceneRadii[1] > 5 * buildingFlare.width,
+      name + ": building facade lamp illuminates beyond its artwork");
+    const fadeOffsets = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
+      .evaluateAll(stops => stops.map(stop => stop.getAttribute("offset")));
+    assert.deepEqual(fadeOffsets, ["0%", "12%", "30%", "50%", "70%", "86%", "100%"],
+      name + ": seven gradual reveal stops prevent an abrupt circular lit boundary");
 
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
     const atNormalZoom = await worldSprite.boundingBox();
