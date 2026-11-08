@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import {
   PARK_DECOR_EFFECT_MAX_COUNT, PARK_DECOR_EFFECT_MAX_SIZE,
   PARK_DECOR_EFFECT_MIN_SIZE, type ParkDecorEffect,
@@ -13,7 +13,6 @@ const OPTIONS: { type: ParkEffectType; label: string; size: number }[] = [
     type: option.type, label: option.label,
     size: Math.max(24, Math.min(80, option.defaultSize * 2.4)),
   })),
-  { type: "colored_light", label: PARK_COLORED_LIGHT_OPTION.label, size: 38 },
   { type: "fireflies", label: PARK_FIREFLIES_OPTION.label, size: 68 },
   ...PARK_WATER_EFFECT_OPTIONS.map(option => ({
     type: option.type, label: option.label, size: 55,
@@ -159,8 +158,8 @@ export default function WorldDecorEffectEditor({
     </div>}
     {(selected?.type === "colored_light" || selected?.type === "lamp_light") && <label className="flex items-center justify-between gap-3 rounded-lg border border-[#bda464]/40 p-2 text-xs">
       Lamp orb color
-      <input type="color" aria-label="Colored light orb color"
-        data-testid="park-colored-light-picker" value={selected.color ?? DEFAULT_PARK_LIGHT_COLOR}
+      <input type="color" aria-label="Lamp light color"
+        data-testid="park-lamp-light-color-picker" value={selected.color ?? DEFAULT_PARK_LIGHT_COLOR}
         disabled={disabled}
         onChange={event => persist(draftRef.current.map(effect => effect.id === selected.id
           ? { ...effect, color: event.target.value } : effect))}

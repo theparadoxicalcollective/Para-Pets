@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
 import type {
@@ -20,7 +20,6 @@ const EFFECT_CHOICES: Array<{
     type: o.type, label: o.label, description: o.description,
     size: Math.max(60, o.defaultSize * 6), group: "outdoor" as const,
   })),
-  { ...PARK_COLORED_LIGHT_OPTION, size: 96, group: "outdoor" as const },
   { ...PARK_FIREFLIES_OPTION, size: PARK_FIREFLIES_OPTION.defaultSize, group: "outdoor" as const },
   ...PARK_WATER_EFFECT_OPTIONS.map(o => ({
     type: o.type, label: o.label, description: o.description,
@@ -55,7 +54,7 @@ export default function WorldSceneControls(props: Props) {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
-  const [coloredLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
+  const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [expanded, setExpanded] = useState(false);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
@@ -105,7 +104,7 @@ export default function WorldSceneControls(props: Props) {
 
   const add = async (kind: "decor" | "building" | "effect", assetId: string | null, effectType: string | null, size: number) => {
     const result = await mutate("POST", "/placements", {
-      kind, assetId, effectType, effectColor: effectType === "colored_light" ? coloredLightColor : null,
+      kind, assetId, effectType, effectColor: (effectType === "colored_light" || effectType === "lamp_light") ? lampLightColor : null,
       xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
       size, flipped: false, layer: 0, decorEffects: [], isWaterSource: false, isShop: false, shopItemIds: [],
     }) as WorldScenePlacement | null;
@@ -343,15 +342,15 @@ export default function WorldSceneControls(props: Props) {
             Outdoor Effects
           </div>
           {!props.activeBuilding && <label className="flex items-center justify-between gap-3 rounded-xl border border-[#b99a4c]/55 p-3 text-xs">
-            Colored light orb
-            <input type="color" aria-label="New world colored light orb color"
-              data-testid="world-standalone-light-color" value={coloredLightColor}
+            Lamp Light color
+            <input type="color" aria-label="New world lamp light color"
+              data-testid="world-standalone-light-color" value={lampLightColor}
               onChange={event => setColoredLightColor(event.target.value)}
               className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent"/>
           </label>}
           <div className="grid grid-cols-2 gap-2">
             {EFFECT_CHOICES.filter(effect => effect.group === "outdoor" &&
-              (!props.activeBuilding || (effect.type !== "colored_light" && effect.type !== "fireflies"))).map(effect =>
+              (!props.activeBuilding || effect.type !== "fireflies")).map(effect =>
               <button key={effect.type} type="button"
                 data-testid={`add-world-effect-${effect.type}`} disabled={busy}
                 onClick={() => props.activeBuilding
@@ -382,15 +381,15 @@ export default function WorldSceneControls(props: Props) {
               </button>)}
           </div>
           <p className="text-center text-xs text-amber-100/60">
-            Tap an effect to place it, then drag it into position.
+            Tap to place. Double-tap its center to move.
           </p>
         </section>}
 
         {panel === "selected" && <div className="space-y-3" data-testid="world-scene-details-panel">
-          {props.selected?.kind === "effect" && props.selected.effectType === "colored_light" &&
+          {props.selected?.kind === "effect" && (props.selected.effectType === "colored_light" || props.selected.effectType === "lamp_light") &&
             <label className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 p-2 text-xs">
-              Colored light orb
-              <input type="color" aria-label="Edit world colored light orb color"
+              Lamp Light color
+              <input type="color" aria-label="Edit world lamp light color"
                 value={props.selected.effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
                 disabled={busy}
                 onChange={event => void patchSelected({ effectColor: event.target.value })}
