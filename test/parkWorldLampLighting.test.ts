@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { getHouseInteriorLightRadiusRatio } from "../shared/housing";
-import { parkOutdoorLightEffects } from "../shared/petParkAtmosphere";
+import { parkOutdoorLightEffects, parkOutdoorLightRadius } from "../shared/petParkAtmosphere";
 import { parkSceneDarkness, parkOutdoorEffectOpacity } from "../client/src/lib/parkSceneLighting";
 import { getAutomaticHomeNightStrength } from "../client/src/lib/homeOutdoorLighting";
 import { isPlayerToggleableInteriorEffect } from "../client/src/components/HomeInteriorEffect";
@@ -40,7 +40,7 @@ test("outdoor lamps follow nightfall, sunlight follows daytime, fires remain ind
   assert.match(masks, /effect\.type === "lamp_light" \|\| effect\.type === "candle_light"/);
   assert.match(masks, /baseStrength \* safeNight/);
   assert.match(masks, /baseStrength \* \(1 - safeNight\)/);
-  assert.match(masks, /getHouseInteriorLightRadiusRatio\(effect\) \* maskHeight \* scale/);
+  assert.match(masks, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
   assert.match(source("client/src/components/PetParkDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength\)/);
   assert.match(source("client/src/components/world-editor/WorldDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength\)/);
 });
@@ -98,14 +98,14 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(world, /<HomeOutdoorAtmosphereLayer parkLampFalloff/);
   assert.match(atmosphere, /parkLampFalloff = false/,
     "existing Pet Home outdoor lighting retains its original fallback");
-  assert.match(atmosphere, /const scale = isSceneLamp\(effect\) \? 1\.3 : 1/);
-  assert.match(atmosphere, /<stop offset="20%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.93\}/);
-  assert.match(atmosphere, /<stop offset="42%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.76\}/);
-  assert.match(atmosphere, /<stop offset="65%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.44\}/);
-  assert.match(atmosphere, /<stop offset="84%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.17\}/);
+  assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
+  assert.match(atmosphere, /<stop offset="12%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.87\}/);
+  assert.match(atmosphere, /<stop offset="30%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.74\}/);
+  assert.match(atmosphere, /<stop offset="50%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.53\}/);
+  assert.match(atmosphere, /<stop offset="86%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.10\}/);
   assert.match(atmosphere, /<stop offset="100%" stopColor="black" stopOpacity=\{0\}/);
   assert.match(atmosphere, /data-testid="park-outdoor-lamp-warm-spill"/);
-  assert.match(atmosphere, /stopColor="#ffd075"/);
+  assert.match(atmosphere, /stopColor="#f7c168"/);
   assert.match(atmosphere, /opacity: safeNight/);
 
   assert.match(wrapper, /warmSceneLamp/);
@@ -115,17 +115,31 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(artwork, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/,
     "indoor lights and player toggles are not modified by the outdoor scene palette");
 
-  const relativeStops = [1, 0.93, 0.76, 0.44, 0.17, 0];
-  const stops = [0, 0.20, 0.42, 0.65, 0.84, 1];
+  const relativeStops = [0.92, 0.87, 0.74, 0.53, 0.29, 0.10, 0];
+  const stops = [0, 0.12, 0.30, 0.50, 0.70, 0.86, 1];
   for (let i = 1; i < relativeStops.length; i++) {
     assert.ok(relativeStops[i] < relativeStops[i - 1], "reveal falls off with distance");
     assert.ok(stops[i] > stops[i - 1], "falloff covers a continuous increasing radius");
   }
-  for (const size of [12, 24, 48]) {
-    const small = getHouseInteriorLightRadiusRatio({ id: "lamp", type: "lamp_light", x: .5, y: .5, size });
-    const larger = getHouseInteriorLightRadiusRatio({ id: "lamp", type: "lamp_light", x: .5, y: .5, size: size * 1.5 });
-    assert.ok(larger * 1.3 > small * 1.3, "larger authored lamp reaches farther");
+  for (const size of [0.6, 1.2, 2.4]) {
+    // Percent of scene height: a 1.2% visible lamp on a 1200px scene
+    // is just 14.4px wide, yet should softly illuminate ~100px outwards.
+    const light = { id: "lamp", type: "lamp_light" as const, x: .5, y: .5, size };
+    const visualDiameter = 1200 * size / 100;
+    const wideRadius = parkOutdoorLightRadius(light, 1200, true);
+    const legacyRadius = parkOutdoorLightRadius(light, 1200, false);
+    assert.ok(wideRadius > 5 * visualDiameter,
+      "the light travels much farther than the small visual flare");
+    assert.ok(wideRadius > legacyRadius * 2, "the previous narrow reach is substantially extended");
+    assert.equal(legacyRadius, getHouseInteriorLightRadiusRatio(light) * 1200);
+    assert.ok(parkOutdoorLightRadius({ ...light, size: size * 1.5 }, 1200, true) > wideRadius,
+      "the illuminated ground radius follows the saved lamp size");
   }
+  assert.equal(parkOutdoorLightRadius(
+    { id: "lamp", type: "lamp_light", x: .5, y: .5, size: 100 },
+    1200, true), 1200 * 0.68, "large lamps keep the existing scene-safe maximum");
+  assert.match(artwork, /opacity: warmSceneLamp \? 0\.38 : 0\.57/,
+    "the visible flare is more transparent while its scenery reveal grows");
 });
 
 test("lamp artwork center is less opaque but SVG illumination cutouts remain", () => {
