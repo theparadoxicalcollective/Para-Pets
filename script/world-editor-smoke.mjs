@@ -372,13 +372,13 @@ try {
     const nightInterior = page.getByTestId("world-editor-night-interior-image");
     await nightInterior.waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Preview night world interior lighting" }).click();
-    assert.equal(await nightInterior.evaluate(element => Number(element.style.opacity)), 1,
+    assert.equal(await nightInterior.evaluate(element => element.style.display), "block",
       name + ": night preview shows alternate interior artwork");
     assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
       Number(element.style.fillOpacity)), .35,
       name + ": night preview keeps one 35% darkness setting");
     await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
-    assert.equal(await nightInterior.evaluate(element => Number(element.style.opacity)), 0,
+    assert.equal(await nightInterior.evaluate(element => element.style.display), "none",
       name + ": day preview restores daytime artwork");
     const savedDarkness = page.waitForResponse(response =>
       response.url().endsWith("/placements/" + ids.building) &&
