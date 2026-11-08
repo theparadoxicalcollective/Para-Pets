@@ -55,18 +55,20 @@ export function parkOutdoorLightEffects(
       px <= viewport.width + margin && py <= viewport.height + margin;
   };
   for (const item of items) {
-    if (item.kind === "effect" && isHouseInteriorEffectType(item.effectType) &&
-        isHouseInteriorLightEffectType(item.effectType)) {
-      const light = { id: item.id, type: item.effectType,
+    if (item.kind === "effect" &&
+        (item.effectType === "colored_light" ||
+          (isHouseInteriorEffectType(item.effectType) && isHouseInteriorLightEffectType(item.effectType)))) {
+      const light = { id: item.id,
+        type: item.effectType === "colored_light" ? "lamp_light" as const : item.effectType,
         x: item.xPct, y: item.yPct, size: item.size * geometry.scale / geometry.height * 100 };
       if (inView(light)) result.push(light);
     }
     // Outdoor lamps may be attached to building facades or decorations.
     if (item.kind !== "decor" && item.kind !== "building") continue;
     for (const effect of item.decorEffects ?? []) {
-      if (!isHouseInteriorEffectType(effect.type) || !isHouseInteriorLightEffectType(effect.type)) continue;
+      if (effect.type !== "colored_light" && (!isHouseInteriorEffectType(effect.type) || !isHouseInteriorLightEffectType(effect.type))) continue;
       const position = parkDecorEffectWorldPosition(item, effect, geometry);
-      const light = { id: `${item.id}-${effect.id}`, type: effect.type,
+      const light = { id: `${item.id}-${effect.id}`, type: effect.type === "colored_light" ? "lamp_light" as const : effect.type,
         x: position.x, y: position.y, size: position.size };
       if (inView(light)) result.push(light);
     }
