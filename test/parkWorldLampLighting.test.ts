@@ -41,8 +41,8 @@ test("outdoor lamps follow nightfall, sunlight follows daytime, fires remain ind
   assert.match(masks, /baseStrength \* safeNight/);
   assert.match(masks, /baseStrength \* \(1 - safeNight\)/);
   assert.match(masks, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(source("client/src/components/PetParkDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength\)/);
-  assert.match(source("client/src/components/world-editor/WorldDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength\)/);
+  assert.match(source("client/src/components/PetParkDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength\)/);
+  assert.match(source("client/src/components/world-editor/WorldDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength\)/);
 });
 
 test("lamp light reveal follows authored size for decor, building facades and indoor effects", () => {
