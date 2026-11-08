@@ -245,7 +245,7 @@ function CandleLightVisual() {
   );
 }
 
-function LampLightVisual() {
+function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean }) {
   return (
     <div
       aria-hidden
@@ -264,8 +264,9 @@ function LampLightVisual() {
           position: "absolute",
           inset: "2%",
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.16) 0%, rgba(255,219,126,0.15) 24%, rgba(255,183,74,0.09) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
+          background: warmSceneLamp
+            ? "radial-gradient(circle at 50% 50%, rgba(255,197,89,0.20) 0%, rgba(247,165,57,0.16) 28%, rgba(230,139,39,0.09) 54%, rgba(205,109,26,0.03) 78%, transparent 100%)"
+            : "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.16) 0%, rgba(255,219,126,0.15) 24%, rgba(255,183,74,0.09) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
           filter: "blur(6px)",
           mixBlendMode: "screen",
           opacity: 0.9,
@@ -277,8 +278,9 @@ function LampLightVisual() {
           position: "absolute",
           inset: "22%",
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.19) 0%, rgba(255,224,143,0.16) 32%, rgba(255,188,80,0.07) 62%, transparent 86%)",
+          background: warmSceneLamp
+            ? "radial-gradient(circle at 50% 50%, rgba(255,206,101,0.21) 0%, rgba(247,171,58,0.16) 36%, rgba(221,130,32,0.065) 70%, transparent 100%)"
+            : "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.19) 0%, rgba(255,224,143,0.16) 32%, rgba(255,188,80,0.07) 62%, transparent 86%)",
           filter: "blur(4px)",
           mixBlendMode: "screen",
           opacity: 0.78,
@@ -294,8 +296,9 @@ function LampLightVisual() {
           height: "16%",
           borderRadius: "50%",
           transform: "translate(-50%, -50%)",
-          background:
-            "radial-gradient(circle, rgba(255,253,229,0.34) 0%, rgba(255,236,174,0.26) 34%, rgba(255,202,103,0.13) 68%, transparent 100%)",
+          background: warmSceneLamp
+            ? "radial-gradient(circle, rgba(255,199,91,0.28) 0%, rgba(248,169,59,0.22) 43%, rgba(226,130,32,0.09) 77%, transparent 100%)"
+            : "radial-gradient(circle, rgba(255,253,229,0.34) 0%, rgba(255,236,174,0.26) 34%, rgba(255,202,103,0.13) 68%, transparent 100%)",
           boxShadow: "0 0 7px rgba(255,232,159,0.22), 0 0 15px rgba(255,193,82,0.12)",
           filter: "blur(2px)",
           opacity: 0.57,
@@ -462,10 +465,10 @@ function SleepSpotHintVisual() {
   );
 }
 
-function EffectVisual({ type, adminPreview }: { type: HouseInteriorEffectType; adminPreview: boolean }) {
+function EffectVisual({ type, adminPreview, warmSceneLamp = false }: { type: HouseInteriorEffectType; adminPreview: boolean; warmSceneLamp?: boolean }) {
   if (type === "fire") return <CampfireVisual />;
   if (type === "candle_light") return <CandleLightVisual />;
-  if (type === "lamp_light") return <LampLightVisual />;
+  if (type === "lamp_light") return <LampLightVisual warmSceneLamp={warmSceneLamp} />;
   if (type === "warm_glow") return <WarmGlowVisual />;
   if (type === "sparkles") return <SparklesVisual />;
   if (type === "dust_motes") return <DustMotesVisual />;
@@ -475,7 +478,7 @@ function EffectVisual({ type, adminPreview }: { type: HouseInteriorEffectType; a
 
 /** Reuse the Home Bundle effect artwork for world-scene effect objects.
  * Placement, sizing, and hit targets remain owned by each scene editor. */
-export function HomeOutdoorEffectVisual({ type, reducedMotion = false, adminPreview = false }: { type: HouseOutdoorEffectType; reducedMotion?: boolean; adminPreview?: boolean }) {
+export function HomeOutdoorEffectVisual({ type, reducedMotion = false, adminPreview = false, warmSceneLamp = false }: { type: HouseOutdoorEffectType; reducedMotion?: boolean; adminPreview?: boolean; warmSceneLamp?: boolean }) {
   return <div className={`relative h-full w-full pointer-events-none ${reducedMotion ? "home-outdoor-effect-still" : ""}`} data-testid={`home-outdoor-effect-${type}`}>
     <style>{EFFECT_STYLES}</style>
     <style>{`
@@ -484,7 +487,7 @@ export function HomeOutdoorEffectVisual({ type, reducedMotion = false, adminPrev
         [data-testid^="home-outdoor-effect-"] *, [data-testid^="home-outdoor-effect-"] *::before, [data-testid^="home-outdoor-effect-"] *::after { animation: none !important; }
       }
     `}</style>
-    <EffectVisual type={type} adminPreview={adminPreview} />
+    <EffectVisual type={type} adminPreview={adminPreview} warmSceneLamp={warmSceneLamp} />
   </div>;
 }
 
