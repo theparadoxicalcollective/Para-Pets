@@ -299,7 +299,7 @@ export default function PetParkBuildingDetails({
           onPointerUp={event => { event.stopPropagation(); commitDarkness(); }}
           onPointerCancel={event => { event.stopPropagation(); commitDarkness(); }}
           onKeyUp={event => { if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commitDarkness(); }}
-          onBlur={commitDarkness}
+          onBlur={() => commitDarkness()}
           className="w-full accent-[#dcb970]" />
         <label htmlFor="pet-park-interior-night-darkness" className="mt-3 mb-1 flex justify-between gap-2 text-xs font-semibold text-[#f0d69d]">
           <span>Peak nighttime darkness</span><span>{Math.max(darkness, nightDarkness ?? darkness)}%</span>
