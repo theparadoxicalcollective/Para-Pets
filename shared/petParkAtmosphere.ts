@@ -24,14 +24,13 @@ export function parkOutdoorLightRadius(
   sceneLamp = false,
 ): number {
   const height = Number.isFinite(sceneHeight) && sceneHeight > 0 ? sceneHeight : 1;
-  // The tiny lamp orb is not the radius of the area it illuminates. A
-  // campfire lights a sizable patch of ground even when its flame is small;
-  // outdoors a lamp needs that same room around its artwork. The constant
-  // is a baseline scene-space reach, while the authored light size steadily
-  // increases the illuminated area. Neither editor changes its saved size.
+  // The lamp orb and its illumination reach are independent. Use the
+  // saved lamp size as the *only* scalable input: a very small orb still
+  // reveals nearby scenery, but must not create a fixed 130px bright disk.
+  // The campfire and interior light calculations below remain untouched.
   if (sceneLamp && effect.type === "lamp_light") {
     const orbDiameter = Math.max(0, effect.size / 100 * height);
-    return Math.max(12, Math.min(height * 0.68, 130 + orbDiameter * 2.8));
+    return Math.max(24, Math.min(height * 0.46, orbDiameter * 6));
   }
   const spread = sceneLamp && effect.type === "candle_light" ? 2.35 : 1;
   return Math.max(12, Math.min(height * 0.68,
