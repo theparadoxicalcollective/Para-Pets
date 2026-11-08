@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-08  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 1 of 12 phases merged; **Avatar 02/12 in implementation**. A merged PR does not mean the feature is confirmed on physical devices.  
+**Progress:** 2 of 12 phases merged; **Avatar 03/12 implemented in an open feature branch, pending checks and review**. Merged does not mean verified on physical devices.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -31,8 +31,8 @@
 | Program PR | Implemented feature/scope | Code/PR status | CI/behavior verification |
 | --- | --- | --- | --- |
 | **Avatar 01/12** | Server-authoritative five-pet team, existing PvP table, validation and account API | **Merged — GitHub #995** | CI passed; post-merge live-device verification not recorded |
-| **Avatar 02/12** | PvP and Raids consume/edit the **same** roster; no active-pet slot lock; Raid battle consumes saved-team snapshot | **Implementation on `feature/avatar-02-shared-pvp-raid-team`** | Automated checks and mobile/tablet verification pending |
-| **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | Planned | Preserve pet-targeted mutations, rewards and page navigation |
+| **Avatar 02/12** | PvP and Raids consume/edit the **same** roster; no active-pet slot lock; Raid battle consumes saved-team snapshot | **Merged — GitHub #1028** | User confirms checks passed; deployed mobile/tablet verification not recorded |
+| **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | **Feature branch `feature/avatar-03-pet-id-action-routing`** | Code and focused tests added; CI/PR review and device verification pending |
 | **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | Planned | Popup hit areas/scroll/viewport tests; preserve eggs |
 | **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | Planned | Transaction/retry tests; decide starting level and XP curve first |
 | **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | Planned | Save/reload, image boundaries, role checks and device editing |
@@ -54,6 +54,24 @@
 - Raid battle uses a one-time confirmed roster snapshot for that active session, never `raid:petIds:v1` or an arbitrary first-five fallback; potion selections remain unchanged.
 - PvP battle start and Raid ticket consumption must not begin while the team save is pending or with zero selected pets.
 - Keep PvP opponents/defender handling, tickets, ranks and outcomes unchanged; keep Raid boss, rewards and potions unchanged; **Murk Cave untouched**.
+
+## Avatar 03/12 acceptance contract
+
+**Scope:** Prepare the existing pet actions for the inventory Pet Menu in Avatar 04/12, without prematurely deleting the active-pet main-page implementation.
+
+- [x] Review existing Pet Care, Level Up, Closet, Power Up, inventory egg hatching and server ownership checks.
+- [x] Pet Care and Level Up already target their own inventory IDs; add allowlisted return-to-Pets navigation for future inventory menu entry.
+- [x] Closet already accepts an explicit inventory ID; retain its existing Home/Pet House entry and give inventory-launched actions a safe return-to-Pets option.
+- [x] Introduce a **pet-ID Power Up route** reusing the existing `PetPowerUpPage` and `/api/pet/:inventoryId/power-up` / `use-special` endpoints; do not duplicate the complex power-up renderer or server logic.
+- [x] Share existing Power Up item stacking/capacity rules between Home and the pet-ID route, retaining the first owned inventory row as the consume target.
+- [x] Preserve inventory-independent egg hatch-check and hatch-time item use by owned inventory ID; do not change either endpoint or any egg interaction while the Home page is still active.
+- [x] Define pet-action URLs for the inventory Pet Menu to use in Avatar 04/12, with `?from=pets` as an allowlisted return marker.
+- [x] Restrict all newly routable action pages to hatched pets, leaving inventory egg handling to the existing egg interface.
+- [ ] CI type check, test compilation, full test suite and production build.
+- [ ] Manually verify on phone and tablet: direct owned pet routes, egg deep-links, correct pet/images, Power Up consume and evolution refresh, route close behavior, old Home actions, nonblocking inventory hatch flow.
+- [ ] Merge only after review; record deployed behavior separately.
+
+**Deferred to 04/12:** Replace inventory Select with expanding Pet Menu. This PR does not expose a second player-facing Pet Menu or remove Home's existing controls.
 
 ## QA acceptance for every PR
 
