@@ -38,8 +38,8 @@ export function getParkLampStrength(mode: HomeOutdoorLightingMode, date: Date): 
   }
   return strength;
 }
-/** Fireflies begin two hours after the existing 18:00 lamp dusk transition. */
-export const PARK_FIREFLY_START_MINUTE = HOME_OUTDOOR_DUSK_START_MINUTE + 2 * 60;
+/** Fireflies begin at 19:30, after night interiors switch at 19:00. */
+export const PARK_FIREFLY_START_MINUTE = 19 * 60 + 30;
 export const PARK_FIREFLY_FADE_IN_MINUTES = 45;
 export function getParkFireflyStrength(mode: HomeOutdoorLightingMode, date: Date): number {
   if (mode === "day") return 0;
