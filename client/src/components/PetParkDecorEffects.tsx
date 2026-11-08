@@ -28,7 +28,7 @@ export default function PetParkDecorEffects({
         opacity: parkOutdoorEffectOpacity(effect.type, nightStrength),
         transition: "opacity 1200ms linear",
       }}>
-      <ParkEffectVisual type={effect.type} reducedMotion={reducedMotion} />
+      <ParkEffectVisual type={effect.type} color={effect.color} reducedMotion={reducedMotion} />
     </div>)}
   </div>;
 }
