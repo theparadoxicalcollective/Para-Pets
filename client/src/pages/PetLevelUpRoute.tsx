@@ -8,6 +8,7 @@ import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, fetchAuthenticatedUser } from "@/lib/queryClient";
 import { fireLevelUp } from "@/lib/levelUpEvents";
+import { petActionReturnPath } from "@/lib/petActionRoutes";
 
 interface InventoryItem {
   inventoryId: string;
@@ -20,6 +21,7 @@ interface InventoryItem {
   petNickname: string | null;
   rarity: number | null;
   petHealth: number;
+  isHatched: boolean;
   petAtk: number;
   petDef: number;
   petLevel: number;
@@ -94,13 +96,13 @@ export default function PetLevelUpRoute() {
   });
 
   const foundPet = inventoryId
-    ? inventoryQuery.data?.find((item) => item.inventoryId === inventoryId && item.type === "pet")
+    ? inventoryQuery.data?.find((item) => item.inventoryId === inventoryId && item.type === "pet" && item.isHatched)
     : null;
   const confirmedPetRef = useRef<InventoryItem | null>(null);
   if (foundPet) confirmedPetRef.current = foundPet;
   const pet = foundPet ?? (inventoryQuery.isFetching ? confirmedPetRef.current : null);
 
-  const close = useCallback(() => navigate("/"), [navigate]);
+  const close = useCallback(() => navigate(petActionReturnPath(window.location.search)), [navigate]);
 
   const useItemMutation = useMutation({
     mutationFn: async (item: PowerUpItem) => {
