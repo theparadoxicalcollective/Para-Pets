@@ -43,6 +43,7 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
         OR (kind IN ('effect','terrain') AND asset_id IS NULL AND effect_type IS NOT NULL)
       )
     );
+    ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text;
     ALTER TABLE world_scene_placements
       ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;
     CREATE INDEX IF NOT EXISTS world_scene_placements_world_idx ON world_scene_placements (world_id);
