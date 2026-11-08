@@ -15,7 +15,7 @@ export type WorldSceneAsset = {
 
 export type WorldScenePlacement = {
   id: string; worldId: string; kind: WorldScenePlacementKind;
-  assetId: string | null; effectType: string | null; terrainKey: string | null;
+  assetId: string | null; effectType: string | null; effectColor: string | null; terrainKey: string | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
   decorEffects: ParkDecorEffect[]; isWaterSource: boolean;
   isShop: boolean; shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
