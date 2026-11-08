@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { usePlayerPetTeam } from "@/hooks/usePlayerPetTeam";
+import { eligiblePetIds, playerPetTeamQueryKey, togglePetTeamMember, type PlayerPetTeam } from "@/lib/playerPetTeam";
 import { useToast } from "@/hooks/use-toast";
 import { setNavHidden } from "@/lib/navVisibility";
 import { Users, Droplets, Heart, Check, Swords } from "lucide-react";
@@ -17,7 +19,7 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import raidTicketImg from "@assets/Photoroom_20260714_43330_PM_1784076584992.png";
 
 const POTION_LS_KEY = "raid:potionSlots:v1";
-const RAID_PETS_LS_KEY = "raid:petIds:v1";
+const RAID_SESSION_PETS_LS_KEY = "raid:session-petIds:v2";
 const POTION_STACK_SIZE = 50;
 
 export default function RaidPage() {
@@ -30,8 +32,8 @@ export default function RaidPage() {
   const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const { data: inventory = [], isSuccess: inventoryReady } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
-  const activePetId: string | null = me?.activePetId ?? null;
   const isAdmin: boolean = me?.isAdmin === true;
+  const { selectedPetIds, isReady: teamReady, isSaving: teamSaving, saveError: teamSaveError, saveTeam } = usePlayerPetTeam(me?.id);
 
   // ── Admin: raid state ─────────────────────────────────────────────
   // bossPickStep: null = closed, "pick" = choose template, "hp" = enter HP
@@ -92,6 +94,11 @@ export default function RaidPage() {
       // (which may show hp=0 from a previous battle that was already completed).
       localStorage.setItem("raid_session_boss_hp", String(data.bossHp ?? 0));
       localStorage.setItem("raid_session_boss_max_hp", String(data.bossMaxHp ?? data.bossHp ?? 0));
+      // A short-lived battle snapshot of the confirmed account-wide team.
+      // This is not a separate persistent Raid roster; the next raid uses
+      // the latest shared team again.
+      const confirmed = queryClient.getQueryData<PlayerPetTeam>(playerPetTeamQueryKey(me?.id));
+      localStorage.setItem(RAID_SESSION_PETS_LS_KEY, JSON.stringify(confirmed?.petInventoryIds ?? []));
       queryClient.invalidateQueries({ queryKey: ["/api/raid-boss"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       navigate("/raid/battle");
@@ -113,6 +120,14 @@ export default function RaidPage() {
 
   const handleStartBattle = () => {
     if (startingBattleRef.current) return;
+    if (!teamReady || teamSaving) {
+      toast({ title: "Team not ready", description: "Please finish loading or saving your companion team before starting.", variant: "destructive" });
+      return;
+    }
+    if (!selectedPetIds.length) {
+      toast({ title: "Choose companions", description: "Select at least one pet before starting a raid.", variant: "destructive" });
+      return;
+    }
     if (raidTicketCount <= 0) {
       toast({
         title: "No Raid Tickets",
@@ -163,59 +178,19 @@ export default function RaidPage() {
     } finally { bossSaveRef.current = false; setBossModalSaving(false); }
   };
 
-  // ── Pet slots ─────────────────────────────────────────────────────
-  const [selectedPetIds, setSelectedPetIds] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem(RAID_PETS_LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed.slice(0, 5);
-      }
-    } catch {}
-    return [];
-  });
-  useEffect(() => {
-    try { localStorage.setItem(RAID_PETS_LS_KEY, JSON.stringify(selectedPetIds)); } catch {}
-  }, [selectedPetIds]);
-
-  const hatchedPets = (inventory as any[]).filter((inv: any) => inv.type === "pet" && inv.isHatched);
-
-  // Purge ghost IDs — localStorage may hold inventory IDs that no longer
-  // resolve to a hatched pet (sold, re-acquired as egg, etc.).
-  // Run once when inventory first becomes ready so newly-picked pets land
-  // in the correct slot instead of getting pushed past empty ghost slots.
-  useEffect(() => {
-    if (!inventoryReady) return;
-    const validIds = new Set(hatchedPets.map((p: any) => p.inventoryId || p.id));
-    setSelectedPetIds(prev => {
-      const cleaned = prev.filter(id => id === activePetId || validIds.has(id));
-      return cleaned.length === prev.length ? prev : cleaned;
-    });
-  }, [inventoryReady]); // intentionally omit activePetId/hatchedPets — run once on load
-
-  // Seed slot 0 with active pet
-  useEffect(() => {
-    if (!activePetId) return;
-    setSelectedPetIds(prev => {
-      if (prev[0] === activePetId) return prev;
-      const rest = prev.filter(id => id !== activePetId);
-      return [activePetId, ...rest].slice(0, 5);
-    });
-  }, [activePetId]);
-
+  // ── Player pet team ──
+  // PvP, Raids and the future main-page slots share this server-saved roster.
+  // The old Raid localStorage selection must never overwrite the shared team.
+  const hatchedPets = (inventory as any[]).filter((inv: any) =>
+    inv.type === "pet" && inv.isHatched && !inv.isListed
+  );
   const togglePet = (invId: string) => {
-    if (activePetId && invId === activePetId) return;
-    setSelectedPetIds(prev => {
-      if (prev.includes(invId)) return prev.filter(id => id !== invId);
-      if (prev.length >= 5) return prev;
-      return [...prev, invId];
-    });
+    if (!teamReady) return;
+    saveTeam(togglePetTeamMember(selectedPetIds, invId, eligiblePetIds(inventory as any[])));
   };
-
-  const equippedCount = selectedPetIds.filter(id =>
-    id === activePetId || hatchedPets.some((p: any) => (p.inventoryId || p.id) === id)
+  const equippedCount = selectedPetIds.filter((id) =>
+    hatchedPets.some((pet: any) => (pet.inventoryId || pet.id) === id)
   ).length;
-
   const partyTotalAtk = selectedPetIds.reduce((sum, id) => {
     const pet = hatchedPets.find((p: any) => (p.inventoryId || p.id) === id);
     return sum + (pet?.petAtk ?? 0);
@@ -738,8 +713,6 @@ export default function RaidPage() {
             {Array.from({ length: 5 }, (_, i) => {
               const invId = selectedPetIds[i];
               const inv = invId ? hatchedPets.find((p: any) => (p.inventoryId || p.id) === invId) : null;
-              const isActiveSlot = i === 0;
-              const isActivePetHere = isActiveSlot && !!activePetId && invId === activePetId;
               return (
                 <button
                   key={i}
@@ -747,26 +720,14 @@ export default function RaidPage() {
                   className="relative rounded-xl flex items-center justify-center min-w-0"
                   style={{
                     aspectRatio: "1 / 1",
-                    background: isActivePetHere
-                      ? "rgba(251,191,36,0.16)"
-                      : inv
-                        ? "rgba(10,50,20,0.38)"
-                        : "rgba(255,255,255,0.04)",
-                    border: isActivePetHere
-                      ? "2px solid rgba(251,191,36,0.85)"
-                      : `1px solid ${inv ? "rgba(60,180,80,0.55)" : "rgba(255,255,255,0.10)"}`,
-                    boxShadow: isActivePetHere
-                      ? "0 0 14px rgba(251,191,36,0.55), inset 0 0 10px rgba(251,191,36,0.15)"
-                      : inv
-                        ? "0 0 10px rgba(60,180,80,0.22)"
-                        : undefined,
-                    cursor: isActivePetHere ? "default" : "pointer",
+                    background: inv ? "rgba(10,50,20,0.38)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${inv ? "rgba(60,180,80,0.55)" : "rgba(255,255,255,0.10)"}`,
+                    boxShadow: inv ? "0 0 10px rgba(60,180,80,0.22)" : undefined,
+                    cursor: teamReady ? "pointer" : "wait",
                     padding: 0,
                   }}
-                  onClick={() => {
-                    if (isActivePetHere) return;
-                    setPickerOpen("pet");
-                  }}
+                  disabled={!teamReady}
+                  onClick={() => setPickerOpen("pet")}
                 >
                   {inv ? (
                     <div style={{ width: "100%", height: "100%", padding: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -777,33 +738,18 @@ export default function RaidPage() {
                   ) : (
                     <span style={{ fontSize: 20, color: "rgba(255,255,255,0.25)", fontWeight: 300 }}>+</span>
                   )}
-                  {isActivePetHere && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: -6,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        padding: "1px 5px",
-                        borderRadius: 3,
-                        fontSize: 7,
-                        fontWeight: 900,
-                        letterSpacing: "0.18em",
-                        whiteSpace: "nowrap",
-                        pointerEvents: "none",
-                        background: "rgba(120,75,8,0.95)",
-                        color: "#fde68a",
-                        border: "1px solid rgba(251,191,36,0.7)",
-                        fontFamily: "Lora, serif",
-                      }}
-                    >
-                      ACTIVE
-                    </div>
-                  )}
+                  
                 </button>
               );
             })}
           </div>
+
+          {teamSaveError && (
+            <p role="alert" className="text-center text-xs mb-3" style={{ color: "#ffe3a0" }}>
+              {teamSaveError} Please try choosing your pets again.
+            </p>
+          )}
+          {teamSaving && <p className="text-center text-xs mb-3" style={{ color: "#f0c040" }}>Saving companion team…</p>}
 
           {/* ── Party ATK ── */}
           {partyTotalAtk > 0 && (
