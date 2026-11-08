@@ -12,7 +12,7 @@ export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
  * (18:00 dusk), and finish turning off at the end of dawn (07:30).
  * Alternate interior artwork switches at that same boundary, without a fade.
  */
-export function useNightInteriorArtwork(nightStrength: number): boolean {
+export function isNightInteriorArtworkActive(nightStrength: number): boolean {
   return Number.isFinite(nightStrength) && nightStrength > 0;
 }
 /** Fireflies begin two hours after the existing 18:00 lamp dusk transition. */
