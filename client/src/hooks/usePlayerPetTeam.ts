@@ -12,8 +12,9 @@ import {
  * stays visible until the final save succeeds; failures revert to the latest
  * server-confirmed selection and surface an error.
  */
-export async function fetchPlayerPetTeam(): Promise<PlayerPetTeam> {
-  const response = await apiRequest("GET", "/api/player/pet-team");
+export async function fetchPlayerPetTeam(signal?: AbortSignal): Promise<PlayerPetTeam> {
+  const response = await fetch("/api/player/pet-team", { credentials: "include", signal });
+  if (!response.ok) throw new Error(`Could not load your pet team (${response.status})`);
   return response.json();
 }
 
@@ -23,7 +24,7 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
   const queryClient = useQueryClient();
   const teamQuery = useQuery<PlayerPetTeam>({
     queryKey: playerPetTeamQueryKey(userId),
-    queryFn: fetchPlayerPetTeam,
+    queryFn: ({ signal }) => fetchPlayerPetTeam(signal),
     enabled: !!userId,
     staleTime: 3_000,
     refetchOnMount: "always",
@@ -40,6 +41,8 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
     // Network calls for this roster are serialized, including rapid taps.
     scope: { id: "para-pets-player-team" },
     mutationFn: async ({ userId: savedUserId, ids }: SaveRequest) => {
+      // Ignore a late initial GET that began before this write.
+      await queryClient.cancelQueries({ queryKey: playerPetTeamQueryKey(savedUserId) });
       const response = await apiRequest("PUT", "/api/player/pet-team", { petInventoryIds: ids });
       const confirmed = await response.json() as PlayerPetTeam;
       // Update the account-scoped cache even if this screen has since unmounted.
@@ -78,7 +81,7 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
   return {
     team: teamQuery.data,
     selectedPetIds,
-    isReady: teamQuery.isSuccess && !!userId,
+    isReady: teamQuery.isSuccess && !teamQuery.isFetching && !!userId,
     isLoading: teamQuery.isPending || teamQuery.isFetching && !teamQuery.data,
     isSaving: currentDraft !== null,
     saved,
