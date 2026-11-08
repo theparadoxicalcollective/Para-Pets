@@ -99,10 +99,10 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(atmosphere, /parkLampFalloff = false/,
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(atmosphere, /<stop offset="12%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.87\}/);
-  assert.match(atmosphere, /<stop offset="30%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.74\}/);
-  assert.match(atmosphere, /<stop offset="50%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.53\}/);
-  assert.match(atmosphere, /<stop offset="86%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.10\}/);
+  assert.match(atmosphere, /<stop offset="14%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.96\}/);
+  assert.match(atmosphere, /<stop offset="32%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.82\}/);
+  assert.match(atmosphere, /<stop offset="52%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.59\}/);
+  assert.match(atmosphere, /<stop offset="88%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.10\}/);
   assert.match(atmosphere, /<stop offset="100%" stopColor="black" stopOpacity=\{0\}/);
   assert.match(atmosphere, /data-testid="park-outdoor-lamp-warm-spill"/);
   assert.match(atmosphere, /stopColor="#f7c168"/);
@@ -110,13 +110,13 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
 
   assert.match(wrapper, /warmSceneLamp/);
   assert.match(artwork, /function LampLightVisual\(\{ warmSceneLamp = false \}/);
-  assert.match(artwork, /rgba\(255,199,91,0\.28\)/,
+  assert.match(artwork, /rgba\(255,212,117,0\.56\)/,
     "scene lamp core is amber, not near-white");
   assert.match(artwork, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/,
     "indoor lights and player toggles are not modified by the outdoor scene palette");
 
-  const relativeStops = [0.92, 0.87, 0.74, 0.53, 0.29, 0.10, 0];
-  const stops = [0, 0.12, 0.30, 0.50, 0.70, 0.86, 1];
+  const relativeStops = [1, 0.96, 0.82, 0.59, 0.33, 0.10, 0];
+  const stops = [0, 0.14, 0.32, 0.52, 0.72, 0.88, 1];
   for (let i = 1; i < relativeStops.length; i++) {
     assert.ok(relativeStops[i] < relativeStops[i - 1], "reveal falls off with distance");
     assert.ok(stops[i] > stops[i - 1], "falloff covers a continuous increasing radius");
@@ -138,8 +138,24 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.equal(parkOutdoorLightRadius(
     { id: "lamp", type: "lamp_light", x: .5, y: .5, size: 100 },
     1200, true), 1200 * 0.68, "large lamps keep the existing scene-safe maximum");
-  assert.match(artwork, /opacity: warmSceneLamp \? 0\.38 : 0\.57/,
+  assert.match(artwork, /opacity: warmSceneLamp \? 0\.66 : 0\.57/,
     "the visible flare is more transparent while its scenery reveal grows");
+});
+
+test("campfire flame, animation, and original light radius are preserved", () => {
+  const fire = { id: "fire", type: "fire" as const, x: .5, y: .5, size: 14 };
+  for (const h of [480, 844, 1200, 1920]) {
+    assert.equal(parkOutdoorLightRadius(fire, h, true), parkOutdoorLightRadius(fire, h, false),
+      "scene-specific radius changes never apply to campfires");
+  }
+  const effects = source("client/src/components/HomeInteriorEffect.tsx");
+  const atmosphere = source("client/src/components/HomeOutdoorAtmosphere.tsx");
+  assert.match(effects, /if \(type === "fire"\) return <CampfireVisual/);
+  assert.match(effects, /function CampfireVisual/);
+  assert.match(atmosphere, /getHouseInteriorLightCutoutStrength\(effect\.type\)/,
+    "campfire darkness cutouts still use their own lighting strength");
+  assert.match(atmosphere, /getHouseInteriorLightCutoutStrength\("fire"\)/,
+    "lamp masks may borrow the campfire strength without changing its effect");
 });
 
 test("wider building and decor lights do not pop off at scene edges", () => {
