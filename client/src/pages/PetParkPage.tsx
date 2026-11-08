@@ -18,7 +18,7 @@ import PetParkTerrainBrush from "@/components/PetParkTerrainBrush";
 import { isParkTerrainNearViewport } from "@/lib/petParkTerrainVisibility";
 import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio, type ParkTerrainDetailType } from "@shared/petParkTerrainDetails";
-import { isParkEffect } from "@shared/petParkEffects";
+import { isParkEffect, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import { getAlphaBounds } from "@/lib/alphaBounds";
 import { parkImageHitAt, parkImageHitClipPath, parkImageVisualCenter } from "@/lib/petParkImageHit";
 import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
@@ -366,6 +366,14 @@ export default function PetParkPage() {
         description: String(error), variant: "destructive" });
     }
   };
+  const standaloneLightColorSave = useMutation({
+    mutationFn: async ({ id, effectColor }: { id: string; effectColor: string }) =>
+      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/color`, { effectColor }),
+    onSuccess: invalidate,
+    onError: (error: Error) => toast({
+      title: "Unable to update colored light", description: error.message, variant: "destructive",
+    }),
+  });
   const waterSourceSave = useMutation({
     mutationFn: async ({ id, isWaterSource }: { id: string; isWaterSource: boolean }) =>
       apiRequest("PATCH", `/api/admin/pet-park/items/${id}/water-source`, { isWaterSource }),
@@ -1347,6 +1355,18 @@ export default function PetParkPage() {
           <button type="button" disabled={placementSave.isPending} className="rounded-lg border border-[#b99a4c]/50 bg-[#245037] px-3 py-2 disabled:opacity-50" onClick={() => updatePlacement({ flipped: !placementDraft.flipped })}>Flip</button>
         </>}
       </div>
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "effect" &&
+        (selectedObject as ParkItem).effectType === "colored_light" && <label
+        className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 bg-[#173b28] p-2 text-xs">
+        Colored light orb
+        <input type="color" aria-label="Edit Pet Park colored light orb color"
+          value={(selectedObject as ParkItem).effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
+          disabled={standaloneLightColorSave.isPending}
+          onChange={event => standaloneLightColorSave.mutate({
+            id: selectedPlacement.id, effectColor: event.target.value,
+          })}
+          className="h-9 w-14 rounded border border-[#b99a4c]/55 bg-transparent"/>
+      </label>}
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
         type="button" aria-label="Water Source" aria-pressed={Boolean((selectedObject as ParkItem).isWaterSource)}
         data-testid="park-decoration-water-source"
