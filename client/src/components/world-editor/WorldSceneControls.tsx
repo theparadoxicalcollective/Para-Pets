@@ -203,23 +203,24 @@ export default function WorldSceneControls(props: Props) {
       </>}
     </div>}
     {!expanded && selectedItem && <section
-      data-testid="world-scene-selected-controls" aria-label="Edit selected world object"
-      className="pointer-events-auto absolute left-3 right-3 z-30 mx-auto flex max-w-sm flex-col gap-2 overflow-y-auto rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-3 text-[#f5d77b] shadow-xl"
-      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))", maxHeight: "min(65dvh, 620px)" }}
+      data-testid="world-scene-selected-controls" aria-label="Move selected world object"
+      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-[#b99a4c]/75 bg-[#10291d]/95 p-2 text-[#f5d77b] shadow-xl"
+      style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
-      <div className="flex items-center justify-between gap-2">
-        <strong className="truncate text-sm capitalize">{selectedName}</strong>
+      <div className="flex items-center gap-2">
+        <strong className="min-w-0 flex-1 truncate text-xs capitalize">{selectedName}</strong>
+        <span className="shrink-0 text-[11px] tabular-nums text-amber-100/80">Size {selectedItem.size}</span>
         <button type="button" aria-label="Deselect world object" className={control}
           onClick={() => props.activeBuilding ? props.onSelectInterior(null) : props.onSelect(null)}>Done</button>
       </div>
-      <p className="text-[11px] text-amber-100/75">Drag the artwork to reposition it. Changes save automatically.</p>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <button type="button" className={control} disabled={busy || selectedItem.size <= 1}
+      <div className="grid grid-cols-4 gap-1.5">
+        <button type="button" aria-label="Decrease selected object size" className={control}
+          disabled={busy || selectedItem.size <= 1}
           onClick={() => void (props.activeBuilding
             ? patchInterior({ size: Math.max(1, selectedItem.size - 20) })
             : patchSelected({ size: Math.max(1, selectedItem.size - 20) }))}>− Size</button>
-        <span className="tabular-nums">Size {selectedItem.size}</span>
-        <button type="button" className={control} disabled={busy || selectedItem.size >= 1000}
+        <button type="button" aria-label="Increase selected object size" className={control}
+          disabled={busy || selectedItem.size >= 1000}
           onClick={() => void (props.activeBuilding
             ? patchInterior({ size: Math.min(1000, selectedItem.size + 20) })
             : patchSelected({ size: Math.min(1000, selectedItem.size + 20) }))}>+ Size</button>
@@ -227,12 +228,108 @@ export default function WorldSceneControls(props: Props) {
           onClick={() => void (props.activeBuilding
             ? patchInterior({ flipped: !selectedItem.flipped })
             : patchSelected({ flipped: !selectedItem.flipped }))}>Flip</button>
+        <button type="button" className={quickAccent}
+          aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
+      </div>
+      <div className="flex gap-1.5">
+        {!props.activeBuilding && props.selected?.kind === "decor" &&
+          <button type="button" aria-label="Duplicate world decoration"
+            className={control} disabled={busy}
+            onClick={() => void duplicateSelected()}>Duplicate</button>}
+        {!props.activeBuilding && props.selected?.kind === "building" &&
+          <button type="button" className={control}
+            onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
+        <span className="ml-auto self-center text-[10px] text-amber-100/65">Drag artwork to move</span>
       </div>
+    </section>}
+    {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
+      role="dialog" aria-modal="true"
+      aria-label={panel === "library" ? "Add world object" : panel === "effects" ? "Add world effects" : "Edit world object"}>
+      <button type="button" aria-label="Close add object" className="absolute inset-0 bg-black/65"
+        onClick={() => setExpanded(false)} />
+      <section data-testid="world-scene-creator-panel"
+        className="relative z-10 flex max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] font-fantasy text-amber-100 shadow-2xl"
+        onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
+          <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
+            {panel === "library" ? (props.activeBuilding || assetKindFilter === "decor" ? "Decor / Objects" : "Add Building")
+              : panel === "effects" ? "World Effects"
+              : panel === "selected" ? "Edit " + selectedName
+              : panel === "shop" ? "Building Shop Setup"
+              : panel === "interior" ? "Building Interior" : "World Tools"}
+          </h2>
+          <button type="button" aria-label="Close editor" onClick={() => setExpanded(false)}
+            className="rounded-full border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-[#f5cf64]">×</button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+        {panel === "library" && <WorldSceneCreateForm
+          key={`${props.worldId}:${props.activeBuilding?.id ?? "world"}:${assetKindFilter ?? "decor"}`}
+          worldId={props.worldId}
+          kind={props.activeBuilding ? "decor" : (assetKindFilter ?? "decor")}
+          buildingId={props.activeBuilding?.id}
+          creationPosition={props.placementPoint}
+          onCreated={(item, inside) => {
+            props.onChanged();
+            if (inside) props.onSelectInterior(item.id);
+            else props.onSelect(item.id);
+            setPanel("selected");
+            setExpanded(false);
+          }}/>}
+        
+        {panel === "terrain" && <div className="space-y-2">
+          <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
+          <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
+          <p className="text-[11px] text-[#d0c094]">Paint Garden Plot tiles here. Planting and harvesting are player-world features, not editor controls.</p>
+        </div>}
+
+        {panel === "effects" && <section aria-label="World outdoor effects" className="space-y-3">
+          <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
+            Outdoor Effects
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_CHOICES.filter(effect => effect.group === "outdoor").map(effect =>
+              <button key={effect.type} type="button"
+                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
+                onClick={() => props.activeBuilding
+                  ? void addInside("effect", null, effect.type, effect.size)
+                  : void add("effect", null, effect.type, effect.size)}
+                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
+                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
+                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
+                  {effect.description}
+                </span>
+              </button>)}
+          </div>
+          <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
+            Water Effects
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {EFFECT_CHOICES.filter(effect => effect.group === "water").map(effect =>
+              <button key={effect.type} type="button"
+                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
+                onClick={() => props.activeBuilding
+                  ? void addInside("effect", null, effect.type, effect.size)
+                  : void add("effect", null, effect.type, effect.size)}
+                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
+                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
+                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
+                  {effect.description}
+                </span>
+              </button>)}
+          </div>
+          <p className="text-center text-xs text-amber-100/60">
+            Tap an effect to place it, then drag it into position.
+          </p>
+        </section>}
+
+        {panel === "selected" && <div className="space-y-3" data-testid="world-scene-details-panel">
+          {!selectedItem ? <p className="text-xs">Select an object to edit its artwork and settings.</p> : <>
+            <p className="text-[11px] text-amber-100/75">
+              Close this panel to move the selected object. Size, flip and duplicate stay available on the scene.
+            </p>
       {!props.activeBuilding && props.selected?.kind === "decor" && <>
-        <button type="button" aria-label="Duplicate world decoration" className={control}
-          disabled={busy} onClick={() => void duplicateSelected()}>Duplicate</button>
         <button type="button" aria-pressed={props.selected.isWaterSource} className={control}
           disabled={busy} onClick={() => void patchSelected({ isWaterSource: !props.selected!.isWaterSource })}>
           Water Source: {props.selected.isWaterSource ? "ON" : "OFF"}
@@ -316,127 +413,11 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => openCreator("shop")}>Shop Setup</button>}
         </div>
       </div>}
-      {props.activeBuilding && <button type="button" className={control}
-        onClick={() => openCreator("selected")}>Edit Interior Object</button>}
-    </section>}
-    {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
-      role="dialog" aria-modal="true"
-      aria-label={panel === "library" ? "Add world object" : panel === "effects" ? "Add world effects" : "Edit world object"}>
-      <button type="button" aria-label="Close add object" className="absolute inset-0 bg-black/65"
-        onClick={() => setExpanded(false)} />
-      <section data-testid="world-scene-creator-panel"
-        className="relative z-10 flex max-h-[min(78dvh,780px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-amber-500/45 bg-[#10291d] font-fantasy text-amber-100 shadow-2xl"
-        onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/30 p-4">
-          <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
-            {panel === "library" ? (props.activeBuilding || assetKindFilter === "decor" ? "Decor / Objects" : "Add Building")
-              : panel === "effects" ? "World Effects"
-              : panel === "selected" ? "Edit " + selectedName
-              : panel === "shop" ? "Building Shop Setup"
-              : panel === "interior" ? "Building Interior" : "World Tools"}
-          </h2>
-          <button type="button" aria-label="Close editor" onClick={() => setExpanded(false)}
-            className="rounded-full border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-[#f5cf64]">×</button>
-        </div>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-        {panel === "library" && <WorldSceneCreateForm
-          key={`${props.worldId}:${props.activeBuilding?.id ?? "world"}:${assetKindFilter ?? "decor"}`}
-          worldId={props.worldId}
-          kind={props.activeBuilding ? "decor" : (assetKindFilter ?? "decor")}
-          buildingId={props.activeBuilding?.id}
-          creationPosition={props.placementPoint}
-          onCreated={(item, inside) => {
-            props.onChanged();
-            if (inside) props.onSelectInterior(item.id);
-            else props.onSelect(item.id);
-            setPanel("selected");
-            setExpanded(false);
-          }}/>}
-        
-        {panel === "terrain" && <div className="space-y-2">
-          <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
-          <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
-          <p className="text-[11px] text-[#d0c094]">Paint Garden Plot tiles here. Planting and harvesting are player-world features, not editor controls.</p>
-        </div>}
-
-        {panel === "effects" && <section aria-label="World outdoor effects" className="space-y-3">
-          <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
-            Outdoor Effects
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {EFFECT_CHOICES.filter(effect => effect.group === "outdoor").map(effect =>
-              <button key={effect.type} type="button"
-                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
-                onClick={() => props.activeBuilding
-                  ? void addInside("effect", null, effect.type, effect.size)
-                  : void add("effect", null, effect.type, effect.size)}
-                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
-                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
-                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
-                  {effect.description}
-                </span>
-              </button>)}
-          </div>
-          <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
-            Water Effects
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {EFFECT_CHOICES.filter(effect => effect.group === "water").map(effect =>
-              <button key={effect.type} type="button"
-                data-testid={`add-world-effect-${effect.type}`} disabled={busy}
-                onClick={() => props.activeBuilding
-                  ? void addInside("effect", null, effect.type, effect.size)
-                  : void add("effect", null, effect.type, effect.size)}
-                className="min-h-20 rounded-xl border border-[#b99a4c]/50 bg-[#1a4029]/85 p-3 text-left transition-transform active:scale-95 disabled:opacity-40">
-                <span className="block text-sm text-[#f5cf64]">{effect.label}</span>
-                <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">
-                  {effect.description}
-                </span>
-              </button>)}
-          </div>
-          <p className="text-center text-xs text-amber-100/60">
-            Tap an effect to place it, then drag it into position.
-          </p>
-        </section>}
-
-        {panel === "selected" && <>
-          {!selectedItem ? <p className="text-xs">Tap a decoration, building, effect, or interior object to edit it.</p> : <>
-            <h3 className={heading}>Selected {selectedItem.kind}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <button className={control} disabled={busy || selectedItem.size <= 1}
-                onClick={() => void (props.activeBuilding
-                  ? patchInterior({ size: Math.max(1, selectedItem.size - 15) })
-                  : patchSelected({ size: Math.max(1, selectedItem.size - 15) }))}>Smaller</button>
-              <span className="text-xs">{selectedItem.size}</span>
-              <button className={control} disabled={busy || selectedItem.size >= 1000}
-                onClick={() => void (props.activeBuilding
-                  ? patchInterior({ size: Math.min(1000, selectedItem.size + 15) })
-                  : patchSelected({ size: Math.min(1000, selectedItem.size + 15) }))}>Larger</button>
-              <button className={control} disabled={busy}
-                onClick={() => void (props.activeBuilding
-                  ? patchInterior({ flipped: !selectedItem.flipped })
-                  : patchSelected({ flipped: !selectedItem.flipped }))}>Flip</button>
-              <button className={danger} disabled={busy} onClick={() =>
-                void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-            </div>
-            {!props.activeBuilding && props.selected?.kind === "decor" && currentAsset && <>
-              <label className="flex items-center gap-2 text-[11px]">
-                <input type="checkbox" checked={props.selected.isWaterSource} disabled={busy}
-                  onChange={e => void patchSelected({ isWaterSource: e.target.checked })} />
-                Water refill source for the shared watering pail
-              </label>
-              <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
-                effects={props.selected.decorEffects} disabled={busy}
-                onChange={effects => void patchSelected({ decorEffects: effects })} />
-            </>}
-            {!props.activeBuilding && props.selected?.kind === "building" && <>
-              <button type="button" className={control} onClick={() => props.onEnter(props.selected!.id)}>
-                Enter Building / Edit Interior
-              </button>
-              <button type="button" className={control} onClick={() => setPanel("shop")}>Shop Setup</button>
-            </>}
+            {props.activeBuilding && <p className="text-xs text-amber-100/80">
+              Use the on-scene controls to move, resize or flip this interior object.
+            </p>}
           </>}
-        </>}
+        </div>}
 
         {panel === "shop" && shopBuilding && <>
           <h3 className={heading}>Building Shop</h3>
