@@ -63,7 +63,7 @@ export default function WorldTerrainBrush(props: Props) {
     }
   };
   const extendStroke = isParkConnectedPath(type) || type === "garden_plot" ? parkExtendPathStroke : parkExtendBrushStroke;
-  const selectGround = async (groundTheme: ParkGroundTheme) => {
+  const selectGround = async (groundTheme: WorldGroundTheme) => {
     if (changingGround || savingRef.current || draftRef.current.length || groundTheme === props.groundTheme) return;
     setChangingGround(true);
     try {
