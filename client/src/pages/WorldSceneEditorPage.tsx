@@ -14,7 +14,6 @@ import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
-import { isNightInteriorArtworkActive } from "@/lib/homeOutdoorLighting";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
@@ -162,8 +161,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorDarkness = activeBuilding && interiorDarknessDraft &&
     interiorDarknessDraft.buildingId === activeBuilding.id
     ? interiorDarknessDraft.value : activeBuilding?.interiorDarkness ?? 35;
-  const previewNightStrength = interiorPreviewClock === "night" ? 1
-    : interiorPreviewClock === "day" ? 0 : worldLighting.nightStrength;
+  const previewNightInteriorArtworkActive = interiorPreviewClock === "night" ? true
+    : interiorPreviewClock === "day" ? false : worldLighting.nightInteriorArtworkActive;
   const previewSunlightStrength = interiorPreviewClock === "night" ? 0
     : interiorPreviewClock === "day" ? 1 : worldLighting.daylightStrength;
   const changeInteriorDarkness = (value: number) => {
@@ -532,9 +531,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 {(p.kind === "decor" || p.kind === "building") && asset &&
                   <WorldDecorEffects effects={p.decorEffects}
                     sunlightStrength={worldLighting.daylightStrength}
-                    nightStrength={worldLighting.nightStrength} fireflyStrength={worldLighting.fireflyStrength} reducedMotion={false} />}
+                    nightStrength={worldLighting.nightStrength} fireflyStrength={worldLighting.fireflyStrength}
+                     lampStrength={worldLighting.lampStrength} reducedMotion={false} />}
                 {p.kind === "effect" && p.effectType && <span className="absolute inset-0"
-                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength, worldLighting.fireflyStrength),
+                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength, worldLighting.fireflyStrength, worldLighting.lampStrength),
                     transition: "opacity 1200ms linear" }}>
                   <ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
                     reducedMotion={false} adminPreview fireflyStrength={worldLighting.fireflyStrength} sceneFireflies />
@@ -550,7 +550,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         <div data-testid="world-editor-auto-day-night"
           className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
           <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(worldLighting.nightStrength)}
-            nightStrength={worldLighting.nightStrength} effects={exteriorLights}
+            nightStrength={worldLighting.nightStrength} lampStrength={worldLighting.lampStrength} effects={exteriorLights}
             fireflies={exteriorFireflies} fireflyStrength={worldLighting.fireflyStrength}
             panX={actualPan.x} panY={actualPan.y}
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
@@ -574,7 +574,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           src={interiorAsset.nightInteriorImageUrl} alt="" aria-hidden="true" draggable={false}
           data-testid="world-editor-night-interior-image"
           className="absolute inset-0 h-full w-full object-fill pointer-events-none"
-          style={{ display: isNightInteriorArtworkActive(previewNightStrength) ? "block" : "none" }} />}
+          style={{ display: previewNightInteriorArtworkActive ? "block" : "none" }} />}
         <HomeInteriorDarknessLayer
           darkness={interiorDarkness}
           effects={interiorLights}
