@@ -22,7 +22,7 @@ test("Haunted Woods has a subtle purple world-only palette; City preserves origi
   assert.equal(isWorldGroundTheme("haunted"), true);
   assert.equal(isWorldGroundTheme("nonexistent"), false);
   assert.ok(WORLD_GROUND_THEMES.some(theme => theme.type === "city" && theme.label === "City"));
-  assert.equal(PET_PARK_GROUND_THEMES.some(theme => theme.type === "city"), false,
+  assert.equal(PET_PARK_GROUND_THEMES.some(theme => String(theme.type) === "city"), false,
     "City is a World Editor preset, not a new Pet Park mode");
   assert.deepEqual(worldGroundPalette("city"), PARK_GROUND_PALETTES.haunted,
     "City is visually identical to the preexisting gray Haunted palette");
