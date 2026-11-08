@@ -269,7 +269,7 @@ function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean })
             : "radial-gradient(circle at 50% 50%, rgba(255,244,190,0.16) 0%, rgba(255,219,126,0.15) 24%, rgba(255,183,74,0.09) 48%, rgba(255,148,48,0.035) 68%, transparent 84%)",
           filter: "blur(6px)",
           mixBlendMode: "screen",
-          opacity: 0.9,
+          opacity: warmSceneLamp ? 0.60 : 0.9,
         }}
       />
       <div
@@ -283,7 +283,7 @@ function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean })
             : "radial-gradient(circle at 50% 50%, rgba(255,247,207,0.19) 0%, rgba(255,224,143,0.16) 32%, rgba(255,188,80,0.07) 62%, transparent 86%)",
           filter: "blur(4px)",
           mixBlendMode: "screen",
-          opacity: 0.78,
+          opacity: warmSceneLamp ? 0.58 : 0.78,
         }}
       />
       <div
@@ -299,9 +299,11 @@ function LampLightVisual({ warmSceneLamp = false }: { warmSceneLamp?: boolean })
           background: warmSceneLamp
             ? "radial-gradient(circle, rgba(255,199,91,0.28) 0%, rgba(248,169,59,0.22) 43%, rgba(226,130,32,0.09) 77%, transparent 100%)"
             : "radial-gradient(circle, rgba(255,253,229,0.34) 0%, rgba(255,236,174,0.26) 34%, rgba(255,202,103,0.13) 68%, transparent 100%)",
-          boxShadow: "0 0 7px rgba(255,232,159,0.22), 0 0 15px rgba(255,193,82,0.12)",
+          boxShadow: warmSceneLamp
+            ? "0 0 7px rgba(255,184,75,0.13), 0 0 15px rgba(235,148,44,0.07)"
+            : "0 0 7px rgba(255,232,159,0.22), 0 0 15px rgba(255,193,82,0.12)",
           filter: "blur(2px)",
-          opacity: 0.57,
+          opacity: warmSceneLamp ? 0.38 : 0.57,
           mixBlendMode: "screen",
         }}
       />
