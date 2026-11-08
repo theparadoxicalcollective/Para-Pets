@@ -70,7 +70,9 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
   });
 
   const saveTeam = (ids: string[], force = false): boolean => {
-    if (!userId || !teamQuery.isSuccess) return false;
+    // An outgoing screen may still be saving. Don't let a newly mounted
+    // page edit its stale cached roster until that confirmed save finishes.
+    if (!userId || !teamQuery.isSuccess || (inFlightSaves > 0 && currentDraft === null)) return false;
     if (!force && samePetTeam(ids, selectedPetIds)) return true;
     if (ids.length > 5 || new Set(ids).size !== ids.length ||
         ids.some((id) => typeof id !== "string" || !id.trim())) return false;
@@ -85,7 +87,8 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
   return {
     team: teamQuery.data,
     selectedPetIds,
-    isReady: teamQuery.isSuccess && !teamQuery.isFetching && !!userId,
+    isReady: teamQuery.isSuccess && !teamQuery.isFetching && !!userId &&
+      (inFlightSaves === 0 || currentDraft !== null),
     isLoading: teamQuery.isPending || teamQuery.isFetching && !teamQuery.data,
     isSaving: currentDraft !== null || inFlightSaves > 0,
     saved,
