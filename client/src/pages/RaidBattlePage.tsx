@@ -15,7 +15,7 @@ import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.pn
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const POTION_LS_KEY    = "raid:potionSlots:v1";
-const RAID_PETS_LS_KEY = "raid:petIds:v1";
+const RAID_SESSION_PETS_LS_KEY = "raid:session-petIds:v2";
 const MIN_POTION_DRAG  = 12;
 // Boss deals 50–70 % of the target pet's max HP each attack
 const BOSS_ATK_MIN_PCT = 0.50;
@@ -184,14 +184,19 @@ export default function RaidBattlePage() {
     // Wait for inventory to load (raidBoss can be undefined during cache refresh — that's fine).
     if (!(inventory as any[]).length) return;
 
+    // The Raid lobby snapshots the server-confirmed shared team immediately
+    // before navigation. Never read the old device-local Raid roster or
+    // silently substitute the first five pets when the team is empty.
     const petIds: string[] = (() => {
-      try { return JSON.parse(localStorage.getItem(RAID_PETS_LS_KEY) || "[]").filter(Boolean); }
-      catch { return []; }
+      try {
+        const saved: unknown = JSON.parse(localStorage.getItem(RAID_SESSION_PETS_LS_KEY) || "[]");
+        return Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string" && !!id) : [];
+      } catch { return []; }
     })();
-    const hatched = (inventory as any[]).filter(i => i.type === "pet" && i.isHatched);
-    const selected: any[] = petIds.length > 0
-      ? petIds.map(id => hatched.find((p: any) => (p.inventoryId || p.id) === id)).filter(Boolean)
-      : hatched.slice(0, 5);
+    const hatched = (inventory as any[]).filter(i => i.type === "pet" && i.isHatched && !i.isListed);
+    const selected: any[] = petIds.map(id =>
+      hatched.find((p: any) => (p.inventoryId || p.id) === id)
+    ).filter(Boolean);
 
     if (!selected.length) { navigate("/raid"); return; }
 
@@ -224,6 +229,7 @@ export default function RaidBattlePage() {
     // Clear session keys so they can't be accidentally reused across reloads.
     localStorage.removeItem("raid_session_boss_hp");
     localStorage.removeItem("raid_session_boss_max_hp");
+    localStorage.removeItem(RAID_SESSION_PETS_LS_KEY);
 
     // Load potions
     const slots: BattlePotionSlot[] = (() => {
