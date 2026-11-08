@@ -29,7 +29,7 @@ export default function WorldDecorEffects({
         opacity: parkOutdoorEffectOpacity(effect.type, nightStrength, fireflyStrength),
         transition: "opacity 1200ms linear",
       }}>
-      <ParkEffectVisual type={effect.type} color={effect.color} reducedMotion={reducedMotion} fireflyStrength={fireflyStrength} />
+      <ParkEffectVisual type={effect.type} color={effect.color} reducedMotion={reducedMotion} fireflyStrength={fireflyStrength} sceneFireflies />
     </div>)}
   </div>;
 }

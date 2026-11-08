@@ -29,6 +29,7 @@ export default function WorldSceneCreateForm({
   const [pendingFileName, setPendingFileName] = useState("Decoration");
   const [tapImage, setTapImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
+  const [nightInteriorImage, setNightInteriorImage] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [size, setSize] = useState(kind === "building" ? 300 : 100);
   const [isShop, setIsShop] = useState(false);
@@ -61,6 +62,7 @@ export default function WorldSceneCreateForm({
         kind, name: isBuilding ? name.trim() : pendingFileName,
         imageData: pendingImage, tapImageData: tapImage,
         interiorImageData: isBuilding ? interiorImage : null,
+        nightInteriorImageData: isBuilding ? nightInteriorImage : null,
       });
       const asset = await assetResponse.json() as { id: string };
       createdAssetId = asset.id;
@@ -157,6 +159,15 @@ export default function WorldSceneCreateForm({
           onChange={event => { void choose(event.target.files?.[0], setInteriorImage); event.target.value = ""; }}/>
       </label>
       {interiorImage && <img src={interiorImage} alt="Interior background preview"
+        className="mx-auto h-28 max-w-full object-contain"/>}
+      <label className={picker}>
+        {nightInteriorImage ? "Nighttime interior selected — tap to replace" : "Nighttime Interior Background (optional)"}
+        <input aria-label="New world nighttime interior image" type="file" accept="image/png,image/jpeg"
+          className="mt-2 block w-full text-xs" onChange={event => {
+            void choose(event.target.files?.[0], setNightInteriorImage); event.target.value = "";
+          }}/>
+      </label>
+      {nightInteriorImage && <img src={nightInteriorImage} alt="Nighttime interior preview"
         className="mx-auto h-28 max-w-full object-contain"/>}
     </>}
 

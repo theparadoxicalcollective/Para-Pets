@@ -91,11 +91,12 @@ export function registerWorldSceneContentRoutes(app: Express, {
   app.post("/api/admin/world-editor/:worldId/assets", isAdmin, async (req, res) => {
     const worldId = worldFrom(req);
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
-    const { kind, name, imageData, tapImageData = null, interiorImageData = null } = req.body ?? {};
+    const { kind, name, imageData, tapImageData = null, interiorImageData = null, nightInteriorImageData = null } = req.body ?? {};
     if (!assetKind(kind) || !validName(name) || !validWorldArtwork(imageData) ||
       (tapImageData !== null && !validWorldArtwork(tapImageData)) ||
       (interiorImageData !== null && !validWorldArtwork(interiorImageData)) ||
-      (kind !== "building" && interiorImageData !== null)) {
+      (nightInteriorImageData !== null && !validWorldArtwork(nightInteriorImageData)) ||
+      (kind !== "building" && (interiorImageData !== null || nightInteriorImageData !== null))) {
       return res.status(400).json({ message: "Invalid world asset upload" });
     }
     try {
@@ -104,8 +105,9 @@ export function registerWorldSceneContentRoutes(app: Express, {
       const imageUrl = await processWorldImage(imageData, 2000);
       const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 2000) : null;
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2400) : null;
+      const nightInteriorImageUrl = nightInteriorImageData ? await processWorldImage(nightInteriorImageData, 2400) : null;
       const [asset] = await db.insert(worldSceneAssets).values({
-        worldId, kind, name: name.trim(), imageUrl, tapImageUrl, interiorImageUrl,
+        worldId, kind, name: name.trim(), imageUrl, tapImageUrl, interiorImageUrl, nightInteriorImageUrl,
       }).returning();
       return res.status(201).json(asset);
     } catch (error) {
@@ -130,9 +132,10 @@ export function registerWorldSceneContentRoutes(app: Express, {
         ["imageData", "imageUrl", 2000],
         ["tapImageData", "tapImageUrl", 2000],
         ["interiorImageData", "interiorImageUrl", 2400],
+        ["nightInteriorImageData", "nightInteriorImageUrl", 2400],
       ] as const) {
         if (!(input in body)) continue;
-        if (input === "interiorImageData" && asset.kind !== "building")
+        if ((input === "interiorImageData" || input === "nightInteriorImageData") && asset.kind !== "building")
           return res.status(400).json({ message: "Only buildings have interiors" });
         if (body[input] === null && field !== "imageUrl") changes[field] = null;
         else {
@@ -233,7 +236,10 @@ export function registerWorldSceneContentRoutes(app: Express, {
       return res.status(400).json({ message: "Invalid placement details" });
     }
     if (kind === "effect" && effectType === "colored_light"
-      ? !isValidParkLightColor(effectColor) : effectColor != null)
+      ? !isValidParkLightColor(effectColor)
+      : kind === "effect" && effectType === "lamp_light"
+        ? effectColor != null && !isValidParkLightColor(effectColor)
+        : effectColor != null)
       return res.status(400).json({ message: "Invalid colored light orb color" });
     if (((kind !== "decor" && isWaterSource) || (kind === "effect" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
@@ -254,7 +260,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         return res.status(409).json({ message: "World placement limit reached" });
       const [placed] = await db.insert(worldScenePlacements).values({
         worldId, kind, assetId: kind === "effect" ? null : assetId, effectType,
-        effectColor: kind === "effect" && effectType === "colored_light" ? effectColor : null,
+        effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,
         decorEffects, isWaterSource, isShop, shopItemIds, shopItemPlacements: [],
@@ -291,7 +297,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         changes.layer = body.layer;
       }
       if ("effectColor" in body) {
-        if (saved.kind !== "effect" || saved.effectType !== "colored_light" ||
+        if (saved.kind !== "effect" || (saved.effectType !== "colored_light" && saved.effectType !== "lamp_light") ||
           !isValidParkLightColor(body.effectColor))
           return res.status(400).json({ message: "Invalid colored light orb color" });
         changes.effectColor = body.effectColor;

@@ -7,6 +7,14 @@ export const HOME_OUTDOOR_DAWN_START_MINUTE = 5 * 60 + 30;
 export const HOME_OUTDOOR_DAY_START_MINUTE = 7 * 60 + 30;
 export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
+/**
+ * Outdoor lamps start activating when nightStrength first exceeds zero
+ * (18:00 dusk), and finish turning off at the end of dawn (07:30).
+ * Alternate interior artwork switches at that same boundary, without a fade.
+ */
+export function isNightInteriorArtworkActive(nightStrength: number): boolean {
+  return Number.isFinite(nightStrength) && nightStrength > 0;
+}
 /** Fireflies begin two hours after the existing 18:00 lamp dusk transition. */
 export const PARK_FIREFLY_START_MINUTE = HOME_OUTDOOR_DUSK_START_MINUTE + 2 * 60;
 export const PARK_FIREFLY_FADE_IN_MINUTES = 45;

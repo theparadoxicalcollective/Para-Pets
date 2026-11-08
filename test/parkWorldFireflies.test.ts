@@ -49,14 +49,16 @@ test("Pet Park and World Editor accept standalone and attached fireflies", () =>
   ]) assert.match(read(file), /fireflyStrength/, file + " uses the nighttime clock");
 });
 
-test("Tiny firefly cores use individual flutter paths and do not alter the lamp mask", () => {
+test("Each firefly has its own moving illuminated area in the single outdoor mask", () => {
   const visual = read("client/src/components/ParkEffectVisual.tsx");
-  assert.match(visual, /FIREFLY_PARTICLES/);
-  assert.match(visual, /park-firefly-core/);
-  assert.match(visual, /park-firefly-halo/);
-  assert.match(visual, /animationDuration: duration \+ "s"/);
-  assert.match(visual, /prefers-reduced-motion:reduce/);
-  assert.match(visual, /fireflyStrength > 0 && !reducedMotion/);
-  assert.doesNotMatch(read("client/src/components/HomeOutdoorAtmosphere.tsx"), /fireflies/,
-    "fireflies have only small local halos, not a full-scene cutout");
+  const particles = read("client/src/components/ParkFireflySwarm.tsx");
+  const scene = read("client/src/components/HomeOutdoorAtmosphere.tsx");
+  assert.match(visual, /ParkFireflyPreview/);
+  assert.match(particles, /PARK_FIREFLY_PARTICLES/);
+  assert.match(particles, /park-firefly-light-cutout/);
+  assert.match(particles, /<animateTransform/);
+  assert.match(particles, /mode === "mask"/);
+  assert.match(scene, /renderFireflies\("mask"\)/);
+  assert.match(scene, /renderFireflies\("visible"\)/);
+  assert.match(scene, /parkSceneFireflyMaskChannel\(fireflyStrength, falloff\)/);
 });

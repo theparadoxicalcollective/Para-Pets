@@ -7,7 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
@@ -38,13 +38,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [pendingTapImage, setPendingTapImage] = useState<string | null>(null);
   const [newWaterSource, setNewWaterSource] = useState(false);
   const [newDecorEffects, setNewDecorEffects] = useState<ParkDecorEffect[]>([]);
-  const [coloredLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
+  const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
   const [buildingSize, setBuildingSize] = useState(300);
   const [buildingIsShop, setBuildingIsShop] = useState(false);
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
+  const [nightInteriorImage, setNightInteriorImage] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const buildings = data?.buildings ?? [];
@@ -81,7 +82,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const addEffect = (type: ParkEffectType, size: number) => {
     if (mutation.isPending) return;
     mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
-      kind: "effect", effectType: type, effectColor: type === "colored_light" ? coloredLightColor : null, imageData: null,
+      kind: "effect", effectType: type, effectColor: (type === "colored_light" || type === "lamp_light") ? lampLightColor : null, imageData: null,
       xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
       size, flipped: false, layer: 0,
     } });
@@ -156,9 +157,9 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       {initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
         <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Outdoor Effects</div>
         <label className="flex items-center justify-between rounded-xl border border-[#b99a4c]/55 bg-[#173b28] p-3 text-xs">
-          Colored light orb
-          <input type="color" aria-label="New Pet Park colored light orb color"
-            data-testid="park-standalone-light-color" value={coloredLightColor}
+          Lamp Light color
+          <input type="color" aria-label="New Pet Park lamp light color"
+            data-testid="park-standalone-light-color" value={lampLightColor}
             onChange={event => setColoredLightColor(event.target.value)}
             className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent" />
         </label>
@@ -178,15 +179,6 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
             <span className="block text-sm text-[#f5cf64]">{PARK_FIREFLIES_OPTION.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{PARK_FIREFLIES_OPTION.description}</span>
-          </button>
-          <button type="button" data-testid="add-park-effect-colored_light"
-            disabled={mutation.isPending}
-            onClick={() => addEffect("colored_light",
-              Math.max(24, Math.min(1000, Math.round(PARK_COLORED_LIGHT_OPTION.defaultSize / 100 * PARK_BASE_VIEW_HEIGHT))))}
-            className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
-            style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
-            <span className="block text-sm text-[#f5cf64]">{PARK_COLORED_LIGHT_OPTION.label}</span>
-            <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{PARK_COLORED_LIGHT_OPTION.description}</span>
           </button>
         </div>
         <div className="pt-2 text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Water Effects</div>
@@ -241,14 +233,19 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           ? "Shops display merchandise indoors and do not house pets."
           : "Regular buildings can house park pets and display interior effects and magical rooms."}</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
-          {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
+          {interiorImage ? "Daytime interior selected — tap to replace" : "Daytime Interior Background (optional)"}
           <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
+        </label>
+        <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
+          {nightInteriorImage ? "Nighttime interior selected — tap to replace" : "Nighttime Interior Background (optional)"}
+          <input aria-label="New park nighttime interior image" type="file" accept="image/*" className="block w-full text-xs"
+            onChange={e => { void selectFile(e.target.files?.[0], setNightInteriorImage); e.target.value = ""; }} />
         </label>
         <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage}
           data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
-            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
+            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, nightInteriorImageData: nightInteriorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: buildingSize, isShop: buildingIsShop, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">

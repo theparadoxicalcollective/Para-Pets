@@ -4,7 +4,10 @@ import { chromium } from "playwright";
 
 // Isolated Pet Park admin editor test: no Railway or real park/player writes.
 const moduleId = "/__pet-park-interior-dimming-fixture.tsx";
-const fixture = "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nimport { QueryClient, QueryClientProvider } from \"@tanstack/react-query\";\nimport { TooltipProvider } from \"@/components/ui/tooltip\";\nimport PetParkBuildingDetails from \"@/components/PetParkBuildingDetails\";\nimport \"@/index.css\";\nconst art = \"data:image/svg+xml;base64,\" + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"700\" height=\"1000\"><rect width=\"700\" height=\"1000\" fill=\"#aa8e60\"/></svg>');\nconst building = { id:\"cottage\",name:\"Fixture Cottage\",imageUrl:art,interiorImageUrl:art,maxPets:20,interiorDarkness:35,interiorEffects:[] };\nconst client = new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}});\ncreateRoot(document.getElementById(\"root\")).render(<QueryClientProvider client={client}><TooltipProvider><PetParkBuildingDetails building={building} initialShowEffectChoices onUpdated={()=>{}} onClose={()=>{}} /></TooltipProvider></QueryClientProvider>);";
+const art = "data:image/svg+xml;base64," + Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="700" height="1000"><rect width="700" height="1000" fill="#aa8e60"/></svg>'
+).toString("base64");
+const fixture = "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nimport { QueryClient, QueryClientProvider } from \"@tanstack/react-query\";\nimport { TooltipProvider } from \"@/components/ui/tooltip\";\nimport PetParkBuildingDetails from \"@/components/PetParkBuildingDetails\";\nimport \"@/index.css\";\nconst art = \"data:image/svg+xml;base64,\" + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"700\" height=\"1000\"><rect width=\"700\" height=\"1000\" fill=\"#aa8e60\"/></svg>');\nconst building = { id:\"cottage\",name:\"Fixture Cottage\",imageUrl:art,interiorImageUrl:art,nightInteriorImageUrl:art,maxPets:20,interiorDarkness:35,interiorEffects:[] };\nconst client = new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}});\ncreateRoot(document.getElementById(\"root\")).render(<QueryClientProvider client={client}><TooltipProvider><PetParkBuildingDetails building={building} initialShowEffectChoices onUpdated={()=>{}} onClose={()=>{}} /></TooltipProvider></QueryClientProvider>);";
 const server = await createServer({
   server: { host: "127.0.0.1", port: 4197, strictPort: true },
   plugins: [{
@@ -29,7 +32,7 @@ try {
     const page = await context.newPage();
     page.setDefaultTimeout(15_000);
     const writes = [], errors = [];
-    let savedDay = 35, savedNight = null;
+    let savedDay = 35;
     page.on("pageerror", error => errors.push(error.message));
     await page.route("**/api/**", async route => {
       const req = route.request(), url = new URL(req.url());
@@ -37,12 +40,11 @@ try {
         const body = req.postDataJSON();
         writes.push(body);
         if (body.interiorDarkness !== undefined) savedDay = body.interiorDarkness;
-        if (body.interiorNightDarkness !== undefined) savedNight = body.interiorNightDarkness;
         // Keep a slow write so a transient server response cannot reset preview.
         await new Promise(resolve => setTimeout(resolve, 180));
         return route.fulfill({ json: {
           id: "cottage", name: "Fixture Cottage", maxPets: 20, isShop: false,
-          interiorDarkness: savedDay, interiorNightDarkness: savedNight, interiorEffects: [],
+          interiorDarkness: savedDay, nightInteriorImageUrl: art, interiorImageUrl: art, interiorEffects: [],
         } });
       }
       return route.fulfill({ json: {} });
@@ -54,21 +56,18 @@ try {
     const mask = page.getByTestId("pet-park-interior-room").getByTestId("home-interior-darkness-layer");
     assert.equal(await mask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": no-light editor starts with the stable SVG mask");
-    const nightSlider = page.getByTestId("slider-park-interior-night-darkness");
-    assert.equal(await nightSlider.inputValue(), "35",
-      name + ": night remains unchanged until explicitly configured");
-    const nightSaved = page.waitForResponse(r => r.url().endsWith("/buildings/cottage") && r.request().method() === "PATCH");
-    await nightSlider.focus();
-    await nightSlider.press("End");
-    await nightSaved;
-    assert.equal(await nightSlider.inputValue(), "90",
-      name + ": admin nighttime setting is saved");
+    assert.equal(await page.getByTestId("slider-park-interior-night-darkness").count(), 0,
+      name + ": old nighttime darkness slider has been removed");
+    const nightImage = page.getByTestId("pet-park-night-interior-image");
+    await nightImage.waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Preview night interior lighting" }).click();
-    assert.equal(await mask.locator('rect[fill="black"]').evaluate(el => Number(el.style.fillOpacity)), .9,
-      name + ": nighttime preview uses one existing mask at 90%");
-    await page.getByRole("button", { name: "Preview day interior lighting" }).click();
+    assert.equal(await nightImage.evaluate(el => el.style.display), "block",
+      name + ": night preview switches to the alternate artwork");
     assert.equal(await mask.locator('rect[fill="black"]').evaluate(el => Number(el.style.fillOpacity)), .35,
-      name + ": daytime preview remains at 35%");
+      name + ": night uses the same 35% darkness mask");
+    await page.getByRole("button", { name: "Preview day interior lighting" }).click();
+    assert.equal(await nightImage.evaluate(el => el.style.display), "none",
+      name + ": day preview restores the original image");
     await page.getByRole("button", { name: "Preview live interior lighting" }).click();
     const response = page.waitForResponse(r => r.url().endsWith("/buildings/cottage") && r.request().method() === "PATCH");
     await slider.focus();
@@ -82,8 +81,6 @@ try {
     assert.equal(await slider.inputValue(), "90", name + ": saved value never reverts to initial 35%");
     assert.equal(writes.filter(write => write.interiorDarkness !== undefined).length, 1,
       name + ": keyup plus blur must not duplicate the same darkness write");
-    assert.equal(writes.filter(write => write.interiorNightDarkness !== undefined).length, 1,
-      name + ": nighttime adjustment also makes only one save");
     // Adding the first interior lamp must not switch rendering technology.
     await page.getByRole("button", { name: /^Lamp Light/ }).click();
     assert.equal(await mask.evaluate(el => el.tagName.toLowerCase()), "svg",

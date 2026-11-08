@@ -60,7 +60,7 @@ function makeScene(worldId) {
     { id: ids.decor, worldId, kind: "decor", name: "Haunted Cedar", imageUrl: art,
       tapImageUrl: art, interiorImageUrl: null },
     { id: ids.building, worldId, kind: "building", name: "Haunted Cabin", imageUrl: art,
-      tapImageUrl: null, interiorImageUrl: interior },
+      tapImageUrl: null, interiorImageUrl: interior, nightInteriorImageUrl: interior },
   ];
   const common = {
     worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
@@ -268,8 +268,10 @@ try {
     await page.getByRole("heading", { name: "World Effects" }).waitFor({ state: "visible" });
     assert.ok(await page.getByTestId("world-standalone-light-color").count() === 1,
       name + ": standalone world effects have an admin orb color picker");
-    assert.ok(await page.getByTestId("add-world-effect-colored_light").count() === 1,
-      name + ": Colored Light is available in the World Editor effects list");
+    assert.ok(await page.getByTestId("add-world-effect-lamp_light").count() === 1,
+      name + ": one color-capable Lamp Light option is available in the World Editor");
+    assert.equal(await page.getByTestId("add-world-effect-colored_light").count(), 0,
+      name + ": the outdated duplicate new-colored-light option is removed");
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
@@ -299,10 +301,10 @@ try {
       circles => circles.map(circle => Number(circle.getAttribute("r"))));
     assert.ok(decorFlare && buildingFlare && sceneRadii.length >= 2,
       name + ": decor and building lamps each have independently sized illumination");
-    assert.ok(sceneRadii[0] > 5 * decorFlare.width,
-      name + ": small decoration lamp softly lights ground far outside its visible flare");
-    assert.ok(sceneRadii[1] > 5 * buildingFlare.width,
-      name + ": building facade lamp illuminates beyond its artwork");
+    assert.ok(sceneRadii[0] > 2 * decorFlare.width,
+      name + ": small decoration lamp lights a moderate area beyond its visible flare");
+    assert.ok(sceneRadii[1] > 2 * buildingFlare.width,
+      name + ": building facade lamp lights beyond its artwork without a broad daylight wash");
     const fadeOffsets = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("offset")));
     assert.deepEqual(fadeOffsets, ["0%", "15%", "32%", "52%", "72%", "88%", "100%"],
@@ -329,8 +331,12 @@ try {
     for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
     const rect = await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
+    // World art uses the same select-then-double-tap-to-move gesture as Pet Park.
+    const centerX = rect.x + rect.width / 2, centerY = rect.y + rect.height / 2;
+    await page.mouse.click(centerX, centerY);
+    await page.getByTestId("world-scene-selected-controls").waitFor({ state: "visible" });
     const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
-    await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    await page.mouse.move(centerX, centerY);
     await page.mouse.down();
     await page.mouse.move(rect.x + rect.width / 2 + 22, rect.y + rect.height / 2 + 28, { steps: 6 });
     await page.mouse.up();
@@ -365,25 +371,19 @@ try {
     const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
     assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": interior uses a consistent SVG darkness mask with an active light");
-    const nighttimeSlider = page.getByTestId("world-editor-interior-night-darkness-slider");
-    assert.equal(await nighttimeSlider.inputValue(), "35",
-      name + ": existing world rooms are not unexpectedly darker at night");
-    const nighttimeSaved = page.waitForResponse(response =>
-      response.url().endsWith("/placements/" + ids.building) &&
-      response.request().method() === "PATCH");
-    await nighttimeSlider.focus();
-    await nighttimeSlider.press("End");
-    await nighttimeSaved;
-    assert.equal(await nighttimeSlider.inputValue(), "90",
-      name + ": peak nighttime target saves independently from daytime");
+    assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").count(), 0,
+      name + ": old nighttime darkness slider is absent");
+    const nightInterior = page.getByTestId("world-editor-night-interior-image");
+    await nightInterior.waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Preview night world interior lighting" }).click();
-    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
-      Number(element.style.fillOpacity)), .9,
-      name + ": peak-night preview darkens the existing mask to 90%");
-    await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
+    assert.equal(await nightInterior.evaluate(element => element.style.display), "block",
+      name + ": night preview shows alternate interior artwork");
     assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
       Number(element.style.fillOpacity)), .35,
-      name + ": daytime preview still retains its 35% target");
+      name + ": night preview keeps one 35% darkness setting");
+    await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
+    assert.equal(await nightInterior.evaluate(element => element.style.display), "none",
+      name + ": day preview restores daytime artwork");
     const savedDarkness = page.waitForResponse(response =>
       response.url().endsWith("/placements/" + ids.building) &&
       response.request().method() === "PATCH");
@@ -403,8 +403,6 @@ try {
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");
-    assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").inputValue(), "90",
-      name + ": reopening preserves the separately saved nighttime target");
     await page.getByRole("button", { name: "Exit Interior" }).click();
     // The previously selected building intentionally stays selected when
     // leaving its room. Deselect before using the outdoor terrain toolbar.

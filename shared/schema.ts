@@ -1472,6 +1472,7 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   name: text("name").notNull().default("Building"),
   imageUrl: text("image_url").notNull(),
   interiorImageUrl: text("interior_image_url"),
+  nightInteriorImageUrl: text("night_interior_image_url"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
   size: integer("size").notNull().default(120),
@@ -1553,6 +1554,7 @@ export const worldSceneAssets = pgTable("world_scene_assets", {
   imageUrl: text("image_url").notNull(),
   tapImageUrl: text("tap_image_url"),
   interiorImageUrl: text("interior_image_url"),
+  nightInteriorImageUrl: text("night_interior_image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

@@ -14,7 +14,7 @@ test("Pet Park building shop is additive, owner-safe and does not alter existing
   assert.match(schema, /shopItemIds: jsonb\("shop_item_ids"\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS is_shop boolean NOT NULL DEFAULT false/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS shop_item_ids jsonb NOT NULL DEFAULT/);
-  assert.match(adminRoutes, /name: name\.trim\(\), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: \[\]/);
+  assert.match(adminRoutes, /name: name\.trim\(\), imageUrl, interiorImageUrl, nightInteriorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: \[\]/);
   assert.match(adminRoutes, /app\.get\("\/api\/admin\/pet-park\/shop-catalog", isAdmin/);
   assert.match(adminRoutes, /ilike\(shopItems\.name/);
   assert.match(adminRoutes, /limit\(100\)/);
@@ -134,7 +134,7 @@ test("Park building interiors reuse home translucent darkness with active light 
   assert.match(routes, /interiorDarkness = 35/);
 
   assert.match(room, /import \{ HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle \}/);
-  assert.match(room, /<HomeInteriorDarknessLayer darkness=\{parkInteriorDarkness\(darkness, nightDarkness, nightStrength\)\}/);
+  assert.match(room, /<HomeInteriorDarknessLayer darkness=\{darkness\}/);
   assert.match(room, /offEffectIds=\{offEffectIds\} panX=\{0\} imgWidth=\{imageWidth\}/);
   assert.match(room, /sceneHeight=\{dimensions\.height\} sunlightStrength=\{sunlightStrength\}[\s\S]*?zIndex=\{2\}/);
   const background = room.indexOf('<img src={imageUrl}');
@@ -149,7 +149,7 @@ test("Park building interiors reuse home translucent darkness with active light 
 
   assert.match(editor, /data-testid="slider-park-interior-darkness"/);
   assert.match(editor, /max=\{HOUSE_INTERIOR_DARKNESS_MAX\}/);
-  assert.match(editor, /mutation\.mutate\(\{ \[field\]: value \}/);
+  assert.match(editor, /mutation\.mutate\(\{ interiorDarkness: value \}/);
   assert.match(editor, /<PetParkInteriorRoom key=\{imagePreview\}[\s\S]*?darkness=\{darkness\}/);
   assert.doesNotMatch(page, /390\s*[x×]\s*844/);
 });

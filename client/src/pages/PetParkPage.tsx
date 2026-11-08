@@ -25,7 +25,7 @@ import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
 import { parkDepthIndex, parkImageGroundContact } from "@/lib/petParkDepth";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
-import { parkOutdoorLightEffects } from "@shared/petParkAtmosphere";
+import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import PetParkDecorEffects from "@/components/PetParkDecorEffects";
@@ -56,7 +56,7 @@ import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
 type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
-type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorNightDarkness?: number | null; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
+type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; nightInteriorImageUrl?: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorNightDarkness?: number | null; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type ParkPlacement = { xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
@@ -226,7 +226,8 @@ export default function PetParkPage() {
   const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
-  const parkLights = useMemo(() => parkOutdoorLightEffects([
+  const { parkLights, parkFireflies } = useMemo(() => {
+    const items = [
       ...(scene?.items ?? []).map(item => selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementDraft
         ? { ...item, ...placementDraft } : item),
       ...(scene?.buildings ?? []).map(building => ({
@@ -234,8 +235,11 @@ export default function PetParkPage() {
         ...(selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementDraft ? placementDraft : {}),
         kind: "building",
       })),
-    ], { width: sceneWidth, height: sceneHeight, scale }, camera, viewportSize),
-    [scene?.items, scene?.buildings, selectedPlacement, placementDraft, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
+    ];
+    const shape = { width: sceneWidth, height: sceneHeight, scale };
+    return { parkLights: parkOutdoorLightEffects(items, shape, camera, viewportSize),
+      parkFireflies: parkOutdoorFireflyFields(items, shape, camera, viewportSize) };
+  }, [scene?.items, scene?.buildings, selectedPlacement, placementDraft, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
   // The compact action arc uses the existing camera's world-to-screen
   // projection. Prefer the RIGHT side of the touched plot; flip left only
   // when it would otherwise be clipped at a mobile/tablet edge.
@@ -371,7 +375,7 @@ export default function PetParkPage() {
       apiRequest("PATCH", `/api/admin/pet-park/items/${id}/color`, { effectColor }),
     onSuccess: invalidate,
     onError: (error: Error) => toast({
-      title: "Unable to update colored light", description: error.message, variant: "destructive",
+      title: "Unable to update lamp light", description: error.message, variant: "destructive",
     }),
   });
   const waterSourceSave = useMutation({
@@ -980,7 +984,7 @@ export default function PetParkPage() {
               className="pointer-events-none h-full w-full"
               style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength, parkLighting.fireflyStrength),
                 transition: "opacity 1200ms linear" }}>
-              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} fireflyStrength={parkLighting.fireflyStrength} />
+              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} fireflyStrength={parkLighting.fireflyStrength} sceneFireflies />
             </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
               {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
                 sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
@@ -1126,7 +1130,8 @@ export default function PetParkPage() {
         className="pointer-events-none absolute inset-0 z-[10] overflow-hidden">
         <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(parkLighting.nightStrength)}
           nightStrength={parkLighting.nightStrength}
-          effects={parkLights} panX={camera.x} panY={camera.y}
+          effects={parkLights} fireflies={parkFireflies} fireflyStrength={parkLighting.fireflyStrength}
+           reducedMotion={reduceMotion || zoom <= .85} panX={camera.x} panY={camera.y}
           imgWidth={sceneWidth} sceneHeight={sceneHeight}
           transitionMs={parkLighting.transitionMs} zIndex={2} />
       </div>}
@@ -1160,9 +1165,9 @@ export default function PetParkPage() {
       {(fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl) ? <PetParkInteriorRoom
         key={fullPageRoom?.id ?? activeBuilding.id} expanded
         imageUrl={fullPageRoom?.imageUrl ?? activeBuilding.interiorImageUrl ?? ""}
+        nightImageUrl={fullPageRoom ? null : activeBuilding.nightInteriorImageUrl}
         name={fullPageRoom?.name ?? activeBuilding.name}
         darkness={activeBuilding.interiorDarkness ?? 35}
-        nightDarkness={activeBuilding.interiorNightDarkness}
         nightStrength={parkLighting.nightStrength}
         effects={fullPageRoom ? [] : activeBuilding.interiorEffects ?? []}
         onOpenRoom={showRoomEffect}
@@ -1360,10 +1365,10 @@ export default function PetParkPage() {
         </>}
       </div>
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "effect" &&
-        (selectedObject as ParkItem).effectType === "colored_light" && <label
+        ((selectedObject as ParkItem).effectType === "lamp_light" || (selectedObject as ParkItem).effectType === "colored_light") && <label
         className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 bg-[#173b28] p-2 text-xs">
-        Colored light orb
-        <input type="color" aria-label="Edit Pet Park colored light orb color"
+        Lamp Light color
+        <input type="color" aria-label="Edit Pet Park lamp light color"
           value={(selectedObject as ParkItem).effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
           disabled={standaloneLightColorSave.isPending}
           onChange={event => standaloneLightColorSave.mutate({

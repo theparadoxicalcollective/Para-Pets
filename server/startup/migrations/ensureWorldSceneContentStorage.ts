@@ -12,10 +12,12 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       image_url text NOT NULL,
       tap_image_url text,
       interior_image_url text,
+      night_interior_image_url text,
       created_at timestamp NOT NULL DEFAULT now(),
       CONSTRAINT world_scene_assets_id_world_unique UNIQUE (id, world_id)
     );
     CREATE INDEX IF NOT EXISTS world_scene_assets_world_idx ON world_scene_assets (world_id);
+    ALTER TABLE world_scene_assets ADD COLUMN IF NOT EXISTS night_interior_image_url text;
 
     CREATE TABLE IF NOT EXISTS world_scene_placements (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -11,6 +11,7 @@ export type WorldSceneInteriorKind = "decor" | "effect";
 export type WorldSceneAsset = {
   id: string; worldId: string; kind: WorldAssetKind; name: string;
   imageUrl: string; tapImageUrl: string | null; interiorImageUrl: string | null;
+  nightInteriorImageUrl: string | null;
 };
 
 export type WorldScenePlacement = {

@@ -6,7 +6,14 @@ import { getHouseInteriorLightCutoutStrength } from "@shared/housing";
  * Unlike overlapping translucent black circles, opaque grays can be combined
  * with SVG darken blending without adding their brightness together.
  */
-export const PARK_SCENE_LAMP_MAX_REVEAL = 0.48;
+export const PARK_SCENE_LAMP_MAX_REVEAL = 0.38;
+/** An individual firefly reveals only a tiny patch of the original scene. */
+export const PARK_SCENE_FIREFLY_MAX_REVEAL = 0.36;
+export function parkSceneFireflyMaskChannel(strength: number, falloff: number): number {
+  const active = Number.isFinite(strength) ? Math.max(0, Math.min(1, strength)) : 0;
+  const fade = Number.isFinite(falloff) ? Math.max(0, Math.min(1, falloff)) : 0;
+  return Math.round(255 * (1 - PARK_SCENE_FIREFLY_MAX_REVEAL * active * fade));
+}
 export function parkSceneLampMaskChannel(nightStrength: number, falloff: number): number {
   const night = Number.isFinite(nightStrength) ? Math.max(0, Math.min(1, nightStrength)) : 0;
   const fade = Number.isFinite(falloff) ? Math.max(0, Math.min(1, falloff)) : 0;

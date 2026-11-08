@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
 import type {
@@ -20,7 +20,6 @@ const EFFECT_CHOICES: Array<{
     type: o.type, label: o.label, description: o.description,
     size: Math.max(60, o.defaultSize * 6), group: "outdoor" as const,
   })),
-  { ...PARK_COLORED_LIGHT_OPTION, size: 96, group: "outdoor" as const },
   { ...PARK_FIREFLIES_OPTION, size: PARK_FIREFLIES_OPTION.defaultSize, group: "outdoor" as const },
   ...PARK_WATER_EFFECT_OPTIONS.map(o => ({
     type: o.type, label: o.label, description: o.description,
@@ -34,12 +33,12 @@ type Props = {
   selectedInterior: WorldSceneInteriorItem | null;
   activeBuilding: WorldScenePlacement | null;
   placementPoint: { xPct: number; yPct: number };
+  moveArmedId: string | null;
   interiorDarkness: number;
-  interiorNightDarkness: number;
   interiorPreviewClock: "live" | "day" | "night";
   onInteriorPreviewClockChange: (value: "live" | "day" | "night") => void;
   darknessSaving: boolean;
-  onInteriorDarknessChange: (value: number, field: "interiorDarkness" | "interiorNightDarkness") => void;
+  onInteriorDarknessChange: (value: number) => void;
   onInteriorDarknessCommit: () => void;
   onChanged: () => void;
   onSelect: (id: string | null) => void;
@@ -55,7 +54,7 @@ export default function WorldSceneControls(props: Props) {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
-  const [coloredLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
+  const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [expanded, setExpanded] = useState(false);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
@@ -105,7 +104,7 @@ export default function WorldSceneControls(props: Props) {
 
   const add = async (kind: "decor" | "building" | "effect", assetId: string | null, effectType: string | null, size: number) => {
     const result = await mutate("POST", "/placements", {
-      kind, assetId, effectType, effectColor: effectType === "colored_light" ? coloredLightColor : null,
+      kind, assetId, effectType, effectColor: (effectType === "colored_light" || effectType === "lamp_light") ? lampLightColor : null,
       xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
       size, flipped: false, layer: 0, decorEffects: [], isWaterSource: false, isShop: false, shopItemIds: [],
     }) as WorldScenePlacement | null;
@@ -142,7 +141,7 @@ export default function WorldSceneControls(props: Props) {
     }) as WorldScenePlacement | null;
     if (result) props.onSelect(result.id);
   };
-  const patchArtwork = async (assetId: string, name: "imageData" | "tapImageData" | "interiorImageData",
+  const patchArtwork = async (assetId: string, name: "imageData" | "tapImageData" | "interiorImageData" | "nightInteriorImageData",
     file?: File) => {
     if (!file) return;
     try {
@@ -200,30 +199,13 @@ export default function WorldSceneControls(props: Props) {
       {props.activeBuilding ? <>
         <div className="col-span-3 flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs sm:col-span-5">
           <span className="flex justify-between text-[#f0d69d]">
-            <span>Daytime darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
+            <span>Interior darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
           </span>
           <input type="range" min={0} max={90} step={5}
             data-testid="world-editor-interior-darkness-slider"
             aria-label="Interior darkness"
             value={props.interiorDarkness} disabled={props.darknessSaving}
-            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value), "interiorDarkness")}
-            onPointerUp={props.onInteriorDarknessCommit}
-            onPointerCancel={props.onInteriorDarknessCommit}
-            onKeyUp={event => {
-              if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key))
-                props.onInteriorDarknessCommit();
-            }}
-            onBlur={props.onInteriorDarknessCommit}
-            className="w-full accent-[#dcb970]" />
-          <span className="mt-1 flex justify-between text-[#f0d69d]">
-            <span>Peak nighttime darkness</span>
-            <span className="tabular-nums">{props.interiorNightDarkness}%</span>
-          </span>
-          <input type="range" min={props.interiorDarkness} max={90} step={5}
-            data-testid="world-editor-interior-night-darkness-slider"
-            aria-label="Peak nighttime darkness" value={props.interiorNightDarkness}
-            disabled={props.darknessSaving}
-            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value), "interiorNightDarkness")}
+            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value))}
             onPointerUp={props.onInteriorDarknessCommit}
             onPointerCancel={props.onInteriorDarknessCommit}
             onKeyUp={event => {
@@ -295,7 +277,11 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        <span className="ml-auto self-center text-[10px] text-amber-100/65">Drag artwork to move</span>
+        <span className="ml-auto self-center text-[10px] text-amber-100/65">
+          {props.activeBuilding ? "Drag artwork to move"
+            : props.moveArmedId === props.selected?.id
+              ? "Move armed · drag artwork" : "Double-tap artwork to move"}
+        </span>
       </div>
     </section>}
     {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
@@ -343,15 +329,15 @@ export default function WorldSceneControls(props: Props) {
             Outdoor Effects
           </div>
           {!props.activeBuilding && <label className="flex items-center justify-between gap-3 rounded-xl border border-[#b99a4c]/55 p-3 text-xs">
-            Colored light orb
-            <input type="color" aria-label="New world colored light orb color"
-              data-testid="world-standalone-light-color" value={coloredLightColor}
+            Lamp Light color
+            <input type="color" aria-label="New world lamp light color"
+              data-testid="world-standalone-light-color" value={lampLightColor}
               onChange={event => setColoredLightColor(event.target.value)}
               className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent"/>
           </label>}
           <div className="grid grid-cols-2 gap-2">
             {EFFECT_CHOICES.filter(effect => effect.group === "outdoor" &&
-              (!props.activeBuilding || (effect.type !== "colored_light" && effect.type !== "fireflies"))).map(effect =>
+              (!props.activeBuilding || effect.type !== "fireflies")).map(effect =>
               <button key={effect.type} type="button"
                 data-testid={`add-world-effect-${effect.type}`} disabled={busy}
                 onClick={() => props.activeBuilding
@@ -382,15 +368,15 @@ export default function WorldSceneControls(props: Props) {
               </button>)}
           </div>
           <p className="text-center text-xs text-amber-100/60">
-            Tap an effect to place it, then drag it into position.
+            Tap to place. Double-tap its center to move.
           </p>
         </section>}
 
         {panel === "selected" && <div className="space-y-3" data-testid="world-scene-details-panel">
-          {props.selected?.kind === "effect" && props.selected.effectType === "colored_light" &&
+          {props.selected?.kind === "effect" && (props.selected.effectType === "colored_light" || props.selected.effectType === "lamp_light") &&
             <label className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 p-2 text-xs">
-              Colored light orb
-              <input type="color" aria-label="Edit world colored light orb color"
+              Lamp Light color
+              <input type="color" aria-label="Edit world lamp light color"
                 value={props.selected.effectColor ?? DEFAULT_PARK_LIGHT_COLOR}
                 disabled={busy}
                 onChange={event => void patchSelected({ effectColor: event.target.value })}
@@ -472,13 +458,28 @@ export default function WorldSceneControls(props: Props) {
             }}/>
         </label>}
         {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
-          {currentAsset.interiorImageUrl ? "Replace Interior Background" : "Upload Interior Background (optional)"}
+          {currentAsset.interiorImageUrl ? "Replace Daytime Interior Background" : "Upload Daytime Interior Background"}
           <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
             className="sr-only" disabled={busy} onChange={event => {
               void patchArtwork(currentAsset.id, "interiorImageData", event.target.files?.[0]);
               event.target.value = "";
             }}/>
         </label>}
+        {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/50 p-2 text-xs">
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center">
+            {currentAsset.nightInteriorImageUrl ? "Replace Nighttime Interior Background" : "Upload Nighttime Interior Background (optional)"}
+            <input type="file" aria-label="Upload world nighttime interior image" accept="image/png,image/jpeg"
+              className="sr-only" disabled={busy} onChange={event => {
+                void patchArtwork(currentAsset.id, "nightInteriorImageData", event.target.files?.[0]);
+                event.target.value = "";
+              }}/>
+          </label>
+          {currentAsset.nightInteriorImageUrl && <button type="button" className={control}
+            aria-label="Remove world nighttime interior image" disabled={busy}
+            onClick={() => void mutate("PATCH", `/assets/${currentAsset.id}`, { nightInteriorImageData: null })}>
+            Remove nighttime image
+          </button>}
+        </div>}
         <label className="flex items-center justify-between rounded-lg border border-[#b99a4c]/55 p-3 text-xs">
           <span>Is Shop · {props.selected.isShop ? "ON" : "OFF"}</span>
           <input type="checkbox" role="switch" aria-label="Is Shop building"

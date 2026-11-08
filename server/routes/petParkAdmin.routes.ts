@@ -195,10 +195,11 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
-    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 300, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN, isShop = false, interiorDarkness = 35 } = req.body ?? {};
+    const { name, imageData, interiorImageData, nightInteriorImageData = null, xPct = 0.5, yPct = 0.5, size = 300, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN, isShop = false, interiorDarkness = 35 } = req.body ?? {};
     if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
         typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000 ||
         (interiorImageData != null && (typeof interiorImageData !== "string" || !interiorImageData.startsWith("data:image/") || interiorImageData.length > 12_000_000)) ||
+        (nightInteriorImageData != null && (typeof nightInteriorImageData !== "string" || !nightInteriorImageData.startsWith("data:image/") || nightInteriorImageData.length > 12_000_000)) ||
         !validPosition(xPct) || !validPosition(yPct) || !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         !isValidPetParkBuildingCapacity(maxPets) || typeof isShop !== "boolean" ||
         !Number.isInteger(interiorDarkness) || interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN || interiorDarkness > HOUSE_INTERIOR_DARKNESS_MAX) {
@@ -207,8 +208,9 @@ export function registerPetParkAdminRoutes(
     try {
       const imageUrl = await processWorldImage(imageData, 1200);
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2000) : null;
+      const nightInteriorImageUrl = nightInteriorImageData ? await processWorldImage(nightInteriorImageData, 2000) : null;
       const [building] = await db.insert(petParkBuildings).values({
-        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [], exteriorEffects: [],
+        name: name.trim(), imageUrl, interiorImageUrl, nightInteriorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [], exteriorEffects: [],
       }).returning();
       return res.status(201).json(building);
     } catch (error) {
@@ -231,6 +233,19 @@ export function registerPetParkAdminRoutes(
     if (body.interiorImageData !== undefined) {
       if (body.interiorImageData !== null && (typeof body.interiorImageData !== "string" || !body.interiorImageData.startsWith("data:image/") || body.interiorImageData.length > 12_000_000)) return res.status(400).json({ message: "Valid interior image required" });
       try { updates.interiorImageUrl = body.interiorImageData ? await processWorldImage(body.interiorImageData, 2000) : null; } catch { return res.status(400).json({ message: "Unable to process interior image" }); }
+    }
+    if (body.nightInteriorImageData !== undefined) {
+      if (body.nightInteriorImageData !== null &&
+          (typeof body.nightInteriorImageData !== "string" ||
+            !body.nightInteriorImageData.startsWith("data:image/") ||
+            body.nightInteriorImageData.length > 12_000_000))
+        return res.status(400).json({ message: "Choose a valid nighttime interior image or remove it" });
+      try {
+        updates.nightInteriorImageUrl = body.nightInteriorImageData
+          ? await processWorldImage(body.nightInteriorImageData, 2000) : null;
+      } catch {
+        return res.status(400).json({ message: "Unable to process nighttime interior image" });
+      }
     }
     if (body.interiorDarkness !== undefined) {
       if (!Number.isInteger(body.interiorDarkness) || body.interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN ||
@@ -456,8 +471,11 @@ export function registerPetParkAdminRoutes(
       return res.status(400).json({ message: "Choose valid decorative effects" });
     if (kind !== "decor" && tapImageData != null) return res.status(400).json({ message: "Only decorations support Tap Images" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
-    if (effectType === "colored_light" && kind === "effect"
-      ? !isValidParkLightColor(effectColor) : effectColor != null)
+    if (kind === "effect" && effectType === "colored_light"
+      ? !isValidParkLightColor(effectColor)
+      : kind === "effect" && effectType === "lamp_light"
+        ? effectColor != null && !isValidParkLightColor(effectColor)
+        : effectColor != null)
       return res.status(400).json({ message: "Choose a valid colored light orb color" });
     if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
     if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
@@ -466,7 +484,7 @@ export function registerPetParkAdminRoutes(
       const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
         .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null,
-          effectColor: kind === "effect" && effectType === "colored_light" ? effectColor : null,
+          effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
           imageUrl, tapImageUrl,
           appearanceGroupId: kind === "decor" ? randomUUID() : null,
           decorEffects: kind === "decor" ? decorEffects : [],
@@ -589,7 +607,7 @@ export function registerPetParkAdminRoutes(
         .set({ effectColor: req.body.effectColor })
         .where(and(eq(petParkSceneItems.id, String(req.params.id)),
           eq(petParkSceneItems.kind, "effect"),
-          eq(petParkSceneItems.effectType, "colored_light"))).returning();
+          inArray(petParkSceneItems.effectType, ["lamp_light", "colored_light"]))).returning();
       return item ? res.json(item) : res.status(404).json({ message: "Colored light not found" });
     } catch (error) {
       console.error("[pet-park] effect color update failed", error);

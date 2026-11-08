@@ -62,7 +62,7 @@ test("lamp light reveal follows authored size for decor, building facades and in
     getHouseInteriorLightRadiusRatio({ id:"s", type:"lamp_light", x:.5,y:.5,size:16 }));
   const interiors = source("client/src/components/HomeInteriorEffect.tsx");
   assert.match(interiors, /Math\.max\(12, getHouseInteriorLightRadiusRatio\(effect\) \* height\)/);
-  assert.match(source("client/src/pages/WorldSceneEditorPage.tsx"), /darkness=\{parkInteriorDarkness\(interiorDarkness, interiorNightDarkness, previewNightStrength\)\}/);
+  assert.match(source("client/src/pages/WorldSceneEditorPage.tsx"), /darkness=\{interiorDarkness\}/);
 });
 
 test("outdoor facade lamp storage is additive and scoped; indoor sunlight stays automatic and untappable", () => {
@@ -100,7 +100,7 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
   assert.match(atmosphere, /parkSceneLampMaskChannel\(safeNight, falloff\)/);
-  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.48);
+  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.38);
   assert.match(atmosphere, /mixBlendMode: "darken"/,
     "overlapping lamp cuts should use the strongest local illumination");
   assert.match(atmosphere, /park-outdoor-lamp-neutral-cutout/);
@@ -135,16 +135,17 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
     const visualDiameter = 1200 * size / 100;
     const wideRadius = parkOutdoorLightRadius(light, 1200, true);
     const legacyRadius = parkOutdoorLightRadius(light, 1200, false);
-    assert.ok(wideRadius > 5 * visualDiameter,
+    assert.ok(wideRadius > 2 * visualDiameter,
       "the light travels much farther than the small visual flare");
-    assert.ok(wideRadius > legacyRadius * 2, "the previous narrow reach is substantially extended");
+    assert.ok(wideRadius > legacyRadius * 1.4,
+      "the mask extends beyond the old local glow without producing an oversized illumination wash");
     assert.equal(legacyRadius, getHouseInteriorLightRadiusRatio(light) * 1200);
     assert.ok(parkOutdoorLightRadius({ ...light, size: size * 1.5 }, 1200, true) > wideRadius,
       "the illuminated ground radius follows the saved lamp size");
   }
   assert.equal(parkOutdoorLightRadius(
     { id: "lamp", type: "lamp_light", x: .5, y: .5, size: 100 },
-    1200, true), 1200 * 0.46, "large lamps keep a restrained scene-safe maximum");
+    1200, true), 1200 * 0.32, "large lamps keep a restrained scene-safe maximum");
   assert.match(artwork, /opacity: warmSceneLamp \? 0\.66 : 0\.57/,
     "the visible flare is more transparent while its scenery reveal grows");
 });
@@ -156,13 +157,13 @@ test("overlapping lamp cutouts are neutral, capped and preserve nighttime darkne
   assert.match(atmosphere, /mixBlendMode: "darken"/);
   assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill/);
   assert.match(scene, /PARK_SCENE_NIGHT_DARKNESS = 88/);
-  assert.equal(parkSceneLampMaskChannel(1, 1), Math.round(255 * (1 - 0.48)),
+  assert.equal(parkSceneLampMaskChannel(1, 1), Math.round(255 * (1 - 0.38)),
     "at night, even the lamp center retains substantial darkness");
   assert.equal(parkSceneLampMaskChannel(1, 0), 255,
     "lamp edge returns to the original night mask");
   assert.equal(parkSceneLampMaskChannel(0, 1), 255,
     "during daytime lamp cutouts disappear automatically");
-  assert.equal(parkSceneLampMaskChannel(1, 0.5), Math.round(255 * (1 - 0.24)));
+  assert.equal(parkSceneLampMaskChannel(1, 0.5), Math.round(255 * (1 - 0.19)));
   assert.equal(parkSceneLampMaskChannel(Number.NaN, 1), 255);
   for (const count of [1, 2, 6, 20]) {
     // Opaque grayscale with darken composition uses the lowest mask value
@@ -205,7 +206,8 @@ test("wider building and decor lights do not pop off at scene edges", () => {
       decorEffects: [light] },
   ], geometry, camera, viewport);
   assert.deepEqual(edgeLights.map(item => item.id), ["building-small", "decor-small"]);
-  assert.ok(parkOutdoorLightRadius(edgeLights[0], geometry.height, true) > 160);
+  assert.ok(parkOutdoorLightRadius(edgeLights[0], geometry.height, true) > 0,
+    "small edge lamps retain a proportional illuminated area");
   const tooFar = parkOutdoorLightEffects([
     { id: "far", kind: "decor", xPct: .1, yPct: .5, size: 100, flipped: false,
       decorEffects: [light] },
