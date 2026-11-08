@@ -457,12 +457,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 {(p.kind === "decor" || p.kind === "building") && asset &&
                   <WorldDecorEffects effects={p.decorEffects}
                     sunlightStrength={worldLighting.daylightStrength}
-                    nightStrength={worldLighting.nightStrength} reducedMotion={false} />}
+                    nightStrength={worldLighting.nightStrength} fireflyStrength={worldLighting.fireflyStrength} reducedMotion={false} />}
                 {p.kind === "effect" && p.effectType && <span className="absolute inset-0"
-                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength),
+                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength, worldLighting.fireflyStrength),
                     transition: "opacity 1200ms linear" }}>
                   <ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
-                    reducedMotion={false} adminPreview />
+                    reducedMotion={false} adminPreview fireflyStrength={worldLighting.fireflyStrength} />
                 </span>}
                 {garden && <PetParkTerrainDetail type="garden_plot" />}
                 {p.kind === "terrain" && !connected && !garden && isParkTerrainDetail(p.effectType) &&

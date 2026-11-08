@@ -7,11 +7,12 @@ import { parkOutdoorEffectOpacity } from "@/lib/parkSceneLighting";
  * work for flipped and nonflipped copies without a second placement system.
  */
 export default function WorldDecorEffects({
-  effects, sunlightStrength, nightStrength = 1 - sunlightStrength, reducedMotion,
+  effects, sunlightStrength, nightStrength = 1 - sunlightStrength, fireflyStrength = 0, reducedMotion,
 }: {
   effects: readonly ParkDecorEffect[];
   sunlightStrength: number;
   nightStrength?: number;
+  fireflyStrength?: number;
   reducedMotion: boolean;
 }) {
 
@@ -25,10 +26,10 @@ export default function WorldDecorEffects({
         left: `${effect.x * 100}%`, top: `${effect.y * 100}%`,
         width: `${effect.size}%`, aspectRatio: "1",
         transform: "translate(-50%, -50%)",
-        opacity: parkOutdoorEffectOpacity(effect.type, nightStrength),
+        opacity: parkOutdoorEffectOpacity(effect.type, nightStrength, fireflyStrength),
         transition: "opacity 1200ms linear",
       }}>
-      <ParkEffectVisual type={effect.type} color={effect.color} reducedMotion={reducedMotion} />
+      <ParkEffectVisual type={effect.type} color={effect.color} reducedMotion={reducedMotion} fireflyStrength={fireflyStrength} />
     </div>)}
   </div>;
 }

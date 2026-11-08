@@ -958,6 +958,7 @@ export default function PetParkPage() {
           } }} onPointerDown={e => startPlacement(e, "building", building)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute pointer-events-auto touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 `} style={{ left: `${shownPosition("building", building).xPct * 100}%`, top: `${shownPosition("building", building).yPct * 100}%`, width: shownPosition("building", building).size * scale, height: shownPosition("building", building).size * scale, transform: `translate(-50%, -50%) ${shownPosition("building", building).flipped ? "scaleX(-1)" : ""}`, clipPath: scene.canEditPark ? undefined : imageHitClips[building.imageUrl], zIndex: parkDepthIndex({ yPct: shownPosition("building", building).yPct, worldHeight: geometry.worldHeight, size: shownPosition("building", building).size, kind: "building", contact: imageContacts[building.imageUrl] }) }}><img onLoad={event => observeContact(event.currentTarget, building.imageUrl)} src={building.imageUrl} alt={building.name} draggable={false} className={`relative z-[1] h-full w-full object-contain ${selectedPlacement?.kind === "building" && selectedPlacement.id === building.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
           <PetParkDecorEffects effects={building.exteriorEffects ?? []}
             sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
+            fireflyStrength={parkLighting.fireflyStrength}
             reducedMotion={reduceMotion || zoom <= .85} />
         </button>)}
         {scene.items.map(item => {
@@ -977,12 +978,13 @@ export default function PetParkPage() {
           {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <div
               data-testid={`park-standalone-effect-${item.id}`}
               className="pointer-events-none h-full w-full"
-              style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength),
+              style={{ opacity: parkOutdoorEffectOpacity(item.effectType, parkLighting.nightStrength, parkLighting.fireflyStrength),
                 transition: "opacity 1200ms linear" }}>
-              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} />
+              <ParkEffectVisual type={item.effectType} color={item.effectColor ?? undefined} reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} fireflyStrength={parkLighting.fireflyStrength} />
             </div> : visibleDecorImage ? <><img onLoad={event => observeContact(event.currentTarget, visibleDecorImage)} alt="" src={visibleDecorImage} draggable={false} className={`relative z-[1] w-full h-full object-contain ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id ? "drop-shadow-[0_0_7px_rgba(245,194,68,0.95)]" : ""}`} />
               {item.kind === "decor" && <PetParkDecorEffects effects={item.decorEffects ?? []}
                 sunlightStrength={parkLighting.daylightStrength} nightStrength={parkLighting.nightStrength}
+            fireflyStrength={parkLighting.fireflyStrength}
                 reducedMotion={reduceMotion || zoom <= 0.85} />}
             </> :
             item.kind === "sleep_spot" ? <ParkEffectVisual type="sleep" reducedMotion={reduceMotion} adminPreview={Boolean(scene.canEditPark)} /> : null}
