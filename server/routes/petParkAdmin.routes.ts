@@ -232,6 +232,19 @@ export function registerPetParkAdminRoutes(
       if (body.interiorImageData !== null && (typeof body.interiorImageData !== "string" || !body.interiorImageData.startsWith("data:image/") || body.interiorImageData.length > 12_000_000)) return res.status(400).json({ message: "Valid interior image required" });
       try { updates.interiorImageUrl = body.interiorImageData ? await processWorldImage(body.interiorImageData, 2000) : null; } catch { return res.status(400).json({ message: "Unable to process interior image" }); }
     }
+    if (body.nightInteriorImageData !== undefined) {
+      if (body.nightInteriorImageData !== null &&
+          (typeof body.nightInteriorImageData !== "string" ||
+            !body.nightInteriorImageData.startsWith("data:image/") ||
+            body.nightInteriorImageData.length > 12_000_000))
+        return res.status(400).json({ message: "Choose a valid nighttime interior image or remove it" });
+      try {
+        updates.nightInteriorImageUrl = body.nightInteriorImageData
+          ? await processWorldImage(body.nightInteriorImageData, 2000) : null;
+      } catch {
+        return res.status(400).json({ message: "Unable to process nighttime interior image" });
+      }
+    }
     if (body.interiorDarkness !== undefined) {
       if (!Number.isInteger(body.interiorDarkness) || body.interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN ||
           body.interiorDarkness > HOUSE_INTERIOR_DARKNESS_MAX) {
