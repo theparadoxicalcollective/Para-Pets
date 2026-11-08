@@ -30,7 +30,7 @@ export function parkOutdoorLightRadius(
   // The campfire and interior light calculations below remain untouched.
   if (sceneLamp && effect.type === "lamp_light") {
     const orbDiameter = Math.max(0, effect.size / 100 * height);
-    return Math.max(8, Math.min(height * 0.46, orbDiameter * 5.5));
+    return Math.max(8, Math.min(height * 0.32, orbDiameter * 3.5));
   }
   const spread = sceneLamp && effect.type === "candle_light" ? 2.35 : 1;
   return Math.max(12, Math.min(height * 0.68,

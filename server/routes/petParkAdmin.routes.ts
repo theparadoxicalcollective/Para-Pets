@@ -456,8 +456,11 @@ export function registerPetParkAdminRoutes(
       return res.status(400).json({ message: "Choose valid decorative effects" });
     if (kind !== "decor" && tapImageData != null) return res.status(400).json({ message: "Only decorations support Tap Images" });
     if (kind === "effect" && !isParkEffect(effectType)) return res.status(400).json({ message: "Choose a supported outdoor or water effect" });
-    if (effectType === "colored_light" && kind === "effect"
-      ? !isValidParkLightColor(effectColor) : effectColor != null)
+    if (kind === "effect" && effectType === "colored_light"
+      ? !isValidParkLightColor(effectColor)
+      : kind === "effect" && effectType === "lamp_light"
+        ? effectColor != null && !isValidParkLightColor(effectColor)
+        : effectColor != null)
       return res.status(400).json({ message: "Choose a valid colored light orb color" });
     if (kind === "terrain" && !isPaintableParkTerrainDetail(effectType)) return res.status(400).json({ message: "Choose a valid terrain detail" });
     if (kind === "terrain" && imageData != null) return res.status(400).json({ message: "Terrain details do not use uploaded images" });
@@ -466,7 +469,7 @@ export function registerPetParkAdminRoutes(
       const tapImageUrl = tapImageData ? await processWorldImage(tapImageData, 1200) : null;
       const [item] = await db.insert(petParkSceneItems)
         .values({ kind, effectType: kind === "effect" || kind === "terrain" ? effectType : null,
-          effectColor: kind === "effect" && effectType === "colored_light" ? effectColor : null,
+          effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
           imageUrl, tapImageUrl,
           appearanceGroupId: kind === "decor" ? randomUUID() : null,
           decorEffects: kind === "decor" ? decorEffects : [],
@@ -589,7 +592,7 @@ export function registerPetParkAdminRoutes(
         .set({ effectColor: req.body.effectColor })
         .where(and(eq(petParkSceneItems.id, String(req.params.id)),
           eq(petParkSceneItems.kind, "effect"),
-          eq(petParkSceneItems.effectType, "colored_light"))).returning();
+          inArray(petParkSceneItems.effectType, ["lamp_light", "colored_light"]))).returning();
       return item ? res.json(item) : res.status(404).json({ message: "Colored light not found" });
     } catch (error) {
       console.error("[pet-park] effect color update failed", error);

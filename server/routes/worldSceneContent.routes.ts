@@ -233,7 +233,10 @@ export function registerWorldSceneContentRoutes(app: Express, {
       return res.status(400).json({ message: "Invalid placement details" });
     }
     if (kind === "effect" && effectType === "colored_light"
-      ? !isValidParkLightColor(effectColor) : effectColor != null)
+      ? !isValidParkLightColor(effectColor)
+      : kind === "effect" && effectType === "lamp_light"
+        ? effectColor != null && !isValidParkLightColor(effectColor)
+        : effectColor != null)
       return res.status(400).json({ message: "Invalid colored light orb color" });
     if (((kind !== "decor" && isWaterSource) || (kind === "effect" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
@@ -254,7 +257,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         return res.status(409).json({ message: "World placement limit reached" });
       const [placed] = await db.insert(worldScenePlacements).values({
         worldId, kind, assetId: kind === "effect" ? null : assetId, effectType,
-        effectColor: kind === "effect" && effectType === "colored_light" ? effectColor : null,
+        effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,
         decorEffects, isWaterSource, isShop, shopItemIds, shopItemPlacements: [],
@@ -291,7 +294,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         changes.layer = body.layer;
       }
       if ("effectColor" in body) {
-        if (saved.kind !== "effect" || saved.effectType !== "colored_light" ||
+        if (saved.kind !== "effect" || (saved.effectType !== "colored_light" && saved.effectType !== "lamp_light") ||
           !isValidParkLightColor(body.effectColor))
           return res.status(400).json({ message: "Invalid colored light orb color" });
         changes.effectColor = body.effectColor;
