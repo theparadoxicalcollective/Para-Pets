@@ -7,6 +7,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { parsePetCareInventory, parsePetCareUser, readPetCareJson } from "@/lib/petCareData";
+import { petActionReturnPath } from "@/lib/petActionRoutes";
 
 export default function PetCarePage() {
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function PetCarePage() {
   const isLoading = userQuery.isLoading || inventoryQuery.isLoading;
 
   const foundPet = inventoryId
-    ? inventory.find((it) => it?.id === inventoryId && it?.type === "pet")
+    ? inventory.find((it) => it?.id === inventoryId && it?.type === "pet" && it?.isHatched === true)
     : null;
   const confirmedPetRef = useRef<any>(null);
   if (foundPet) confirmedPetRef.current = foundPet;
@@ -48,8 +49,8 @@ export default function PetCarePage() {
   const close = () => {
     // Browser history can contain a previous Pet Care entry (or a stale
     // in-app redirect), so history.back() may appear to leave the page open.
-    // Return to the Active Pet home explicitly, matching the Closet route.
-    navigate("/");
+    // The inventory Pet Menu returns to Pets; old Home entry remains unchanged.
+    navigate(petActionReturnPath(window.location.search));
   };
 
   // Navigation is a side effect. Running it while React is rendering can

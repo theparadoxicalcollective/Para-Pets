@@ -25,6 +25,7 @@ import PortraitOrientationBlocker from "@/components/PortraitOrientationBlocker"
 import StagePageSurface from "@/components/StagePageSurface";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { isIsolatedPlayerRoute, shouldHideFloatingNav } from "@/lib/playerPagePresentation";
+import { petActionReturnPath } from "@/lib/petActionRoutes";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
@@ -65,6 +66,7 @@ const CardsCollectionPage = lazy(() => import("@/pages/CardsCollectionPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
 const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
 const PetLevelUpRoute       = lazy(() => import("@/pages/PetLevelUpRoute"));
+const PetPowerUpRoute       = lazy(() => import("@/pages/PetPowerUpRoute"));
 const MoltenBlocksPage     = lazy(() => import("@/pages/MoltenBlocksPage"));
 const LavaCrawlPage        = lazy(() => import("@/pages/LavaCrawlPage"));
 const FriendsPage          = lazy(() => import("@/pages/FriendsPage"));
@@ -562,7 +564,7 @@ function AppRouter() {
           <StagePageSurface layout="viewport">
             <EquipAccessoriesPage
               petInventoryId={location.startsWith("/equip-accessories/") ? location.split("/")[2] : undefined}
-              returnPath={location.startsWith("/equip-accessories/") ? "/pet-house" : "/"}
+              returnPath={petActionReturnPath(window.location.search, location.startsWith("/equip-accessories/") ? "/pet-house" : "/")}
             />
           </StagePageSurface>
         )}
@@ -574,6 +576,11 @@ function AppRouter() {
         {location.startsWith("/pet-level-up/") && (
           <StagePageSurface key={location} layout="viewport">
             <PetLevelUpRoute />
+          </StagePageSurface>
+        )}
+        {location.startsWith("/pet-power-up/") && (
+          <StagePageSurface key={location} layout="viewport">
+            <PetPowerUpRoute />
           </StagePageSurface>
         )}
         {location === "/games/molten-blocks" && (

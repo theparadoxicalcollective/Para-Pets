@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { getPetPowerUpItems } from "../client/src/lib/petPowerUpInventory";
 
 const server = readFileSync("server/petEvolution.ts", "utf8");
 const routes = readFileSync("server/routes/petEvolution.routes.ts", "utf8");
@@ -69,8 +70,18 @@ test("evolution idle keeps ears, tail, body, and legs moving as connected layers
 });
 
 test("Power Up tray stacks duplicate inventory rows by catalog item", () => {
-  assert.match(home, /const stacks = new Map<string, PowerUpItem>\(\)/);
-  assert.match(home, /const existing = stacks\.get\(item\.shopItemId\)/);
-  assert.match(home, /existing\.quantity \+= item\.quantity/);
-  assert.match(home, /stacks\.set\(item\.shopItemId, \{ \.\.\.item \}\)/);
+  assert.match(home, /getPetPowerUpItems\(inventory\)/);
+  const base = {
+    shopItemId: "boost-a", name: "Boost", type: "power_up",
+    imageUrl: null, statBoostType: "atk", statBoostAmount: 15,
+    specialType: null, specialAmount: null,
+  };
+  const first = { ...base, inventoryId: "owned-row-1", quantity: 2 };
+  const second = { ...base, inventoryId: "owned-row-2", quantity: 3 };
+  const { powerUpItems } = getPetPowerUpItems([first, second]);
+  assert.equal(powerUpItems.length, 1);
+  // Preserve first actual owned row as consume target; combine displayed count.
+  assert.deepEqual(powerUpItems.map((item) => [item.inventoryId, item.quantity]), [["owned-row-1", 5]]);
+  assert.equal(first.quantity, 2);
+  assert.equal(second.quantity, 3);
 });

@@ -36,6 +36,7 @@ import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
+import { getPetPowerUpItems, remainingPetPowerUpSlots } from "@/lib/petPowerUpInventory";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
@@ -628,46 +629,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   });
 
   // ── Active pet action mutations ──────────────────────────────────────────────
-  const toModalItem = (i: InventoryItem): PowerUpItem => ({
-    inventoryId: i.inventoryId,
-    shopItemId: i.shopItemId,
-    name: i.name,
-    type: i.type,
-    imageUrl: i.imageUrl,
-    statBoostType: i.statBoostType,
-    statBoostAmount: i.statBoostAmount,
-    specialType: i.specialType,
-    specialAmount: i.specialAmount,
-    quantity: i.quantity,
-  });
-
-  // Reward bundles historically store repeated copies as separate inventory
-  // rows. The main Bag already stacks those rows by shopItemId, but the Power
-  // Up tray previously rendered one card per row and could look flooded with
-  // dozens of identical boosts. Keep the first owned row as the consume target
-  // and combine every matching row into the quantity shown on that card. After
-  // one use, the inventory refetch selects the next row when necessary.
-  const stackModalItems = (predicate: (item: InventoryItem) => boolean) => {
-    const stacks = new Map<string, PowerUpItem>();
-    for (const inventoryItem of inventory) {
-      if (!predicate(inventoryItem)) continue;
-      const item = toModalItem(inventoryItem);
-      const existing = stacks.get(item.shopItemId);
-      if (existing) {
-        existing.quantity += item.quantity;
-      } else {
-        stacks.set(item.shopItemId, { ...item });
-      }
-    }
-    return Array.from(stacks.values());
-  };
-
-  const powerUpItems = stackModalItems(
-    (inventoryItem) => inventoryItem.type === "power_up" && inventoryItem.statBoostType !== "lvl",
-  );
-  const powerUpSpecialItems = stackModalItems(
-    (inventoryItem) => inventoryItem.type === "special" && inventoryItem.specialType === "fill_evolution_node",
-  );
+  // Shared with the pet-ID route; retain exactly the existing stack-by-shop
+  // behavior while Home's active-pet Power Up modal remains in use.
+  const { powerUpItems, specialItems: powerUpSpecialItems } = getPetPowerUpItems(inventory);
 
   const activePetForModal = activePet ?? frozenActivePetRef.current;
   const requireHatchedActivePet = () => {
@@ -1645,7 +1609,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           petAtk={activePetForModal.petAtk ?? 50}
           petDef={activePetForModal.petDef ?? 50}
           petHealth={activePetForModal.petHealth ?? 1000}
-          itemsRemaining={(() => { const r = activePetForModal.rarity || 1; const slotsPerLvl = r <= 2 ? 1 : r === 3 ? 2 : 3; return Math.max(0, (activePetForModal.petLevel || 1) * slotsPerLvl - (activePetForModal.itemsUsedThisLevel || 0)); })()}
+          itemsRemaining={remainingPetPowerUpSlots(activePetForModal.rarity, activePetForModal.petLevel, activePetForModal.itemsUsedThisLevel)}
           items={powerUpItems}
           specialItems={powerUpSpecialItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}

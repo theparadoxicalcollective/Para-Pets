@@ -37,6 +37,7 @@ const NAV_HIDDEN_PREFIXES = [
   "/pet-care/",
   "/equip-accessories/",
   "/pet-level-up/",
+  "/pet-power-up/",
   "/world-editor/",
 ] as const;
 

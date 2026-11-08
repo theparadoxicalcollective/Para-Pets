@@ -548,6 +548,7 @@ export function scenePlacementToClient(
 export function usesDeviceGameplaySurface(pathname: string): boolean {
   return pathname === "/" || /^\/visit\/[^/]+$/.test(pathname) || pathname === "/map" || pathname.startsWith("/world/") || pathname === "/pet-house" || pathname === "/friends" || pathname === "/raid/leaderboard" || pathname === "/cards" || pathname === "/badges" || pathname === "/coins" || pathname === "/market" || pathname === "/explore/elysian-bayou-clearing" || pathname === "/games/molten-blocks" || pathname === "/games/lava-crawl" || pathname === "/raid" || pathname === "/raid/battle" || pathname === "/pvp" || pathname === "/bag" || pathname === "/pets"
     || /^\/pet-level-up\/[^/]+$/.test(pathname)
+    || /^\/pet-power-up\/[^/]+$/.test(pathname)
     || /^\/pet-care\/[^/]+$/.test(pathname)
     || pathname === "/equip-accessories" || /^\/equip-accessories\/[^/]+$/.test(pathname);
 }
