@@ -14,7 +14,7 @@ test("Pet Park building shop is additive, owner-safe and does not alter existing
   assert.match(schema, /shopItemIds: jsonb\("shop_item_ids"\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS is_shop boolean NOT NULL DEFAULT false/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS shop_item_ids jsonb NOT NULL DEFAULT/);
-  assert.match(adminRoutes, /name: name\.trim\(\), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: \[\]/);
+  assert.match(adminRoutes, /name: name\.trim\(\), imageUrl, interiorImageUrl, nightInteriorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: \[\]/);
   assert.match(adminRoutes, /app\.get\("\/api\/admin\/pet-park\/shop-catalog", isAdmin/);
   assert.match(adminRoutes, /ilike\(shopItems\.name/);
   assert.match(adminRoutes, /limit\(100\)/);

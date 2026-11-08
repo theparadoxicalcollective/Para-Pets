@@ -65,15 +65,15 @@ test("admin can select and persist orb color in both editors, not scene wash", (
   const sceneVisual = read("client/src/components/ParkEffectVisual.tsx");
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
   for (const editor of [parkEditor, worldEditor]) {
-    assert.match(editor, /type="color" aria-label="Colored light orb color"/);
+    assert.match(editor, /type="color" aria-label="Lamp light color"/);
     assert.match(editor, /selected\?\.type === "lamp_light"/);
     assert.match(editor, /color: event\.target\.value/);
     assert.match(editor, /type === "colored_light"/);
   }
-  assert.match(park, /New Pet Park colored light orb color/);
-  assert.match(world, /New world colored light orb color/);
-  assert.match(world, /Edit world colored light orb color/);
-  assert.match(read("client/src/pages/PetParkPage.tsx"), /Edit Pet Park colored light orb color/);
+  assert.match(park, /New Pet Park lamp light color/);
+  assert.match(world, /New world lamp light color/);
+  assert.match(world, /Edit world lamp light color/);
+  assert.match(read("client/src/pages/PetParkPage.tsx"), /Edit Pet Park lamp light color/);
   assert.match(sceneVisual, /type === "colored_light"/);
   assert.match(sceneVisual, /type === "lamp_light" && color/);
   assert.match(sceneVisual, /orbColor=\{parkLightColor\(color\)\}/);
@@ -97,7 +97,7 @@ test("standalone color uses narrow additive storage and server-side validation",
   assert.match(worldBoot, /world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text/);
   assert.match(parkRoutes, /isValidParkLightColor\(effectColor\)/);
   assert.match(parkRoutes, /isValidParkLightColor\(req\.body\?\.effectColor\)/);
-  assert.match(parkRoutes, /effectType, "colored_light"/);
+  assert.match(parkRoutes, /inArray\(petParkSceneItems\.effectType, \["lamp_light", "colored_light"\]\)/);
   assert.match(worldRoutes, /isValidParkLightColor\(effectColor\)/);
   assert.match(worldRoutes, /isValidParkLightColor\(body\.effectColor\)/);
   assert.match(read("client/src/pages/WorldSceneEditorPage.tsx"), /color=\{p\.effectColor \?\? undefined\}/);
