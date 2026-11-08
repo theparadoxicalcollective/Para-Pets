@@ -46,6 +46,7 @@ const ids = {
   spring: "10000000-0000-4000-8000-000000000004",
   room: "10000000-0000-4000-8000-000000000005",
   colored: "10000000-0000-4000-8000-000000000006",
+  interiorLamp: "10000000-0000-4000-8000-000000000007",
 };
 function makeScene(worldId) {
   if (worldId === "swamp") return {
@@ -63,7 +64,7 @@ function makeScene(worldId) {
   ];
   const common = {
     worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
-    size: 120, flipped: false, layer: 0, decorEffects: [],
+    interiorDarkness: 35, size: 120, flipped: false, layer: 0, decorEffects: [],
     isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
   };
   const placements = [
@@ -85,6 +86,10 @@ function makeScene(worldId) {
       id: ids.room, worldId, buildingId: ids.building,
       kind: "decor", assetId: ids.decor, effectType: null,
       xPct: .5, yPct: .5, size: 130, flipped: false,
+    }, {
+      id: ids.interiorLamp, worldId, buildingId: ids.building,
+      kind: "effect", assetId: null, effectType: "lamp_light",
+      xPct: .72, yPct: .23, size: 40, flipped: false,
     }],
   };
 }
@@ -340,8 +345,38 @@ try {
     await page.getByRole("button", { name: "Close editor" }).click();
     await movementBar.waitFor({ state: "visible" });
 
-    // Direct scene actions appear when the selected item is dismissed.
+    // A real interior stays dark across a slider change and subsequent reload.
+    // The existing fixture includes an interior lamp, so the SVG mask is live.
     await page.getByRole("button", { name: "Deselect world object" }).click();
+    await page.getByTestId("world-scene-placement-" + ids.building).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    const darknessSlider = page.getByTestId("world-editor-interior-darkness-slider");
+    await darknessSlider.waitFor({ state: "visible" });
+    assert.equal(await darknessSlider.inputValue(), "35",
+      name + ": existing world building has a 35% starting darkness");
+    const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
+    assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
+      name + ": interior uses a consistent SVG darkness mask with an active light");
+    const savedDarkness = page.waitForResponse(response =>
+      response.url().endsWith("/placements/" + ids.building) &&
+      response.request().method() === "PATCH");
+    await darknessSlider.focus();
+    await darknessSlider.press("End");
+    await savedDarkness;
+    assert.equal(await darknessSlider.inputValue(), "90",
+      name + ": preview keeps the selected 90% darkness after the save");
+    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
+      Number(element.style.fillOpacity)), .9,
+      name + ": room darkness genuinely dims the rendered image");
+    assert.equal(apiWrites.filter(write => write.tail === "placements/" + ids.building &&
+      write.body.interiorDarkness !== undefined).length, 1,
+      name + ": a single keyboard gesture sends one save request");
+    await page.getByRole("button", { name: "Exit Interior" }).click();
+    await page.getByTestId("world-scene-placement-" + ids.building).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
+      name + ": reopening the building retains its saved darkness");
+    await page.getByRole("button", { name: "Exit Interior" }).click();
     await page.getByRole("button", { name: "Paint terrain" }).click();
     await page.getByTestId("world-editor-terrain-brush-surface").waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Choose terrain brush" }).click();
