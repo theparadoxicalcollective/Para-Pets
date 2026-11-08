@@ -208,7 +208,7 @@ export function registerPetParkAdminRoutes(
       const imageUrl = await processWorldImage(imageData, 1200);
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2000) : null;
       const [building] = await db.insert(petParkBuildings).values({
-        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [],
+        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [], exteriorEffects: [],
       }).returning();
       return res.status(201).json(building);
     } catch (error) {
@@ -260,6 +260,11 @@ export function registerPetParkAdminRoutes(
     if (body.maxPets !== undefined) {
       if (!isValidPetParkBuildingCapacity(body.maxPets)) return res.status(400).json({ message: `Building capacity must be from ${PET_PARK_BUILDING_CAPACITY_MIN} to ${PET_PARK_BUILDING_CAPACITY_MAX}` });
       updates.maxPets = body.maxPets;
+    }
+    if (body.exteriorEffects !== undefined) {
+      if (!isValidParkDecorEffects(body.exteriorEffects))
+        return res.status(400).json({ message: "Invalid building facade effects" });
+      updates.exteriorEffects = body.exteriorEffects;
     }
     if (body.interiorEffects !== undefined) {
       if (!Array.isArray(body.interiorEffects) || body.interiorEffects.length > 20)
