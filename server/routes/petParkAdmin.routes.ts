@@ -195,10 +195,11 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/buildings", isAdmin, async (req, res) => {
-    const { name, imageData, interiorImageData, xPct = 0.5, yPct = 0.5, size = 300, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN, isShop = false, interiorDarkness = 35 } = req.body ?? {};
+    const { name, imageData, interiorImageData, nightInteriorImageData = null, xPct = 0.5, yPct = 0.5, size = 300, flipped = false, layer = 0, maxPets = PET_PARK_BUILDING_CAPACITY_MIN, isShop = false, interiorDarkness = 35 } = req.body ?? {};
     if (typeof name !== "string" || !name.trim() || name.trim().length > 80 ||
         typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000 ||
         (interiorImageData != null && (typeof interiorImageData !== "string" || !interiorImageData.startsWith("data:image/") || interiorImageData.length > 12_000_000)) ||
+        (nightInteriorImageData != null && (typeof nightInteriorImageData !== "string" || !nightInteriorImageData.startsWith("data:image/") || nightInteriorImageData.length > 12_000_000)) ||
         !validPosition(xPct) || !validPosition(yPct) || !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         !isValidPetParkBuildingCapacity(maxPets) || typeof isShop !== "boolean" ||
         !Number.isInteger(interiorDarkness) || interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN || interiorDarkness > HOUSE_INTERIOR_DARKNESS_MAX) {
@@ -207,8 +208,9 @@ export function registerPetParkAdminRoutes(
     try {
       const imageUrl = await processWorldImage(imageData, 1200);
       const interiorImageUrl = interiorImageData ? await processWorldImage(interiorImageData, 2000) : null;
+      const nightInteriorImageUrl = nightInteriorImageData ? await processWorldImage(nightInteriorImageData, 2000) : null;
       const [building] = await db.insert(petParkBuildings).values({
-        name: name.trim(), imageUrl, interiorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [], exteriorEffects: [],
+        name: name.trim(), imageUrl, interiorImageUrl, nightInteriorImageUrl, xPct, yPct, size, flipped, layer, maxPets, isShop, shopItemIds: [], interiorDarkness, interiorEffects: [], exteriorEffects: [],
       }).returning();
       return res.status(201).json(building);
     } catch (error) {

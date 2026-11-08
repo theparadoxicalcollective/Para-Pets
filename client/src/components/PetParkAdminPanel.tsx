@@ -45,6 +45,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [buildingIsShop, setBuildingIsShop] = useState(false);
   const [buildingImage, setBuildingImage] = useState<string | null>(null);
   const [interiorImage, setInteriorImage] = useState<string | null>(null);
+  const [nightInteriorImage, setNightInteriorImage] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const buildings = data?.buildings ?? [];
@@ -232,14 +233,19 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
           ? "Shops display merchandise indoors and do not house pets."
           : "Regular buildings can house park pets and display interior effects and magical rooms."}</p>
         <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
-          {interiorImage ? "Interior image selected — tap to replace" : "Interior Background (optional)"}
+          {interiorImage ? "Daytime interior selected — tap to replace" : "Daytime Interior Background (optional)"}
           <input aria-label="Building interior image" type="file" accept="image/*" className="block w-full text-xs" onChange={e => { void selectFile(e.target.files?.[0], setInteriorImage); e.target.value = ""; }} />
+        </label>
+        <label className="block cursor-pointer space-y-1 rounded-xl border border-dashed p-3 text-sm" style={{ borderColor: GOLD_BORDER }}>
+          {nightInteriorImage ? "Nighttime interior selected — tap to replace" : "Nighttime Interior Background (optional)"}
+          <input aria-label="New park nighttime interior image" type="file" accept="image/*" className="block w-full text-xs"
+            onChange={e => { void selectFile(e.target.files?.[0], setNightInteriorImage); e.target.value = ""; }} />
         </label>
         <button type="button" disabled={mutation.isPending || !buildingName.trim() || !buildingImage}
           data-testid="button-create-park-building" className="w-full rounded-xl border py-3 text-sm font-semibold disabled:opacity-35"
           style={{ background: "rgba(26,64,41,0.85)", borderColor: GOLD_BORDER }}
           onClick={() => mutation.mutate({ method: "POST", url: "/api/admin/pet-park/buildings", body: {
-            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
+            name: buildingName.trim(), imageData: buildingImage, interiorImageData: interiorImage, nightInteriorImageData: nightInteriorImage, maxPets: PET_PARK_BUILDING_CAPACITY_MIN,
             xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5, size: buildingSize, isShop: buildingIsShop, flipped: false, layer: 0,
           } })}>{mutation.isPending ? "Adding Building…" : "Add Building"}</button>
       </section> : <section aria-label="Add Pet Park decoration" className="space-y-4">
