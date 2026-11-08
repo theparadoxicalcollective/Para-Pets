@@ -84,6 +84,8 @@ import { registerForumRoutes } from "./routes/forum.routes";
 import { registerRaidRoutes } from "./routes/raid.routes";
 import { registerPvpRoutes } from "./routes/pvp.routes";
 import { registerPlayerPetTeamRoutes } from "./routes/playerPetTeam.routes";
+import { registerPlayerProgressionRoutes } from "./routes/playerProgression.routes";
+import { getPlayerProgression } from "./playerProgressionStorage";
 import { registerFriendsRoutes } from "./routes/friends.routes";
 import { registerMoltenBlocksRoutes } from "./routes/moltenBlocks.routes";
 import { registerEnemyAdminRoutes } from "./routes/enemyAdmin.routes";
@@ -4288,6 +4290,7 @@ export async function registerRoutes(
 
   // ── PvP Arena Routes ─────────────────────────────────────────────────────
   registerPlayerPetTeamRoutes(app, { storage, isAuthenticated });
+  registerPlayerProgressionRoutes(app, { isAuthenticated, readProgression: getPlayerProgression });
   registerPvpRoutes(app, { storage, isAuthenticated, publicAccount, maybeAwardBrawlerBadges });
 
   // ── Friends + Notifications ───────────────────────────────────────────────

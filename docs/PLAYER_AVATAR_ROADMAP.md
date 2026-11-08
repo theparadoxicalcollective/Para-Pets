@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-08  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 3 of 12 phases merged; **Avatar 04/12 implemented on a review branch, pending CI and merge**. Merged does not mean verified on physical devices.  
+**Progress:** 4 of 12 phases merged; **Avatar 05/12 in implementation**. Merged does not mean verified on physical devices.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -33,8 +33,8 @@
 | **Avatar 01/12** | Server-authoritative five-pet team, existing PvP table, validation and account API | **Merged — GitHub #995** | CI passed; post-merge live-device verification not recorded |
 | **Avatar 02/12** | PvP and Raids consume/edit the **same** roster; no active-pet slot lock; Raid battle consumes saved-team snapshot | **Merged — GitHub #1028** | User confirms checks passed; deployed mobile/tablet verification not recorded |
 | **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | **Merged — GitHub #1029** | CI passed; user confirms merged; physical device verification not recorded |
-| **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | **Open GitHub PR #1030** (`feature/avatar-04-inventory-pet-menu`) | Source and geometry tests added; CI, review, and device verification pending |
-| **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | Planned | Transaction/retry tests; decide starting level and XP curve first |
+| **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | **Merged — GitHub #1030** | User confirms merge; physical device verification not recorded |
+| **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | **Open GitHub PR #1031** (`feature/avatar-05-player-progression-foundation`) | Code and focused tests added; CI, review, and device verification pending |
 | **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | Planned | Save/reload, image boundaries, role checks and device editing |
 | **Avatar 07/12** | One lightweight PlayerCharacterRenderer with idle/walk; same rendering in admin preview and game | Planned | Motion/pivots/depth, low-memory lifecycle tests |
 | **Avatar 08/12** | Avatar clothing type, fitting editor, owned equipment and wardrobe | Planned; split into 08A/08B if necessary | Ownership, equip/unequip, animation follow; pet adornments unchanged |
@@ -90,6 +90,22 @@
 - [ ] Merge after review; separately record post-merge live verification.
 
 **Deferred:** Player level, main-page team HUD, avatar art/clothing, replacement of Home active pet, and Murk Cave redesign.
+
+## Avatar 05/12 acceptance contract
+
+**Scope:** Independent account player level/XP foundation, read-only profile API, and transactional duplicate-resistant award mechanics. This phase **does not give players XP** or change any active-pet reward source.
+
+- [x] Add `player_progression` and `player_xp_receipts` with account-ownership foreign keys, a unique (user, source, event) receipt key, safe nonnegative XP constraints, and additive idempotent startup migration.
+- [x] Existing accounts without a progression record read as **Level 1, 0 XP**; no forced backfill or conversion of historical pet XP and no writes during a profile read.
+- [x] Add authenticated **GET /api/player/progression** with private/no-store response. Do not accept user-provided account ID or expose a POST/PUT client XP award route.
+- [x] Add internal receipt-bound award function using a transaction, progression-row lock, source/event idempotency key, XP validation, overflow protection and monotone level verification. A future trusted reward handler must explicitly supply its approved level curve.
+- [x] Leave `nextLevelTotalXp` and `xpToNextLevel` null until the experience curve is agreed; these are not copied from the active pet.
+- [x] Preserve all pet progression, economic, combat, PvP/Raid, Murk Cave, Pet Park and World Editor behavior unchanged.
+- [x] Add pure operation tests for receipt retry, duplicate/different amount, bad input, overflow and level monotonicity, plus route/migration contracts.
+- [ ] CI check, test compilation, full tests, production build and browser smoke results verified on latest commit.
+- [ ] PR merge/review and production GET behavior checked for existing and new accounts; physical phone/tablet testing separately recorded.
+
+**Decisions before activating XP sources:** confirm which activities award player versus pet XP, whether existing account accomplishments should receive credit, and the actual progression curve/cap. An internal award service alone does not mean rewards are enabled.
 
 ## QA acceptance for every PR
 

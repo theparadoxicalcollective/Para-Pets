@@ -57,6 +57,32 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Player-account progression. Deliberately independent from user_inventory's
+// petLevel/petLevelPoints; no existing pet, coin or activePetId state changes.
+export const playerProgression = pgTable("player_progression", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  level: integer("level").notNull().default(1),
+  totalXp: integer("total_xp").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// One unique receipt per account/source/event; future XP awards cannot be
+// duplicated by retried requests, browser reconnects, or concurrent jobs.
+export const playerXpReceipts = pgTable("player_xp_receipts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  source: text("source").notNull(),
+  eventId: varchar("event_id", { length: 160 }).notNull(),
+  amount: integer("amount").notNull(),
+  levelAfter: integer("level_after").notNull(),
+  totalXpAfter: integer("total_xp_after").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [
+  uniqueIndex("player_xp_receipts_owner_source_event_uidx").on(
+    table.userId, table.source, table.eventId,
+  ),
+]);
+
 export const shopItems = pgTable("shop_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
