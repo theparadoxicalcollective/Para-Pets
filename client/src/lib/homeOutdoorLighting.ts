@@ -7,6 +7,21 @@ export const HOME_OUTDOOR_DAWN_START_MINUTE = 5 * 60 + 30;
 export const HOME_OUTDOOR_DAY_START_MINUTE = 7 * 60 + 30;
 export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
+/** Fireflies begin two hours after the existing 18:00 lamp dusk transition. */
+export const PARK_FIREFLY_START_MINUTE = HOME_OUTDOOR_DUSK_START_MINUTE + 2 * 60;
+export const PARK_FIREFLY_FADE_IN_MINUTES = 45;
+export function getParkFireflyStrength(mode: HomeOutdoorLightingMode, date: Date): number {
+  if (mode === "day") return 0;
+  if (mode === "night") return 1;
+  const minute = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  if (minute >= PARK_FIREFLY_START_MINUTE)
+    return Math.min(1, (minute - PARK_FIREFLY_START_MINUTE) / PARK_FIREFLY_FADE_IN_MINUTES);
+  if (minute < HOME_OUTDOOR_DAWN_START_MINUTE) return 1;
+  if (minute < HOME_OUTDOOR_DAY_START_MINUTE)
+    return 1 - (minute - HOME_OUTDOOR_DAWN_START_MINUTE) /
+      (HOME_OUTDOOR_DAY_START_MINUTE - HOME_OUTDOOR_DAWN_START_MINUTE);
+  return 0;
+}
 // Automatic samples still update every 30 seconds, but the rendered fade is
 // intentionally short. Keeping a full-screen Home layer in a continuous
 // 30-second CSS transition was unnecessarily expensive on iOS WebKit.

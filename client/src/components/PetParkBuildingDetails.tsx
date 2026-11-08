@@ -29,6 +29,7 @@ export type ParkBuildingDetails = {
   isShop?: boolean;
   shopItemIds?: string[];
   interiorDarkness?: number;
+  interiorNightDarkness?: number | null;
   interiorEffects: ParkInteriorEffect[];
   exteriorEffects?: ParkDecorEffect[];
 };
@@ -36,11 +37,14 @@ export type ParkBuildingDetails = {
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
   building, onClose, onUpdated, onPreview, initialSelectedEffectId = null, initialShowEffectChoices = false,
+  nightStrength = 0, sunlightStrength = 1,
 }: {
   building: ParkBuildingDetails;
   onClose: () => void;
   onUpdated: () => void;
   onPreview?: () => void;
+  nightStrength?: number;
+  sunlightStrength?: number;
   initialSelectedEffectId?: string | null;
   initialShowEffectChoices?: boolean;
 }) {
@@ -52,6 +56,13 @@ export default function PetParkBuildingDetails({
   const [darkness, setDarkness] = useState(building.interiorDarkness ?? 35);
   const darknessRef = useRef(building.interiorDarkness ?? 35);
   const savedDarkness = useRef(building.interiorDarkness ?? 35);
+  const [nightDarkness, setNightDarkness] = useState<number | null>(building.interiorNightDarkness ?? null);
+  const nightDarknessRef = useRef<number | null>(building.interiorNightDarkness ?? null);
+  const savedNightDarkness = useRef<number | null>(building.interiorNightDarkness ?? null);
+  const [previewClock, setPreviewClock] = useState<"live" | "day" | "night">("live");
+  const previewNightStrength = previewClock === "night" ? 1 : previewClock === "day" ? 0 : nightStrength;
+  const previewSunlightStrength = previewClock === "night" ? 0 : previewClock === "day" ? 1 : sunlightStrength;
+  const darknessSaveInFlight = useRef(false);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   const [exteriorEffects, setExteriorEffects] = useState<ParkDecorEffect[]>(building.exteriorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
@@ -77,6 +88,27 @@ export default function PetParkBuildingDetails({
     setEffects(current => JSON.stringify(current) === JSON.stringify(previousSaved) ? latest : current);
     savedEffects.current = latest;
   }, [building.interiorEffects]);
+  useEffect(() => {
+    // Background scene refreshes must not overwrite an unsaved slider draft.
+    if (darknessSaveInFlight.current) return;
+    const incoming = building.interiorDarkness ?? 35;
+    const previousSaved = savedDarkness.current;
+    savedDarkness.current = incoming;
+    if (darknessRef.current === previousSaved) {
+      darknessRef.current = incoming;
+      setDarkness(incoming);
+    }
+  }, [building.id, building.interiorDarkness]);
+  useEffect(() => {
+    if (darknessSaveInFlight.current) return;
+    const incoming = building.interiorNightDarkness ?? null;
+    const previouslySaved = savedNightDarkness.current;
+    savedNightDarkness.current = incoming;
+    if (nightDarknessRef.current === previouslySaved) {
+      nightDarknessRef.current = incoming;
+      setNightDarkness(incoming);
+    }
+  }, [building.id, building.interiorNightDarkness]);
   const [imagePreview, setImagePreview] = useState(building.interiorImageUrl);
   const dragRef = useRef<{
     id: string; pointerId: number; startX: number; startY: number; x: number; y: number;
@@ -98,10 +130,21 @@ export default function PetParkBuildingDetails({
       if (typeof updated.name === "string") setName(updated.name);
       if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
       if (typeof updated.isShop === "boolean") setIsShop(updated.isShop);
-      if (typeof updated.interiorDarkness === "number") {
+      // Unrelated PATCH responses carry an older darkness snapshot and must
+      // never undo the active preview or a pending darkness-specific save.
+      if (variables.interiorDarkness !== undefined && typeof updated.interiorDarkness === "number") {
         savedDarkness.current = updated.interiorDarkness;
-        darknessRef.current = updated.interiorDarkness;
-        setDarkness(updated.interiorDarkness);
+        if (darknessRef.current === variables.interiorDarkness) {
+          darknessRef.current = updated.interiorDarkness;
+          setDarkness(updated.interiorDarkness);
+        }
+      }
+      if (variables.interiorNightDarkness !== undefined && typeof updated.interiorNightDarkness === "number") {
+        savedNightDarkness.current = updated.interiorNightDarkness;
+        if (nightDarknessRef.current === variables.interiorNightDarkness) {
+          nightDarknessRef.current = updated.interiorNightDarkness;
+          setNightDarkness(updated.interiorNightDarkness);
+        }
       }
       if (updated.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
@@ -116,9 +159,27 @@ export default function PetParkBuildingDetails({
     onError: (error: Error, variables) => {
       exitAfterSave.current = false;
       if (variables.isShop !== undefined) setIsShop(Boolean(building.isShop));
+      if (variables.interiorDarkness !== undefined && darknessRef.current === variables.interiorDarkness) {
+        darknessRef.current = savedDarkness.current;
+        setDarkness(savedDarkness.current);
+      }
+      if (variables.interiorNightDarkness !== undefined && nightDarknessRef.current === variables.interiorNightDarkness) {
+        nightDarknessRef.current = savedNightDarkness.current;
+        setNightDarkness(savedNightDarkness.current);
+      }
       toast({ title: "Could not update building", description: error.message, variant: "destructive" });
     },
   });
+
+  const commitDarkness = (field: "interiorDarkness" | "interiorNightDarkness" = "interiorDarkness") => {
+    const value = field === "interiorDarkness" ? darknessRef.current : nightDarknessRef.current;
+    const saved = field === "interiorDarkness" ? savedDarkness.current : savedNightDarkness.current;
+    if (darknessSaveInFlight.current || mutation.isPending || value === null || value === saved) return;
+    darknessSaveInFlight.current = true;
+    mutation.mutate({ [field]: value }, {
+      onSettled: () => { darknessSaveInFlight.current = false; },
+    });
+  };
 
   const selectedEffect = effects.find(effect => effect.id === selectedEffectId);
   const addEffect = (type: ParkInteriorEffect["type"], defaultSize: number) => {
@@ -198,7 +259,8 @@ export default function PetParkBuildingDetails({
     role="dialog" aria-modal="true" aria-label={`Edit effects on ${building.name}`}
     data-testid="pet-park-building-details" data-testid-full-room-editor="true">
     <PetParkInteriorRoom key={imagePreview} imageUrl={imagePreview} name={building.name} effects={effects}
-      darkness={darkness}
+      darkness={darkness} nightDarkness={nightDarkness}
+      nightStrength={previewNightStrength} sunlightStrength={previewSunlightStrength}
       selectedEffectId={selectedEffectId} editEffects expanded
       onEffectPointerDown={onEffectPointerDown}
       onEffectPointerMove={onEffectPointerMove}
@@ -223,7 +285,7 @@ export default function PetParkBuildingDetails({
       <p className="mb-2 text-xs text-amber-100/75">Tap an effect to select it, then drag it directly on the room. Save when finished.</p>
       <div className="mb-3 rounded-xl border border-[#b99a4c]/45 bg-[#153523] p-2.5">
         <label htmlFor="pet-park-interior-darkness" className="mb-1 flex justify-between gap-2 text-xs font-semibold text-[#f0d69d]">
-          <span>Room darkness</span><span>{darkness}%</span>
+          <span>Daytime darkness</span><span>{darkness}%</span>
         </label>
         <input id="pet-park-interior-darkness" data-testid="slider-park-interior-darkness"
           type="range" min={0} max={HOUSE_INTERIOR_DARKNESS_MAX} step={5} value={darkness}
@@ -234,19 +296,43 @@ export default function PetParkBuildingDetails({
             darknessRef.current = next;
             setDarkness(next);
           }}
-          onPointerUp={event => {
-            event.stopPropagation();
-            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
-              mutation.mutate({ interiorDarkness: darknessRef.current });
-          }}
-          onBlur={() => {
-            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
-              mutation.mutate({ interiorDarkness: darknessRef.current });
-          }}
+          onPointerUp={event => { event.stopPropagation(); commitDarkness(); }}
+          onPointerCancel={event => { event.stopPropagation(); commitDarkness(); }}
+          onKeyUp={event => { if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commitDarkness(); }}
+          onBlur={() => commitDarkness()}
           className="w-full accent-[#dcb970]" />
+        <label htmlFor="pet-park-interior-night-darkness" className="mt-3 mb-1 flex justify-between gap-2 text-xs font-semibold text-[#f0d69d]">
+          <span>Peak nighttime darkness</span><span>{Math.max(darkness, nightDarkness ?? darkness)}%</span>
+        </label>
+        <input id="pet-park-interior-night-darkness"
+          data-testid="slider-park-interior-night-darkness"
+          type="range" min={darkness} max={HOUSE_INTERIOR_DARKNESS_MAX} step={5}
+          value={Math.max(darkness, nightDarkness ?? darkness)}
+          disabled={mutation.isPending}
+          onPointerDown={event => event.stopPropagation()}
+          onChange={event => {
+            const next = Number(event.currentTarget.value);
+            nightDarknessRef.current = next;
+            setNightDarkness(next);
+          }}
+          onPointerUp={event => { event.stopPropagation(); commitDarkness("interiorNightDarkness"); }}
+          onPointerCancel={event => { event.stopPropagation(); commitDarkness("interiorNightDarkness"); }}
+          onKeyUp={event => {
+            if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key))
+              commitDarkness("interiorNightDarkness");
+          }}
+          onBlur={() => commitDarkness("interiorNightDarkness")}
+          className="w-full accent-[#dcb970]" />
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#f0d69d]">
+          <span className="mr-auto">Preview</span>
+          {(["live", "day", "night"] as const).map(mode => <button key={mode} type="button"
+            aria-label={`Preview ${mode} interior lighting`} aria-pressed={previewClock === mode}
+            onClick={() => setPreviewClock(mode)}
+            className={`rounded border px-2 py-1 capitalize ${previewClock === mode
+              ? "border-[#f5cf64] bg-[#245037]" : "border-[#b99a4c]/40 bg-[#112c20]"}`}>{mode}</button>)}
+        </div>
         <p className="mt-1 text-[10px] text-amber-100/65">
-          Translucent darkness covers the background, with clear spots around active lights.
-          Changes are saved to this building.
+          Both settings adjust the same darkness mask. Nighttime smoothly deepens the room without another overlay.
         </p>
       </div>
             {showEffectChoices && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

@@ -46,6 +46,7 @@ const ids = {
   spring: "10000000-0000-4000-8000-000000000004",
   room: "10000000-0000-4000-8000-000000000005",
   colored: "10000000-0000-4000-8000-000000000006",
+  interiorLamp: "10000000-0000-4000-8000-000000000007",
 };
 function makeScene(worldId) {
   if (worldId === "swamp") return {
@@ -63,7 +64,7 @@ function makeScene(worldId) {
   ];
   const common = {
     worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
-    size: 120, flipped: false, layer: 0, decorEffects: [],
+    interiorDarkness: 35, size: 120, flipped: false, layer: 0, decorEffects: [],
     isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
   };
   const placements = [
@@ -85,6 +86,10 @@ function makeScene(worldId) {
       id: ids.room, worldId, buildingId: ids.building,
       kind: "decor", assetId: ids.decor, effectType: null,
       xPct: .5, yPct: .5, size: 130, flipped: false,
+    }, {
+      id: ids.interiorLamp, worldId, buildingId: ids.building,
+      kind: "effect", assetId: null, effectType: "lamp_light",
+      xPct: .72, yPct: .23, size: 40, flipped: false,
     }],
   };
 }
@@ -208,7 +213,15 @@ try {
 
     await page.goto("http://127.0.0.1:4194/fixture?world=haunted_woods",
       { waitUntil: "commit", timeout: 30_000 });
-    await page.getByTestId("world-scene-editor").waitFor({ state: "visible", timeout: 30_000 });
+    try {
+      await page.getByTestId("world-scene-editor").waitFor({ state: "visible", timeout: 30_000 });
+    } catch (error) {
+      console.error("World editor startup diagnostics", {
+        name, errors, url: page.url(),
+        content: (await page.locator("body").innerText().catch(() => "")).slice(0, 1200),
+      });
+      throw error;
+    }
     await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "+ Building" }).click();
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
@@ -340,7 +353,61 @@ try {
     await page.getByRole("button", { name: "Close editor" }).click();
     await movementBar.waitFor({ state: "visible" });
 
-    // Direct scene actions appear when the selected item is dismissed.
+    // A real interior stays dark across a slider change and subsequent reload.
+    // The existing fixture includes an interior lamp, so the SVG mask is live.
+    await page.getByRole("button", { name: "Deselect world object" }).click();
+    await page.getByTestId("world-scene-placement-" + ids.building).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    const darknessSlider = page.getByTestId("world-editor-interior-darkness-slider");
+    await darknessSlider.waitFor({ state: "visible" });
+    assert.equal(await darknessSlider.inputValue(), "35",
+      name + ": existing world building has a 35% starting darkness");
+    const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
+    assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
+      name + ": interior uses a consistent SVG darkness mask with an active light");
+    const nighttimeSlider = page.getByTestId("world-editor-interior-night-darkness-slider");
+    assert.equal(await nighttimeSlider.inputValue(), "35",
+      name + ": existing world rooms are not unexpectedly darker at night");
+    const nighttimeSaved = page.waitForResponse(response =>
+      response.url().endsWith("/placements/" + ids.building) &&
+      response.request().method() === "PATCH");
+    await nighttimeSlider.focus();
+    await nighttimeSlider.press("End");
+    await nighttimeSaved;
+    assert.equal(await nighttimeSlider.inputValue(), "90",
+      name + ": peak nighttime target saves independently from daytime");
+    await page.getByRole("button", { name: "Preview night world interior lighting" }).click();
+    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
+      Number(element.style.fillOpacity)), .9,
+      name + ": peak-night preview darkens the existing mask to 90%");
+    await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
+    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
+      Number(element.style.fillOpacity)), .35,
+      name + ": daytime preview still retains its 35% target");
+    const savedDarkness = page.waitForResponse(response =>
+      response.url().endsWith("/placements/" + ids.building) &&
+      response.request().method() === "PATCH");
+    await darknessSlider.focus();
+    await darknessSlider.press("End");
+    await savedDarkness;
+    assert.equal(await darknessSlider.inputValue(), "90",
+      name + ": preview keeps the selected 90% darkness after the save");
+    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
+      Number(element.style.fillOpacity)), .9,
+      name + ": room darkness genuinely dims the rendered image");
+    assert.equal(apiWrites.filter(write => write.tail === "placements/" + ids.building &&
+      write.body.interiorDarkness !== undefined).length, 1,
+      name + ": a single keyboard gesture sends one save request");
+    await page.getByRole("button", { name: "Exit Interior" }).click();
+    await page.getByTestId("world-scene-placement-" + ids.building).click();
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
+      name + ": reopening the building retains its saved darkness");
+    assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").inputValue(), "90",
+      name + ": reopening preserves the separately saved nighttime target");
+    await page.getByRole("button", { name: "Exit Interior" }).click();
+    // The previously selected building intentionally stays selected when
+    // leaving its room. Deselect before using the outdoor terrain toolbar.
     await page.getByRole("button", { name: "Deselect world object" }).click();
     await page.getByRole("button", { name: "Paint terrain" }).click();
     await page.getByTestId("world-editor-terrain-brush-surface").waitFor({ state: "visible" });

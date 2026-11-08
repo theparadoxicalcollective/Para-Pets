@@ -5,13 +5,14 @@ import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/hou
 import { isParkWaterEffect } from "@shared/petParkEffects";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { isParkRoomEffect, type ParkInteriorEffect, type ParkRoomEffect } from "@shared/petParkRooms";
+import { parkInteriorDarkness } from "@shared/parkInteriorDarkness";
 
 type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => void;
 
 /** One actual-image coordinate surface for park visitors and administrators. */
 export default function PetParkInteriorRoom({
   imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false, darkness = 35,
-  sunlightStrength = 1,
+  sunlightStrength = 1, nightStrength = 0, nightDarkness = null,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
   onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect, onOpenRoom,
 }: {
@@ -19,6 +20,8 @@ export default function PetParkInteriorRoom({
   name: string;
   effects: ParkInteriorEffect[];
   darkness?: number;
+  nightDarkness?: number | null;
+  nightStrength?: number;
   sunlightStrength?: number;
   onOpenRoom?: (room: ParkRoomEffect) => void;
   /** Use measured image geometry for pets resting on admin-sized indoor spots. */
@@ -104,10 +107,11 @@ export default function PetParkInteriorRoom({
         cutouts. Keep it inside the panned artwork surface so the dark layer
         follows the image in both compact and expanded mobile/tablet layouts.
         Effects, interactive portals and pets all render ABOVE this layer. */}
-    <HomeInteriorDarknessLayer darkness={darkness}
+    <HomeInteriorDarknessLayer darkness={parkInteriorDarkness(darkness, nightDarkness, nightStrength)}
       effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))}
       offEffectIds={offEffectIds} panX={0} imgWidth={imageWidth}
-      sceneHeight={dimensions.height} sunlightStrength={sunlightStrength} zIndex={2} />
+      sceneHeight={dimensions.height} sunlightStrength={sunlightStrength}
+      keepMaskMounted={editEffects} transitionMs={editEffects ? 0 : 260} zIndex={2} />
     <HomeInteriorEffectsLayer effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))} panX={0}
       imgWidth={imageWidth} sceneHeight={dimensions.height}
       offEffectIds={offEffectIds} onToggleEffect={onToggleEffect}

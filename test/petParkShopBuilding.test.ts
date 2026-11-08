@@ -134,9 +134,9 @@ test("Park building interiors reuse home translucent darkness with active light 
   assert.match(routes, /interiorDarkness = 35/);
 
   assert.match(room, /import \{ HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle \}/);
-  assert.match(room, /<HomeInteriorDarknessLayer darkness=\{darkness\}/);
+  assert.match(room, /<HomeInteriorDarknessLayer darkness=\{parkInteriorDarkness\(darkness, nightDarkness, nightStrength\)\}/);
   assert.match(room, /offEffectIds=\{offEffectIds\} panX=\{0\} imgWidth=\{imageWidth\}/);
-  assert.match(room, /sceneHeight=\{dimensions\.height\} sunlightStrength=\{sunlightStrength\} zIndex=\{2\}/);
+  assert.match(room, /sceneHeight=\{dimensions\.height\} sunlightStrength=\{sunlightStrength\}[\s\S]*?zIndex=\{2\}/);
   const background = room.indexOf('<img src={imageUrl}');
   const dark = room.indexOf('<HomeInteriorDarknessLayer');
   const effects = room.indexOf('<HomeInteriorEffectsLayer');
@@ -149,7 +149,7 @@ test("Park building interiors reuse home translucent darkness with active light 
 
   assert.match(editor, /data-testid="slider-park-interior-darkness"/);
   assert.match(editor, /max=\{HOUSE_INTERIOR_DARKNESS_MAX\}/);
-  assert.match(editor, /mutation\.mutate\(\{ interiorDarkness: darknessRef\.current \}\)/);
+  assert.match(editor, /mutation\.mutate\(\{ \[field\]: value \}/);
   assert.match(editor, /<PetParkInteriorRoom key=\{imagePreview\}[\s\S]*?darkness=\{darkness\}/);
   assert.doesNotMatch(page, /390\s*[x×]\s*844/);
 });

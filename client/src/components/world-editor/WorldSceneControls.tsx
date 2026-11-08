@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
 import type {
@@ -21,6 +21,7 @@ const EFFECT_CHOICES: Array<{
     size: Math.max(60, o.defaultSize * 6), group: "outdoor" as const,
   })),
   { ...PARK_COLORED_LIGHT_OPTION, size: 96, group: "outdoor" as const },
+  { ...PARK_FIREFLIES_OPTION, size: PARK_FIREFLIES_OPTION.defaultSize, group: "outdoor" as const },
   ...PARK_WATER_EFFECT_OPTIONS.map(o => ({
     type: o.type, label: o.label, description: o.description,
     size: o.defaultSize, group: "water" as const,
@@ -33,6 +34,13 @@ type Props = {
   selectedInterior: WorldSceneInteriorItem | null;
   activeBuilding: WorldScenePlacement | null;
   placementPoint: { xPct: number; yPct: number };
+  interiorDarkness: number;
+  interiorNightDarkness: number;
+  interiorPreviewClock: "live" | "day" | "night";
+  onInteriorPreviewClockChange: (value: "live" | "day" | "night") => void;
+  darknessSaving: boolean;
+  onInteriorDarknessChange: (value: number, field: "interiorDarkness" | "interiorNightDarkness") => void;
+  onInteriorDarknessCommit: () => void;
   onChanged: () => void;
   onSelect: (id: string | null) => void;
   onSelectInterior: (id: string | null) => void;
@@ -190,6 +198,49 @@ export default function WorldSceneControls(props: Props) {
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       {props.activeBuilding ? <>
+        <div className="col-span-3 flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs sm:col-span-5">
+          <span className="flex justify-between text-[#f0d69d]">
+            <span>Daytime darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
+          </span>
+          <input type="range" min={0} max={90} step={5}
+            data-testid="world-editor-interior-darkness-slider"
+            aria-label="Interior darkness"
+            value={props.interiorDarkness} disabled={props.darknessSaving}
+            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value), "interiorDarkness")}
+            onPointerUp={props.onInteriorDarknessCommit}
+            onPointerCancel={props.onInteriorDarknessCommit}
+            onKeyUp={event => {
+              if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key))
+                props.onInteriorDarknessCommit();
+            }}
+            onBlur={props.onInteriorDarknessCommit}
+            className="w-full accent-[#dcb970]" />
+          <span className="mt-1 flex justify-between text-[#f0d69d]">
+            <span>Peak nighttime darkness</span>
+            <span className="tabular-nums">{props.interiorNightDarkness}%</span>
+          </span>
+          <input type="range" min={props.interiorDarkness} max={90} step={5}
+            data-testid="world-editor-interior-night-darkness-slider"
+            aria-label="Peak nighttime darkness" value={props.interiorNightDarkness}
+            disabled={props.darknessSaving}
+            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value), "interiorNightDarkness")}
+            onPointerUp={props.onInteriorDarknessCommit}
+            onPointerCancel={props.onInteriorDarknessCommit}
+            onKeyUp={event => {
+              if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key))
+                props.onInteriorDarknessCommit();
+            }}
+            onBlur={props.onInteriorDarknessCommit}
+            className="w-full accent-[#dcb970]" />
+          <span className="mt-1 flex items-center gap-1.5 text-[11px] text-[#f0d69d]">
+            <span className="mr-auto">Preview</span>
+            {(["live", "day", "night"] as const).map(mode => <button key={mode} type="button"
+              aria-label={`Preview ${mode} world interior lighting`} aria-pressed={props.interiorPreviewClock === mode}
+              onClick={() => props.onInteriorPreviewClockChange(mode)}
+              className={`rounded border px-2 py-1 capitalize ${props.interiorPreviewClock === mode
+                ? "border-[#f5cf64] bg-[#245037]" : "border-[#b99a4c]/40 bg-[#112c20]"}`}>{mode}</button>)}
+          </span>
+        </div>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
         <button type="button" className={quickButton} onClick={() => openCreator("shop")}>Shop Setup</button>
@@ -300,7 +351,7 @@ export default function WorldSceneControls(props: Props) {
           </label>}
           <div className="grid grid-cols-2 gap-2">
             {EFFECT_CHOICES.filter(effect => effect.group === "outdoor" &&
-              (!props.activeBuilding || effect.type !== "colored_light")).map(effect =>
+              (!props.activeBuilding || (effect.type !== "colored_light" && effect.type !== "fireflies"))).map(effect =>
               <button key={effect.type} type="button"
                 data-testid={`add-world-effect-${effect.type}`} disabled={busy}
                 onClick={() => props.activeBuilding

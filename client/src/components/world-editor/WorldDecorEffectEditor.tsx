@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import {
   PARK_DECOR_EFFECT_MAX_COUNT, PARK_DECOR_EFFECT_MAX_SIZE,
   PARK_DECOR_EFFECT_MIN_SIZE, type ParkDecorEffect,
@@ -14,6 +14,7 @@ const OPTIONS: { type: ParkEffectType; label: string; size: number }[] = [
     size: Math.max(24, Math.min(80, option.defaultSize * 2.4)),
   })),
   { type: "colored_light", label: PARK_COLORED_LIGHT_OPTION.label, size: 38 },
+  { type: "fireflies", label: PARK_FIREFLIES_OPTION.label, size: 68 },
   ...PARK_WATER_EFFECT_OPTIONS.map(option => ({
     type: option.type, label: option.label, size: 55,
   })),

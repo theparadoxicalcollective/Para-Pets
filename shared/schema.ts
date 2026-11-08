@@ -1485,6 +1485,8 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   shopItemPlacements: jsonb("shop_item_placements").$type<import("./petParkShopPlacements").ParkShopPlacement[]>().notNull().default(sql`'[]'::jsonb`),
   // Same ambience scale as Pet Home. Existing rooms receive soft darkness.
   interiorDarkness: integer("interior_darkness").notNull().default(35),
+  // Null keeps an existing room's original appearance at all times of day.
+  interiorNightDarkness: integer("interior_night_darkness"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -1561,6 +1563,8 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   assetId: varchar("asset_id"),
   effectType: text("effect_type"),
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
+  interiorDarkness: integer("interior_darkness").notNull().default(35),
+  interiorNightDarkness: integer("interior_night_darkness"),
   terrainKey: text("terrain_key"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
