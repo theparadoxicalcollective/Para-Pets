@@ -10,6 +10,7 @@ import {
   HOME_OUTDOOR_OVERRIDE_TRANSITION_MS,
   HOME_OUTDOOR_RESUME_TRANSITION_MS,
   type HomeOutdoorLightingMode,
+  getParkFireflyStrength,
 } from "@/lib/homeOutdoorLighting";
 
 export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
@@ -64,12 +65,13 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
 
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
+  const fireflyStrength = useMemo(() => getParkFireflyStrength(mode, now), [mode, now]);
 
   const transitionMs = mode === "auto"
     ? autoTransitionMs
     : HOME_OUTDOOR_OVERRIDE_TRANSITION_MS;
 
-  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs };
+  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs, fireflyStrength };
 }
 
 export function HomeDayNightToggle({

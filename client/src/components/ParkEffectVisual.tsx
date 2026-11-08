@@ -154,7 +154,48 @@ function ParkVerticalWaterFlow({ reducedMotion }: { reducedMotion: boolean }) {
   </div>;
 }
 
-export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false, color }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean; color?: string }) {
+
+// Deterministic flutter paths with staggered speeds and offsets. Unlike large
+// lamp masks, these stay lightweight and illuminate only tiny local halos.
+const FIREFLY_PARTICLES = [
+  [13,36,0,7.3,-1.2],[31,18,1,9.2,-4.7],[50,41,2,6.8,-3.4],
+  [76,20,3,8.5,-5.8],[86,64,0,9.8,-2.9],[61,78,1,7.7,-6.2],
+  [26,69,2,9.5,-1.8],[45,91,3,8.3,-4.1],[69,49,0,10.1,-7.0],
+] as const;
+const FIREFLY_CSS = `
+.park-fireflies { position:relative;width:100%;height:100%;overflow:visible;pointer-events:none; }
+.park-firefly-anchor { position:absolute;width:clamp(9px,16%,30px);aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none; }
+.park-firefly-drift { display:block;position:relative;width:100%;height:100%;animation-timing-function:ease-in-out;animation-iteration-count:infinite;animation-direction:alternate; }
+.park-firefly-halo { position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,247,199,.10) 0%,rgba(255,243,167,.048) 37%,rgba(255,238,159,.012) 70%,transparent 100%);mix-blend-mode:screen; }
+.park-firefly-core { position:absolute;left:50%;top:50%;width:13%;height:13%;min-width:1.7px;min-height:1.7px;transform:translate(-50%,-50%);border-radius:50%;background:#ffe990;box-shadow:0 0 3px 1px rgba(255,229,108,.50),0 0 7px 2px rgba(254,223,98,.14);animation:parkFireflyTwinkle 3.2s ease-in-out infinite alternate; }
+@keyframes parkFireflyFlutter0 { 0%{transform:translate3d(-48%,-15%,0)}25%{transform:translate3d(57%,-73%,0)}52%{transform:translate3d(88%,34%,0)}79%{transform:translate3d(-39%,62%,0)}100%{transform:translate3d(17%,-36%,0)} }
+@keyframes parkFireflyFlutter1 { 0%{transform:translate3d(24%,50%,0)}22%{transform:translate3d(-84%,5%,0)}57%{transform:translate3d(-45%,-80%,0)}83%{transform:translate3d(73%,-19%,0)}100%{transform:translate3d(10%,76%,0)} }
+@keyframes parkFireflyFlutter2 { 0%{transform:translate3d(65%,-39%,0)}33%{transform:translate3d(-34%,-70%,0)}59%{transform:translate3d(-90%,21%,0)}84%{transform:translate3d(44%,58%,0)}100%{transform:translate3d(-17%,-18%,0)} }
+@keyframes parkFireflyFlutter3 { 0%{transform:translate3d(-27%,71%,0)}31%{transform:translate3d(91%,22%,0)}55%{transform:translate3d(35%,-86%,0)}76%{transform:translate3d(-67%,-33%,0)}100%{transform:translate3d(22%,44%,0)} }
+@keyframes parkFireflyTwinkle { from{opacity:.54;transform:translate(-50%,-50%) scale(.82)}to{opacity:1;transform:translate(-50%,-50%) scale(1.18)} }
+.park-fireflies--still .park-firefly-drift,.park-fireflies--still .park-firefly-core { animation:none !important; }
+@media (prefers-reduced-motion:reduce){.park-firefly-drift,.park-firefly-core {animation:none !important;}}
+`;
+function ParkFireflies({ reducedMotion, fireflyStrength }: { reducedMotion: boolean; fireflyStrength: number }) {
+  const running = fireflyStrength > 0 && !reducedMotion;
+  return <div aria-hidden="true" data-testid="park-fireflies" className={"park-fireflies" + (reducedMotion ? " park-fireflies--still" : "")}>
+    <style>{FIREFLY_CSS}</style>
+    {FIREFLY_PARTICLES.map(([x, y, path, duration, delay], index) => <span key={index}
+      className="park-firefly-anchor" style={{ left: x + "%", top: y + "%" }}>
+      <span className="park-firefly-drift" style={{
+        animationName: "parkFireflyFlutter" + path, animationDuration: duration + "s",
+        animationDelay: delay + "s", animationPlayState: running ? "running" : "paused",
+      }}>
+        <span className="park-firefly-halo"/>
+        <span className="park-firefly-core" style={{ animationDelay: delay * .65 + "s",
+          animationPlayState: running ? "running" : "paused" }}/>
+      </span>
+    </span>)}
+  </div>;
+}
+
+export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false, color, fireflyStrength = 1 }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean; color?: string; fireflyStrength?: number }) {
+  if (type === "fireflies") return <ParkFireflies reducedMotion={reducedMotion} fireflyStrength={fireflyStrength} />;
   if (type === "colored_light") return <HomeOutdoorEffectVisual type="lamp_light"
     reducedMotion={reducedMotion} adminPreview={adminPreview}
     warmSceneLamp orbColor={parkLightColor(color)} />;

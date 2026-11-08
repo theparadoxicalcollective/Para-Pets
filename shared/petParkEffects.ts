@@ -4,10 +4,16 @@ import { HOUSE_OUTDOOR_EFFECT_TYPES, type HouseOutdoorEffectType } from "./housi
 // outdoor effect types used by Home Bundle editing.
 export const PARK_WATER_EFFECT_TYPES = ["waterfall_mist", "water_ripple", "water_shimmer", "water_flow", "water_drop"] as const;
 export type ParkWaterEffect = (typeof PARK_WATER_EFFECT_TYPES)[number];
-export type ParkEffectType = ParkWaterEffect | HouseOutdoorEffectType | "colored_light";
+export type ParkEffectType = ParkWaterEffect | HouseOutdoorEffectType | "colored_light" | "fireflies";
 
 /** Only Pet Park and the new World Editor support configurable colored orbs. */
 export const DEFAULT_PARK_LIGHT_COLOR = "#f4bd65";
+export const PARK_FIREFLIES_OPTION = {
+  type: "fireflies" as const,
+  label: "Fireflies",
+  description: "Tiny fluttering lights with soft halos; appear after 8 PM",
+  defaultSize: 190,
+};
 export const PARK_COLORED_LIGHT_OPTION = {
   type: "colored_light" as const,
   label: "Colored Light",
@@ -30,7 +36,7 @@ export function isParkOutdoorEffect(value: unknown): value is HouseOutdoorEffect
 }
 
 export function isParkEffect(value: unknown): value is ParkEffectType {
-  return value === "colored_light" || isParkWaterEffect(value) || isParkOutdoorEffect(value);
+  return value === "colored_light" || value === "fireflies" || isParkWaterEffect(value) || isParkOutdoorEffect(value);
 }
 
 /** One source of truth for Pet Park water effects in BOTH scene and building editors. */
