@@ -38,7 +38,7 @@ export type ParkBuildingDetails = {
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
   building, onClose, onUpdated, onPreview, initialSelectedEffectId = null, initialShowEffectChoices = false,
-  nightStrength = 0, sunlightStrength = 1,
+  nightStrength = 0, sunlightStrength = 1, nightInteriorArtworkActive = false,
 }: {
   building: ParkBuildingDetails;
   onClose: () => void;
@@ -46,6 +46,7 @@ export default function PetParkBuildingDetails({
   onPreview?: () => void;
   nightStrength?: number;
   sunlightStrength?: number;
+  nightInteriorArtworkActive?: boolean;
   initialSelectedEffectId?: string | null;
   initialShowEffectChoices?: boolean;
 }) {
@@ -58,7 +59,7 @@ export default function PetParkBuildingDetails({
   const darknessRef = useRef(building.interiorDarkness ?? 35);
   const savedDarkness = useRef(building.interiorDarkness ?? 35);
   const [previewClock, setPreviewClock] = useState<"live" | "day" | "night">("live");
-  const previewNightStrength = previewClock === "night" ? 1 : previewClock === "day" ? 0 : nightStrength;
+  const previewNightInteriorArtworkActive = previewClock === "night" ? true : previewClock === "day" ? false : nightInteriorArtworkActive;
   const previewSunlightStrength = previewClock === "night" ? 0 : previewClock === "day" ? 1 : sunlightStrength;
   const darknessSaveInFlight = useRef(false);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
@@ -240,7 +241,7 @@ export default function PetParkBuildingDetails({
     data-testid="pet-park-building-details" data-testid-full-room-editor="true">
     <PetParkInteriorRoom key={imagePreview} imageUrl={imagePreview} nightImageUrl={nightImagePreview}
       name={building.name} effects={effects}
-      darkness={darkness} nightStrength={previewNightStrength} sunlightStrength={previewSunlightStrength}
+      darkness={darkness} nightArtworkActive={previewNightInteriorArtworkActive} sunlightStrength={previewSunlightStrength}
       selectedEffectId={selectedEffectId} editEffects expanded
       onEffectPointerDown={onEffectPointerDown}
       onEffectPointerMove={onEffectPointerMove}
