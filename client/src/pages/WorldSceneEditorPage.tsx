@@ -10,6 +10,11 @@ import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
+import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
+import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
+import { parkOutdoorLightEffects } from "@shared/petParkAtmosphere";
+import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
+import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
@@ -65,6 +70,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [objectPreview, setObjectPreview] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const [interiorRatio, setInteriorRatio] = useState(4 / 3);
   const [busyPlacement, setBusyPlacement] = useState(false);
+  // World drafts preview the same automatic outdoor and sunlight clock as Pet Park.
+  const worldLighting = useHomeOutdoorLighting("auto");
 
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);
@@ -122,6 +129,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
   const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = parkClampCamera(pan ?? initialPan, camera);
+  const exteriorLights = useMemo(() => parkOutdoorLightEffects(content.placements,
+    { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale }, actualPan, size),
+    [content.placements, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const selected = content.placements.find(p => p.id === selectedId) ?? null;
@@ -129,6 +139,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorAsset = activeBuilding ? assetFor(activeBuilding.assetId) : null;
   const interiorW = Math.min(size.width, size.height * interiorRatio);
   const interiorH = interiorW / interiorRatio;
+  const interiorLights: HouseInteriorEffect[] = activeBuilding ? content.interiorItems
+    .filter(item => item.buildingId === activeBuilding.id && isHouseInteriorEffectType(item.effectType))
+    .map(item => ({ id: item.id, type: item.effectType as HouseInteriorEffect["type"],
+      x: item.xPct, y: item.yPct, size: item.size * interiorW / 850 / interiorH * 100 })) : [];
 
   useEffect(() => { setInteriorRatio(4 / 3); }, [activeBuildingId, interiorAsset?.interiorImageUrl]);
 
@@ -383,10 +397,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
                 {asset && <img src={asset.imageUrl} alt="" draggable={false}
                   className="absolute inset-0 h-full w-full object-contain" />}
-                {p.kind === "decor" && asset && <WorldDecorEffects effects={p.decorEffects}
-                  sunlightStrength={1} reducedMotion={false} />}
-                {p.kind === "effect" && p.effectType && <ParkEffectVisual type={p.effectType as ParkEffectType}
-                  reducedMotion={false} adminPreview />}
+                {(p.kind === "decor" || p.kind === "building") && asset &&
+                  <WorldDecorEffects effects={p.decorEffects}
+                    sunlightStrength={worldLighting.daylightStrength}
+                    nightStrength={worldLighting.nightStrength} reducedMotion={false} />}
+                {p.kind === "effect" && p.effectType && <span className="absolute inset-0"
+                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength),
+                    transition: "opacity 1200ms linear" }}>
+                  <ParkEffectVisual type={p.effectType as ParkEffectType}
+                    reducedMotion={false} adminPreview />
+                </span>}
                 {garden && <PetParkTerrainDetail type="garden_plot" />}
                 {p.kind === "terrain" && !connected && !garden && isParkTerrainDetail(p.effectType) &&
                   <PetParkTerrainDetail type={p.effectType} />}
@@ -394,6 +414,14 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               {p.kind === "building" && p.isShop && <span className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 rounded bg-[#153421]/90 px-1 text-[9px] text-[#ffe1a1]">Shop</span>}
             </button>;
           })}
+        </div>
+        <div data-testid="world-editor-auto-day-night"
+          className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
+          <HomeOutdoorAtmosphereLayer darkness={parkSceneDarkness(worldLighting.nightStrength)}
+            nightStrength={worldLighting.nightStrength} effects={exteriorLights}
+            panX={actualPan.x} panY={actualPan.y}
+            imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
+            transitionMs={worldLighting.transitionMs} zIndex={2}/>
         </div>
       </> : interiorAsset?.interiorImageUrl ? <div
         ref={interiorRef} data-testid="world-editor-interior"
@@ -409,6 +437,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             if (img.naturalWidth > 0 && img.naturalHeight > 0)
               setInteriorRatio(img.naturalWidth / img.naturalHeight);
           }} />
+        <HomeInteriorDarknessLayer darkness={35} effects={interiorLights}
+          panX={0} imgWidth={interiorW} sceneHeight={interiorH}
+          sunlightStrength={worldLighting.daylightStrength} zIndex={2}/>
         {content.interiorItems.filter(item => item.buildingId === activeBuilding.id).map(item => {
           const pos = objectPosition(item);
           const asset = assetFor(item.assetId);
@@ -433,7 +464,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
               style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
               {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain" draggable={false} />}
               {item.kind === "effect" && item.effectType &&
-                <ParkEffectVisual type={item.effectType as ParkEffectType} reducedMotion={false} adminPreview />}
+                <span className="absolute inset-0" style={{
+                  opacity: item.effectType === "warm_glow" ? worldLighting.daylightStrength : 1,
+                  transition: "opacity 1200ms linear",
+                }}>
+                  <ParkEffectVisual type={item.effectType as ParkEffectType} reducedMotion={false} adminPreview />
+                </span>}
             </span>
           </button>;
         })}
