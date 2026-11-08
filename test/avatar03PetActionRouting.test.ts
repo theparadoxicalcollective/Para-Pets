@@ -69,7 +69,7 @@ test("Power Up route is stage-owned, native-device, and hides the global navigat
   assert.equal(shouldHideFloatingNav("/pet-power-up/pet-inventory-123"), true);
   assert.match(app, /location\.startsWith\("\/pet-power-up\/"\)[\s\S]{0,130}<StagePageSurface key=\{location\} layout="viewport">/);
   assert.match(power, /<PetPowerUpPage/);
-  assert.match(power, /\/:inventoryId\/power-up/); // target-specific server endpoint
+  assert.match(power, /\/api\/pet\/\$\{inventoryId\}\/power-up/); // target-specific server endpoint
   assert.match(power, /getPetPowerUpItems\(inventoryQuery\.data \?\? \[\]\)/);
   assert.match(power, /item\.inventoryId/);
   assert.doesNotMatch(power, /activePetId|activePetForModal|currentUser\.activePetId/);
