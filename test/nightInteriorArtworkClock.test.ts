@@ -31,7 +31,7 @@ test("night interior image switches instantly at 19:00 and daytime image at 06:3
 
 test("park/world lamps and fireflies are completely off by 06:00, with later daylight", () => {
   assert.equal(PARK_LAMPS_OFF_MINUTE, 6 * 60);
-  assert.equal(PARK_FIREFLY_START_MINUTE, 19 * 60 + 30);
+  assert.equal(PARK_FIREFLY_START_MINUTE, PARK_NIGHT_INTERIOR_START_MINUTE);
   assert.equal(getParkLampStrength("auto", local(17, 59)), 0);
   assert.equal(getParkLampStrength("auto", local(18)), 0);
   assert.ok(getParkLampStrength("auto", local(18, 15)) > 0);
