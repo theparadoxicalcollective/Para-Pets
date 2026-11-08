@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
-import { getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { getHouseInteriorLightCutoutStrength, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
+import { parkOutdoorLightRadius } from "@shared/petParkAtmosphere";
 import {
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
@@ -228,12 +229,8 @@ export function HomeOutdoorAtmosphereLayer({
     : [];
   const isSceneLamp = (effect: HouseInteriorEffect) =>
     parkLampFalloff && (effect.type === "lamp_light" || effect.type === "candle_light");
-  const lightRadius = (effect: HouseInteriorEffect) => {
-    // A larger authored lamp should light a larger area, not create a fixed-size halo.
-    const scale = isSceneLamp(effect) ? 1.3 : 1;
-    return Math.max(12, Math.min(maskHeight * 0.68,
-      getHouseInteriorLightRadiusRatio(effect) * maskHeight * scale));
-  };
+  const lightRadius = (effect: HouseInteriorEffect) =>
+    parkOutdoorLightRadius(effect, maskHeight, isSceneLamp(effect));
 
   return (
     <>
@@ -296,11 +293,14 @@ export function HomeOutdoorAtmosphereLayer({
                   r={radius}
                 >
                   {soft ? <>
-                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
-                    <stop offset="20%" stopColor="black" stopOpacity={cutoutStrength * 0.93} />
-                    <stop offset="42%" stopColor="black" stopOpacity={cutoutStrength * 0.76} />
-                    <stop offset="65%" stopColor="black" stopOpacity={cutoutStrength * 0.44} />
-                    <stop offset="84%" stopColor="black" stopOpacity={cutoutStrength * 0.17} />
+                    {/* Softer center and long tail: illuminate the scenery well
+                        beyond the small visual lantern flare, with no hard ring. */}
+                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength * 0.92} />
+                    <stop offset="12%" stopColor="black" stopOpacity={cutoutStrength * 0.87} />
+                    <stop offset="30%" stopColor="black" stopOpacity={cutoutStrength * 0.74} />
+                    <stop offset="50%" stopColor="black" stopOpacity={cutoutStrength * 0.53} />
+                    <stop offset="70%" stopColor="black" stopOpacity={cutoutStrength * 0.29} />
+                    <stop offset="86%" stopColor="black" stopOpacity={cutoutStrength * 0.10} />
                     <stop offset="100%" stopColor="black" stopOpacity={0} />
                   </> : <>
                     <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
@@ -316,10 +316,11 @@ export function HomeOutdoorAtmosphereLayer({
                   cy={effect.y * maskHeight}
                   r={radius}
                 >
-                  <stop offset="0%" stopColor="#ffd075" stopOpacity="0.15" />
-                  <stop offset="28%" stopColor="#f6b34f" stopOpacity="0.10" />
-                  <stop offset="54%" stopColor="#d88932" stopOpacity="0.045" />
-                  <stop offset="82%" stopColor="#a86c27" stopOpacity="0.012" />
+                  <stop offset="0%" stopColor="#f7c168" stopOpacity="0.12" />
+                  <stop offset="24%" stopColor="#efb055" stopOpacity="0.085" />
+                  <stop offset="48%" stopColor="#de993f" stopOpacity="0.043" />
+                  <stop offset="72%" stopColor="#bd7d34" stopOpacity="0.017" />
+                  <stop offset="90%" stopColor="#a86c27" stopOpacity="0.004" />
                   <stop offset="100%" stopColor="#a86c27" stopOpacity="0" />
                 </radialGradient>}
               </Fragment>
