@@ -36,6 +36,10 @@ test("Haunted Woods has a subtle purple world-only palette; City preserves origi
     "normal biomes use existing Pet Park ground drawing untouched");
   assert.deepEqual(parseWorldSceneDraftSettings({ groundLevel: 2, groundTheme: "city" }),
     { groundLevel: 2, groundTheme: "city" });
+  const storageMigration = readFileSync("server/startup/migrations/ensureWorldSceneDraftStorage.ts", "utf8");
+  assert.match(storageMigration, /CHECK \(ground_theme IN \([^)]*'city'\)\)/);
+  assert.match(storageMigration, /pg_get_constraintdef\(oid\) NOT LIKE '%city%'/,
+    "existing world drafts must migrate their old five-theme DB constraint once");
   const editor = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
   const brush = readFileSync("client/src/components/world-editor/WorldTerrainBrush.tsx", "utf8");
   assert.match(editor, /worldGroundPalette\(groundTheme\)/);
