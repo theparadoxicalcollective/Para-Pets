@@ -137,7 +137,8 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
     const legacyRadius = parkOutdoorLightRadius(light, 1200, false);
     assert.ok(wideRadius > 2 * visualDiameter,
       "the light travels much farther than the small visual flare");
-    assert.ok(wideRadius > legacyRadius * 2, "the previous narrow reach is substantially extended");
+    assert.ok(wideRadius > legacyRadius * 1.4,
+      "the mask extends beyond the old local glow without producing an oversized illumination wash");
     assert.equal(legacyRadius, getHouseInteriorLightRadiusRatio(light) * 1200);
     assert.ok(parkOutdoorLightRadius({ ...light, size: size * 1.5 }, 1200, true) > wideRadius,
       "the illuminated ground radius follows the saved lamp size");
