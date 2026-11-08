@@ -275,7 +275,7 @@ try {
     assert.equal(await coloredCore.count(), 1,
       name + ": standalone colored orb renders using the lamp core");
     const orbGradient = await coloredCore.evaluate(node => node.style.backgroundImage);
-    assert.match(orbGradient, /123,\\s*92,\\s*255/,
+    assert.match(orbGradient, /123,\s*92,\s*255/,
       name + ": the orb color reaches the rendered CSS gradient, not the scenery mask");
     // Test the actual SVG radius against the rendered lamp art on phone and
     // tablet. The small artwork should stay small, with an independently
