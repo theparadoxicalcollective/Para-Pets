@@ -142,6 +142,28 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
     "the visible flare is more transparent while its scenery reveal grows");
 });
 
+test("wider building and decor lights do not pop off at scene edges", () => {
+  const geometry = { width: 2000, height: 1200, scale: 1 };
+  const camera = { x: -600, y: 0 };
+  const viewport = { width: 390, height: 844 };
+  // Both centers are 200px beyond the left viewport edge. An authored
+  // 30px lamp has a >200px reveal radius and must remain visible.
+  const light = { id: "small", type: "lamp_light" as const, x: .5, y: .5, size: 30 };
+  const edgeLights = parkOutdoorLightEffects([
+    { id: "building", kind: "building", xPct: .2, yPct: .5, size: 100, flipped: false,
+      decorEffects: [light] },
+    { id: "decor", kind: "decor", xPct: .2, yPct: .5, size: 100, flipped: false,
+      decorEffects: [light] },
+  ], geometry, camera, viewport);
+  assert.deepEqual(edgeLights.map(item => item.id), ["building-small", "decor-small"]);
+  assert.ok(parkOutdoorLightRadius(edgeLights[0], geometry.height, true) > 200);
+  const tooFar = parkOutdoorLightEffects([
+    { id: "far", kind: "decor", xPct: .1, yPct: .5, size: 100, flipped: false,
+      decorEffects: [light] },
+  ], geometry, camera, viewport);
+  assert.equal(tooFar.length, 0, "far outside illumination still gets culled for performance");
+});
+
 test("lamp artwork center is less opaque but SVG illumination cutouts remain", () => {
   const effects = source("client/src/components/HomeInteriorEffect.tsx");
   assert.match(effects, /data-testid="home-lamp-light-core"/);
