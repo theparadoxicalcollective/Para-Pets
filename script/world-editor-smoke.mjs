@@ -268,8 +268,10 @@ try {
     await page.getByRole("heading", { name: "World Effects" }).waitFor({ state: "visible" });
     assert.ok(await page.getByTestId("world-standalone-light-color").count() === 1,
       name + ": standalone world effects have an admin orb color picker");
-    assert.ok(await page.getByTestId("add-world-effect-colored_light").count() === 1,
-      name + ": Colored Light is available in the World Editor effects list");
+    assert.ok(await page.getByTestId("add-world-effect-lamp_light").count() === 1,
+      name + ": one color-capable Lamp Light option is available in the World Editor");
+    assert.equal(await page.getByTestId("add-world-effect-colored_light").count(), 0,
+      name + ": the outdated duplicate new-colored-light option is removed");
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
@@ -299,10 +301,10 @@ try {
       circles => circles.map(circle => Number(circle.getAttribute("r"))));
     assert.ok(decorFlare && buildingFlare && sceneRadii.length >= 2,
       name + ": decor and building lamps each have independently sized illumination");
-    assert.ok(sceneRadii[0] > 5 * decorFlare.width,
-      name + ": small decoration lamp softly lights ground far outside its visible flare");
-    assert.ok(sceneRadii[1] > 5 * buildingFlare.width,
-      name + ": building facade lamp illuminates beyond its artwork");
+    assert.ok(sceneRadii[0] > 2 * decorFlare.width,
+      name + ": small decoration lamp lights a moderate area beyond its visible flare");
+    assert.ok(sceneRadii[1] > 2 * buildingFlare.width,
+      name + ": building facade lamp lights beyond its artwork without a broad daylight wash");
     const fadeOffsets = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("offset")));
     assert.deepEqual(fadeOffsets, ["0%", "15%", "32%", "52%", "72%", "88%", "100%"],
