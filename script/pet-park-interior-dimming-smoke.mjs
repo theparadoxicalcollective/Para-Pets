@@ -4,6 +4,9 @@ import { chromium } from "playwright";
 
 // Isolated Pet Park admin editor test: no Railway or real park/player writes.
 const moduleId = "/__pet-park-interior-dimming-fixture.tsx";
+const art = "data:image/svg+xml;base64," + Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="700" height="1000"><rect width="700" height="1000" fill="#aa8e60"/></svg>'
+).toString("base64");
 const fixture = "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nimport { QueryClient, QueryClientProvider } from \"@tanstack/react-query\";\nimport { TooltipProvider } from \"@/components/ui/tooltip\";\nimport PetParkBuildingDetails from \"@/components/PetParkBuildingDetails\";\nimport \"@/index.css\";\nconst art = \"data:image/svg+xml;base64,\" + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"700\" height=\"1000\"><rect width=\"700\" height=\"1000\" fill=\"#aa8e60\"/></svg>');\nconst building = { id:\"cottage\",name:\"Fixture Cottage\",imageUrl:art,interiorImageUrl:art,nightInteriorImageUrl:art,maxPets:20,interiorDarkness:35,interiorEffects:[] };\nconst client = new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}});\ncreateRoot(document.getElementById(\"root\")).render(<QueryClientProvider client={client}><TooltipProvider><PetParkBuildingDetails building={building} initialShowEffectChoices onUpdated={()=>{}} onClose={()=>{}} /></TooltipProvider></QueryClientProvider>);";
 const server = await createServer({
   server: { host: "127.0.0.1", port: 4197, strictPort: true },
