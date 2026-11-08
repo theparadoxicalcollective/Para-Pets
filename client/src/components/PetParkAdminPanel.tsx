@@ -7,7 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
-import { PARK_WATER_EFFECT_OPTIONS, type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
@@ -38,6 +38,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const [pendingTapImage, setPendingTapImage] = useState<string | null>(null);
   const [newWaterSource, setNewWaterSource] = useState(false);
   const [newDecorEffects, setNewDecorEffects] = useState<ParkDecorEffect[]>([]);
+  const [coloredLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [itemSize, setItemSize] = useState(100);
   const [buildingName, setBuildingName] = useState("");
   const [buildingSize, setBuildingSize] = useState(300);
@@ -80,7 +81,7 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
   const addEffect = (type: ParkEffectType, size: number) => {
     if (mutation.isPending) return;
     mutation.mutate({ method: "POST", url: "/api/admin/pet-park/items", body: {
-      kind: "effect", effectType: type, imageData: null,
+      kind: "effect", effectType: type, effectColor: type === "colored_light" ? coloredLightColor : null, imageData: null,
       xPct: creationPosition?.xPct ?? 0.5, yPct: creationPosition?.yPct ?? 0.5,
       size, flipped: false, layer: 0,
     } });
@@ -154,8 +155,15 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
       </> : <>
       {initialMode === "effects" ? <section aria-label="Park outdoor effects" className="space-y-3">
         <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">Outdoor Effects</div>
+        <label className="flex items-center justify-between rounded-xl border border-[#b99a4c]/55 bg-[#173b28] p-3 text-xs">
+          Colored light orb
+          <input type="color" aria-label="New Pet Park colored light orb color"
+            data-testid="park-standalone-light-color" value={coloredLightColor}
+            onChange={event => setColoredLightColor(event.target.value)}
+            className="h-9 w-14 rounded border border-[#b99a4c]/60 bg-transparent" />
+        </label>
         <div className="grid grid-cols-2 gap-2">
-          {HOME_OUTDOOR_EFFECT_OPTIONS.map(option => <button key={option.type} type="button"
+          {[...HOME_OUTDOOR_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION].map(option => <button key={option.type} type="button"
             data-testid={`add-park-effect-${option.type}`}
             disabled={mutation.isPending} onClick={() => addEffect(option.type, Math.max(24, Math.min(1000, Math.round(option.defaultSize / 100 * (PARK_BASE_VIEW_HEIGHT)))))}
             className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
