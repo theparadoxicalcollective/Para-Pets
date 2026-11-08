@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { db as database } from "../db";
 import { playerCharacterBases } from "@shared/schema";
 import {
@@ -20,8 +20,6 @@ export interface PlayerCharacterRouteDependencies {
   isAuthenticated: RequestHandler;
   processImage: (imageData: string, maxSize: number) => Promise<string>;
 }
-
-const errorMessage = (error: unknown) => error instanceof Error ? error.message : "Invalid character data";
 
 /**
  * Independent from avatar.routes.ts, which serves *profile images*.
@@ -142,6 +140,8 @@ export function registerPlayerCharacterRoutes(
     if (!revision.success) return res.status(400).json({ message: "Invalid avatar revision" });
     try {
       const outcome = await db.transaction(async tx => {
+        // Publishing any base must serialize across ALL bases, not just this row.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(54072, 6)`);
         const [base] = await tx.select().from(playerCharacterBases)
           .where(eq(playerCharacterBases.id, String(req.params.id))).for("update");
         if (!base) return { status: 404 as const, message: "Avatar base not found" };
