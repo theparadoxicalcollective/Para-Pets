@@ -10,6 +10,7 @@ import {
   isWorldTerrainType, WORLD_TERRAIN_BRUSH_SIZES, worldTerrainCell,
 } from "@shared/worlds/worldSceneContent";
 import { parkGroundSize } from "@shared/petParkGround";
+import { isValidParkLightColor } from "@shared/petParkEffects";
 import { validParkShopPlacements, type ParkShopPlacement } from "@shared/petParkShopPlacements";
 import type { WorldId } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
@@ -222,7 +223,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
     const worldId = worldFrom(req);
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     const body = req.body ?? {};
-    const { kind, assetId, effectType = null, decorEffects = [],
+    const { kind, assetId, effectType = null, effectColor = null, decorEffects = [],
       isWaterSource = false, isShop = false, shopItemIds = [] } = body;
     if (!["decor", "building", "effect"].includes(kind) ||
       !validPlacementTransform(body) || !validDecorEffects(decorEffects) ||
@@ -230,6 +231,9 @@ export function registerWorldSceneContentRoutes(app: Express, {
       !validShopIds(shopItemIds)) {
       return res.status(400).json({ message: "Invalid placement details" });
     }
+    if (kind === "effect" && effectType === "colored_light"
+      ? !isValidParkLightColor(effectColor) : effectColor != null)
+      return res.status(400).json({ message: "Invalid colored light orb color" });
     if (((kind !== "decor" && isWaterSource) || (kind === "effect" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
       (kind === "effect" ? !validEffect(effectType) || assetId != null : effectType != null)) {
@@ -249,6 +253,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         return res.status(409).json({ message: "World placement limit reached" });
       const [placed] = await db.insert(worldScenePlacements).values({
         worldId, kind, assetId: kind === "effect" ? null : assetId, effectType,
+        effectColor: kind === "effect" && effectType === "colored_light" ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,
         decorEffects, isWaterSource, isShop, shopItemIds, shopItemPlacements: [],
@@ -283,6 +288,12 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if ("layer" in body) {
         if (!validLayer(body.layer)) return res.status(400).json({ message: "Invalid layer" });
         changes.layer = body.layer;
+      }
+      if ("effectColor" in body) {
+        if (saved.kind !== "effect" || saved.effectType !== "colored_light" ||
+          !isValidParkLightColor(body.effectColor))
+          return res.status(400).json({ message: "Invalid colored light orb color" });
+        changes.effectColor = body.effectColor;
       }
       if ("decorEffects" in body) {
         if ((saved.kind !== "decor" && saved.kind !== "building") || !validDecorEffects(body.decorEffects))
