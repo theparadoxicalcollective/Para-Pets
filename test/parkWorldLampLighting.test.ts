@@ -110,7 +110,7 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
     "the original campfire and other effects retain their own mask gradients");
 
   assert.match(wrapper, /warmSceneLamp/);
-  assert.match(artwork, /function LampLightVisual\(\{ warmSceneLamp = false \}/);
+  assert.match(artwork, /function LampLightVisual\(\{ warmSceneLamp = false, orbColor \}/);
   assert.match(artwork, /rgba\(255,212,117,0\.56\)/,
     "scene lamp core is amber, not near-white");
   assert.match(artwork, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/,
