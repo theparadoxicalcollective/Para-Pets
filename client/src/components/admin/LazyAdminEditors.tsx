@@ -5,6 +5,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 // Keep these editor imports behind their existing section/overlay mount points.
 // The retry helper uses the same stale-deploy recovery as the game routes.
 export const PetDatabasePanel = lazyWithRetry(() => import("@/components/PetDatabasePanel"));
+export const PlayerCharacterAdminPanel = lazyWithRetry(() => import("@/components/PlayerCharacterAdminPanel"));
 export const HomeBundleSection = lazyWithRetry(() => import("@/components/HomeBundleSection"));
 export const CardAdminPanel = lazyWithRetry(() => import("@/components/CardAdminPanel"));
 
