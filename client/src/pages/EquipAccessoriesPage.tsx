@@ -12,6 +12,7 @@ interface InventoryItem {
   petTemplateId: string | null;
   petNickname: string | null;
   rarity: number | null;
+  isHatched: boolean;
 }
 
 interface AuthUser {
@@ -30,7 +31,7 @@ export default function EquipAccessoriesPage({ petInventoryId, returnPath = "/" 
   const ready = !userLoading && !invLoading && !!user;
   const targetPetId = petInventoryId ?? user?.activePetId ?? null;
   const activePet = targetPetId
-    ? inventory.find(i => i.inventoryId === targetPetId && i.type === "pet")
+    ? inventory.find(i => i.inventoryId === targetPetId && i.type === "pet" && i.isHatched)
     : null;
 
   // If everything has loaded and there's still no active pet to equip on,
