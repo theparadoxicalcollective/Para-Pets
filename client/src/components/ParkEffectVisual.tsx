@@ -158,7 +158,7 @@ export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = f
   if (type === "colored_light") return <HomeOutdoorEffectVisual type="lamp_light"
     reducedMotion={reducedMotion} adminPreview={adminPreview}
     warmSceneLamp orbColor={parkLightColor(color)} />;
-  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp />;
+  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp orbColor={type === "lamp_light" && color ? parkLightColor(color) : undefined} />;
   if (type === "waterfall_mist") return <ParkWaterfallMist reducedMotion={reducedMotion} />;
   if (type === "water_shimmer") return <ParkWaterShimmer reducedMotion={reducedMotion} />;
   if (type === "water_flow") return <ParkVerticalWaterFlow reducedMotion={reducedMotion} />;

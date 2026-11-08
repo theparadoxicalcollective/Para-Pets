@@ -27,8 +27,8 @@ test("Colored Light exists only in park/world effects and saves validated orb co
   assert.equal(isValidParkDecorEffects([colored]), true);
   assert.equal(isValidParkDecorEffects([{ ...colored, color: undefined }]), false);
   assert.equal(isValidParkDecorEffects([{ ...colored, color: "rgb(1,2,3)" }]), false);
-  assert.equal(isValidParkDecorEffects([{ ...colored, type: "lamp_light" }]), false,
-    "only the colored-light effect may carry a custom orb color");
+  assert.equal(isValidParkDecorEffects([{ ...colored, type: "lamp_light" }]), true,
+    "existing Lamp Light also supports optional color without replacing its type");
   assert.equal(isValidParkDecorEffects([{ ...colored, type: "lamp_light", color: undefined }]), true);
 });
 
@@ -66,6 +66,7 @@ test("admin can select and persist orb color in both editors, not scene wash", (
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
   for (const editor of [parkEditor, worldEditor]) {
     assert.match(editor, /type="color" aria-label="Colored light orb color"/);
+    assert.match(editor, /selected\?\.type === "lamp_light"/);
     assert.match(editor, /color: event\.target\.value/);
     assert.match(editor, /type === "colored_light"/);
   }
@@ -74,6 +75,7 @@ test("admin can select and persist orb color in both editors, not scene wash", (
   assert.match(world, /Edit world colored light orb color/);
   assert.match(read("client/src/pages/PetParkPage.tsx"), /Edit Pet Park colored light orb color/);
   assert.match(sceneVisual, /type === "colored_light"/);
+  assert.match(sceneVisual, /type === "lamp_light" && color/);
   assert.match(sceneVisual, /orbColor=\{parkLightColor\(color\)\}/);
   assert.match(visual, /const channels = orbColor &&/);
   assert.match(visual, /background: channels/);

@@ -59,7 +59,7 @@ export default function WorldDecorEffectEditor({
     if (draftRef.current.length >= PARK_DECOR_EFFECT_MAX_COUNT) return;
     const id = `decor-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
     persist([...draftRef.current, { id, type, x: 0.5, y: 0.5, size,
-      ...(type === "colored_light" ? { color: DEFAULT_PARK_LIGHT_COLOR } : {}) }]);
+      ...(type === "colored_light" || type === "lamp_light" ? { color: DEFAULT_PARK_LIGHT_COLOR } : {}) }]);
     setSelectedId(id);
     setShowOptions(false);
   };
@@ -156,8 +156,8 @@ export default function WorldDecorEffectEditor({
         onClick={() => { persist(draftRef.current.filter(effect => effect.id !== selected.id)); setSelectedId(null); }}
         className="rounded-lg border border-red-400/50 p-2 text-red-200"><Trash2 size={15}/></button>
     </div>}
-    {selected?.type === "colored_light" && <label className="flex items-center justify-between gap-3 rounded-lg border border-[#bda464]/40 p-2 text-xs">
-      Colored light orb
+    {(selected?.type === "colored_light" || selected?.type === "lamp_light") && <label className="flex items-center justify-between gap-3 rounded-lg border border-[#bda464]/40 p-2 text-xs">
+      Lamp orb color
       <input type="color" aria-label="Colored light orb color"
         data-testid="park-colored-light-picker" value={selected.color ?? DEFAULT_PARK_LIGHT_COLOR}
         disabled={disabled}

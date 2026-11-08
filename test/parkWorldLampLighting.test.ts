@@ -116,6 +116,12 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(artwork, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/,
     "indoor lights and player toggles are not modified by the outdoor scene palette");
 
+  const tinyLamp = { id: "tiny", type: "lamp_light" as const, x: .5, y: .5, size: .25 };
+  assert.ok(parkOutdoorLightRadius(tinyLamp, 1200, true) <
+    parkOutdoorLightRadius({ ...tinyLamp, size: 1 }, 1200, true));
+  assert.ok(parkOutdoorLightRadius({ ...tinyLamp, size: 1 }, 1200, true) <
+    parkOutdoorLightRadius({ ...tinyLamp, size: 4 }, 1200, true),
+    "shrinking an existing lamp also shrinks its neutral illumination pool");
   const relativeStops = [1, 0.94, 0.75, 0.46, 0.20, 0.055, 0];
   const stops = [0, 0.15, 0.32, 0.52, 0.72, 0.88, 1];
   for (let i = 1; i < relativeStops.length; i++) {

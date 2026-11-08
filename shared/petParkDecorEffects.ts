@@ -11,7 +11,7 @@ export type ParkDecorEffect = {
   y: number;
   /** Percentage of the placed decoration's square artwork size. */
   size: number;
-  /** Optional appearance color, only supported by the colored light orb. */
+  /** Optional orb color for Lamp Light; required for Colored Light. */
   color?: string;
 };
 
@@ -31,7 +31,9 @@ export function isValidParkDecorEffects(value: unknown): value is ParkDecorEffec
       item.size < PARK_DECOR_EFFECT_MIN_SIZE || item.size > PARK_DECOR_EFFECT_MAX_SIZE ||
       (item.type === "colored_light"
         ? !isValidParkLightColor(item.color)
-        : item.color !== undefined)) return false;
+        : item.type === "lamp_light"
+          ? item.color !== undefined && !isValidParkLightColor(item.color)
+          : item.color !== undefined)) return false;
     ids.add(item.id);
   }
   return true;
