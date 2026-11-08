@@ -99,8 +99,8 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(atmosphere, /parkLampFalloff = false/,
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(atmosphere, /PARK_LAMP_MAX_REVEAL = 0\\.48/);
-  assert.match(atmosphere, /const channel = Math\\.round/);
+  assert.match(atmosphere, /PARK_LAMP_MAX_REVEAL = 0\.48/);
+  assert.match(atmosphere, /const channel = Math\.round/);
   assert.match(atmosphere, /mixBlendMode: "darken"/,
     "overlapping lamp cuts should use the strongest local illumination");
   assert.match(atmosphere, /data-testid="park-outdoor-lamp-neutral-cutout"/);
