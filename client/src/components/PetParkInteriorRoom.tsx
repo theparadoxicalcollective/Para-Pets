@@ -5,22 +5,21 @@ import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/hou
 import { isParkWaterEffect } from "@shared/petParkEffects";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { isParkRoomEffect, type ParkInteriorEffect, type ParkRoomEffect } from "@shared/petParkRooms";
-import { parkInteriorDarkness } from "@shared/parkInteriorDarkness";
 
 type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => void;
 
 /** One actual-image coordinate surface for park visitors and administrators. */
 export default function PetParkInteriorRoom({
-  imageUrl, name, effects, children, selectedEffectId, editEffects = false, expanded = false, darkness = 35,
-  sunlightStrength = 1, nightStrength = 0, nightDarkness = null,
+  imageUrl, nightImageUrl = null, name, effects, children, selectedEffectId, editEffects = false, expanded = false, darkness = 35,
+  sunlightStrength = 1, nightStrength = 0,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
   onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect, onOpenRoom,
 }: {
   imageUrl: string;
+  nightImageUrl?: string | null;
   name: string;
   effects: ParkInteriorEffect[];
   darkness?: number;
-  nightDarkness?: number | null;
   nightStrength?: number;
   sunlightStrength?: number;
   onOpenRoom?: (room: ParkRoomEffect) => void;
@@ -103,11 +102,16 @@ export default function PetParkInteriorRoom({
         const { naturalWidth, naturalHeight } = event.currentTarget;
         if (naturalWidth > 0 && naturalHeight > 0) setAspect(naturalWidth / naturalHeight);
       }} />
+    {nightImageUrl && <img src={nightImageUrl} alt="" aria-hidden="true" draggable={false}
+      data-testid="pet-park-night-interior-image"
+      className="absolute inset-0 h-full w-full select-none pointer-events-none"
+      style={{ opacity: Math.max(0, Math.min(1, nightStrength)),
+        transition: "opacity 1200ms linear" }} />}
     {/* Reuse Pet Home's translucent room backdrop with light-shaped
         cutouts. Keep it inside the panned artwork surface so the dark layer
         follows the image in both compact and expanded mobile/tablet layouts.
         Effects, interactive portals and pets all render ABOVE this layer. */}
-    <HomeInteriorDarknessLayer darkness={parkInteriorDarkness(darkness, nightDarkness, nightStrength)}
+    <HomeInteriorDarknessLayer darkness={darkness}
       effects={effects.filter((effect): effect is HouseInteriorEffect => isHouseInteriorEffectType(effect.type))}
       offEffectIds={offEffectIds} panX={0} imgWidth={imageWidth}
       sceneHeight={dimensions.height} sunlightStrength={sunlightStrength}

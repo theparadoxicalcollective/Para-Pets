@@ -13,7 +13,6 @@ import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
 import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
-import { parkInteriorDarkness } from "@shared/parkInteriorDarkness";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
@@ -72,8 +71,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
   // The slider previews locally without refetching or repainting another scene.
-  type InteriorDarknessField = "interiorDarkness" | "interiorNightDarkness";
-  type DarknessDraft = { buildingId: string; field: InteriorDarknessField; value: number };
+  type DarknessDraft = { buildingId: string; value: number };
   const [interiorDarknessDraft, setInteriorDarknessDraft] = useState<DarknessDraft | null>(null);
   const interiorDarknessDraftRef = useRef<DarknessDraft | null>(null);
   const [interiorPreviewClock, setInteriorPreviewClock] = useState<"live" | "day" | "night">("live");
@@ -161,20 +159,15 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const interiorDarkness = activeBuilding && interiorDarknessDraft &&
-    interiorDarknessDraft.buildingId === activeBuilding.id &&
-    interiorDarknessDraft.field === "interiorDarkness"
+    interiorDarknessDraft.buildingId === activeBuilding.id
     ? interiorDarknessDraft.value : activeBuilding?.interiorDarkness ?? 35;
-  const interiorNightDarkness = activeBuilding && interiorDarknessDraft &&
-    interiorDarknessDraft.buildingId === activeBuilding.id &&
-    interiorDarknessDraft.field === "interiorNightDarkness"
-    ? interiorDarknessDraft.value : activeBuilding?.interiorNightDarkness ?? null;
   const previewNightStrength = interiorPreviewClock === "night" ? 1
     : interiorPreviewClock === "day" ? 0 : worldLighting.nightStrength;
   const previewSunlightStrength = interiorPreviewClock === "night" ? 0
     : interiorPreviewClock === "day" ? 1 : worldLighting.daylightStrength;
-  const changeInteriorDarkness = (value: number, field: InteriorDarknessField = "interiorDarkness") => {
+  const changeInteriorDarkness = (value: number) => {
     if (!activeBuilding || darknessSaveInFlight.current) return;
-    const draft = { buildingId: activeBuilding.id, field, value };
+    const draft = { buildingId: activeBuilding.id, value };
     interiorDarknessDraftRef.current = draft;
     setInteriorDarknessDraft(draft);
   };
@@ -182,9 +175,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     const draft = interiorDarknessDraftRef.current;
     if (!activeBuilding || !draft || draft.buildingId !== activeBuilding.id ||
         darknessSaveInFlight.current) return;
-    const saved = draft.field === "interiorDarkness"
-      ? activeBuilding.interiorDarkness ?? 35
-      : activeBuilding.interiorNightDarkness ?? interiorDarkness;
+    const saved = activeBuilding.interiorDarkness ?? 35;
     if (draft.value === saved) {
       interiorDarknessDraftRef.current = null;
       setInteriorDarknessDraft(null);
@@ -195,17 +186,16 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     try {
       const response = await apiRequest("PATCH",
         `/api/admin/world-editor/${worldId}/placements/${draft.buildingId}`,
-        { [draft.field]: draft.value });
+        { interiorDarkness: draft.value });
       const updated = await response.json() as WorldScenePlacement;
       // Update just this building in cache. A full scene refetch on release
       // would briefly restore the old brightness on slow mobile connections.
       cache.setQueryData<WorldSceneContent>(sceneQueryKey, current => current ? {
         ...current, placements: current.placements.map(item =>
-          item.id === draft.buildingId ? { ...item, [draft.field]: updated[draft.field] } : item),
+          item.id === draft.buildingId ? { ...item, interiorDarkness: updated.interiorDarkness } : item),
       } : current);
       if (interiorDarknessDraftRef.current?.buildingId === draft.buildingId &&
-          interiorDarknessDraftRef.current.value === draft.value &&
-          interiorDarknessDraftRef.current.field === draft.field) {
+          interiorDarknessDraftRef.current.value === draft.value) {
         interiorDarknessDraftRef.current = null;
         setInteriorDarknessDraft(null);
       }
@@ -579,8 +569,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             if (img.naturalWidth > 0 && img.naturalHeight > 0)
               setInteriorRatio(img.naturalWidth / img.naturalHeight);
           }} />
+        {interiorAsset.nightInteriorImageUrl && <img
+          src={interiorAsset.nightInteriorImageUrl} alt="" aria-hidden="true" draggable={false}
+          data-testid="world-editor-night-interior-image"
+          className="absolute inset-0 h-full w-full object-fill pointer-events-none"
+          style={{ opacity: previewNightStrength, transition: "opacity 1200ms linear" }} />}
         <HomeInteriorDarknessLayer
-          darkness={parkInteriorDarkness(interiorDarkness, interiorNightDarkness, previewNightStrength)}
+          darkness={interiorDarkness}
           effects={interiorLights}
           panX={0} imgWidth={interiorW} sceneHeight={interiorH}
           sunlightStrength={previewSunlightStrength} keepMaskMounted transitionMs={0} zIndex={2}/>
@@ -709,7 +704,6 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} placementPoint={createPoint} moveArmedId={moveArmedId}
         interiorDarkness={interiorDarkness}
-        interiorNightDarkness={Math.max(interiorDarkness, interiorNightDarkness ?? interiorDarkness)}
         interiorPreviewClock={interiorPreviewClock} onInteriorPreviewClockChange={setInteriorPreviewClock}
         darknessSaving={darknessSaving}
         onInteriorDarknessChange={changeInteriorDarkness} onInteriorDarknessCommit={() => void saveInteriorDarkness()}
