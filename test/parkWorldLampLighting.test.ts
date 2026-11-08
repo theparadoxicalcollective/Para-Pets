@@ -99,14 +99,15 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(atmosphere, /parkLampFalloff = false/,
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(atmosphere, /<stop offset="14%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.96\}/);
-  assert.match(atmosphere, /<stop offset="32%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.82\}/);
-  assert.match(atmosphere, /<stop offset="52%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.59\}/);
-  assert.match(atmosphere, /<stop offset="88%" stopColor="black" stopOpacity=\{cutoutStrength \* 0\.10\}/);
-  assert.match(atmosphere, /<stop offset="100%" stopColor="black" stopOpacity=\{0\}/);
-  assert.match(atmosphere, /data-testid="park-outdoor-lamp-warm-spill"/);
-  assert.match(atmosphere, /stopColor="#f7c168"/);
-  assert.match(atmosphere, /opacity: safeNight/);
+  assert.match(atmosphere, /PARK_LAMP_MAX_REVEAL = 0\\.48/);
+  assert.match(atmosphere, /const channel = Math\\.round/);
+  assert.match(atmosphere, /mixBlendMode: "darken"/,
+    "overlapping lamp cuts should use the strongest local illumination");
+  assert.match(atmosphere, /data-testid="park-outdoor-lamp-neutral-cutout"/);
+  assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill|stopColor="#f7c168"/,
+    "a separate yellow wash must not tint the ground");
+  assert.match(atmosphere, /stopColor="black" stopOpacity/,
+    "the original campfire and other effects retain their own mask gradients");
 
   assert.match(wrapper, /warmSceneLamp/);
   assert.match(artwork, /function LampLightVisual\(\{ warmSceneLamp = false \}/);
@@ -115,8 +116,8 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(artwork, /<EffectVisual type=\{effect\.type\} adminPreview=\{interactive\} \/>/,
     "indoor lights and player toggles are not modified by the outdoor scene palette");
 
-  const relativeStops = [1, 0.96, 0.82, 0.59, 0.33, 0.10, 0];
-  const stops = [0, 0.14, 0.32, 0.52, 0.72, 0.88, 1];
+  const relativeStops = [1, 0.94, 0.75, 0.46, 0.20, 0.055, 0];
+  const stops = [0, 0.15, 0.32, 0.52, 0.72, 0.88, 1];
   for (let i = 1; i < relativeStops.length; i++) {
     assert.ok(relativeStops[i] < relativeStops[i - 1], "reveal falls off with distance");
     assert.ok(stops[i] > stops[i - 1], "falloff covers a continuous increasing radius");
@@ -137,9 +138,26 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   }
   assert.equal(parkOutdoorLightRadius(
     { id: "lamp", type: "lamp_light", x: .5, y: .5, size: 100 },
-    1200, true), 1200 * 0.68, "large lamps keep the existing scene-safe maximum");
+    1200, true), 1200 * 0.46, "large lamps keep a restrained scene-safe maximum");
   assert.match(artwork, /opacity: warmSceneLamp \? 0\.66 : 0\.57/,
     "the visible flare is more transparent while its scenery reveal grows");
+});
+
+test("overlapping lamp cutouts are neutral, capped and preserve nighttime darkness", () => {
+  const atmosphere = source("client/src/components/HomeOutdoorAtmosphere.tsx");
+  const scene = source("client/src/lib/parkSceneLighting.ts");
+  assert.match(atmosphere, /PARK_LAMP_FALLOFF_STOPS/);
+  assert.match(atmosphere, /mixBlendMode: "darken"/);
+  assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill/);
+  assert.match(scene, /PARK_SCENE_NIGHT_DARKNESS = 88/);
+  for (const count of [1, 2, 6, 20]) {
+    // Opaque grayscale with darken composition uses the lowest mask value
+    // of overlapping lamps, not product-of-alpha accumulation.
+    const maskBrightness = Math.min(...Array.from({ length: count }, () => 1 - 0.48));
+    const remainingDarkness = 0.88 * maskBrightness;
+    assert.ok(remainingDarkness >= 0.45 && remainingDarkness < 0.88,
+      "a row of lights must still look like night, not full daylight");
+  }
 });
 
 test("campfire flame, animation, and original light radius are preserved", () => {
@@ -162,17 +180,17 @@ test("wider building and decor lights do not pop off at scene edges", () => {
   const geometry = { width: 2000, height: 1200, scale: 1 };
   const camera = { x: -600, y: 0 };
   const viewport = { width: 390, height: 844 };
-  // Both centers are 200px beyond the left viewport edge. An authored
-  // 30px lamp has a >200px reveal radius and must remain visible.
+  // Both centers are 160px beyond the left viewport edge. An authored
+  // 30px lamp has a 180px reveal radius and must remain visible.
   const light = { id: "small", type: "lamp_light" as const, x: .5, y: .5, size: 30 };
   const edgeLights = parkOutdoorLightEffects([
-    { id: "building", kind: "building", xPct: .2, yPct: .5, size: 100, flipped: false,
+    { id: "building", kind: "building", xPct: .22, yPct: .5, size: 100, flipped: false,
       decorEffects: [light] },
-    { id: "decor", kind: "decor", xPct: .2, yPct: .5, size: 100, flipped: false,
+    { id: "decor", kind: "decor", xPct: .22, yPct: .5, size: 100, flipped: false,
       decorEffects: [light] },
   ], geometry, camera, viewport);
   assert.deepEqual(edgeLights.map(item => item.id), ["building-small", "decor-small"]);
-  assert.ok(parkOutdoorLightRadius(edgeLights[0], geometry.height, true) > 200);
+  assert.ok(parkOutdoorLightRadius(edgeLights[0], geometry.height, true) > 160);
   const tooFar = parkOutdoorLightEffects([
     { id: "far", kind: "decor", xPct: .1, yPct: .5, size: 100, flipped: false,
       decorEffects: [light] },
