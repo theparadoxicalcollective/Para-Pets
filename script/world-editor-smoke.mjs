@@ -45,6 +45,7 @@ const ids = {
   plot: "10000000-0000-4000-8000-000000000003",
   spring: "10000000-0000-4000-8000-000000000004",
   room: "10000000-0000-4000-8000-000000000005",
+  colored: "10000000-0000-4000-8000-000000000006",
 };
 function makeScene(worldId) {
   if (worldId === "swamp") return {
@@ -61,7 +62,7 @@ function makeScene(worldId) {
       tapImageUrl: null, interiorImageUrl: interior },
   ];
   const common = {
-    worldId, assetId: null, terrainKey: null, effectType: null,
+    worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
     size: 120, flipped: false, layer: 0, decorEffects: [],
     isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
   };
@@ -75,6 +76,8 @@ function makeScene(worldId) {
       terrainKey: "garden_plot:150:0:0", xPct: .5, yPct: .53, size: 150 },
     { ...common, id: ids.spring, kind: "terrain", effectType: "water_path",
       terrainKey: "water_path:150:1:1", xPct: .62, yPct: .5, size: 150 },
+    { ...common, id: ids.colored, kind: "effect", effectType: "colored_light",
+      effectColor: "#7b5cff", xPct: .50, yPct: .25, size: 80 },
   ];
   return {
     assets, placements,
@@ -250,6 +253,10 @@ try {
 
     await page.getByRole("button", { name: "+ Effects" }).click();
     await page.getByRole("heading", { name: "World Effects" }).waitFor({ state: "visible" });
+    assert.ok(await page.getByTestId("world-standalone-light-color").count() === 1,
+      name + ": standalone world effects have an admin orb color picker");
+    assert.ok(await page.getByTestId("add-world-effect-colored_light").count() === 1,
+      name + ": Colored Light is available in the World Editor effects list");
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
@@ -263,6 +270,13 @@ try {
       name + ": overlapping fence lamps must not stack brightness toward daylight");
     assert.ok(await page.getByTestId("home-lamp-light-core").count() >= 1,
       name + ": attached lantern uses the amber lamp artwork");
+    const coloredCore = page.getByTestId("world-scene-placement-" + ids.colored)
+      .getByTestId("home-lamp-light-core");
+    assert.equal(await coloredCore.count(), 1,
+      name + ": standalone colored orb renders using the lamp core");
+    const orbGradient = await coloredCore.evaluate(node => node.style.backgroundImage);
+    assert.match(orbGradient, /123,\\s*92,\\s*255/,
+      name + ": the orb color reaches the rendered CSS gradient, not the scenery mask");
     // Test the actual SVG radius against the rendered lamp art on phone and
     // tablet. The small artwork should stay small, with an independently
     // broader illuminated scene for both decorations and building facades.
