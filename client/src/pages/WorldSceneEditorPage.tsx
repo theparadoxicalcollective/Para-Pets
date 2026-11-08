@@ -67,6 +67,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedInteriorId, setSelectedInteriorId] = useState<string | null>(null);
   const [activeBuildingId, setActiveBuildingId] = useState<string | null>(null);
+  // The slider previews locally without refetching or repainting another scene.
+  const [interiorDarknessDraft, setInteriorDarknessDraft] = useState<{ buildingId: string; value: number } | null>(null);
+  const interiorDarknessDraftRef = useRef<{ buildingId: string; value: number } | null>(null);
+  const darknessSaveInFlight = useRef(false);
+  const [darknessSaving, setDarknessSaving] = useState(false);
   const [objectPreview, setObjectPreview] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const [interiorRatio, setInteriorRatio] = useState(4 / 3);
   const [busyPlacement, setBusyPlacement] = useState(false);
@@ -111,9 +116,14 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setEdited(null); setPan(null); setZoom(1); setPaintMode(false);
     setShowWorldOptions(false);
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
+    interiorDarknessDraftRef.current = null; setInteriorDarknessDraft(null);
     cameraDrag.current = null; objectDrag.current = null;
     touchPoints.current.clear(); pinch.current = null;
   }, [worldId]);
+  useEffect(() => {
+    interiorDarknessDraftRef.current = null;
+    setInteriorDarknessDraft(null);
+  }, [activeBuildingId]);
   useEffect(() => {
     const element = viewportRef.current;
     if (!element) return;
@@ -135,6 +145,52 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
+  const interiorDarkness = interiorDarknessDraft?.buildingId === activeBuilding?.id
+    ? interiorDarknessDraft.value : activeBuilding?.interiorDarkness ?? 35;
+  const changeInteriorDarkness = (value: number) => {
+    if (!activeBuilding || darknessSaveInFlight.current) return;
+    const draft = { buildingId: activeBuilding.id, value };
+    interiorDarknessDraftRef.current = draft;
+    setInteriorDarknessDraft(draft);
+  };
+  const saveInteriorDarkness = async () => {
+    const draft = interiorDarknessDraftRef.current;
+    if (!activeBuilding || !draft || draft.buildingId !== activeBuilding.id ||
+        darknessSaveInFlight.current) return;
+    if (draft.value === (activeBuilding.interiorDarkness ?? 35)) {
+      interiorDarknessDraftRef.current = null;
+      setInteriorDarknessDraft(null);
+      return;
+    }
+    darknessSaveInFlight.current = true;
+    setDarknessSaving(true);
+    try {
+      const response = await apiRequest("PATCH",
+        `/api/admin/world-editor/${worldId}/placements/${draft.buildingId}`,
+        { interiorDarkness: draft.value });
+      const updated = await response.json() as WorldScenePlacement;
+      // Update just this building in cache. A full scene refetch on release
+      // would briefly restore the old brightness on slow mobile connections.
+      cache.setQueryData<WorldSceneContent>(sceneQueryKey, current => current ? {
+        ...current, placements: current.placements.map(item =>
+          item.id === draft.buildingId ? { ...item, interiorDarkness: updated.interiorDarkness } : item),
+      } : current);
+      if (interiorDarknessDraftRef.current?.buildingId === draft.buildingId &&
+          interiorDarknessDraftRef.current.value === draft.value) {
+        interiorDarknessDraftRef.current = null;
+        setInteriorDarknessDraft(null);
+      }
+    } catch (error) {
+      toast({ title: "Could not save room darkness", description: String(error), variant: "destructive" });
+      if (interiorDarknessDraftRef.current?.buildingId === draft.buildingId) {
+        interiorDarknessDraftRef.current = null;
+        setInteriorDarknessDraft(null);
+      }
+    } finally {
+      darknessSaveInFlight.current = false;
+      setDarknessSaving(false);
+    }
+  };
   const selected = content.placements.find(p => p.id === selectedId) ?? null;
   const selectedInterior = content.interiorItems.find(i => i.id === selectedInteriorId && i.buildingId === activeBuildingId) ?? null;
   const interiorAsset = activeBuilding ? assetFor(activeBuilding.assetId) : null;
@@ -438,9 +494,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             if (img.naturalWidth > 0 && img.naturalHeight > 0)
               setInteriorRatio(img.naturalWidth / img.naturalHeight);
           }} />
-        <HomeInteriorDarknessLayer darkness={35} effects={interiorLights}
+        <HomeInteriorDarknessLayer darkness={interiorDarkness} effects={interiorLights}
           panX={0} imgWidth={interiorW} sceneHeight={interiorH}
-          sunlightStrength={worldLighting.daylightStrength} zIndex={2}/>
+          sunlightStrength={worldLighting.daylightStrength} keepMaskMounted transitionMs={0} zIndex={2}/>
         {content.interiorItems.filter(item => item.buildingId === activeBuilding.id).map(item => {
           const pos = objectPosition(item);
           const asset = assetFor(item.assetId);
@@ -565,6 +621,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
         activeBuilding={activeBuilding} placementPoint={createPoint}
+        interiorDarkness={interiorDarkness} darknessSaving={darknessSaving}
+        onInteriorDarknessChange={changeInteriorDarkness} onInteriorDarknessCommit={() => void saveInteriorDarkness()}
         onChanged={() => void cache.invalidateQueries({ queryKey: sceneQueryKey })}
         onSelect={setSelectedId} onSelectInterior={setSelectedInteriorId}
         onEnter={id => { setActiveBuildingId(id); setSelectedInteriorId(null); setPan(null); }}

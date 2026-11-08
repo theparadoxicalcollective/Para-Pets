@@ -44,6 +44,9 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       )
     );
     ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS effect_color text;
+    -- Existing saved buildings retain their positions and receive the prior 35% appearance.
+    ALTER TABLE world_scene_placements
+      ADD COLUMN IF NOT EXISTS interior_darkness integer NOT NULL DEFAULT 35;
     ALTER TABLE world_scene_placements
       ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;
     CREATE INDEX IF NOT EXISTS world_scene_placements_world_idx ON world_scene_placements (world_id);

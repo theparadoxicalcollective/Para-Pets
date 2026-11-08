@@ -11,6 +11,7 @@ import {
 } from "@shared/worlds/worldSceneContent";
 import { parkGroundSize } from "@shared/petParkGround";
 import { isValidParkLightColor } from "@shared/petParkEffects";
+import { HOUSE_INTERIOR_DARKNESS_MIN, HOUSE_INTERIOR_DARKNESS_MAX } from "@shared/housing";
 import { validParkShopPlacements, type ParkShopPlacement } from "@shared/petParkShopPlacements";
 import type { WorldId } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
@@ -294,6 +295,13 @@ export function registerWorldSceneContentRoutes(app: Express, {
           !isValidParkLightColor(body.effectColor))
           return res.status(400).json({ message: "Invalid colored light orb color" });
         changes.effectColor = body.effectColor;
+      }
+      if ("interiorDarkness" in body) {
+        if (saved.kind !== "building" || !Number.isInteger(body.interiorDarkness) ||
+            body.interiorDarkness < HOUSE_INTERIOR_DARKNESS_MIN ||
+            body.interiorDarkness > HOUSE_INTERIOR_DARKNESS_MAX)
+          return res.status(400).json({ message: "Interior darkness must be from 0 to 90%" });
+        changes.interiorDarkness = body.interiorDarkness;
       }
       if ("decorEffects" in body) {
         if ((saved.kind !== "decor" && saved.kind !== "building") || !validDecorEffects(body.decorEffects))

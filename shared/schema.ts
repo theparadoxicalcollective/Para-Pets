@@ -1561,6 +1561,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   assetId: varchar("asset_id"),
   effectType: text("effect_type"),
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
+  interiorDarkness: integer("interior_darkness").notNull().default(35),
   terrainKey: text("terrain_key"),
   xPct: real("x_pct").notNull().default(0.5),
   yPct: real("y_pct").notNull().default(0.5),
