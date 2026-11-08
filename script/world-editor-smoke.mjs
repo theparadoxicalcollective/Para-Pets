@@ -251,7 +251,17 @@ try {
     await page.getByRole("button", { name: "Close editor" }).click();
     assert.equal(await page.getByTestId("world-scene-placement-" + ids.decor).count(), 1,
       name + ": world-only decor is rendered");
-    const rect = await page.getByTestId("world-scene-placement-" + ids.decor).boundingBox();
+    const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
+    const atNormalZoom = await worldSprite.boundingBox();
+    assert.ok(atNormalZoom);
+    // The World Editor must zoom out a little farther than the Pet Park 0.6
+    // minimum, while letting admins use the existing scene after zooming.
+    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom out" }).click();
+    const atWideZoom = await worldSprite.boundingBox();
+    assert.ok(atWideZoom && atWideZoom.width < atNormalZoom.width * .6,
+      name + ": Zoom out reaches a wider world view than the old 0.6 minimum");
+    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
+    const rect = await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
     const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
     await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
