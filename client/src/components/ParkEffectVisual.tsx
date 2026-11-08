@@ -155,7 +155,7 @@ function ParkVerticalWaterFlow({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 export function ParkEffectVisual({ type, reducedMotion = false, adminPreview = false }: { type: ParkEffectType; reducedMotion?: boolean; adminPreview?: boolean }) {
-  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} />;
+  if (isParkOutdoorEffect(type)) return <HomeOutdoorEffectVisual type={type} reducedMotion={reducedMotion} adminPreview={adminPreview} warmSceneLamp />;
   if (type === "waterfall_mist") return <ParkWaterfallMist reducedMotion={reducedMotion} />;
   if (type === "water_shimmer") return <ParkWaterShimmer reducedMotion={reducedMotion} />;
   if (type === "water_flow") return <ParkVerticalWaterFlow reducedMotion={reducedMotion} />;
