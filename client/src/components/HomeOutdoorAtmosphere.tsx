@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
 import { getHouseInteriorLightCutoutStrength, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkOutdoorLightRadius } from "@shared/petParkAtmosphere";
+import { parkSceneLampMaskChannel } from "@/lib/parkSceneLighting";
 import {
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
@@ -180,7 +181,6 @@ export function HomeDayNightToggle({
  * most its strongest cutout even when many fence lamps overlap.
  * The campfire uses its existing unmodified SVG gradient below.
  */
-const PARK_LAMP_MAX_REVEAL = 0.48;
 const PARK_LAMP_FALLOFF_STOPS = [
   [0, 1], [15, 0.94], [32, 0.75], [52, 0.46],
   [72, 0.20], [88, 0.055], [100, 0],
@@ -207,7 +207,7 @@ export function HomeOutdoorAtmosphereLayer({
   sceneHeight: number;
   zIndex?: number;
   transitionMs?: number;
-  /** Only park/world scenes use the warmer, wider lamp falloff; homes remain unchanged. */
+  /** Park/world lamp masks reveal neutral scenery; existing Pet Home lighting stays unchanged. */
   parkLampFalloff?: boolean;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
@@ -288,7 +288,7 @@ export function HomeOutdoorAtmosphereLayer({
             const radius = lightRadius(effect);
             const isNeutralLamp = parkLampFalloff && effect.type === "lamp_light";
             const soft = isSceneLamp(effect);
-            const baseStrength = soft
+            const baseStrength = soft && !isNeutralLamp
               ? getHouseInteriorLightCutoutStrength("fire")
               : getHouseInteriorLightCutoutStrength(effect.type);
             const cutoutStrength = effect.type === "warm_glow"
@@ -296,10 +296,6 @@ export function HomeOutdoorAtmosphereLayer({
               : effect.type === "lamp_light" || effect.type === "candle_light"
                 ? baseStrength * safeNight
                 : baseStrength;
-            const neutralStrength = Math.min(
-              PARK_LAMP_MAX_REVEAL,
-              getHouseInteriorLightCutoutStrength("lamp_light"),
-            ) * safeNight;
             return (
               <radialGradient
                 id={gradientId}
@@ -313,7 +309,7 @@ export function HomeOutdoorAtmosphereLayer({
                   // Opaque grayscale allows 'darken' composition in the mask:
                   // adjacent lamps reveal the stronger local light, rather
                   // than summing into a near-daylight patch.
-                  const channel = Math.round(255 * (1 - neutralStrength * falloff));
+                  const channel = parkSceneLampMaskChannel(safeNight, falloff);
                   return <stop key={offset} offset={`${offset}%`}
                     stopColor={`rgb(${channel}, ${channel}, ${channel})`} />;
                 }) : soft ? <>
