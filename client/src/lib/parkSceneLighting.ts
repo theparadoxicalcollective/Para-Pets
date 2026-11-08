@@ -28,7 +28,7 @@ export function parkSceneDarkness(nightStrength: number): number {
  */
 export function parkOutdoorEffectOpacity(type: string, nightStrength: number): number {
   const night = Number.isFinite(nightStrength) ? Math.max(0, Math.min(1, nightStrength)) : 0;
-  if (type === "lamp_light" || type === "candle_light") return night;
+  if (type === "lamp_light" || type === "colored_light" || type === "candle_light") return night;
   if (type === "warm_glow") return 1 - night;
   return 1;
 }
