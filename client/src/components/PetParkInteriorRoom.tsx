@@ -5,6 +5,7 @@ import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/hou
 import { isParkWaterEffect } from "@shared/petParkEffects";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { isParkRoomEffect, type ParkInteriorEffect, type ParkRoomEffect } from "@shared/petParkRooms";
+import { useNightInteriorArtwork } from "@/lib/homeOutdoorLighting";
 
 type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => void;
 
@@ -105,8 +106,7 @@ export default function PetParkInteriorRoom({
     {nightImageUrl && <img src={nightImageUrl} alt="" aria-hidden="true" draggable={false}
       data-testid="pet-park-night-interior-image"
       className="absolute inset-0 h-full w-full select-none pointer-events-none"
-      style={{ opacity: Math.max(0, Math.min(1, nightStrength)),
-        transition: "opacity 1200ms linear" }} />}
+      style={{ display: useNightInteriorArtwork(nightStrength) ? "block" : "none" }} />}
     {/* Reuse Pet Home's translucent room backdrop with light-shaped
         cutouts. Keep it inside the panned artwork surface so the dark layer
         follows the image in both compact and expanded mobile/tablet layouts.
