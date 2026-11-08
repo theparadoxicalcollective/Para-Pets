@@ -276,7 +276,7 @@ try {
       name + ": building facade lamp illuminates beyond its artwork");
     const fadeOffsets = await page.locator('[data-testid="world-editor-auto-day-night"] radialGradient[id$="-light-0"] stop')
       .evaluateAll(stops => stops.map(stop => stop.getAttribute("offset")));
-    assert.deepEqual(fadeOffsets, ["0%", "12%", "30%", "50%", "70%", "86%", "100%"],
+    assert.deepEqual(fadeOffsets, ["0%", "14%", "32%", "52%", "72%", "88%", "100%"],
       name + ": seven gradual reveal stops prevent an abrupt circular lit boundary");
 
     const worldSprite = page.getByTestId("world-scene-placement-" + ids.decor);
