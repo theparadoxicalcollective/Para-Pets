@@ -75,3 +75,42 @@ export function parkOutdoorLightEffects(
   }
   return result;
 }
+
+/** A firefly swarm uses scene-relative positions and a square visual footprint.
+ * Its nine moving particles share the same anchors in the visible SVG and
+ * in the existing darkness mask (no second lighting overlay).
+ */
+export type ParkFireflyField = { id: string; x: number; y: number; size: number };
+export const PARK_MAX_VISIBLE_FIREFLY_FIELDS = 8;
+
+export function parkOutdoorFireflyFields(
+  items: readonly ParkAtmosphereObject[],
+  geometry: { width: number; height: number; scale: number },
+  camera: { x: number; y: number },
+  viewport: { width: number; height: number },
+): ParkFireflyField[] {
+  if (geometry.width <= 0 || geometry.height <= 0) return [];
+  const fields: ParkFireflyField[] = [];
+  const add = (field: ParkFireflyField) => {
+    const x = camera.x + field.x * geometry.width;
+    const y = camera.y + field.y * geometry.height;
+    const spread = Math.max(40, field.size / 100 * geometry.height);
+    if (x < -spread || y < -spread ||
+        x > viewport.width + spread || y > viewport.height + spread) return;
+    fields.push(field);
+  };
+  for (const item of items) {
+    if (item.kind === "effect" && item.effectType === "fireflies") {
+      add({ id: item.id, x: item.xPct, y: item.yPct,
+        size: item.size * geometry.scale / geometry.height * 100 });
+    }
+    if (item.kind !== "decor" && item.kind !== "building") continue;
+    for (const effect of item.decorEffects ?? []) {
+      if (effect.type !== "fireflies") continue;
+      add({ id: `${item.id}-${effect.id}`,
+        ...parkDecorEffectWorldPosition(item, effect, geometry) });
+    }
+  }
+  // Limit animated masks on iOS while keeping every authored placement stored.
+  return fields.slice(0, PARK_MAX_VISIBLE_FIREFLY_FIELDS);
+}
