@@ -1,18 +1,20 @@
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
+import { parkOutdoorEffectOpacity } from "@/lib/parkSceneLighting";
 
 /** World decoration effects are positioned in image-local coordinates.
  * The entire wrapper mirrors with the artwork, so the same saved anchors
  * work for flipped and nonflipped copies without a second placement system.
  */
 export default function WorldDecorEffects({
-  effects, sunlightStrength, reducedMotion,
+  effects, sunlightStrength, nightStrength = 1 - sunlightStrength, reducedMotion,
 }: {
   effects: readonly ParkDecorEffect[];
   sunlightStrength: number;
+  nightStrength?: number;
   reducedMotion: boolean;
 }) {
-  const sunlight = Math.max(0, Math.min(1, sunlightStrength));
+
   if (!effects.length) return null;
   return <div data-testid="world-editor-attached-decor-effects"
     aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2]">
@@ -23,8 +25,8 @@ export default function WorldDecorEffects({
         left: `${effect.x * 100}%`, top: `${effect.y * 100}%`,
         width: `${effect.size}%`, aspectRatio: "1",
         transform: "translate(-50%, -50%)",
-        opacity: effect.type === "warm_glow" ? sunlight : 1,
-        transition: effect.type === "warm_glow" ? "opacity 1200ms linear" : undefined,
+        opacity: parkOutdoorEffectOpacity(effect.type, nightStrength),
+        transition: "opacity 1200ms linear",
       }}>
       <ParkEffectVisual type={effect.type} reducedMotion={reducedMotion} />
     </div>)}
