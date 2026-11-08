@@ -79,7 +79,7 @@ test("backend separates private drafts and published snapshots with explicit aut
   for (const method of ["get", "post", "patch", "put", "delete"]) {
     assert.match(route, new RegExp(`app\\.${method}\\("/api/admin/player-character/bases`));
   }
-  assert.match(route, /"/api\/admin\/player-character\/bases[^"]*", isAdmin/);
+  assert.match(route, /"\/api\/admin\/player-character\/bases[^"]*", isAdmin/);
   assert.match(route, /"\/api\/player-character\/default", isAuthenticated/);
   assert.match(route, /\.for\("update"\)/);
   assert.match(route, /pg_advisory_xact_lock/);
