@@ -34,11 +34,10 @@ type Props = {
   activeBuilding: WorldScenePlacement | null;
   placementPoint: { xPct: number; yPct: number };
   interiorDarkness: number;
-  interiorNightDarkness: number;
   interiorPreviewClock: "live" | "day" | "night";
   onInteriorPreviewClockChange: (value: "live" | "day" | "night") => void;
   darknessSaving: boolean;
-  onInteriorDarknessChange: (value: number, field: "interiorDarkness" | "interiorNightDarkness") => void;
+  onInteriorDarknessChange: (value: number) => void;
   onInteriorDarknessCommit: () => void;
   onChanged: () => void;
   onSelect: (id: string | null) => void;
@@ -141,7 +140,7 @@ export default function WorldSceneControls(props: Props) {
     }) as WorldScenePlacement | null;
     if (result) props.onSelect(result.id);
   };
-  const patchArtwork = async (assetId: string, name: "imageData" | "tapImageData" | "interiorImageData",
+  const patchArtwork = async (assetId: string, name: "imageData" | "tapImageData" | "interiorImageData" | "nightInteriorImageData",
     file?: File) => {
     if (!file) return;
     try {
@@ -199,30 +198,13 @@ export default function WorldSceneControls(props: Props) {
       {props.activeBuilding ? <>
         <div className="col-span-3 flex flex-col gap-1 rounded-lg border border-[#b99a4c]/45 bg-[#153523] px-3 py-2 text-xs sm:col-span-5">
           <span className="flex justify-between text-[#f0d69d]">
-            <span>Daytime darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
+            <span>Interior darkness</span><span className="tabular-nums">{props.interiorDarkness}%</span>
           </span>
           <input type="range" min={0} max={90} step={5}
             data-testid="world-editor-interior-darkness-slider"
             aria-label="Interior darkness"
             value={props.interiorDarkness} disabled={props.darknessSaving}
-            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value), "interiorDarkness")}
-            onPointerUp={props.onInteriorDarknessCommit}
-            onPointerCancel={props.onInteriorDarknessCommit}
-            onKeyUp={event => {
-              if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key))
-                props.onInteriorDarknessCommit();
-            }}
-            onBlur={props.onInteriorDarknessCommit}
-            className="w-full accent-[#dcb970]" />
-          <span className="mt-1 flex justify-between text-[#f0d69d]">
-            <span>Peak nighttime darkness</span>
-            <span className="tabular-nums">{props.interiorNightDarkness}%</span>
-          </span>
-          <input type="range" min={props.interiorDarkness} max={90} step={5}
-            data-testid="world-editor-interior-night-darkness-slider"
-            aria-label="Peak nighttime darkness" value={props.interiorNightDarkness}
-            disabled={props.darknessSaving}
-            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value), "interiorNightDarkness")}
+            onChange={event => props.onInteriorDarknessChange(Number(event.currentTarget.value))}
             onPointerUp={props.onInteriorDarknessCommit}
             onPointerCancel={props.onInteriorDarknessCommit}
             onKeyUp={event => {
@@ -471,13 +453,28 @@ export default function WorldSceneControls(props: Props) {
             }}/>
         </label>}
         {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
-          {currentAsset.interiorImageUrl ? "Replace Interior Background" : "Upload Interior Background (optional)"}
+          {currentAsset.interiorImageUrl ? "Replace Daytime Interior Background" : "Upload Daytime Interior Background"}
           <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
             className="sr-only" disabled={busy} onChange={event => {
               void patchArtwork(currentAsset.id, "interiorImageData", event.target.files?.[0]);
               event.target.value = "";
             }}/>
         </label>}
+        {currentAsset && <div className="space-y-2 rounded-lg border border-[#b99a4c]/50 p-2 text-xs">
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center">
+            {currentAsset.nightInteriorImageUrl ? "Replace Nighttime Interior Background" : "Upload Nighttime Interior Background (optional)"}
+            <input type="file" aria-label="Upload world nighttime interior image" accept="image/png,image/jpeg"
+              className="sr-only" disabled={busy} onChange={event => {
+                void patchArtwork(currentAsset.id, "nightInteriorImageData", event.target.files?.[0]);
+                event.target.value = "";
+              }}/>
+          </label>
+          {currentAsset.nightInteriorImageUrl && <button type="button" className={control}
+            aria-label="Remove world nighttime interior image" disabled={busy}
+            onClick={() => void mutate("PATCH", `/assets/${currentAsset.id}`, { nightInteriorImageData: null })}>
+            Remove nighttime image
+          </button>}
+        </div>}
         <label className="flex items-center justify-between rounded-lg border border-[#b99a4c]/55 p-3 text-xs">
           <span>Is Shop · {props.selected.isShop ? "ON" : "OFF"}</span>
           <input type="checkbox" role="switch" aria-label="Is Shop building"
