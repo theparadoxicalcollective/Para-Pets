@@ -38,13 +38,12 @@ export type ParkBuildingDetails = {
 /** Contextual building editor; no separate park viewport, reward ledger, or placement API. */
 export default function PetParkBuildingDetails({
   building, onClose, onUpdated, onPreview, initialSelectedEffectId = null, initialShowEffectChoices = false,
-  nightStrength = 0, sunlightStrength = 1, nightInteriorArtworkActive = false,
+  sunlightStrength = 1, nightInteriorArtworkActive = false,
 }: {
   building: ParkBuildingDetails;
   onClose: () => void;
   onUpdated: () => void;
   onPreview?: () => void;
-  nightStrength?: number;
   sunlightStrength?: number;
   nightInteriorArtworkActive?: boolean;
   initialSelectedEffectId?: string | null;
