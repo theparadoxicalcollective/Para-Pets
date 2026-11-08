@@ -38,6 +38,7 @@ import { registerAccountRoutes } from "./routes/account.routes";
 import { registerSupportRoutes } from "./routes/support.routes";
 import { registerHubNoticeRoutes } from "./routes/hubNotice.routes";
 import { registerAvatarRoutes } from "./routes/avatar.routes";
+import { registerPlayerCharacterRoutes } from "./routes/playerCharacter.routes";
 import { registerPrivacyPolicyRoutes } from "./routes/privacyPolicy.routes";
 import { registerPublicPetShowcaseRoute } from "./routes/publicPetShowcase.routes";
 import { registerEmblemRoutes } from "./routes/emblem.routes";
@@ -841,6 +842,7 @@ export async function registerRoutes(
   registerCostumeAdminRoutes(app, data => processWorldImage(data, 2000));
   registerCostumePlayerRoutes(app);
   registerMiniPetRoutes(app, data => processWorldImage(data, 1000));
+  registerPlayerCharacterRoutes(app, { db, isAdmin, isAuthenticated, processImage: processWorldImage });
   registerRedeemCodeRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
