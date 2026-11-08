@@ -208,7 +208,7 @@ export default function PlayerCharacterAdminPanel() {
         <div className="flex flex-wrap gap-2">
           <input id="new-avatar-base" className={`${inputClass} min-w-0 flex-1`}
             value={newName} maxLength={80} onChange={event => setNewName(event.target.value)} />
-          <button type="button" className={buttonClass} disabled={busy || !newName.trim()}
+          <button type="button" className={buttonClass} disabled={busy || dirty || !newName.trim()}
             onClick={() => create.mutate()}>Add Avatar Base</button>
         </div>
         {query.isLoading && <p className="mt-2 text-xs">Loading avatar definitions…</p>}
@@ -220,7 +220,7 @@ export default function PlayerCharacterAdminPanel() {
         {bases.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Avatar bases">
             {bases.map(base => (
-              <button type="button" key={base.id} disabled={busy}
+              <button type="button" key={base.id} disabled={busy || dirty}
                 onClick={() => setSelectedId(base.id)}
                 aria-pressed={base.id === currentId}
                 className={buttonClass}
@@ -239,7 +239,7 @@ export default function PlayerCharacterAdminPanel() {
             <div className="flex flex-wrap gap-2">
               <input id="rename-avatar" className={`${inputClass} min-w-0 flex-1`}
                 value={renameValue} maxLength={80} onChange={event => setRenameValue(event.target.value)} />
-              <button className={buttonClass} type="button" disabled={busy || !renameValue.trim() || renameValue.trim() === selected.name}
+              <button className={buttonClass} type="button" disabled={busy || dirty || !renameValue.trim() || renameValue.trim() === selected.name}
                 onClick={() => rename.mutate()}>Save Name</button>
             </div>
             <p className="mt-2 text-[11px] text-[#d0c4a4]">
@@ -254,7 +254,7 @@ export default function PlayerCharacterAdminPanel() {
                 {PLAYER_CHARACTER_PART_TYPES.map(type => {
                   const part = selected.draftParts.find(p => p.partType === type);
                   return (
-                    <button key={type} type="button" disabled={busy}
+                    <button key={type} type="button" disabled={busy || (dirty && type !== partType)}
                       data-testid={`avatar-part-select-${type}`}
                       onClick={() => setPartType(type)}
                       aria-pressed={type === partType}
@@ -311,13 +311,29 @@ export default function PlayerCharacterAdminPanel() {
                 {save.isPending ? "Saving Part…" : "Save Selected Part"}
               </button>
               {savedPart && (
-                <button type="button" disabled={busy} onClick={() => remove.mutate()}
+                <button type="button" disabled={busy || dirty} onClick={() => remove.mutate()}
                   className="min-h-[40px] w-full rounded-lg border border-[#786348] bg-[#35291c] text-xs text-[#f2cfa2]">
                   Remove from Draft
                 </button>
               )}
+              {dirty && (
+                <button type="button" className={`${buttonClass} w-full`}
+                  onClick={() => {
+                    setTransform(savedPart
+                      ? {
+                          xPct: savedPart.xPct, yPct: savedPart.yPct, widthPct: savedPart.widthPct,
+                          pivotXPct: savedPart.pivotXPct, pivotYPct: savedPart.pivotYPct,
+                          rotationDeg: savedPart.rotationDeg, zIndex: savedPart.zIndex,
+                        }
+                      : { ...DEFAULT_PLAYER_CHARACTER_TRANSFORMS[partType] });
+                    setImageData(null);
+                    setDirty(false);
+                  }}>
+                  Discard Unsaved Changes
+                </button>
+              )}
               <p className="text-[11px] text-[#c7b992]">
-                {dirty ? "Unsaved part placement or artwork — save before switching parts or publishing." :
+                {dirty ? "Unsaved part placement or artwork — save or discard before switching parts or publishing." :
                   "Saved draft. Publish separately when all seven parts are ready."}
               </p>
             </div>
