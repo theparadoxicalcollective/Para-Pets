@@ -150,10 +150,12 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
-  const interiorDarkness = interiorDarknessDraft?.buildingId === activeBuilding?.id &&
+  const interiorDarkness = activeBuilding && interiorDarknessDraft &&
+    interiorDarknessDraft.buildingId === activeBuilding.id &&
     interiorDarknessDraft.field === "interiorDarkness"
     ? interiorDarknessDraft.value : activeBuilding?.interiorDarkness ?? 35;
-  const interiorNightDarkness = interiorDarknessDraft?.buildingId === activeBuilding?.id &&
+  const interiorNightDarkness = activeBuilding && interiorDarknessDraft &&
+    interiorDarknessDraft.buildingId === activeBuilding.id &&
     interiorDarknessDraft.field === "interiorNightDarkness"
     ? interiorDarknessDraft.value : activeBuilding?.interiorNightDarkness ?? null;
   const previewNightStrength = interiorPreviewClock === "night" ? 1
