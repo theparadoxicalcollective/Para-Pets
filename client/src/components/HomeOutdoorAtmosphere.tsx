@@ -275,13 +275,18 @@ export function HomeOutdoorAtmosphereLayer({
           {activeLights.map((effect, index) => {
             const gradientId = `${maskId}-light-${index}`;
             const radius = lightRadius(effect);
-            const baseStrength = getHouseInteriorLightCutoutStrength(effect.type);
+            const soft = isSceneLamp(effect);
+            // The outdoor orb stays translucent; the ground beneath it
+            // should light up as clearly as it does around a campfire.
+            const baseStrength = soft
+              ? getHouseInteriorLightCutoutStrength("fire")
+              : getHouseInteriorLightCutoutStrength(effect.type);
             const cutoutStrength = effect.type === "warm_glow"
               ? baseStrength * (1 - safeNight)
               : effect.type === "lamp_light" || effect.type === "candle_light"
                 ? baseStrength * safeNight
                 : baseStrength;
-            const soft = isSceneLamp(effect);
+
 
             return (
               <Fragment key={gradientId}>
@@ -295,12 +300,12 @@ export function HomeOutdoorAtmosphereLayer({
                   {soft ? <>
                     {/* Softer center and long tail: illuminate the scenery well
                         beyond the small visual lantern flare, with no hard ring. */}
-                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength * 0.92} />
-                    <stop offset="12%" stopColor="black" stopOpacity={cutoutStrength * 0.87} />
-                    <stop offset="30%" stopColor="black" stopOpacity={cutoutStrength * 0.74} />
-                    <stop offset="50%" stopColor="black" stopOpacity={cutoutStrength * 0.53} />
-                    <stop offset="70%" stopColor="black" stopOpacity={cutoutStrength * 0.29} />
-                    <stop offset="86%" stopColor="black" stopOpacity={cutoutStrength * 0.10} />
+                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
+                    <stop offset="14%" stopColor="black" stopOpacity={cutoutStrength * 0.96} />
+                    <stop offset="32%" stopColor="black" stopOpacity={cutoutStrength * 0.82} />
+                    <stop offset="52%" stopColor="black" stopOpacity={cutoutStrength * 0.59} />
+                    <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.33} />
+                    <stop offset="88%" stopColor="black" stopOpacity={cutoutStrength * 0.10} />
                     <stop offset="100%" stopColor="black" stopOpacity={0} />
                   </> : <>
                     <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
