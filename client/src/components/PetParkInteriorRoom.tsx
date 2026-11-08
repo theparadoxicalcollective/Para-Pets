@@ -5,14 +5,13 @@ import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/hou
 import { isParkWaterEffect } from "@shared/petParkEffects";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import { isParkRoomEffect, type ParkInteriorEffect, type ParkRoomEffect } from "@shared/petParkRooms";
-import { isNightInteriorArtworkActive } from "@/lib/homeOutdoorLighting";
 
 type EffectPointerHandler = (event: React.PointerEvent<HTMLDivElement>, effect: ParkInteriorEffect) => void;
 
 /** One actual-image coordinate surface for park visitors and administrators. */
 export default function PetParkInteriorRoom({
   imageUrl, nightImageUrl = null, name, effects, children, selectedEffectId, editEffects = false, expanded = false, darkness = 35,
-  sunlightStrength = 1, nightStrength = 0,
+  sunlightStrength = 1, nightArtworkActive = false,
   onEffectPointerDown, onEffectPointerMove, onEffectPointerUp, onEffectPointerCancel,
   onPointerMove, onPointerUp, onPointerCancel, offEffectIds, onToggleEffect, onOpenRoom,
 }: {
@@ -21,7 +20,7 @@ export default function PetParkInteriorRoom({
   name: string;
   effects: ParkInteriorEffect[];
   darkness?: number;
-  nightStrength?: number;
+  nightArtworkActive?: boolean;
   sunlightStrength?: number;
   onOpenRoom?: (room: ParkRoomEffect) => void;
   /** Use measured image geometry for pets resting on admin-sized indoor spots. */
@@ -106,7 +105,7 @@ export default function PetParkInteriorRoom({
     {nightImageUrl && <img src={nightImageUrl} alt="" aria-hidden="true" draggable={false}
       data-testid="pet-park-night-interior-image"
       className="absolute inset-0 h-full w-full select-none pointer-events-none"
-      style={{ display: isNightInteriorArtworkActive(nightStrength) ? "block" : "none" }} />}
+      style={{ display: nightArtworkActive ? "block" : "none" }} />}
     {/* Reuse Pet Home's translucent room backdrop with light-shaped
         cutouts. Keep it inside the panned artwork surface so the dark layer
         follows the image in both compact and expanded mobile/tablet layouts.
