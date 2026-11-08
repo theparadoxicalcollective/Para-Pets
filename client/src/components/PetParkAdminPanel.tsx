@@ -7,7 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { readPetParkImageData as imageData } from "@/lib/petParkImageData";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR, type ParkEffectType } from "@shared/petParkEffects";
 import { PARK_BASE_VIEW_HEIGHT } from "@/lib/petParkCamera";
 import { PET_PARK_BUILDING_CAPACITY_MIN } from "@shared/petParkBuildingCapacity";
 
@@ -171,6 +171,14 @@ export default function PetParkAdminPanel({ initialMode = "scene", mode, creatio
             <span className="block text-sm text-[#f5cf64]">{option.type === "sleep" ? "Rest Spot (Sleep Square)" : option.label}</span>
             <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{option.description}</span>
           </button>)}
+          <button type="button" data-testid="add-park-effect-fireflies"
+            disabled={mutation.isPending}
+            onClick={() => addEffect("fireflies", PARK_FIREFLIES_OPTION.defaultSize)}
+            className="min-h-20 rounded-xl border p-3 text-left transition-transform active:scale-95 disabled:opacity-40"
+            style={{ background: "rgba(26,64,41,0.82)", borderColor: GOLD_BORDER }}>
+            <span className="block text-sm text-[#f5cf64]">{PARK_FIREFLIES_OPTION.label}</span>
+            <span className="mt-1 block text-[11px] leading-snug text-[#bd9d50]">{PARK_FIREFLIES_OPTION.description}</span>
+          </button>
           <button type="button" data-testid="add-park-effect-colored_light"
             disabled={mutation.isPending}
             onClick={() => addEffect("colored_light",

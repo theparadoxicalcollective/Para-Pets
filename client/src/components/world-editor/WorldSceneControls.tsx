@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
-import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
+import { PARK_WATER_EFFECT_OPTIONS, PARK_COLORED_LIGHT_OPTION, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
 import type {
@@ -21,6 +21,7 @@ const EFFECT_CHOICES: Array<{
     size: Math.max(60, o.defaultSize * 6), group: "outdoor" as const,
   })),
   { ...PARK_COLORED_LIGHT_OPTION, size: 96, group: "outdoor" as const },
+  { ...PARK_FIREFLIES_OPTION, size: PARK_FIREFLIES_OPTION.defaultSize, group: "outdoor" as const },
   ...PARK_WATER_EFFECT_OPTIONS.map(o => ({
     type: o.type, label: o.label, description: o.description,
     size: o.defaultSize, group: "water" as const,
@@ -350,7 +351,7 @@ export default function WorldSceneControls(props: Props) {
           </label>}
           <div className="grid grid-cols-2 gap-2">
             {EFFECT_CHOICES.filter(effect => effect.group === "outdoor" &&
-              (!props.activeBuilding || effect.type !== "colored_light")).map(effect =>
+              (!props.activeBuilding || (effect.type !== "colored_light" && effect.type !== "fireflies"))).map(effect =>
               <button key={effect.type} type="button"
                 data-testid={`add-world-effect-${effect.type}`} disabled={busy}
                 onClick={() => props.activeBuilding
