@@ -88,6 +88,7 @@ jobs:
           node script/world-editor-smoke.mjs
           node script/pet-park-player-profile-smoke.mjs
           node script/pet-park-indoor-touch-smoke.mjs
+          node script/pet-park-interior-dimming-smoke.mjs
           node script/pet-park-water-source-smoke.mjs
           node script/pet-park-garden-smoke.mjs
           node script/pet-park-shop-rotation-smoke.mjs
