@@ -1,5 +1,6 @@
 import { ensurePetParkStorage } from "./ensurePetParkStorage";
 import { ensureGardenStorage } from "./ensureGardenStorage";
+import { ensurePlayerProgressionStorage } from "./ensurePlayerProgressionStorage";
 import { ensureWorldSceneDraftStorage } from "./ensureWorldSceneDraftStorage";
 import { ensureWorldSceneContentStorage } from "./ensureWorldSceneContentStorage";
 import { ensureWorldGardenStorage } from "./ensureWorldGardenStorage";
@@ -11,6 +12,8 @@ export async function runEssentialBoot(): Promise<void> {
   // Create disabled-by-default Pet Park tables before any park routes can register.
   await ensurePetParkStorage();
   await ensureGardenStorage();
+  // Independent player progression must exist before authenticated APIs read it.
+  await ensurePlayerProgressionStorage();
   // Private world drafts must exist before admin endpoints begin serving.
   await ensureWorldSceneDraftStorage();
   await ensureWorldSceneContentStorage();
