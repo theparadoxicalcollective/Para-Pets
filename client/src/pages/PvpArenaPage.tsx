@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { usePlayerPetTeam } from "@/hooks/usePlayerPetTeam";
+import { eligiblePetIds, togglePetTeamMember } from "@/lib/playerPetTeam";
 import { useToast } from "@/hooks/use-toast";
 import { setNavHidden } from "@/lib/navVisibility";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
@@ -158,8 +160,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   const [celebration, setCelebration] = useState<
     { tickets: number; cost: number; key: number } | null
   >(null);
-  const [selectedPetIds, setSelectedPetIds] = useState<string[]>([]);
-  const [groupSaved, setGroupSaved] = useState(false);
   // Tap-to-inspect: clicking any leaderboard row (or your own pinned row)
   // opens the universal PlayerDetailPanel with the same shape used on the
   // hub-page leaderboard. The PvP variant additionally passes pvpStats so
@@ -187,7 +187,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  const { data: battleGroup } = useQuery<any>({ queryKey: ["/api/pvp/battle-group"] });
+  const {
+    team: battleGroup, selectedPetIds, isReady: teamReady,
+    isSaving: teamSaving, saved: groupSaved, saveError: teamSaveError, saveTeam,
+  } = usePlayerPetTeam(me?.id);
   // Opponents are always loaded so matchmaking can kick off immediately
   // when the player hits BEGIN BATTLE (no waiting for a second request).
   const { data: opponents = [], refetch: refetchOpponents } = useQuery<Opponent[]>({ queryKey: ["/api/pvp/opponents"] });
@@ -424,64 +427,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     return () => window.clearTimeout(t);
   }, [celebration?.key]);
 
-  // Sync saved group into local selection — only on the first load so we
-  // don't clobber edits the user is making while typing.
-  const hydratedFromServer = useRef(false);
-  // Tracks whether the user has touched the slot row since mount. We use this
-  // so a late-arriving /api/pvp/battle-group response can't clobber edits the
-  // user has already made (race spotted in code review).
-  const hasUserEdited = useRef(false);
-  useEffect(() => {
-    if (!hydratedFromServer.current && battleGroup?.petInventoryIds && !hasUserEdited.current) {
-      setSelectedPetIds(battleGroup.petInventoryIds);
-      hydratedFromServer.current = true;
-    } else if (!hydratedFromServer.current && battleGroup !== undefined) {
-      // Query resolved (even if empty) — mark hydrated so autosave can run.
-      hydratedFromServer.current = true;
-    }
-  }, [battleGroup]);
-
-  // Monotonic save sequence so out-of-order POST responses can't overwrite a
-  // newer team. We bump on mutate and only treat the most recent send as
-  // authoritative when invalidating cached queries.
-  const saveSeq = useRef(0);
-  const lastSentSeq = useRef(0);
-
-  const saveBattleGroup = useMutation({
-    mutationFn: async (ids?: string[]) => {
-      const payload = ids ?? selectedPetIds;
-      const seq = ++saveSeq.current;
-      lastSentSeq.current = seq;
-      const res = await apiRequest("POST", "/api/pvp/battle-group", { petInventoryIds: payload });
-      const json = await res.json();
-      return { json, seq };
-    },
-    onSuccess: ({ seq }) => {
-      // Only treat the most recent send as authoritative — this guards
-      // against an older POST resolving after a newer one and overwriting
-      // the cached team.
-      if (seq !== lastSentSeq.current) return;
-      queryClient.invalidateQueries({ queryKey: ["/api/pvp/battle-group"] });
-    },
-  });
-
-  // Auto-persist pet selection (debounced) so the player's team sticks
-  // around when they leave the arena. Battles aren't live, so the saved
-  // group is what defends them against incoming challengers too.
-  useEffect(() => {
-    if (!hydratedFromServer.current) return;
-    const serverIds: string[] = battleGroup?.petInventoryIds ?? [];
-    const same = serverIds.length === selectedPetIds.length && serverIds.every((id, i) => id === selectedPetIds[i]);
-    if (same) return;
-    const t = setTimeout(() => {
-      saveBattleGroup.mutate(selectedPetIds);
-      setGroupSaved(true);
-      setTimeout(() => setGroupSaved(false), 1200);
-    }, 500);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPetIds]);
-
   // Sorted highest → lowest ATK so the pet picker in the Prepare-for-Battle
   // panel surfaces the player's strongest fighters first. Ties fall back to
   // pet level (then name) for a stable, predictable order.
@@ -542,47 +487,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     });
   }, [battlePotions]);
 
-  // Active pet: the player's currently-equipped pet from the rest of the
-  // game. We always seed the first PvP slot with it so the player never
-  // shows up to a fight with no active pet, and so the active-pet swap
-  // (done from the home/care screens) flows through here automatically.
-  const activePetId: string | null = me?.activePetId ?? null;
-
-  // Push the active pet into slot 0 whenever it changes (or on first hydrate).
-  // Important: we must NOT run this before the saved battle group has been
-  // hydrated, otherwise it sets `hasUserEdited` and the hydration effect
-  // refuses to overwrite our seed list with the actually-saved team — which
-  // is the bug that made saved pets "vanish" when leaving and re-entering
-  // the arena. Wait for hydration to settle, then sync the active pet in.
-  useEffect(() => {
-    if (!hydratedFromServer.current) return;
-    if (!activePetId) return;
-    setSelectedPetIds((prev) => {
-      // Already there as slot 0 → no-op.
-      if (prev[0] === activePetId) return prev;
-      // Remove any older copy of the active pet from the slot list, then
-      // put it at the front. Cap the resulting list at 5 so the user's
-      // hand-picked extras aren't pushed off the end silently.
-      const rest = prev.filter((id) => id !== activePetId);
-      return [activePetId, ...rest].slice(0, 5);
-    });
-  }, [activePetId, battleGroup]);
-
+  // Every pet slot is player-managed. No forced legacy active-pet slot.
   const togglePet = (invId: string) => {
-    // Slot 0 is locked to the active pet — taps on it shouldn't remove it.
-    if (activePetId && invId === activePetId) return;
-    hasUserEdited.current = true;
-    setSelectedPetIds(prev => {
-      if (prev.includes(invId)) return prev.filter(id => id !== invId);
-      // Strip any stale IDs (sold / un-hatched pets) before checking the
-      // 5-pet cap.  Stale IDs inflate prev.length but render as empty slots,
-      // so without this the "prev.length < 5" guard would silently block new
-      // picks even when fewer than 5 real pets are equipped.
-      const validSet = new Set(hatchedPets.map((p: any) => p.inventoryId || p.id));
-      const clean = prev.filter(id => id === activePetId || validSet.has(id));
-      if (clean.length >= 5) return prev;
-      return [...clean, invId];
-    });
+    if (!teamReady) return;
+    const next = togglePetTeamMember(selectedPetIds, invId, eligiblePetIds(inventory as any[]));
+    saveTeam(next);
   };
 
   // Tap a filled slot → clear that slot. Tap an empty slot → open picker.
@@ -672,24 +581,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   }, [inventory, inventoryReady]);
 
   // Strip stale pet IDs from the battle group whenever inventory refreshes.
-  // Saved groups can contain IDs of pets that were sold, released, or never
-  // hatched.  Those stale IDs are invisible in the slot grid (no matching
-  // hatchedPets entry) but still count against selectedPetIds.length, so the
-  // prev.length < 5 guard in togglePet silently blocks new picks — the root
-  // cause of the "first slot after active pet won't fill" bug.
-  useEffect(() => {
-    if (!inventoryReady || !Array.isArray(inventory)) return;
-    const validIds = new Set(
-      (inventory as any[])
-        .filter((i: any) => i && i.type === "pet" && i.isHatched)
-        .map((i: any) => i.inventoryId || i.id),
-    );
-    setSelectedPetIds(prev => {
-      const next = prev.filter(id => id === activePetId || validIds.has(id));
-      return next.length === prev.length ? prev : next;
-    });
-  }, [inventory, inventoryReady]);
-
   // Memoize the filtered potion slots so the array's identity only
   // changes when the underlying slots actually change. Without this,
   // every parent rerender would hand a brand-new array to
@@ -704,7 +595,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     return (
       <PvpBattlePage
         opponent={battleOpponent}
-        myPetIds={selectedPetIds.length > 0 ? selectedPetIds : battleGroup?.petInventoryIds ?? []}
+        myPetIds={selectedPetIds}
         potionSlots={battlePotionSlotsProp}
         battleToken={battleToken}
         onClose={(result) => {
@@ -1206,45 +1097,25 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               </div>
               <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{equippedCount}/5</span>
             </div>
-            {/*
-              Grid layout instead of flex — guarantees each of the 5 slots
-              gets exactly the same width so nothing slips off the edge of
-              a narrower phone screen. Slot 0 is reserved for the player's
-              active pet and gets a thicker amber border + "ACTIVE" tag.
-            */}
+            {/* Five equally sized, player-managed team slots. */}
             <div className="grid grid-cols-5 gap-1.5 mb-4" data-testid="pvp-pet-slots">
               {Array.from({ length: 5 }, (_, i) => {
                 const invId = selectedPetIds[i];
                 const inv = invId ? hatchedPets.find((p: any) => (p.inventoryId || p.id) === invId) : null;
-                const isActiveSlot = i === 0;
-                const isActivePetHere = isActiveSlot && !!activePetId && invId === activePetId;
                 return (
                   <button
                     key={i}
                     data-testid={`div-pet-slot-${i}`}
                     onClick={() => {
-                      // Slot 0 is locked to the active pet. Don't let it
-                      // un-equip and don't open the picker for it.
-                      if (isActivePetHere) return;
                       if (inv) togglePet(invId);
                       else setPickerOpen("pet");
                     }}
                     className="relative rounded-xl flex items-center justify-center transition-all active:scale-95 min-w-0"
                     style={{
                       aspectRatio: "1 / 1",
-                      background: isActivePetHere
-                        ? "rgba(251,191,36,0.16)"
-                        : inv
-                          ? "rgba(20,80,40,0.28)"
-                          : "rgba(255,255,255,0.04)",
-                      border: isActivePetHere
-                        ? "2px solid rgba(251,191,36,0.85)"
-                        : `1px solid ${inv ? "rgba(74,222,128,0.45)" : "rgba(255,255,255,0.10)"}`,
-                      boxShadow: isActivePetHere
-                        ? "0 0 14px rgba(251,191,36,0.55), inset 0 0 10px rgba(251,191,36,0.15)"
-                        : inv
-                          ? "0 0 10px rgba(74,222,128,0.20)"
-                          : undefined,
+                      background: inv ? "rgba(20,80,40,0.28)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${inv ? "rgba(74,222,128,0.45)" : "rgba(255,255,255,0.10)"}`,
+                      boxShadow: inv ? "0 0 10px rgba(74,222,128,0.20)" : undefined,
                     }}
                   >
                     {inv ? (
@@ -1262,21 +1133,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     ) : (
                       <span className="text-xl text-white/30 font-light">+</span>
                     )}
-                    {isActivePetHere && (
-                      // Tiny "ACTIVE" tag pinned to the slot's bottom edge
-                      // so the player knows this slot is auto-managed.
-                      <div
-                        className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-1.5 py-[1px] rounded text-[7px] font-black tracking-[0.18em] whitespace-nowrap pointer-events-none"
-                        style={{
-                          background: "rgba(120,75,8,0.95)",
-                          color: "#fde68a",
-                          border: "1px solid rgba(251,191,36,0.7)",
-                          textShadow: "0 1px 2px rgba(0,0,0,0.7)",
-                        }}
-                      >
-                        ACTIVE
-                      </div>
-                    )}
+                    
                   </button>
                 );
               })}
@@ -1366,7 +1223,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             data-testid="button-begin-battle"
             onClick={async () => {
               playClick();
-              const hasPets = selectedPetIds.length > 0 || (battleGroup?.petInventoryIds?.length ?? 0) > 0;
+              const hasPets = selectedPetIds.length > 0;
+              if (!teamReady || teamSaving) {
+                setAlertModal({ title: "Team not ready", message: "Your companion team is still loading or saving. Please try again." });
+                return;
+              }
               if (!hasPets) {
                 setAlertModal({
                   title: "Pick at least one pet",
@@ -1395,7 +1256,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 return;
               }
               setMatchmakingPool(usable);
-              if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
+
               setTab("matchmaking");
             }}
             className="w-full flex items-center justify-center active:scale-95 transition-transform"
@@ -1620,8 +1481,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           <div className="shrink-0 px-4 pb-safe pb-5 pt-3">
             <button
               data-testid="button-save-battle-group"
-              onClick={() => { playTick(); saveBattleGroup.mutate(selectedPetIds); }}
-              disabled={saveBattleGroup.isPending}
+              onClick={() => { playTick(); saveTeam([...selectedPetIds], true); }}
+              disabled={!teamReady || teamSaving}
               className="w-full py-3 rounded-xl font-bold text-sm tracking-widest transition-all active:scale-95"
               style={{
                 background: groupSaved
@@ -1631,7 +1492,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 boxShadow: "0 0 18px rgba(74,222,128,0.3)",
               }}
             >
-              {groupSaved ? "✓ SAVED!" : saveBattleGroup.isPending ? "SAVING..." : "SAVE GROUP"}
+              {teamSaving ? "SAVING..." : groupSaved ? "✓ SAVED!" : "SAVE GROUP"}
             </button>
           </div>
         </div>
@@ -2242,7 +2103,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     key={opp.userId}
                     data-testid={`button-challenge-${opp.userId}`}
                     onClick={async () => {
-                      if (!selectedPetIds.length && !battleGroup?.petInventoryIds?.length) {
+                      if (!teamReady || teamSaving || !selectedPetIds.length) {
                         toast({ title: "Set up your Battle Group first!", variant: "destructive" });
                         setTab("group");
                         return;
