@@ -52,6 +52,7 @@ export default function PetParkBuildingDetails({
   const [darkness, setDarkness] = useState(building.interiorDarkness ?? 35);
   const darknessRef = useRef(building.interiorDarkness ?? 35);
   const savedDarkness = useRef(building.interiorDarkness ?? 35);
+  const darknessSaveInFlight = useRef(false);
   const [effects, setEffects] = useState<ParkInteriorEffect[]>(building.interiorEffects ?? []);
   const [exteriorEffects, setExteriorEffects] = useState<ParkDecorEffect[]>(building.exteriorEffects ?? []);
   // Keep a confirmed server snapshot. Cancel must never revert to mount-time data.
@@ -77,6 +78,17 @@ export default function PetParkBuildingDetails({
     setEffects(current => JSON.stringify(current) === JSON.stringify(previousSaved) ? latest : current);
     savedEffects.current = latest;
   }, [building.interiorEffects]);
+  useEffect(() => {
+    // Background scene refreshes must not overwrite an unsaved slider draft.
+    if (darknessSaveInFlight.current) return;
+    const incoming = building.interiorDarkness ?? 35;
+    const previousSaved = savedDarkness.current;
+    savedDarkness.current = incoming;
+    if (darknessRef.current === previousSaved) {
+      darknessRef.current = incoming;
+      setDarkness(incoming);
+    }
+  }, [building.id, building.interiorDarkness]);
   const [imagePreview, setImagePreview] = useState(building.interiorImageUrl);
   const dragRef = useRef<{
     id: string; pointerId: number; startX: number; startY: number; x: number; y: number;
@@ -98,10 +110,14 @@ export default function PetParkBuildingDetails({
       if (typeof updated.name === "string") setName(updated.name);
       if (typeof updated.maxPets === "number") setMaxPets(updated.maxPets);
       if (typeof updated.isShop === "boolean") setIsShop(updated.isShop);
-      if (typeof updated.interiorDarkness === "number") {
+      // Unrelated PATCH responses carry an older darkness snapshot and must
+      // never undo the active preview or a pending darkness-specific save.
+      if (variables.interiorDarkness !== undefined && typeof updated.interiorDarkness === "number") {
         savedDarkness.current = updated.interiorDarkness;
-        darknessRef.current = updated.interiorDarkness;
-        setDarkness(updated.interiorDarkness);
+        if (darknessRef.current === variables.interiorDarkness) {
+          darknessRef.current = updated.interiorDarkness;
+          setDarkness(updated.interiorDarkness);
+        }
       }
       if (updated.interiorImageUrl !== undefined) setImagePreview(updated.interiorImageUrl);
       qc.invalidateQueries({ queryKey: ["/api/pet-park/scene"] });
@@ -116,9 +132,22 @@ export default function PetParkBuildingDetails({
     onError: (error: Error, variables) => {
       exitAfterSave.current = false;
       if (variables.isShop !== undefined) setIsShop(Boolean(building.isShop));
+      if (variables.interiorDarkness !== undefined && darknessRef.current === variables.interiorDarkness) {
+        darknessRef.current = savedDarkness.current;
+        setDarkness(savedDarkness.current);
+      }
       toast({ title: "Could not update building", description: error.message, variant: "destructive" });
     },
   });
+
+  const commitDarkness = () => {
+    if (darknessSaveInFlight.current || mutation.isPending ||
+        darknessRef.current === savedDarkness.current) return;
+    darknessSaveInFlight.current = true;
+    mutation.mutate({ interiorDarkness: darknessRef.current }, {
+      onSettled: () => { darknessSaveInFlight.current = false; },
+    });
+  };
 
   const selectedEffect = effects.find(effect => effect.id === selectedEffectId);
   const addEffect = (type: ParkInteriorEffect["type"], defaultSize: number) => {
@@ -234,15 +263,10 @@ export default function PetParkBuildingDetails({
             darknessRef.current = next;
             setDarkness(next);
           }}
-          onPointerUp={event => {
-            event.stopPropagation();
-            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
-              mutation.mutate({ interiorDarkness: darknessRef.current });
-          }}
-          onBlur={() => {
-            if (!mutation.isPending && darknessRef.current !== savedDarkness.current)
-              mutation.mutate({ interiorDarkness: darknessRef.current });
-          }}
+          onPointerUp={event => { event.stopPropagation(); commitDarkness(); }}
+          onPointerCancel={event => { event.stopPropagation(); commitDarkness(); }}
+          onKeyUp={event => { if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commitDarkness(); }}
+          onBlur={commitDarkness}
           className="w-full accent-[#dcb970]" />
         <p className="mt-1 text-[10px] text-amber-100/65">
           Translucent darkness covers the background, with clear spots around active lights.

@@ -524,6 +524,7 @@ export function HomeInteriorDarknessLayer({
   sunlightStrength = 1,
   zIndex = 2,
   transitionMs = 260,
+  keepMaskMounted = false,
 }: {
   darkness: number;
   effects?: readonly HouseInteriorEffect[];
@@ -534,6 +535,8 @@ export function HomeInteriorDarknessLayer({
   sunlightStrength?: number;
   zIndex?: number;
   transitionMs?: number;
+  /** Keep one SVG darkness surface when the last scene light is added/removed. */
+  keepMaskMounted?: boolean;
 }) {
   const numericDarkness = Number(darkness);
   const safeDarkness = Number.isFinite(numericDarkness)
@@ -552,7 +555,7 @@ export function HomeInteriorDarknessLayer({
     (effect.type === "warm_glow" || !offEffectIds?.has(effect.id))
   ) ?? [];
 
-  if (!useImageSpace || activeLights.length === 0) {
+  if (!useImageSpace || (!keepMaskMounted && activeLights.length === 0)) {
     return (
       <div
         aria-hidden
