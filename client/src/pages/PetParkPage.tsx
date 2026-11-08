@@ -375,7 +375,7 @@ export default function PetParkPage() {
       apiRequest("PATCH", `/api/admin/pet-park/items/${id}/color`, { effectColor }),
     onSuccess: invalidate,
     onError: (error: Error) => toast({
-      title: "Unable to update colored light", description: error.message, variant: "destructive",
+      title: "Unable to update lamp light", description: error.message, variant: "destructive",
     }),
   });
   const waterSourceSave = useMutation({
