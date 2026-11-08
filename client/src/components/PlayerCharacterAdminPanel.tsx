@@ -8,7 +8,6 @@ import {
   PLAYER_CHARACTER_PART_LABELS,
   PLAYER_CHARACTER_PART_TYPES,
   completePlayerCharacterParts,
-  upsertPlayerCharacterPart,
   type PlayerCharacterPart,
   type PlayerCharacterPartType,
   type PlayerCharacterTransform,
