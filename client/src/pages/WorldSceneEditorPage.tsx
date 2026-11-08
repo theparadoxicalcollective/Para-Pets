@@ -14,6 +14,7 @@ import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
+import { useNightInteriorArtwork } from "@/lib/homeOutdoorLighting";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
@@ -573,7 +574,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           src={interiorAsset.nightInteriorImageUrl} alt="" aria-hidden="true" draggable={false}
           data-testid="world-editor-night-interior-image"
           className="absolute inset-0 h-full w-full object-fill pointer-events-none"
-          style={{ opacity: previewNightStrength, transition: "opacity 1200ms linear" }} />}
+          style={{ display: useNightInteriorArtwork(previewNightStrength) ? "block" : "none" }} />}
         <HomeInteriorDarknessLayer
           darkness={interiorDarkness}
           effects={interiorLights}
