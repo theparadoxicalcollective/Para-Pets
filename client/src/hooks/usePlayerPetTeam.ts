@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
   playerPetTeamQueryKey, samePetTeam, type PlayerPetTeam,
@@ -30,6 +30,9 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
     refetchOnMount: "always",
   });
 
+  // A save can outlive the screen it began on. Keep the next screen from
+  // starting a paid battle before that mutation has finished.
+  const inFlightSaves = useIsMutating({ mutationKey: ["player-pet-team", userId ?? ""] });
   const [draft, setDraft] = useState<{ userId: string; ids: string[] } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -39,6 +42,7 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
 
   const saveMutation = useMutation({
     // Network calls for this roster are serialized, including rapid taps.
+    mutationKey: ["player-pet-team", userId ?? ""],
     scope: { id: "para-pets-player-team" },
     mutationFn: async ({ userId: savedUserId, ids }: SaveRequest) => {
       // Ignore a late initial GET that began before this write.
@@ -83,7 +87,7 @@ export function usePlayerPetTeam(userId: string | null | undefined) {
     selectedPetIds,
     isReady: teamQuery.isSuccess && !teamQuery.isFetching && !!userId,
     isLoading: teamQuery.isPending || teamQuery.isFetching && !teamQuery.data,
-    isSaving: currentDraft !== null,
+    isSaving: currentDraft !== null || inFlightSaves > 0,
     saved,
     saveError: teamQuery.isError ? "Could not load your pet team." : saveError,
     saveTeam,
