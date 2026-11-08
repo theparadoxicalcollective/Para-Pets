@@ -365,6 +365,25 @@ try {
     const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
     assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": interior uses a consistent SVG darkness mask with an active light");
+    const nighttimeSlider = page.getByTestId("world-editor-interior-night-darkness-slider");
+    assert.equal(await nighttimeSlider.inputValue(), "35",
+      name + ": existing world rooms are not unexpectedly darker at night");
+    const nighttimeSaved = page.waitForResponse(response =>
+      response.url().endsWith("/placements/" + ids.building) &&
+      response.request().method() === "PATCH");
+    await nighttimeSlider.focus();
+    await nighttimeSlider.press("End");
+    await nighttimeSaved;
+    assert.equal(await nighttimeSlider.inputValue(), "90",
+      name + ": peak nighttime target saves independently from daytime");
+    await page.getByRole("button", { name: "Preview night world interior lighting" }).click();
+    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
+      Number(element.style.fillOpacity)), .9,
+      name + ": peak-night preview darkens the existing mask to 90%");
+    await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
+    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
+      Number(element.style.fillOpacity)), .35,
+      name + ": daytime preview still retains its 35% target");
     const savedDarkness = page.waitForResponse(response =>
       response.url().endsWith("/placements/" + ids.building) &&
       response.request().method() === "PATCH");
@@ -384,6 +403,8 @@ try {
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");
+    assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").inputValue(), "90",
+      name + ": reopening preserves the separately saved nighttime target");
     await page.getByRole("button", { name: "Exit Interior" }).click();
     await page.getByRole("button", { name: "Paint terrain" }).click();
     await page.getByTestId("world-editor-terrain-brush-surface").waitFor({ state: "visible" });
