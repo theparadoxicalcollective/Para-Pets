@@ -15,8 +15,8 @@ test("park and world scene light artwork and illumination honor 06:00 cutoff", (
     assert.ok(parkOutdoorEffectOpacity(kind, 0.2, 0, getParkLampStrength("auto", at(18, 45))) > 0);
   }
   assert.equal(parkOutdoorEffectOpacity("fireflies", nightShadeAtDawn, getParkFireflyStrength("auto", at(6))), 0);
-  assert.equal(parkOutdoorEffectOpacity("fireflies", nightShadeAtDawn, getParkFireflyStrength("auto", at(19, 29))), 0);
-  assert.ok(parkOutdoorEffectOpacity("fireflies", nightShadeAtDawn, getParkFireflyStrength("auto", at(19, 31))) > 0);
+  assert.equal(parkOutdoorEffectOpacity("fireflies", nightShadeAtDawn, getParkFireflyStrength("auto", at(18, 59))), 0);
+  assert.ok(parkOutdoorEffectOpacity("fireflies", nightShadeAtDawn, getParkFireflyStrength("auto", at(19, 1))) > 0);
   assert.equal(parkOutdoorEffectOpacity("warm_glow", 0.75, 0, 0), 0.25,
     "sunlight preserves gradual dawn/dusk background transition");
   assert.equal(parkOutdoorEffectOpacity("fire", 0.8, 0, 0), 1,
