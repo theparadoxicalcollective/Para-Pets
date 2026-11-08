@@ -267,11 +267,13 @@ export function HomeOutdoorAtmosphereLayer({
           {activeLights.map((effect, index) => {
             const gradientId = `${maskId}-light-${index}`;
             const rawRadius = getHouseInteriorLightRadiusRatio(effect) * maskHeight;
-            const radius = Math.max(36, Math.min(maskHeight * 0.68, rawRadius));
+            const radius = Math.max(12, Math.min(maskHeight * 0.68, rawRadius));
             const baseStrength = getHouseInteriorLightCutoutStrength(effect.type);
             const cutoutStrength = effect.type === "warm_glow"
               ? baseStrength * (1 - safeNight)
-              : baseStrength;
+              : effect.type === "lamp_light" || effect.type === "candle_light"
+                ? baseStrength * safeNight
+                : baseStrength;
 
             return (
               <radialGradient
@@ -302,7 +304,7 @@ export function HomeOutdoorAtmosphereLayer({
             <rect x={0} y={0} width={maskWidth} height={maskHeight} fill="white" />
             {activeLights.map((effect, index) => {
               const rawRadius = getHouseInteriorLightRadiusRatio(effect) * maskHeight;
-              const radius = Math.max(36, Math.min(maskHeight * 0.68, rawRadius));
+              const radius = Math.max(12, Math.min(maskHeight * 0.68, rawRadius));
               return (
                 <circle
                   key={effect.id}
