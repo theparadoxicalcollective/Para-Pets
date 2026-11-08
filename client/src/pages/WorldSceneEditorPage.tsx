@@ -20,6 +20,7 @@ import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
 import { parkDepthIndex } from "@/lib/petParkDepth";
 import { parkImageHitAt } from "@/lib/petParkImageHit";
+import { pickParkAdminArtwork } from "@/lib/petParkAdminSelection";
 import { safeSetPointerCapture } from "@/lib/homeCrossDevice";
 import { parkBrushWorldPoint } from "@/lib/petParkTerrainBrush";
 import { isParkConnectedPath, isParkTerrainDetail, parkTerrainHeightRatio } from "@shared/petParkTerrainDetails";
@@ -49,6 +50,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const interiorRef = useRef<HTMLDivElement>(null);
   const cameraDrag = useRef<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
+  const [moveArmedId, setMoveArmedId] = useState<string | null>(null);
+  const lastObjectTap = useRef<{ id: string; at: number; x: number; y: number } | null>(null);
   const objectDrag = useRef<{
     id: number; itemId: string; kind: "outdoor" | "interior";
     startX: number; startY: number; xPct: number; yPct: number;
@@ -122,12 +125,17 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     interiorDarknessDraftRef.current = null; setInteriorDarknessDraft(null);
     cameraDrag.current = null; objectDrag.current = null;
+    setMoveArmedId(null); lastObjectTap.current = null;
     touchPoints.current.clear(); pinch.current = null;
   }, [worldId]);
   useEffect(() => {
     interiorDarknessDraftRef.current = null;
     setInteriorDarknessDraft(null);
     setInteriorPreviewClock("live");
+  }, [activeBuildingId]);
+  useEffect(() => {
+    setMoveArmedId(null);
+    lastObjectTap.current = null;
   }, [activeBuildingId]);
   useEffect(() => {
     const element = viewportRef.current;
@@ -276,11 +284,31 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       setBusyPlacement(false);
     }
   };
-  const startObject = (event: ReactPointerEvent<HTMLButtonElement>, item: WorldScenePlacement | WorldSceneInteriorItem,
-    kind: "outdoor" | "interior") => {
-    if ((event.button !== 0 && event.pointerType === "mouse") || busyPlacement || paintMode || objectDrag.current) return;
-    const artwork = event.currentTarget.querySelector("img");
-    if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
+  // Pet Park behavior: tap visible art to select, then double-tap the same
+  // object to arm a move. A first-finger swipe remains a camera pan.
+  const startObject = (event: ReactPointerEvent<HTMLElement>,
+    item: WorldScenePlacement | WorldSceneInteriorItem,
+    kind: "outdoor" | "interior", selectedImage?: HTMLImageElement | null): boolean => {
+    if (!event.isPrimary || (event.button !== 0 && event.pointerType === "mouse") ||
+        busyPlacement || paintMode || objectDrag.current) return false;
+    const image = selectedImage === undefined ? event.currentTarget.querySelector("img") : selectedImage;
+    if (image && !parkImageHitAt(image, event.clientX, event.clientY, item.flipped)) return false;
+    if (kind === "outdoor") {
+      setSelectedId(item.id);
+      const previous = lastObjectTap.current;
+      const doubleTap = !!previous && previous.id === item.id &&
+        Date.now() - previous.at < 400 &&
+        Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 22;
+      lastObjectTap.current = doubleTap ? null :
+        { id: item.id, at: Date.now(), x: event.clientX, y: event.clientY };
+      if (!doubleTap && moveArmedId !== item.id) {
+        setMoveArmedId(null);
+        return false;
+      }
+      setMoveArmedId(item.id);
+    } else {
+      setSelectedInteriorId(item.id);
+    }
     event.stopPropagation();
     const start = kind === "outdoor" ? viewportPoint(event.clientX, event.clientY) : {
       xPct: event.clientX, yPct: event.clientY,
@@ -291,9 +319,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       xPct: item.xPct, yPct: item.yPct, latest: { xPct: item.xPct, yPct: item.yPct }, moved: false,
     };
     safeSetPointerCapture(event.currentTarget, event.pointerId);
-    if (kind === "outdoor") setSelectedId(item.id); else setSelectedInteriorId(item.id);
+    return true;
   };
-  const moveObject = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const moveObject = (event: ReactPointerEvent<HTMLElement>) => {
     const drag = objectDrag.current;
     if (!drag || drag.id !== event.pointerId) return;
     event.stopPropagation();
@@ -310,7 +338,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       drag.moved = true;
     setObjectPreview({ id: drag.itemId, ...next });
   };
-  const finishObject = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const finishObject = (event: ReactPointerEvent<HTMLElement>) => {
     const drag = objectDrag.current;
     if (!drag || drag.id !== event.pointerId) return;
     event.stopPropagation();
@@ -321,14 +349,17 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     } catch {
       // Safari may implicitly release capture before pointerup arrives.
     }
-    if (drag.moved) void updatePosition(drag.kind, drag.itemId, drag.latest);
-    else setObjectPreview(null);
+    if (drag.moved) {
+      setMoveArmedId(null);
+      void updatePosition(drag.kind, drag.itemId, drag.latest);
+    } else setObjectPreview(null);
   };
   const cancelObject = () => { objectDrag.current = null; setObjectPreview(null); };
 
   const endTouch = (event: ReactPointerEvent<HTMLDivElement>) => {
     touchPoints.current.delete(event.pointerId);
     if (cameraDrag.current?.id === event.pointerId) cameraDrag.current = null;
+    if (objectDrag.current?.id === event.pointerId) cancelObject();
     if (touchPoints.current.size < 2) {
       pinch.current = null;
       if (touchPoints.current.size === 1) {
@@ -410,6 +441,36 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     data-testid="world-scene-editor">
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
       className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
+      onPointerDownCapture={event => {
+        if (paintMode || activeBuilding || !event.isPrimary) return;
+        const art = viewportRef.current?.querySelector("[data-world-editor-artwork]");
+        if (!art) return;
+        const hit = pickParkAdminArtwork(art, event.clientX, event.clientY, (_kind, id) =>
+          content.placements.find(item => item.id === id) ?? null);
+        if (!hit) return;
+        const item = content.placements.find(placement => placement.id === hit.id);
+        if (!item) return;
+        const armed = startObject(event, item, "outdoor", hit.image);
+        if (!armed) startCamera(event);
+        // Reject transparent bounding boxes and selection on overlapping art;
+        // the scene's camera still receives the first touch.
+        event.stopPropagation();
+      }}
+      onPointerMoveCapture={event => {
+        if (objectDrag.current?.id === event.pointerId) moveObject(event);
+      }}
+      onPointerUpCapture={event => {
+        if (objectDrag.current?.id !== event.pointerId) return;
+        finishObject(event);
+        endTouch(event);
+        event.stopPropagation();
+      }}
+      onPointerCancelCapture={event => {
+        if (objectDrag.current?.id !== event.pointerId) return;
+        cancelObject();
+        endTouch(event);
+        event.stopPropagation();
+      }}
       onPointerDown={startCamera} onPointerMove={moveCamera}
       onPointerUp={endTouch} onPointerCancel={endTouch}
       onLostPointerCapture={endTouch}
@@ -450,11 +511,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             return <button key={p.id} type="button"
               data-testid={`world-scene-placement-${p.id}`}
               data-world-editor-placement={p.id}
+              data-park-draggable data-park-object-kind={p.kind === "building" ? "building" : "item"}
+              data-park-object-id={p.id}
               className="pointer-events-auto absolute touch-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
               style={{
                 left: position.xPct * camera.sceneWidth, top: position.yPct * camera.sceneHeight,
                 width: p.size * camera.scale, height,
-                zIndex: p.kind === "terrain" ? 1 : parkDepthIndex({
+                zIndex: p.kind === "effect" ? 12_000_000 : p.kind === "terrain" ? 1 : parkDepthIndex({
                   kind: p.kind === "building" ? "building" : "item",
                   yPct: position.yPct, worldHeight: camera.worldHeight, size: p.size,
                   contact: 0.9,
@@ -464,13 +527,13 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 outline: selectedId === p.id ? "2px solid #f6cf71" : undefined,
               }}
               aria-label={asset?.name ?? p.effectType ?? p.kind}
-              onPointerDown={event => startObject(event, p, "outdoor")}
-              onPointerMove={moveObject} onPointerUp={finishObject}
-              onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
               onClick={event => {
-                const artwork = event.currentTarget.querySelector("img");
-                if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, p.flipped)) return;
-                event.stopPropagation(); setSelectedId(p.id);
+                event.stopPropagation();
+                if (event.detail === 0) { setSelectedId(p.id); return; }
+                const art = viewportRef.current?.querySelector("[data-world-editor-artwork]");
+                const hit = art && pickParkAdminArtwork(art, event.clientX, event.clientY, (_kind, id) =>
+                  content.placements.find(item => item.id === id) ?? null);
+                if (hit?.id === p.id) setSelectedId(p.id);
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
                 {asset && <img src={asset.imageUrl} alt="" draggable={false}
@@ -644,7 +707,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
       </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
-        activeBuilding={activeBuilding} placementPoint={createPoint}
+        activeBuilding={activeBuilding} placementPoint={createPoint} moveArmedId={moveArmedId}
         interiorDarkness={interiorDarkness}
         interiorNightDarkness={Math.max(interiorDarkness, interiorNightDarkness ?? interiorDarkness)}
         interiorPreviewClock={interiorPreviewClock} onInteriorPreviewClockChange={setInteriorPreviewClock}
