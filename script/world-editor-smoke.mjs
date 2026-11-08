@@ -60,7 +60,7 @@ function makeScene(worldId) {
     { id: ids.decor, worldId, kind: "decor", name: "Haunted Cedar", imageUrl: art,
       tapImageUrl: art, interiorImageUrl: null },
     { id: ids.building, worldId, kind: "building", name: "Haunted Cabin", imageUrl: art,
-      tapImageUrl: null, interiorImageUrl: interior },
+      tapImageUrl: null, interiorImageUrl: interior, nightInteriorImageUrl: interior },
   ];
   const common = {
     worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
@@ -365,25 +365,19 @@ try {
     const interiorMask = page.getByTestId("world-editor-interior").getByTestId("home-interior-darkness-layer");
     assert.equal(await interiorMask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": interior uses a consistent SVG darkness mask with an active light");
-    const nighttimeSlider = page.getByTestId("world-editor-interior-night-darkness-slider");
-    assert.equal(await nighttimeSlider.inputValue(), "35",
-      name + ": existing world rooms are not unexpectedly darker at night");
-    const nighttimeSaved = page.waitForResponse(response =>
-      response.url().endsWith("/placements/" + ids.building) &&
-      response.request().method() === "PATCH");
-    await nighttimeSlider.focus();
-    await nighttimeSlider.press("End");
-    await nighttimeSaved;
-    assert.equal(await nighttimeSlider.inputValue(), "90",
-      name + ": peak nighttime target saves independently from daytime");
+    assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").count(), 0,
+      name + ": old nighttime darkness slider is absent");
+    const nightInterior = page.getByTestId("world-editor-night-interior-image");
+    await nightInterior.waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Preview night world interior lighting" }).click();
-    assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
-      Number(element.style.fillOpacity)), .9,
-      name + ": peak-night preview darkens the existing mask to 90%");
-    await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
+    assert.equal(await nightInterior.evaluate(element => Number(element.style.opacity)), 1,
+      name + ": night preview shows alternate interior artwork");
     assert.equal(await interiorMask.locator('rect[fill="black"]').evaluate(element =>
       Number(element.style.fillOpacity)), .35,
-      name + ": daytime preview still retains its 35% target");
+      name + ": night preview keeps one 35% darkness setting");
+    await page.getByRole("button", { name: "Preview day world interior lighting" }).click();
+    assert.equal(await nightInterior.evaluate(element => Number(element.style.opacity)), 0,
+      name + ": day preview restores daytime artwork");
     const savedDarkness = page.waitForResponse(response =>
       response.url().endsWith("/placements/" + ids.building) &&
       response.request().method() === "PATCH");
@@ -403,8 +397,6 @@ try {
     await page.getByRole("button", { name: "Enter Building" }).click();
     assert.equal(await page.getByTestId("world-editor-interior-darkness-slider").inputValue(), "90",
       name + ": reopening the building retains its saved darkness");
-    assert.equal(await page.getByTestId("world-editor-interior-night-darkness-slider").inputValue(), "90",
-      name + ": reopening preserves the separately saved nighttime target");
     await page.getByRole("button", { name: "Exit Interior" }).click();
     // The previously selected building intentionally stays selected when
     // leaving its room. Deselect before using the outdoor terrain toolbar.
