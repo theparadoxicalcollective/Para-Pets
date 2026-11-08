@@ -97,7 +97,10 @@ test("owner and visitor Home yards use the owner's current day-night setting dur
   assert.match(atmosphere, /window\.addEventListener\("pageshow", syncFromLifecycle\)/);
   assert.match(atmosphere, /document\.visibilityState === "hidden"/);
   assert.match(atmosphere, /HOME_OUTDOOR_RESUME_TRANSITION_MS/);
-  assert.match(atmosphere, /window\.setInterval\(\(\) => \{[\s\S]*?HOME_OUTDOOR_AUTO_TRANSITION_MS[\s\S]*?\}, 30_000\)/);
+  assert.match(atmosphere, /window\.setTimeout\(\(\) => \{[\s\S]*?syncNow\(HOME_OUTDOOR_AUTO_TRANSITION_MS\)/,
+    "the 30-second sampling cadence is now aligned to actual wall-clock boundaries");
+  assert.match(atmosphere, /Date\.now\(\) % 30_000/);
+  assert.match(atmosphere, /window\.clearTimeout\(timer\)/);
   assert.match(atmosphere, /data-lighting-mode=\{mode\}/);
   assert.match(atmosphere, /data-testid="home-day-night-planet"/);
   assert.match(atmosphere, /safeNight \* 100/);
