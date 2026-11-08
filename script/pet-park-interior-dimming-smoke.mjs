@@ -40,7 +40,6 @@ try {
         return route.fulfill({ json: {
           id: "cottage", name: "Fixture Cottage", maxPets: 20, isShop: false,
           interiorDarkness: body.interiorDarkness ?? 35, interiorEffects: [],
-          interiorImageUrl: null,
         } });
       }
       return route.fulfill({ json: {} });
