@@ -188,7 +188,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     refetchOnWindowFocus: true,
   });
   const {
-    team: battleGroup, selectedPetIds, isReady: teamReady,
+    selectedPetIds, isReady: teamReady,
     isSaving: teamSaving, saved: groupSaved, saveError: teamSaveError, saveTeam,
   } = usePlayerPetTeam(me?.id);
   // Opponents are always loaded so matchmaking can kick off immediately
@@ -1097,6 +1097,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               </div>
               <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{equippedCount}/5</span>
             </div>
+            {teamSaveError && (
+              <p role="alert" className="mb-2 text-center text-xs text-amber-200">
+                {teamSaveError} Please try selecting your pets again.
+              </p>
+            )}
+            {teamSaving && <p className="mb-2 text-center text-xs text-amber-200">Saving companion team…</p>}
             {/* Five equally sized, player-managed team slots. */}
             <div className="grid grid-cols-5 gap-1.5 mb-4" data-testid="pvp-pet-slots">
               {Array.from({ length: 5 }, (_, i) => {
@@ -1106,6 +1112,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   <button
                     key={i}
                     data-testid={`div-pet-slot-${i}`}
+                    disabled={!teamReady}
                     onClick={() => {
                       if (inv) togglePet(invId);
                       else setPickerOpen("pet");
@@ -1318,7 +1325,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         <button
                           key={invId}
                           data-testid={`button-pet-select-${invId}`}
-                          disabled={full}
+                          disabled={full || !teamReady}
                           onClick={() => { togglePet(invId); if (!selected) setPickerOpen(null); }}
                           className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                           style={{
