@@ -38,11 +38,11 @@ test("outdoor lamps follow nightfall, sunlight follows daytime, fires remain ind
   }
   const masks = source("client/src/components/HomeOutdoorAtmosphere.tsx");
   assert.match(masks, /effect\.type === "lamp_light" \|\| effect\.type === "candle_light"/);
-  assert.match(masks, /baseStrength \* safeNight/);
+  assert.match(masks, /baseStrength \* \(parkLampFalloff \? safeLamp : safeNight\)/);
   assert.match(masks, /baseStrength \* \(1 - safeNight\)/);
   assert.match(masks, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(source("client/src/components/PetParkDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength\)/);
-  assert.match(source("client/src/components/world-editor/WorldDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength\)/);
+  assert.match(source("client/src/components/PetParkDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength, lampStrength\)/);
+  assert.match(source("client/src/components/world-editor/WorldDecorEffects.tsx"), /parkOutdoorEffectOpacity\(effect\.type, nightStrength, fireflyStrength, lampStrength\)/);
 });
 
 test("lamp light reveal follows authored size for decor, building facades and indoor effects", () => {
@@ -99,7 +99,7 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(atmosphere, /parkLampFalloff = false/,
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(atmosphere, /parkSceneLampMaskChannel\(safeNight, falloff\)/);
+  assert.match(atmosphere, /parkSceneLampMaskChannel\(safeLamp, falloff\)/);
   assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.38);
   assert.match(atmosphere, /mixBlendMode: "darken"/,
     "overlapping lamp cuts should use the strongest local illumination");

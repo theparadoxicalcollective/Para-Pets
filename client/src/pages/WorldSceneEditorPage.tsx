@@ -14,7 +14,6 @@ import { HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components
 import { HomeInteriorDarknessLayer } from "@/components/HomeInteriorEffect";
 import { parkOutdoorLightEffects, parkOutdoorFireflyFields } from "@shared/petParkAtmosphere";
 import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLighting";
-import { isNightInteriorArtworkActive } from "@/lib/homeOutdoorLighting";
 import { isHouseInteriorEffectType, type HouseInteriorEffect } from "@shared/housing";
 import { parkClampCamera, parkZoomAnchorPan } from "@/lib/petParkCamera";
 import { worldEditorCameraGeometry, worldEditorClampZoom } from "@/lib/worldEditorCamera";
@@ -65,6 +64,26 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  // Match Pet Park: camera pointer samples can arrive much faster than the
+  // display refresh. Batch pan/pinch commits to a single scene render per
+  // animation frame, especially helpful with dense phone/tablet worlds.
+  const cameraFrame = useRef<number | null>(null);
+  const queuedCamera = useRef<{ pan: { x: number; y: number }; zoom?: number } | null>(null);
+  const queueCameraUpdate = (nextPan: { x: number; y: number }, nextZoom?: number) => {
+    queuedCamera.current = { pan: nextPan, zoom: nextZoom };
+    if (cameraFrame.current !== null) return;
+    cameraFrame.current = window.requestAnimationFrame(() => {
+      cameraFrame.current = null;
+      const next = queuedCamera.current;
+      queuedCamera.current = null;
+      if (!next) return;
+      setPan(next.pan);
+      if (next.zoom !== undefined) setZoom(next.zoom);
+    });
+  };
+  useEffect(() => () => {
+    if (cameraFrame.current !== null) window.cancelAnimationFrame(cameraFrame.current);
+  }, []);
   const [edited, setEdited] = useState<WorldSceneDraftSettings | null>(null);
   const [paintMode, setPaintMode] = useState(false);
   const [showWorldOptions, setShowWorldOptions] = useState(false);
@@ -124,6 +143,11 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setSelectedId(null); setSelectedInteriorId(null); setActiveBuildingId(null);
     interiorDarknessDraftRef.current = null; setInteriorDarknessDraft(null);
     cameraDrag.current = null; objectDrag.current = null;
+    if (cameraFrame.current !== null) {
+      window.cancelAnimationFrame(cameraFrame.current);
+      cameraFrame.current = null;
+      queuedCamera.current = null;
+    }
     setMoveArmedId(null); lastObjectTap.current = null;
     touchPoints.current.clear(); pinch.current = null;
   }, [worldId]);
@@ -162,8 +186,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const interiorDarkness = activeBuilding && interiorDarknessDraft &&
     interiorDarknessDraft.buildingId === activeBuilding.id
     ? interiorDarknessDraft.value : activeBuilding?.interiorDarkness ?? 35;
-  const previewNightStrength = interiorPreviewClock === "night" ? 1
-    : interiorPreviewClock === "day" ? 0 : worldLighting.nightStrength;
+  const previewNightInteriorArtworkActive = interiorPreviewClock === "night" ? true
+    : interiorPreviewClock === "day" ? false : worldLighting.nightInteriorArtworkActive;
   const previewSunlightStrength = interiorPreviewClock === "night" ? 0
     : interiorPreviewClock === "day" ? 1 : worldLighting.daylightStrength;
   const changeInteriorDarkness = (value: number) => {
@@ -357,7 +381,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         const [id, remaining] = [...touchPoints.current.entries()][0];
         // One finger can continue panning after a two-finger zoom ends.
         cameraDrag.current = {
-          id, x: remaining.x, y: remaining.y, panX: actualPan.x, panY: actualPan.y,
+          id, x: remaining.x, y: remaining.y,
+          panX: (queuedCamera.current?.pan ?? actualPan).x,
+          panY: (queuedCamera.current?.pan ?? actualPan).y,
         };
       }
     }
@@ -398,16 +424,15 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         y: (pinch.current.midpoint.y - (rect?.top ?? 0)) * ratioY,
       };
       const nextPan = parkZoomAnchorPan(pinch.current.pan, startCamera.scale, nextCamera.scale, originalMid, nextCamera);
-      setPan(parkClampCamera({
+      queueCameraUpdate(parkClampCamera({
         x: nextPan.x + mid.x - originalMid.x,
         y: nextPan.y + mid.y - originalMid.y,
-      }, nextCamera));
-      setZoom(nextZoom);
+      }, nextCamera), nextZoom);
     } else if (cameraDrag.current?.id === event.pointerId) {
       const rect = viewportRef.current?.getBoundingClientRect();
       const dx = (event.clientX - cameraDrag.current.x) * size.width / Math.max(1, rect?.width ?? size.width);
       const dy = (event.clientY - cameraDrag.current.y) * size.height / Math.max(1, rect?.height ?? size.height);
-      setPan(parkClampCamera({
+      queueCameraUpdate(parkClampCamera({
         x: cameraDrag.current.panX + dx, y: cameraDrag.current.panY + dy,
       }, camera));
     }
@@ -532,9 +557,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 {(p.kind === "decor" || p.kind === "building") && asset &&
                   <WorldDecorEffects effects={p.decorEffects}
                     sunlightStrength={worldLighting.daylightStrength}
-                    nightStrength={worldLighting.nightStrength} fireflyStrength={worldLighting.fireflyStrength} reducedMotion={false} />}
+                    nightStrength={worldLighting.nightStrength} fireflyStrength={worldLighting.fireflyStrength}
+                     lampStrength={worldLighting.lampStrength} reducedMotion={false} />}
                 {p.kind === "effect" && p.effectType && <span className="absolute inset-0"
-                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength, worldLighting.fireflyStrength),
+                  style={{ opacity: parkOutdoorEffectOpacity(p.effectType, worldLighting.nightStrength, worldLighting.fireflyStrength, worldLighting.lampStrength),
                     transition: "opacity 1200ms linear" }}>
                   <ParkEffectVisual type={p.effectType as ParkEffectType} color={p.effectColor ?? undefined}
                     reducedMotion={false} adminPreview fireflyStrength={worldLighting.fireflyStrength} sceneFireflies />
@@ -550,7 +576,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         <div data-testid="world-editor-auto-day-night"
           className="pointer-events-none absolute inset-0 z-[14] overflow-hidden">
           <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(worldLighting.nightStrength)}
-            nightStrength={worldLighting.nightStrength} effects={exteriorLights}
+            nightStrength={worldLighting.nightStrength} lampStrength={worldLighting.lampStrength} effects={exteriorLights}
             fireflies={exteriorFireflies} fireflyStrength={worldLighting.fireflyStrength}
             panX={actualPan.x} panY={actualPan.y}
             imgWidth={camera.sceneWidth} sceneHeight={camera.sceneHeight}
@@ -574,7 +600,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
           src={interiorAsset.nightInteriorImageUrl} alt="" aria-hidden="true" draggable={false}
           data-testid="world-editor-night-interior-image"
           className="absolute inset-0 h-full w-full object-fill pointer-events-none"
-          style={{ display: isNightInteriorArtworkActive(previewNightStrength) ? "block" : "none" }} />}
+          style={{ display: previewNightInteriorArtworkActive ? "block" : "none" }} />}
         <HomeInteriorDarknessLayer
           darkness={interiorDarkness}
           effects={interiorLights}

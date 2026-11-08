@@ -10,18 +10,18 @@ import { validEffect } from "../shared/worlds/worldSceneContent";
 const date = (hours: number, minutes = 0) => new Date(2026, 10, 8, hours, minutes);
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Fireflies appear two hours after lamps begin their dusk fade, then fade gently", () => {
+test("Fireflies begin appearing at 19:30 and finish fading out by 06:00", () => {
   assert.equal(HOME_OUTDOOR_DUSK_START_MINUTE, 18 * 60);
-  assert.equal(PARK_FIREFLY_START_MINUTE, 20 * 60);
+  assert.equal(PARK_FIREFLY_START_MINUTE, 19 * 60 + 30);
   assert.equal(getParkFireflyStrength("auto", date(18)), 0);
-  assert.equal(getParkFireflyStrength("auto", date(19, 59)), 0);
-  assert.equal(getParkFireflyStrength("auto", date(20)), 0);
-  assert.equal(getParkFireflyStrength("auto", date(20, 22,)), 22 / 45);
-  assert.equal(getParkFireflyStrength("auto", date(20, 45)), 1);
+  assert.equal(getParkFireflyStrength("auto", date(19, 29)), 0);
+  assert.equal(getParkFireflyStrength("auto", date(19, 30)), 0);
+  assert.equal(getParkFireflyStrength("auto", date(19, 52)), 22 / 45);
+  assert.equal(getParkFireflyStrength("auto", date(20, 15)), 1);
   assert.equal(getParkFireflyStrength("auto", date(23)), 1);
   assert.equal(getParkFireflyStrength("auto", date(3)), 1);
-  assert.equal(getParkFireflyStrength("auto", date(6, 30)), .5);
-  assert.equal(getParkFireflyStrength("auto", date(7, 30)), 0);
+  assert.equal(getParkFireflyStrength("auto", date(5, 45)), .5);
+  assert.equal(getParkFireflyStrength("auto", date(6)), 0);
   assert.equal(getParkFireflyStrength("day", date(22)), 0);
   assert.equal(getParkFireflyStrength("night", date(12)), 1);
   assert.equal(parkOutdoorEffectOpacity("fireflies", 1, 0), 0);

@@ -12,6 +12,8 @@ import {
   HOME_OUTDOOR_RESUME_TRANSITION_MS,
   type HomeOutdoorLightingMode,
   getParkFireflyStrength,
+  getParkLampStrength,
+  isNightInteriorArtworkActive,
 } from "@/lib/homeOutdoorLighting";
 
 export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
@@ -28,7 +30,7 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
     let timer: number | null = null;
     const clearTimer = () => {
       if (timer !== null) {
-        window.clearInterval(timer);
+        window.clearTimeout(timer);
         timer = null;
       }
     };
@@ -39,9 +41,19 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
     const startTimer = () => {
       clearTimer();
       if (document.visibilityState === "hidden") return;
-      timer = window.setInterval(() => {
-        syncNow(HOME_OUTDOOR_AUTO_TRANSITION_MS);
-      }, 30_000);
+      // Align clock sampling to :00 and :30 instead of 30 seconds after
+      // page entry. Night artwork and the lamp/firefly cutoffs then switch
+      // at the authored minute boundary rather than up to 30 seconds late.
+      const nextTick = () => {
+        if (document.visibilityState === "hidden") return;
+        const delay = Math.max(10, 30_000 - (Date.now() % 30_000));
+        timer = window.setTimeout(() => {
+          timer = null;
+          syncNow(HOME_OUTDOOR_AUTO_TRANSITION_MS);
+          nextTick();
+        }, delay);
+      };
+      nextTick();
     };
     const syncFromLifecycle = () => {
       if (document.visibilityState === "hidden") {
@@ -67,12 +79,14 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
   const fireflyStrength = useMemo(() => getParkFireflyStrength(mode, now), [mode, now]);
+  const lampStrength = useMemo(() => getParkLampStrength(mode, now), [mode, now]);
+  const nightInteriorArtworkActive = useMemo(() => isNightInteriorArtworkActive(mode, now), [mode, now]);
 
   const transitionMs = mode === "auto"
     ? autoTransitionMs
     : HOME_OUTDOOR_OVERRIDE_TRANSITION_MS;
 
-  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs, fireflyStrength };
+  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs, fireflyStrength, lampStrength, nightInteriorArtworkActive };
 }
 
 export function HomeDayNightToggle({
@@ -192,6 +206,7 @@ const PARK_LAMP_FALLOFF_STOPS = [
 export function HomeOutdoorAtmosphereLayer({
   darkness,
   nightStrength,
+  lampStrength = nightStrength,
   effects,
   panX,
   panY = 0,
@@ -206,6 +221,8 @@ export function HomeOutdoorAtmosphereLayer({
 }: {
   darkness: number;
   nightStrength: number;
+  /** Independent park/world lamp cutoff; omitted by existing Pet Home callers. */
+  lampStrength?: number;
   effects: HouseInteriorEffect[];
   panX: number;
   panY?: number;
@@ -220,6 +237,7 @@ export function HomeOutdoorAtmosphereLayer({
   reducedMotion?: boolean;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
+  const safeLamp = Math.max(0, Math.min(1, lampStrength));
   const numericDarkness = Number(darkness);
   const safeDarkness = Number.isFinite(numericDarkness)
     ? Math.max(0, Math.min(100, numericDarkness))
@@ -332,7 +350,7 @@ export function HomeOutdoorAtmosphereLayer({
             const cutoutStrength = effect.type === "warm_glow"
               ? baseStrength * (1 - safeNight)
               : effect.type === "lamp_light" || effect.type === "candle_light"
-                ? baseStrength * safeNight
+                ? baseStrength * (parkLampFalloff ? safeLamp : safeNight)
                 : baseStrength;
             return (
               <radialGradient
@@ -347,7 +365,7 @@ export function HomeOutdoorAtmosphereLayer({
                   // Opaque grayscale allows 'darken' composition in the mask:
                   // adjacent lamps reveal the stronger local light, rather
                   // than summing into a near-daylight patch.
-                  const channel = parkSceneLampMaskChannel(safeNight, falloff);
+                  const channel = parkSceneLampMaskChannel(safeLamp, falloff);
                   return <stop key={offset} offset={`${offset}%`}
                     stopColor={`rgb(${channel}, ${channel}, ${channel})`} />;
                 }) : soft ? <>
