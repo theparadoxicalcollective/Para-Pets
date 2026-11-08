@@ -47,6 +47,14 @@ test("Haunted Woods has a subtle purple world-only palette; City preserves origi
   assert.match(brush, /WORLD_GROUND_THEMES\.map/);
 });
 
+test("World Editor City constraint migration uses valid paired PostgreSQL dollar delimiters", () => {
+  const migration = readFileSync("server/startup/migrations/ensureWorldSceneDraftStorage.ts", "utf8");
+  assert.match(migration, /DO \$\$\s+BEGIN[\s\S]*?END \$\$;/,
+    "DO blocks require matching $ delimiters or production boot can crash before /health listens");
+  assert.doesNotMatch(migration, /\bDO \$(?!\$)/);
+  assert.doesNotMatch(migration, /\bEND \$(?!\$)/);
+});
+
 test("object editing defaults to compact movement controls, with details opened only on demand", () => {
   const source = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
   const compact = source.split('data-testid="world-scene-selected-controls"')[1]

@@ -16,7 +16,7 @@ export async function ensureWorldSceneDraftStorage(): Promise<void> {
     );
     -- Existing installations still have the original five-theme constraint.
     -- Update it once without changing existing draft rows or touching Pet Park.
-    DO $
+    DO $$
     BEGIN
       IF EXISTS (
         SELECT 1 FROM pg_constraint
@@ -29,6 +29,6 @@ export async function ensureWorldSceneDraftStorage(): Promise<void> {
           ADD CONSTRAINT world_scene_drafts_ground_theme_check
           CHECK (ground_theme IN ('grass', 'snow', 'haunted', 'swamp', 'volcanic', 'city'));
       END IF;
-    END $;
+    END $$;
   `);
 }
