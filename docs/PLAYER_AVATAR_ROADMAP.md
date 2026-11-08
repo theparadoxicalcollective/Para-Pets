@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-08  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 4 of 12 phases merged; **Avatar 05/12 in implementation**. Merged does not mean verified on physical devices.  
+**Progress:** 5 of 12 phases merged; **Avatar 06/12 implemented on a review branch, awaiting CI and merge**. Merged does not mean verified on physical devices.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -34,8 +34,8 @@
 | **Avatar 02/12** | PvP and Raids consume/edit the **same** roster; no active-pet slot lock; Raid battle consumes saved-team snapshot | **Merged — GitHub #1028** | User confirms checks passed; deployed mobile/tablet verification not recorded |
 | **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | **Merged — GitHub #1029** | CI passed; user confirms merged; physical device verification not recorded |
 | **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | **Merged — GitHub #1030** | User confirms merge; physical device verification not recorded |
-| **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | **Open GitHub PR #1031** (`feature/avatar-05-player-progression-foundation`) | Code and focused tests added; CI, review, and device verification pending |
-| **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | Planned | Save/reload, image boundaries, role checks and device editing |
+| **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | **Merged — GitHub #1031** | CI passed; user confirms merge; deployed progression read/mobile verification not recorded |
+| **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | **Implementation — `feature/avatar-06-admin-character-base-editor`** | Domain/route/editor and focused tests added; CI, review, live device and publish verification pending |
 | **Avatar 07/12** | One lightweight PlayerCharacterRenderer with idle/walk; same rendering in admin preview and game | Planned | Motion/pivots/depth, low-memory lifecycle tests |
 | **Avatar 08/12** | Avatar clothing type, fitting editor, owned equipment and wardrobe | Planned; split into 08A/08B if necessary | Ownership, equip/unequip, animation follow; pet adornments unchanged |
 | **Avatar 09/12** | Main page lower HUD: player name/XP, five unfilled stars, five saved team portraits | Planned | Small-phone/tablet layout, empty team, long names, safe-area |
@@ -106,6 +106,24 @@
 - [ ] PR merge/review and production GET behavior checked for existing and new accounts; physical phone/tablet testing separately recorded.
 
 **Decisions before activating XP sources:** confirm which activities award player versus pet XP, whether existing account accomplishments should receive credit, and the actual progression curve/cap. An internal award service alone does not mean rewards are enabled.
+
+## Avatar 06/12 acceptance contract
+
+**Scope:** Admin Realm → Add Character → Avatar adds a dedicated seven-part avatar base editor with draft/published separation. No main-page character is rendered until Avatar 07/12 and the later cutover.
+
+- [x] Add independent `player_character_bases` with one saved JSONB draft of exactly seven part types, separate published part snapshot, revision, timestamps, and one-default partial unique index. Additive idempotent migration runs before API registration.
+- [x] Add distinct shared `playerCharacter` domain rather than extending pet templates or the existing `/api/users/avatars` profile-photo batch route.
+- [x] Seven front-facing parts: head, open eyes, body, left arm/right arm, left leg/right leg. Save relative x/y, width, per-part pivot, rotation and layer order.
+- [x] Reuse existing transparent PNG image processor; accept only bounded PNG/WebP upload data, store processed media URL, not base64, in a draft. Allow replacing a part without losing other placements.
+- [x] Build a separate lazy-loaded responsive admin editor and shared static parts preview, with tap/drag positioning, numerical transform controls, per-part Save, and explicit default Publish.
+- [x] Admin-only list, create, rename, part write/remove and publish endpoints; authenticated read-only published default; prevent stale draft overwrites using revision checks.
+- [x] Require seven complete parts to publish, copy draft to published snapshot atomically, serialize competing publishes, and preserve earlier published artwork while editing a new draft.
+- [x] Validate part types and transform bounds server-side and include focused tests.
+- [ ] Latest PR commit: `npm run check`, `npm run check:tests`, `npm test`, `npm run build`, and browser smoke workflow complete.
+- [ ] Admin device QA on iOS and Android phones/tablets: seven uploads, revisions, drag, pivots, scale/rotation, publish, draft edit after publish, reload, authorization and error messaging.
+- [ ] Post-merge live behavior and database migration verification separately recorded. Do not mark released from merge alone.
+
+**Deferred:** Avatar idle/walk renderer (07/12), clothing (08/12), main-page HUD and avatar replacement (09–10/12), world exploration (11/12) and XP awards (12/12). PC gameplay stays locked. No pet systems were migrated in this phase.
 
 ## QA acceptance for every PR
 
