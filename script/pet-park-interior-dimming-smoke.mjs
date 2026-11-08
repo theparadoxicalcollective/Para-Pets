@@ -29,17 +29,20 @@ try {
     const page = await context.newPage();
     page.setDefaultTimeout(15_000);
     const writes = [], errors = [];
+    let savedDay = 35, savedNight = null;
     page.on("pageerror", error => errors.push(error.message));
     await page.route("**/api/**", async route => {
       const req = route.request(), url = new URL(req.url());
       if (url.pathname === "/api/admin/pet-park/buildings/cottage" && req.method() === "PATCH") {
         const body = req.postDataJSON();
         writes.push(body);
+        if (body.interiorDarkness !== undefined) savedDay = body.interiorDarkness;
+        if (body.interiorNightDarkness !== undefined) savedNight = body.interiorNightDarkness;
         // Keep a slow write so a transient server response cannot reset preview.
         await new Promise(resolve => setTimeout(resolve, 180));
         return route.fulfill({ json: {
           id: "cottage", name: "Fixture Cottage", maxPets: 20, isShop: false,
-          interiorDarkness: body.interiorDarkness ?? 35, interiorEffects: [],
+          interiorDarkness: savedDay, interiorNightDarkness: savedNight, interiorEffects: [],
         } });
       }
       return route.fulfill({ json: {} });
@@ -51,6 +54,22 @@ try {
     const mask = page.getByTestId("pet-park-interior-room").getByTestId("home-interior-darkness-layer");
     assert.equal(await mask.evaluate(element => element.tagName.toLowerCase()), "svg",
       name + ": no-light editor starts with the stable SVG mask");
+    const nightSlider = page.getByTestId("slider-park-interior-night-darkness");
+    assert.equal(await nightSlider.inputValue(), "35",
+      name + ": night remains unchanged until explicitly configured");
+    const nightSaved = page.waitForResponse(r => r.url().endsWith("/buildings/cottage") && r.request().method() === "PATCH");
+    await nightSlider.focus();
+    await nightSlider.press("End");
+    await nightSaved;
+    assert.equal(await nightSlider.inputValue(), "90",
+      name + ": admin nighttime setting is saved");
+    await page.getByRole("button", { name: "Preview night interior lighting" }).click();
+    assert.equal(await mask.locator('rect[fill="black"]').evaluate(el => Number(el.style.fillOpacity)), .9,
+      name + ": nighttime preview uses one existing mask at 90%");
+    await page.getByRole("button", { name: "Preview day interior lighting" }).click();
+    assert.equal(await mask.locator('rect[fill="black"]').evaluate(el => Number(el.style.fillOpacity)), .35,
+      name + ": daytime preview remains at 35%");
+    await page.getByRole("button", { name: "Preview live interior lighting" }).click();
     const response = page.waitForResponse(r => r.url().endsWith("/buildings/cottage") && r.request().method() === "PATCH");
     await slider.focus();
     await slider.press("End");
@@ -63,6 +82,8 @@ try {
     assert.equal(await slider.inputValue(), "90", name + ": saved value never reverts to initial 35%");
     assert.equal(writes.filter(write => write.interiorDarkness !== undefined).length, 1,
       name + ": keyup plus blur must not duplicate the same darkness write");
+    assert.equal(writes.filter(write => write.interiorNightDarkness !== undefined).length, 1,
+      name + ": nighttime adjustment also makes only one save");
     // Adding the first interior lamp must not switch rendering technology.
     await page.getByRole("button", { name: /^Lamp Light/ }).click();
     assert.equal(await mask.evaluate(el => el.tagName.toLowerCase()), "svg",
