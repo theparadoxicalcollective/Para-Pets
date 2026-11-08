@@ -7,13 +7,36 @@ export const HOME_OUTDOOR_DAWN_START_MINUTE = 5 * 60 + 30;
 export const HOME_OUTDOOR_DAY_START_MINUTE = 7 * 60 + 30;
 export const HOME_OUTDOOR_DUSK_START_MINUTE = 18 * 60;
 export const HOME_OUTDOOR_NIGHT_START_MINUTE = 20 * 60;
-/**
- * Outdoor lamps start activating when nightStrength first exceeds zero
- * (18:00 dusk), and finish turning off at the end of dawn (07:30).
- * Alternate interior artwork switches at that same boundary, without a fade.
+/** Park and World timelines are independent of the Pet Home's gradual
+ * background-darkness calculation. Only the appearance of these scene effects
+ * changes; the existing nighttime shading stays smooth.
  */
-export function isNightInteriorArtworkActive(nightStrength: number): boolean {
-  return Number.isFinite(nightStrength) && nightStrength > 0;
+export const PARK_LAMPS_OFF_MINUTE = 6 * 60;
+export const PARK_NIGHT_INTERIOR_START_MINUTE = 19 * 60;
+export const PARK_DAY_INTERIOR_START_MINUTE = 6 * 60 + 30;
+
+/** Night art: 19:00 through 06:29:59; no transition or second darkness mask. */
+export function isNightInteriorArtworkActive(mode: HomeOutdoorLightingMode, date: Date): boolean {
+  if (mode === "day") return false;
+  if (mode === "night") return true;
+  const minute = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  return minute >= PARK_NIGHT_INTERIOR_START_MINUTE || minute < PARK_DAY_INTERIOR_START_MINUTE;
+}
+
+/** Outdoor lamps activate at 18:00 and fade with the approaching dawn, fully
+ * extinguishing at 06:00. Manual day/night previews override the clock.
+ */
+export function getParkLampStrength(mode: HomeOutdoorLightingMode, date: Date): number {
+  if (mode === "day") return 0;
+  if (mode === "night") return 1;
+  const minute = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  if (minute >= PARK_LAMPS_OFF_MINUTE && minute < HOME_OUTDOOR_DUSK_START_MINUTE) return 0;
+  const strength = getAutomaticHomeNightStrength(date);
+  if (minute >= HOME_OUTDOOR_DAWN_START_MINUTE && minute < PARK_LAMPS_OFF_MINUTE) {
+    return strength * (PARK_LAMPS_OFF_MINUTE - minute) /
+      (PARK_LAMPS_OFF_MINUTE - HOME_OUTDOOR_DAWN_START_MINUTE);
+  }
+  return strength;
 }
 /** Fireflies begin two hours after the existing 18:00 lamp dusk transition. */
 export const PARK_FIREFLY_START_MINUTE = HOME_OUTDOOR_DUSK_START_MINUTE + 2 * 60;
@@ -25,9 +48,9 @@ export function getParkFireflyStrength(mode: HomeOutdoorLightingMode, date: Date
   if (minute >= PARK_FIREFLY_START_MINUTE)
     return Math.min(1, (minute - PARK_FIREFLY_START_MINUTE) / PARK_FIREFLY_FADE_IN_MINUTES);
   if (minute < HOME_OUTDOOR_DAWN_START_MINUTE) return 1;
-  if (minute < HOME_OUTDOOR_DAY_START_MINUTE)
+  if (minute < PARK_LAMPS_OFF_MINUTE)
     return 1 - (minute - HOME_OUTDOOR_DAWN_START_MINUTE) /
-      (HOME_OUTDOOR_DAY_START_MINUTE - HOME_OUTDOOR_DAWN_START_MINUTE);
+      (PARK_LAMPS_OFF_MINUTE - HOME_OUTDOOR_DAWN_START_MINUTE);
   return 0;
 }
 // Automatic samples still update every 30 seconds, but the rendered fade is
