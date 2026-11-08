@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { getHouseInteriorLightRadiusRatio } from "../shared/housing";
 import { parkOutdoorLightEffects, parkOutdoorLightRadius } from "../shared/petParkAtmosphere";
-import { parkSceneDarkness, parkOutdoorEffectOpacity } from "../client/src/lib/parkSceneLighting";
+import { parkSceneDarkness, parkOutdoorEffectOpacity, parkSceneLampMaskChannel, PARK_SCENE_LAMP_MAX_REVEAL } from "../client/src/lib/parkSceneLighting";
 import { getAutomaticHomeNightStrength } from "../client/src/lib/homeOutdoorLighting";
 import { isPlayerToggleableInteriorEffect } from "../client/src/components/HomeInteriorEffect";
 
@@ -99,8 +99,8 @@ test("Pet Park and World Editor have warm lamp centers and smooth scene-only fal
   assert.match(atmosphere, /parkLampFalloff = false/,
     "existing Pet Home outdoor lighting retains its original fallback");
   assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
-  assert.match(atmosphere, /PARK_LAMP_MAX_REVEAL = 0\.48/);
-  assert.match(atmosphere, /const channel = Math\.round/);
+  assert.match(atmosphere, /parkSceneLampMaskChannel\(safeNight, falloff\)/);
+  assert.equal(PARK_SCENE_LAMP_MAX_REVEAL, 0.48);
   assert.match(atmosphere, /mixBlendMode: "darken"/,
     "overlapping lamp cuts should use the strongest local illumination");
   assert.match(atmosphere, /data-testid="park-outdoor-lamp-neutral-cutout"/);
@@ -150,10 +150,19 @@ test("overlapping lamp cutouts are neutral, capped and preserve nighttime darkne
   assert.match(atmosphere, /mixBlendMode: "darken"/);
   assert.doesNotMatch(atmosphere, /park-outdoor-lamp-warm-spill/);
   assert.match(scene, /PARK_SCENE_NIGHT_DARKNESS = 88/);
+  assert.equal(parkSceneLampMaskChannel(1, 1), Math.round(255 * (1 - 0.48)),
+    "at night, even the lamp center retains substantial darkness");
+  assert.equal(parkSceneLampMaskChannel(1, 0), 255,
+    "lamp edge returns to the original night mask");
+  assert.equal(parkSceneLampMaskChannel(0, 1), 255,
+    "during daytime lamp cutouts disappear automatically");
+  assert.equal(parkSceneLampMaskChannel(1, 0.5), Math.round(255 * (1 - 0.24)));
+  assert.equal(parkSceneLampMaskChannel(Number.NaN, 1), 255);
   for (const count of [1, 2, 6, 20]) {
     // Opaque grayscale with darken composition uses the lowest mask value
     // of overlapping lamps, not product-of-alpha accumulation.
-    const maskBrightness = Math.min(...Array.from({ length: count }, () => 1 - 0.48));
+    const gray = parkSceneLampMaskChannel(1, 1) / 255;
+    const maskBrightness = Math.min(...Array.from({ length: count }, () => gray));
     const remainingDarkness = 0.88 * maskBrightness;
     assert.ok(remainingDarkness >= 0.45 && remainingDarkness < 0.88,
       "a row of lights must still look like night, not full daylight");
