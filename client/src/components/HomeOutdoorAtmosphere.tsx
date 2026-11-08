@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
 import { getHouseInteriorLightCutoutStrength, getHouseInteriorLightRadiusRatio, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
 import {
@@ -287,7 +287,7 @@ export function HomeOutdoorAtmosphereLayer({
             const soft = isSceneLamp(effect);
 
             return (
-              <g key={gradientId}>
+              <Fragment key={gradientId}>
                 <radialGradient
                   id={gradientId}
                   gradientUnits="userSpaceOnUse"
@@ -322,7 +322,7 @@ export function HomeOutdoorAtmosphereLayer({
                   <stop offset="82%" stopColor="#a86c27" stopOpacity="0.012" />
                   <stop offset="100%" stopColor="#a86c27" stopOpacity="0" />
                 </radialGradient>}
-              </g>
+              </Fragment>
             );
           })}
           <mask
