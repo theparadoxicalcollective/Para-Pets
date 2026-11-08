@@ -331,8 +331,12 @@ try {
     for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
     const rect = await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
+    // World art uses the same select-then-double-tap-to-move gesture as Pet Park.
+    const centerX = rect.x + rect.width / 2, centerY = rect.y + rect.height / 2;
+    await page.mouse.click(centerX, centerY);
+    await page.getByTestId("world-scene-selected-controls").waitFor({ state: "visible" });
     const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
-    await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    await page.mouse.move(centerX, centerY);
     await page.mouse.down();
     await page.mouse.move(rect.x + rect.width / 2 + 22, rect.y + rect.height / 2 + 28, { steps: 6 });
     await page.mouse.up();
