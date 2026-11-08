@@ -226,9 +226,16 @@ export default function PetParkPage() {
   const geometry = parkCameraGeometry(viewportSize.width, viewportSize.height, groundLevel, zoom);
   const { scale, sceneWidth, sceneHeight } = geometry;
   const camera = parkClampCamera(pan ?? { x: -geometry.limitX / 2, y: -geometry.limitY / 2 }, geometry);
-  const parkLights = useMemo(() => parkOutdoorLightEffects([...(scene?.items ?? []), ...(scene?.buildings ?? []).map(building => ({ ...building, kind: "building" }))],
-    { width: sceneWidth, height: sceneHeight, scale }, camera, viewportSize),
-    [scene?.items, scene?.buildings, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
+  const parkLights = useMemo(() => parkOutdoorLightEffects([
+      ...(scene?.items ?? []).map(item => selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && placementDraft
+        ? { ...item, ...placementDraft } : item),
+      ...(scene?.buildings ?? []).map(building => ({
+        ...building,
+        ...(selectedPlacement?.kind === "building" && selectedPlacement.id === building.id && placementDraft ? placementDraft : {}),
+        kind: "building",
+      })),
+    ], { width: sceneWidth, height: sceneHeight, scale }, camera, viewportSize),
+    [scene?.items, scene?.buildings, selectedPlacement, placementDraft, sceneWidth, sceneHeight, scale, camera.x, camera.y, viewportSize.width, viewportSize.height]);
   // The compact action arc uses the existing camera's world-to-screen
   // projection. Prefer the RIGHT side of the touched plot; flip left only
   // when it would otherwise be clipped at a mobile/tablet edge.
