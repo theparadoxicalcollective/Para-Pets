@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Outdoor lamps start activating | 18:00 | Existing dusk fade, neutral scene-mask illumination |
 | Optional nighttime room image | 19:00 | Immediate image switch; one existing interior darkness slider |
-| Fireflies start appearing | 19:30 | Individual fluttering lights begin their existing fade-in |
+| Fireflies start appearing | 19:00 | Individual fluttering lights begin their existing fade-in |
 | Outdoor lamps and fireflies finish turning off | 06:00 | Scene-only light strength reaches zero |
 | Daytime room image returns | 06:30 | Immediate image switch |
 | Outdoor background reaches full daytime | 07:30 | Preserve the existing gradual scene-brightness transition |
@@ -31,7 +31,7 @@ The clocks use **device-local time** in `client/src/lib/homeOutdoorLighting.ts`;
 
 ## Corrections in PR #1027
 
-1. Clock outputs are decoupled: outdoor scene brightness keeps its smooth dawn; lamps and fireflies finish turning off by 06:00; room images switch at 19:00/06:30; fireflies begin at 19:30.
+1. Clock outputs are decoupled: outdoor scene brightness keeps its smooth dawn; lamps and fireflies finish turning off by 06:00; room images switch at 19:00/06:30; fireflies begin at 19:00.
 2. Clock refreshes align to real :00/:30 boundaries, avoiding a full 30-second drift after the author opens the page.
 3. World camera pan/pinch updates are coalesced to one `requestAnimationFrame` commit per frame; scene-relative saved positions remain unchanged.
 4. After creating a Pet Park building, clear the previously selected night-interior image in the creator state so it cannot silently carry into another building.
@@ -43,7 +43,7 @@ The clocks use **device-local time** in `client/src/lib/homeOutdoorLighting.ts`;
 - **Firefly mobile density ceiling:** `shared/petParkAtmosphere.ts` limits active visible swarms to `PARK_MAX_VISIBLE_FIREFLY_FIELDS = 8`. More authored swarms remain stored but may be skipped visually. This prevents unbounded mobile SVG animation work, yet needs a clearly communicated admin limit or a deliberate density policy before large-scale decoration.
 - **Shared-effect-editor duplication:** `PetParkDecorEffectEditor.tsx` and `world-editor/WorldDecorEffectEditor.tsx` are nearly identical, but have different effect sets, copy semantics and test IDs. Likewise two small attached-effect wrappers are near-identical. Consolidate only with full behavior/UI test coverage; avoid introducing a new rendering system solely to remove similar lines.
 - **Legacy nullable night-darkness fields:** Old `interiorNightDarkness` storage/route validation remains in schema for compatibility, but current UI and rendering use one darkness setting and optional night imagery. Do not drop/rename the database column in a quick cleanup PR.
-- **Visual-device acceptance still required:** CI and Playwright smoke tests cannot certify the perceived brightness, light falloff, image quality, iOS touch latency or dense firefly animation in the live game. Test at least an iPhone and tablet after merge with real uploaded assets, especially 18:00/19:00/19:30 and 06:00/06:30 transitions, normal and expanded interiors, overlapping buildings, and repeated drag/save.
+- **Visual-device acceptance still required:** CI and Playwright smoke tests cannot certify the perceived brightness, light falloff, image quality, iOS touch latency or dense firefly animation in the live game. Test at least an iPhone and tablet after merge with real uploaded assets, especially 18:00/19:00 and 06:00/06:30 transitions, normal and expanded interiors, overlapping buildings, and repeated drag/save.
 
 ## Regression checks to use
 
