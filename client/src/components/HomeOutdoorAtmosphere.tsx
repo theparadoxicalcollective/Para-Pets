@@ -184,6 +184,7 @@ export function HomeOutdoorAtmosphereLayer({
   sceneHeight,
   zIndex = 20,
   transitionMs = HOME_OUTDOOR_AUTO_TRANSITION_MS,
+  parkLampFalloff = false,
 }: {
   darkness: number;
   nightStrength: number;
@@ -194,6 +195,8 @@ export function HomeOutdoorAtmosphereLayer({
   sceneHeight: number;
   zIndex?: number;
   transitionMs?: number;
+  /** Only park/world scenes use the warmer, wider lamp falloff; homes remain unchanged. */
+  parkLampFalloff?: boolean;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
   const numericDarkness = Number(darkness);
@@ -223,6 +226,14 @@ export function HomeOutdoorAtmosphereLayer({
   const activeLights = hasSceneBox
     ? effects.filter(effect => isHouseInteriorLightEffectType(effect.type))
     : [];
+  const isSceneLamp = (effect: HouseInteriorEffect) =>
+    parkLampFalloff && (effect.type === "lamp_light" || effect.type === "candle_light");
+  const lightRadius = (effect: HouseInteriorEffect) => {
+    // A larger authored lamp should light a larger area, not create a fixed-size halo.
+    const scale = isSceneLamp(effect) ? 1.3 : 1;
+    return Math.max(12, Math.min(maskHeight * 0.68,
+      getHouseInteriorLightRadiusRatio(effect) * maskHeight * scale));
+  };
 
   return (
     <>
@@ -266,29 +277,52 @@ export function HomeOutdoorAtmosphereLayer({
         <defs>
           {activeLights.map((effect, index) => {
             const gradientId = `${maskId}-light-${index}`;
-            const rawRadius = getHouseInteriorLightRadiusRatio(effect) * maskHeight;
-            const radius = Math.max(12, Math.min(maskHeight * 0.68, rawRadius));
+            const radius = lightRadius(effect);
             const baseStrength = getHouseInteriorLightCutoutStrength(effect.type);
             const cutoutStrength = effect.type === "warm_glow"
               ? baseStrength * (1 - safeNight)
               : effect.type === "lamp_light" || effect.type === "candle_light"
                 ? baseStrength * safeNight
                 : baseStrength;
+            const soft = isSceneLamp(effect);
 
             return (
-              <radialGradient
-                key={gradientId}
-                id={gradientId}
-                gradientUnits="userSpaceOnUse"
-                cx={effect.x * maskWidth}
-                cy={effect.y * maskHeight}
-                r={radius}
-              >
-                <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
-                <stop offset="38%" stopColor="black" stopOpacity={cutoutStrength * 0.70} />
-                <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.25} />
-                <stop offset="100%" stopColor="black" stopOpacity={0} />
-              </radialGradient>
+              <g key={gradientId}>
+                <radialGradient
+                  id={gradientId}
+                  gradientUnits="userSpaceOnUse"
+                  cx={effect.x * maskWidth}
+                  cy={effect.y * maskHeight}
+                  r={radius}
+                >
+                  {soft ? <>
+                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
+                    <stop offset="20%" stopColor="black" stopOpacity={cutoutStrength * 0.93} />
+                    <stop offset="42%" stopColor="black" stopOpacity={cutoutStrength * 0.76} />
+                    <stop offset="65%" stopColor="black" stopOpacity={cutoutStrength * 0.44} />
+                    <stop offset="84%" stopColor="black" stopOpacity={cutoutStrength * 0.17} />
+                    <stop offset="100%" stopColor="black" stopOpacity={0} />
+                  </> : <>
+                    <stop offset="0%" stopColor="black" stopOpacity={cutoutStrength} />
+                    <stop offset="38%" stopColor="black" stopOpacity={cutoutStrength * 0.70} />
+                    <stop offset="72%" stopColor="black" stopOpacity={cutoutStrength * 0.25} />
+                    <stop offset="100%" stopColor="black" stopOpacity={0} />
+                  </>}
+                </radialGradient>
+                {soft && <radialGradient
+                  id={`${gradientId}-warm`}
+                  gradientUnits="userSpaceOnUse"
+                  cx={effect.x * maskWidth}
+                  cy={effect.y * maskHeight}
+                  r={radius}
+                >
+                  <stop offset="0%" stopColor="#ffd075" stopOpacity="0.15" />
+                  <stop offset="28%" stopColor="#f6b34f" stopOpacity="0.10" />
+                  <stop offset="54%" stopColor="#d88932" stopOpacity="0.045" />
+                  <stop offset="82%" stopColor="#a86c27" stopOpacity="0.012" />
+                  <stop offset="100%" stopColor="#a86c27" stopOpacity="0" />
+                </radialGradient>}
+              </g>
             );
           })}
           <mask
@@ -303,8 +337,7 @@ export function HomeOutdoorAtmosphereLayer({
           >
             <rect x={0} y={0} width={maskWidth} height={maskHeight} fill="white" />
             {activeLights.map((effect, index) => {
-              const rawRadius = getHouseInteriorLightRadiusRatio(effect) * maskHeight;
-              const radius = Math.max(12, Math.min(maskHeight * 0.68, rawRadius));
+              const radius = lightRadius(effect);
               return (
                 <circle
                   key={effect.id}
@@ -329,6 +362,19 @@ export function HomeOutdoorAtmosphereLayer({
             transition: `fill-opacity ${transitionMs}ms linear`,
           }}
         />
+        {parkLampFalloff && activeLights.map((effect, index) => {
+          if (!isSceneLamp(effect)) return null;
+          return <circle
+            key={`${effect.id}-warm-spill`}
+            data-testid="park-outdoor-lamp-warm-spill"
+            cx={effect.x * maskWidth}
+            cy={effect.y * maskHeight}
+            r={lightRadius(effect)}
+            fill={`url(#${maskId}-light-${index}-warm)`}
+            style={{ opacity: safeNight, transition: `opacity ${transitionMs}ms linear`,
+              pointerEvents: "none" }}
+          />;
+        })}
       </svg>
     </>
   );
