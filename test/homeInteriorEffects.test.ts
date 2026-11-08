@@ -309,16 +309,20 @@ test("campfire, candle, lamp, and sunlight remain distinct renderers", () => {
   assert.match(source, /data-testid="home-lamp-light-diffusion"/);
   assert.match(source, /data-testid="home-lamp-light-halo"/);
   assert.match(source, /radial-gradient\(circle at 50% 50%/);
-  assert.match(source, /width: "16%"/);
-  assert.match(source, /height: "16%"/);
+  assert.match(source, /width: warmSceneLamp \? "34%" : "16%"/);
+  assert.match(source, /height: warmSceneLamp \? "34%" : "16%"/);
   assert.match(source, /inset: "-38%"/);
   assert.match(source, /borderRadius: "50%"/);
   assert.match(source, /filter: "blur\(6px\)"/);
   assert.match(source, /data-testid="home-lamp-light-core"/);
+  assert.match(source, /warmSceneLamp = false/,
+    "existing indoor lamp rendering and size stay unchanged by default");
+  assert.match(source, /para-park-lamp-breathe/,
+    "only outdoor scene lamps use the new subtle orb pulse");
   assert.match(source, /left: "50%"/);
   assert.match(source, /top: "50%"/);
-  assert.match(source, /width: "16%"/);
-  assert.match(source, /height: "16%"/);
+  assert.match(source, /width: warmSceneLamp \? "34%" : "16%"/);
+  assert.match(source, /height: warmSceneLamp \? "34%" : "16%"/);
   assert.match(source, /filter: "blur\(2px\)"/);
   assert.match(source, /label: "Sunlight"/);
   assert.match(source, /Soft broad daylight for windows/);
