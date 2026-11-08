@@ -129,9 +129,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const camera = worldEditorCameraGeometry(size.width, size.height, groundLevel, zoom);
   const initialPan = { x: -camera.limitX / 2, y: -camera.limitY / 2 };
   const actualPan = parkClampCamera(pan ?? initialPan, camera);
-  const exteriorLights = useMemo(() => parkOutdoorLightEffects(content.placements,
+  const exteriorLights = useMemo(() => parkOutdoorLightEffects(
+    content.placements.map(item => objectPreview?.id === item.id ? { ...item, ...objectPreview } : item),
     { width: camera.sceneWidth, height: camera.sceneHeight, scale: camera.scale }, actualPan, size),
-    [content.placements, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
+    [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const selected = content.placements.find(p => p.id === selectedId) ?? null;
