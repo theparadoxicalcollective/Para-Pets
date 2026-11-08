@@ -9,7 +9,7 @@ import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.webp";
-import { AdminEditorLoader, PetDatabasePanel, HomeBundleSection, CardAdminPanel } from "@/components/admin/LazyAdminEditors";
+import { AdminEditorLoader, PetDatabasePanel, PlayerCharacterAdminPanel, HomeBundleSection, CardAdminPanel } from "@/components/admin/LazyAdminEditors";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, getItemCategory, ITEM_CATEGORIES, type RewardHouseBundleOption, type RewardHomeDecorOption } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
@@ -97,7 +97,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "pet_park" | "garden" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
-  const [characterTab, setCharacterTab] = useState<"pet" | "mini_pet" | "enemy" | "npc" | "fish">("pet");
+  const [characterTab, setCharacterTab] = useState<"pet" | "mini_pet" | "enemy" | "npc" | "fish" | "avatar">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
   const [rewardsTab, setRewardsTab] = useState<"rewards" | "daily" | "welcome" | "code">("rewards");
   const [watcherTab, setWatcherTab] = useState<"watcher" | "chat_filter">("watcher");
@@ -739,6 +739,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                       { key: "enemy", label: "Enemy" },
                       { key: "npc", label: "NPC" },
                       { key: "fish", label: "Fish" },
+                      { key: "avatar", label: "Avatar" },
                     ] as const).map(t => {
                       const active = characterTab === t.key;
                       return (
@@ -799,6 +800,11 @@ export default function AdminPage({ user }: AdminPageProps) {
                     </div>
                   )}
                   {characterTab === "fish" && <FishingAdminPanel restrict="fish" />}
+                  {characterTab === "avatar" && (
+                    <AdminEditorLoader label="Loading Avatar Editor…">
+                      <PlayerCharacterAdminPanel />
+                    </AdminEditorLoader>
+                  )}
                 </div>
               )}
 
