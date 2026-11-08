@@ -10,10 +10,10 @@ const source = (path: string) => readFileSync(path, "utf8");
 test("fireflies wake after the existing lamp dusk transition and sleep at dawn", () => {
   const at = (h: number, m = 0) => new Date(2026, 10, 8, h, m);
   assert.equal(getParkFireflyStrength("auto", at(18)), 0);
-  assert.equal(getParkFireflyStrength("auto", at(18, 59)), 0);
-  assert.equal(getParkFireflyStrength("auto", at(19)), 0);
-  assert.ok(getParkFireflyStrength("auto", at(19, 15)) > 0);
-  assert.equal(getParkFireflyStrength("auto", at(19, 45)), 1);
+  assert.equal(getParkFireflyStrength("auto", at(19, 29)), 0);
+  assert.equal(getParkFireflyStrength("auto", at(19, 30)), 0);
+  assert.ok(getParkFireflyStrength("auto", at(19, 45)) > 0);
+  assert.equal(getParkFireflyStrength("auto", at(20, 15)), 1);
   assert.equal(getParkFireflyStrength("auto", at(1)), 1);
   assert.equal(getParkFireflyStrength("auto", at(6)), 0);
   assert.equal(getParkFireflyStrength("day", at(23)), 0);
