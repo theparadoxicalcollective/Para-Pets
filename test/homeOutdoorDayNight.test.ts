@@ -251,7 +251,12 @@ test("outdoor lamps reveal the real night scene through soft darkness cutouts", 
   const atmosphere = read("client/src/components/HomeOutdoorAtmosphere.tsx");
 
   assert.match(atmosphere, /effects\.filter\(effect => isHouseInteriorLightEffectType\(effect\.type\)\)/);
-  assert.match(atmosphere, /getHouseInteriorLightRadiusRatio\(effect\)/);
+  assert.match(atmosphere, /parkOutdoorLightRadius\(effect, maskHeight, isSceneLamp\(effect\)\)/);
+  const parkLightHelper = read("shared/petParkAtmosphere.ts");
+  assert.match(parkLightHelper, /getHouseInteriorLightRadiusRatio\(effect\)/,
+    "the shared helper still derives the reveal radius from the authored effect size");
+  assert.match(parkLightHelper, /sceneLamp = false/,
+    "Pet Home keeps its original unexpanded outdoor radius");
   assert.match(atmosphere, /getHouseInteriorLightCutoutStrength\(effect\.type\)/);
   assert.match(atmosphere, /<radialGradient/);
   assert.match(atmosphere, /<circle/);

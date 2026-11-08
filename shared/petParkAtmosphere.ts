@@ -1,4 +1,4 @@
-import { isHouseInteriorEffectType, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "./housing";
+import { getHouseInteriorLightRadiusRatio, isHouseInteriorEffectType, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "./housing";
 import { parkDecorEffectWorldPosition, type ParkDecorEffect } from "./petParkDecorEffects";
 
 export type ParkAtmosphereObject = {
@@ -12,6 +12,26 @@ export type ParkAtmosphereObject = {
   decorEffects?: readonly ParkDecorEffect[];
 };
 
+/**
+ * An outdoor lamp's tiny visible flare and the area it lights are different.
+ * Keep visible artwork size untouched; only expand the darkness-mask reach.
+ * Both scene editors use this same radius and the same world-to-screen math.
+ * Home/indoor renderers pass sceneLamp=false and keep their original radius.
+ */
+export function parkOutdoorLightRadius(
+  effect: HouseInteriorEffect,
+  sceneHeight: number,
+  sceneLamp = false,
+): number {
+  const height = Number.isFinite(sceneHeight) && sceneHeight > 0 ? sceneHeight : 1;
+  const spread = sceneLamp
+    ? effect.type === "lamp_light" ? 3.1
+      : effect.type === "candle_light" ? 2.35 : 1
+    : 1;
+  return Math.max(12, Math.min(height * 0.68,
+    getHouseInteriorLightRadiusRatio(effect) * height * spread));
+}
+
 export function parkOutdoorLightEffects(
   items: readonly ParkAtmosphereObject[],
   geometry: { width: number; height: number; scale: number },
@@ -20,28 +40,30 @@ export function parkOutdoorLightEffects(
 ): HouseInteriorEffect[] {
   if (geometry.width <= 0 || geometry.height <= 0) return [];
   const result: HouseInteriorEffect[] = [];
-  const inView = (x: number, y: number) => {
-    const px = camera.x + x * geometry.width;
-    const py = camera.y + y * geometry.height;
-    return px >= -160 && py >= -160 &&
-      px <= viewport.width + 160 && py <= viewport.height + 160;
+  const inView = (light: HouseInteriorEffect) => {
+    const px = camera.x + light.x * geometry.width;
+    const py = camera.y + light.y * geometry.height;
+    // Large, softly fading lamps must not pop into view only when their
+    // small visible center crosses the old fixed 160px culling margin.
+    const margin = Math.max(160, parkOutdoorLightRadius(light, geometry.height, true));
+    return px >= -margin && py >= -margin &&
+      px <= viewport.width + margin && py <= viewport.height + margin;
   };
   for (const item of items) {
     if (item.kind === "effect" && isHouseInteriorEffectType(item.effectType) &&
         isHouseInteriorLightEffectType(item.effectType)) {
-      if (inView(item.xPct, item.yPct)) {
-        result.push({ id: item.id, type: item.effectType,
-          x: item.xPct, y: item.yPct, size: item.size * geometry.scale / geometry.height * 100 });
-      }
+      const light = { id: item.id, type: item.effectType,
+        x: item.xPct, y: item.yPct, size: item.size * geometry.scale / geometry.height * 100 };
+      if (inView(light)) result.push(light);
     }
     // Outdoor lamps may be attached to building facades or decorations.
     if (item.kind !== "decor" && item.kind !== "building") continue;
     for (const effect of item.decorEffects ?? []) {
       if (!isHouseInteriorEffectType(effect.type) || !isHouseInteriorLightEffectType(effect.type)) continue;
       const position = parkDecorEffectWorldPosition(item, effect, geometry);
-      if (!inView(position.x, position.y)) continue;
-      result.push({ id: `${item.id}-${effect.id}`, type: effect.type,
-        x: position.x, y: position.y, size: position.size });
+      const light = { id: `${item.id}-${effect.id}`, type: effect.type,
+        x: position.x, y: position.y, size: position.size };
+      if (inView(light)) result.push(light);
     }
   }
   return result;
