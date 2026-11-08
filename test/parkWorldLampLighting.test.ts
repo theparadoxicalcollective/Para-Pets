@@ -62,7 +62,7 @@ test("lamp light reveal follows authored size for decor, building facades and in
     getHouseInteriorLightRadiusRatio({ id:"s", type:"lamp_light", x:.5,y:.5,size:16 }));
   const interiors = source("client/src/components/HomeInteriorEffect.tsx");
   assert.match(interiors, /Math\.max\(12, getHouseInteriorLightRadiusRatio\(effect\) \* height\)/);
-  assert.match(source("client/src/pages/WorldSceneEditorPage.tsx"), /darkness=\{parkInteriorDarkness\(interiorDarkness, interiorNightDarkness, previewNightStrength\)\}/);
+  assert.match(source("client/src/pages/WorldSceneEditorPage.tsx"), /darkness=\{interiorDarkness\}/);
 });
 
 test("outdoor facade lamp storage is additive and scoped; indoor sunlight stays automatic and untappable", () => {
