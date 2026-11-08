@@ -12,6 +12,8 @@ import {
   HOME_OUTDOOR_RESUME_TRANSITION_MS,
   type HomeOutdoorLightingMode,
   getParkFireflyStrength,
+  getParkLampStrength,
+  isNightInteriorArtworkActive,
 } from "@/lib/homeOutdoorLighting";
 
 export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
@@ -67,12 +69,14 @@ export function useHomeOutdoorLighting(mode: HomeOutdoorLightingMode) {
   const nightStrength = useMemo(() => getHomeOutdoorNightStrength(mode, now), [mode, now]);
   const darkness = useMemo(() => getHomeOutdoorDarkness(mode, now), [mode, now]);
   const fireflyStrength = useMemo(() => getParkFireflyStrength(mode, now), [mode, now]);
+  const lampStrength = useMemo(() => getParkLampStrength(mode, now), [mode, now]);
+  const nightInteriorArtworkActive = useMemo(() => isNightInteriorArtworkActive(mode, now), [mode, now]);
 
   const transitionMs = mode === "auto"
     ? autoTransitionMs
     : HOME_OUTDOOR_OVERRIDE_TRANSITION_MS;
 
-  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs, fireflyStrength };
+  return { mode, nightStrength, daylightStrength: 1 - nightStrength, darkness, transitionMs, fireflyStrength, lampStrength, nightInteriorArtworkActive };
 }
 
 export function HomeDayNightToggle({
@@ -192,6 +196,7 @@ const PARK_LAMP_FALLOFF_STOPS = [
 export function HomeOutdoorAtmosphereLayer({
   darkness,
   nightStrength,
+  lampStrength = nightStrength,
   effects,
   panX,
   panY = 0,
@@ -206,6 +211,8 @@ export function HomeOutdoorAtmosphereLayer({
 }: {
   darkness: number;
   nightStrength: number;
+  /** Independent park/world lamp cutoff; omitted by existing Pet Home callers. */
+  lampStrength?: number;
   effects: HouseInteriorEffect[];
   panX: number;
   panY?: number;
@@ -220,6 +227,7 @@ export function HomeOutdoorAtmosphereLayer({
   reducedMotion?: boolean;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
+  const safeLamp = Math.max(0, Math.min(1, lampStrength));
   const numericDarkness = Number(darkness);
   const safeDarkness = Number.isFinite(numericDarkness)
     ? Math.max(0, Math.min(100, numericDarkness))
@@ -332,7 +340,7 @@ export function HomeOutdoorAtmosphereLayer({
             const cutoutStrength = effect.type === "warm_glow"
               ? baseStrength * (1 - safeNight)
               : effect.type === "lamp_light" || effect.type === "candle_light"
-                ? baseStrength * safeNight
+                ? baseStrength * (parkLampFalloff ? safeLamp : safeNight)
                 : baseStrength;
             return (
               <radialGradient
@@ -347,7 +355,7 @@ export function HomeOutdoorAtmosphereLayer({
                   // Opaque grayscale allows 'darken' composition in the mask:
                   // adjacent lamps reveal the stronger local light, rather
                   // than summing into a near-daylight patch.
-                  const channel = parkSceneLampMaskChannel(safeNight, falloff);
+                  const channel = parkSceneLampMaskChannel(safeLamp, falloff);
                   return <stop key={offset} offset={`${offset}%`}
                     stopColor={`rgb(${channel}, ${channel}, ${channel})`} />;
                 }) : soft ? <>
