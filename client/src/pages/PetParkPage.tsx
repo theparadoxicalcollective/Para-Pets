@@ -1114,7 +1114,7 @@ export default function PetParkPage() {
           pets and decor together. It stays below all player/admin controls. */}
       {scene && !activeBuilding && <div data-testid="pet-park-auto-day-night"
         className="pointer-events-none absolute inset-0 z-[10] overflow-hidden">
-        <HomeOutdoorAtmosphereLayer darkness={parkSceneDarkness(parkLighting.nightStrength)}
+        <HomeOutdoorAtmosphereLayer parkLampFalloff darkness={parkSceneDarkness(parkLighting.nightStrength)}
           nightStrength={parkLighting.nightStrength}
           effects={parkLights} panX={camera.x} panY={camera.y}
           imgWidth={sceneWidth} sceneHeight={sceneHeight}
