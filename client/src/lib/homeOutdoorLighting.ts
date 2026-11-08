@@ -38,8 +38,8 @@ export function getParkLampStrength(mode: HomeOutdoorLightingMode, date: Date): 
   }
   return strength;
 }
-/** Fireflies begin at 19:30, after night interiors switch at 19:00. */
-export const PARK_FIREFLY_START_MINUTE = 19 * 60 + 30;
+/** Fireflies begin at 19:00 alongside the nighttime interior artwork. */
+export const PARK_FIREFLY_START_MINUTE = PARK_NIGHT_INTERIOR_START_MINUTE;
 export const PARK_FIREFLY_FADE_IN_MINUTES = 45;
 export function getParkFireflyStrength(mode: HomeOutdoorLightingMode, date: Date): number {
   if (mode === "day") return 0;
