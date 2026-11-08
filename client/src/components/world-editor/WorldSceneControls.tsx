@@ -382,7 +382,7 @@ export default function WorldSceneControls(props: Props) {
           <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
             effects={props.selected.decorEffects} disabled={busy}
             onChange={effects => void patchSelected({ decorEffects: effects })}/>
-        </section>
+        </section>}
         <label className="block space-y-1 text-xs">Building Name
           <input aria-label="Rename world building" value={buildingNameDraft}
             onChange={event => setBuildingNameDraft(event.target.value)} maxLength={80}
