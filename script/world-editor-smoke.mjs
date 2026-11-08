@@ -213,7 +213,15 @@ try {
 
     await page.goto("http://127.0.0.1:4194/fixture?world=haunted_woods",
       { waitUntil: "commit", timeout: 30_000 });
-    await page.getByTestId("world-scene-editor").waitFor({ state: "visible", timeout: 30_000 });
+    try {
+      await page.getByTestId("world-scene-editor").waitFor({ state: "visible", timeout: 30_000 });
+    } catch (error) {
+      console.error("World editor startup diagnostics", {
+        name, errors, url: page.url(),
+        content: (await page.locator("body").innerText().catch(() => "")).slice(0, 1200),
+      });
+      throw error;
+    }
     await page.getByRole("button", { name: "+ Building" }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "+ Building" }).click();
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
