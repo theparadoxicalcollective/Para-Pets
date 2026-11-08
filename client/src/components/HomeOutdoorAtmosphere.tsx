@@ -1,8 +1,9 @@
 import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Moon, Sun } from "lucide-react";
 import { getHouseInteriorLightCutoutStrength, isHouseInteriorLightEffectType, type HouseInteriorEffect } from "@shared/housing";
-import { parkOutdoorLightRadius } from "@shared/petParkAtmosphere";
-import { parkSceneLampMaskChannel } from "@/lib/parkSceneLighting";
+import { parkOutdoorLightRadius, type ParkFireflyField } from "@shared/petParkAtmosphere";
+import { ParkFireflyParticles } from "@/components/ParkFireflySwarm";
+import { parkSceneLampMaskChannel, parkSceneFireflyMaskChannel } from "@/lib/parkSceneLighting";
 import {
   getHomeOutdoorDarkness,
   getHomeOutdoorNightStrength,
@@ -199,6 +200,9 @@ export function HomeOutdoorAtmosphereLayer({
   zIndex = 20,
   transitionMs = HOME_OUTDOOR_AUTO_TRANSITION_MS,
   parkLampFalloff = false,
+  fireflies = [],
+  fireflyStrength = 0,
+  reducedMotion = false,
 }: {
   darkness: number;
   nightStrength: number;
@@ -211,6 +215,9 @@ export function HomeOutdoorAtmosphereLayer({
   transitionMs?: number;
   /** Park/world lamp masks reveal neutral scenery; existing Pet Home lighting stays unchanged. */
   parkLampFalloff?: boolean;
+  fireflies?: readonly ParkFireflyField[];
+  fireflyStrength?: number;
+  reducedMotion?: boolean;
 }) {
   const safeNight = Math.max(0, Math.min(1, nightStrength));
   const numericDarkness = Number(darkness);
@@ -237,6 +244,7 @@ export function HomeOutdoorAtmosphereLayer({
   const maskId = `home-outdoor-darkness-mask-${rawMaskId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const maskWidth = hasSceneBox ? imgWidth : 1;
   const maskHeight = hasSceneBox ? sceneHeight : 1;
+  const activeFireflies = parkLampFalloff && hasSceneBox && fireflyStrength > 0 ? fireflies : [];
   const activeLights = hasSceneBox
     ? effects.filter(effect => isHouseInteriorLightEffectType(effect.type))
     : [];
@@ -244,6 +252,20 @@ export function HomeOutdoorAtmosphereLayer({
     parkLampFalloff && (effect.type === "lamp_light" || effect.type === "candle_light");
   const lightRadius = (effect: HouseInteriorEffect) =>
     parkOutdoorLightRadius(effect, maskHeight, isSceneLamp(effect));
+  const fireflyMaskId = `${maskId}-firefly-mask`;
+  const fireflyOrbId = `${maskId}-firefly-orb`;
+  const renderFireflies = (mode: "mask" | "visible") => activeFireflies.map(field => {
+    const diameter = Math.max(1, field.size / 100 * maskHeight);
+    return <g key={field.id} data-testid={mode === "visible" ? "park-firefly-lit-swarm" : undefined}
+      transform={`translate(${field.x * maskWidth} ${field.y * maskHeight})`}>
+      <g transform={`scale(${diameter / 100})`}>
+        <g transform="translate(-50 -50)">
+          <ParkFireflyParticles mode={mode} reducedMotion={reducedMotion}
+            gradientId={mode === "mask" ? fireflyMaskId : fireflyOrbId}/>
+        </g>
+      </g>
+    </g>;
+  });
 
   return (
     <>
@@ -285,6 +307,20 @@ export function HomeOutdoorAtmosphereLayer({
         }}
       >
         <defs>
+          {activeFireflies.length > 0 && <>
+            <radialGradient id={fireflyMaskId}>
+              {([[0, 1], [28, 0.72], [62, 0.26], [100, 0]] as const).map(([offset, falloff]) => {
+                const shade = parkSceneFireflyMaskChannel(fireflyStrength, falloff);
+                return <stop key={offset} offset={`${offset}%`}
+                  stopColor={`rgb(${shade}, ${shade}, ${shade})`}/>;
+              })}
+            </radialGradient>
+            <radialGradient id={fireflyOrbId}>
+              <stop offset="0%" stopColor="#fff5b4" stopOpacity={0.48}/>
+              <stop offset="45%" stopColor="#ffe28b" stopOpacity={0.17}/>
+              <stop offset="100%" stopColor="#ffe08b" stopOpacity={0}/>
+            </radialGradient>
+          </>}
           {activeLights.map((effect, index) => {
             const gradientId = `${maskId}-light-${index}`;
             const radius = lightRadius(effect);
@@ -342,6 +378,8 @@ export function HomeOutdoorAtmosphereLayer({
             style={{ maskType: "luminance" }}
           >
             <rect x={0} y={0} width={maskWidth} height={maskHeight} fill="white" />
+            {activeFireflies.length > 0 &&
+              <g data-testid="park-scene-firefly-illumination">{renderFireflies("mask")}</g>}
             {activeLights.map((effect, index) => {
               const radius = lightRadius(effect);
               return (
@@ -372,6 +410,11 @@ export function HomeOutdoorAtmosphereLayer({
             transition: `fill-opacity ${transitionMs}ms linear`,
           }}
         />
+        {activeFireflies.length > 0 && <g data-testid="park-scene-fireflies"
+          opacity={Math.max(0, Math.min(1, fireflyStrength))}
+          style={{ transition: `opacity ${transitionMs}ms linear` }}>
+          {renderFireflies("visible")}
+        </g>}
       </svg>
     </>
   );
