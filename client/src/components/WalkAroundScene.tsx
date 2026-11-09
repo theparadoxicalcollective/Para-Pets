@@ -88,10 +88,16 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
 
   useEffect(() => {
     if (!config.features.combat) return;
-    // With no featured hatched combat pet, no server combat session can start.
-    // Do not trap an avatar-only visitor behind an unfinishable loader.
-    setClearingReady(!activePetInventoryId || !petTemplateId);
-    setLoadingComplete(!activePetInventoryId || !petTemplateId);
+    // A real combat companion triggers a new bounded loading/session cycle.
+    // Without one, no combat session exists: don't trap an avatar-only visitor
+    // behind an unfinishable Clearing loader.
+    if (activePetInventoryId && petTemplateId) {
+      setClearingReady(false);
+      setLoadingComplete(false);
+    } else {
+      setClearingReady(true);
+      setLoadingComplete(true);
+    }
     setSpecialReady(false);
   }, [activePetInventoryId, petTemplateId, config.features.combat]);
 
