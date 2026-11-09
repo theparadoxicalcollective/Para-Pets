@@ -1362,7 +1362,7 @@ function BagView({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bagGroup, setBagGroup] = useState<GameItemGroupKey>("items");
   const [bagCategory, setBagCategory] = useState<GameItemCategoryKey | null>(null);
-  const groupIcons: Record<GameItemGroupKey, string> = { pets: tabIconPet, fish: tabIconFish, home: tabIconHome, items: tabIconPotion };
+  const groupIcons: Record<GameItemGroupKey, string> = { pets: tabIconPet, fish: tabIconFish, home: tabIconHome, avatars: tabIconAccessory, items: tabIconPotion };
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
