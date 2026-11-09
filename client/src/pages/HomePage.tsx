@@ -847,7 +847,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             inventoryLoading={inventoryLoading}
             visible={!isOverlayActive && !showPetStats && !showProfile &&
               !showSupportModal && !showWorldChat && activePetModal === null &&
-              !showSpeedUp && !hatchRevealing && !showActionMenu}
+              !showSpeedUp && !hatchRevealing && !showActionMenu && !questGuideMode}
           />
         </ViewportHudPortal>
 
