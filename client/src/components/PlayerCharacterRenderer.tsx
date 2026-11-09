@@ -1,4 +1,5 @@
 import type { PlayerCharacterPart, PlayerCharacterPartType } from "@shared/playerCharacter";
+import type { PlayerClothingSegment } from "@shared/playerCharacterClothing";
 import "./PlayerCharacterRenderer.css";
 
 /**
@@ -14,6 +15,7 @@ export type PlayerCharacterMotion = "static" | "idle" | "walk";
 
 export interface PlayerCharacterRendererProps {
   parts: readonly PlayerCharacterPart[];
+  clothingSegments?: readonly PlayerClothingSegment[];
   motion?: PlayerCharacterMotion;
   selectedPartType?: PlayerCharacterPartType | null;
   ariaLabel?: string;
@@ -21,6 +23,7 @@ export interface PlayerCharacterRendererProps {
 
 export default function PlayerCharacterRenderer({
   parts,
+  clothingSegments = [],
   motion = "static",
   selectedPartType = null,
   ariaLabel = "Player character",
@@ -64,11 +67,37 @@ export default function PlayerCharacterRenderer({
               draggable={false}
               className="player-character-renderer__image"
               style={{
+                position: "relative",
+                zIndex: 1,
                 filter: part.partType === selectedPartType
                   ? "drop-shadow(0 0 4px #f3d08e)" : undefined,
                 opacity: part.partType === selectedPartType ? 0.96 : 1,
               }}
             />
+            {/* A clothing item owns multiple images, each fitted INSIDE the
+                same motion wrapper as its selected body part. Both halves
+                of pants therefore inherit their own leg's movement. */}
+            {clothingSegments.filter(item => item.partType === part.partType).map(item => (
+              <img
+                key={item.partType}
+                src={item.imageUrl}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                data-clothing-part={item.partType}
+                data-clothing-plane={item.renderPlane}
+                className="player-character-renderer__clothing"
+                style={{
+                  left: `${item.fit.xPct}%`,
+                  top: `${item.fit.yPct}%`,
+                  width: `${item.fit.widthPct}%`,
+                  transformOrigin: `${item.fit.pivotXPct}% ${item.fit.pivotYPct}%`,
+                  transform: `translate(-${item.fit.pivotXPct}%, -${item.fit.pivotYPct}%) rotate(${item.fit.rotationDeg}deg)`,
+                  zIndex: item.renderPlane === "behind_character" ? 0
+                    : item.renderPlane === "with_part" ? 2 : 3,
+                }}
+              />
+            ))}
           </div>
         </div>
       ))}
