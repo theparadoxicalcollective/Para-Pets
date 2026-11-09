@@ -17,8 +17,10 @@ test("one account-scoped key is shared by Home, Clearing, and wardrobe", () => {
   assert.match(clearing, /queryKey: playerAvatarQueryKey\(userId \?\? ""\)/);
   assert.match(wardrobe, /const avatarKey = playerAvatarQueryKey\(userId\)/);
   assert.match(wardrobe, /queryKey: avatarKey/);
-  assert.match(wardrobe, /qc\.setQueryData\(avatarKey, saved\)/);
-  assert.match(wardrobe, /qc\.invalidateQueries\(\{ queryKey: avatarKey \}\)/);
+  assert.match(wardrobe, /qc\.setQueryData\(playerAvatarQueryKey\(accountId\), saved\)/);
+  assert.match(wardrobe, /cacheSavedAvatar\(saved, input\.accountId\)/);
+  assert.match(wardrobe, /if \(input\.accountId !== userId\) return/);
+  assert.match(wardrobe, /qc\.invalidateQueries\(\{ queryKey: playerAvatarQueryKey\(input\.accountId\) \}\)/);
   assert.match(app, /<PlayerAvatarPage userId=\{user\.id\}/);
   assert.doesNotMatch(wardrobe, /qc\.setQueryData\(PLAYER_AVATAR_QUERY_KEY/);
   assert.doesNotMatch(wardrobe, /queryKey: PLAYER_AVATAR_QUERY_KEY/);
