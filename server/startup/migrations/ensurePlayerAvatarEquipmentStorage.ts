@@ -5,6 +5,10 @@ import { db } from "../../db";
  * admin draft/publish tables and all pet inventory remain untouched. */
 export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
   await db.execute(sql`
+    ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS published_category text;
+    UPDATE player_clothing_drafts SET published_category = category
+      WHERE published_category IS NULL AND published_segments IS NOT NULL;
+
     CREATE TABLE IF NOT EXISTS player_avatar_profiles (
       user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       base_id varchar NOT NULL REFERENCES player_character_bases(id),
