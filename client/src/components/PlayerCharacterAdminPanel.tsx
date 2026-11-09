@@ -8,7 +8,9 @@ import {
   PLAYER_CHARACTER_PART_LABELS,
   PLAYER_CHARACTER_PART_TYPES,
   completePlayerCharacterParts,
+  resolvePlayerCharacterParts,
   type PlayerCharacterPart,
+  type StoredPlayerCharacterPart,
   type PlayerCharacterPartType,
   type PlayerCharacterTransform,
 } from "@shared/playerCharacter";
@@ -16,8 +18,8 @@ import {
 interface CharacterBase {
   id: string;
   name: string;
-  draftParts: PlayerCharacterPart[];
-  publishedParts: PlayerCharacterPart[] | null;
+  draftParts: StoredPlayerCharacterPart[];
+  publishedParts: StoredPlayerCharacterPart[] | null;
   isDefault: boolean;
   revision: number;
 }
@@ -61,7 +63,7 @@ export default function PlayerCharacterAdminPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newName, setNewName] = useState("Player Avatar");
   const [renameValue, setRenameValue] = useState("");
-  const [partType, setPartType] = useState<PlayerCharacterPartType>("body");
+  const [partType, setPartType] = useState<PlayerCharacterPartType>("top");
   const [transform, setTransform] = useState<PlayerCharacterTransform>(DEFAULT_PLAYER_CHARACTER_TRANSFORMS.body);
   const [imageData, setImageData] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -73,7 +75,11 @@ export default function PlayerCharacterAdminPanel() {
   const bases = query.data ?? [];
   const selected = bases.find(base => base.id === selectedId) ?? (selectedId === null ? bases[0] : undefined);
   const currentId = selected?.id ?? null;
-  const savedPart = selected?.draftParts.find(part => part.partType === partType);
+  // Existing 06/12 Body artwork is a Torso source; don't require a
+  // re-upload. Legacy Eyes stay archived and are not silently discarded.
+  const resolvedParts = selected ? resolvePlayerCharacterParts(selected.draftParts) : [];
+  const savedPart = resolvedParts.find(part => part.partType === partType);
+  const archivedEyes = selected?.draftParts.find(part => part.partType === "eyes");
 
   useEffect(() => {
     setTransform(savedPart
@@ -93,9 +99,10 @@ export default function PlayerCharacterAdminPanel() {
 
   const previewParts = useMemo(() => {
     if (!selected) return [];
+    const draft = resolvePlayerCharacterParts(selected.draftParts);
     const url = imageData || savedPart?.imageUrl;
-    if (!url) return selected.draftParts;
-    return upsertPlayerCharacterPartPreview(selected.draftParts, {
+    if (!url) return draft;
+    return upsertPlayerCharacterPartPreview(draft, {
       partType, imageUrl: url, ...transform,
     });
   }, [selected, partType, savedPart?.imageUrl, imageData, transform]);
@@ -243,7 +250,7 @@ export default function PlayerCharacterAdminPanel() {
                 onClick={() => rename.mutate()}>Save Name</button>
             </div>
             <p className="mt-2 text-[11px] text-[#d0c4a4]">
-              Draft parts: {selected.draftParts.length}/7 · {selected.isDefault ? "Published default" :
+              Draft parts: {resolvedParts.length}/8 · {selected.isDefault ? "Published default" :
                 selected.publishedParts ? "Previously published, not default" : "Not published"} · Revision {selected.revision}
             </p>
           </div>
@@ -274,6 +281,12 @@ export default function PlayerCharacterAdminPanel() {
                   setTransform(current => ({ ...current, xPct, yPct }));
                   setDirty(true);
                 }} />
+              {archivedEyes && (
+                <div className="flex items-center gap-2 rounded-lg border border-[#987d49]/50 bg-[#11281c] p-2 text-[11px] text-[#e6d5ac]">
+                  <img src={archivedEyes.imageUrl} alt="Legacy open-eyes layer" className="h-10 w-10 shrink-0 object-contain" />
+                  <p>Original Eyes artwork is preserved in this draft for the upcoming Face clothing system. It is no longer one of the eight animation base parts.</p>
+                </div>
+              )}
               <p className="text-[11px] text-[#cfc1a0]">
                 Select a body part above, then tap or drag within the preview to reposition it.
                 The placement and pivot are saved relative to the avatar artwork, not the screen.
@@ -334,14 +347,14 @@ export default function PlayerCharacterAdminPanel() {
               )}
               <p className="text-[11px] text-[#c7b992]">
                 {dirty ? "Unsaved part placement or artwork — save or discard before switching parts or publishing." :
-                  "Saved draft. Publish separately when all seven parts are ready."}
+                  "Saved draft. Publish separately when all eight parts are ready."}
               </p>
             </div>
           </div>
           <div className="rounded-xl border border-[#b99b56]/55 bg-[#10281c] p-3">
             <h3 className="font-fantasy font-bold text-[#f3d58b]">Publish Default Player Avatar</h3>
             <p className="my-2 text-xs leading-relaxed text-[#decda7]">
-              All seven parts are required. Publishing copies this draft into a separate live snapshot
+              All eight base parts are required. Publishing copies this draft into a separate live snapshot
               and selects it as the one default avatar. Later edits remain private until republished.
             </p>
             <button type="button" data-testid="avatar-publish-default" className={`${buttonClass} w-full`}
@@ -349,7 +362,7 @@ export default function PlayerCharacterAdminPanel() {
               {publish.isPending ? "Publishing…" : selected.isDefault ? "Republish Updated Default" : "Publish as Default"}
             </button>
             {!completePlayerCharacterParts(selected.draftParts) && (
-              <p className="mt-2 text-xs text-[#decda7]">Complete and save all 7 parts before publishing.</p>
+              <p className="mt-2 text-xs text-[#decda7]">Complete and save all 8 base parts before publishing.</p>
             )}
           </div>
         </div>
