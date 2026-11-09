@@ -467,7 +467,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     },
   });
 
-  const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
+  const { data: inventory = [], isLoading: inventoryLoading, isSuccess: inventoryReady, isError: inventoryError } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
   });
 
@@ -845,6 +845,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             username={currentUser.username}
             inventory={inventory}
             inventoryLoading={inventoryLoading}
+            inventoryReady={inventoryReady}
+            inventoryError={inventoryError}
             visible={!isOverlayActive && !showPetStats && !showProfile &&
               !showSupportModal && !showWorldChat && activePetModal === null &&
               !showSpeedUp && !hatchRevealing && !showActionMenu && !questGuideMode}
