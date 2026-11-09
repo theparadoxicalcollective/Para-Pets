@@ -14,6 +14,7 @@ import {
 } from "../shared/playerCharacter";
 import {
   PLAYER_CLOTHING_CATEGORIES,
+  PLAYER_CLOTHING_DEFAULT_ATTACHMENTS,
   PLAYER_CLOTHING_ITEM_TYPE,
   PLAYER_CLOTHING_SEGMENT_TYPES,
   playerClothingDefinitionSchema,
@@ -36,6 +37,10 @@ test("new rig is eight distinct parts and does not confuse clothing inventory ca
   assert.equal(PLAYER_CLOTHING_ITEM_TYPE, "clothing");
   assert.deepEqual(PLAYER_CLOTHING_SEGMENT_TYPES, PLAYER_CHARACTER_PART_TYPES);
   assert.equal(PLAYER_CLOTHING_CATEGORIES.includes("back"), true);
+  assert.deepEqual(PLAYER_CLOTHING_DEFAULT_ATTACHMENTS.bottom, ["left_leg", "right_leg"]);
+  assert.deepEqual(PLAYER_CLOTHING_DEFAULT_ATTACHMENTS.top, ["top", "left_arm", "right_arm"]);
+  assert.deepEqual(PLAYER_CLOTHING_DEFAULT_ATTACHMENTS.shoes, ["left_foot", "right_foot"]);
+  assert.deepEqual(PLAYER_CLOTHING_DEFAULT_ATTACHMENTS.back, ["top"]);
 });
 
 test("legacy seven-piece draft is preserved, torso auto-previews from Body, but feet still required", () => {
@@ -67,20 +72,54 @@ test("explicit Top overrides old Body without deleting archived artwork", () => 
   assert.throws(() => parseStoredPlayerCharacterParts([...old, legacy[0]]));
 });
 
-test("one clothing catalog item can have multiple independently fitted image segments", () => {
-  const template = { name: "Forest Wanderer", category: "top" as const,
-    segments: [
-      { ...modern("top", 0) },
-      { ...modern("left_arm", 1) },
-      { ...modern("right_arm", 2) },
-    ] };
-  const valid = playerClothingDefinitionSchema.safeParse(template);
+test("one pants item carries independently fitted left and right legs with a single inventory category", () => {
+  const toSegment = (partType: "left_leg" | "right_leg", n: number) => ({
+    partType, imageUrl: url(n),
+    fit: { ...DEFAULT_PLAYER_CHARACTER_TRANSFORMS[partType], xPct: 50, yPct: 50 },
+    renderPlane: "with_part" as const,
+  });
+  const pants = {
+    name: "Forest Wanderer Pants",
+    category: "bottom" as const,
+    segments: [toSegment("left_leg", 1), toSegment("right_leg", 2)],
+  };
+  const valid = playerClothingDefinitionSchema.safeParse(pants);
   assert.equal(valid.success, true);
+  if (!valid.success) return;
+
+  assert.equal(valid.data.name, "Forest Wanderer Pants");
+  assert.equal(valid.data.category, "bottom");
+  assert.deepEqual(valid.data.segments.map(segment => segment.partType),
+    ["left_leg", "right_leg"]);
   assert.equal(playerClothingDefinitionSchema.safeParse({
-    ...template, segments: [template.segments[0], template.segments[0]],
+    ...pants, segments: [pants.segments[0], pants.segments[0]],
   }).success, false);
-  assert.equal(playerClothingDefinitionSchema.safeParse({ ...template, segments: [] }).success, false);
-  assert.equal(playerClothingDefinitionSchema.safeParse({ ...template, category: "costume" }).success, false);
+  assert.equal(playerClothingDefinitionSchema.safeParse({ ...pants, segments: [] }).success, false);
+  assert.equal(playerClothingDefinitionSchema.safeParse({ ...pants, category: "costume" }).success, false);
+  assert.equal(playerClothingDefinitionSchema.safeParse({
+    ...pants, segments: [{ ...pants.segments[0], imageUrl: "https://untrusted.invalid/image" }],
+  }).success, false);
+});
+
+test("clothing fits stay relative to an animated base part and allow independent depth planes", () => {
+  const fit = DEFAULT_PLAYER_CHARACTER_TRANSFORMS.top;
+  const cape = playerClothingDefinitionSchema.safeParse({
+    name: "Moonlit Cape", category: "back",
+    segments: [{
+      partType: "top", imageUrl: url(3),
+      fit, renderPlane: "behind_character",
+    }],
+  });
+  assert.equal(cape.success, true);
+  const sleeve = playerClothingDefinitionSchema.safeParse({
+    name: "Moss Shirt", category: "top",
+    segments: [{
+      partType: "left_arm", imageUrl: url(4),
+      fit: DEFAULT_PLAYER_CHARACTER_TRANSFORMS.left_arm,
+    }],
+  });
+  assert.equal(sleeve.success, true, "renderPlane defaults to with_part");
+  assert.equal(sleeve.success && sleeve.data.segments[0].renderPlane, "with_part");
 });
 
 test("published snapshot is filtered to eight active parts, not legacy Eyes or Body", () => {
