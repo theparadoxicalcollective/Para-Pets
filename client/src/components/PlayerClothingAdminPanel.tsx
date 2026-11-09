@@ -69,7 +69,7 @@ type DragState = {
   moved: boolean;
 };
 
-export default function PlayerClothingAdminPanel() {
+export default function PlayerClothingAdminPanel({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -111,6 +111,7 @@ export default function PlayerClothingAdminPanel() {
   const chosenPart = bodyParts.find(part => part.partType === activePart);
   const savedSegment = selected?.draftSegments.find(segment => segment.partType === activePart);
   const anyDirty = partDirty || metaDirty;
+  useEffect(() => { onDirtyChange?.(anyDirty); }, [anyDirty, onDirtyChange]);
 
   useEffect(() => {
     if (bases.length > 0 && !bases.some(base => base.id === newBaseId)) setNewBaseId(bases[0].id);
