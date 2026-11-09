@@ -16,6 +16,10 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
+import FloatingWalkJoystick, {
+  FLOATING_WALK_JOYSTICK_SIZE,
+  FLOATING_WALK_JOYSTICK_EDGE_GAP,
+} from "@/components/FloatingWalkJoystick";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import {
   PLAYER_AVATAR_QUERY_KEY,
@@ -32,8 +36,6 @@ import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 
 const DEFAULT_PET_SIZE = 110;
-const JOYSTICK_SIZE = 90;
-const JOYSTICK_EDGE_GAP = 8;
 
 interface WalkAroundSceneProps {
   config: WalkAroundLocationConfig;
@@ -121,7 +123,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
     bounds: movementBounds,
     spawn:  config.spawnPoint,
     speed:  config.movementSpeed,
-    enabled: !gameplayBlocked,
+    enabled: config.features.movement && !gameplayBlocked,
   });
 
   const { data: petTemplate } = useQuery<{ facing: string }>({
@@ -139,7 +141,8 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
   const naturalFacingLeft = petTemplate?.facing === "left" || petTemplate?.facing === "back";
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (gameplayBlocked || !sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (!config.features.movement || gameplayBlocked || !sceneRef.current ||
+        !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
     e.preventDefault();
     const rect = sceneRef.current.getBoundingClientRect();
@@ -149,12 +152,17 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
     const logicalHeight = sceneRef.current.clientHeight || rect.height;
     const scaleX = rect.width / Math.max(1, logicalWidth);
     const scaleY = rect.height / Math.max(1, logicalHeight);
-    const radius = JOYSTICK_SIZE / 2;
-    const x = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalWidth - radius - JOYSTICK_EDGE_GAP, (e.clientX - rect.left) / scaleX));
-    const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalHeight - radius - JOYSTICK_EDGE_GAP, (e.clientY - rect.top) / scaleY));
+    const radius = FLOATING_WALK_JOYSTICK_SIZE / 2;
+    const inset = radius + FLOATING_WALK_JOYSTICK_EDGE_GAP;
+    const pointerX = (e.clientX - rect.left) / scaleX;
+    const pointerY = (e.clientY - rect.top) / scaleY;
+    // Keep the small visual inside narrow viewports, but start movement from
+    // the ACTUAL touch rather than the clamped artwork center near an edge.
+    const x = Math.max(inset, Math.min(Math.max(inset, logicalWidth - inset), pointerX));
+    const y = Math.max(inset, Math.min(Math.max(inset, logicalHeight - inset), pointerY));
     setJoystickCenter({ x, y });
-    onJoystickPointerDown(e, { x: rect.left + x * scaleX, y: rect.top + y * scaleY });
-  }, [gameplayBlocked, onJoystickPointerDown]);
+    onJoystickPointerDown(e, { x: e.clientX, y: e.clientY });
+  }, [config.features.movement, gameplayBlocked, onJoystickPointerDown]);
 
   useEffect(() => {
     const measure = () => sceneRef.current && setViewport({ width: sceneRef.current.clientWidth || 1, height: sceneRef.current.clientHeight || 1 });
@@ -220,7 +228,8 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
           }}
         >
           {walkingAvatar?.base ? (
-            <div data-testid="walk-avatar-actor" className="relative h-full w-full"
+            <div data-testid="walk-avatar-actor"
+              className={`relative h-full w-full ${specialReady ? "clearing-avatar-special-ready" : ""}`}
               style={{ transform: `scaleX(${facingLeft ? -1 : 1})` }}>
               <PlayerCharacterRenderer
                 parts={walkingAvatar.base.parts}
@@ -250,39 +259,11 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
       <button data-interactive data-testid="button-back-walkaround" onClick={onBack} className="absolute pointer-events-auto h-11 px-3 rounded-xl text-xs" style={{top:"max(12px, env(safe-area-inset-top, 0px))",left:14,background:"rgba(0,0,0,.65)",border:"1px solid rgba(255,255,255,.18)",color:"#f0e8c8"}}>‹ Back</button>
       {config.showSceneTitle!==false&&<div data-testid="walkaround-scene-title" className="absolute top-0 left-0 right-0 flex justify-center" style={{paddingTop:"max(14px, env(safe-area-inset-top, 14px))",color:"#dcffc8cc"}}>{config.name}</div>}
 
-      {/* ── Floating joystick: appears at the clamped pointer-down position. ── */}
-      {isJoystickActive && <div
-        data-testid="floating-joystick"
-        className="absolute"
-        style={{
-          left: joystickCenter.x,
-          top: joystickCenter.y,
-          transform: "translate(-50%, -50%)",
-          zIndex: 10,
-          width: JOYSTICK_SIZE,
-          height: JOYSTICK_SIZE,
-          touchAction: "none",
-          pointerEvents: "none",
-        }}
-      >
-        <div data-testid="joystick-base" className="absolute inset-0 rounded-full" style={{border:"1px solid rgba(210,225,200,.65)",background:"rgba(20,42,30,.54)",boxShadow:"0 2px 8px rgba(0,0,0,.35)"}} />
-        {/* Thumb — moves on joystick drag */}
-        <div
-          data-testid="joystick-thumb"
-          className="absolute"
-          style={{
-            width: 44,
-            height: 44,
-            top:  "50%",
-            left: "50%",
-            transform: `translate(calc(-50% + ${joystickOffset.x}px), calc(-50% + ${joystickOffset.y}px))`,
-            touchAction: "none",
-            cursor: "grab",
-          }}
-        >
-          <div className="w-full h-full rounded-full" style={{background:"rgba(165,190,165,.78)",border:"1px solid rgba(240,245,230,.7)"}} />
-        </div>
-      </div>}
+      {/* Visible only during a valid movement touch, never an always-on overlay.
+          Every walk-enabled scene reuses this exact visual/controller pairing. */}
+      {config.features.movement && isJoystickActive && (
+        <FloatingWalkJoystick center={joystickCenter} offset={joystickOffset} />
+      )}
       </div>
 
       {/* ── Bottom gradient (readability for joystick) ───────────────────────── */}
