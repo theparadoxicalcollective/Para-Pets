@@ -70,7 +70,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     isListed: userInventory.isListed,
     imageUrl: shopItems.imageUrl,
     name: shopItems.name,
-    category: playerClothingDrafts.category,
+    category: playerClothingDrafts.publishedCategory,
     baseId: playerClothingDrafts.baseId,
     basePublishedAt: playerClothingDrafts.basePublishedAt,
     segments: playerClothingDrafts.publishedSegments,
@@ -90,7 +90,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     const compatible = !!activeBase && isEligiblePlayerClothingInventory({
       ownerId: item.ownerId, playerId: userId, itemType: item.itemType,
       quantity: item.quantity, isListed: item.isListed,
-      itemCategory: item.category, requestedCategory: item.category,
+      itemCategory: parsed.data.category, requestedCategory: parsed.data.category,
       designBaseId: item.baseId, selectedBaseId: activeBase.id,
       designBasePublishedAt: item.basePublishedAt,
       selectedBasePublishedAt: activeBase.publishedAt,
@@ -252,7 +252,7 @@ export function registerPlayerAvatarRoutes(
           if (!inventory) return { status: 404 as const, message: "This clothing item is not in your inventory" };
           const [item] = await tx.select({
             id: shopItems.id, type: shopItems.type, name: shopItems.name,
-            category: playerClothingDrafts.category, baseId: playerClothingDrafts.baseId,
+            category: playerClothingDrafts.publishedCategory, baseId: playerClothingDrafts.baseId,
             basePublishedAt: playerClothingDrafts.basePublishedAt,
             segments: playerClothingDrafts.publishedSegments,
           }).from(shopItems)
@@ -265,7 +265,7 @@ export function registerPlayerAvatarRoutes(
           if (!item || !published?.success || !isEligiblePlayerClothingInventory({
             ownerId: inventory.userId, playerId: user.id, itemType: item.type,
             quantity: inventory.quantity, isListed: inventory.isListed,
-            itemCategory: item.category, requestedCategory: slot,
+            itemCategory: published.data.category, requestedCategory: slot,
             designBaseId: item.baseId, selectedBaseId: profile.baseId,
             designBasePublishedAt: item.basePublishedAt,
             selectedBasePublishedAt: profile.basePublishedAt,
