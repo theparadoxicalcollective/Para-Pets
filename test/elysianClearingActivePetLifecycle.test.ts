@@ -67,7 +67,7 @@ test("pet selection waits for server confirmation and preserves the auth user ca
   const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
   assert.match(inventory, /if \(setActivePetMutation\.isPending\) return/);
   assert.match(inventory, /disabled=\{isActive \|\| isPending\}/);
-  assert.match(inventory, /Updating main pet…/);
+  assert.match(inventory, /Updating featured pet…/);
   assert.match(inventory, /\{ \.\.\.current, activePetId:/);
   assert.match(inventory, /setQueryData\(\["\/api\/auth\/me"\][\s\S]*?activePetId:/);
   assert.doesNotMatch(inventory, /invalidateQueries\(\{ queryKey: \["\/api\/auth\/me"\] \}\)/);
