@@ -52,7 +52,7 @@ test("completed-run score and coin caps remain unchanged", () => {
   );
   assert.match(lavaRoutes, /INSERT INTO lava_crawl_scores/);
   assert.match(lavaRoutes, /storage\.addCoins\(user\.id, safeCoins\)/);
-  assert.match(lavaRoutes, /return res\.json\(\{ ok: true, isNewBest, newCoins: updatedUser\?\.coins \}\)/);
+  assert.match(lavaRoutes, /return res\.json\(\{ ok: true, \.\.\.completed \}\)/);
 });
 
 test("Lava Crawl awards tiny daily-capped player XP for a true new best and retires pet XP", () => {
