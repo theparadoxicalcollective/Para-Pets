@@ -149,6 +149,49 @@ try {
     });
     assert.ok(bounds.left>=-2 && bounds.right<=sc.width+2 && bounds.top>=0 &&
       bounds.bottom<sc.height-90,sc.name+": centered Home actor fits above HUD/nav");
+    // Screenshot-driven Home layout: profile frame without duplicate name,
+    // curved player stars over the actor, larger XP below, separated team panel.
+    await page.getByTestId("home-player-xp-track").waitFor({state:"visible"});
+    const homeLayout = await page.evaluate(() => {
+      const rect = (selector) => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { left:r.left, right:r.right, top:r.top, bottom:r.bottom,
+          centerX:r.left+r.width/2, height:r.height };
+      };
+      const actor = rect('[data-testid="home-avatar-stage"]');
+      const stars = rect('[data-testid="home-player-empty-stars"]');
+      const progress = rect('.home-player-hud__progress');
+      const party = rect('.home-player-hud__party-panel');
+      const xp = rect('[data-testid="home-player-xp-track"]');
+      return {
+        actor, stars, progress, party, xp,
+        profileNameplate: !!document.querySelector('[data-testid="text-username"]'),
+        partyHint: document.querySelector('.home-player-hud__status')?.textContent?.trim(),
+        petRarityStars: document.querySelectorAll('[data-testid="home-player-team-stars-1"] img').length,
+        teamSlots: document.querySelectorAll('[data-testid^="home-player-team-slot-"]').length,
+      };
+    });
+    assert.equal(homeLayout.profileNameplate,false,sc.name+": no second username below profile picture");
+    assert.equal(homeLayout.partyHint,"",sc.name+": no party helper caption");
+    assert.equal(homeLayout.petRarityStars,4,sc.name+": selected four-star pet displays four rarity stars");
+    assert.equal(homeLayout.teamSlots,5,sc.name+": still five editable pet slots");
+    assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
+      sc.name+": avatar, player progress and party surfaces all render");
+    assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,
+      sc.name+": player stars centered above actor");
+    assert.ok(homeLayout.stars.top < homeLayout.actor.top+8,
+      sc.name+": player stars arc starts above actor");
+    assert.ok(Math.abs(homeLayout.progress.centerX-homeLayout.actor.centerX)<6,
+      sc.name+": player XP centered below actor");
+    assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-3,
+      sc.name+": player name and XP below avatar");
+    assert.ok(homeLayout.xp.height>=12,
+      sc.name+": XP bar enlarged");
+    assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
+      sc.name+": team panel not overlapping player XP");
+
     if(sc.apiError||sc.malformed){
       await page.getByTestId("home-avatar-error").waitFor({state:"visible"});
       assert.equal(await page.getByTestId("home-design-character").count(),0,
