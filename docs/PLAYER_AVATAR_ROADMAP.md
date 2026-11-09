@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** Avatar 01–11 and **12A/12B** are merged (through #1043). **12C** is the final Home cleanup and device-stability audit, now in a separate PR. CI/browser checks do not establish physical-device or production stability. The 08A–08C and 12A–12C suffixes are subphases.
+**Progress:** Avatar 01–11 and **12A/12B** are merged (through #1043). **12C** begins staged Home compatibility hardening and documents the remaining legacy-test migration and device-stability audit. CI/browser checks do not establish physical-device or production stability. The 08A–08C and 12A–12C suffixes are subphases.
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -47,7 +47,7 @@
 | **Avatar 11/12** | Saved eight-part avatar and equipped clothing walk in live Bayou Clearing; 72px on-demand joystick, camera/bounds, equipped layers and legacy combat pet | **Merged — GitHub #1041** | Final PR CI and browser workflows passed; deployed hardware QA not recorded |
 | **Avatar 12A/12** | Compatibility/ownership audit, account-scoped shared avatar cache, device QA matrix, regression gates | **Merged — GitHub #1042** | CI/browser passed; physical device QA still outstanding |
 | **Avatar 12B/12** | Quest-first player XP, per-cycle Level 100, five future Seer Elevations, trusted/idempotent awards and Lava avatar | **Merged — GitHub #1043** | CI/browser passed; Seer NPC interaction and unlock gates intentionally not yet present |
-| **Avatar 12C/12** | Remove unreachable legacy Home pet subtree, preserve pet-ID routes and gameplay boundaries; regression and live-device audit | **In implementation — `feature/avatar-12c-home-legacy-cleanup`** | Automated checks and physical iOS/Android/tablet QA tracked separately; not yet verified |
+| **Avatar 12C/12** | Stage account-switch/quest isolation, record legacy Home test migration and device-stability gates; defer broad removal until compatibility checks can be migrated safely | **PR #1044 open — staged stability gate** | Initial broad deletion failed old source-based regressions; full removal and physical QA not yet verified |
 
 **Do not mark a phase complete because its PR merged.** Record separately: code implemented → CI passed → merged → live behavior verified. A feature may be marked *released and verified* only with recorded behavior evidence.
 
@@ -324,7 +324,7 @@
 
 **Safety boundary:** Keep active pet as combat companion for existing Clearing/PvP/Raid mechanics; this PR does **not** introduce avatar combat stats, Seer interactions, star-gated unlocks, publish private World Editor drafts, enable desktop gameplay, or remove legacy Home compatibility. Stage 12C handles cleanup only after device QA.
 
-**12C/12: Cleanup and production/device stability.** Remove Home-only unreachable pet JSX/state/effects while retaining pet-ID routes, combat ownership, and quest redirects. Merging the cleanup must **not** be treated as verification of egg hatching, Murk Cave, tutorials, or other gameplay on real devices. Keep the existing combat actor and admin positions until migrations are proven. Run performance and Safari-memory checks; do not change private world publishing, Pet Park movement, PC access or the payment economy within this scope.
+**12C/12: Staged cleanup and production/device stability.** An attempted wholesale removal of Home-only unreachable pet JSX/state/effects exposed 86 existing failing assertions across 55 test files, many still tied to legacy Home pet behavior. The broad deletion was reverted on #1044; migrate those assertions deliberately to living pet-ID systems before deleting old Home branches. Merging the cleanup must **not** be treated as verification of egg hatching, Murk Cave, tutorials, or other gameplay on real devices. Keep the existing combat actor and admin positions until migrations are proven. Run performance and Safari-memory checks; do not change private world publishing, Pet Park movement, PC access or the payment economy within this scope.
 
 **Current state:** Desktop gameplay remains locked. World Editor's new scenes are admin-private drafts, not published player areas. Clothing acquisition in public shops is still gated; both require independent decisions. Moderator maintenance access is merged in #1040, but the real moderator/ordinary-user login matrix has not yet been observed on devices.
 
@@ -333,9 +333,11 @@
 
 ### Avatar 12C — safe code cleanup, not final live-device signoff
 
-- Home's disabled legacy active-pet actor, gesture/petting timers, hatch/potion sheet, rarity visuals, Pet Menu, pet stats and modal handlers are removed **only from `HomePage.tsx`**. The dedicated inventory-ID pet pages, shared pet APIs and Murk Cave stay untouched.
+- Home still contains an **inactive** legacy pet subtree gated by `AVATAR_10_HOME_CUTOVER = true`. An initial deletion in #1044 caused 86 existing tests to fail across 55 files because many assert the exact old Home source, not living Pet Menu, hatch or pet action routes. It was rolled back **without discarding or weakening that coverage**. A later cleanup must migrate tests to the actual pet-ID owners, then delete only confirmed unreachable Home-only handlers.
 - Retain the exact existing Home background-cover projection, stone-platform asset landmark, player avatar/wardrobe button, account level + five-star HUD, shared five-pet PvP/Raid team, profile, support and World Chat.
-- The retired `questHint` and `action=powerup` links must keep routing to the currently featured owned pet, or to Bag when none is selected.
-- Update source-level regression tests for the new Home-only contract and run final-head `npm run check`, `npm run check:tests`, `npm test`, production build, Home fixture/browser smoke and tutorial/viewport checks before merging.
+- The still-supported `questHint` and `action=powerup` links must keep routing to the currently featured owned pet, or to Bag when none is selected.
+- Preserve all existing source-level regressions until their ownership/behavior has been migrated, add the account-switch guard test, and run final-head `npm run check`, `npm run check:tests`, `npm test`, production build, Home fixture/browser smoke and tutorial/viewport checks before merging.
 - **Still required before full 12/12 release signoff:** physical iPhone, Android phone, iPad/Android tablet and low-memory Safari; avatar first-save/reload, equipment/account switch, Team 5, profile/chat/support, egg hatching, pet care, Level Up, Power Up, Closet, quests, Clearing, Murk Cave, PvP/Raid and Lava Crawl.
 - **Next separate pass after stability:** visual alignment/spacing of avatar, stars/XP, five-pet roster, category/equipment controls, and walking/combat overlays. Do not modify artwork anchors or editor positions in this cleanup PR.
+
+**12C CI discovery:** Initial broad removal's test suite reported 86 failures in 55 test files, largely historic assertions of Home pet JSX and handlers. This was a useful migration gate, not 86 confirmed live gameplay defects; no physical-device behavior has been inferred from those assertions. Follow-up PR(s) should trace each test to the current owner (Bag/Pet Care/Level Up/Power Up/Closet/egg flow), replacing obsolete checks with meaningful regressions before removing the code. PR #1044 is now limited to account-switch and quest redirect safety plus this audit; visual adjustments remain a separate later PR.
