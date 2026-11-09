@@ -1,0 +1,56 @@
+/* One compact, unobtrusive movement control; not displayed until touch. */
+.floating-walk-joystick {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  touch-action: none;
+  pointer-events: none;
+  user-select: none;
+  opacity: .68;
+}
+
+.floating-walk-joystick__base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(16, 46, 31, .28);
+  border: 1px solid rgba(226, 192, 111, .52);
+  box-shadow: inset 0 0 0 2px rgba(5, 27, 16, .10), 0 0 6px rgba(0, 0, 0, .15);
+}
+
+.floating-walk-joystick__thumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(143, 181, 133, .72);
+  border: 1px solid rgba(236, 211, 145, .72);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+  /* No transition: follows the controlling finger without lag. */
+}
+
+/* Special-skill readiness is visible on the avatar as well as on legacy
+   pets. Filter-only animation does not disturb body or clothing walk motion. */
+.clearing-avatar-special-ready {
+  animation: clearing-avatar-special-glow 2800ms ease-in-out infinite;
+}
+@keyframes clearing-avatar-special-glow {
+  0%, 72%, 100% {
+    filter: drop-shadow(0 0 3px rgba(255, 245, 164, .66))
+      drop-shadow(0 0 6px rgba(253, 224, 71, .46));
+  }
+  82% {
+    filter: drop-shadow(0 0 6px rgba(255, 247, 174, .95))
+      drop-shadow(0 0 12px rgba(250, 204, 21, .84));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clearing-avatar-special-ready {
+    animation: none;
+    filter: drop-shadow(0 0 6px rgba(253, 224, 71, .74));
+  }
+}
