@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
@@ -14,6 +14,7 @@ import "./PlayerAvatarPage.css";
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
 export default function PlayerAvatarPage() {
   const [, navigate] = useLocation();
+  const fromHome = new URLSearchParams(useSearch()).get("from") === "home";
   const qc = useQueryClient();
   const { toast } = useToast();
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
@@ -90,8 +91,8 @@ export default function PlayerAvatarPage() {
       <div className="player-avatar-page__backdrop" aria-hidden="true" />
       <div className="player-avatar-page__content">
         <header className="player-avatar-page__header">
-          <button type="button" className="player-avatar-page__back" aria-label="Back to Bag"
-            onClick={() => navigate("/bag")}>
+          <button type="button" className="player-avatar-page__back" aria-label={fromHome ? "Back to Home" : "Back to Bag"}
+            onClick={() => navigate(fromHome ? "/" : "/bag")}>
             <ArrowLeft size={22} aria-hidden="true" />
           </button>
           <div>
