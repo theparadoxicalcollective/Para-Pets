@@ -1,22 +1,23 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { PlayerCharacterPart } from "@shared/playerCharacter";
+import PlayerCharacterRenderer, { type PlayerCharacterMotion } from "./PlayerCharacterRenderer";
 
 interface Props {
   parts: readonly PlayerCharacterPart[];
-  activePartType?: string | null;
+  activePartType?: PlayerCharacterPart["partType"] | null;
+  motion?: PlayerCharacterMotion;
   editable?: boolean;
   onMovePart?: (xPct: number, yPct: number) => void;
 }
 
 /**
- * One static, artwork-relative compositing surface. Avatar 07/12 can use
- * this same base to add idle and walk transforms; never apply screen or
- * iPhone reference-stage coordinates to avatar artwork.
+ * Admin touch surface over the shared PlayerCharacterRenderer. The existing
+ * editor continues positioning in character-relative coordinates. Preview
+ * modes do not interfere with pointer capture or re-save artwork.
  */
 export default function PlayerCharacterPartsPreview({
-  parts, activePartType, editable = false, onMovePart,
+  parts, activePartType, editable = false, onMovePart, motion = "static",
 }: Props) {
-  const sorted = [...parts].sort((a, b) => a.zIndex - b.zIndex);
   const moveAtPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!editable || !onMovePart) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -56,32 +57,13 @@ export default function PlayerCharacterPartsPreview({
         maxWidth: 420,
       }}
     >
-      {sorted.map(part => (
-        <img
-          key={part.partType}
-          src={part.imageUrl}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          data-character-part={part.partType}
-          style={{
-            position: "absolute",
-            left: `${part.xPct}%`,
-            top: `${part.yPct}%`,
-            width: `${part.widthPct}%`,
-            height: "auto",
-            maxWidth: "none",
-            zIndex: part.zIndex,
-            transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%`,
-            transform: `translate(-${part.pivotXPct}%, -${part.pivotYPct}%) rotate(${part.rotationDeg}deg)`,
-            pointerEvents: "none",
-            opacity: editable && part.partType === activePartType ? 0.96 : 1,
-            filter: editable && part.partType === activePartType
-              ? "drop-shadow(0 0 4px #f3d08e)" : undefined,
-          }}
-        />
-      ))}
-      {sorted.length === 0 && (
+      <PlayerCharacterRenderer
+        parts={parts}
+        motion={editable ? "static" : motion}
+        selectedPartType={editable ? activePartType : null}
+        ariaLabel="Avatar base preview"
+      />
+      {parts.length === 0 && (
         <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-[#d6c294]">
           Upload the eight transparent avatar base parts to build your character.
         </p>

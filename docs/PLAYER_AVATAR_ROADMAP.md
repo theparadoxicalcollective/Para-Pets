@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 6 of 12 numbered phases merged; **Avatar 07A/12 is in implementation**, followed by 07B/12 renderer. A merged PR does not imply real-device verification.  
+**Progress:** 6 of 12 main phases merged; **Avatar 07A/12 merged in #1033** and **07B/12 implemented on a feature branch**, pending CI, review and merge. Sub-PRs are tracked separately from the twelve primary phases. A merge never implies real-device verification.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -37,8 +37,8 @@
 | **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | **Merged — GitHub #1030** | User confirms merge; physical device verification not recorded |
 | **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | **Merged — GitHub #1031** | CI passed; user confirms merge; deployed progression read/mobile verification not recorded |
 | **Avatar 06/12** | Original seven-part admin Avatar draft/publish editor | **Merged — GitHub #1032** | User confirms CI/merge; real phone/tablet publish flow unverified; anatomy superseded by 07A |
-| **Avatar 07A/12** | Align merged admin anatomy to eight base anchors; preserve legacy Body/Eyes; define separate seven-category, eight-segment clothing contract | **Open GitHub PR #1033** (`feature/avatar-07a-anatomy-clothing-contract`) | Compatibility tests, CI and device verification pending; no gameplay renderer |
-| **Avatar 07B/12** | One lightweight PlayerCharacterRenderer with idle/walk anchored to new eight-part rig; shared with admin preview | Planned after 07A merges | Motion, pivots, layers, low-memory lifecycle and iOS/Android/tablet tests |
+| **Avatar 07A/12** | Align merged admin anatomy to eight base anchors; preserve legacy Body/Eyes; define separate seven-category, eight-segment clothing contract | **Merged — GitHub #1033** | User confirms merge; mobile/tablet anatomy verification not recorded |
+| **Avatar 07B/12** | One lightweight PlayerCharacterRenderer with idle/walk anchored to new eight-part rig; shared with admin preview | **Implementation — `feature/avatar-07b-shared-idle-walk-renderer`** | Automated CI and real-device admin animation/placement verification pending |
 | **Avatar 08A/12** | Admin Create Clothing: one named item with several part images, **drag-to-fit live avatar viewer**, scale/rotate, layering, and category selection | Planned | Phone/tablet pointer tests, correct part-relative persistence, saved preview, draft validation; pet adornments unchanged |
 | **Avatar 08B/12** | Per-user created-avatar state, saved appearance, owned clothing inventory, equip/unequip by category | Planned | Authoritative ownership, inventory transfer, null first-time state, retries and account isolation |
 | **Avatar 08C/12** | Player Avatar page: top-centered character viewer, seven circular category buttons, scrollable owned clothing row under viewer | Planned | Thumb targets, narrow phones/tablets, empty states, equip previews, persistence, navigation |
@@ -76,6 +76,22 @@
 - [ ] Merge and separately record actual production behavior.
 
 **07B should not start until 07A code is merged and the anatomy compatibility path is verified.**
+
+## Avatar 07B/12 — shared eight-part renderer and animation preview
+
+**Scope:** Create **one** lightweight player-character image compositor for gameplay/editor reuse. Its input is the already approved eight-part, artwork-relative rig and its mode is `static`, `idle` or `walk`.
+
+- [x] Trace current 07A part transformations, admin drag preview, pet idle/walk motion, and WalkAround movement bounds; leave those working systems untouched.
+- [x] Extract eight-part image layering from `PlayerCharacterPartsPreview` into one `PlayerCharacterRenderer`, with deterministic zIndex and original x/y/width/pivot/rotation untouched.
+- [x] Add subtle idle breath/head/arm/foot motion and mirrored walk arm/leg/foot cycles using CSS transforms with no timers, canvas redraws, or network calls. Respect `prefers-reduced-motion`.
+- [x] Keep static mode as the editor's default. Add Edit, Idle and Walk admin preview controls; switch to motion modes without persisting or moving base placements.
+- [x] Preserve existing draft save/publish lifecycle and legacy Body/Eyes compatibility. No fresh DB schema, route, or session tracking.
+- [x] Add regression contracts for one compositor, independent static placement, CSS animation coupling, touch editing, and absence of pet/desktop/cutover changes.
+- [ ] Confirm latest-commit TypeScript checks, test compilation, full tests, build and browser smoke on GitHub.
+- [ ] Manual admin-device behavior: partially uploaded rig, different base dimensions, idle/walk motion, pivots, layer overlap, edit drag after previewing, orientation changes, reduced motion on phones/tablets.
+- [ ] Merge only after review. Track deployed behavior separately.
+
+**Deferred:** Clothes/attachments in **08A/12** (part-relative drag-to-fit admin); ownership in **08B**; player avatar page in **08C**; Home switch in **10/12**; walking in active game scenes in **11/12**. This PR does not enable PC gameplay or migrate pet animation logic.
 
 ## Avatar 02/12 implementation contract and acceptance
 

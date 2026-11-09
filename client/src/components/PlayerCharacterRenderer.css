@@ -1,0 +1,126 @@
+/* Character-only movement. No dependency on the legacy PetAnimator CSS. */
+.player-character-renderer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: visible;
+}
+
+.player-character-renderer__anchor {
+  position: absolute;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+}
+
+.player-character-renderer__motion,
+.player-character-renderer__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+}
+
+.player-character-renderer__motion--idle,
+.player-character-renderer__motion--walk {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.player-character-renderer__motion--walk {
+  animation-duration: 0.72s;
+}
+
+/* Idle: only a small, readable breath/sway. Static editing never animates. */
+[data-character-motion="idle"] [data-character-motion-part="top"] {
+  animation-name: pc-idle-breathe;
+}
+[data-character-motion="idle"] [data-character-motion-part="head"] {
+  animation-name: pc-idle-head;
+}
+[data-character-motion="idle"] [data-character-motion-part="left_arm"] {
+  animation-name: pc-idle-left-arm;
+}
+[data-character-motion="idle"] [data-character-motion-part="right_arm"] {
+  animation-name: pc-idle-right-arm;
+}
+[data-character-motion="idle"] [data-character-motion-part="left_leg"],
+[data-character-motion="idle"] [data-character-motion-part="right_leg"],
+[data-character-motion="idle"] [data-character-motion-part="left_foot"],
+[data-character-motion="idle"] [data-character-motion-part="right_foot"] {
+  animation-name: pc-idle-feet;
+}
+
+/* Walk: mirrored legs and feet share phase; opposite arm swing.
+   Everything stays attached to its original artwork-relative pivot. */
+[data-character-motion="walk"] [data-character-motion-part="top"] {
+  animation-name: pc-walk-bounce;
+}
+[data-character-motion="walk"] [data-character-motion-part="head"] {
+  animation-name: pc-walk-head;
+}
+[data-character-motion="walk"] [data-character-motion-part="left_leg"],
+[data-character-motion="walk"] [data-character-motion-part="left_foot"] {
+  animation-name: pc-walk-left;
+}
+[data-character-motion="walk"] [data-character-motion-part="right_leg"],
+[data-character-motion="walk"] [data-character-motion-part="right_foot"] {
+  animation-name: pc-walk-right;
+}
+[data-character-motion="walk"] [data-character-motion-part="left_arm"] {
+  animation-name: pc-walk-right;
+}
+[data-character-motion="walk"] [data-character-motion-part="right_arm"] {
+  animation-name: pc-walk-left;
+}
+
+@keyframes pc-idle-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.012); }
+}
+@keyframes pc-idle-head {
+  0%, 100% { transform: rotate(-0.65deg); }
+  50% { transform: rotate(0.65deg); }
+}
+@keyframes pc-idle-left-arm {
+  0%, 100% { transform: rotate(0.7deg); }
+  50% { transform: rotate(-1.2deg); }
+}
+@keyframes pc-idle-right-arm {
+  0%, 100% { transform: rotate(-0.7deg); }
+  50% { transform: rotate(1.2deg); }
+}
+@keyframes pc-idle-feet {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.25%); }
+}
+@keyframes pc-walk-bounce {
+  0%, 50%, 100% { transform: translateY(0); }
+  25%, 75% { transform: translateY(-1.7%); }
+}
+@keyframes pc-walk-head {
+  0%, 50%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(0.9deg); }
+  75% { transform: rotate(-0.9deg); }
+}
+@keyframes pc-walk-left {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(10deg); }
+}
+@keyframes pc-walk-right {
+  0%, 100% { transform: rotate(10deg); }
+  50% { transform: rotate(-10deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-character-renderer__motion {
+    animation: none !important;
+    transform: none !important;
+  }
+}
