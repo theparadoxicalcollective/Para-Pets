@@ -27,6 +27,7 @@ import { QuillBadge } from "@/components/QuillBadge";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
+import HomePlayerHud from "@/components/HomePlayerHud";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
@@ -834,6 +835,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
             </div>
           </div>
+        </ViewportHudPortal>
+
+        {/* Stage 09 account HUD: the existing active-pet scene/menu stays live
+            until 10/12.  Roster writes reuse PvP/Raid's one persisted team. */}
+        <ViewportHudPortal>
+          <HomePlayerHud
+            userId={currentUser.id}
+            username={currentUser.username}
+            inventory={inventory}
+            inventoryLoading={inventoryLoading}
+            visible={!isOverlayActive && !showPetStats && !showProfile &&
+              !showSupportModal && !showWorldChat && activePetModal === null &&
+              !showSpeedUp && !hatchRevealing && !showActionMenu}
+          />
         </ViewportHudPortal>
 
         {activePet && !(activePet.isHatched && activePet.petTemplateId) && (
