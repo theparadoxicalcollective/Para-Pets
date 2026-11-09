@@ -103,3 +103,5 @@ jobs:
           node script/player-avatar-wardrobe-smoke.mjs
           # Stage 09 Home account HUD on small phones/tablets, using isolated player fixtures.
           node script/home-player-hud-smoke.mjs
+          # 10/12: real Home actor, first-save, saved outfits, error and Back navigation.
+          node script/home-avatar-cutover-smoke.mjs
