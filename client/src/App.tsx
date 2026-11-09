@@ -26,6 +26,7 @@ import StagePageSurface from "@/components/StagePageSurface";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import { isIsolatedPlayerRoute, shouldHideFloatingNav } from "@/lib/playerPagePresentation";
 import { petActionReturnPath } from "@/lib/petActionRoutes";
+import { canEnterDuringMaintenance } from "@shared/maintenanceAccess";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
@@ -416,9 +417,10 @@ function AppRouter() {
     return <LoadingScreen label="Loading…" />;
   }
 
-  // Show maintenance screen to logged-in non-admin players. MaintenancePage is
-  // lazy-loaded so we wrap it in Suspense to handle the chunk download.
-  if (maintenanceOn && user && !user.isAdmin) {
+  // Existing admins and moderators can enter during maintenance, but
+  // moderators never receive admin privileges. Unprivileged sessions
+  // remain on the maintenance screen, even if previously signed in.
+  if (maintenanceOn && user && !canEnterDuringMaintenance(user)) {
     return (
       <Suspense fallback={<LoadingScreen label="Loading…" />}>
         <MaintenancePage />
