@@ -19,7 +19,7 @@ test("Home cleanup retains the saved player actor and pet-ID compatibility witho
   assert.match(home, /homePlatformPoint/);
   assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
   assert.match(home, /<ViewportHudPortal>\s*<HomeAvatarStage/);
-  assert.match(home, /<TopBar user=\{currentUser\}/);
+  assert.match(home, /<TopBar user=\{homeUser\}/);
   assert.match(home, /<HomePlayerHud/);
   assert.doesNotMatch(home, /AVATAR_10_HOME_CUTOVER|<ActivePetPlacement|<PetAnimator|<PetPowerUpPage/);
   assert.doesNotMatch(home, /homePettingRewardMutation|hatchHomeMutation|speedUpMutation/);
@@ -115,7 +115,7 @@ test("old quest Go links still forward to inventory-owned actions without a Home
   assert.match(home, /const destination =/);
   assert.match(home, /"pet-power-up"/);
   assert.match(home, /"pet-care"/);
-  assert.match(home, /encodeURIComponent\(currentUser\.activePetId\)/);
+  assert.match(home, /encodeURIComponent\(homeUser\.activePetId\)/);
   assert.match(home, /\?from=quest/);
   const powerUp = read("client/src/pages/PetPowerUpRoute.tsx");
   assert.match(powerUp, /const fromQuest = new URLSearchParams\(window\.location\.search\)\.get\("from"\) === "quest"/);
