@@ -83,7 +83,7 @@ export default function PlayerCharacterPartsPreview({
       ))}
       {sorted.length === 0 && (
         <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-[#d6c294]">
-          Upload the seven transparent avatar parts to build your base.
+          Upload the eight transparent avatar base parts to build your character.
         </p>
       )}
     </div>

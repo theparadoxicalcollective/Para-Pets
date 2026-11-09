@@ -1,8 +1,8 @@
 # Player Avatar, Player Level and Shared Companion Team — Program Roadmap
 
-**Updated:** 2026-11-08  
+**Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 5 of 12 phases merged; **Avatar 06/12 implemented on a review branch, awaiting CI and merge**. Merged does not mean verified on physical devices.  
+**Progress:** 6 of 12 numbered phases merged; **Avatar 07A/12 is in implementation**, followed by 07B/12 renderer. A merged PR does not imply real-device verification.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -13,8 +13,9 @@
 3. The **five curved main-page stars** remain, all empty initially. Future player-star rules are deferred and must not be inferred from pet rarity or player level.
 4. The **saved five-pet team** is shown as five compact, editable portraits in the lower main-page area and is shared across PvP and Raids, with no forced active pet in slot one.
 5. Each **hatched pet's inventory Select/Active button becomes Pet Menu**. Tapping it opens four buttons (Pet Care, Level Up, Power Up, Closet) as a small garden-tool-like expansion arc; reuse uploaded icon art and existing pet pages, keeping actions scoped to that *pet inventory ID*. Eggs retain inventory-based hatching and speed-up.
-6. Admin Realm → Add Character gains an **Avatar** tab. Default front-facing base parts: head, open eyes, body, left arm, right arm, left leg, right leg. Each part supports relative placement, pivot, order and an animated preview.
-7. Admin item catalog gains a distinct **clothing** type (current `costume` means pet adornment). Avatar clothing fitting/equipment follow part pivots and remain separate from pet adornments.
+6. Admin Realm → Add Character has an **Avatar** tab with **eight front-facing animation base parts**: head, torso/top, left/right arm, left/right leg, left/right foot. Original 06/12 Body artwork is a reusable Torso source; its Eyes artwork remains archived for later Face clothing. Base part transforms are artwork-relative.
+7. Admin Avatar → **Create Clothing** creates a distinct `clothing` shop item (never pet `costume`/adornment). Each clothing item has a name, one of seven wardrobe categories (head, hair, face, top, bottom, shoes, back), and up to eight separately uploaded/fitted transparent segments anchored to base parts. The player Avatar page has a top-centered preview, seven circular equipment buttons, and a horizontally scrollable owned-item inventory beneath it.
+8. Tapping the avatar on Home opens the player Avatar page. Before a player has saved their first avatar, Home shows a gently animated gold **Design Character** circle at the character position, linked to that page. A published *global base* is not evidence that a specific player has created their character.
 
 ## Explicit boundaries
 
@@ -35,15 +36,46 @@
 | **Avatar 03/12** | Pet-ID routing for Level Up, Care, Closet, Power Up and egg workflows; safely extract only Home-coupled pet logic | **Merged — GitHub #1029** | CI passed; user confirms merged; physical device verification not recorded |
 | **Avatar 04/12** | Inventory Pet Menu expanding arc, each owned hatched pet's Select becomes Pet Menu; existing art | **Merged — GitHub #1030** | User confirms merge; physical device verification not recorded |
 | **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | **Merged — GitHub #1031** | CI passed; user confirms merge; deployed progression read/mobile verification not recorded |
-| **Avatar 06/12** | Admin Avatar tab, default avatar base, seven transparent parts with transforms/pivots | **Open GitHub PR #1032** (`feature/avatar-06-admin-character-base-editor`) | Domain/route/editor and focused tests added; CI, review, live device and publish verification pending |
-| **Avatar 07/12** | One lightweight PlayerCharacterRenderer with idle/walk; same rendering in admin preview and game | Planned | Motion/pivots/depth, low-memory lifecycle tests |
-| **Avatar 08/12** | Avatar clothing type, fitting editor, owned equipment and wardrobe | Planned; split into 08A/08B if necessary | Ownership, equip/unequip, animation follow; pet adornments unchanged |
+| **Avatar 06/12** | Original seven-part admin Avatar draft/publish editor | **Merged — GitHub #1032** | User confirms CI/merge; real phone/tablet publish flow unverified; anatomy superseded by 07A |
+| **Avatar 07A/12** | Align merged admin anatomy to eight base anchors; preserve legacy Body/Eyes; define separate seven-category, eight-segment clothing contract | **Open GitHub PR #1033** (`feature/avatar-07a-anatomy-clothing-contract`) | Compatibility tests, CI and device verification pending; no gameplay renderer |
+| **Avatar 07B/12** | One lightweight PlayerCharacterRenderer with idle/walk anchored to new eight-part rig; shared with admin preview | Planned after 07A merges | Motion, pivots, layers, low-memory lifecycle and iOS/Android/tablet tests |
+| **Avatar 08A/12** | Admin Create Clothing: one named item with several part images, **drag-to-fit live avatar viewer**, scale/rotate, layering, and category selection | Planned | Phone/tablet pointer tests, correct part-relative persistence, saved preview, draft validation; pet adornments unchanged |
+| **Avatar 08B/12** | Per-user created-avatar state, saved appearance, owned clothing inventory, equip/unequip by category | Planned | Authoritative ownership, inventory transfer, null first-time state, retries and account isolation |
+| **Avatar 08C/12** | Player Avatar page: top-centered character viewer, seven circular category buttons, scrollable owned clothing row under viewer | Planned | Thumb targets, narrow phones/tablets, empty states, equip previews, persistence, navigation |
 | **Avatar 09/12** | Main page lower HUD: player name/XP, five unfilled stars, five saved team portraits | Planned | Small-phone/tablet layout, empty team, long names, safe-area |
-| **Avatar 10/12** | Central avatar replaces Home active pet; main-page pet menu removed; onboarding/quest pointers migrate | Planned | Guarded coordinated release after 03–09; preserve welcome rewards |
+| **Avatar 10/12** | Home avatar replaces active pet; tap avatar opens Avatar page; before player creates one show animated gold **Design Character** circle; remove Home Pet Menu only after pet routes are verified | Planned | Safe-area, gold animation/reduced motion, player created-state, quest guidance, welcome gifts, legacy Murk compatibility |
 | **Avatar 11/12** | Avatar walking in existing exploration scenes; separate actor visuals from combat source | Planned | Camera/bounds/ordering/clearing-session tests; no new world publishing |
 | **Avatar 12/12** | Approved player XP awards, legacy compatibility audit, performance regression and cleanup | Planned; split if necessary | No duplicated XP; all mobile/tablet acceptance gates |
 
 **Do not mark a phase complete because its PR merged.** Record separately: code implemented → CI passed → merged → live behavior verified. A feature may be marked *released and verified* only with recorded behavior evidence.
+
+## Updated avatar architecture — approved November 9, 2026
+
+**Two orthogonal systems, not one overloaded inventory object:**
+
+- **Animation anatomy — eight parts:** head, torso/top, left/right arms, left/right legs, left/right feet. This is reusable body art with part-relative coordinates and pivots. All animations and segmented garments use these same anchors; no second character-stage coordinate system.
+- **Clothing wardrobe — seven independent categories:** Head, Hair, Face, Top, Bottom, Shoes, Back Accessory. These are the player's *menu/equip slots*, not physical skeleton segments. **One named owned item holds multiple images/segments**: Forest Wanderer Pants is one Bottom item with left- and right-leg images; Top typically has torso plus two sleeves; Shoes typically has left/right foot artwork. Admin upload boxes start from those category presets, but optional/atypical outfit segments are allowed.
+- **Clothing rendering:** Each uploaded segment has its own **part-local** position, width, pivot, rotation, and front/behind plane; the eight-part rig is its animation parent. The left pants image follows the left leg, and the right pants image follows the right leg through walks/turns. The order Head → Hair → Face → Top → Bottom → Shoes → Back is the requested **player control order**, not fixed visual draw order. Back accessories may draw behind the torso even though their menu button is last. Do not position clothing in overall-viewport coordinates or make each segment a separate inventory item.
+- **08A Clothing fit editor interaction:** Admin selects a named clothing item and category, uploads a PNG/WebP for an attachment (e.g. Left Leg or Right Leg), then sees it **immediately layered over the assembled avatar**. Selecting that piece enables finger/pointer dragging directly on the preview, plus size, rotation, pivot, small-step positioning and front/behind adjustments. Unselected avatar base parts should not move. The editor converts the visual drag into **attachment-part-local transforms** (including when the base part is rotated/scaled), so each garment follows its assigned animated limb. Tapping other items does not silently lose unsaved adjustments; Save Clothing persists all segments as one catalog item, and reloading the editor reconstructs the same fit. Offer a neutral idle/walk preview from the shared 07B renderer where available, without duplicating a second animation system. For phone/tablet, touch targets must remain usable, scroll works outside the fit canvas, and long image assets must not clip interactive controls.
+- **Global base vs. player creation:** A published admin base is available to design with but does not automatically set a per-user saved appearance. The main-page Design Character prompt is shown until an explicit account-owned first-save event, not until a global base is published.
+- **Persistence:** `shop_items` remains the source catalog for clothing type `clothing`; item segment definitions attach to that catalog item. Owned clothing comes from `user_inventory`; equipment saves by account/slot and validates ownership. **Pet costumes remain separate.**
+- **Prior artwork:** Existing 06/12 draft Body maps to Torso/Top as a compatibility preview; original Body and Eyes remain stored, not automatically deleted. Original published seven-part snapshots remain intact until a complete eight-part base is deliberately published.
+- **Navigation:** The Home avatar and the gold create-circle both open the same player Avatar page. The seven circular part/category buttons around the top-centered viewer select a matching scrollable clothing inventory below; selection previews and equip/unequip persist to the account.
+- **Out of scope:** Murk Cave redesign, player-star awards, desktop gameplay, XP source awards and legacy removal are deferred to their planned stages.
+
+### Avatar 07A/12 — compatibility and data-contract acceptance
+
+- [x] Trace merged #1032 editor, published snapshot and existing profile avatars, pet costumes and shop inventory before editing.
+- [x] Replace default seven-part editor vocabulary with eight animation anchors and matching part placement defaults.
+- [x] Add legacy-aware readers for stored Body/Eyes; retain both original images in drafts, preview Body as Torso until replaced, never silently delete Eyes.
+- [x] Require eight resolved base parts for publication; store only eight current layers in newly published snapshots, leaving previous published snapshots unchanged until explicit republish.
+- [x] Define shared strict clothing categories and up-to-eight segmented attachments, including **part-local transforms**, front/behind planes and sensible per-category upload defaults; do not register a second store/renderer or activate clothing prematurely.
+- [x] Add tests for old draft preservation, modern publish gating, segmented clothing validation and stable base layering.
+- [ ] CI type checks, test suite, build and smoke tests on latest PR head.
+- [ ] Admin phone/tablet QA: old Body preview, Eyes archive, new left/right foot uploads, saving/republishing, reload and no data loss.
+- [ ] Merge and separately record actual production behavior.
+
+**07B should not start until 07A code is merged and the anatomy compatibility path is verified.**
 
 ## Avatar 02/12 implementation contract and acceptance
 
