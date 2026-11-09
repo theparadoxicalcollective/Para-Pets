@@ -170,6 +170,15 @@ try {
       const xp = rect('[data-testid="home-player-xp-track"]');
       return {
         actor, stars, progress, party, xp,
+        profile: rect('[data-testid="button-profile"]'),
+        headerName: rect('[data-testid="home-header-player-name"]'),
+        shopIcon: rect('[data-testid="button-coin-bag"]'),
+        coins: rect('[data-testid="display-coin-balance"]'),
+        essence: rect('[data-testid="display-essence"]'),
+        xpText: rect('[data-testid="home-player-total-xp"]'),
+        playerLevel: rect('[data-testid="home-player-level"]'),
+        avatarStarSize: rect('.home-player-hud__stars img')?.height,
+        equippedDots: document.querySelectorAll('.home-player-hud__slot-dot').length,
         profileNameplate: !!document.querySelector('[data-testid="text-username"]'),
         partyHint: document.querySelector('.home-player-hud__status')?.textContent?.trim(),
         petRarityStars: document.querySelectorAll('[data-testid="home-player-team-stars-1"] img').length,
@@ -184,8 +193,11 @@ try {
       sc.name+": avatar, player progress and party surfaces all render");
     assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,
       sc.name+": player stars centered above actor");
-    assert.ok(homeLayout.stars.top < homeLayout.actor.top+8,
-      sc.name+": player stars arc starts above actor");
+    // The avatar's rendered ring begins inside its layout square. Keep the
+    // enlarged star arc close to its top rather than floating far above it.
+    assert.ok(homeLayout.stars.top >= homeLayout.actor.top - 25 &&
+      homeLayout.stars.top < homeLayout.actor.top + 30,
+      sc.name+": player stars arc frames the avatar top");
     assert.ok(Math.abs(homeLayout.progress.centerX-homeLayout.actor.centerX)<6,
       sc.name+": player XP centered below actor");
     assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-3,
@@ -194,6 +206,35 @@ try {
       sc.name+": XP bar enlarged");
     assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
       sc.name+": team panel not overlapping player XP");
+    assert.ok(homeLayout.profile && homeLayout.headerName && homeLayout.shopIcon &&
+      homeLayout.coins && homeLayout.essence && homeLayout.xpText && homeLayout.playerLevel,
+      sc.name+": top profile/resources and level labels all render");
+    assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
+      sc.name+": player name is to the right of the profile");
+    assert.ok(homeLayout.shopIcon.left >= homeLayout.profile.right - 5,
+      sc.name+": coin shop icon is under name, to right of profile");
+    assert.ok(homeLayout.shopIcon.top > homeLayout.headerName.top,
+      sc.name+": shop icon follows account name");
+    assert.ok(homeLayout.coins.top >= homeLayout.profile.bottom - 6,
+      sc.name+": coins sit below profile picture "+JSON.stringify({
+        profile:homeLayout.profile, coins:homeLayout.coins, header:homeLayout.headerName, shop:homeLayout.shopIcon,
+      }));
+    assert.ok(homeLayout.essence.top > homeLayout.coins.top,
+      sc.name+": essence sits below coin balance");
+    assert.ok(homeLayout.avatarStarSize >= 32,
+      sc.name+": player stars enlarged over the avatar");
+    assert.ok(homeLayout.xpText.top >= homeLayout.xp.bottom - 3,
+      sc.name+": XP label is below progress bar");
+    assert.ok(homeLayout.xpText.right < homeLayout.playerLevel.centerX,
+      sc.name+": XP amount is left of centered player level");
+    assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 7,
+      sc.name+": player level centered directly below the progress bar");
+    assert.equal(homeLayout.equippedDots,0,
+      sc.name+": selected party pets have no duplicate dot indicators");
+    await page.getByTestId("display-coin-balance").tap();
+    assert.equal(new URL(page.url()).pathname,"/",
+      sc.name+": clicking the balance does not open the coin shop");
+
 
     if(sc.apiError||sc.malformed){
       await page.getByTestId("home-avatar-error").waitFor({state:"visible"});

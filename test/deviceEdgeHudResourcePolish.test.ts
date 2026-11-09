@@ -52,9 +52,13 @@ test("coin and essence balances share a compact coordinated resource cluster", (
   const topBar = read("client/src/components/TopBar.tsx");
 
   assert.match(topBar, /data-testid="topbar-resource-cluster"/);
-  assert.match(topBar, /gridTemplateColumns: "auto 44px"/);
+  // Home stacks readable resource bars under the photo; other pages retain
+  // their original coin/essence + bundle-button grid.
+  assert.match(topBar, /gridTemplateColumns: location === "\/" \? "max-content" : "auto 44px"/);
+  assert.match(topBar, /flexBasis: location === "\/" \? "100%" : undefined/);
   assert.match(topBar, /gridTemplateRows: "30px 30px"/);
-  assert.match(topBar, /data-testid="button-coin-shop"/);
+  assert.match(topBar, /data-testid="display-coin-balance"/);
+  assert.doesNotMatch(topBar, /data-testid="button-coin-shop"/);
   assert.match(topBar, /gridColumn: 1/);
   assert.match(topBar, /gridRow: 1/);
   assert.match(topBar, /data-testid="display-essence"/);
