@@ -80,7 +80,9 @@ test("animation does not modify stored positions or re-fetch, paint canvas, run 
   const snapshot = JSON.stringify(original);
   assert.equal(resolvePlayerCharacterParts(original).length, 8);
   assert.equal(JSON.stringify(original), snapshot);
-  assert.doesNotMatch(renderer, /requestAnimationFrame|setInterval|setTimeout|canvas|fetch\(|apiRequest|PetAnimator|activePetId|useQuery|useEffect/);
+  // Ignore documentation comments: check executable source for hidden work.
+  const executableRenderer = renderer.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.doesNotMatch(executableRenderer, /requestAnimationFrame|setInterval|setTimeout|canvas|fetch\(|apiRequest|PetAnimator|activePetId|useQuery|useEffect/);
   assert.doesNotMatch(preview, /requestAnimationFrame|setInterval|PetAnimator/);
   assert.doesNotMatch(renderer + css + preview, /390\s*[x×]\s*844|390px|844px/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
