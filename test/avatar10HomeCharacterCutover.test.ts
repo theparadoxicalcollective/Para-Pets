@@ -14,18 +14,22 @@ const hudCss = read("client/src/components/HomePlayerHud.css");
 const wardrobe = read("client/src/pages/PlayerAvatarPage.tsx");
 const model = read("client/src/lib/playerAvatarWardrobe.ts");
 
-test("Home cleanup retains the saved player actor and pet-ID compatibility without rendering old pet controls", () => {
+test("10 cuts over Home actor without mutating the existing Pet routes or admin stage geometry", () => {
+  assert.match(home, /const AVATAR_10_HOME_CUTOVER = true/);
   assert.match(home, /<HomeAvatarStage/);
-  assert.match(home, /homePlatformPoint/);
-  assert.match(home, /backgroundImage: `url\(\$\{bgImg\}\)`/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && \(<>/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && !isOverlayActive && !showProfile && !showPetStats/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && questGuideMode/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && !isOverlayActive && showSpeedUp/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && !isOverlayActive && hatchRevealing/);
+  assert.match(home, /activePetGroundViewport/);
+  assert.match(home, /backgroundImage: \`url\(\$\{bgImg\}\)\`/);
   assert.match(home, /<ViewportHudPortal>\s*<HomeAvatarStage/);
-  assert.match(home, /<TopBar user=\{homeUser\}/);
+  assert.match(home, /<TopBar user=\{currentUser\}/);
   assert.match(home, /<HomePlayerHud/);
-  assert.doesNotMatch(home, /AVATAR_10_HOME_CUTOVER|<ActivePetPlacement|<PetAnimator|<PetPowerUpPage/);
-  assert.doesNotMatch(home, /homePettingRewardMutation|hatchHomeMutation|speedUpMutation/);
   assert.doesNotMatch(scene, /ActivePetPlacement|PetAnimator|MiniPetRenderer|petTemplateId|petInventoryId|clientToStage/);
-  // Other systems still depend on the user's featured pet. The inventory
-  // now owns its Pet Menu without claiming the pet appears on Home.
+  // Existing cave/legacy consumers still require activePetId, but the old
+  // Bag link must no longer claim this pet will appear on Home.
   const inventory = read("client/src/components/PetInventory.tsx");
   assert.match(inventory, /button-feature-main-pet-\$\{pet.inventoryId\}/);
   assert.match(inventory, /Set Featured Companion/);
@@ -111,15 +115,16 @@ test("character stands at the existing artwork landmark with short-screen HUD cl
   }), true);
 });
 
-test("old quest Go links still forward to inventory-owned actions without a Home Pet Menu", () => {
+test("old quest Go links forward to inventory-owned actions, not a removed Pet Menu", () => {
   assert.match(home, /const destination =/);
   assert.match(home, /"pet-power-up"/);
   assert.match(home, /"pet-care"/);
-  assert.match(home, /encodeURIComponent\(homeUser\.activePetId\)/);
+  assert.match(home, /encodeURIComponent\(currentUser\.activePetId\)/);
   assert.match(home, /\?from=quest/);
   const powerUp = read("client/src/pages/PetPowerUpRoute.tsx");
   assert.match(powerUp, /const fromQuest = new URLSearchParams\(window\.location\.search\)\.get\("from"\) === "quest"/);
   assert.match(powerUp, /showBuyButton=\{fromQuest\}/);
   assert.match(home, /: "\/bag"/);
-  assert.doesNotMatch(home, /setQuestGuideMode|button-open-pet-menu|QuestGuideSpotlight/);
+  assert.match(home, /setQuestGuideMode\("feed"\)/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && questGuideMode/);
 });
