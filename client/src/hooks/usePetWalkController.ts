@@ -40,14 +40,14 @@ export interface PetWalkController {
   joystickOffset: { x: number; y: number };
   onJoystickPointerDown: (e: React.PointerEvent, origin: { x: number; y: number }) => void;
   onJoystickPointerMove: (e: React.PointerEvent) => void;
-  onJoystickPointerUp: () => void;
+  onJoystickPointerUp: (e: React.PointerEvent) => void;
   /** Call with normalised scene coords (0–1) for click-to-move. */
   onSceneClick: (normX: number, normY: number) => void;
   /** Return the pet to the configured safe spawn and clear current movement input. */
   resetPosition: () => void;
 }
 
-const MAX_JOY_RADIUS = 38; // px — max thumb displacement from base centre
+const MAX_JOY_RADIUS = 26; // px — compact 72px popup, thumb never outgrows the base
 export function persistentAimDirection(current:{dx:number;dy:number},dx:number,dy:number){const length=Math.hypot(dx,dy);return length<.001?current:{dx:dx/length,dy:dy/length};}
 
 function clamp(pos: PetWalkPos, b: WalkableBounds): PetWalkPos {
@@ -71,6 +71,9 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   const aimRef          = useRef({ dx: 1, dy: 0 });
   const updateAim = useCallback((dx:number,dy:number) => { const next=persistentAimDirection(aimRef.current,dx,dy); if(Math.hypot(next.dx-aimRef.current.dx,next.dy-aimRef.current.dy)>.002){aimRef.current=next;setAimDirection(next);}}, []);
   const joyActiveRef    = useRef(false);
+  // Only the pointer that began movement may move or end the joystick.
+  // A second finger tapping combat controls must not steal its direction.
+  const activePointerIdRef = useRef<number | null>(null);
   const joyOriginRef    = useRef({ x: 0, y: 0 });
   const targetRef       = useRef<PetWalkPos | null>(null);
   const rafRef          = useRef<number | null>(null);
@@ -85,6 +88,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
     if (!enabled) {
       keysRef.current.clear();
       joyActiveRef.current = false;
+      activePointerIdRef.current = null;
       dirRef.current = { dx: 0, dy: 0 };
       targetRef.current = null;
       setIsJoystickActive(false);
@@ -208,6 +212,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   // ── Joystick handlers ─────────────────────────────────────────────────────
   const stopMovement = useCallback(() => {
     joyActiveRef.current = false;
+    activePointerIdRef.current = null;
     dirRef.current = { dx: 0, dy: 0 };
     setIsJoystickActive(false);
     setJoystickOffset({ x: 0, y: 0 });
@@ -221,8 +226,9 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   }, [stopMovement]);
 
   const onJoystickPointerDown = useCallback((e: React.PointerEvent, origin: { x: number; y: number }) => {
-    if (!enabledRef.current) return;
+    if (!enabledRef.current || activePointerIdRef.current !== null) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { stopMovement(); return; }
+    activePointerIdRef.current = e.pointerId;
     joyActiveRef.current = true;
     setIsJoystickActive(true);
     joyOriginRef.current = origin;
@@ -231,7 +237,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   }, [stopMovement]);
 
   const onJoystickPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!joyActiveRef.current) return;
+    if (!joyActiveRef.current || e.pointerId !== activePointerIdRef.current) return;
     const rawDx = e.clientX - joyOriginRef.current.x;
     const rawDy = e.clientY - joyOriginRef.current.y;
     const dist = Math.sqrt(rawDx * rawDx + rawDy * rawDy);
@@ -245,7 +251,9 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
     };
   }, []);
 
-  const onJoystickPointerUp = useCallback(() => stopMovement(), [stopMovement]);
+  const onJoystickPointerUp = useCallback((e: React.PointerEvent) => {
+    if (e.pointerId === activePointerIdRef.current) stopMovement();
+  }, [stopMovement]);
 
   const onSceneClick = useCallback((normX: number, normY: number) => {
     if (joyActiveRef.current || keysRef.current.size > 0) return;
