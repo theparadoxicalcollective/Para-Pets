@@ -6,6 +6,24 @@ import { db } from "../../db";
 export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS published_category text;
+    -- Clothing saved by 08A records its published category in the catalog
+    -- description. Prefer that stable snapshot over the mutable draft category:
+    -- an admin may have edited a draft without pressing Save Clothing.
+    UPDATE player_clothing_drafts AS clothing
+      SET published_category = replace(item.description, 'Avatar clothing · ', '')
+      FROM shop_items AS item
+      WHERE clothing.published_category IS NULL
+        AND clothing.published_segments IS NOT NULL
+        AND clothing.shop_item_id = item.id
+        AND item.type = 'clothing'
+        AND item.description IN (
+          'Avatar clothing · head', 'Avatar clothing · hair',
+          'Avatar clothing · face', 'Avatar clothing · top',
+          'Avatar clothing · bottom', 'Avatar clothing · shoes',
+          'Avatar clothing · back'
+        );
+    -- Older designs without an 08A description retain their original
+    -- category as a compatibility fallback; never overwrite a saved snapshot.
     UPDATE player_clothing_drafts SET published_category = category
       WHERE published_category IS NULL AND published_segments IS NOT NULL;
 
