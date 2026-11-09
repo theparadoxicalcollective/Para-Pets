@@ -89,7 +89,10 @@ try{
       }
       return route.fulfill({json:[]});
     });
+    const avatarRead = page.waitForResponse(r=>
+      new URL(r.url()).pathname==="/api/player-avatar");
     await page.goto("http://127.0.0.1:4201/avatar11-fixture",{waitUntil:"domcontentloaded"});
+    await avatarRead;
     await page.getByTestId("walkaround-world-layer").waitFor({state:"visible"});
     if(sc.created){
       const actor=page.getByTestId("walk-avatar-actor");
@@ -127,7 +130,6 @@ try{
       await page.mouse.up();
       await page.getByTestId("floating-joystick").waitFor({state:"detached"});
     }else{
-      await page.waitForResponse(r=>r.url().endsWith("/api/player-avatar"),{timeout:18000}).catch(()=>{});
       assert.equal(await page.getByTestId("walk-avatar-actor").count(),0,
         sc.name+": absent/failed saved avatar cannot be synthesized");
     }
