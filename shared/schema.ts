@@ -277,6 +277,9 @@ export const playerAvatarProfiles = pgTable("player_avatar_profiles", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   baseId: varchar("base_id").notNull().references(() => playerCharacterBases.id),
   basePublishedAt: timestamp("base_published_at").notNull(),
+  // Immutable artwork snapshot at explicit player save; a later admin
+  // republish never silently changes this player’s character anatomy.
+  baseParts: jsonb("base_parts").$type<StoredPlayerCharacterPart[]>().notNull(),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
