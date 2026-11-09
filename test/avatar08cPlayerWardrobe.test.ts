@@ -107,10 +107,9 @@ test("a listed or incompatible item cannot alter the character preview", () => {
 
 test("the player page uses the authenticated 08B API and does not save a preview until confirmed", () => {
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
-  const model = read("client/src/lib/playerAvatarWardrobe.ts");
   assert.match(page, /fetch\("\/api\/player-avatar", \{ credentials: "include", signal, cache: "no-store" \}\)/);
   assert.match(page, /writePlayerAvatar\("POST", "\/api\/player-avatar\/create"/);
-  assert.match(model, /\`\/api\/player-avatar\/equipment\/\$\{input.category\}\`/);
+  assert.match(page, /\`\/api\/player-avatar\/equipment\/\$\{input.category\}\`/);
   assert.match(page, /expectedRevision: avatar.revision/);
   assert.match(page, /qc.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
   assert.match(page, /setPreviewId\(null\)/);
