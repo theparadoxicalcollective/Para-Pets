@@ -67,29 +67,38 @@ try{
     const errors=[],writes=[];
     const accounts={"account-A":makeAccount("account-A",2),"account-B":makeAccount("account-B",9)};
     let active="account-A";
+    let releaseBRead, releaseASave, confirmASaveStarted;
+    const bReadGate=new Promise(resolve=>{releaseBRead=resolve;});
+    const aSaveGate=new Promise(resolve=>{releaseASave=resolve;});
+    const aSaveStarted=new Promise(resolve=>{confirmASaveStarted=resolve;});
     page.on("pageerror",error=>errors.push(error.message));
     await page.route("**/api/player-avatar**",async route=>{
       const path=new URL(route.request().url()).pathname;
       const method=route.request().method();
       if(path==="/api/player-avatar"&&method==="GET"){
-        // Deliberately slow the first B response. The wardrobe must not show
-        // A's clothing in the interim after the account key changes.
-        if(active==="account-B")await new Promise(resolve=>setTimeout(resolve,350));
-        return route.fulfill({json:accounts[active]});
+        const requestAccount=active;
+        // Hold the B response until the loading UI is observed. This avoids
+        // timing-dependent UI tests on slower mobile browser emulation.
+        if(requestAccount==="account-B")await bReadGate;
+        return route.fulfill({json:accounts[requestAccount]});
       }
       if(path==="/api/player-avatar/equipment/head"&&method==="PUT"){
+        const requestAccount=active;
         const body=route.request().postDataJSON();
-        assert.equal(body.expectedRevision,accounts[active].revision,
+        assert.equal(body.expectedRevision,accounts[requestAccount].revision,
           name+": revision stays tied to the authenticated account");
-        assert.equal(body.inventoryId,"hat-"+active,
+        assert.equal(body.inventoryId,"hat-"+requestAccount,
           name+": cannot equip another account's clothing");
-        writes.push(active);
-        const owned=accounts[active].ownedClothing[0];
-        accounts[active]={...accounts[active],revision:accounts[active].revision+1,
+        confirmASaveStarted();
+        // Complete the old account's save only AFTER B has loaded.
+        await aSaveGate;
+        writes.push(requestAccount);
+        const owned=accounts[requestAccount].ownedClothing[0];
+        accounts[requestAccount]={...accounts[requestAccount],revision:accounts[requestAccount].revision+1,
           equipped:[{category:"head",inventoryId:owned.inventoryId,
             shopItemId:owned.shopItemId,name:owned.name,imageUrl:owned.imageUrl,
             segments:owned.segments}]};
-        return route.fulfill({json:accounts[active]});
+        return route.fulfill({json:accounts[requestAccount]});
       }
       return route.fulfill({status:404,json:{message:"Unsupported QA fixture route"}});
     });
@@ -98,21 +107,28 @@ try{
     await page.getByTestId("avatar-clothing-hat-account-A").tap();
     const save=page.waitForResponse(r=>r.request().method()==="PUT"&&r.url().includes("/equipment/head"));
     await page.getByTestId("avatar-equip-button").tap();
-    await save;
-    await page.waitForFunction(()=>!!document.querySelector(
-      '.player-avatar-page__category--head .player-avatar-page__equipped-dot'));
-    assert.deepEqual(writes,["account-A"]);
-
+    await aSaveStarted;
+    // Force a live account change while account A's server mutation is still
+    // in flight. Completing A's response must NEVER populate B's cache.
     active="account-B";
     await page.evaluate(()=>window.__switchAvatarAccount("account-B"));
     await page.getByTestId("avatar-loading").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-clothing-hat-account-A").count(),0,
       name+": account A wardrobe must disappear while B is loading");
+    releaseBRead();
     await page.getByTestId("avatar-clothing-hat-account-B").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-clothing-hat-account-A").count(),0,
       name+": account A inventory must not leak into B");
     assert.equal(await page.locator(".player-avatar-page__equipped-dot").count(),0,
       name+": A's equipped hat must not be displayed on B");
+
+    releaseASave();
+    await save;
+    await page.waitForFunction(()=>
+      window.__avatar12aCache.getQueryData(["/api/player-avatar","account-A"])?.revision===3);
+    assert.deepEqual(writes,["account-A"]);
+    assert.equal(await page.locator(".player-avatar-page__equipped-dot").count(),0,
+      name+": late A save must not set B's equipped state");
 
     const keys=await page.evaluate(()=>{
       const q=window.__avatar12aCache;
