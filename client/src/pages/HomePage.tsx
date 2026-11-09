@@ -241,7 +241,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     window.history.replaceState({}, "", "/");
     if (AVATAR_10_HOME_CUTOVER) {
       navigate(currentUser.activePetId
-        ? `/${destination}/${encodeURIComponent(currentUser.activePetId)}`
+        ? `/${destination}/${encodeURIComponent(currentUser.activePetId)}?from=quest`
         : "/bag");
     } else if (destination === "pet-power-up") {
       setPowerUpFromQuest(true);
