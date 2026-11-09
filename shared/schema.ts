@@ -9,6 +9,7 @@ import type { ParkInteriorEffect } from "./petParkRooms";
 import type { ParkDecorEffect } from "./petParkDecorEffects";
 import type { GardenStagePlacements } from "./garden";
 import type { StoredPlayerCharacterPart } from "./playerCharacter";
+import type { PlayerClothingSegment, PlayerClothingCategory } from "./playerCharacterClothing";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -177,6 +178,24 @@ export const shopItems = pgTable("shop_items", {
   giftPoints: integer("gift_points"),
   petExp: integer("pet_exp"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Private avatar-clothing designs. One design owns 1-8 fitted segment images;
+// its (optional) catalog SKU is minted only when admin explicitly saves/publishes.
+// This is separate from pet costume/adornment definitions and user_inventory.
+export const playerClothingDrafts = pgTable("player_clothing_drafts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  baseId: varchar("base_id").notNull().references(() => playerCharacterBases.id),
+  basePublishedAt: timestamp("base_published_at").notNull(),
+  name: text("name").notNull(),
+  category: text("category").$type<PlayerClothingCategory>().notNull(),
+  draftSegments: jsonb("draft_segments").$type<PlayerClothingSegment[]>().notNull().default(sql`'[]'::jsonb`),
+  publishedSegments: jsonb("published_segments").$type<PlayerClothingSegment[] | null>(),
+  shopItemId: varchar("shop_item_id").unique().references(() => shopItems.id, { onDelete: "set null" }),
+  revision: integer("revision").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+  publishedAt: timestamp("published_at"),
 });
 
 // Optional expression images for catalog NPCs. The base NPC image stays in
