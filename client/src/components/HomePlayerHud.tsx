@@ -104,19 +104,20 @@ export default function HomePlayerHud({
   const player = progression.data;
   const levelStartXp = player ? totalXpRequiredForPlayerLevel(player.level) : 0;
   const levelTargetXp = player?.nextLevelTotalXp ?? null;
-  const xpEarnedThisLevel = player ? Math.max(0, player.totalXp - levelStartXp) : 0;
+  const xpEarnedThisLevel = player ? Math.max(0, player.cycleXp - levelStartXp) : 0;
   const xpNeededThisLevel = levelTargetXp === null ? null : Math.max(1, levelTargetXp - levelStartXp);
   const xpFillPct = !player ? null : xpNeededThisLevel === null
     ? 100 : Math.min(100, (xpEarnedThisLevel / xpNeededThisLevel) * 100);
   const xpProgressLabel = !player ? "Player experience unavailable" : xpNeededThisLevel === null
-    ? `Level ${player.level}: maximum player level reached`
+    ? (player.canElevate ? "Level 100 complete; Seer Elevation coming later" : "Five-star Level 100 reached: maximum player progression")
     : `Level ${player.level}: ${xpEarnedThisLevel} of ${xpNeededThisLevel} XP toward Level ${player.level + 1}`;
   return (
     <div className={avatarHome ? "home-player-hud home-player-hud--avatar-home" : "home-player-hud"} data-testid="home-player-hud" data-coordinate-owner="viewport">
       <div className="home-player-hud__stars" data-testid="home-player-empty-stars"
-        aria-label="Five unearned player stars" role="img">
+        aria-label={`${player?.stars ?? 0} of 5 player Elevation stars earned`} role="img">
         {Array.from({ length: 5 }, (_, i) => (
           <img key={i} src={cardStarImg} alt="" draggable={false}
+            className={i < (player?.stars ?? 0) ? "home-player-hud__star--earned" : undefined}
             style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * 6}px)` }} />
         ))}
       </div>
