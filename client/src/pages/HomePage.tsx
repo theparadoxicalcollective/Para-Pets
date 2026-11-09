@@ -160,6 +160,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     { x: homeArtworkSize.width / 2, y: homeArtworkSize.height * (1475 / 2160) },
   );
 
+  // Never paint the previous account's local modal/roster state while a new
+  // account's props are settling. The syncing effect restores Home next render.
+  if (currentUser.id !== user.id) return null;
+
   return (
     <div
       data-testid="active-pet-page"
