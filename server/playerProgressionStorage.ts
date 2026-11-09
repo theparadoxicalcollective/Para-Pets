@@ -3,7 +3,7 @@ import {
   playerProgression,
   playerXpReceipts,
 } from "@shared/schema";
-import { levelForPlayerTotalXp, type PlayerProgression } from "@shared/playerProgression";
+import { levelForPlayerTotalXp, playerCycleXp, type PlayerProgression } from "@shared/playerProgression";
 import { db } from "./db";
 import {
   executePlayerXpAward,
@@ -18,6 +18,8 @@ export async function getPlayerProgression(userId: string): Promise<PlayerProgre
   const [row] = await db.select({
     level: playerProgression.level,
     totalXp: playerProgression.totalXp,
+    stars: playerProgression.stars,
+    cycleStartXp: playerProgression.cycleStartXp,
   }).from(playerProgression).where(eq(playerProgression.userId, userId)).limit(1);
   return row ?? null;
 }
@@ -40,6 +42,8 @@ export async function awardPlayerXpInTransaction(
         const [row] = await tx.select({
           level: playerProgression.level,
           totalXp: playerProgression.totalXp,
+          stars: playerProgression.stars,
+          cycleStartXp: playerProgression.cycleStartXp,
         }).from(playerProgression).where(eq(playerProgression.userId, userId)).for("update");
         if (!row) throw new Error("Player progression row unavailable");
         return row;
@@ -76,7 +80,9 @@ export async function awardPlayerXpInTransaction(
           updatedAt: new Date(),
         }).where(eq(playerProgression.userId, userId));
       },
-    }, levelForPlayerTotalXp);
+    }, (totalXp, current) => levelForPlayerTotalXp(
+      totalXp - (current.cycleStartXp ?? 0),
+    ));
 }
 
 /** Standalone path for verified events without a separate reward transaction. */
