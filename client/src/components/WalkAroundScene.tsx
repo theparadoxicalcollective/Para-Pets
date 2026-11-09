@@ -67,7 +67,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
   // Visual identity is owned by the player, not by the featured combat pet.
   // Reuse Home/wardrobe's account-scoped query and existing eight-part renderer.
   const avatarQuery = useQuery<PlayerAvatarState>({
-    queryKey: playerAvatarQueryKey(userId),
+    queryKey: playerAvatarQueryKey(userId ?? ""),
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
     enabled: !!userId,
     staleTime: 30_000,
