@@ -136,8 +136,9 @@ export default function HomePlayerHud({
             title={xpProgressLabel}>
             <span aria-hidden="true" style={xpFillPct === null ? undefined : { width: `${xpFillPct}%` }} />
           </div>
-          <span data-testid="home-player-total-xp" className="home-player-hud__xp-text">
-            {player ? `${player.totalXp.toLocaleString()} XP` : progression.isError ? "XP unavailable" : "Loading XP"}
+          <span data-testid="home-player-total-xp" className="home-player-hud__xp-text"
+            title={player ? `${player.totalXp.toLocaleString()} lifetime player XP` : undefined}>
+            {player ? `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP` : progression.isError ? "XP unavailable" : "Loading XP"}
           </span>
         </div>
       </div>
