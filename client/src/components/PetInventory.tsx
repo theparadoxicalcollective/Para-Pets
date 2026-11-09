@@ -1362,6 +1362,7 @@ function BagView({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bagGroup, setBagGroup] = useState<GameItemGroupKey>("items");
   const [bagCategory, setBagCategory] = useState<GameItemCategoryKey | null>(null);
+  const [, navigateBag] = useLocation();
   const groupIcons: Record<GameItemGroupKey, string> = { pets: tabIconPet, fish: tabIconFish, home: tabIconHome, avatars: tabIconAccessory, items: tabIconPotion };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1486,7 +1487,7 @@ function BagView({
     <>
       <div
         data-testid="bag-group-tabs"
-        className="grid grid-cols-4 gap-1.5 mb-3"
+        className="grid grid-cols-5 gap-1 mb-3"
         aria-label="Bag groups"
       >
         {GAME_ITEM_GROUPS.map(group => {
@@ -1511,6 +1512,13 @@ function BagView({
           );
         })}
       </div>
+      {bagGroup === "avatars" && (
+        <button type="button" data-testid="open-player-avatar-wardrobe"
+          onClick={() => navigateBag("/player-avatar")}
+          className="mb-3 w-full rounded-xl border border-[#c8aa68] bg-[#284431] px-3 py-2.5 font-fantasy text-sm text-[#f6d996] active:scale-[.99]">
+          Open Character Wardrobe
+        </button>
+      )}
       {/* The category rail scrolls independently of the item shelf on phones. */}
       <div className="flex items-start gap-2 sm:gap-4 min-w-0">
       <nav aria-label={`${GAME_ITEM_GROUPS.find(group => group.key === bagGroup)?.label ?? "Bag"} categories`} className="w-[112px] shrink-0 sticky top-1 max-h-[min(65vh,600px)] overflow-y-auto p-1.5 rounded-xl flex flex-col gap-1.5" style={{ background: "linear-gradient(180deg, rgba(17,29,17,.93), rgba(24,13,6,.94))", border: "1px solid rgba(212,160,23,.4)", boxShadow: "0 8px 24px rgba(0,0,0,.35)", scrollbarWidth: "thin" }}>
