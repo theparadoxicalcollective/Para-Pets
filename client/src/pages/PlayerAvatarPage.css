@@ -1,0 +1,299 @@
+/* Player-facing avatar stage: native mobile/tablet viewport, not a reference phone. */
+.player-avatar-page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* The shared viewport portal intentionally ignores clicks; the active
+     page must explicitly own pointer events for buttons and touch swipes. */
+  pointer-events: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Do not restrict the parent to pan-y: that would cancel the child wardrobe's
+     horizontal pan-x gesture on Mobile Safari. */
+  touch-action: auto;
+  color: #f6e8bd;
+  background: #091b12;
+  isolation: isolate;
+}
+.player-avatar-page__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 34%, rgba(127,124,54,.27), transparent 46%),
+    radial-gradient(ellipse at 80% 7%, rgba(62,112,67,.22), transparent 43%),
+    linear-gradient(165deg,#193c29 0%,#112a1e 47%,#071810 100%);
+}
+.player-avatar-page__content {
+  position: relative;
+  width: min(100%, 750px);
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 14px
+    calc(32px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+.player-avatar-page__header {
+  display: grid;
+  grid-template-columns: 45px 1fr 45px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+  text-align: center;
+}
+.player-avatar-page__header h1 {
+  margin: 0;
+  font-family: fantasy, Georgia, serif;
+  font-size: clamp(18px, 5vw, 27px);
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: #f3d891;
+  text-shadow: 0 2px 9px #000;
+}
+.player-avatar-page__header p { margin: 3px 0 0; color: #c4c9a6; font-size: 12px; }
+.player-avatar-page__back, .player-avatar-page__refresh {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  width: 44px;
+  border: 1px solid #ba985c;
+  border-radius: 50%;
+  color: #ffe2a0;
+  background: linear-gradient(150deg,#315a3c,#15291d);
+  box-shadow: 0 3px 12px #0008;
+  touch-action: manipulation;
+}
+.player-avatar-page__back:active, .player-avatar-page__refresh:active { transform: scale(.96); }
+.player-avatar-page button:focus-visible {
+  outline: 3px solid #fff0ab;
+  outline-offset: 3px;
+}
+.player-avatar-page button:disabled { cursor: not-allowed; opacity: .5; }
+.player-avatar-page__showcase {
+  width: min(100%, 590px);
+  height: clamp(335px, 91vw, 440px);
+  margin: 5px auto 10px;
+  position: relative;
+  isolation: isolate;
+}
+.player-avatar-page__halo {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  width: min(74%, 325px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(199,173,75,.19), transparent 69%);
+  box-shadow: 0 0 85px rgba(186,145,60,.10);
+  pointer-events: none;
+}
+.player-avatar-page__viewer {
+  width: clamp(177px, 49%, 260px);
+  aspect-ratio: 1;
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+.player-avatar-page__no-base {
+  position: absolute;
+  inset: 10%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #e3d7aa;
+  font-size: 12px;
+}
+.player-avatar-page__category {
+  --ring-size: clamp(51px, 14vw, 68px);
+  position: absolute;
+  z-index: 2;
+  width: var(--ring-size);
+  height: var(--ring-size);
+  border: 1.5px solid #ba9955;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 5px;
+  background: radial-gradient(circle at 35% 25%, #396746, #162f21 83%);
+  box-shadow: inset 0 1px 7px #ffdd8422, 0 3px 10px #0009;
+  color: #ebdbad;
+  font: 600 clamp(10px, 2.7vw, 13px)/1.1 Georgia, serif;
+  letter-spacing: .01em;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translate(-50%,-50%);
+  transition: background .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.player-avatar-page__category[aria-pressed="true"] {
+  border-color: #ffdc82;
+  color: #fff5c8;
+  background: radial-gradient(circle at 35% 25%, #74813d, #355737 80%);
+  box-shadow: 0 0 0 2px #e0bd6266, 0 0 17px #e7bb6260, inset 0 0 12px #ffe0a31a;
+}
+.player-avatar-page__equipped-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  bottom: 0px;
+  right: 3px;
+  border-radius: 50%;
+  background: #e2bb64;
+  box-shadow: 0 0 6px #e5bd64;
+}
+.player-avatar-page__category--head   { left: 50%; top: 8%; }
+.player-avatar-page__category--hair   { left: 16%; top: 24%; }
+.player-avatar-page__category--face   { left: 84%; top: 24%; }
+.player-avatar-page__category--top    { left: 10%; top: 50%; }
+.player-avatar-page__category--bottom { left: 90%; top: 50%; }
+.player-avatar-page__category--shoes  { left: 22%; top: 80%; }
+.player-avatar-page__category--back   { left: 78%; top: 80%; }
+
+.player-avatar-page__create,
+.player-avatar-page__wardrobe {
+  margin: 0 auto;
+  width: min(100%, 620px);
+  box-sizing: border-box;
+  border: 1px solid #a98a4d;
+  border-radius: 20px;
+  padding: 15px;
+  background: linear-gradient(160deg,rgba(30,59,39,.97),rgba(12,35,25,.98));
+  box-shadow: 0 10px 30px #0006, inset 0 1px 0 #ffffff0a;
+}
+.player-avatar-page__create { text-align: center; }
+.player-avatar-page__create-title {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  align-items: center;
+  font: bold 18px Georgia, serif;
+  color: #f2d586;
+}
+.player-avatar-page__create p { font-size: 13px; color: #ded8b6; line-height: 1.5; }
+.player-avatar-page__create button,
+.player-avatar-page__actions button,
+.player-avatar-page__message button {
+  min-height: 43px;
+  border: 1px solid #e4c171;
+  border-radius: 24px;
+  padding: 9px 15px;
+  font: 600 13px Georgia, serif;
+  color: #fff1c7;
+  background: linear-gradient(170deg,#667a3f,#294a2e);
+  box-shadow: 0 3px 9px #0005;
+  touch-action: manipulation;
+}
+.player-avatar-page__wardrobe-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.player-avatar-page__wardrobe-header h2 {
+  margin: 0 0 4px;
+  font: bold 19px Georgia, serif;
+  color: #f2d38c;
+}
+.player-avatar-page__wardrobe-header p { margin: 0; font-size: 11px; line-height: 1.35; color: #c9c7aa; }
+.player-avatar-page__wardrobe-header > span { color: #e0bf77; font-size: 12px; white-space: nowrap; }
+.player-avatar-page__inventory {
+  display: flex;
+  gap: 11px;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 5px 1px 13px;
+  scrollbar-width: thin;
+  scrollbar-color: #ac8643 transparent;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+.player-avatar-page__item {
+  flex: 0 0 clamp(103px, 29vw, 128px);
+  width: clamp(103px, 29vw, 128px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 7px 9px;
+  gap: 5px;
+  border: 1px solid #736b43;
+  border-radius: 15px;
+  background: rgba(13,35,25,.96);
+  color: #e6dfb8;
+  text-align: center;
+  scroll-snap-align: start;
+  touch-action: manipulation;
+}
+.player-avatar-page__item[aria-pressed="true"] {
+  border-color: #ebce7c;
+  box-shadow: 0 0 0 1px #ebce7c55, 0 0 16px #d1a44d33;
+}
+.player-avatar-page__item-art {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: radial-gradient(circle at center,#37553b,#152b20);
+  overflow: hidden;
+}
+.player-avatar-page__item-art img { width: 90%; height: 90%; object-fit: contain; }
+.player-avatar-page__item-worn {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 19px; height: 19px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: #142517;
+  background: #f0d17a;
+}
+.player-avatar-page__item-name { width: 100%; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.player-avatar-page__item-status { font-size: 10px; color: #cab77b; }
+.player-avatar-page__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 10px; }
+.player-avatar-page__actions .player-avatar-page__remove {
+  border-color: #8d7951;
+  background: #233a2b;
+}
+.player-avatar-page__actions .player-avatar-page__cancel-preview { background: none; border-color: #7b8d70; }
+.player-avatar-page__empty, .player-avatar-page__message {
+  border: 1px dashed #866c45;
+  border-radius: 13px;
+  padding: 24px 14px;
+  color: #dccda5;
+  text-align: center;
+  font-size: 13px;
+}
+.player-avatar-page__message { margin: 80px auto 0; max-width: 500px; }
+.player-avatar-page__message button { margin-top: 13px; }
+.player-avatar-page__preview { color: #e8d590; margin: 9px 0 2px; text-align: center; font-size: 12px; }
+.player-avatar-page__warning {
+  width: min(100%, 620px);
+  margin: 9px auto;
+  padding: 8px 12px;
+  border: 1px solid #ae9256;
+  border-radius: 10px;
+  background: #322b1a;
+  color: #f1ddae;
+  text-align: center;
+  font-size: 12px;
+}
+@media (min-width: 600px) {
+  .player-avatar-page__showcase { height: 445px; }
+  .player-avatar-page__category { --ring-size: 67px; }
+}
+@media (max-height: 680px) {
+  .player-avatar-page__showcase { height: clamp(300px,80vw,365px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-avatar-page__category { transition: none; }
+}

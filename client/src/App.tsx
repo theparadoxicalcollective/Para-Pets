@@ -61,6 +61,7 @@ const BadgePage          = lazy(() => import("@/pages/BadgePage"));
 const MarketPage         = lazy(() => import("@/pages/MarketPage"));
 const PvpArenaPage       = lazy(() => import("@/pages/PvpArenaPage"));
 const PetInventoryPage   = lazy(() => import("@/pages/PetInventoryPage"));
+const PlayerAvatarPage    = lazy(() => import("@/pages/PlayerAvatarPage"));
 const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 const CardsCollectionPage = lazy(() => import("@/pages/CardsCollectionPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
@@ -553,6 +554,11 @@ function AppRouter() {
         {location === "/bag" && (
           <StagePageSurface layout="viewport">
             <BagInventoryPage />
+          </StagePageSurface>
+        )}
+        {location === "/player-avatar" && (
+          <StagePageSurface layout="viewport">
+            <PlayerAvatarPage />
           </StagePageSurface>
         )}
         {location === "/cards" && (

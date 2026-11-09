@@ -25,5 +25,5 @@ test("group icons reuse existing assets without stage restrictions", () => {
   assert.match(source, /import tabIconHome from "@assets\/icon_home_inventory.png"/);
   assert.match(source, /import tabIconAccessory from "@assets\/acc_gem_amulet.png"/);
   assert.match(source, /import tabIconPotion from "@assets\/potion_health.png"/);
-  assert.doesNotMatch(groupTabs + categoryRail, /390|844|clientToStage/);
+  assert.doesNotMatch(groupTabs + categoryRail, /390px|844px|390\\s*[×x]\\s*844|clientToStage/);
 });

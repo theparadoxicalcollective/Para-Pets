@@ -99,3 +99,5 @@ jobs:
           node script/ginny-guide-smoke.mjs
           node script/onboarding-retirement-smoke.mjs
           node script/janson-quest-smoke.mjs
+          # Real player-avatar UI against isolated, disposable account fixtures.
+          node script/player-avatar-wardrobe-smoke.mjs

@@ -25,6 +25,7 @@ const NAV_HIDDEN_EXACT = new Set([
   "/games/lava-crawl",
   "/coins",
   "/bag",
+  "/player-avatar",
   "/badges",
   "/pets",
   "/pet-park",
