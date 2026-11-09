@@ -39,7 +39,7 @@ export default function PlayerCharacterRenderer({
   const sorted = [...parts].sort((a, b) => a.zIndex - b.zIndex);
   const layers = [
     ...clothingSegments.map(segment => ({
-      segment, key: `draft:${segment.partType}`, categoryOrder: -1,
+      segment, key: `draft:${segment.partType}`, categoryOrder: 0,
     })),
     ...clothingLayers.flatMap(outfit => outfit.segments.map(segment => ({
       segment,
