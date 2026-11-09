@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+
+const PlayerClothingAdminPanel = lazyWithRetry(() => import("./PlayerClothingAdminPanel"));
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +72,9 @@ export default function PlayerCharacterAdminPanel() {
   const [imageData, setImageData] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [previewMotion, setPreviewMotion] = useState<PlayerCharacterMotion>("static");
+  const [editorTab, setEditorTab] = useState<"base" | "clothing">("base");
+  const [clothingOpened, setClothingOpened] = useState(false);
+  const [clothingDirty, setClothingDirty] = useState(false);
 
   const query = useQuery<CharacterBase[]>({
     queryKey: LIST_KEY,
@@ -205,6 +211,27 @@ export default function PlayerCharacterAdminPanel() {
 
   return (
     <section data-testid="player-character-admin-panel" className="space-y-4 text-[#f3dfac]">
+      <div role="tablist" aria-label="Avatar administration" className="grid grid-cols-2 gap-2">
+        <button type="button" role="tab" aria-selected={editorTab === "base"}
+          disabled={clothingDirty} className={buttonClass}
+          onClick={() => setEditorTab("base")}
+          style={{ borderColor: editorTab === "base" ? "#f1d18c" : "#816f43" }}>
+          Base Body Parts
+        </button>
+        <button type="button" role="tab" aria-selected={editorTab === "clothing"}
+          disabled={dirty} className={buttonClass}
+          data-testid="avatar-open-create-clothing"
+          onClick={() => { setClothingOpened(true); setEditorTab("clothing"); }}
+          style={{ borderColor: editorTab === "clothing" ? "#f1d18c" : "#816f43" }}>
+          Create Clothing
+        </button>
+      </div>
+      {(dirty || clothingDirty) && (
+        <p role="status" className="text-xs text-[#e4d1a0]">
+          Save or discard your unsaved artwork changes before switching editors.
+        </p>
+      )}
+      <div className={editorTab === "base" ? "space-y-4" : "hidden"}>
       <div className="rounded-xl border border-[#9c854b]/55 bg-[#10251a]/90 p-3">
         <h2 className="font-fantasy text-lg font-bold text-[#f3d58b]">Avatar Base Editor</h2>
         <p className="mt-1 text-xs leading-relaxed text-[#d1c69f]">
@@ -389,6 +416,14 @@ export default function PlayerCharacterAdminPanel() {
               <p className="mt-2 text-xs text-[#decda7]">Complete and save all 8 base parts before publishing.</p>
             )}
           </div>
+        </div>
+      )}
+      </div>
+      {clothingOpened && (
+        <div className={editorTab === "clothing" ? "" : "hidden"}>
+          <Suspense fallback={<p className="p-3 text-sm text-[#e3cc9a]">Loading clothing editor…</p>}>
+            <PlayerClothingAdminPanel onDirtyChange={setClothingDirty} />
+          </Suspense>
         </div>
       )}
     </section>
