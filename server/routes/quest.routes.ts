@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 import type { db as database } from "../db";
 import type { executeDailyQuestClaim as DailyQuestClaimExecutor } from "../dailyQuestClaim";
 import { jansonQuestDate } from "../jansonQuestRules";
+import { awardPlayerXpInTransaction } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 
 const GINNY_MINI_PET_QUEST_KEY = "ginny-mini-pet";
 
@@ -160,6 +162,9 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
                 AND reward_claimed = false RETURNING id
             `);
             if (!updated.rows.length) throw new Error("Claim record changed during claim");
+            await awardPlayerXpInTransaction(tx, user.id, {
+              source: "daily_quest", eventId: `${date}:${questKey}`, amount: PLAYER_XP_REWARDS.dailyQuest,
+            });
           },
         });
         if (result === "success" && newCoinBalance === undefined) {
