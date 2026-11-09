@@ -500,7 +500,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               data-testid="topbar-resource-cluster"
               style={{
                 display: "grid",
-                gridTemplateColumns: location === "/" ? "auto" : "auto 44px",
+                gridTemplateColumns: location === "/" ? "max-content" : "auto 44px",
                 gridTemplateRows: "30px 30px",
                 columnGap: 4,
                 rowGap: 2,
