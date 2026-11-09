@@ -6,29 +6,28 @@ import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type Playe
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { useToast } from "@/hooks/use-toast";
 import {
-  PLAYER_AVATAR_QUERY_KEY, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
+  playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
   type OwnedAvatarClothing, type PlayerAvatarState,
 } from "@/lib/playerAvatarWardrobe";
 import "./PlayerAvatarPage.css";
 
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
-export default function PlayerAvatarPage() {
+export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [, navigate] = useLocation();
   const fromHome = new URLSearchParams(useSearch()).get("from") === "home";
   const qc = useQueryClient();
   const { toast } = useToast();
-  // Keep the existing unscoped 08C wardrobe cache and the account-scoped
-  // 10/12 Home cache coherent after explicit first-save or outfit changes.
-  // Never broadcast an outfit across other user IDs in React Query.
+  // This page receives the authenticated identity from AppRouter. Home and
+  // Clearing use the same key; a first-save/equip response can never update
+  // another account's outfit or an unscoped shared cache entry.
+  const avatarKey = playerAvatarQueryKey(userId);
   const cacheSavedAvatar = (saved: PlayerAvatarState) => {
-    qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
-    const signedIn = qc.getQueryData<{ id?: string }>(["/api/auth/me"]);
-    if (signedIn?.id) qc.setQueryData([...PLAYER_AVATAR_QUERY_KEY, signedIn.id], saved);
+    qc.setQueryData(avatarKey, saved);
   };
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const avatarQuery = useQuery<PlayerAvatarState>({
-    queryKey: PLAYER_AVATAR_QUERY_KEY,
+    queryKey: avatarKey,
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
     staleTime: 0,
     refetchOnMount: "always",
@@ -45,7 +44,7 @@ export default function PlayerAvatarPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Could not create character", description: error.message, variant: "destructive" });
-      void qc.invalidateQueries({ queryKey: PLAYER_AVATAR_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: avatarKey });
     },
   });
 
@@ -69,7 +68,7 @@ export default function PlayerAvatarPage() {
       if (error.status === 409 || error.status === 404 || error.status === 422) {
         // Trust the server over a stale item, base publication or second device.
         setPreviewId(null);
-        void qc.invalidateQueries({ queryKey: PLAYER_AVATAR_QUERY_KEY });
+        void qc.invalidateQueries({ queryKey: avatarKey });
       }
     },
   });
