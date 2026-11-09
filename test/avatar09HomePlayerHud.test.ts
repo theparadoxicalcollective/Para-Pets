@@ -60,7 +60,7 @@ test("unearned account stars remain unfilled even if the current pet has high ra
 });
 
 test("Home mounts the account HUD with the avatar while retaining the saved five-pet roster", () => {
-  assert.match(home, /import HomePlayerHud from/);
+  assert.match(home, /import HomePlayerHud, \{ type HomeHudPet \} from/);
   assert.match(home, /<ViewportHudPortal>\s*<HomePlayerHud/);
   assert.match(home, /inventory=\{inventory\}/);
   assert.match(home, /inventoryLoading=\{inventoryLoading\}/);
