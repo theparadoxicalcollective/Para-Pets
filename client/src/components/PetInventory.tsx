@@ -1204,9 +1204,10 @@ function PetView({
                       className="h-[25px] w-[25px] object-contain" />
                     <span>PET MENU</span>
                   </button>
-                  {/* Transitional compatibility only: the Home pet and Murk
-                      Cave still depend on the legacy featured-pet field.
-                      Remove this link when Avatar 10/12 replaces Home's pet. */}
+                  {/* Transitional compatibility: old pet-based features may still
+                      read activePetId. Home itself now renders the saved player
+                      character independently. Retire this compatibility selector
+                      only after the phase-12 cave/combat migration audit. */}
                   <button
                     type="button"
                     data-testid={`button-feature-main-pet-${pet.inventoryId}`}
@@ -1218,13 +1219,14 @@ function PetView({
                     }}
                     className="mt-1 w-full min-h-[24px] rounded-md px-1 font-fantasy text-[9px] tracking-wide text-[#c7b585] underline-offset-2 enabled:hover:underline disabled:opacity-55"
                     style={{ touchAction: "manipulation" }}
+                    title="For legacy pet-based features only. Home shows your player character."
                     aria-label={isActive
-                      ? `${pet.petNickname || pet.name} is currently shown on Main`
-                      : `Show ${pet.petNickname || pet.name} on Main`}
+                      ? `${pet.petNickname || pet.name} is the featured companion for legacy features`
+                      : `Set ${pet.petNickname || pet.name} as the featured companion for legacy features`}
                   >
                     {isPending && pendingPetId === pet.inventoryId
-                      ? "Updating main pet…"
-                      : isActive ? "Shown on Main" : "Show on Main"}
+                      ? "Updating featured pet…"
+                      : isActive ? "Featured Companion" : "Set Featured Companion"}
                   </button>
                 </div>
               )}

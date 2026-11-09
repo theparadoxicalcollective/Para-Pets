@@ -120,9 +120,10 @@ try {
     assert.equal(await page.evaluate(()=>localStorage.getItem("bj_step:journey-fixture")),"5",
       name+": historical saved step retained for future migration");
     await page.getByTestId("quest-log-viewport-backdrop").click({position:{x:7,y:7}});
-    await page.getByTestId("button-egg-tap").tap();
-    await page.getByTestId("active-pet-speedup-viewport-modal").waitFor({state:"visible"});
-    await page.getByTestId("button-close-speedup").tap();
+    // Avatar 10/12 removes Home's pet actor; owned eggs remain in Bag.
+    // Direct egg routes and incubation behavior are tested separately.
+    assert.equal(await page.getByTestId("button-egg-tap").count(),0);
+    assert.equal(await page.getByTestId("button-open-pet-menu").count(),0);
   }
   assert.equal(requests.filter(x=>x.path.startsWith("/api/tutorial/")).length,0,
     name+": no retired tutorial calls");

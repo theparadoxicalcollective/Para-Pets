@@ -1,0 +1,156 @@
+/* 10/12 Home actor: same full-device background and artwork-relative rig. */
+.home-avatar-stage {
+  position: absolute;
+  top: min(68dvh, calc(100dvh - 228px));
+  left: 50%;
+  transform: translate(-50%, -100%);
+  width: min(62vw, 40dvh, 350px);
+  height: min(62vw, 40dvh, 350px);
+  min-width: 168px;
+  min-height: 168px;
+  z-index: 18;
+  pointer-events: none;
+  isolation: isolate;
+}
+.home-avatar-stage__character {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter .2s ease, transform .2s ease;
+}
+.home-avatar-stage__character:active { transform: scale(.98); }
+.home-avatar-stage__character:focus-visible,
+.home-avatar-stage__create:focus-visible,
+.home-avatar-stage__error button:focus-visible {
+  outline: 3px solid #ffe298;
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+.home-avatar-stage__character > .player-character-renderer {
+  pointer-events: none;
+}
+.home-avatar-stage__create {
+  position: absolute;
+  width: min(100%, 192px);
+  aspect-ratio: 1;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #fff2c4;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  filter: drop-shadow(0 0 20px #e9bb5d60);
+  /* The BUTTON itself never moves: only decorative children sway/rotate.
+     This keeps hit testing and touch targets stable on iOS and Android. */
+}
+.home-avatar-stage__gold-ring {
+  position: absolute;
+  inset: 3%;
+  border: 3px solid #eac678;
+  border-radius: 50%;
+  box-shadow: 0 0 17px #e9b44e85, inset 0 0 19px #e9b44e40,
+    0 0 0 4px #82613060;
+  background:
+    conic-gradient(from 0deg, #fff1aa0a, #e1b85e45 35%, #b8873640 50%, #fff3a00a 85%, #eac0664f);
+  animation: home-avatar-gold-turn 14s linear infinite;
+}
+.home-avatar-stage__gold-ring::before,
+.home-avatar-stage__gold-ring::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffefb9;
+  box-shadow: 0 0 10px 3px #f5c86a9c;
+}
+.home-avatar-stage__gold-ring::before { left: 13%; top: 13%; }
+.home-avatar-stage__gold-ring::after { right: 10%; bottom: 11%; }
+.home-avatar-stage__gold-ring--inner {
+  inset: 11%;
+  border: 1px solid #f3db9866;
+  background: radial-gradient(circle, #1f422dbb 18%, #172f2277 66%, transparent);
+  box-shadow: inset 0 0 20px #f9df8655;
+  animation-duration: 20s;
+  animation-direction: reverse;
+}
+.home-avatar-stage__gold-ring--inner::before,
+.home-avatar-stage__gold-ring--inner::after { display: none; }
+.home-avatar-stage__create-center {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font: bold clamp(13px, 3.8vw, 17px)/1.05 Georgia, serif;
+  letter-spacing: .015em;
+  text-align: center;
+  text-shadow: 0 2px 4px #000, 0 0 14px #ffcc7e66;
+  animation: home-avatar-gold-hover 3.8s ease-in-out infinite;
+}
+.home-avatar-stage__create-center svg { margin-bottom: 2px; color: #ffe8a4; }
+.home-avatar-stage__create:active { filter: drop-shadow(0 0 27px #ffe28eaa); }
+.home-avatar-stage__loading,
+.home-avatar-stage__error {
+  position: absolute;
+  width: min(100%, 200px);
+  left: 50%;
+  bottom: 14%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  padding: 12px 9px;
+  color: #f6e3b7;
+  text-align: center;
+  border: 1px solid #ba9b5d88;
+  border-radius: 14px;
+  background: #10291fdd;
+  font: 12px/1.4 Georgia, serif;
+}
+.home-avatar-stage__error { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.home-avatar-stage__error button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 7px 12px;
+  background: #315337;
+  border: 1px solid #e1bd73;
+  border-radius: 18px;
+  color: #ffe6a5;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+@keyframes home-avatar-gold-turn {
+  to { transform: rotate(360deg); }
+}
+@keyframes home-avatar-gold-hover {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50% { transform: translateY(-5px) rotate(1.2deg); }
+}
+@media (max-height: 600px) {
+  .home-avatar-stage { width: min(58vw, 34dvh, 280px); height: min(58vw, 34dvh, 280px); }
+  .home-avatar-stage__create { max-width: 160px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-avatar-stage__create-center,
+  .home-avatar-stage__gold-ring {
+    animation: none !important;
+  }
+  .home-avatar-stage__character { transition: none; }
+}

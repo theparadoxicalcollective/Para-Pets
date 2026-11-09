@@ -1,32 +1,35 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { useToast } from "@/hooks/use-toast";
 import {
-  PLAYER_AVATAR_QUERY_KEY, wardrobeLayers, writePlayerAvatar,
+  PLAYER_AVATAR_QUERY_KEY, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
   type OwnedAvatarClothing, type PlayerAvatarState,
 } from "@/lib/playerAvatarWardrobe";
 import "./PlayerAvatarPage.css";
 
-async function loadAvatar(signal?: AbortSignal): Promise<PlayerAvatarState> {
-  const response = await fetch("/api/player-avatar", { credentials: "include", signal, cache: "no-store" });
-  if (!response.ok) throw new Error("Could not load your character and clothing");
-  return response.json();
-}
-
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
 export default function PlayerAvatarPage() {
   const [, navigate] = useLocation();
+  const fromHome = new URLSearchParams(useSearch()).get("from") === "home";
   const qc = useQueryClient();
   const { toast } = useToast();
+  // Keep the existing unscoped 08C wardrobe cache and the account-scoped
+  // 10/12 Home cache coherent after explicit first-save or outfit changes.
+  // Never broadcast an outfit across other user IDs in React Query.
+  const cacheSavedAvatar = (saved: PlayerAvatarState) => {
+    qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
+    const signedIn = qc.getQueryData<{ id?: string }>(["/api/auth/me"]);
+    if (signedIn?.id) qc.setQueryData([...PLAYER_AVATAR_QUERY_KEY, signedIn.id], saved);
+  };
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const avatarQuery = useQuery<PlayerAvatarState>({
     queryKey: PLAYER_AVATAR_QUERY_KEY,
-    queryFn: ({ signal }) => loadAvatar(signal),
+    queryFn: ({ signal }) => fetchPlayerAvatar(signal),
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -36,7 +39,7 @@ export default function PlayerAvatarPage() {
   const creation = useMutation({
     mutationFn: (baseId: string) => writePlayerAvatar("POST", "/api/player-avatar/create", { baseId }),
     onSuccess: (saved) => {
-      qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
+      cacheSavedAvatar(saved);
       setPreviewId(null);
       toast({ title: "Character created", description: "Your character is saved to your account." });
     },
@@ -57,7 +60,7 @@ export default function PlayerAvatarPage() {
       { inventoryId: input.inventoryId, expectedRevision: input.expectedRevision },
     ),
     onSuccess: (saved) => {
-      qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
+      cacheSavedAvatar(saved);
       setPreviewId(null);
       toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
     },
@@ -96,8 +99,8 @@ export default function PlayerAvatarPage() {
       <div className="player-avatar-page__backdrop" aria-hidden="true" />
       <div className="player-avatar-page__content">
         <header className="player-avatar-page__header">
-          <button type="button" className="player-avatar-page__back" aria-label="Back to Bag"
-            onClick={() => navigate("/bag")}>
+          <button type="button" className="player-avatar-page__back" aria-label={fromHome ? "Back to Home" : "Back to Bag"}
+            onClick={() => navigate(fromHome ? "/" : "/bag")}>
             <ArrowLeft size={22} aria-hidden="true" />
           </button>
           <div>

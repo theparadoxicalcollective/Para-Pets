@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 8 of 12 main phases merged; **08A/12 (#1035), 08B/12 (#1036), and 08C/12 (#1037) all merged**. 09/12 adds the account Home HUD on its own review branch. CI and real-device verification are tracked separately. The 08/12 sub-stages count together as one main phase once 08A–08C have merged; CI or merge is not real-device verification.  
+**Progress:** 9 of 12 main phases merged through **09/12 (#1038)**; the Home character cutover is implemented on the 10/12 review branch. CI and real-device verification are tracked separately. The 08/12 sub-stages count together as one main phase once 08A–08C have merged; CI or merge is not real-device verification.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -42,8 +42,8 @@
 | **Avatar 08A/12** | Admin Create Clothing: one named item with multiple part images, **drag-to-fit live avatar viewer**, scale/rotate, depth, and category selection | **Merged — GitHub #1035** | User confirms merge; actual phone/tablet fitting and deployed DB behavior not yet verified |
 | **Avatar 08B/12** | Explicit per-user first-save avatar, immutable published base snapshot, owned clothing API, seven secure equip/unequip slots | **Merged — GitHub #1036** | CI passed on final head; deployed account/device behavior still needs QA |
 | **Avatar 08C/12** | Player Avatar page: top-centered character viewer, seven circular category buttons, scrollable owned clothing row under viewer | **Merged — GitHub #1037** | CI and browser fixture passed; deployed account and physical device QA not recorded |
-| **Avatar 09/12** | Compact Home account HUD: player name, level and real XP, five unfilled player stars, editable saved five-pet PvP/Raid team | **Implemented on review branch `feature/avatar-09-home-player-hud`** | CI and device fixture pending; physical iOS/Android testing after merge |
-| **Avatar 10/12** | Home avatar replaces active pet; tap avatar opens Avatar page; before player creates one show animated gold **Design Character** circle; remove Home Pet Menu only after pet routes are verified | Planned | Safe-area, gold animation/reduced motion, player created-state, quest guidance, welcome gifts, legacy Murk compatibility |
+| **Avatar 09/12** | Compact Home account HUD: player name, level and real XP, five unfilled player stars, editable saved five-pet PvP/Raid team | **Merged — GitHub #1038** | CI and browser fixtures passed; physical phone/tablet QA remains separately unverified |
+| **Avatar 10/12** | Home displays account-owned animated avatar or gold **Design Character** circle; tap opens wardrobe, returns Home; retires Home pet actor/nameplate/stars/menu while preserving pet-ID destinations | **Implemented on review branch `feature/avatar-10-home-character-cutover`** | CI and isolated real-browser QA pending; physical phone/tablet QA outstanding |
 | **Avatar 11/12** | Avatar walking in existing exploration scenes; separate actor visuals from combat source | Planned | Camera/bounds/ordering/clearing-session tests; no new world publishing |
 | **Avatar 12/12** | Approved player XP awards, legacy compatibility audit, performance regression and cleanup | Planned; split if necessary | No duplicated XP; all mobile/tablet acceptance gates |
 
@@ -262,3 +262,19 @@
 - [ ] Confirm deployed account and physical iPhone/Android/tablet layout, modal taps, saved team propagation to PvP/Raids, no tutorial and Pet Menu regressions.
 
 **Explicit deferrals:** Real XP leveling curve, starting XP awards and player-star earning; replace Home's active pet and remove its legacy HUD in 10/12. Do not modify Murk Cave, combat data, Pet Park slots or desktop Coming Soon.
+
+## Avatar 10/12 — Home character cutover and Design Character invitation
+
+**Approved behavior:** No Home active-pet actor or Home Pet Menu remains visible. A saved player-created character appears on the existing forest platform with the shared eight-part idle renderer and confirmed equipped clothing. Tapping opens `/player-avatar?from=home`; the Avatar page's Back control returns Home. Until the account explicitly saves a character, show a gently rotating/swaying gold Design Character circle with a large tap target. Do **not** treat a published admin base as an account-owned character.
+
+- [x] Reuse the authoritative `GET /api/player-avatar` response and the 08C cache/renderer, not a new player model or pet avatar. Validate malformed replies and keep loading/error states distinct from `created:false`; never accidentally prompt an existing player to recreate their character.
+- [x] Anchor the Home actor to the genuine background-size:cover platform landmark, with a short-screen clamp reserving room for the Home account name/XP and five-pet team HUD. The player HUD remains distinct from pet XP, and the eight-part animation rig/clothing layer depth stay unchanged.
+- [x] Add a forest/gold animated invitation with gentle ring turn/sway, visible Design Character label, touch/focus support, and reduced-motion fallback; do not enable PC gameplay.
+- [x] Retire the visible Home pet actor, rarity stars, pet nameplate/XP and Pet Menu by gating the legacy presentation subtree; keep the existing Home background, top bar, world chat and Support. This reversible compatibility island prevents changing the original pet/migration code mid-release; **remove dormant implementation after verified stable migration in phase 12**.
+- [x] Keep inventory-based pet-level, care, Power Up and Closet pages untouched; adapt legacy daily quest Home `action=powerup` or `questHint=feed/powerup` links to the existing owned-pet routes (or Bag when none is active), rather than spotlighting the removed menu. Preserve the quest Power Up shop shortcut with a scoped `from=quest` flag. No Murk Cave, PvP/Raid or Pet Park schema/logic changes.
+- [x] Rename the transitional inventory “Show on Main” pet selector to **Featured Companion**. The legacy `activePetId` selector still serves older unconverted features, but must not imply that it alters the new Home player avatar. Remove it after the phase-12 legacy cave audit rather than silently breaking old functionality.
+- [x] Reuse the 09 shared five-portrait team HUD; release old pet-menu clearance so account name/XP sits under the new Home character, while keeping existing safe-area/main navigation.
+- [ ] Confirm TypeScript, full regression tests, production build and browser scenarios on compact phone, iPhone-size phone and tablet: never-created account, saved character, outfit layers, click-to-wardrobe/return, API error, no old pet/menu/stars, quest redirect, no onboarding regression.
+- [ ] During maintenance (admin-only entry), inspect the actual deployed app on physical iOS/Android/tablets, including first-time save, outfit rendering, platform alignment, smaller screens, Support/Chat/modals, maintenance enforcement and pet routes. Automated fixtures do not substitute for real-device verification.
+
+**Stage boundaries:** 11/12 adds walking across existing live exploration scenes, not new unpublished world-editor content. 12/12 handles approved XP awarding/level progression, legacy pet compatibility cleanup and dead Home code removal after observed stability. No database migration or public maintenance-setting change in 10.

@@ -107,7 +107,10 @@ test("a listed or incompatible item cannot alter the character preview", () => {
 
 test("the player page uses the authenticated 08B API and does not save a preview until confirmed", () => {
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
-  assert.match(page, /fetch\("\/api\/player-avatar", \{ credentials: "include", signal, cache: "no-store" \}\)/);
+  const model = read("client/src/lib/playerAvatarWardrobe.ts");
+  assert.match(model, /fetch\("\/api\/player-avatar", \{/);
+  assert.match(model, /credentials: "include", signal, cache: "no-store"/);
+  assert.match(page, /queryFn: \(\{ signal \}\) => fetchPlayerAvatar\(signal\)/);
   assert.match(page, /writePlayerAvatar\("POST", "\/api\/player-avatar\/create"/);
   assert.match(page, /\`\/api\/player-avatar\/equipment\/\$\{input.category\}\`/);
   assert.match(page, /expectedRevision: avatar.revision/);
@@ -122,7 +125,7 @@ test("the player page uses the authenticated 08B API and does not save a preview
   assert.doesNotMatch(page, /shop\/purchase|costumeInventoryId/);
 });
 
-test("Bag links to the isolated mobile wardrobe while the PC gate and pet Home remain unchanged", () => {
+test("Bag remains linked to the isolated wardrobe with PC gating and owned-pet separation", () => {
   const app = read("client/src/App.tsx");
   const bag = read("client/src/components/PetInventory.tsx");
   assert.match(app, /const PlayerAvatarPage\s*= lazy\(/);
