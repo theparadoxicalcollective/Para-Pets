@@ -38,6 +38,8 @@ interface HomePageProps {
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+  // Render the new account's own identity immediately, before the syncing effect runs.
+  const homeUser = currentUser.id === user.id ? currentUser : user;
   const { toast } = useToast();
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
@@ -56,6 +58,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     setChatHasNewMsg(false);
     setShowWorldChat(false);
     setShowProfile(false);
+    setShowSupportModal(false);
+    setSupportSent(false);
+    setSupportSubject("");
+    setSupportMessage("");
   }, [user.id]);
 
   // Background poll for world chat — detects new messages even when the panel is closed
@@ -63,7 +69,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const { data: bgChatData } = useQuery<any[]>({
     queryKey: ["/api/world-chat"],
     refetchInterval: showWorldChat || isOverlayActive ? false : 15000,
-    enabled: !!currentUser && !isOverlayActive,
+    enabled: !!homeUser && !isOverlayActive,
     staleTime: 0,
   });
   useEffect(() => {
@@ -81,8 +87,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
   const supportMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/support-message", {
-      username: currentUser.username,
-      email: currentUser.email,
+      username: homeUser.username,
+      email: homeUser.email,
       subject: supportSubject,
       message: supportMessage,
     }).then(r => r.json()),
@@ -102,10 +108,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       hint === "feed" ? "pet-care" : null;
     if (!destination) return;
     window.history.replaceState({}, "", "/");
-    navigate(currentUser.activePetId
-      ? `/${destination}/${encodeURIComponent(currentUser.activePetId)}?from=quest`
+    navigate(homeUser.activePetId
+      ? `/${destination}/${encodeURIComponent(homeUser.activePetId)}?from=quest`
       : "/bag");
-  }, [searchString, currentUser.activePetId, navigate]);
+  }, [searchString, homeUser.activePetId, navigate]);
 
   const { data: inventory = [], isLoading: inventoryLoading, isSuccess: inventoryReady, isError: inventoryError } = useQuery<HomeHudPet[]>({
     queryKey: ["/api/inventory"],
@@ -216,7 +222,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             }}
           >
             <div style={{ pointerEvents: "auto" }}>
-              <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+              <TopBar user={homeUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
             </div>
           </div>
         </ViewportHudPortal>
@@ -224,8 +230,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         {/* Account XP and five-pet PvP/Raid roster reuse existing services. */}
         <ViewportHudPortal>
           <HomePlayerHud
-            userId={currentUser.id}
-            username={currentUser.username}
+            userId={homeUser.id}
+            username={homeUser.username}
             inventory={inventory}
             inventoryLoading={inventoryLoading}
             inventoryReady={inventoryReady}
@@ -239,7 +245,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             landmark, not the active pet's ID or the old reference stage. */}
         <ViewportHudPortal>
             <HomeAvatarStage
-              userId={currentUser.id}
+              userId={homeUser.id}
               landmark={homePlatformPoint}
               backdrop={homeBackdropRect}
               visible={!isOverlayActive && !showProfile && !showSupportModal && !showWorldChat}
@@ -252,7 +258,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {showProfile && (
         <UserProfilePanel
-          user={currentUser}
+          user={homeUser}
           onClose={() => setShowProfile(false)}
           onUserUpdate={(updatedUser) => {
             setCurrentUser(updatedUser);
@@ -358,7 +364,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               onClick={() => setShowWorldChat(false)}
             />
             <WorldChatPanel
-              currentUserId={currentUser.id}
+              currentUserId={homeUser.id}
               onClose={() => setShowWorldChat(false)}
               onNewMessage={() => setChatHasNewMsg(true)}
             />
