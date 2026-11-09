@@ -55,7 +55,8 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   filter: drop-shadow(0 0 20px #e9bb5d60);
-  animation: home-avatar-gold-hover 3.8s ease-in-out infinite;
+  /* The BUTTON itself never moves: only decorative children sway/rotate.
+     This keeps hit testing and touch targets stable on iOS and Android. */
 }
 .home-avatar-stage__gold-ring {
   position: absolute;
@@ -100,6 +101,7 @@
   letter-spacing: .015em;
   text-align: center;
   text-shadow: 0 2px 4px #000, 0 0 14px #ffcc7e66;
+  animation: home-avatar-gold-hover 3.8s ease-in-out infinite;
 }
 .home-avatar-stage__create-center svg { margin-bottom: 2px; color: #ffe8a4; }
 .home-avatar-stage__create:active { filter: drop-shadow(0 0 27px #ffe28eaa); }
@@ -138,15 +140,15 @@
   to { transform: rotate(360deg); }
 }
 @keyframes home-avatar-gold-hover {
-  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-1.2deg); }
-  50% { transform: translateX(-50%) translateY(-5px) rotate(1.2deg); }
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50% { transform: translateY(-5px) rotate(1.2deg); }
 }
 @media (max-height: 600px) {
   .home-avatar-stage { width: min(58vw, 34dvh, 280px); height: min(58vw, 34dvh, 280px); }
   .home-avatar-stage__create { max-width: 160px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-avatar-stage__create,
+  .home-avatar-stage__create-center,
   .home-avatar-stage__gold-ring {
     animation: none !important;
   }
