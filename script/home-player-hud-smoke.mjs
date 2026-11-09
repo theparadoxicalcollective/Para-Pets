@@ -14,6 +14,7 @@ const fixture = [
   'import "@/index.css";',
   'const qc=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:0,refetchOnWindowFocus:false}}});',
   'const art="data:image/svg+xml;base64,"+btoa(\'<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><ellipse cx="60" cy="60" rx="38" ry="45" fill="#ceb278"/></svg>\');',
+  'const broken=new URLSearchParams(location.search).has("inventory-failed");',
   'const pets=[',
   '  {inventoryId:"pet-a",name:"First Companion",petNickname:"Flora",type:"pet",isHatched:true,isListed:false,imageUrl:art,hatchedImageUrl:art},',
   '  {inventoryId:"pet-b",name:"Second Companion",petNickname:"Bramble",type:"pet",isHatched:true,isListed:false,imageUrl:art,hatchedImageUrl:art},',
@@ -21,7 +22,7 @@ const fixture = [
   '  {inventoryId:"pet-egg",name:"Egg",petNickname:null,type:"pet",isHatched:false,isListed:false,imageUrl:art,hatchedImageUrl:null},',
   '  {inventoryId:"pet-listed",name:"Listed",petNickname:null,type:"pet",isHatched:true,isListed:true,imageUrl:art,hatchedImageUrl:art},',
   '];',
-  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}><ViewportHudPortal><HomePlayerHud userId="fixture-user" username="VeryLongPlayerNameThatShouldNotOverlapAnythingInTheHUD" inventory={pets} inventoryLoading={false}/></ViewportHudPortal></QueryClientProvider>);',
+  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}><ViewportHudPortal><HomePlayerHud userId="fixture-user" username="VeryLongPlayerNameThatShouldNotOverlapAnythingInTheHUD" inventory={broken?[]:pets} inventoryLoading={false} inventoryReady={!broken} inventoryError={broken}/></ViewportHudPortal></QueryClientProvider>);',
 ].join("\n");
 const server = await createServer({
   server: { host: "127.0.0.1", port: 4198, strictPort: true },
@@ -139,6 +140,15 @@ try {
       await fails;
       await hud.getByRole("alert").waitFor({ state: "visible" });
       assert.deepEqual(team, ["pet-c", "pet-b"], "failed save leaves server-confirmed roster intact");
+    }
+    if (name === "phone") {
+      const writesBefore = requests.length;
+      await page.goto("http://127.0.0.1:4198/home-player-hud?inventory-failed=1",
+        { waitUntil: "commit" });
+      await page.getByRole("alert").getByText(/Pet inventory could not load/).waitFor({ state: "visible" });
+      assert.equal(await page.locator('[data-testid^="home-player-team-slot-"]:not([disabled])').count(), 0,
+        name + ": no team edits are allowed after an inventory load failure");
+      assert.equal(requests.length, writesBefore, name + ": failed inventory cannot erase saved roster");
     }
     assert.deepEqual(errors, [], name + ": no browser runtime exceptions");
     console.log("PASS " + name + ": five visible slots, server XP, roster editing and safe mobile HUD");
