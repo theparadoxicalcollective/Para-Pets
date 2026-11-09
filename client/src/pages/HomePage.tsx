@@ -111,14 +111,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     queryKey: ["/api/inventory"],
   });
 
-  // Measure the actual viewport backdrop and loaded artwork independently of
-  // the pet scene. The background is cover-scaled and may crop on wide devices.
+  // Measure the existing Home backdrop and artwork in viewport coordinates.
+  // Preserve cover-cropping and the original platform landmark on all devices.
   const homeBackdropRef = useRef<HTMLDivElement | null>(null);
-  const [homeBackdropRect, setActivePetBackdropRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
-  const [homeArtworkSize, setActivePetArtworkSize] = useState({ width: 0, height: 0 });
+  const [homeBackdropRect, setHomeBackdropRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [homeArtworkSize, setHomeArtworkSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const image = new Image();
-    image.onload = () => setActivePetArtworkSize({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onload = () => setHomeArtworkSize({ width: image.naturalWidth, height: image.naturalHeight });
     image.src = bgImg;
     return () => { image.onload = null; };
   }, []);
@@ -127,7 +127,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     if (!element) return;
     const update = () => {
       const { left, top, width, height } = element.getBoundingClientRect();
-      setActivePetBackdropRect(previous => previous.left === left && previous.top === top && previous.width === width && previous.height === height ? previous : { left, top, width, height });
+      setHomeBackdropRect(previous => previous.left === left && previous.top === top && previous.width === width && previous.height === height ? previous : { left, top, width, height });
     };
     update();
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
@@ -179,7 +179,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         >
           <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
           {/* Background-only depth: darken busy forest edges while leaving a soft,
-              diffuse clearing behind pets of every rarity. No pet-position changes. */}
+              diffuse clearing behind the player avatar. No position changes. */}
           <div
             data-testid="active-pet-background-depth"
             aria-hidden="true"
