@@ -273,6 +273,15 @@ export function registerPlayerAvatarRoutes(
           })) return { status: 422 as const, message: "This clothing cannot be equipped: check its slot, ownership and avatar base" };
 
           if (existing?.inventoryId === inventory.id) return { status: 200 as const };
+          // A previously equipped garment may have been republished in a new
+          // wardrobe category. Clear its obsolete slot before the category
+          // upsert so the unique (user_id, inventory_id) constraint cannot
+          // turn a valid move into a server error. The profile lock makes
+          // removal and replacement one atomic revisioned change.
+          await tx.delete(playerAvatarEquipment).where(and(
+            eq(playerAvatarEquipment.userId, user.id),
+            eq(playerAvatarEquipment.inventoryId, inventory.id),
+          ));
           await tx.insert(playerAvatarEquipment).values({
             userId: user.id, category: slot, inventoryId: inventory.id,
           }).onConflictDoUpdate({
