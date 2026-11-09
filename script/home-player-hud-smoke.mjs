@@ -61,7 +61,7 @@ try {
     await page.route("**/api/player/**", route => {
       const path = new URL(route.request().url()).pathname;
       if (path === "/api/player/progression") return route.fulfill({
-        json: { level: 4, totalXp: 240, nextLevelTotalXp: null, xpToNextLevel: null },
+        json: { level: 3, totalXp: 300, nextLevelTotalXp: 420, xpToNextLevel: 120 },
       });
       if (path === "/api/player/pet-team" && route.request().method() === "GET") return route.fulfill({
         json: { petInventoryIds: team, attackPower: 400 },
@@ -85,8 +85,11 @@ try {
     const hud = page.getByTestId("home-player-hud");
     await hud.waitFor({ state: "visible" });
     await page.waitForFunction(() =>
-      document.querySelector('[data-testid="home-player-level"]')?.textContent?.includes("LV 4"));
-    assert.match(await page.getByTestId("home-player-total-xp").innerText(), /240 XP/);
+      document.querySelector('[data-testid="home-player-level"]')?.textContent?.includes("LV 3"));
+    assert.match(await page.getByTestId("home-player-total-xp").innerText(), /300 XP/);
+    const xpBar = page.getByTestId("home-player-xp-track");
+    assert.equal(await xpBar.getAttribute("aria-valuenow"), "33");
+    assert.match(await xpBar.getAttribute("aria-label"), /60 of 180 XP toward Level 4/);
     assert.equal(await page.getByTestId("home-player-empty-stars").locator("img").count(), 5);
     assert.equal(await page.locator('[data-testid^="home-player-team-slot-"]').count(), 5);
     const geometry = await hud.evaluate(el => {
