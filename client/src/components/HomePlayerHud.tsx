@@ -104,7 +104,7 @@ export default function HomePlayerHud({
   const player = progression.data;
   const levelStartXp = player ? totalXpRequiredForPlayerLevel(player.level) : 0;
   const levelTargetXp = player?.nextLevelTotalXp ?? null;
-  const xpEarnedThisLevel = player ? Math.max(0, player.cycleXp - levelStartXp) : 0;
+  const xpEarnedThisLevel = player ? Math.max(0, (player.cycleXp ?? player.totalXp) - levelStartXp) : 0;
   const xpNeededThisLevel = levelTargetXp === null ? null : Math.max(1, levelTargetXp - levelStartXp);
   const xpFillPct = !player ? null : xpNeededThisLevel === null
     ? 100 : Math.min(100, (xpEarnedThisLevel / xpNeededThisLevel) * 100);
