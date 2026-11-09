@@ -131,6 +131,31 @@ test("published outfit categories never change when only an admin draft is edite
   assert.match(player, /itemCategory: published\.data\.category/);
 });
 
+test("a recategorized owned garment clears its obsolete slot before inserting its new one", () => {
+  const routes = read("server/routes/playerAvatar.routes.ts");
+  const schema = read("shared/schema.ts");
+  // Existing inventory ID can remain linked to an older category after
+  // Admin Save Clothing changes its published category. A replacement must
+  // remove that old link inside the already locked profile transaction.
+  const equip = routes.split("if (existing?.inventoryId === inventory.id)")[1];
+  assert.ok(equip, "equip branch must guard an unchanged slot");
+  const staleLinkCleanup = equip.indexOf("eq(playerAvatarEquipment.inventoryId, inventory.id)");
+  const insert = equip.indexOf("tx.insert(playerAvatarEquipment).values(");
+  assert.ok(staleLinkCleanup >= 0 && insert > staleLinkCleanup,
+    "old inventory link must be removed before inserting its new category");
+  assert.match(schema, /player_avatar_equipment_owner_inventory_uidx/);
+});
+
+test("legacy clothing category backfill prefers the last published catalog category", () => {
+  const migration = read("server/startup/migrations/ensurePlayerAvatarEquipmentStorage.ts");
+  const published = migration.indexOf("replace(item.description, 'Avatar clothing · ', '')");
+  const draftFallback = migration.indexOf("SET published_category = category");
+  assert.ok(published >= 0 && draftFallback > published,
+    "saved shop category must win over an unsaved draft edit");
+  assert.match(migration, /item.description IN/);
+  assert.match(migration, /clothing.published_category IS NULL/);
+});
+
 test("avatar clothing has its own inventory taxonomy, not Specials or pet adornments", () => {
   assert.equal(getGameItemCategory({ type: "clothing" }), "clothing");
   assert.equal(getGameItemGroup("clothing"), "avatars");
