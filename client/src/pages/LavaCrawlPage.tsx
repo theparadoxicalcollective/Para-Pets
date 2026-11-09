@@ -151,7 +151,7 @@ interface GState {
   hitShield: boolean;      // true = invincible (flashing) after first hit
   hitShieldTimer: number;  // frames left of invincibility window
   hitCount: number;        // hits taken since last life-loss (0 or 1); life lost on 2nd hit
-  doubleActive: boolean;   // x2 score/XP multiplier active
+  doubleActive: boolean;   // x2 in-run score multiplier active
   doubleTimer: number;     // frames remaining on the x2 effect
 }
 
@@ -1050,7 +1050,7 @@ export default function LavaCrawlPage() {
         ctx.restore();
       }
 
-      // Float particles (XP gains, coin pops)
+      // Float particles (in-run score gains, coin pops)
       ctx.save();
       for (let i = s.floats.length - 1; i >= 0; i--) {
         const fp = s.floats[i];
