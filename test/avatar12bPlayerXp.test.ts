@@ -38,8 +38,7 @@ test("player XP is primarily quest-based, account-owned, and monotonically level
 });
 
 test("five intentional Seer Elevations reset only cycle XP, never lifetime XP or earned stars", () => {
-  let progress = { ...planSeerElevation({ level: 100, totalXp: 0, stars: 0, cycleStartXp: 0 }) };
-  assert.deepEqual(progress, {}); // Cannot Elevate before Level 100.
+  assert.equal(planSeerElevation({ level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 }), null);
   let current = { level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 };
   const threshold = totalXpRequiredForPlayerLevel(PLAYER_MAX_LEVEL);
   for (let star = 1; star <= PLAYER_MAX_STARS; star++) {
