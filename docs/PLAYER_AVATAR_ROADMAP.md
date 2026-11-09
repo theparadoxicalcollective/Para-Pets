@@ -131,6 +131,20 @@
 
 **Deferred:** Player-facing Avatar page with seven circular wardrobe selectors and a scrollable owned-inventory row (**08C/12**); five-slot Home HUD (**09/12**); clickable Home avatar / gold Design Character circle (**10/12**); exploration/combat/XP awards later. Ordinary shop clothing purchases stay blocked until acquisition/eligibility policy is separately approved.
 
+## Avatar 08C/12 — player character design page and owned-clothing wardrobe
+
+**Scope:** The first player-facing Avatar screen, built on the merged 07B character renderer and 08B account/equipment API. This is separate from the existing profile-photo avatar. Do not replace Home's pet/platform yet; that is 10/12.
+
+- [ ] Add an authenticated, phone/tablet-friendly Avatar page with the **assembled character viewer centered near the top**. For an uncreated account, preview a published eight-part base, let the player explicitly create/save it through `POST /api/player-avatar/create`, and preserve `created:false` until Save succeeds. A global published base is not an auto-created player avatar.
+- [ ] Around the viewer, display exactly **seven circular clothing buttons** in this player-facing order: Head, Hair, Face, Top, Bottom, Shoes, Back Accessory. Each selects a wardrobe category; these controls are **not** the eight underlying animation parts.
+- [ ] Beneath the viewer, open a **horizontally scrollable row of that player's owned clothing for the selected category**. Clearly distinguish empty, equipped, incompatible-base and listed/unavailable items. Tapping an eligible item previews its appearance; equip/unequip persists using the owned `inventoryId`, authenticated category endpoint and latest revision. Handle stale revisions, failed saves and loading without silently losing an outfit.
+- [ ] Combine all seven equipped items into the **one existing PlayerCharacterRenderer**. A shirt may have torso and both sleeve segments; pants may have left and right legs. Different wardrobe categories can also attach to the *same* anatomy part (e.g. Head/Hair/Face): make segment identity stable by clothing item/category **plus** attachment part, not just `partType`, and preserve deterministic layering/depth choices without duplicating character motion or viewport coordinate systems.
+- [ ] Reuse the shared forest-green/gold UI conventions and artwork-relative eight-part rig. Keep navigation and close/back behavior consistent with existing mobile pages, with safe-area, scroll/touch, reduced-motion and narrow-phone/tablet checks. No desktop gameplay unlock.
+- [ ] Test new-account first-save/retry, returning character and wardrobe, category buttons, scroll and thumbnails, multiple garments sharing an attachment, separate pant-leg movement, preview/equip/unequip persistence, stale revision, listed/incompatible item rejection and no pet-adornment changes. Record CI separately from authenticated deployed device verification.
+
+**Still deferred:** 09/12 adds the five team portraits, player name/level/XP and empty stars on Home. 10/12 makes the Home avatar clickable and shows the gently rotating/swaying gold `Design Character` circle before the first player save. 11–12 add exploration and approved player XP behavior. No premature Home cutover or Murk Cave redesign.
+
+
 ## Avatar 02/12 implementation contract and acceptance
 
 - PvP and Raid lobby selection must use `GET/PUT /api/player/pet-team` with the server roster; do not add a new team database or migrate the old Raid localStorage roster over a saved PvP team.
