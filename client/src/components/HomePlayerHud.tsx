@@ -166,7 +166,7 @@ export default function HomePlayerHud({
           const pet = id ? petsById.get(id) : undefined;
           const name = pet?.petNickname || pet?.name || (id ? "Unavailable companion" : `Empty slot ${index + 1}`);
           const image = pet?.hatchedImageUrl || pet?.imageUrl;
-          const rarity = pet && Number.isFinite(pet.rarity)
+          const rarity = pet && typeof pet.rarity === "number" && Number.isFinite(pet.rarity)
             ? Math.max(0, Math.min(5, Math.trunc(pet.rarity ?? 0))) : 0;
           return (
             <button key={index} type="button"
