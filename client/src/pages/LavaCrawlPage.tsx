@@ -493,6 +493,7 @@ export default function LavaCrawlPage() {
 
       // ── Update ──────────────────────────────────────────────────────────
       if (!s.alive) {
+        if (avatarSpriteRef.current) avatarSpriteRef.current.style.opacity = "0";
         s.respawnTimer -= dt;
         if (s.respawnTimer <= 0) {
           if (s.lives <= 0) {
@@ -1633,6 +1634,7 @@ export default function LavaCrawlPage() {
           <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "4px" }}>Coins earned: <strong>{endCoins}</strong> <img src={PARA_PETS_COIN_IMAGE} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /> added to balance</div>
           <div style={{ color: "#aaa", fontFamily: "monospace", fontSize: "12px", marginBottom: "20px" }}>Lives remaining: <strong>{endLives}</strong></div>
           {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
+          {playerXpEarned > 0 && <div style={{ color: "#b4db92", fontSize: "13px", marginBottom: "8px" }}>+{playerXpEarned} Player XP</div>}
           <button data-testid="button-lava-restart-victory" style={btnStyle("#ff8800")} onClick={startGame}>↺  Play Again</button>
           <button data-testid="button-lava-leaderboard-victory" style={btnStyle("#ffd080")} onClick={goLeaderboard}>🏆  Leaderboard</button>
           <button data-testid="button-lava-back-victory" style={btnStyle("rgba(255,200,100,0.5)")} onClick={() => navigate("/world/volcanic")}>← Volcanic Isle</button>
