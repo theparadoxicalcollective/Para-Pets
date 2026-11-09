@@ -253,3 +253,15 @@
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud * { transition: none !important; }
 }
+
+/* 10/12: Home no longer has the lower-left 56px pet action menu.
+   The account name/XP and team now sit under the central player character,
+   just above the persistent main navigation and device safe area. */
+.home-player-hud--avatar-home {
+  bottom: calc(77px + env(safe-area-inset-bottom, 0px));
+}
+@media (max-height: 690px) {
+  .home-player-hud--avatar-home {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
