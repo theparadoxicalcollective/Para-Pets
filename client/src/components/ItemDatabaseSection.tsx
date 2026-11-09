@@ -101,6 +101,7 @@ const ITEM_CATEGORY_COLORS: Record<GameItemCategoryKey, string> = {
   pets: "#ffb347",
   mini_pets: "#6ee7b7",
   costumes: "#c084fc",
+  clothing: "#d6bd76",
   accessories: "#f9a8d4",
   fish: "#22d3ee",
   poles: "#60a5fa",
