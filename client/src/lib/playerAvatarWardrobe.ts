@@ -7,6 +7,33 @@ import {
 
 export const PLAYER_AVATAR_QUERY_KEY = ["/api/player-avatar"] as const;
 
+/**
+ * Shared authenticated, no-store read for the wardrobe and Home actor.
+ * A failed or malformed read must never be confused with created:false:
+ * otherwise Home would show Design Character for an existing player.
+ */
+export async function fetchPlayerAvatar(signal?: AbortSignal): Promise<PlayerAvatarState> {
+  const response = await fetch("/api/player-avatar", {
+    credentials: "include", signal, cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Could not load your saved character");
+  const data: unknown = await response.json();
+  if (!data || typeof data !== "object" ||
+      !("created" in data) || typeof data.created !== "boolean" ||
+      !("equipped" in data) || !Array.isArray(data.equipped) ||
+      !("ownedClothing" in data) || !Array.isArray(data.ownedClothing) ||
+      !("unavailableEquipmentSlots" in data) || !Array.isArray(data.unavailableEquipmentSlots) ||
+      !("base" in data) ||
+      (data.base !== null && (
+        !data.base || typeof data.base !== "object" ||
+        !("parts" in data.base) || !Array.isArray(data.base.parts)
+      ))) {
+    throw new Error("Player avatar response was invalid");
+  }
+  return data as PlayerAvatarState;
+}
+
+
 export interface OwnedAvatarClothing {
   inventoryId: string;
   shopItemId: string;
