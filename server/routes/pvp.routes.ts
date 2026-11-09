@@ -1,5 +1,7 @@
 import type { Express, Request, RequestHandler, Response } from "express";
 import { PetTeamSelectionError } from "../petTeam";
+import { awardPlayerXp } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 
 export interface PvpRouteDependencies {
   storage: typeof import("../storage").storage;
@@ -218,6 +220,18 @@ export function registerPvpRoutes(
         coinsEarned,
         battlePointsDelta,
       });
+
+      // Tiny player XP reward only for an already recorded, ticket-gated win.
+      // XP failure must not retroactively invalidate the PvP battle.
+      if (result === "win" && battle.id) {
+        try {
+          await awardPlayerXp(user.id, {
+            source: "pvp_win", eventId: String(battle.id), amount: PLAYER_XP_REWARDS.pvpWin,
+          });
+        } catch (xpError) {
+          console.warn("PvP player XP award failed:", xpError);
+        }
+      }
 
       // Award brawler badges on PvP wins (fire-and-forget — never block the response)
       if (result === "win") {

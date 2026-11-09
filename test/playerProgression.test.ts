@@ -6,6 +6,9 @@ import {
   INITIAL_PLAYER_PROGRESSION,
   MAX_PLAYER_TOTAL_XP,
   playerProgressionResponse,
+  PLAYER_XP_REWARDS,
+  levelForPlayerTotalXp,
+  totalXpRequiredForPlayerLevel,
   type PlayerProgression,
 } from "../shared/playerProgression";
 import {
@@ -49,15 +52,31 @@ const sample = (overrides: Partial<PlayerXpAward> = {}): PlayerXpAward => ({
 });
 
 test("existing players read as Level 1 / 0 account XP without generating records or changing pet levels", () => {
-  assert.deepEqual(INITIAL_PLAYER_PROGRESSION, { level: 1, totalXp: 0 });
+  assert.deepEqual(INITIAL_PLAYER_PROGRESSION, { level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 });
   assert.deepEqual(playerProgressionResponse(null), {
-    level: 1, totalXp: 0, nextLevelTotalXp: null, xpToNextLevel: null,
+    level: 1, totalXp: 0, cycleXp: 0, stars: 0, canElevate: false, nextLevelTotalXp: 100, xpToNextLevel: 100,
   });
   assert.deepEqual(playerProgressionResponse({ level: 9, totalXp: 410 }), {
-    level: 9, totalXp: 410, nextLevelTotalXp: null, xpToNextLevel: null,
+    level: 3, totalXp: 410, cycleXp: 410, stars: 0, canElevate: false, nextLevelTotalXp: 420, xpToNextLevel: 10,
   });
   assert.equal("petLevel" in playerProgressionResponse(null), false);
   assert.equal("activePetId" in playerProgressionResponse(null), false);
+});
+
+test("quest-first XP rewards and cumulative level thresholds scale independently of pets", () => {
+  assert.equal(PLAYER_XP_REWARDS.storyQuest, 120);
+  assert.ok(PLAYER_XP_REWARDS.storyQuest > PLAYER_XP_REWARDS.dailyQuest);
+  assert.ok(PLAYER_XP_REWARDS.dailyQuest > PLAYER_XP_REWARDS.clearingVictory);
+  assert.ok(PLAYER_XP_REWARDS.pvpWin < PLAYER_XP_REWARDS.newBadge);
+  assert.equal(totalXpRequiredForPlayerLevel(1), 0);
+  assert.equal(totalXpRequiredForPlayerLevel(2), 100);
+  assert.equal(totalXpRequiredForPlayerLevel(3), 240);
+  assert.equal(levelForPlayerTotalXp(239), 2);
+  assert.equal(levelForPlayerTotalXp(240), 3);
+  assert.equal(levelForPlayerTotalXp(2_147_483_647), 100);
+  assert.deepEqual(playerProgressionResponse({ level: 100, totalXp: 1_000_000 }), {
+    level: 100, totalXp: 1_000_000, cycleXp: 1_000_000, stars: 0, canElevate: true, nextLevelTotalXp: null, xpToNextLevel: null,
+  });
 });
 
 test("one approved event is awarded exactly once and a duplicate returns the original receipt", async () => {
@@ -154,7 +173,7 @@ test("GET /api/player/progression requires auth, uses session user, and exposes 
   await route.handlers.at(-1)!({ user: { id: "account-a" }, query: { userId: "account-b" } } as any, response as any, () => {});
   assert.equal(requestedUserId, "account-a");
   assert.equal(headers.get("Cache-Control"), "private, no-store");
-  assert.deepEqual(body, { level: 2, totalXp: 100, nextLevelTotalXp: null, xpToNextLevel: null });
+  assert.deepEqual(body, { level: 2, totalXp: 100, cycleXp: 100, stars: 0, canElevate: false, nextLevelTotalXp: 240, xpToNextLevel: 140 });
 });
 
 test("boot migration and database service enforce owner-specific unique receipts and an atomic row lock", () => {

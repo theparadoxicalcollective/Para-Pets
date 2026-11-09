@@ -2,6 +2,8 @@ import type { Express, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { requireAuthenticated } from "../auth";
+import { awardPlayerXpInTransaction } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 import { LONELLE_KEY, LONELLE_REQUIRED_KILLS, LONELLE_REWARD_COINS, parseLonelleProgress } from "../lonelleQuest";
 
 type Executor = { execute(statement: any): Promise<{ rows: any[] }> };
@@ -141,6 +143,9 @@ export function registerLonelleQuestRoutes(app: Express): void {
         await executor.execute(sql`
           UPDATE game_settings SET value=${JSON.stringify({ ...progress, status: "claimed" })} WHERE key=${LONELLE_KEY(userId)}
         `);
+        await awardPlayerXpInTransaction(tx, userId, {
+          source: "story_quest", eventId: "lonelle:lost_adornment", amount: PLAYER_XP_REWARDS.storyQuest,
+        });
         return { alreadyClaimed: false, coinsGranted: LONELLE_REWARD_COINS, newCoinBalance: Number(coins.rows[0].coins), reward: { name: reward.name, imageUrl: reward.image_url } };
       });
       return res.json({ ok: true, ...claimed });

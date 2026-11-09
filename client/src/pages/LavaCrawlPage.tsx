@@ -1,10 +1,12 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation as useWouter } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
+import { fetchPlayerAvatar, playerAvatarQueryKey, wardrobeLayers, type PlayerAvatarState } from "@/lib/playerAvatarWardrobe";
 import lavaCrawlTitleImg from "@assets/lava_crawl_title.webp";
 import btnPlayImg from "@assets/lava_crawl_btn_play.webp";
 import btnLeaderboardImg from "@assets/lava_crawl_btn_leaderboard.webp";
@@ -149,7 +151,7 @@ interface GState {
   hitShield: boolean;      // true = invincible (flashing) after first hit
   hitShieldTimer: number;  // frames left of invincibility window
   hitCount: number;        // hits taken since last life-loss (0 or 1); life lost on 2nd hit
-  doubleActive: boolean;   // x2 score/XP multiplier active
+  doubleActive: boolean;   // x2 in-run score multiplier active
   doubleTimer: number;     // frames remaining on the x2 effect
 }
 
@@ -342,7 +344,8 @@ export default function LavaCrawlPage() {
   const stateRef = useRef<GState | null>(null);
   const rafRef = useRef<number | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
-  const petImgRef = useRef<HTMLImageElement | null>(null);
+  // DOM avatar overlay shares the same canvas physics position without rasterizing the eight-part rig every frame.
+  const avatarSpriteRef = useRef<HTMLDivElement | null>(null);
   const screenRef = useRef<Screen>("start");
 
   const [screen, setScreen] = useState<Screen>("start");
@@ -350,20 +353,22 @@ export default function LavaCrawlPage() {
   const [endCoins, setEndCoins] = useState(0);
   const [endLives, setEndLives] = useState(MAX_LIVES);
   const [newBest, setNewBest] = useState(false);
+  const [playerXpEarned, setPlayerXpEarned] = useState(0);
   const [bgLoaded, setBgLoaded] = useState(false);
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
 
-  // Get active pet's hatched image for the player sprite
-  const { data: authMe } = useQuery<{ id: string; activePetId: string | null }>({ queryKey: ["/api/auth/me"] });
+  const { data: authMe } = useQuery<{ id: string }>({ queryKey: ["/api/auth/me"] });
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const { data: inventoryItems } = useQuery<Array<{ inventoryId: string; type: string; hatchedImageUrl: string | null; imageUrl: string | null; petLevel?: number | null }>>({
-    queryKey: ["/api/inventory"],
-    enabled: !!authMe?.activePetId,
+  const avatarQuery = useQuery<PlayerAvatarState>({
+    queryKey: playerAvatarQueryKey(authMe?.id ?? "signed-out"),
+    queryFn: ({ signal }) => fetchPlayerAvatar(signal),
+    enabled: !!authMe?.id,
+    staleTime: 30_000,
+    refetchOnMount: "always",
   });
-
-  // Track active pet's level so the game loop can show accurate XP float text.
-  // Updated whenever inventory refreshes (e.g. after a level-up).
-  const petLevelRef = useRef(1);
+  const avatar = avatarQuery.data?.created && avatarQuery.data.base?.parts.length === 8
+    ? avatarQuery.data : null;
+  const avatarClothes = useMemo(() => avatar ? wardrobeLayers(avatar) : [], [avatar]);
 
   const { data: myBest } = useQuery<{ best: number; bestCoins: number }>({
     queryKey: ["/api/lava-crawl/my-best"],
@@ -380,6 +385,8 @@ export default function LavaCrawlPage() {
     onSuccess: async (res) => {
       const data = await res.json();
       setNewBest(data.isNewBest ?? false);
+      setPlayerXpEarned(data.playerXpGranted ?? 0);
+      if (data.playerXpGranted) queryClient.invalidateQueries({ queryKey: ["/api/player/progression"] });
       if (data.newCoins !== undefined) {
         queryClient.setQueryData(["/api/auth/me"], (old: any) =>
           old ? { ...old, coins: data.newCoins } : old
@@ -389,36 +396,9 @@ export default function LavaCrawlPage() {
     },
   });
 
-  const gainExpMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/lava-crawl/gain-exp", {}),
-    onSuccess: async (res) => {
-      const data = await res.json();
-      if (data.petResult?.leveledUp) {
-        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-        petLevelRef.current = data.petResult.petLevel;
-      }
-    },
-  });
-  // Stable refs so mutations can be called from the game loop without being in startLoop's deps.
-  // Every mutation state change (idle→pending→success) creates a new completeMutation/gainExpMutation
-  // object, which would give startLoop a new reference → useEffect re-runs → fresh closure with
-  // empty allPlats → ground disappears. Refs break that cycle entirely.
-  const gainExpRef = useRef(gainExpMutation.mutate);
-  useEffect(() => { gainExpRef.current = gainExpMutation.mutate; }, [gainExpMutation.mutate]);
+  // Keep stable mutation references: changing the loop callback would reroll platforms mid-run.
   const completeMutateRef = useRef(completeMutation.mutate);
   useEffect(() => { completeMutateRef.current = completeMutation.mutate; }, [completeMutation.mutate]);
-
-  // Load active pet image + sync level ref for float-text scaling
-  useEffect(() => {
-    if (!authMe?.activePetId || !inventoryItems) return;
-    const pet = inventoryItems.find(i => i.inventoryId === authMe.activePetId && i.type === "pet");
-    if (pet?.petLevel != null) petLevelRef.current = pet.petLevel;
-    const url = pet?.hatchedImageUrl || pet?.imageUrl;
-    if (!url) return;
-    const img = new Image();
-    img.onload = () => { petImgRef.current = img; };
-    img.src = url;
-  }, [authMe?.activePetId, inventoryItems]);
 
   // Preload background image; signal ready for the loading screen
   useEffect(() => {
@@ -513,6 +493,7 @@ export default function LavaCrawlPage() {
 
       // ── Update ──────────────────────────────────────────────────────────
       if (!s.alive) {
+        if (avatarSpriteRef.current) avatarSpriteRef.current.style.opacity = "0";
         s.respawnTimer -= dt;
         if (s.respawnTimer <= 0) {
           if (s.lives <= 0) {
@@ -661,11 +642,10 @@ export default function LavaCrawlPage() {
             const mult = s.doubleActive ? 2 : 1;
             s.score += ENEMY_SCORE * mult;
             s.squishX = 1.45; s.squishY = 0.58; s.squishTimer = 16; s.squishDuration = 16;
-            const baseXp = Math.floor(8 * (1 + (petLevelRef.current - 1) * 0.1));
-            const xpText = `+${baseXp * mult} XP`;
-            s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: xpText, color: "#a0ff80", life: 55, maxLife: 55 });
-            gainExpRef.current();
-            if (s.doubleActive) gainExpRef.current(); // double XP
+            // Only personal bests grant small account XP at completed-run validation.
+            // Stomping an enemy increases score, not the old active pet's level.
+            s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10,
+              text: `+${ENEMY_SCORE * mult} SCORE`, color: "#a0ff80", life: 55, maxLife: 55 });
             if (s.lives < MAX_HEART_SLOTS && Math.random() < LIFE_DROP_CHANCE) {
               s.lifeHearts.push({ x: e.x + EW / 2, y: gY - 38, collected: false });
             }
@@ -1070,7 +1050,7 @@ export default function LavaCrawlPage() {
         ctx.restore();
       }
 
-      // Float particles (XP gains, coin pops)
+      // Float particles (in-run score gains, coin pops)
       ctx.save();
       for (let i = s.floats.length - 1; i >= 0; i--) {
         const fp = s.floats[i];
@@ -1125,19 +1105,24 @@ export default function LavaCrawlPage() {
           ctx.shadowColor = "#ff6600";
           ctx.shadowBlur = 14;
         }
-        if (petImgRef.current) {
-          // Pet images face LEFT by default — flip when moving right.
-          // All transforms pivot from the feet so the sprite doesn't float off the ground.
-          const centerX = ppx + PW / 2;
-          // +10 lowers the sprite so visual feet sit on the ground tile surface
-          // (ground tiles are drawn GROUND_LIFT px above the physics gY line)
-          const feetY = s.py + PH + walkBobY + 10;
-          ctx.translate(centerX, feetY);
-          if (s.facingR) ctx.scale(-1, 1);
-          ctx.scale(finalScaleX, finalScaleY);
-          ctx.drawImage(petImgRef.current, -PET_SIZE / 2, -PET_SIZE, PET_SIZE, PET_SIZE);
-          ctx.filter = "none";
+        if (avatarSpriteRef.current) {
+          // Move the already-mounted shared player avatar with the canvas actor.
+          // The character's eight pieces and clothing use their normal CSS rig.
+          const sprite = avatarSpriteRef.current;
+          sprite.style.left = `${ppx + PW / 2}px`;
+          sprite.style.top = `${s.py + PH + walkBobY + 10 - PET_SIZE}px`;
+          sprite.style.opacity = s.hitShieldTimer > 0
+            ? (Math.floor(s.hitShieldTimer / 7) % 2 === 0 ? "1" : "0.15")
+            : "1";
+          sprite.style.transform = `translateX(-50%) scaleX(${s.facingR ? 1 : -1}) scale(${finalScaleX}, ${finalScaleY})`;
+          const rig = sprite.firstElementChild;
+          if (rig?.getAttribute("data-character-motion") !== (isWalking ? "walk" : "idle")) {
+            rig?.setAttribute("data-character-motion", isWalking ? "walk" : "idle");
+          }
+          sprite.style.filter = s.hitShieldTimer > 0 ? "brightness(1.5) sepia(.5)" : "none";
         } else {
+          // Accounts without a saved avatar display a neutral adventurer,
+          // never the active pet (which remains a separate companion).
           // Fallback pixel adventurer
           if (!s.facingR) {
             ctx.save();
@@ -1374,6 +1359,7 @@ export default function LavaCrawlPage() {
   }, [showScreen]);
 
   const startGame = useCallback(() => {
+    setPlayerXpEarned(0);
     stateRef.current = null; // will be rebuilt with current canvas dimensions
     input.left = false; input.right = false; input.jump = false; input.jumpQueued = false;
     showScreen("playing");
@@ -1474,6 +1460,20 @@ export default function LavaCrawlPage() {
         ref={canvasRef}
         style={{ flex: 1, display: "block", width: "100%", touchAction: "none" }}
       />
+      {/* Reuse the saved, clothed 8-part avatar instead of the old active pet.
+          Physical motion stays in Lava Crawl's existing canvas update loop. */}
+      {(screen === "playing" || screen === "paused") && avatar?.base && (
+        <div
+          ref={avatarSpriteRef}
+          data-testid="lava-player-avatar"
+          aria-label="Your player avatar in Lava Crawl"
+          style={{ position: "absolute", top: 0, left: 0, width: 84, height: 84,
+            pointerEvents: "none", opacity: 0, zIndex: 2, transformOrigin: "center bottom" }}
+        >
+          <PlayerCharacterRenderer parts={avatar.base.parts}
+            clothingLayers={avatarClothes} motion="idle" />
+        </div>
+      )}
 
       {/* ── Pause button — overlaid in the top-right of the canvas (opposite hearts) ── */}
       {(screen === "playing" || screen === "paused") && (
@@ -1634,6 +1634,7 @@ export default function LavaCrawlPage() {
           <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "4px" }}>Coins earned: <strong>{endCoins}</strong> <img src={PARA_PETS_COIN_IMAGE} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /> added to balance</div>
           <div style={{ color: "#aaa", fontFamily: "monospace", fontSize: "12px", marginBottom: "20px" }}>Lives remaining: <strong>{endLives}</strong></div>
           {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
+          {playerXpEarned > 0 && <div style={{ color: "#b4db92", fontSize: "13px", marginBottom: "8px" }}>+{playerXpEarned} Player XP</div>}
           <button data-testid="button-lava-restart-victory" style={btnStyle("#ff8800")} onClick={startGame}>↺  Play Again</button>
           <button data-testid="button-lava-leaderboard-victory" style={btnStyle("#ffd080")} onClick={goLeaderboard}>🏆  Leaderboard</button>
           <button data-testid="button-lava-back-victory" style={btnStyle("rgba(255,200,100,0.5)")} onClick={() => navigate("/world/volcanic")}>← Volcanic Isle</button>

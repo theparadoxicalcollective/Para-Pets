@@ -51,21 +51,17 @@ test("completed-run score and coin caps remain unchanged", () => {
     /Math\.max\(0, Math\.min\(500, Math\.floor\(coinsCollected\)\)\)/,
   );
   assert.match(lavaRoutes, /INSERT INTO lava_crawl_scores/);
-  assert.match(lavaRoutes, /storage\.addCoins\(user\.id, safeCoins\)/);
-  assert.match(lavaRoutes, /return res\.json\(\{ ok: true, isNewBest, newCoins: updatedUser\?\.coins \}\)/);
+  assert.match(lavaRoutes, /total_coins_earned = total_coins_earned/);
+  assert.match(lavaRoutes, /return res\.json\(\{ ok: true, \.\.\.completed \}\)/);
 });
 
-test("Lava Crawl XP stays on the shared pet-leveling curve", () => {
-  assert.match(
-    lavaRoutes,
-    /const EXP_PER_KILL = Math\.floor\(8 \* \(1 \+ \(prevLevel - 1\) \* 0\.1\)\)/,
-  );
-  assert.match(
-    lavaRoutes,
-    /applyPetXp\(prevLevel, petInv\.petLevelPoints \|\| 0, EXP_PER_KILL\)/,
-  );
-  assert.match(lavaRoutes, /storage\.updateInventoryItem\(petInv\.id, updates\)/);
-  assert.match(lavaRoutes, /xpGranted: EXP_PER_KILL/);
+test("Lava Crawl awards tiny daily-capped player XP for a true new best and retires pet XP", () => {
+  assert.match(lavaRoutes, /safeScore > priorBest/);
+  assert.match(lavaRoutes, /source: "minigame_best"/);
+  assert.match(lavaRoutes, /playerXpDayKey/);
+  assert.match(lavaRoutes, /PLAYER_XP_REWARDS\.minigameBest/);
+  assert.match(lavaRoutes, /status\(410\)/);
+  assert.doesNotMatch(lavaRoutes, /storage\.updateInventoryItem/);
 });
 
 test("personal-best and top-ten leaderboard contracts remain unchanged", () => {

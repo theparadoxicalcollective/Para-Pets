@@ -2,6 +2,8 @@ import type { Express, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { requireAuthenticated } from "../auth";
+import { awardPlayerXpInTransaction } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 import { isJansonQuestKey, jansonDailyUnlocked, jansonMarketUnlocked, jansonQuestDate, jansonQuestStatus } from "../jansonQuestRules";
 
 type Executor = { execute(statement: any): Promise<{ rows: any[] }> };
@@ -170,6 +172,11 @@ export function registerJansonQuestRoutes(app: Express): void {
               WHERE user_id = ${userId} AND quest_key = ${key}
                 AND reward_claimed_at IS NULL RETURNING quest_key`);
         if (!claimed.rows[0]) throw new Error("Claim changed during transaction");
+        await awardPlayerXpInTransaction(tx, userId, {
+          source: repeatable ? "daily_quest" : "story_quest",
+          eventId: repeatable ? `janson:${jansonQuestDate()}` : `janson:${key}`,
+          amount: repeatable ? PLAYER_XP_REWARDS.dailyQuest : PLAYER_XP_REWARDS.storyQuest,
+        });
         if (newCoinBalance === undefined) {
           const balance = await tx.execute(sql`SELECT coins FROM users WHERE id = ${userId}`);
           newCoinBalance = Number((balance.rows[0] as any)?.coins);

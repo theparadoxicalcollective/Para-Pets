@@ -2,6 +2,8 @@ import type { Express, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { requireAuthenticated } from "../auth";
+import { awardPlayerXpInTransaction } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 import {
   GINNY_MINI_PET_CHOICES,
   GINNY_NPC_NAME,
@@ -264,6 +266,9 @@ export function registerGinnyQuestRoutes(app: Express): void {
           RETURNING coins
         `);
         if (!updatedUser.rows[0]) throw new Error("User not found");
+        await awardPlayerXpInTransaction(tx, user.id, {
+          source: "story_quest", eventId: "ginny:mini_pet", amount: PLAYER_XP_REWARDS.storyQuest,
+        });
 
         return {
           alreadyClaimed: false,

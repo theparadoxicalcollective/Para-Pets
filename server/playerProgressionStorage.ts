@@ -3,7 +3,7 @@ import {
   playerProgression,
   playerXpReceipts,
 } from "@shared/schema";
-import type { PlayerProgression } from "@shared/playerProgression";
+import { levelForPlayerTotalXp, type PlayerProgression } from "@shared/playerProgression";
 import { db } from "./db";
 import {
   executePlayerXpAward,
@@ -12,38 +12,38 @@ import {
 } from "./playerXpAward";
 
 /** Read-only account progression. No row is created by browsing a profile;
- * existing users safely show Level 1 / 0 XP until a future approved award.
+ * existing users safely show Level 1 / 0 XP until they earn a new award.
  */
 export async function getPlayerProgression(userId: string): Promise<PlayerProgression | null> {
   const [row] = await db.select({
     level: playerProgression.level,
     totalXp: playerProgression.totalXp,
+    stars: playerProgression.stars,
+    cycleStartXp: playerProgression.cycleStartXp,
   }).from(playerProgression).where(eq(playerProgression.userId, userId)).limit(1);
   return row ?? null;
 }
 
 /**
- * INTERNAL ONLY. No HTTP XP-award endpoint exists. A future trusted reward
- * handler must provide an approved level curve and a stable domain event ID,
- * and call this function within its own reward transaction if the XP award
- * must be atomic with another grant.
- *
- * This standalone transaction path is safe for events that do not also need
- * other reward writes. Before integrating currency/items, use a transaction-
- * scoped variant so their receipts and XP commit/roll back together.
+ * INTERNAL ONLY. No client-supplied XP amounts or award endpoints. Call
+ * awardPlayerXpInTransaction for quests/loot to commit XP and rewards together.
+ * A domain event's receipt is unique per user/source/event and is serialized
+ * by a per-account row lock.
+ * The caller owns the existing coins/items/quest transaction.
  */
-export async function awardPlayerXp(
+export async function awardPlayerXpInTransaction(
+  tx: any,
   userId: string,
   award: PlayerXpAward,
-  levelForTotalXp: (totalXp: number) => number,
 ): Promise<PlayerXpAwardResult> {
-  return db.transaction(async (tx) => {
-    return executePlayerXpAward(award, {
+  return executePlayerXpAward(award, {
       async loadLockedProgress() {
         await tx.insert(playerProgression).values({ userId }).onConflictDoNothing();
         const [row] = await tx.select({
           level: playerProgression.level,
           totalXp: playerProgression.totalXp,
+          stars: playerProgression.stars,
+          cycleStartXp: playerProgression.cycleStartXp,
         }).from(playerProgression).where(eq(playerProgression.userId, userId)).for("update");
         if (!row) throw new Error("Player progression row unavailable");
         return row;
@@ -80,6 +80,12 @@ export async function awardPlayerXp(
           updatedAt: new Date(),
         }).where(eq(playerProgression.userId, userId));
       },
-    }, levelForTotalXp);
-  });
+    }, (totalXp, current) => levelForPlayerTotalXp(
+      totalXp - (current.cycleStartXp ?? 0),
+    ));
+}
+
+/** Standalone path for verified events without a separate reward transaction. */
+export async function awardPlayerXp(userId: string, award: PlayerXpAward): Promise<PlayerXpAwardResult> {
+  return db.transaction(async (tx) => awardPlayerXpInTransaction(tx, userId, award));
 }

@@ -17,6 +17,8 @@ import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { registerQuestRoutes } from "./routes/quest.routes";
+import { awardPlayerXp } from "./playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 import { executeFishCatchRewardClaim } from "./fishCatchRewardClaim";
 import { FishSaleError, sellFish } from "./fishSale";
 import { db } from "./db";
@@ -521,19 +523,39 @@ async function getOrCreateBrawlerBadge(key: keyof typeof BRAWLER_BADGES): Promis
   return badge.id;
 }
 
-async function maybeAwardBrawlerBadges(userId: string, totalWins: number): Promise<void> {
+/** Only badges newly earned from gameplay award XP. Exclude startup backfills
+ * and purchased/admin-issued badges; never replay historical achievements. */
+async function awardNewGameplayBadge(userId: string, badgeId: string, earnXp = true) {
+  // awardBadge returns an existing badge on duplicate calls, so a truthy
+  // result alone does NOT mean it was newly earned. Snapshot ownership first.
+  const previouslyOwned = earnXp &&
+    (await storage.getUserBadges(userId)).some(badge => badge.badgeId === badgeId);
+  const awarded = await storage.awardBadge(userId, badgeId);
+  if (awarded && earnXp && !previouslyOwned) {
+    try {
+      await awardPlayerXp(userId, {
+        source: "gameplay_badge", eventId: badgeId, amount: PLAYER_XP_REWARDS.newBadge,
+      });
+    } catch (error) {
+      console.warn("[badges] Player XP receipt failed after new badge:", error);
+    }
+  }
+  return awarded;
+}
+
+async function maybeAwardBrawlerBadges(userId: string, totalWins: number, earnXp = true): Promise<void> {
   try {
     if (totalWins >= 100) {
       const id = await getOrCreateBrawlerBadge("brawler");
-      await storage.awardBadge(userId, id);
+      await awardNewGameplayBadge(userId, id, earnXp);
     }
     if (totalWins >= 300) {
       const id = await getOrCreateBrawlerBadge("advanced");
-      await storage.awardBadge(userId, id);
+      await awardNewGameplayBadge(userId, id, earnXp);
     }
     if (totalWins >= 500) {
       const id = await getOrCreateBrawlerBadge("legendary");
-      await storage.awardBadge(userId, id);
+      await awardNewGameplayBadge(userId, id, earnXp);
     }
   } catch (err) {
     console.error("[badges] Error awarding brawler badges:", err);
@@ -558,19 +580,19 @@ async function getOrCreateFishBookBadge(key: keyof typeof FISH_BOOK_BADGES): Pro
   return badge.id;
 }
 
-async function maybeAwardFisherBadges(userId: string, totalCaught: number): Promise<void> {
+async function maybeAwardFisherBadges(userId: string, totalCaught: number, earnXp = true): Promise<void> {
   try {
     if (totalCaught >= 300) {
       const id = await getOrCreateFisherBadge("angler");
-      await storage.awardBadge(userId, id);
+      await awardNewGameplayBadge(userId, id, earnXp);
     }
     if (totalCaught >= 500) {
       const id = await getOrCreateFisherBadge("masterAngler");
-      await storage.awardBadge(userId, id);
+      await awardNewGameplayBadge(userId, id, earnXp);
     }
     if (totalCaught >= 750) {
       const id = await getOrCreateFisherBadge("legendaryAngler");
-      await storage.awardBadge(userId, id);
+      await awardNewGameplayBadge(userId, id, earnXp);
     }
   } catch (err) {
     console.error("[badges] Error awarding fisher badges:", err);
@@ -602,7 +624,7 @@ async function maybeAwardFishBookBadge(userId: string, biomeWorldId: string): Pr
     const caught = (caughtRes.rows[0] as any)?.caught ?? 0;
     if (caught >= total) {
       const id = await getOrCreateFishBookBadge(key);
-      const awarded = await storage.awardBadge(userId, id);
+      const awarded = await awardNewGameplayBadge(userId, id);
       if (awarded) console.log(`[badges] ${FISH_BOOK_BADGES[key].name} awarded to ${userId}`);
     }
   } catch (err) {
@@ -654,7 +676,7 @@ export async function backfillBrawlerBadges(): Promise<void> {
     let awarded = 0;
     for (const row of rows.rows as { user_id: string; win_count: number }[]) {
       const prev = awarded;
-      await maybeAwardBrawlerBadges(row.user_id, row.win_count);
+      await maybeAwardBrawlerBadges(row.user_id, row.win_count, false);
       // awardBadge is idempotent — just count iterations not actual new awards
       awarded++;
     }
@@ -688,7 +710,7 @@ export async function backfillFisherBadges(): Promise<void> {
       SELECT id, total_fish_caught FROM users WHERE total_fish_caught >= 300 AND is_bot = false
     `);
     for (const row of rows.rows as { id: string; total_fish_caught: number }[]) {
-      await maybeAwardFisherBadges(row.id, row.total_fish_caught);
+      await maybeAwardFisherBadges(row.id, row.total_fish_caught, false);
     }
     if (rows.rows.length > 0) {
       console.log(`Fisher badge backfill: processed ${rows.rows.length} qualifying player(s).`);
