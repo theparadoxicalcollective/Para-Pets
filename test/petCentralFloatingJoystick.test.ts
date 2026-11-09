@@ -4,9 +4,11 @@ import test from "node:test";
 
 const world = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
 const clearing = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
+const clearingJoystick = readFileSync("client/src/components/FloatingWalkJoystick.tsx", "utf8");
 
 test("Pet Central joystick floats at touch origin like Clearing without a global stage scale", () => {
-  assert.match(clearing, /data-testid="floating-joystick"/);
+  assert.match(clearing, /<FloatingWalkJoystick center=\{joystickCenter\} offset=\{joystickOffset\}/);
+  assert.match(clearingJoystick, /data-testid="floating-joystick"/);
   assert.match(world, /data-testid="floating-joystick"/);
   assert.match(world, /data-testid="pet-central-joystick-zone"/);
   assert.match(world, /getBoundingClientRect\(\)/);

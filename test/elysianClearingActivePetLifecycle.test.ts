@@ -50,8 +50,13 @@ test("the Clearing client lifecycle is keyed, abortable, identity checked, and b
   const scene = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
   const combat = readFileSync("client/src/components/ElysianClearingCombat.tsx", "utf8");
   assert.match(scene, /key=\{activePetInventoryId\}/);
+  assert.match(scene, /if \(activePetInventoryId && petTemplateId\)/);
   assert.match(scene, /setClearingReady\(false\)/);
   assert.match(scene, /setLoadingComplete\(false\)/);
+  // Avatar-only explorers should never get stuck behind a loader waiting for
+  // a combat session that cannot exist without a hatched featured pet.
+  assert.match(scene, /setClearingReady\(true\)/);
+  assert.match(scene, /setLoadingComplete\(true\)/);
   assert.match(combat, /\[activePetInventoryId,inventoryLoaded,sessionAttempt\]/);
   assert.match(combat, /data\.pet\.inventoryId!==activePetInventoryId/);
   assert.match(combat, /new AbortController\(\)/);

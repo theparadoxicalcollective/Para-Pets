@@ -82,6 +82,8 @@ jobs:
           fi
           # 10/12: real Home actor, first-save, saved outfits, error and Back navigation.
           node script/home-avatar-cutover-smoke.mjs
+          # 11/12: real walking actor, wardrobe layers, phone/tablet joystick.
+          node script/avatar11-exploration-walk-smoke.mjs
           node script/browser-smoke.mjs
           node script/desktop-coming-soon-smoke.mjs
           node script/desktop-portrait-shell-smoke.mjs

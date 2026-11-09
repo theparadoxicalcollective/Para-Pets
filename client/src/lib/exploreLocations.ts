@@ -6,7 +6,7 @@
  * stores posX/posY/iconSize; this file stores everything the scene needs.
  */
 
-/** Editable boundary inside the scene background where the pet may walk.
+/** Editable boundary inside the scene background where the avatar/legacy pet may walk.
  *  All values are fractions of the scene container's width/height (0–1). */
 export interface WalkableBounds {
   xMin: number;
@@ -17,6 +17,11 @@ export interface WalkableBounds {
 
 /** Extension points for future combat features — none active yet. */
 export interface ExploreLocationFeatures {
+  /**
+   * Explicit opt-in for walking AND the small, on-demand touch joystick.
+   * A published World Editor scene can adopt WalkAroundScene with this true;
+   * unpublished drafts and non-walk scenes do not receive controls.
+   */
   movement: boolean;
   enemies: boolean;
   combat: boolean;

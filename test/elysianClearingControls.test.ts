@@ -7,6 +7,8 @@ const appSource = readFileSync("client/src/App.tsx", "utf8");
 const pageSource = readFileSync("client/src/pages/ElysianBayouClearingPage.tsx", "utf8");
 const sceneSource = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
 const controllerSource = readFileSync("client/src/hooks/usePetWalkController.ts", "utf8");
+const joystickSource = readFileSync("client/src/components/FloatingWalkJoystick.tsx", "utf8");
+const joystickCss = readFileSync("client/src/components/FloatingWalkJoystick.css", "utf8");
 
 test("only the Elysian Clearing exploration route joins the existing nav exclusions", () => {
   assert.equal(shouldHideFloatingNav("/explore/elysian-bayou-clearing"), true);
@@ -42,8 +44,10 @@ test("pet direction is flipped relative to each template's natural facing", () =
 });
 
 test("floating joystick uses pointer capture, edge clamping, and safe cancellation", () => {
-  assert.match(sceneSource, /\{isJoystickActive && <div/);
-  assert.match(sceneSource, /Math\.max\(radius \+ JOYSTICK_EDGE_GAP/);
+  assert.match(sceneSource, /config\.features\.movement && isJoystickActive && \(/);
+  assert.match(sceneSource, /<FloatingWalkJoystick center=\{joystickCenter\} offset=\{joystickOffset\}/);
+  assert.match(sceneSource, /const inset = radius \+ FLOATING_WALK_JOYSTICK_EDGE_GAP/);
+  assert.match(sceneSource, /onJoystickPointerDown\(e, \{ x: e\.clientX, y: e\.clientY \}\)/);
   assert.match(sceneSource, /onPointerCancel=\{onJoystickPointerUp\}/);
   assert.match(sceneSource, /onLostPointerCapture=\{onJoystickPointerUp\}/);
   assert.match(sceneSource, /closest\("button, a, input, select, textarea, \[data-interactive\]"\)/);
@@ -55,8 +59,12 @@ test("floating joystick uses pointer capture, edge clamping, and safe cancellati
 
 test("Clearing controls use CSS-only art and stop on browser interruption", () => {
   assert.doesNotMatch(sceneSource, /joystick_base\.png|joystick_thumb_v3\.png/);
-  assert.match(sceneSource, /data-testid="joystick-base"/);
-  assert.doesNotMatch(sceneSource.slice(sceneSource.indexOf('data-testid="floating-joystick"')), /<img[^>]+joystick/);
+  assert.match(joystickSource, /data-testid="floating-joystick"/);
+  assert.match(joystickSource, /data-testid="joystick-base"/);
+  assert.match(joystickSource, /data-testid="joystick-thumb"/);
+  assert.doesNotMatch(joystickSource, /<img[^>]+joystick/);
+  assert.match(joystickCss, /pointer-events: none/);
+  assert.match(joystickCss, /opacity: \.68/);
   assert.match(controllerSource, /window\.addEventListener\("blur", stopMovement\)/);
   assert.match(controllerSource, /document\.addEventListener\("visibilitychange", onVisibility\)/);
 });
