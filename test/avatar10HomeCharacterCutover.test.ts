@@ -28,6 +28,12 @@ test("10 cuts over Home actor without mutating the existing Pet routes or admin 
   assert.match(home, /<TopBar user=\{currentUser\}/);
   assert.match(home, /<HomePlayerHud/);
   assert.doesNotMatch(scene, /ActivePetPlacement|PetAnimator|MiniPetRenderer|petTemplateId|petInventoryId|clientToStage/);
+  // Existing cave/legacy consumers still require activePetId, but the old
+  // Bag link must no longer claim this pet will appear on Home.
+  const inventory = read("client/src/components/PetInventory.tsx");
+  assert.match(inventory, /button-feature-main-pet-\$\{pet.inventoryId\}/);
+  assert.match(inventory, /Set Featured Companion/);
+  assert.doesNotMatch(inventory, /Shown on Main|Show on Main/);
 });
 
 test("new players see a gold prompt only after a successful created:false API response", () => {
