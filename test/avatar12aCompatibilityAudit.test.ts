@@ -14,7 +14,7 @@ test("one account-scoped key is shared by Home, Clearing, and wardrobe", () => {
   const app = read("client/src/App.tsx");
 
   assert.match(home, /queryKey: playerAvatarQueryKey\(userId\)/);
-  assert.match(clearing, /queryKey: playerAvatarQueryKey\(userId\)/);
+  assert.match(clearing, /queryKey: playerAvatarQueryKey\(userId \?\? ""\)/);
   assert.match(wardrobe, /const avatarKey = playerAvatarQueryKey\(userId\)/);
   assert.match(wardrobe, /queryKey: avatarKey/);
   assert.match(wardrobe, /qc\.setQueryData\(avatarKey, saved\)/);
