@@ -15,6 +15,7 @@ test("account HUD uses the existing progression and shared team endpoints, not p
   assert.match(hud, /\["\/api\/player\/progression", userId\]/);
   assert.match(hud, /queryFn: \(\{ signal \}\) => fetchHomePlayerProgression\(signal\)/);
   assert.match(hud, /player\.totalXp\.toLocaleString\(\)/);
+  assert.match(hud, /player\.cycleXp \?\? player\.totalXp/);
   assert.match(hud, /const data: unknown = await response\.json\(\)/);
   assert.match(hud, /Number\.isSafeInteger\(data\.level\)/);
   assert.match(hud, /Number\.isSafeInteger\(data\.totalXp\)/);
