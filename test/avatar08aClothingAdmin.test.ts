@@ -145,8 +145,9 @@ test("admin drag preview reuses the shared eight-part renderer and preserves exi
   assert.match(component, /pointerToCharacterPartLocal/);
   assert.match(component, /touchAction: "none"/);
   assert.match(component, /avatar-publish-clothing/);
-  assert.match(renderer, /clothingSegments\.filter\(item => item\.partType === part\.partType\)/);
-  assert.match(renderer, /data-clothing-part=\{item\.partType\}/);
+  assert.match(renderer, /clothingSegments\.map\(segment =>/);
+  assert.match(renderer, /layers\.filter\(layer => layer\.segment\.partType === part\.partType\)/);
+  assert.match(renderer, /data-clothing-part=\{layer\.segment\.partType\}/);
   assert.match(styles, /player-character-renderer__clothing/);
   assert.doesNotMatch(component, /PetAnimator|activePetId|390\s*[×x]\s*844/);
   assert.doesNotMatch(read("client/src/pages/HomePage.tsx"), /PlayerClothingAdminPanel/);
