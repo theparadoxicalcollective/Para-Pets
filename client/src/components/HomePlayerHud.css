@@ -137,15 +137,6 @@
   font: bold 21px Georgia, serif;
   opacity: .73;
 }
-.home-player-hud__slot-dot {
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #dec17e;
-}
 .home-player-hud__slot:disabled { opacity: .53; cursor: wait; }
 .home-player-hud__slot:focus-visible,
 .home-player-hud__picker button:focus-visible {
@@ -285,17 +276,21 @@
 .home-player-hud--avatar-home .home-player-hud__stars {
   position: absolute;
   left: var(--home-avatar-x, 50%);
-  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - var(--home-avatar-visual-size, 220px) - 19px);
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - var(--home-avatar-visual-size, 220px) + 14px);
   transform: translateX(-50%);
   width: max-content;
-  height: 32px;
-  gap: 2px;
+  height: 44px;
+  gap: 0;
   z-index: 4;
   pointer-events: none;
 }
 .home-player-hud--avatar-home .home-player-hud__stars img {
-  width: clamp(22px, 6vw, 31px);
-  height: clamp(22px, 6vw, 31px);
+  width: clamp(32px, 9vw, 44px);
+  height: clamp(32px, 9vw, 44px);
+}
+.home-player-hud--avatar-home .home-player-hud__stars img:not(.home-player-hud__star--earned) {
+  opacity: .42;
+  filter: grayscale(1) brightness(.95) drop-shadow(0 1px 3px #000);
 }
 .home-player-hud--avatar-home .home-player-hud__progress {
   position: absolute;
@@ -310,21 +305,24 @@
   text-align: center;
   pointer-events: none;
 }
-.home-player-hud--avatar-home .home-player-hud__progress-heading {
-  gap: 9px;
+.home-player-hud--avatar-home .home-player-hud__level-below {
+  position: relative;
+  display: flex;
   justify-content: center;
+  align-items: center;
+  margin-top: 7px;
+  min-height: 20px;
+  font-family: Georgia, serif;
+  color: #f5dfa5;
   text-shadow: 0 2px 5px #041009, 0 0 10px #041009;
 }
-.home-player-hud--avatar-home .home-player-hud__name {
-  max-width: min(73%, 300px);
-  font-size: clamp(15px, 3.9vw, 20px);
-}
 .home-player-hud--avatar-home .home-player-hud__level {
-  font-size: clamp(11px, 3vw, 14px);
+  font-size: clamp(13px, 3.5vw, 16px);
 }
 .home-player-hud--avatar-home .home-player-hud__xp-row {
-  gap: 8px;
-  margin-top: 7px;
+  position: relative;
+  display: block;
+  margin-top: 0;
 }
 .home-player-hud--avatar-home .home-player-hud__xp-track {
   height: 12px;
@@ -332,9 +330,13 @@
   box-shadow: 0 2px 7px rgba(0, 0, 0, .7);
 }
 .home-player-hud--avatar-home .home-player-hud__xp-text {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 0;
   font-size: clamp(10px, 2.8vw, 13px);
-  min-width: 66px;
   color: #f2e1b7;
+  text-align: left;
   text-shadow: 0 2px 4px #03110b;
 }
 .home-player-hud--avatar-home .home-player-hud__party-panel {
