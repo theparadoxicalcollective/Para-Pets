@@ -2,7 +2,7 @@
 .home-player-hud {
   position: absolute;
   left: 50%;
-  bottom: calc(85px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(148px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 80;
   box-sizing: border-box;
