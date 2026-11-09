@@ -20,9 +20,12 @@ test("account HUD uses the existing progression and shared team endpoints, not p
   assert.match(hud, /Number\.isSafeInteger\(data\.totalXp\)/);
   assert.match(hud, /Player progression response was invalid/);
   assert.doesNotMatch(hud, /petLevelPoints|petLevel\b|petRarity|activePetId|playerXpAward|localStorage/);
-  const noCurve = playerProgressionResponse({ level: 3, totalXp: 175 });
-  assert.deepEqual([noCurve.level, noCurve.totalXp, noCurve.nextLevelTotalXp, noCurve.xpToNextLevel], [3,175,null,null]);
-  assert.match(hud, /XP progress not yet available; level threshold is not defined/);
+  const withCurve = playerProgressionResponse({ level: 3, totalXp: 175 });
+  assert.deepEqual([withCurve.level, withCurve.totalXp, withCurve.nextLevelTotalXp, withCurve.xpToNextLevel], [2,175,240,65]);
+  assert.match(hud, /totalXpRequiredForPlayerLevel/);
+  assert.match(hud, /xpFillPct/);
+  assert.match(hud, /role="progressbar"/);
+  assert.match(css, /home-player-hud__xp-track--ready/);
   assert.doesNotMatch(hud, /\(player\.totalXp\s*\/\s*\d+\)|progression\.data\?\.level \* \d+/);
 });
 
