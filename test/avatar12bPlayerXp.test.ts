@@ -70,6 +70,20 @@ test("five intentional Seer Elevations reset only cycle XP, never lifetime XP or
   assert.doesNotMatch(read("server/routes/playerProgression.routes.ts"), /elevat|app\\.(post|put|patch)\\(/i);
 });
 
+test("elevation state is additive and saved independently from pet progression", () => {
+  const migration = read("server/startup/migrations/ensurePlayerProgressionStorage.ts");
+  const schema = read("shared/schema.ts");
+  const storage = read("server/playerProgressionStorage.ts");
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS stars integer NOT NULL DEFAULT 0/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS cycle_start_xp integer NOT NULL DEFAULT 0/);
+  assert.match(schema, /stars: integer\("stars"\)\.notNull\(\)\.default\(0\)/);
+  assert.match(schema, /cycleStartXp: integer\("cycle_start_xp"\)\.notNull\(\)\.default\(0\)/);
+  assert.match(storage, /stars: playerProgression\.stars/);
+  assert.match(storage, /cycleStartXp: playerProgression\.cycleStartXp/);
+  assert.match(storage, /totalXp - \(current\.cycleStartXp \?\? 0\)/);
+  assert.doesNotMatch(read("server/routes/playerProgression.routes.ts"), /app\.(?:post|patch|put|delete)\(/);
+});
+
 test("daily mini-game and fishing receipts use Central calendar boundaries", () => {
   assert.equal(playerXpDayKey(new Date("2026-11-09T05:59:00Z")), "2026-11-08");
   assert.equal(playerXpDayKey(new Date("2026-11-09T06:01:00Z")), "2026-11-09");
