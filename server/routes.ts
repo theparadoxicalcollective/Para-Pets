@@ -39,6 +39,7 @@ import { registerSupportRoutes } from "./routes/support.routes";
 import { registerHubNoticeRoutes } from "./routes/hubNotice.routes";
 import { registerAvatarRoutes } from "./routes/avatar.routes";
 import { registerPlayerCharacterRoutes } from "./routes/playerCharacter.routes";
+import { registerPlayerClothingAdminRoutes } from "./routes/playerClothingAdmin.routes";
 import { registerPrivacyPolicyRoutes } from "./routes/privacyPolicy.routes";
 import { registerPublicPetShowcaseRoute } from "./routes/publicPetShowcase.routes";
 import { registerEmblemRoutes } from "./routes/emblem.routes";
@@ -843,6 +844,7 @@ export async function registerRoutes(
   registerCostumePlayerRoutes(app);
   registerMiniPetRoutes(app, data => processWorldImage(data, 1000));
   registerPlayerCharacterRoutes(app, { db, isAdmin, isAuthenticated, processImage: processWorldImage });
+  registerPlayerClothingAdminRoutes(app, { db, isAdmin, processImage: processWorldImage });
   registerRedeemCodeRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
@@ -1295,6 +1297,12 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Item not found" });
       }
 
+      // Avatar clothing catalog SKUs are admin-only until ownership and
+      // purchase policy lands in Avatar 08B. A forged worldId/itemId cannot
+      // grant an unreleased outfit for free.
+      if (shopItem.type === "clothing") {
+        return res.status(403).json({ message: "Avatar clothing is not yet available in shops" });
+      }
       // Garden fruit must be earned from harvesting or bought from another
       // player's marketplace listing. Never allow direct shop-ID purchases,
       // even when the caller forges a world ID or knows the catalog item ID.
@@ -3179,6 +3187,9 @@ export async function registerRoutes(
       if (!parse.success) {
         return res.status(400).json({ message: parse.error.errors[0].message });
       }
+      if (parse.data.type === "clothing") {
+        return res.status(400).json({ message: "Create avatar clothing in Admin Realm → Avatar → Create Clothing" });
+      }
 
       let evolutionImageUrl: string | null;
       try {
@@ -3228,6 +3239,9 @@ export async function registerRoutes(
       const { id: _id, createdAt: _createdAt, ...existingData } = existing;
       const parse = insertShopItemSchema.safeParse({ ...existingData, ...updateData });
       if (!parse.success) return res.status(400).json({ message: parse.error.errors[0].message });
+      if (existing.type === "clothing" || parse.data.type === "clothing") {
+        return res.status(400).json({ message: "Edit avatar clothing through its dedicated Avatar editor" });
+      }
 
       try {
         const evolutionImageUrl = await processEvolutionImageUpdate({ evolutionImageData, evolutionImageUrl: updateData.evolutionImageUrl }, parse.data.type, processShopItemImage);
@@ -3282,6 +3296,10 @@ export async function registerRoutes(
 
   app.delete("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
+      const item = await storage.getShopItem(req.params.itemId as string);
+      if (item?.type === "clothing") {
+        return res.status(400).json({ message: "Avatar clothing is managed from the Avatar Editor" });
+      }
       await storage.deleteShopItem((req.params.itemId as string));
       return res.json({ message: "Item deleted" });
     } catch (err) {
