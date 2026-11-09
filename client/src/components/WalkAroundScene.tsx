@@ -4,7 +4,8 @@
  * Renders a full-screen gameplay area with:
  *   - A background image (preserves aspect ratio via object-contain with a
  *     colour-matched fill so the portrait image never stretches)
- *   - The player's active pet walking inside an editable walkable boundary
+ *   - The saved player avatar walking within existing scene bounds (or the
+ *     legacy pet sprite when an account has not created a character yet)
  *   - On-screen joystick (touch/mobile) + keyboard + click-to-move (desktop)
  *   - A back button that returns to the world map
  *
@@ -15,6 +16,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
+import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
+import {
+  PLAYER_AVATAR_QUERY_KEY,
+  fetchPlayerAvatar,
+  wardrobeLayers,
+  type PlayerAvatarState,
+} from "@/lib/playerAvatarWardrobe";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import { type WalkAroundLocationConfig } from "@/lib/exploreLocations";
@@ -32,30 +40,51 @@ interface WalkAroundSceneProps {
   /** petTemplateId from the active pet inventory item; null = no pet. */
   petTemplateId: string | null;
   activePet?: any;
+  /** Signed-in account whose saved avatar is visible (combat pet stays separate). */
+  userId?: string;
   /** Called when the player taps the back button. */
   onBack: () => void;
   isAdmin?: boolean;
 }
 
-export default function WalkAroundScene({ config, petTemplateId, activePet, onBack, isAdmin=false }: WalkAroundSceneProps) {
+export default function WalkAroundScene({ config, petTemplateId, activePet, userId, onBack, isAdmin=false }: WalkAroundSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [hudElement, setHudElement] = useState<HTMLDivElement | null>(null);
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
-  const [viewport, setViewport] = useState({ width: 390, height: 844 });
+  const [viewport, setViewport] = useState({ width: 1, height: 1 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
   const [specialReady, setSpecialReady] = useState(false);
   const activePetInventoryId: string | null = typeof activePet?.inventoryId === "string" ? activePet.inventoryId : null;
+  // Visual identity is owned by the player, not by the featured combat pet.
+  // Reuse Home/wardrobe's account-scoped query and existing eight-part renderer.
+  const avatarQuery = useQuery<PlayerAvatarState>({
+    queryKey: [...PLAYER_AVATAR_QUERY_KEY, userId],
+    queryFn: ({ signal }) => fetchPlayerAvatar(signal),
+    enabled: !!userId,
+    staleTime: 30_000,
+    refetchOnMount: "always",
+  });
+  const walkingAvatar = avatarQuery.data?.created === true &&
+    Array.isArray(avatarQuery.data.base?.parts) &&
+    avatarQuery.data.base.parts.length === 8 ? avatarQuery.data : null;
+  // On a first visit avoid briefly flashing a pet before the avatar read.
+  // Accounts without a created avatar retain their legacy walking pet.
+  const showLegacyPet = !userId || avatarQuery.isError ||
+    (avatarQuery.isSuccess && !walkingAvatar);
+  const showActor = !!walkingAvatar || (showLegacyPet && !!petTemplateId);
   const [clearingReady, setClearingReady] = useState(!config.features.combat);
   const [loadingComplete, setLoadingComplete] = useState(!config.features.combat);
 
   useEffect(() => {
     if (!config.features.combat) return;
-    setClearingReady(false);
-    setLoadingComplete(false);
+    // With no featured hatched combat pet, no server combat session can start.
+    // Do not trap an avatar-only visitor behind an unfinishable loader.
+    setClearingReady(!activePetInventoryId || !petTemplateId);
+    setLoadingComplete(!activePetInventoryId || !petTemplateId);
     setSpecialReady(false);
-  }, [activePetInventoryId, config.features.combat]);
+  }, [activePetInventoryId, petTemplateId, config.features.combat]);
 
   const responsivePet = config.aspectLayout?.responsivePet;
   const petSize = responsivePet ? clearingPetSize(viewport) : (config.petSize ?? DEFAULT_PET_SIZE);
@@ -87,7 +116,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       if (!res.ok) throw new Error("Failed to load pet template");
       return res.json();
     },
-    enabled: !!petTemplateId,
+    enabled: !!petTemplateId && !walkingAvatar,
     staleTime: Infinity,
   });
 
@@ -158,24 +187,42 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
         />
 
 
-      {/* ── Pet sprite ──────────────────────────────────────────────────────── */}
-      {petTemplateId && (
+      {/* One camera/world coordinate owner for either avatar or legacy pet.
+          The combat session keeps its old pet ID, stats, targeting and timing. */}
+      {showActor && (
         <div
-          data-testid="walk-pet-sprite"
+          data-testid="walk-world-actor"
+          data-walk-actor={walkingAvatar ? "avatar" : "pet"}
           className="absolute pointer-events-none"
           style={{
-            left:      `${petPos.x * 100}%`,
-            top:       `${petPos.y * 100}%`,
-            width:     petSize,
-            height:    petSize,
-            transform: `translate(-50%, -${CLEARING_PET_PRESENTATION.feetAnchor * 100}%)`,
-            zIndex:    worldYToDepth(petPos.y),
+            left: `${petPos.x * 100}%`,
+            top: `${petPos.y * 100}%`,
+            width: walkingAvatar ? Math.round(petSize * 1.18) : petSize,
+            height: walkingAvatar ? Math.round(petSize * 1.18) : petSize,
+            transform: `translate(-50%, -${(walkingAvatar ? 0.94 : CLEARING_PET_PRESENTATION.feetAnchor) * 100}%)`,
+            zIndex: worldYToDepth(petPos.y),
             transition: "none",
           }}
         >
-          <div className={`clearing-pet-presentation ${isMoving ? "is-moving" : ""} ${specialReady ? "is-special-ready" : ""}`} style={{transform:`scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`}}>
-            <PetAnimator petTemplateId={petTemplateId} petInventoryId={activePetInventoryId ?? undefined} mode="static" size={petSize} fitVisible />
-          </div>
+          {walkingAvatar?.base ? (
+            <div data-testid="walk-avatar-actor" className="relative h-full w-full"
+              style={{ transform: `scaleX(${facingLeft ? -1 : 1})` }}>
+              <PlayerCharacterRenderer
+                parts={walkingAvatar.base.parts}
+                clothingLayers={wardrobeLayers(walkingAvatar)}
+                motion={isMoving ? "walk" : "idle"}
+                ariaLabel="Your player avatar exploring the clearing"
+              />
+            </div>
+          ) : petTemplateId ? (
+            <div data-testid="walk-pet-sprite"
+              className={`clearing-pet-presentation ${isMoving ? "is-moving" : ""} ${specialReady ? "is-special-ready" : ""}`}
+              style={{ transform: `scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})` }}>
+              <PetAnimator petTemplateId={petTemplateId}
+                petInventoryId={activePetInventoryId ?? undefined}
+                mode="static" size={petSize} fitVisible />
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -232,7 +279,20 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
           zIndex: 4,
         }}
       />
-      {!loadingComplete && <div className="absolute inset-0" style={{zIndex:5000}}><WorldLoadingScreen worldId="elysian_clearing" bgUrl={config.backgroundUrl} pageReady={clearingReady} onReady={() => setLoadingComplete(true)} /></div>}
+      {config.features.combat && !activePetInventoryId && (
+        <div data-testid="clearing-featured-pet-notice" role="status"
+          className="absolute left-1/2 top-16 -translate-x-1/2 rounded-xl px-3 py-2 text-center text-xs"
+          style={{maxWidth:"min(90%,330px)",zIndex:3001,color:"#f4dfaa",
+            background:"rgba(12,36,23,.92)",border:"1px solid #b79c5c",pointerEvents:"none"}}>
+          Choose a hatched Featured Companion in Bag to enter Clearing combat.
+        </div>
+      )}
+      {!loadingComplete && activePetInventoryId && petTemplateId && (
+        <div className="absolute inset-0" style={{zIndex:5000}}>
+          <WorldLoadingScreen worldId="elysian_clearing" bgUrl={config.backgroundUrl}
+            pageReady={clearingReady} onReady={() => setLoadingComplete(true)} />
+        </div>
+      )}
     </div>
   );
 }
