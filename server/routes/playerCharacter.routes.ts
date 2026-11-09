@@ -86,7 +86,12 @@ export function registerPlayerCharacterRoutes(
       if (current.revision !== payload.data.expectedRevision)
         return res.status(409).json({ message: "This avatar changed in another editor. Reload before saving." });
 
-      const existing = current.draftParts.find(part => part.partType === type.data);
+      // The old Body artwork may be edited as the new Torso/Top without
+      // requiring a second upload. Keep the legacy row archived in draft.
+      const existing = current.draftParts.find(part => part.partType === type.data)
+        ?? (type.data === "top"
+          ? current.draftParts.find(part => part.partType === "body")
+          : undefined);
       if (!payload.data.imageData && !existing)
         return res.status(400).json({ message: "Upload artwork before saving this part" });
 
