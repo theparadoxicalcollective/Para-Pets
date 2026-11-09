@@ -4,7 +4,7 @@ import PlayerCharacterRenderer, { type PlayerCharacterMotion } from "./PlayerCha
 
 interface Props {
   parts: readonly PlayerCharacterPart[];
-  activePartType?: string | null;
+  activePartType?: PlayerCharacterPart["partType"] | null;
   motion?: PlayerCharacterMotion;
   editable?: boolean;
   onMovePart?: (xPct: number, yPct: number) => void;
@@ -60,7 +60,7 @@ export default function PlayerCharacterPartsPreview({
       <PlayerCharacterRenderer
         parts={parts}
         motion={editable ? "static" : motion}
-        selectedPartType={editable ? activePartType as PlayerCharacterPart["partType"] | null : null}
+        selectedPartType={editable ? activePartType : null}
         ariaLabel="Avatar base preview"
       />
       {parts.length === 0 && (
