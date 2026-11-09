@@ -29,7 +29,7 @@ const fixture = [
   ' },[layout]);',
   ' if(!user)return null;',
   ' return <><div style={{position:"absolute",inset:0,pointerEvents:"auto"}}>',
-  '   {location.startsWith("/player-avatar")?<PlayerAvatarPage/>:<HomePage user={user}/>}</div>',
+  '   {location.startsWith("/player-avatar")?<PlayerAvatarPage userId={user.id}/>:<HomePage user={user}/>}</div>',
   '  <FloatingNav user={user}/><Toaster/></>;',
   '}',
   'createRoot(document.getElementById("root")).render(<QueryClientProvider client={queryClient}><TooltipProvider><Fixture/></TooltipProvider></QueryClientProvider>);',
