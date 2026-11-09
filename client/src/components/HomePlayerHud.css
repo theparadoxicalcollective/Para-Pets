@@ -303,7 +303,7 @@
   top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px);
   transform: translateX(-50%);
   box-sizing: border-box;
-  width: min(calc(100vw - 42px), 390px);
+  width: min(calc(100vw - 42px), 400px);
   max-width: none;
   margin: 0;
   color: #f4dfa6;
