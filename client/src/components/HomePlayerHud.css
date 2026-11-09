@@ -32,6 +32,10 @@
   opacity: .25;  /* All five are unearned, independent of level and pet rarity. */
   filter: grayscale(1) brightness(.75) drop-shadow(0 0 2px #000);
 }
+.home-player-hud__stars img.home-player-hud__star--earned {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(234, 198, 107, .8));
+}
 .home-player-hud__progress {
   margin: 0 auto 6px;
   max-width: 305px;
