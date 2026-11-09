@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles, RefreshCw } from "lucide-react";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import {
-  PLAYER_AVATAR_QUERY_KEY,
+  playerAvatarQueryKey,
   fetchPlayerAvatar,
   wardrobeLayers,
   type PlayerAvatarState,
@@ -26,7 +26,7 @@ export default function HomeAvatarStage({
   onOpen: () => void;
 }) {
   const avatar = useQuery<PlayerAvatarState>({
-    queryKey: [...PLAYER_AVATAR_QUERY_KEY, userId],
+    queryKey: playerAvatarQueryKey(userId),
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
     enabled: !!userId,
     staleTime: 0,
