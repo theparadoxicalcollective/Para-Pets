@@ -8,6 +8,9 @@ import {
   levelForPlayerTotalXp,
   playerProgressionResponse,
   totalXpRequiredForPlayerLevel,
+  canPlayerElevate,
+  planSeerElevation,
+  PLAYER_MAX_STARS,
 } from "../shared/playerProgression";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -29,8 +32,43 @@ test("player XP is primarily quest-based, account-owned, and monotonically level
     assert.equal(levelForPlayerTotalXp(threshold), level);
   }
   assert.deepEqual(playerProgressionResponse({ level: 1, totalXp: 120 }), {
-    level: 2, totalXp: 120, nextLevelTotalXp: 240, xpToNextLevel: 120,
+    level: 2, totalXp: 120, cycleXp: 120, stars: 0, canElevate: false,
+    nextLevelTotalXp: 240, xpToNextLevel: 120,
   });
+});
+
+test("five intentional Seer Elevations reset only cycle XP, never lifetime XP or earned stars", () => {
+  let progress = { ...planSeerElevation({ level: 100, totalXp: 0, stars: 0, cycleStartXp: 0 }) };
+  assert.deepEqual(progress, {}); // Cannot Elevate before Level 100.
+  let current = { level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 };
+  const threshold = totalXpRequiredForPlayerLevel(PLAYER_MAX_LEVEL);
+  for (let star = 1; star <= PLAYER_MAX_STARS; star++) {
+    assert.equal(canPlayerElevate(current), false);
+    current = { ...current, totalXp: current.cycleStartXp + threshold, level: PLAYER_MAX_LEVEL };
+    assert.equal(canPlayerElevate(current), true);
+    const next = planSeerElevation(current);
+    assert.ok(next);
+    assert.equal(next.stars, star);
+    assert.equal(next.level, 1);
+    assert.equal(next.totalXp, current.totalXp);
+    assert.equal(next.cycleStartXp, current.totalXp);
+    assert.equal(playerProgressionResponse(next).level, 1);
+    assert.equal(playerProgressionResponse(next).cycleXp, 0);
+    assert.equal(playerProgressionResponse(next).stars, star);
+    current = next;
+  }
+  current = { ...current, totalXp: current.cycleStartXp + threshold, level: PLAYER_MAX_LEVEL };
+  assert.equal(playerProgressionResponse(current).canElevate, false);
+  assert.equal(planSeerElevation(current), null);
+  assert.equal(playerProgressionResponse(current).level, 100);
+  // Any excess lifetime XP accrued at Level 100 must not skip the next journey.
+  const excess = { level: 100, totalXp: threshold + 500, stars: 0, cycleStartXp: 0 };
+  const elevated = planSeerElevation(excess);
+  assert.ok(elevated);
+  assert.equal(playerProgressionResponse(elevated).level, 1);
+  assert.equal(playerProgressionResponse(elevated).cycleXp, 0);
+  // Seer interaction is intentionally absent until a Seer NPC is published.
+  assert.doesNotMatch(read("server/routes/playerProgression.routes.ts"), /elevat|app\\.(post|put|patch)\\(/i);
 });
 
 test("daily mini-game and fishing receipts use Central calendar boundaries", () => {
