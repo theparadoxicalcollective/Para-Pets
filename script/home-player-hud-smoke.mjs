@@ -112,7 +112,7 @@ try {
     const replace = page.waitForResponse(r => r.url().endsWith("/api/player/pet-team") && r.request().method() === "PUT");
     await page.getByTestId("home-player-picker-pet-pet-c").tap();
     await replace;
-    await page.getByTestId("home-player-team-slot-1").getAttribute("aria-label").then(s => assert.match(s, /Cedar/));
+    await page.waitForFunction(() => document.querySelector('[data-testid="home-player-team-slot-1"]')?.getAttribute("aria-label")?.includes("Cedar"));
     assert.deepEqual(team, ["pet-c", "pet-b"], name + ": replaces slot one without changing slot two");
 
     await page.getByTestId("home-player-team-slot-2").tap();
@@ -120,6 +120,7 @@ try {
     await page.getByTestId("home-player-team-remove").tap();
     await removed;
     assert.deepEqual(team, ["pet-c"], name + ": removal persists and preserves order");
+    await page.waitForFunction(() => !document.querySelector('[data-testid="home-player-team-slot-2"]')?.hasAttribute("disabled"));
 
     await page.getByTestId("home-player-team-slot-2").tap();
     await page.getByRole("dialog", { name: "Choose companion for slot 2" }).waitFor({ state: "visible" });
@@ -127,6 +128,7 @@ try {
     await page.getByTestId("home-player-picker-pet-pet-b").tap();
     await append;
     assert.deepEqual(team, ["pet-c", "pet-b"], name + ": a new member appends to one shared team");
+    await page.waitForFunction(() => !document.querySelector('[data-testid="home-player-team-slot-2"]')?.hasAttribute("disabled"));
 
     if (name === "phone") {
       failNext = true;
