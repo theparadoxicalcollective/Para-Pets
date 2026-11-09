@@ -20,7 +20,7 @@ test("the live explore scene renders the same account-owned 8-part avatar used o
   assert.match(scene, /motion=\{isMoving \? "walk" : "idle"\}/);
   assert.match(scene, /wardrobeLayers\(walkingAvatar\)/);
   assert.match(scene, /fetchPlayerAvatar\(signal\)/);
-  assert.match(scene, /queryKey: \[\.\.\.PLAYER_AVATAR_QUERY_KEY, userId\]/);
+  assert.match(scene, /queryKey: playerAvatarQueryKey\(userId\)/);
   assert.match(scene, /avatarQuery\.data\?\.created === true/);
   assert.match(scene, /avatarQuery\.data\.base\.parts\.length === 8/);
   assert.match(scene, /data-testid="walk-avatar-actor"/);
