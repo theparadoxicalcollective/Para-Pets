@@ -60,6 +60,9 @@ test("Home and wardrobe retain each other's navigation destinations", () => {
   assert.match(wardrobe, /const fromHome = new URLSearchParams\(useSearch\(\)\)\.get\("from"\) === "home"/);
   assert.match(wardrobe, /navigate\(fromHome \? "\/" : "\/bag"\)/);
   assert.match(wardrobe, /aria-label=\{fromHome \? "Back to Home" : "Back to Bag"\}/);
+  assert.match(wardrobe, /qc\.getQueryData<\{ id\?: string \}>\(\["\/api\/auth\/me"\]\)/);
+  assert.match(wardrobe, /qc\.setQueryData\(\[\.\.\.PLAYER_AVATAR_QUERY_KEY, signedIn\.id\], saved\)/);
+  assert.doesNotMatch(wardrobe, /setQueriesData\(/);
 });
 
 test("one saved outfit retains its separate head and leg layers", () => {
