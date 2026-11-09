@@ -216,7 +216,9 @@ try {
     assert.ok(homeLayout.shopIcon.top > homeLayout.headerName.top,
       sc.name+": shop icon follows account name");
     assert.ok(homeLayout.coins.top >= homeLayout.profile.bottom - 6,
-      sc.name+": coins sit below profile picture");
+      sc.name+": coins sit below profile picture "+JSON.stringify({
+        profile:homeLayout.profile, coins:homeLayout.coins, header:homeLayout.headerName, shop:homeLayout.shopIcon,
+      }));
     assert.ok(homeLayout.essence.top > homeLayout.coins.top,
       sc.name+": essence sits below coin balance");
     assert.ok(homeLayout.avatarStarSize >= 32,
