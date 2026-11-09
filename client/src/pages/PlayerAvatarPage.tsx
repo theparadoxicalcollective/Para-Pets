@@ -17,6 +17,14 @@ export default function PlayerAvatarPage() {
   const fromHome = new URLSearchParams(useSearch()).get("from") === "home";
   const qc = useQueryClient();
   const { toast } = useToast();
+  // Keep the existing unscoped 08C wardrobe cache and the account-scoped
+  // 10/12 Home cache coherent after explicit first-save or outfit changes.
+  // Never broadcast an outfit across other user IDs in React Query.
+  const cacheSavedAvatar = (saved: PlayerAvatarState) => {
+    qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
+    const signedIn = qc.getQueryData<{ id?: string }>(["/api/auth/me"]);
+    if (signedIn?.id) qc.setQueryData([...PLAYER_AVATAR_QUERY_KEY, signedIn.id], saved);
+  };
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const avatarQuery = useQuery<PlayerAvatarState>({
@@ -31,7 +39,7 @@ export default function PlayerAvatarPage() {
   const creation = useMutation({
     mutationFn: (baseId: string) => writePlayerAvatar("POST", "/api/player-avatar/create", { baseId }),
     onSuccess: (saved) => {
-      qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
+      cacheSavedAvatar(saved);
       setPreviewId(null);
       toast({ title: "Character created", description: "Your character is saved to your account." });
     },
@@ -52,7 +60,7 @@ export default function PlayerAvatarPage() {
       { inventoryId: input.inventoryId, expectedRevision: input.expectedRevision },
     ),
     onSuccess: (saved) => {
-      qc.setQueryData(PLAYER_AVATAR_QUERY_KEY, saved);
+      cacheSavedAvatar(saved);
       setPreviewId(null);
       toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
     },
