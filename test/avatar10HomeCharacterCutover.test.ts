@@ -91,8 +91,10 @@ test("character stands at the existing artwork landmark with short-screen HUD cl
     {left:0,top:0,width:390,height:844}, {x:810,y:1475});
   assert.ok(point);
   assert.ok(point.y > 0 && point.y < 844);
-  assert.match(scene, /landmark\.y - backdrop\.top/);
-  assert.match(scene, /backdrop\.height - 228/);
+  const layout = read("client/src/lib/homeAvatarLayout.ts");
+  assert.match(layout, /landmark\.y - backdrop\.top/);
+  assert.match(layout, /backdrop\.height - 228/);
+  assert.match(scene, /homeAvatarPosition\(landmark, backdrop\)/);
   assert.match(css, /top: min\(68dvh, calc\(100dvh - 228px\)\)/);
   assert.match(css, /touch-action: manipulation/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
@@ -109,6 +111,7 @@ test("character stands at the existing artwork landmark with short-screen HUD cl
   assert.match(hud, /home-player-hud--avatar-home/);
   assert.match(hudCss, /home-player-hud--avatar-home/);
   assert.match(hudCss, /bottom: calc\(77px \+ env\(safe-area-inset-bottom/);
+  assert.match(hudCss, /--home-avatar-standing-y/);
   assert.equal(shouldShowDesktopComingSoon("/", {
     userAgent:"Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     platform:"Win32",maxTouchPoints:0,touchFirst:false,
