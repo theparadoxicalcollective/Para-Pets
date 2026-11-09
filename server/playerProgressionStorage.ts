@@ -12,7 +12,7 @@ import {
 } from "./playerXpAward";
 
 /** Read-only account progression. No row is created by browsing a profile;
- * existing users safely show Level 1 / 0 XP until a future approved award.
+ * existing users safely show Level 1 / 0 XP until they earn a new award.
  */
 export async function getPlayerProgression(userId: string): Promise<PlayerProgression | null> {
   const [row] = await db.select({
@@ -27,8 +27,8 @@ export async function getPlayerProgression(userId: string): Promise<PlayerProgre
  * awardPlayerXpInTransaction for quests/loot to commit XP and rewards together.
  * A domain event's receipt is unique per user/source/event and is serialized
  * by a per-account row lock.
+ * The caller owns the existing coins/items/quest transaction.
  */
-/** The caller owns the existing coins/items/quest transaction. */
 export async function awardPlayerXpInTransaction(
   tx: any,
   userId: string,
