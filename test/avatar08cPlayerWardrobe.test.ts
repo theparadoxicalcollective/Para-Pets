@@ -147,6 +147,8 @@ test("Bag links to the isolated mobile wardrobe while the PC gate and pet Home r
 test("wardrobe layout scrolls its owned shelf and respects device safe areas", () => {
   const css = read("client/src/pages/PlayerAvatarPage.css");
   assert.match(css, /-webkit-overflow-scrolling: touch/);
+  assert.match(css, /pointer-events: auto/, "viewport portal children must accept user input");
+  assert.match(css, /touch-action: auto/, "parent must not cancel horizontal wardrobe swipes");
   assert.match(css, /env\(safe-area-inset-top/);
   assert.match(css, /env\(safe-area-inset-bottom/);
   assert.match(css, /\.player-avatar-page__inventory\s*\{/);
