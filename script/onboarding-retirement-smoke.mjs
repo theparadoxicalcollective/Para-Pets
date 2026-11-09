@@ -91,6 +91,12 @@ try {
     if(path.startsWith("/api/tutorial/"))return fulfill(route,{message:"retired tutorial must not be used"},410);
     if(path==="/api/auth/me")return fulfill(route,user);
     if(path==="/api/inventory")return fulfill(route,[egg,potion]);
+    // 09/12 reads account progression and the shared PvP/Raid team on Home;
+    // supply their real shapes instead of the legacy catch-all [] fixture.
+    if(path==="/api/player/progression")
+      return fulfill(route,{level:1,totalXp:0,nextLevelTotalXp:null,xpToNextLevel:null});
+    if(path==="/api/player/pet-team")
+      return fulfill(route,{petInventoryIds:[],attackPower:0});
     if(path==="/api/quests/daily" || path==="/api/quests/janson")return fulfill(route,{quests:[]});
     if(path==="/api/quests/ginny-mini-pet")return fulfill(route,{status:"available"});
     if(path==="/api/friends/requests/count")return fulfill(route,{count:0});

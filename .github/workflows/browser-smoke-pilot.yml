@@ -101,3 +101,5 @@ jobs:
           node script/janson-quest-smoke.mjs
           # Real player-avatar UI against isolated, disposable account fixtures.
           node script/player-avatar-wardrobe-smoke.mjs
+          # Stage 09 Home account HUD on small phones/tablets, using isolated player fixtures.
+          node script/home-player-hud-smoke.mjs
