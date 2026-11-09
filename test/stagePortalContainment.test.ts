@@ -22,7 +22,10 @@ test("Clearing ground input converts rendered pointer geometry to logical stage 
   const clearing = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
   assert.match(clearing, /const scaleX = rect\.width \/ Math\.max\(1, logicalWidth\)/);
   assert.match(clearing, /\(e\.clientX - rect\.left\) \/ scaleX/);
-  assert.match(clearing, /rect\.left \+ x \* scaleX/);
+  // Scene-relative display geometry still uses the live viewport, but
+  // the movement origin is the actual touch (not an edge-clamped visual).
+  assert.match(clearing, /const pointerX = \(e\.clientX - rect\.left\) \/ scaleX/);
+  assert.match(clearing, /onJoystickPointerDown\(e, \{ x: e\.clientX, y: e\.clientY \}\)/);
   assert.match(clearing, /!e\.isPrimary/);
   assert.match(clearing, /e\.pointerType === "mouse" && e\.button !== 0/);
   assert.match(clearing, /onPointerCancel=\{onJoystickPointerUp\}/);
