@@ -20,7 +20,7 @@ const fixture = [
   ' spawnPoint:{x:0.5,y:0.7},movementSpeed:0.27,petSize:96,',
   ' worldSize:{width:1,height:1},',
   ' cameraMode:"device-viewport",',
-  ' features:{movement:true,enemies:false,combat:false,rewards:false,interactions:true},',
+  ' features:{movement:new URLSearchParams(location.search).get("walk")!=="off",enemies:false,combat:false,rewards:false,interactions:true},',
   '};',
   'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}>',
   ' <WalkAroundScene config={config} userId="avatar11-fixture" petTemplateId={null} activePet={null} onBack={()=>{}} />',
@@ -67,6 +67,7 @@ try{
     {name:"tablet",width:834,height:1194,created:true},
     {name:"not created",width:390,height:844,created:false},
     {name:"failed read",width:390,height:844,created:false,error:true},
+    {name:"walking disabled",width:390,height:844,created:true,walkOff:true},
   ];
   for(const sc of scenarios){
     const context=await browser.newContext({
@@ -91,7 +92,7 @@ try{
     });
     const avatarRead = page.waitForResponse(r=>
       new URL(r.url()).pathname==="/api/player-avatar");
-    await page.goto("http://127.0.0.1:4201/avatar11-fixture",{waitUntil:"domcontentloaded"});
+    await page.goto("http://127.0.0.1:4201/avatar11-fixture"+(sc.walkOff?"?walk=off":""),{waitUntil:"domcontentloaded"});
     await avatarRead;
     await page.getByTestId("walkaround-world-layer").waitFor({state:"visible"});
     if(sc.created){
@@ -107,6 +108,10 @@ try{
       assert.ok(initial.x>=8&&initial.x<=92&&initial.y>=5&&initial.y<=94,
         sc.name+": spawn lies inside authored walk bounds");
 
+      // The joystick should not occupy any screen space until movement starts.
+      assert.equal(await page.getByTestId("floating-joystick").count(),0,
+        sc.name+": no permanent joystick");
+      if(!sc.walkOff){
       await page.keyboard.down("ArrowRight");
       await page.waitForFunction(()=>
         document.querySelector('[data-testid="walk-avatar-actor"] [data-character-motion]')?.getAttribute("data-character-motion")==="walk");
@@ -126,9 +131,39 @@ try{
       await page.mouse.down();
       await page.mouse.move(startX+45,startY+6,{steps:3});
       await page.getByTestId("floating-joystick").waitFor({state:"visible"});
+      const joystick=page.getByTestId("floating-joystick");
+      const size=await joystick.boundingBox();
+      assert.ok(size && Math.abs(size.width-72)<1 && Math.abs(size.height-72)<1,
+        sc.name+": only a compact 72px joystick appears");
+      assert.equal(await joystick.evaluate(el=>getComputedStyle(el).pointerEvents),"none",
+        sc.name+": visual never intercepts touch events");
+      assert.ok(Number(await joystick.evaluate(el=>getComputedStyle(el).opacity)) < .75,
+        sc.name+": translucent visual stays unobtrusive");
       await page.waitForTimeout(120);
       await page.mouse.up();
       await page.getByTestId("floating-joystick").waitFor({state:"detached"});
+      const back=await page.getByTestId("button-back-walkaround").boundingBox();
+      assert.ok(back,sc.name+": back button is visible");
+      await page.mouse.move(back.x+back.width/2,back.y+back.height/2);
+      await page.mouse.down();
+      assert.equal(await page.getByTestId("floating-joystick").count(),0,
+        sc.name+": interactive Back button never starts movement");
+      await page.mouse.up();
+      }else{
+        await page.keyboard.down("ArrowRight");
+        await page.waitForTimeout(120);
+        await page.keyboard.up("ArrowRight");
+        assert.equal(await page.getByTestId("walk-avatar-actor")
+          .locator('[data-character-motion="walk"]').count(),0,
+          sc.name+": disabled movement cannot start walk");
+        const box=await page.getByTestId("walkaround-world-layer").boundingBox();
+        assert.ok(box);
+        await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+        await page.mouse.down();
+        assert.equal(await page.getByTestId("floating-joystick").count(),0,
+          sc.name+": disabled walk area has no popup joystick");
+        await page.mouse.up();
+      }
     }else{
       assert.equal(await page.getByTestId("walk-avatar-actor").count(),0,
         sc.name+": absent/failed saved avatar cannot be synthesized");
