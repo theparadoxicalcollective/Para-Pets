@@ -874,7 +874,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               visible={!isOverlayActive && !showProfile && !showPetStats &&
                 !showWorldChat && !showSupportModal && !showSpeedUp &&
                 activePetModal === null && !hatchRevealing}
-              onOpen={() => navigate("/player-avatar")}
+              onOpen={() => navigate("/player-avatar?from=home")}
             />
           </ViewportHudPortal>
         )}
