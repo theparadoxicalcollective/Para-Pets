@@ -4,6 +4,7 @@ import type { db as database } from "../db";
 import { playerCharacterBases } from "@shared/schema";
 import {
   completePlayerCharacterParts,
+  resolvePlayerCharacterParts,
   playerCharacterNameSchema,
   playerCharacterPartTypeSchema,
   playerCharacterPartWriteSchema,
@@ -148,14 +149,14 @@ export function registerPlayerCharacterRoutes(
         if (base.revision !== revision.data.expectedRevision)
           return { status: 409 as const, message: "This avatar changed. Reload before publishing." };
         if (!completePlayerCharacterParts(base.draftParts))
-          return { status: 422 as const, message: "Upload and save all seven avatar parts before publishing" };
+          return { status: 422 as const, message: "Upload and save all eight avatar base parts before publishing" };
 
         // A single transaction ensures one default and no partial publish.
         // Draft changes never alter publishedParts until this explicit action.
         await tx.update(playerCharacterBases).set({ isDefault: false })
           .where(eq(playerCharacterBases.isDefault, true));
         const [published] = await tx.update(playerCharacterBases).set({
-          publishedParts: base.draftParts.map(part => ({ ...part })),
+          publishedParts: resolvePlayerCharacterParts(base.draftParts).map(part => ({ ...part })),
           isDefault: true,
           publishedAt: new Date(),
           updatedAt: new Date(),
