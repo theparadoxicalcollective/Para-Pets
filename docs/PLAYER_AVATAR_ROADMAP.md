@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 6 of 12 main phases merged; **Avatar 07A/12 merged in #1033** and **07B/12 implemented on a feature branch**, pending CI, review and merge. Sub-PRs are tracked separately from the twelve primary phases. A merge never implies real-device verification.  
+**Progress:** 7 of 12 main phases merged; **07A/12 (#1033) and 07B/12 (#1034) merged**; **Avatar 08A/12 implemented in a review branch**. Sub-PRs are tracked separately from the twelve primary phases; passing CI or merging does not prove real-device behavior.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -38,8 +38,8 @@
 | **Avatar 05/12** | Account player-level/XP persistence, server receipts, profile API; no reward source cutover | **Merged — GitHub #1031** | CI passed; user confirms merge; deployed progression read/mobile verification not recorded |
 | **Avatar 06/12** | Original seven-part admin Avatar draft/publish editor | **Merged — GitHub #1032** | User confirms CI/merge; real phone/tablet publish flow unverified; anatomy superseded by 07A |
 | **Avatar 07A/12** | Align merged admin anatomy to eight base anchors; preserve legacy Body/Eyes; define separate seven-category, eight-segment clothing contract | **Merged — GitHub #1033** | User confirms merge; mobile/tablet anatomy verification not recorded |
-| **Avatar 07B/12** | One lightweight PlayerCharacterRenderer with idle/walk anchored to new eight-part rig; shared with admin preview | **Implementation — `feature/avatar-07b-shared-idle-walk-renderer`** | Automated CI and real-device admin animation/placement verification pending |
-| **Avatar 08A/12** | Admin Create Clothing: one named item with several part images, **drag-to-fit live avatar viewer**, scale/rotate, layering, and category selection | Planned | Phone/tablet pointer tests, correct part-relative persistence, saved preview, draft validation; pet adornments unchanged |
+| **Avatar 07B/12** | One lightweight PlayerCharacterRenderer with idle/walk anchored to new eight-part rig; shared with admin preview | **Merged — GitHub #1034** | User confirms merge; physical phone/tablet animation/placement verification not recorded |
+| **Avatar 08A/12** | Admin Create Clothing: one named item with multiple part images, **drag-to-fit live avatar viewer**, scale/rotate, depth, and category selection | **Implementation — `feature/avatar-08a-admin-clothing-drag-fit`** | Automated tests, CI, admin mobile/tablet visual fit and server publish verification pending |
 | **Avatar 08B/12** | Per-user created-avatar state, saved appearance, owned clothing inventory, equip/unequip by category | Planned | Authoritative ownership, inventory transfer, null first-time state, retries and account isolation |
 | **Avatar 08C/12** | Player Avatar page: top-centered character viewer, seven circular category buttons, scrollable owned clothing row under viewer | Planned | Thumb targets, narrow phones/tablets, empty states, equip previews, persistence, navigation |
 | **Avatar 09/12** | Main page lower HUD: player name/XP, five unfilled stars, five saved team portraits | Planned | Small-phone/tablet layout, empty team, long names, safe-area |
@@ -92,6 +92,24 @@
 - [ ] Merge only after review. Track deployed behavior separately.
 
 **Deferred:** Clothes/attachments in **08A/12** (part-relative drag-to-fit admin); ownership in **08B**; player avatar page in **08C**; Home switch in **10/12**; walking in active game scenes in **11/12**. This PR does not enable PC gameplay or migrate pet animation logic.
+
+## Avatar 08A/12 — admin clothing creation, fitting and guarded catalog publication
+
+**Scope:** Admin Realm → Add Character → Avatar → Create Clothing. A named clothing item can contain up to eight fitted transparent images, each attached to one eight-part animation anchor. For example, one Bottom item can contain independent left/right pant-leg art. User ownership and equip controls remain 08B/08C.
+
+- [x] Use the 07A garment shape and 07B **shared** character renderer, not PetAnimator, PetCostume equipment, a parallel stage, or legacy iPhone reference coordinates.
+- [x] Add a lazy-loaded clothing editor within the existing Avatar tab, with forest-green and gold controls, clothing name, seven inventory category choices, eight optional part upload boxes, and sensible per-category defaults.
+- [x] Live editor uses an existing **published eight-part base**. Finger/pointer dragging maps through inverse base-part rotation into that body's own image coordinates, so only the selected clothing image moves; the base anatomy remains fixed.
+- [x] Add numeric controls for position, size, rotation and pivots plus front/behind plane selection, and preview Idle/Walk using the shared renderer and the same attached segment images.
+- [x] Save/replace images **one at a time** through the game's existing PNG media processor. Save each segment to a private draft; preserve other clothing images and reject stale revision writes. Unsaved placements cannot disappear merely by switching pieces.
+- [x] Add a private `player_clothing_drafts` schema and rerunnable migration, separate from pet adornments. An explicit **Save Clothing** transaction validates one or more segments and creates/updates a **single shop_items record with type `clothing`**, associated with one published avatar base version.
+- [x] Keep catalog SKU in a reserved **unreleased** world and reject direct shop purchase, generic item creation/editing and deletion of clothing while 08B player ownership is unimplemented. Do not create a catalog item for an incomplete draft.
+- [x] Add tests for two-leg item modeling, rotation-inverted pointer mapping, upload validation, admin authorization, DB revision guards, shop gate, and reuse of the one shared renderer.
+- [ ] Latest head passes TypeScript, test compilation, full automated suite, production build and public-route smoke.
+- [ ] Manual phone/tablet test: create outfit, upload multiple images, drag each piece, rotate body base, save/reload, change clothing slot, depth preview, save item, retry and stale-revision conflicts.
+- [ ] Merge and independently verify deployed database and on-device behavior.
+
+**Deferred:** No player can buy, equip, trade or create a character from this PR. That belongs to **08B** (account-owned clothing/equipment) and **08C** (player wardrobe). The Home create-circle and page cutover remain **10/12**. No PC gameplay changes.
 
 ## Avatar 02/12 implementation contract and acceptance
 
