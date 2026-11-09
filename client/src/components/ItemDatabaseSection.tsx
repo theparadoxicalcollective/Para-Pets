@@ -1791,6 +1791,7 @@ export function ItemPickerModal({
     pets: "#f9a8d4",
     fish: "#67e8f9",
     home: "#bef264",
+    avatars: "#d6bd76",
     items: "#fde68a",
   };
 
