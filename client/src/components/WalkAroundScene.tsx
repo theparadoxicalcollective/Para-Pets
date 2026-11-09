@@ -13,7 +13,7 @@
  * Scene-specific constants (bounds, spawn, speed) come from WalkAroundLocationConfig.
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
@@ -52,7 +52,12 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
   const worldRef = useRef<HTMLDivElement>(null);
   const [hudElement, setHudElement] = useState<HTMLDivElement | null>(null);
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
-  const [viewport, setViewport] = useState({ width: 1, height: 1 });
+  // Use the actual camera on the first frame so spawn/bounds aren't clamped
+  // against a temporary 1px geometry before ResizeObserver measures the scene.
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === "undefined" ? 1 : Math.max(1, window.innerWidth),
+    height: typeof window === "undefined" ? 1 : Math.max(1, window.innerHeight),
+  }));
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
   const [specialReady, setSpecialReady] = useState(false);
@@ -74,6 +79,10 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
   const showLegacyPet = !userId || avatarQuery.isError ||
     (avatarQuery.isSuccess && !walkingAvatar);
   const showActor = !!walkingAvatar || (showLegacyPet && !!petTemplateId);
+  const equippedLayers = useMemo(
+    () => walkingAvatar ? wardrobeLayers(walkingAvatar) : [],
+    [walkingAvatar],
+  );
   const [clearingReady, setClearingReady] = useState(!config.features.combat);
   const [loadingComplete, setLoadingComplete] = useState(!config.features.combat);
 
@@ -209,7 +218,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
               style={{ transform: `scaleX(${facingLeft ? -1 : 1})` }}>
               <PlayerCharacterRenderer
                 parts={walkingAvatar.base.parts}
-                clothingLayers={wardrobeLayers(walkingAvatar)}
+                clothingLayers={equippedLayers}
                 motion={isMoving ? "walk" : "idle"}
                 ariaLabel="Your player avatar exploring the clearing"
               />
