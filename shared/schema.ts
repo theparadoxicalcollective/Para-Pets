@@ -8,6 +8,7 @@ import type { HouseInteriorEffect } from "./housing";
 import type { ParkInteriorEffect } from "./petParkRooms";
 import type { ParkDecorEffect } from "./petParkDecorEffects";
 import type { GardenStagePlacements } from "./garden";
+import type { PlayerCharacterPart } from "./playerCharacter";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -56,6 +57,24 @@ export const users = pgTable("users", {
   signup_referrer: text("signup_referrer"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
+
+// Seven-part player characters use immutable published snapshots. Admin edits
+// only draftParts; gameplay later consumes publishedParts of the selected default.
+// Distinct from the existing user profile-picture /api/users/avatars domain.
+export const playerCharacterBases = pgTable("player_character_bases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  draftParts: jsonb("draft_parts").$type<PlayerCharacterPart[]>().notNull().default(sql`'[]'::jsonb`),
+  publishedParts: jsonb("published_parts").$type<PlayerCharacterPart[] | null>(),
+  isDefault: boolean("is_default").notNull().default(false),
+  revision: integer("revision").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+  publishedAt: timestamp("published_at"),
+}, table => [
+  uniqueIndex("player_character_only_one_default_idx").on(table.isDefault)
+    .where(sql`${table.isDefault} = true`),
+]);
 
 // Player-account progression. Deliberately independent from user_inventory's
 // petLevel/petLevelPoints; no existing pet, coin or activePetId state changes.

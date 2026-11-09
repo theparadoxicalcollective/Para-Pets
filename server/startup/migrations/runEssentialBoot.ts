@@ -1,6 +1,7 @@
 import { ensurePetParkStorage } from "./ensurePetParkStorage";
 import { ensureGardenStorage } from "./ensureGardenStorage";
 import { ensurePlayerProgressionStorage } from "./ensurePlayerProgressionStorage";
+import { ensurePlayerCharacterStorage } from "./ensurePlayerCharacterStorage";
 import { ensureWorldSceneDraftStorage } from "./ensureWorldSceneDraftStorage";
 import { ensureWorldSceneContentStorage } from "./ensureWorldSceneContentStorage";
 import { ensureWorldGardenStorage } from "./ensureWorldGardenStorage";
@@ -14,6 +15,8 @@ export async function runEssentialBoot(): Promise<void> {
   await ensureGardenStorage();
   // Independent player progression must exist before authenticated APIs read it.
   await ensurePlayerProgressionStorage();
+  // Independent seven-part player-character drafts and published snapshots.
+  await ensurePlayerCharacterStorage();
   // Private world drafts must exist before admin endpoints begin serving.
   await ensureWorldSceneDraftStorage();
   await ensureWorldSceneContentStorage();
