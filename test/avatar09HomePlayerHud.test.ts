@@ -15,6 +15,10 @@ test("account HUD uses the existing progression and shared team endpoints, not p
   assert.match(hud, /\["\/api\/player\/progression", userId\]/);
   assert.match(hud, /queryFn: \(\{ signal \}\) => fetchHomePlayerProgression\(signal\)/);
   assert.match(hud, /player\.totalXp\.toLocaleString\(\)/);
+  assert.match(hud, /const data: unknown = await response\.json\(\)/);
+  assert.match(hud, /Number\.isSafeInteger\(data\.level\)/);
+  assert.match(hud, /Number\.isSafeInteger\(data\.totalXp\)/);
+  assert.match(hud, /Player progression response was invalid/);
   assert.doesNotMatch(hud, /petLevelPoints|petLevel\b|petRarity|activePetId|playerXpAward|localStorage/);
   const noCurve = playerProgressionResponse({ level: 3, totalXp: 175 });
   assert.deepEqual([noCurve.level, noCurve.totalXp, noCurve.nextLevelTotalXp, noCurve.xpToNextLevel], [3,175,null,null]);
@@ -57,6 +61,7 @@ test("Home mounts the account HUD on the existing viewport portal without replac
   assert.match(home, /inventory=\{inventory\}/);
   assert.match(home, /inventoryLoading=\{inventoryLoading\}/);
   assert.match(home, /!showPetStats && !showProfile/);
+  assert.match(home, /!showActionMenu && !questGuideMode/);
   assert.match(home, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
   assert.match(home, /data-testid="active-pet-name-level-anchor"/);
   assert.match(home, /data-testid="button-open-pet-menu"/);
