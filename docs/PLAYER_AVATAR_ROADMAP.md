@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 9 of 12 main phases merged through **09/12 (#1038)**; the Home character cutover is implemented on the 10/12 review branch. CI and real-device verification are tracked separately. The 08/12 sub-stages count together as one main phase once 08A–08C have merged; CI or merge is not real-device verification.  
+**Progress:** 10 of 12 main phases merged through **10/12 (#1039)**; the existing exploration walk cutover is on the 11/12 review branch. CI and real-device verification remain separate. The 08/12 sub-stages count together as one main phase once 08A–08C have merged; CI or merge is not real-device verification.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -43,8 +43,8 @@
 | **Avatar 08B/12** | Explicit per-user first-save avatar, immutable published base snapshot, owned clothing API, seven secure equip/unequip slots | **Merged — GitHub #1036** | CI passed on final head; deployed account/device behavior still needs QA |
 | **Avatar 08C/12** | Player Avatar page: top-centered character viewer, seven circular category buttons, scrollable owned clothing row under viewer | **Merged — GitHub #1037** | CI and browser fixture passed; deployed account and physical device QA not recorded |
 | **Avatar 09/12** | Compact Home account HUD: player name, level and real XP, five unfilled player stars, editable saved five-pet PvP/Raid team | **Merged — GitHub #1038** | CI and browser fixtures passed; physical phone/tablet QA remains separately unverified |
-| **Avatar 10/12** | Home displays account-owned animated avatar or gold **Design Character** circle; tap opens wardrobe, returns Home; retires Home pet actor/nameplate/stars/menu while preserving pet-ID destinations | **Implemented on review branch `feature/avatar-10-home-character-cutover`** | CI and isolated real-browser QA pending; physical phone/tablet QA outstanding |
-| **Avatar 11/12** | Avatar walking in existing exploration scenes; separate actor visuals from combat source | Planned | Camera/bounds/ordering/clearing-session tests; no new world publishing |
+| **Avatar 10/12** | Home displays account-owned animated avatar or gold **Design Character** circle; tap opens wardrobe, returns Home; retires Home pet actor/nameplate/stars/menu while preserving pet-ID destinations | **Merged — GitHub #1039** | Owner confirms merge; deployed physical phone/tablet QA outstanding |
+| **Avatar 11/12** | Saved eight-part avatar and equipped clothing walk in the live Bayou Clearing using existing joystick/camera/bounds; featured companion stays combat source | **Implemented on review branch `feature/avatar-11-exploration-walk`** | Automated and real-device checks pending; no new world publishing |
 | **Avatar 12/12** | Approved player XP awards, legacy compatibility audit, performance regression and cleanup | Planned; split if necessary | No duplicated XP; all mobile/tablet acceptance gates |
 
 **Do not mark a phase complete because its PR merged.** Record separately: code implemented → CI passed → merged → live behavior verified. A feature may be marked *released and verified* only with recorded behavior evidence.
@@ -278,3 +278,17 @@
 - [ ] During maintenance (admin-only entry), inspect the actual deployed app on physical iOS/Android/tablets, including first-time save, outfit rendering, platform alignment, smaller screens, Support/Chat/modals, maintenance enforcement and pet routes. Automated fixtures do not substitute for real-device verification.
 
 **Stage boundaries:** 11/12 adds walking across existing live exploration scenes, not new unpublished world-editor content. 12/12 handles approved XP awarding/level progression, legacy pet compatibility cleanup and dead Home code removal after observed stability. No database migration or public maintenance-setting change in 10.
+
+## Avatar 11/12 — walking avatar in existing exploration
+
+**Scope:** The existing Elysian Bayou Clearing `WalkAroundScene` is the game's currently live walk-around scene; it already owns camera tracking, normalised movement boundaries, joystick inputs and the combat session. Display the account-created player avatar while walking, rather than inventing a second world actor or route. Do not publish private World Editor scenes or enable PC gameplay.
+
+- [x] Reuse the same account-scoped `GET /api/player-avatar` query as Home and the existing eight-part `PlayerCharacterRenderer` and `wardrobeLayers`. Idle while stationary; walking when the existing movement controller says moving. Equipped garments move with their respective limbs and the character mirrors left/right.
+- [x] Keep one `usePetWalkController` and unchanged normalised `petPos`, `worldYToDepth` and `cameraTarget`; preserve authored background size, movement bounds, spawn, button UI and viewport portal. Initialize camera geometry from the device viewport rather than a tiny placeholder that could clamp spawn.
+- [x] Keep combat data strictly from the existing inventory-owned **Featured Companion**: `activePetInventoryId`, server session checks, equipment, HP, attack, enemy targeting, and rewards are untouched. This is a **visual** actor change, not a player-combat formula redesign.
+- [x] Players without an explicitly created avatar retain the legacy pet walk sprite; an error fetching the avatar cannot create/replace an account character. While first loading avatar data, do not flash the old sprite. A player without a hatched combat companion receives a nonblocking explanation instead of an endless loading screen.
+- [ ] Automated tests: avatar/garment attachment, idle/walk motion switch, actor mirror, shared camera/depth and movement bounds; historical Clearing combat and session rules; compact phones/tablets; legacy-pet fallback and no-companion state.
+- [ ] Real device after merge: admin-maintenance iOS/Android/tablet testing of joystick start/stop, touch/pointer release, camera tracking and walk bounds, scene layering, visible garment limb movement, combat attack effects and enemy/chest interactions, no altered rewards.
+- [ ] QA confirms the merged scene does not show authored private draft worlds, broaden admin authorizations, or unlock PC.
+
+**Deferred:** Player XP award sources, player combat stats and complete legacy activePetId removal remain for stage 12 after product rules and live-device confirmation. No DB migration and no changes to maintenance settings.
