@@ -96,7 +96,9 @@ test("Molten Blocks reward anti-abuse limits remain unchanged", () => {
 });
 
 test("Molten Blocks scoring and leaderboard contracts remain unchanged", () => {
-  assert.match(moltenRoutes, /submitMoltenBlocksScore\(user\.id, Math\.floor\(score\)\)/);
+  assert.match(moltenRoutes, /source: "minigame_best"/);
+  assert.match(moltenRoutes, /score > prior/);
+  assert.match(moltenRoutes, /playerXpDayKey/);
   assert.match(moltenRoutes, /getMoltenBlocksLeaderboard\(viewerId\)/);
   assert.match(moltenRoutes, /getMoltenBlocksViewerRank\(viewerId\)/);
   assert.match(moltenRoutes, /return res\.json\(\{ top20, viewerRank \}\)/);
