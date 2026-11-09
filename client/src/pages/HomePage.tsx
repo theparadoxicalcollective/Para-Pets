@@ -1,21 +1,55 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
-import { X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { X, Zap, Star, RotateCcw, ShieldPlus, PawPrint, Heart, Shirt, ArrowUpCircle } from "lucide-react";
 import supportIconImg from "@assets/Photoroom_20260708_111738_PM_1783570684580.png";
-import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.png";
-import bgImg from "@assets/uploads/NewActivePetBG.png";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import WorldChatPanel from "@/components/WorldChatPanel";
+import PetDetailPage from "@/components/PetDetailPage";
+import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.png";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import petMenuIconImg from "@assets/uploads/NewPetMenuButton.PNG?url";
+import powerUpIconImg from "@assets/uploads/NewPowerUpButton.PNG?url";
+import levelUpIconImg from "@assets/uploads/NewLevelUpButton.PNG?url";
+import petCareIconImg from "@assets/uploads/NewPetCareButton.PNG?url";
+import closetIconImg from "@assets/uploads/NewClosetBotton.PNG?url";
+import bgImg from "@assets/uploads/NewActivePetBG.png";
+import cardStarImg from "@assets/uploads/CardStar.png";
+import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
+import questIcon from "@assets/generated_images/nav_icon_map.png";
+import mapIcon from "@assets/generated_images/nav_icon_map_new.png";
+import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
+import eggImg from "@assets/generated_images/nav_icon_pets.png";
+import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
+import { playSpeedUp } from "@/lib/sounds";
+import { QuillBadge } from "@/components/QuillBadge";
+import { fireLevelUp } from "@/lib/levelUpEvents";
+import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
-import HomePlayerHud, { type HomeHudPet } from "@/components/HomePlayerHud";
+import HomePlayerHud from "@/components/HomePlayerHud";
 import HomeAvatarStage from "@/components/HomeAvatarStage";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import { coverArtworkPoint } from "@/lib/artworkCoverGeometry";
+import ActivePetPlacement from "@/components/ActivePetPlacement";
+import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
+import PetPowerUpPage from "@/components/PetPowerUpPage";
+import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
+import { getPetPowerUpItems, remainingPetPowerUpSlots } from "@/lib/petPowerUpInventory";
+import PowerUpOverlay from "@/components/PowerUpOverlay";
+import QuestGuideSpotlight from "@/components/QuestGuideSpotlight";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
+import { useActivePetAnchor } from "@/lib/petPresentation";
+import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
+import { coverArtworkPoint, viewportPointToCoverArtwork } from "@/lib/artworkCoverGeometry";
+
+// Phase 10 cuts over Home display while keeping legacy pet/egg handlers
+// isolated for the phase-12 compatibility cleanup. Pet care lives in Bag.
+const AVATAR_10_HOME_CUTOVER = true;
 
 interface HomePageProps {
   user: {
@@ -33,14 +67,122 @@ interface HomePageProps {
   isOverlayActive?: boolean;
 }
 
+interface InventoryItem {
+  inventoryId: string;
+  shopItemId: string;
+  acquiredAt: string;
+  name: string;
+  type: string;
+  imageUrl: string | null;
+  worldId: string;
+  rarity: number | null;
+  hatchTime: number | null;
+  eggImageUrl: string | null;
+  hatchedImageUrl: string | null;
+  petTemplateId: string | null;
+  canFly?: boolean;
+  petNickname: string | null;
+  hatchStartedAt: string | null;
+  isHatched: boolean;
+  isEvolved?: boolean;
+  statBoostType: string | null;
+  statBoostAmount: number | null;
+  specialType: string | null;
+  specialAmount: number | null;
+  petHealth: number;
+  petAtk: number;
+  petDef: number;
+  petLevel: number;
+  petLevelPoints: number;
+  itemsUsedThisLevel: number;
+  quantity: number;
+}
 
-/** Account-owned Home actor. Owned-pet actions, eggs and evolution remain in their inventory-ID routes. */
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
-  // Render the new account's own identity immediately, before the syncing effect runs.
-  const homeUser = currentUser.id === user.id ? currentUser : user;
+  const [lowMemoryPetRenderer] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
+  // Gate sparkle orbs on the pet container having real height.
+  // Uses a continuous ResizeObserver (no disconnect) so if the container
+  // briefly collapses during skeleton→pet transition, the orbs hide instantly
+  // rather than snapping to a horizontal line at y=0.
+  // Threshold of 150px: skeleton is ~88px, a rendered pet is 300px+.
+  const petContainerRef = useRef<HTMLDivElement>(null);
+  const [orbsReady, setOrbsReady] = useState(false);
+  useEffect(() => {
+    const el = petContainerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setOrbsReady(entry.contentRect.height > 150);
+      }
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setCurrentUser(prev => prev.id === user.id ? { ...prev, ...user } : user);
+  }, [user.id, user.activePetId, user.coins, user.profileImage, user.username]);
+
+  const [hatchRevealing, setHatchRevealing] = useState(false);
+  const [hatchFadingOut, setHatchFadingOut] = useState(false);
+  const [hatchTimerDone, setHatchTimerDone] = useState(false);
+  const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  useEffect(() => {
+    const closeForMainNav = () => setShowActionMenu(false);
+    window.addEventListener("para-pets:main-nav-open", closeForMainNav);
+    return () => window.removeEventListener("para-pets:main-nav-open", closeForMainNav);
+  }, []);
+  // Tracks when the action menu was last opened so hotspot buttons can
+  // ignore ghost clicks that Android fires ~300ms after a touch lifts.
+  const menuOpenedAtRef = useRef<number>(0);
+  const [showPetStats, setShowPetStats] = useState(false);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
+  }, [showPetStats]);
+  // Sparkle bursts share the device viewport coordinates of the HUD buttons.
+  const [ringSparkles, setRingSparkles] = useState<
+    { id: number; x: number; y: number; dx: number; dy: number; color: string; size: number; delay: number }[]
+  >([]);
+  const ringSparkIdRef = useRef(0);
+  const burstRingSparkles = useCallback((clientX: number, clientY: number, color: string, count = 14) => {
+    const origin = { x: clientX, y: clientY };
+    const newOnes = Array.from({ length: count }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 40 + Math.random() * 70;
+      return {
+        id: ++ringSparkIdRef.current,
+        x: origin.x,
+        y: origin.y,
+        dx: Math.cos(angle) * dist,
+        dy: Math.sin(angle) * dist,
+        color,
+        size: 6 + Math.random() * 10,
+        delay: Math.random() * 0.12,
+      };
+    });
+    setRingSparkles((s) => [...s, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setRingSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
+  }, []);
+  const [activePetModal, setActivePetModal] = useState<"power_up" | null>(null);
+  const [powerUpFromQuest, setPowerUpFromQuest] = useState(false);
+  const [questGuideMode, setQuestGuideMode] = useState<"powerup" | "feed" | null>(null);
+  const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
+  // Keep last known activePet so modals don't unmount mid-action
+  // when inventory refetches and activePetId hasn't been migrated yet.
+  const frozenActivePetRef = useRef<InventoryItem | null>(null);
   const { toast } = useToast();
+  const [showSpeedUp, setShowSpeedUp] = useState(false);
+  const [showSpeedEffect, setShowSpeedEffect] = useState(false);
+  const [speedEffectLabel, setSpeedEffectLabel] = useState("");
+  const [homeDragOver, setHomeDragOver] = useState(false);
+  const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
+  const homeEggDropRef = useRef<HTMLDivElement>(null);
+  const homeGestureAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => homeGestureAbortRef.current?.abort(), []);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
@@ -48,25 +190,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showWorldChat, setShowWorldChat] = useState(false);
   const [chatHasNewMsg, setChatHasNewMsg] = useState(false);
   const bgChatCountRef = useRef(-1);
-  const [, navigate] = useLocation();
-  const searchString = useSearch();
-  // App's floating-navigation gate still listens for this event. The retired
-  // Home stats modal can no longer open, so reset any stale "open" state.
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: false } }));
-  }, []);
-  useEffect(() => {
-    setCurrentUser(previous => previous.id === user.id ? { ...previous, ...user } : user);
-  }, [user.id, user.activePetId, user.coins, user.profileImage, user.username]);
   useEffect(() => {
     bgChatCountRef.current = -1;
     setChatHasNewMsg(false);
     setShowWorldChat(false);
-    setShowProfile(false);
     setShowSupportModal(false);
     setSupportSent(false);
     setSupportSubject("");
     setSupportMessage("");
+    setShowProfile(false);
+    setShowActionMenu(false);
   }, [user.id]);
 
   // Background poll for world chat — detects new messages even when the panel is closed
@@ -74,7 +207,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const { data: bgChatData } = useQuery<any[]>({
     queryKey: ["/api/world-chat"],
     refetchInterval: showWorldChat || isOverlayActive ? false : 15000,
-    enabled: !!homeUser && !isOverlayActive,
+    enabled: !!currentUser && !isOverlayActive,
     staleTime: 0,
   });
   useEffect(() => {
@@ -90,10 +223,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     bgChatCountRef.current = count;
   }, [bgChatData, showWorldChat]);
 
+  const [, navigate] = useLocation();
+  const searchString = useSearch();
+  const queryClient = useQueryClient();
+
   const supportMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/support-message", {
-      username: homeUser.username,
-      email: homeUser.email,
+      username: currentUser.username,
+      email: currentUser.email,
       subject: supportSubject,
       message: supportMessage,
     }).then(r => r.json()),
@@ -111,34 +248,274 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const destination =
       action === "powerup" || hint === "powerup" ? "pet-power-up" :
       hint === "feed" ? "pet-care" : null;
-    if (!destination) return;
+    if (!destination || currentUser.id !== user.id) return;
     window.history.replaceState({}, "", "/");
-    navigate(homeUser.activePetId
-      ? `/${destination}/${encodeURIComponent(homeUser.activePetId)}?from=quest`
-      : "/bag");
-  }, [searchString, homeUser.activePetId, navigate]);
+    if (AVATAR_10_HOME_CUTOVER) {
+      navigate(currentUser.activePetId
+        ? `/${destination}/${encodeURIComponent(currentUser.activePetId)}?from=quest`
+        : "/bag");
+    } else if (destination === "pet-power-up") {
+      setPowerUpFromQuest(true);
+      setActivePetModal("power_up");
+    } else {
+      setQuestGuideMode("feed");
+    }
+  }, [searchString, user.id, currentUser.id, currentUser.activePetId, navigate]);
 
-  const { data: inventory = [], isLoading: inventoryLoading, isSuccess: inventoryReady, isError: inventoryError } = useQuery<HomeHudPet[]>({
+  // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
+  // Pet taps do not open navigation. A circular swipe over the pet calls
+  // the petting-reward endpoint and shows hearts.
+  const activePetIdRef = useRef<string | null>(null);
+  const petGestureStateRef = useRef<{
+    pid: number;
+    startX: number;
+    startY: number;
+    cx: number;
+    cy: number;
+    lastAngle: number | null;
+    travel: number;
+    pettedThisPress: boolean;
+    moved: boolean;
+    heartTimer: number | null;
+    sparkleTimer: number | null;
+    resetTimer: number | null;
+  } | null>(null);
+  const [petPressed, setPetPressed] = useState(false);
+  const [petCircling, setPetCircling] = useState(false);
+  const [petHearts, setPetHearts] = useState<{ id: number; cx: number; cy: number; dx: number; size: number; delay: number }[]>([]);
+  const [petSparkles, setPetSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; size: number; delay: number }[]>([]);
+  const petHeartIdRef = useRef(0);
+  const petSparkleIdRef = useRef(0);
+  // Particles are rendered in a viewport-owned portal, not the scaled
+  // 390px pet stage. Clamp their screen-space travel to the visible viewport.
+  const clampX = useCallback((x: number, size: number, drift: number) => {
+    const w = window.innerWidth;
+    const half = size / 2;
+    const min = half + Math.max(0, drift) + 4;
+    const max = w - half - Math.max(0, drift) - 4;
+    if (max <= min) return w / 2;
+    return Math.min(Math.max(x, min), max);
+  }, []);
+  const burstPetHearts = useCallback((cx: number, cy: number, count = 6) => {
+    const newOnes = Array.from({ length: count }, () => {
+      const size = 18 + Math.random() * 22;
+      const dx = (Math.random() - 0.5) * 220; // tightened from 320
+      const spawnX = cx + (Math.random() - 0.5) * 160; // tightened from 220
+      const spawnY = cy + (Math.random() - 0.5) * 80;
+      // The viewport portal uses the same client coordinates as the pet bounds.
+      return {
+        id: ++petHeartIdRef.current,
+        cx: clampX(spawnX, size, Math.abs(dx)),
+        cy: spawnY,
+        dx,
+        size,
+        delay: Math.random() * 0.3,
+      };
+    });
+    setPetHearts((h) => [...h, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setPetHearts((h) => h.filter((x) => !ids.has(x.id))), 2400);
+  }, [clampX]);
+  const burstPetSparkles = useCallback((cx: number, cy: number, count = 6) => {
+    const newOnes = Array.from({ length: count }, () => {
+      const size = 6 + Math.random() * 10;
+      const dx = (Math.random() - 0.5) * 90;
+      // Keep the sparkle in viewport coordinates, matching its portal.
+      return {
+        id: ++petSparkleIdRef.current,
+        cx: clampX(cx, size, Math.abs(dx)),
+        cy,
+        dx,
+        dy: (Math.random() - 0.5) * 90,
+        size,
+        delay: Math.random() * 0.2,
+      };
+    });
+    setPetSparkles((s) => [...s, ...newOnes]);
+    const ids = new Set(newOnes.map((n) => n.id));
+    setTimeout(() => setPetSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
+  }, [clampX]);
+  const homePettingRewardMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      if (data?.coins !== undefined) {
+        queryClient.setQueryData(["/api/auth/me"], (old: any) =>
+          old ? { ...old, coins: data.coins } : old
+        );
+        setCurrentUser(prev => ({ ...prev, coins: data.coins }));
+      }
+    },
+  });
+  // Mirrors the Pet Care page: a circular drag triggers continuous heart and
+  // sparkle bursts while the finger keeps moving, and stops 350ms after the
+  // motion ends.
+  const startCircleEffects = useCallback(() => {
+    const g = petGestureStateRef.current;
+    if (!g) return;
+    setPetCircling(true);
+    if (g.heartTimer == null) {
+      const tick = () => {
+        const cur = petGestureStateRef.current;
+        if (!cur) return;
+        burstPetHearts(cur.cx, cur.cy + 30, 2);
+      };
+      tick();
+      g.heartTimer = window.setInterval(tick, 380);
+    }
+    if (g.sparkleTimer == null) {
+      const sparkleTick = () => {
+        const cur = petGestureStateRef.current;
+        if (!cur) return;
+        const ringAngle = Math.random() * Math.PI * 2;
+        const ringR = 60 + Math.random() * 40;
+        burstPetSparkles(cur.cx + Math.cos(ringAngle) * ringR, cur.cy + Math.sin(ringAngle) * ringR, 5);
+      };
+      sparkleTick();
+      g.sparkleTimer = window.setInterval(sparkleTick, 180);
+    }
+    if (g.resetTimer != null) window.clearTimeout(g.resetTimer);
+    g.resetTimer = window.setTimeout(() => {
+      const cur = petGestureStateRef.current;
+      if (cur?.heartTimer != null) { window.clearInterval(cur.heartTimer); cur.heartTimer = null; }
+      if (cur?.sparkleTimer != null) { window.clearInterval(cur.sparkleTimer); cur.sparkleTimer = null; }
+      setPetCircling(false);
+    }, 350);
+  }, [burstPetHearts, burstPetSparkles]);
+  const stopCircleEffects = useCallback(() => {
+    const g = petGestureStateRef.current;
+    if (g?.heartTimer != null) { window.clearInterval(g.heartTimer); g.heartTimer = null; }
+    if (g?.sparkleTimer != null) { window.clearInterval(g.sparkleTimer); g.sparkleTimer = null; }
+    if (g?.resetTimer != null) { window.clearTimeout(g.resetTimer); g.resetTimer = null; }
+    setPetCircling(false);
+    setPetPressed(false);
+  }, []);
+  const activePetTouchHandlers = useMemo(() => ({
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const target = e.currentTarget as HTMLDivElement;
+      target.setPointerCapture?.(e.pointerId);
+      const box = target.getBoundingClientRect();
+      petGestureStateRef.current = {
+        pid: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        cx: box.left + box.width / 2,
+        cy: box.top + box.height / 2,
+        lastAngle: null,
+        travel: 0,
+        pettedThisPress: false,
+        moved: false,
+        heartTimer: null,
+        sparkleTimer: null,
+        resetTimer: null,
+      };
+      setPetPressed(true);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+      const g = petGestureStateRef.current;
+      if (!g || g.pid !== e.pointerId) return;
+      const dx = e.clientX - g.cx;
+      const dy = e.clientY - g.cy;
+      if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > 6) g.moved = true;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 18) return;
+      const angle = Math.atan2(dy, dx);
+      if (g.lastAngle != null) {
+        let d = angle - g.lastAngle;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        g.travel += Math.abs(d);
+        if (g.travel > Math.PI * 0.66) {
+          startCircleEffects();
+          if (!g.pettedThisPress) {
+            g.pettedThisPress = true;
+            const id = activePetIdRef.current;
+            if (id) homePettingRewardMutation.mutate(id);
+          }
+        }
+      }
+      g.lastAngle = angle;
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
+      const g = petGestureStateRef.current;
+      if (!g || g.pid !== e.pointerId) { stopCircleEffects(); petGestureStateRef.current = null; return; }
+      const wasPet = g.pettedThisPress;
+      const movedFar = g.moved;
+      stopCircleEffects();
+      petGestureStateRef.current = null;
+      // Treat as a tap (open the action menu) only when the gesture didn't
+      // turn into a circular pet AND the finger barely moved.
+      // Pet taps do not open the navigation menu; preserve circular petting gestures.
+      void wasPet;
+      void movedFar;
+    },
+    onPointerCancel: () => { stopCircleEffects(); petGestureStateRef.current = null; },
+  }), [homePettingRewardMutation, startCircleEffects, stopCircleEffects]);
+
+  const hatchHomeMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", `/api/pet/${inventoryId}/hatch-check`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (!data.isHatched) return;
+
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+
+      if (activePet) {
+        const cache = {
+          hatchedImageUrl: activePet.hatchedImageUrl,
+          imageUrl: activePet.imageUrl,
+          petTemplateId: activePet.petTemplateId,
+          name: activePet.petNickname || activePet.name,
+        };
+        setHatchedPetCache(cache);
+        const preloadUrl = cache.hatchedImageUrl || cache.imageUrl;
+        if (preloadUrl) {
+          const img = new Image();
+          img.src = preloadUrl;
+        }
+      }
+      setHatchRevealing(true);
+      setHatchTimerDone(false);
+      setHatchFadingOut(false);
+      setTimeout(() => setHatchTimerDone(true), 3500);
+    },
+  });
+
+  const { data: inventory = [], isLoading: inventoryLoading, isSuccess: inventoryReady, isError: inventoryError } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
   });
 
-  // Measure the existing Home backdrop and artwork in viewport coordinates.
-  // Preserve cover-cropping and the original platform landmark on all devices.
-  const homeBackdropRef = useRef<HTMLDivElement | null>(null);
-  const [homeBackdropRect, setHomeBackdropRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
-  const [homeArtworkSize, setHomeArtworkSize] = useState({ width: 0, height: 0 });
+  const activePet = currentUser.activePetId
+    ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
+    : null;
+
+  // Measure the actual viewport backdrop and loaded artwork independently of
+  // the pet scene. The background is cover-scaled and may crop on wide devices.
+  const activePetBackdropRef = useRef<HTMLDivElement | null>(null);
+  const activePetContentRef = useRef<HTMLDivElement | null>(null);
+  const [activePetContentRect, setActivePetContentRect] = useState({ left: 0, top: 0 });
+  const [activePetBackdropRect, setActivePetBackdropRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [activePetArtworkSize, setActivePetArtworkSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const image = new Image();
-    image.onload = () => setHomeArtworkSize({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onload = () => setActivePetArtworkSize({ width: image.naturalWidth, height: image.naturalHeight });
     image.src = bgImg;
     return () => { image.onload = null; };
   }, []);
   useEffect(() => {
-    const element = homeBackdropRef.current;
+    const element = activePetBackdropRef.current;
     if (!element) return;
     const update = () => {
       const { left, top, width, height } = element.getBoundingClientRect();
-      setHomeBackdropRect(previous => previous.left === left && previous.top === top && previous.width === width && previous.height === height ? previous : { left, top, width, height });
+      setActivePetBackdropRect(previous => previous.left === left && previous.top === top && previous.width === width && previous.height === height ? previous : { left, top, width, height });
+      const contentRect = activePetContentRef.current?.getBoundingClientRect();
+      if (contentRect) setActivePetContentRect(previous => previous.left === contentRect.left && previous.top === contentRect.top ? previous : { left: contentRect.left, top: contentRect.top });
     };
     update();
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
@@ -154,19 +531,265 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       window.visualViewport?.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("scroll", update);
     };
-  }, []);
+  }, [activePetModal]);
 
+  const activePetAnchorQuery = useActivePetAnchor(true);
+  const [activePetSceneRect, setActivePetSceneRect] = useState({ width: 0, height: 0, left: 0, top: 0 });
+  const activePetSceneRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const element = activePetSceneRef.current;
+    if (!element) return;
+    const update = () => {
+      const { width, height, left, top } = element.getBoundingClientRect();
+      setActivePetSceneRect(previous => previous.width === width && previous.height === height && previous.left === left && previous.top === top ? previous : { width, height, left, top });
+    };
+    update();
+    // A modal transition can restore the Active Pet viewport after the first
+    // synchronous measurement. Measure again after layout settles so rarity
+    // stars use the same scene anchor as the pet without a route remount.
+    const settleFrame = window.requestAnimationFrame(update);
+    // getBoundingClientRect is viewport-relative: scrolling or moving the
+    // visual viewport changes left/top even when the scene size is unchanged.
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(element);
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      window.cancelAnimationFrame(settleFrame);
+      observer?.disconnect();
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
+  }, [activePet?.petTemplateId, activePet?.isHatched, activePetModal]);
+  // Calibration only: report where the current live scene baseline lands in
+  // intrinsic artwork pixels. Do not move the pet until the stone-platform
+  // landmark has been verified against the actual uploaded image.
+  const activePetPlatformCalibration = viewportPointToCoverArtwork(
+    activePetArtworkSize,
+    activePetBackdropRect,
+    { x: activePetSceneRect.left + activePetSceneRect.width / 2, y: activePetSceneRect.top + activePetSceneRect.height },
+  );
   // The actual uploaded artwork is 1620×2160. The stone platform's visible
   // standing surface is centered near (810, 1475) intrinsic image pixels.
   // Use the image's real natural dimensions to project this landmark through
   // background-size: cover instead of anchoring to a percentage of a phone.
-  const homePlatformPoint = coverArtworkPoint(
-    homeArtworkSize, homeBackdropRect,
-    { x: homeArtworkSize.width / 2, y: homeArtworkSize.height * (1475 / 2160) },
+  const activePetGroundViewport = coverArtworkPoint(
+    activePetArtworkSize, activePetBackdropRect,
+    { x: activePetArtworkSize.width / 2, y: activePetArtworkSize.height * (1475 / 2160) },
+  );
+  const activePetChromeOffset = useMemo(() => {
+    if (!activePet?.isHatched || !activePet.petTemplateId) return { x: 0, y: 0 };
+    // The saved Admin anchor is a percent of the authored scene, not a 390px device.
+    // Use the rendered scene width for both axes so movement tracks the pet
+    // across phones, tablets and desktop without changing persisted offsets.
+    return petChromeAnchorOffset(activePetAnchorQuery.anchor, activePetSceneRect.width);
+  }, [
+    activePet?.isHatched,
+    activePet?.petTemplateId,
+    activePetAnchorQuery.anchor.x,
+    activePetAnchorQuery.anchor.y,
+    activePetSceneRect.width,
+  ]);
+
+  // Freeze the last valid activePet so power-up modals stay mounted during
+  // inventory refetches (avoids modal closing mid power-up).
+  if (activePet) frozenActivePetRef.current = activePet;
+  activePetIdRef.current = activePet?.inventoryId ?? null;
+
+  // Dismiss only when both: the 3.5s animation timer is done AND the
+  // inventory confirms isHatched=true — so the egg never flickers back.
+  // Must be declared after `activePet` to avoid a TDZ error.
+  useEffect(() => {
+    if (!hatchTimerDone || !hatchRevealing || !activePet?.isHatched) return;
+    setHatchFadingOut(true);
+    const id = setTimeout(() => {
+      setHatchRevealing(false);
+      setHatchFadingOut(false);
+      setHatchTimerDone(false);
+      setHatchedPetCache(null);
+    }, 600);
+    return () => clearTimeout(id);
+  }, [hatchTimerDone, hatchRevealing, activePet?.isHatched]);
+
+
+  const hatchTimeItems = inventory.filter(
+    (item) => item.type === "special" && item.specialType === "hatch_time"
   );
 
-  // Never paint the previous account's local modal/roster state while a new
-  // account's props are settling. The syncing effect restores Home next render.
+  const speedUpMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId, specialAmount }: { petInvId: string; itemInvId: string; specialAmount?: number | null }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      playSpeedUp();
+      setShowSpeedUp(false);
+      setHomeDragging(null);
+      setHomeDragOver(false);
+      // Reflect the server-confirmed hatch progress immediately; the background
+      // invalidation still reconciles potion quantity and enriched inventory.
+      queryClient.setQueryData<InventoryItem[]>(["/api/inventory"], (current) =>
+        current?.map((item) =>
+          item.inventoryId === variables.petInvId
+            ? { ...item, hatchStartedAt: data?.hatchStartedAt ?? item.hatchStartedAt }
+            : item
+        )
+      );
+      setSpeedEffectLabel(`-${variables.specialAmount ?? "?"} min`);
+      setShowSpeedEffect(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "Hatching potion could not be used", description: "Please drag it onto your egg again to retry.", variant: "destructive" });
+    },
+  });
+
+  // ── Active pet action mutations ──────────────────────────────────────────────
+  // Shared with the pet-ID route; retain exactly the existing stack-by-shop
+  // behavior while Home's active-pet Power Up modal remains in use.
+  const { powerUpItems, specialItems: powerUpSpecialItems } = getPetPowerUpItems(inventory);
+
+  const activePetForModal = activePet ?? frozenActivePetRef.current;
+  const requireHatchedActivePet = () => {
+    if (activePetForModal?.isHatched) return true;
+    toast({ title: "Must hatch Egg first" });
+    return false;
+  };
+
+  const powerUpMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/power-up`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      const item = inventory.find(i => i.inventoryId === variables.itemInvId);
+      const boostLabel = item
+        ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}`
+        : "Power Up!";
+      setPetModalSuccess({ type: item?.statBoostType === "lvl" ? "level" : "stat", label: boostLabel });
+      if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
+        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId, activePetForModal.inventoryId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
+    },
+    onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
+    },
+  });
+
+  const useSpecialMutation = useMutation({
+    mutationFn: async ({ petInvId, itemInvId }: { petInvId: string; itemInvId: string }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      const item = inventory.find(i => i.inventoryId === variables.itemInvId);
+      const isHatchTime = item?.specialType === "hatch_time";
+      const isFillEvolutionNode = item?.specialType === "fill_evolution_node";
+      const label = isFillEvolutionNode
+        ? "NODE FILLED!"
+        : isHatchTime
+          ? `-${item?.specialAmount || "?"} min`
+          : `+${item?.specialAmount || "?"} LVL pts`;
+      const effectType: "stat" | "level" | "hatch" = isHatchTime ? "hatch" : "level";
+      setPetModalSuccess({ type: effectType, label });
+      if (isFillEvolutionNode) {
+        window.dispatchEvent(new CustomEvent("pet_evolution_refresh"));
+      }
+      if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
+        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId, activePetForModal.inventoryId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
+    },
+  });
+
+  const handleModalUseItem = useCallback((item: PowerUpItem) => {
+    if (!activePetForModal) return;
+    if (item.type === "special") {
+      useSpecialMutation.mutate({ petInvId: activePetForModal.inventoryId, itemInvId: item.inventoryId });
+    } else {
+      powerUpMutation.mutate({ petInvId: activePetForModal.inventoryId, itemInvId: item.inventoryId });
+    }
+  }, [activePetForModal?.inventoryId, powerUpMutation.mutate, useSpecialMutation.mutate]);
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
+    if (!activePet) return;
+    homeGestureAbortRef.current?.abort();
+    const gestureController = new AbortController();
+    homeGestureAbortRef.current = gestureController;
+
+    // Normal drag-and-drop of hatch-time items onto the active egg.
+    e.preventDefault();
+    const petInvId = activePet.inventoryId;
+    const startX = e.clientX, startY = e.clientY;
+    let dragActive = false;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+      if (dist > 6 && !dragActive) {
+        dragActive = true;
+        setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+      }
+      if (dragActive) {
+        setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        if (dropRect) {
+          const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+                       ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
+          setHomeDragOver(over);
+        }
+      }
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      gestureController.abort();
+      if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
+      setHomeDragOver(false);
+      if (!dragActive) {
+        // Tap: e.preventDefault() suppresses onClick on mobile — fire directly
+        if (!speedUpMutation.isPending) {
+          speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+        }
+        setHomeDragging(null);
+        return;
+      }
+      const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+      const overDrop = !!(dropRect &&
+        ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+        ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom);
+      if (overDrop) {
+        speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+      }
+      setHomeDragging(null);
+    };
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      gestureController.abort();
+      if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
+      setHomeDragOver(false);
+      setHomeDragging(null);
+    };
+    document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+    document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+    document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
+  };
+
+  const petLoading = currentUser.activePetId && inventoryLoading;
+
+  // Do not render the previous account's profile, avatar or pet inventory
+  // while the authenticated identity is being synchronized after a switch.
   if (currentUser.id !== user.id) return null;
 
   return (
@@ -176,14 +799,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{ caretColor: "transparent" }}
     >
+      {activePetModal !== "power_up" && (
       <ViewportBackdropPortal targetId="game-viewport-page">
         <div
           data-testid="active-pet-viewport-backdrop"
-          ref={homeBackdropRef}
-          data-artwork-width={homeArtworkSize.width || undefined}
-          data-artwork-height={homeArtworkSize.height || undefined}
-          data-backdrop-width={homeBackdropRect.width || undefined}
-          data-backdrop-height={homeBackdropRect.height || undefined}
+          ref={activePetBackdropRef}
+          data-artwork-width={activePetArtworkSize.width || undefined}
+          data-artwork-height={activePetArtworkSize.height || undefined}
+          data-backdrop-width={activePetBackdropRect.width || undefined}
+          data-backdrop-height={activePetBackdropRect.height || undefined}
           className="active-pet-viewport-backdrop absolute inset-0 overflow-hidden pointer-events-none"
           style={{
             backgroundImage: `url(${bgImg})`,
@@ -194,7 +818,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         >
           <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
           {/* Background-only depth: darken busy forest edges while leaving a soft,
-              diffuse clearing behind the player avatar. No position changes. */}
+              diffuse clearing behind pets of every rarity. No pet-position changes. */}
           <div
             data-testid="active-pet-background-depth"
             aria-hidden="true"
@@ -215,8 +839,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           </div>
         </div>
       </ViewportBackdropPortal>
+      )}
 
-      <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: isOverlayActive ? "hidden" : "visible" }}>
+      <div ref={activePetContentRef} className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
         <ViewportHudPortal>
           <div
             data-testid="viewport-hud-topbar"
@@ -227,47 +852,842 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               right: 0,
               zIndex: 40,
               pointerEvents: "none",
-              visibility: isOverlayActive ? "hidden" : "visible",
+              visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible",
             }}
           >
             <div style={{ pointerEvents: "auto" }}>
-              <TopBar user={homeUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+              <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
             </div>
           </div>
         </ViewportHudPortal>
 
-        {/* Account XP and five-pet PvP/Raid roster reuse existing services. */}
+        {/* Stage 09 account HUD: the existing active-pet scene/menu stays live
+            until 10/12.  Roster writes reuse PvP/Raid's one persisted team. */}
         <ViewportHudPortal>
           <HomePlayerHud
-            userId={homeUser.id}
-            username={homeUser.username}
+            userId={currentUser.id}
+            username={currentUser.username}
             inventory={inventory}
             inventoryLoading={inventoryLoading}
             inventoryReady={inventoryReady}
             inventoryError={inventoryError}
-            avatarHome
-            visible={!isOverlayActive && !showProfile && !showSupportModal && !showWorldChat}
+            avatarHome={AVATAR_10_HOME_CUTOVER}
+            visible={!isOverlayActive && !showPetStats && !showProfile &&
+              !showSupportModal && !showWorldChat && activePetModal === null &&
+              !showSpeedUp && !hatchRevealing && !showActionMenu && !questGuideMode}
           />
         </ViewportHudPortal>
 
         {/* Player-owned avatar is positioned from the real stone-platform
             landmark, not the active pet's ID or the old reference stage. */}
-        <ViewportHudPortal>
+        {AVATAR_10_HOME_CUTOVER && (
+          <ViewportHudPortal>
             <HomeAvatarStage
-              userId={homeUser.id}
-              landmark={homePlatformPoint}
-              backdrop={homeBackdropRect}
-              visible={!isOverlayActive && !showProfile && !showSupportModal && !showWorldChat}
+              userId={currentUser.id}
+              landmark={activePetGroundViewport}
+              backdrop={activePetBackdropRect}
+              visible={!isOverlayActive && !showProfile && !showPetStats &&
+                !showWorldChat && !showSupportModal && !showSpeedUp &&
+                activePetModal === null && !hatchRevealing}
               onOpen={() => navigate("/player-avatar?from=home")}
             />
-        </ViewportHudPortal>
+          </ViewportHudPortal>
+        )}
 
+        {/* Compatibility island: fully unmounted for Home avatar cutover.
+            Owned-pet actions, eggs and quests now have dedicated routes.
+            Cleanup of this retired markup is intentionally phase 12. */}
+        {!AVATAR_10_HOME_CUTOVER && (<>
+        {activePet && !(activePet.isHatched && activePet.petTemplateId) && (
+          <div
+            data-testid="display-pet-rarity-stars"
+            className="relative shrink-0 flex justify-center items-center"
+            style={{
+              pointerEvents: "none",
+              zIndex: 30,
+              // Hatched pets use the scene-relative stars below. Eggs and
+              // legacy pets alone retain this original flow positioning.
+              paddingTop: "155px",
+              marginBottom: "-52px",
+              transform: `translate(${activePetChromeOffset.x}px, ${activePetChromeOffset.y}px)`,
+            }}
+          >
+            <div style={{
+              position: "absolute",
+              width: "280px",
+              height: "65px",
+              background: "radial-gradient(ellipse, rgba(240,192,64,0.2) 0%, rgba(240,160,20,0.08) 50%, transparent 70%)",
+              filter: "blur(18px)",
+              borderRadius: "50%",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }} />
+            {Array.from({ length: 5 }).map((_, i) => {
+              const t = (i - 2) / 2;
+              const curveY = -(1 - t * t) * 12;
+              const filled = i < (activePet.rarity || 0);
+              return (
+                <img
+                  key={i}
+                  data-testid="home-active-pet-rarity-star"
+                  src={cardStarImg}
+                  alt=""
+                  width={58}
+                  height={58}
+                  style={{
+                    transform: `translateY(${curveY}px)`,
+                    margin: "0 2px",
+                    position: "relative",
+                    zIndex: 1,
+                    opacity: filled ? 1 : 0.15,
+                    filter: filled
+                      ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 5px rgba(240,192,64,0.5)) drop-shadow(0 0 10px rgba(240,192,64,0.25))"
+                      : "grayscale(1) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)",
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
+          <div
+            ref={(element) => { activePetSceneRef.current = element; }}
+            data-platform-artwork-x={activePetPlatformCalibration?.x.toFixed(1)}
+            data-platform-artwork-y={activePetPlatformCalibration?.y.toFixed(1)}
+            className="relative flex items-center justify-center"
+            style={{ pointerEvents: "auto", zIndex: 2, width: activePet ? "min(88vw, 38dvh, 520px)" : "min(100%, 520px)", ...(activePet ? {
+              position: "absolute" as const,
+              top: activePetGroundViewport ? activePetGroundViewport.y - activePetContentRect.top : "50%",
+              left: activePetGroundViewport ? activePetGroundViewport.x - activePetContentRect.left : "50%",
+              transform: "translate(-50%, -100%)",
+            } : { marginBottom: undefined }) }}
+          >
+
+            {/* Hatched rarity stars share the pet scene, never a fixed viewport rect. */}
+            {activePet && activePet.isHatched && activePet.petTemplateId && (
+              <div data-testid="display-pet-rarity-stars" className="absolute flex justify-center items-center"
+                style={{ pointerEvents: "none", visibility: activePetModal ? "hidden" : "visible", zIndex: 600, top: "-20%", left: "50%", transform: "translateX(-50%)", width: "max-content" }}>
+            <div style={{
+              position: "absolute",
+              width: "280px",
+              height: "65px",
+              background: "radial-gradient(ellipse, rgba(240,192,64,0.2) 0%, rgba(240,160,20,0.08) 50%, transparent 70%)",
+              filter: "blur(18px)",
+              borderRadius: "50%",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }} />
+            {Array.from({ length: 5 }).map((_, i) => {
+              const t = (i - 2) / 2;
+              const curveY = -(1 - t * t) * 12;
+              const filled = i < (activePet.rarity || 0);
+              return (
+                <img
+                  key={i}
+                  data-testid="home-active-pet-rarity-star"
+                  src={cardStarImg}
+                  alt=""
+                  width={58}
+                  height={58}
+                  style={{
+                    transform: `translateY(${curveY}px)`,
+                    margin: "0 2px",
+                    position: "relative",
+                    zIndex: 1,
+                    opacity: filled ? 1 : 0.15,
+                    filter: filled
+                      ? "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 5px rgba(240,192,64,0.5)) drop-shadow(0 0 10px rgba(240,192,64,0.25))"
+                      : "grayscale(1) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)",
+                  }}
+                />
+              );
+            })}
+              </div>
+            )}
+
+            {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
+            {orbsReady && !activePetModal && activePet && (activePet.rarity || 0) >= 3 && (() => {
+              const rarity = activePet.rarity || 0;
+              const is5 = rarity >= 5;
+              const is4 = rarity >= 4;
+
+              // sizes: "xs"=2px core/8 spread, "sm"=4px/16, "md"=8px/28, "lg"=14px/44
+              type Orb = { left?: string; right?: string; top: string; color: string; anim: string; dur: string; delay: string; size: "xs"|"sm"|"md"|"lg" };
+
+              // 3-star: 6 orbs spread around the pet body
+              const orbs3: Orb[] = [
+                { left:"10%",  top:"65%", color:"#f0c040", anim:"sparkOrb0", dur:"4.5s", delay:"0s",   size:"xs" },
+                { right:"11%", top:"62%", color:"#fffde0", anim:"sparkOrb2", dur:"5.2s", delay:"1.4s", size:"xs" },
+                { left:"20%",  top:"40%", color:"#f0c040", anim:"sparkOrb4", dur:"4.8s", delay:"0.7s", size:"sm" },
+                { left:"42%",  top:"18%", color:"#f0c040", anim:"sparkOrb8", dur:"5.0s", delay:"1.5s", size:"sm" },
+                { left:"30%",  top:"55%", color:"#f0d060", anim:"sparkOrb1", dur:"3.9s", delay:"2.8s", size:"xs" },
+                { right:"30%", top:"52%", color:"#f0c040", anim:"sparkOrb5", dur:"4.7s", delay:"1.0s", size:"sm" },
+              ];
+              // 4-star: 10 orbs with xs/sm/md coverage
+              const orbs4: Orb[] = [
+                { left:"5%",   top:"50%", color:"#f0c040", anim:"sparkOrb0", dur:"3.4s", delay:"0s",   size:"sm" },
+                { right:"7%",  top:"48%", color:"#f0d060", anim:"sparkOrb2", dur:"3.8s", delay:"1.5s", size:"sm" },
+                { left:"24%",  top:"22%", color:"#f0c040", anim:"sparkOrb4", dur:"4.6s", delay:"2.0s", size:"md" },
+                { right:"22%", top:"24%", color:"#fffde0", anim:"sparkOrb5", dur:"4.0s", delay:"1.1s", size:"sm" },
+                { left:"38%",  top:"12%", color:"#f0c040", anim:"sparkOrb8", dur:"5.0s", delay:"1.8s", size:"sm" },
+                { left:"55%",  top:"42%", color:"#f0c040", anim:"sparkOrbA", dur:"4.4s", delay:"1.2s", size:"md" },
+                { left:"12%",  top:"70%", color:"#fffde0", anim:"sparkOrb1", dur:"4.2s", delay:"0.8s", size:"xs" },
+                { right:"14%", top:"68%", color:"#fffde0", anim:"sparkOrb3", dur:"5.1s", delay:"0.3s", size:"xs" },
+                { left:"44%",  top:"72%", color:"#f0c040", anim:"sparkOrb6", dur:"3.5s", delay:"3.1s", size:"xs" },
+                { left:"33%",  top:"38%", color:"#fffde0", anim:"sparkOrbB", dur:"4.2s", delay:"3.3s", size:"xs" },
+              ];
+              // 5-star extras: 8 calm gold sparkles
+              const orbs5extra: Orb[] = [
+                { left:"2%",   top:"44%", color:"#ffd700", anim:"calmSparkle0", dur:"7.2s", delay:"0.6s",  size:"md" },
+                { right:"3%",  top:"41%", color:"#e8a020", anim:"calmSparkle1", dur:"6.5s", delay:"1.9s",  size:"md" },
+                { left:"17%",  top:"78%", color:"#fff0a0", anim:"calmSparkle2", dur:"8.0s", delay:"2.5s",  size:"sm" },
+                { right:"16%", top:"76%", color:"#f0c040", anim:"calmSparkle3", dur:"7.5s", delay:"0.1s",  size:"sm" },
+                { left:"46%",  top:"8%",  color:"#ffeaa0", anim:"calmSparkle4", dur:"6.8s", delay:"3.0s",  size:"md" },
+                { right:"1%",  top:"60%", color:"#d4a020", anim:"calmSparkle0", dur:"6.3s", delay:"2.2s",  size:"md" },
+                { left:"60%",  top:"60%", color:"#e8a020", anim:"calmSparkle3", dur:"6.9s", delay:"2.9s",  size:"md" },
+                { right:"12%", top:"22%", color:"#ffeaa0", anim:"calmSparkle5", dur:"8.1s", delay:"3.4s",  size:"sm" },
+              ];
+
+              const allOrbs = is5 ? [...orbs4, ...orbs5extra] : is4 ? orbs4 : orbs3;
+
+              // Glow bloom: bright core + single soft spread — 2 layers for GPU performance
+              const renderMote = (orb: Orb, idx: number) => {
+                const sizeMap = { xs: { core: 2, spread: 8 }, sm: { core: 4, spread: 16 }, md: { core: 8, spread: 28 }, lg: { core: 14, spread: 44 } };
+                const { core, spread } = sizeMap[orb.size];
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      position: "absolute",
+                      left: (orb as any).left,
+                      right: (orb as any).right,
+                      top: orb.top,
+                      width: core,
+                      height: core,
+                      borderRadius: "50%",
+                      background: "white",
+                      boxShadow: `0 0 ${core * 1.5}px ${core * 0.8}px rgba(255,255,255,0.9), 0 0 ${spread * 2}px ${spread}px ${orb.color}88`,
+                      animation: `${orb.anim} ${orb.dur} ease-in-out infinite ${orb.delay}`,
+                      willChange: "transform, opacity",
+                      pointerEvents: "none",
+                      zIndex: 2,
+                    }}
+                  />
+                );
+              };
+
+              return (
+                <>
+                  {/* Soft aura behind the pet */}
+                  <div style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: is5
+                      ? "radial-gradient(ellipse at center, rgba(255,215,0,0.18) 0%, rgba(232,160,32,0.1) 45%, transparent 72%)"
+                      : is4
+                        ? "radial-gradient(ellipse at center, rgba(240,192,64,0.12) 0%, transparent 60%)"
+                        : "radial-gradient(ellipse at center, rgba(240,192,64,0.06) 0%, transparent 55%)",
+                    animation: is5 ? "sparkAura5 4s ease-in-out infinite" : "sparkAura 4.5s ease-in-out infinite",
+                    willChange: "transform, opacity",
+                    pointerEvents: "none",
+                    zIndex: 0,
+                  }} />
+                  {allOrbs.map(renderMote)}
+                </>
+              );
+            })()}
+
+            <div
+              data-testid="active-pet-canonical-ambient"
+              className="active-pet-canonical-ambient w-full rounded-xl flex flex-col items-center justify-center"
+              style={{
+                background: "radial-gradient(ellipse at center, rgba(45,122,79,0.15) 0%, transparent 70%)",
+                border: activePet ? "none" : "1px dashed rgba(127,191,176,0.2)",
+              }}
+            >
+              {petLoading ? (
+                <div className="flex flex-col items-center gap-3 animate-pulse py-8">
+                  <div
+                    className="w-20 h-20 rounded-full"
+                    style={{
+                      background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
+                      border: "2px dashed rgba(127,191,176,0.3)",
+                    }}
+                  />
+                  <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Summoning companion...</p>
+                </div>
+              ) : activePet ? (
+                // NOTE: NO `animate-float` here. The wrapper used to ride
+                // the global 6px float keyframe, which lifted the entire
+                // active pet — flying or not — so even ground species
+                // looked like they were hovering off the platform. The
+                // PetAnimator already chooses between IDLE_ANIMATIONS
+                // (canFly: head bobs up/down) and IDLE_ANIMATIONS_GROUND
+                // (rotate-only head) based on the template's canFly
+                // flag, so per-pet motion is correct without this outer
+                // float. Don't add it back.
+                <div className="relative w-full flex flex-col items-center" data-testid="display-active-pet">
+                  {/* Subtle gold glow under/behind pet for rarity 3+ */}
+                  {(activePet.rarity || 0) >= 3 && (
+                    <div style={{
+                      position: "absolute",
+                      bottom: "8%",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: "55%",
+                      height: "30%",
+                      background: (activePet.rarity || 0) >= 5
+                        ? "radial-gradient(ellipse, rgba(200,160,255,0.28) 0%, rgba(240,192,64,0.18) 45%, transparent 72%)"
+                        : (activePet.rarity || 0) >= 4
+                          ? "radial-gradient(ellipse, rgba(240,192,64,0.22) 0%, rgba(240,160,20,0.1) 55%, transparent 75%)"
+                          : "radial-gradient(ellipse, rgba(240,192,64,0.12) 0%, transparent 70%)",
+                      filter: "blur(14px)",
+                      animation: "sparkAura 5s ease-in-out infinite",
+                      willChange: "transform, opacity",
+                      pointerEvents: "none",
+                      zIndex: 0,
+                    }} />
+                  )}
+                  <div
+                    className="w-full flex items-center justify-center"
+                    style={{
+                      background: "transparent",
+                      position: "relative",
+                      zIndex: 1,
+                    }}
+                  >
+                    {createPortal(<div className="fixed inset-0 pointer-events-none" style={{ zIndex: 35 }} data-testid="active-pet-viewport-particles">
+                    {petHearts.map((h) => (
+                      <div
+                        key={h.id}
+                        className="fixed pointer-events-none feed-heart-rise"
+                        style={{
+                          left: h.cx,
+                          top: h.cy,
+                          width: h.size,
+                          height: h.size,
+                          ["--dx" as any]: `${h.dx}px`,
+                          animationDelay: `${h.delay}s`,
+                          // Must sit ABOVE the active-pet wrapper (z-520) so
+                          // hearts visibly float over the pet, not behind it.
+                          zIndex: 540,
+                          color: "#ff5d6c",
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width={h.size} height={h.size}>
+                          <path d="M12 21s-7-4.35-9.5-9.05C.5 7.45 4 4 7.5 4c2.04 0 3.7 1.1 4.5 2.55C12.8 5.1 14.46 4 16.5 4 20 4 23.5 7.45 21.5 11.95 19 16.65 12 21 12 21z" />
+                        </svg>
+                      </div>
+                    ))}
+                    {petSparkles.map((s) => (
+                      <div
+                        key={s.id}
+                        className="fixed pointer-events-none feed-sparkle"
+                        style={{
+                          left: s.cx,
+                          top: s.cy,
+                          width: s.size,
+                          height: s.size,
+                          ["--dx" as any]: `${s.dx}px`,
+                          ["--dy" as any]: `${s.dy}px`,
+                          animationDelay: `${s.delay}s`,
+                          // Sit above the active-pet wrapper (z-520).
+                          zIndex: 541,
+                          color: "#ffe27a",
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width={s.size} height={s.size}>
+                          <path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16l-1.6-5.2L5 9.2l5.4-1.6L12 2z" />
+                        </svg>
+                      </div>
+                    ))}
+                    </div>, document.body)}
+                    {activePet.isHatched ? (
+                      <div
+                        {...activePetTouchHandlers}
+                        data-gameplay-touch-gesture="true"
+                        style={{
+                          cursor: "pointer",
+                          pointerEvents: "auto",
+                          touchAction: "none",
+                          // Template pets share the editor’s ground coordinates;
+                          // keep legacy image pet transforms separate.
+                          translate: activePet.petTemplateId ? "none" : undefined,
+                          transform: activePet.petTemplateId ? (petPressed ? "scale(1.01)" : "none") : petCircling
+                            ? "scale(1.155, 1.092) translateY(8%)"
+                            : petPressed
+                              ? "scale(1.108, 1.132) translateY(8%)"
+                              : "scale(1.12) translateY(8%)",
+                          transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
+                          transformOrigin: "center bottom",
+                          // The pet and its petting particles share this local stacking context.
+                          // A high pet z-index covered the hearts even though each
+                          // heart had a larger z-index inside the sibling layer.
+                          // Keep the pet below those particles; the parent stage
+                          // still controls its position relative to page chrome.
+                          position: "relative",
+                          zIndex: 1,
+                        }}
+                        className="w-full flex items-center justify-center"
+                        data-testid="button-open-pet-actions"
+                      >
+                        {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
+                          <div className="w-full flex items-center justify-center" style={{ position: "relative" }}><ActivePetPlacement templateId={activePet.petTemplateId} form={activePet.isEvolved ? "evolution" : "base"} admin={user.isAdmin} lowMemory={lowMemoryPetRenderer}>
+                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} artworkForm={activePet.isEvolved ? "evolution" : "base"} mode="idle" view="front" size={activePetSceneRect.width || 200} fillContainer lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                          </ActivePetPlacement></div>
+                        ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
+                          <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
+                            <img
+                              src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
+                              alt={activePet.name}
+                              decoding="async"
+                              className="w-full max-h-[calc(58*var(--vh))] object-contain"
+                              style={{
+                                animation: "activePetBreath 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
+                                transformOrigin: "center bottom",
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
+                        )}
+                        {activePetModal !== "power_up" && (
+                          <div data-testid="active-pet-mini-pet-overlay" className="absolute"
+                            style={{ left: "3%", bottom: "2%", width: "28%", aspectRatio: "1", zIndex: 4, pointerEvents: "none" }}>
+                            <MiniPetRenderer petInventoryId={activePet.inventoryId} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (() => {
+                      const eggHatchReady = activePet.hatchStartedAt && activePet.hatchTime
+                        ? (Date.now() - new Date(activePet.hatchStartedAt).getTime()) >= activePet.hatchTime * 3600000
+                        : false;
+                      return (
+                        <div
+                          style={{ animation: "eggWobble 5s ease-in-out infinite", cursor: "pointer", touchAction: "manipulation", pointerEvents: "auto", zIndex: 2, width: "100%", aspectRatio: "1 / 1", position: "relative" }}
+                          className="w-full flex items-center justify-center"
+                          data-testid="button-egg-tap"
+                          onClick={() => {
+                            if (hatchHomeMutation.isPending || hatchRevealing) return;
+                            if (eggHatchReady) {
+                              // The server confirms the hatch and the usual reveal.
+                              setShowSpeedUp(false);
+                              hatchHomeMutation.mutate(activePet.inventoryId);
+                            } else {
+                              // Only eggs still incubating need the hatching item panel.
+                              setShowSpeedUp(true);
+                            }
+                          }}
+                        >
+                          {activePet.eggImageUrl ? (
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                              <img
+                                src={activePet.eggImageUrl}
+                                alt={activePet.name}
+                                className="object-contain"
+                                style={{
+                                  width: "75%",
+                                  maxWidth: "480px",
+                                  maxHeight: "75%",
+                                  animation: "petImgIdle 3.5s ease-in-out infinite",
+                                  transformOrigin: "center bottom",
+                                  filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <img src={eggMagicIcon} alt="" style={{ width: 120, height: 120, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
+                          )}
+                          {eggHatchReady && !hatchRevealing && (
+                            <div className="absolute inset-0 pointer-events-none" data-testid="display-egg-hatch-ready">
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  background: "radial-gradient(ellipse at center, rgba(74,222,128,0.25) 0%, rgba(74,222,128,0.08) 40%, transparent 70%)",
+                                  animation: "eggGlowPulse 2s ease-in-out infinite",
+                                }}
+                              />
+                              {[0, 1, 2, 3, 4, 5].map((idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    position: "absolute",
+                                    width: idx % 2 === 0 ? "8px" : "6px",
+                                    height: idx % 2 === 0 ? "8px" : "6px",
+                                    borderRadius: "50%",
+                                    background: `radial-gradient(circle, ${idx % 3 === 0 ? "rgba(74,222,128,0.9)" : idx % 3 === 1 ? "rgba(160,255,200,0.9)" : "rgba(255,240,180,0.9)"} 0%, transparent 70%)`,
+                                    boxShadow: `0 0 8px ${idx % 3 === 0 ? "rgba(74,222,128,0.6)" : idx % 3 === 1 ? "rgba(160,255,200,0.6)" : "rgba(255,240,180,0.6)"}, 0 0 16px ${idx % 3 === 0 ? "rgba(74,222,128,0.3)" : idx % 3 === 1 ? "rgba(160,255,200,0.3)" : "rgba(255,240,180,0.3)"}`,
+                                    left: `${50 + 30 * Math.cos((idx * Math.PI * 2) / 6)}%`,
+                                    top: `${50 + 35 * Math.sin((idx * Math.PI * 2) / 6)}%`,
+                                    animation: `eggOrb${idx % 3} ${2 + (idx % 3) * 0.5}s ease-in-out infinite ${idx * 0.4}s`,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center space-y-3 animate-float">
+                  <div
+                    className="w-20 h-20 mx-auto rounded-full flex items-center justify-center"
+                    style={{
+                      background: "radial-gradient(ellipse at center, rgba(45,122,79,0.3) 0%, rgba(10,40,20,0.5) 100%)",
+                      border: "2px dashed rgba(127,191,176,0.3)",
+                      boxShadow: "0 0 30px rgba(45,122,79,0.3)",
+                    }}
+                  >
+                    <span className="text-3xl" style={{ filter: "grayscale(100%) opacity(0.3)" }}>?</span>
+                  </div>
+                  <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Your companion awaits...</p>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-4/5 h-4 rounded-full opacity-40"
+              style={{ background: "radial-gradient(ellipse, rgba(0,0,0,0.7) 0%, transparent 70%)" }}
+            />
+          </div>
+        </div>
+
+        {activePet && (
+          <div
+            data-testid="active-pet-name-level-anchor"
+            className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4"
+            style={{
+              position: "fixed",
+              // The nameplate sits below the authored stone-platform standing landmark,
+              // projected into the real viewport; admin oval movement shares the pet offset.
+              top: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
+                ? (activePetGroundViewport?.y ?? (activePetSceneRect.top + activePetSceneRect.height)) + Math.max(80, activePetSceneRect.height * 0.2)
+                : undefined,
+              bottom: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.height > 0
+                ? undefined
+                : "calc(11*var(--vh))",
+              left: activePet.isHatched && activePet.petTemplateId && activePetSceneRect.width > 0
+                ? activePetSceneRect.left + activePetSceneRect.width / 2
+                : "50%",
+              transform: `translate(calc(-50% + ${activePetChromeOffset.x}px), ${activePetChromeOffset.y}px)`,
+              zIndex: 20,
+            }}
+          >
+            <div
+              className="px-5 py-1.5 rounded-lg"
+              style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(212,160,23,0.4)", backdropFilter: "blur(6px)", boxShadow: "0 2px 12px rgba(0,0,0,0.4)" }}
+            >
+              <p className="font-fantasy text-[#f0c040] text-sm tracking-[0.15em] font-bold text-center uppercase" data-testid="text-active-pet-name">
+                {activePet.petNickname || activePet.name}
+              </p>
+            </div>
+
+            {activePet.isHatched ? (
+              <div className="w-52 mb-2">
+                {(() => {
+                  const needed = Math.floor(100 + activePet.petLevel * 30 + activePet.petLevel * activePet.petLevel * 5);
+                  const current = activePet.petLevelPoints || 0;
+                  const pct = Math.min(100, (current / needed) * 100);
+                  return (
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="font-fantasy text-[#f0c040] text-[10px] tracking-wider font-bold whitespace-nowrap" data-testid="text-home-pet-level">LV {activePet.petLevel}</span>
+                      <div className="flex-1 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", height: "8px", border: "1px solid rgba(240,192,64,0.25)" }}>
+                        <div
+                          data-testid="bar-home-level-progress"
+                          style={{
+                            width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
+                            background: "linear-gradient(90deg, #d4a017, #f0c040, #ffd700)",
+                            height: "100%",
+                            borderRadius: "4px",
+                            transition: "width 0.5s ease",
+                            boxShadow: pct > 0 ? "0 0 6px rgba(240,192,64,0.4), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+                          }}
+                        />
+                      </div>
+                      <span className="font-fantasy text-[#a89878] text-[8px] whitespace-nowrap">{current}/{needed}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : activePet.hatchStartedAt && activePet.hatchTime ? (
+              <div className="w-48">
+                <HomeHatchBar hatchStartedAt={activePet.hatchStartedAt} hatchTime={activePet.hatchTime} />
+              </div>
+            ) : null}
+          </div>
+        )}
+        </>)}
 
       </div>
 
+
+      {!AVATAR_10_HOME_CUTOVER && !isOverlayActive && showSpeedUp && activePet && !activePet.isHatched && (
+        <ViewportModalPortal>
+        <div
+          data-testid="active-pet-speedup-viewport-modal"
+          className="absolute inset-0 flex items-end justify-center"
+          style={{ zIndex: 55 }}
+        >
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }}
+          />
+          <div
+            className="relative w-full rounded-t-2xl animate-slide-up"
+            style={{
+              background: "linear-gradient(180deg, rgba(12,6,2,0.98) 0%, rgba(8,4,1,0.99) 100%)",
+              border: "1px solid rgba(240,192,64,0.3)",
+              borderBottom: "none",
+              boxShadow: "0 -10px 50px rgba(0,0,0,0.7)",
+              maxHeight: "calc(82*var(--vh))",
+              overflowY: "auto",
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-2">
+              <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
+              <button
+                onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }}
+                className="font-fantasy text-[#a89878] text-xs tracking-wider"
+                style={{ cursor: "pointer", background: "none", border: "none" }}
+                data-testid="button-close-speedup"
+              >
+                Close
+              </button>
+            </div>
+
+            {activePet.hatchStartedAt && activePet.hatchTime &&
+              Date.now() - new Date(activePet.hatchStartedAt).getTime() >= activePet.hatchTime * 3600000 && (
+              <div className="px-5 pb-4">
+                <button
+                  type="button"
+                  data-testid="button-hatch-ready-egg"
+                  disabled={hatchHomeMutation.isPending}
+                  onClick={() => {
+                    if (hatchHomeMutation.isPending) return;
+                    setShowSpeedUp(false);
+                    hatchHomeMutation.mutate(activePet.inventoryId);
+                  }}
+                  className="w-full rounded-xl border border-[#f0c040] bg-[#47300c] px-4 py-3 font-fantasy font-bold text-[#ffe6a0] disabled:opacity-50"
+                >
+                  Hatch Egg
+                </button>
+              </div>
+            )}
+            {/* Egg drop zone */}
+            <div className="px-5 pb-4">
+              <div
+                ref={homeEggDropRef}
+                className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 py-5 transition-all"
+                style={{
+                  background: homeDragOver ? "rgba(240,192,64,0.18)" : "rgba(0,0,0,0.25)",
+                  border: homeDragOver ? "2px dashed rgba(240,192,64,0.85)" : "2px dashed rgba(240,192,64,0.25)",
+                  boxShadow: homeDragOver ? "0 0 24px rgba(240,192,64,0.3)" : "none",
+                  transition: "all 0.15s",
+                  minHeight: 140,
+                }}
+              >
+                {activePet.eggImageUrl ? (
+                  <img
+                    src={activePet.eggImageUrl}
+                    alt={activePet.name}
+                    style={{ width: 80, height: 80, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(240,192,64,0.5))" }}
+                  />
+                ) : (
+                  <img src={eggMagicIcon} alt="Egg" style={{ width: 64, height: 64, objectFit: "contain", opacity: 0.7 }} />
+                )}
+                <div className="text-center">
+                  <p className="font-fantasy text-[#f0c040] text-sm tracking-wider">{activePet.petNickname || activePet.name}</p>
+                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mt-0.5">
+                    {homeDragOver ? "Release to use!" : "Drag item here · or tap item below"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Items section */}
+            <div className="px-5 pb-6">
+              <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider mb-3 uppercase">Your Speed-Up Items</p>
+              {hatchTimeItems.length === 0 ? (
+                <p className="font-fantasy text-[#a89878] text-xs text-center py-6">
+                  No speed-up items in your bag. Check the shop!
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {hatchTimeItems.map((item) => (
+                    <div
+                      key={item.inventoryId}
+                      data-testid={`button-speedup-${item.inventoryId}`}
+                      className="rounded-md p-2 flex flex-col items-center gap-1 transition-transform active:scale-95"
+                      style={{
+                        background: "rgba(30,15,5,0.8)",
+                        border: "1px solid rgba(240,192,64,0.3)",
+                        cursor: speedUpMutation.isPending ? "wait" : "grab",
+                        touchAction: "none",
+                        userSelect: "none",
+                        opacity: speedUpMutation.isPending ? 0.4 : 1,
+                      }}
+                      onClick={() => {
+                        if (!speedUpMutation.isPending) {
+                          speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+                        }
+                      }}
+                      onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}
+                    >
+                      <div className="w-12 h-12 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-xl">⏩</span>
+                        )}
+                      </div>
+                      <span className="font-fantasy text-[#f0c040] text-[9px] tracking-wider text-center truncate w-full">{item.name}</span>
+                      <span
+                        className="font-fantasy text-[8px] tracking-wider px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(240,192,64,0.15)", color: "#f0c040" }}
+                      >
+                        -{item.specialAmount || "?"}min
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        </ViewportModalPortal>
+      )}
+
+      {/* Device-coordinate drag ghost, outside any scaled artwork plane. */}
+      {homeDragging && createPortal(
+        <div
+          className="fixed z-[90] pointer-events-none select-none"
+          style={{
+            left: homeDragging.x - 32,
+            top: homeDragging.y - 32,
+            width: 64,
+            height: 64,
+            borderRadius: 12,
+            background: "rgba(20,10,2,0.92)",
+            border: "2px solid rgba(240,192,64,0.8)",
+            boxShadow: "0 0 20px rgba(240,192,64,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: "scale(1.1)",
+          }}
+        >
+          {homeDragging.item.imageUrl ? (
+            <img src={homeDragging.item.imageUrl} alt={homeDragging.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+          ) : (
+            <span style={{ fontSize: 28 }}>⏩</span>
+          )}
+        </div>, document.body
+      )}
+
+      {/* Screen-relative Pet Menu: independent of tapping or petting the pet. */}
+      {!AVATAR_10_HOME_CUTOVER && !isOverlayActive && !showProfile && !showPetStats && !showSupportModal && !showWorldChat && activePetModal === null && activePetForModal && (
+        <ViewportHudPortal>
+          <div data-testid="active-pet-side-menu" className="absolute flex flex-col-reverse items-center gap-3" style={{ left: 12, bottom: "calc(82px + env(safe-area-inset-bottom, 0px))", zIndex: 150, pointerEvents: "auto" }}>
+            <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => { if (!showActionMenu) window.dispatchEvent(new Event("para-pets:pet-menu-open")); setShowActionMenu(value => !value); }} className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]" style={{ touchAction: "manipulation" }}><img src={petMenuIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain drop-shadow-[0_2px_3px_#000]" draggable={false} /></button>
+            {showActionMenu && <div data-testid="pet-menu-options" className="flex flex-col-reverse items-center gap-4 pb-3" role="group" aria-label="Pet actions">
+                <button type="button" data-testid="button-action-power-up" aria-label="Power-Up" title="Power-Up" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]" onClick={() => { if (!requireHatchedActivePet()) return; if (questGuideMode === "powerup") setPowerUpFromQuest(true); setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); }}><span aria-hidden="true" className="pointer-events-none absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[12px] font-extrabold leading-none tracking-[0.01em] text-[#ffe7ab]" style={{ textShadow: "0 2px 2px #000, 0 0 7px #000, 0 0 10px rgba(0,0,0,0.95)" }}>Power-Up</span><img src={powerUpIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-level-up" aria-label="Level Up" title="Level Up" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]" onClick={() => { if (!requireHatchedActivePet()) return; setShowActionMenu(false); const id = activePetForModal.inventoryId; if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`); }}><span aria-hidden="true" className="pointer-events-none absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[12px] font-extrabold leading-none tracking-[0.01em] text-[#ffe7ab]" style={{ textShadow: "0 2px 2px #000, 0 0 7px #000, 0 0 10px rgba(0,0,0,0.95)" }}>Level Up</span><img src={levelUpIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-equip-accessories" aria-label="Closet" title="Closet" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]" onClick={() => { if (!requireHatchedActivePet()) return; setShowActionMenu(false); navigate("/equip-accessories"); }}><span aria-hidden="true" className="pointer-events-none absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[12px] font-extrabold leading-none tracking-[0.01em] text-[#ffe7ab]" style={{ textShadow: "0 2px 2px #000, 0 0 7px #000, 0 0 10px rgba(0,0,0,0.95)" }}>Closet</span><img src={closetIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+                <button type="button" data-testid="button-action-care-feed" aria-label="Pet Care" title="Pet Care" className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]" onClick={() => { if (!requireHatchedActivePet()) return; setShowActionMenu(false); setQuestGuideMode(null); const id = activePetForModal.inventoryId; navigate(id ? "/pet-care/" + encodeURIComponent(id) : "/pet-house"); }}><span aria-hidden="true" className="pointer-events-none absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[12px] font-extrabold leading-none tracking-[0.01em] text-[#ffe7ab]" style={{ textShadow: "0 2px 2px #000, 0 0 7px #000, 0 0 10px rgba(0,0,0,0.95)" }}>Pet Care</span><img src={petCareIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} /></button>
+            </div>}
+          </div>
+        </ViewportHudPortal>
+      )}
+
+      {/* Daily quest hints follow the actual left-side Pet Menu controls. */}
+      {!AVATAR_10_HOME_CUTOVER && questGuideMode && !isOverlayActive && activePetForModal && (
+        <QuestGuideSpotlight
+          selector={showActionMenu
+            ? questGuideMode === "powerup"
+              ? '[data-testid="button-action-power-up"]'
+              : '[data-testid="button-action-care-feed"]'
+            : '[data-testid="button-open-pet-menu"]'}
+          label={showActionMenu
+            ? questGuideMode === "powerup" ? "Choose Power-Up" : "Choose Pet Care"
+            : "Open the Pet Menu"}
+          focus="control"
+          testId="pet-daily-quest-menu-guide"
+        />
+      )}
+
+      {/* ── Pet stats page (opened from the ring's left button) ── */}
+      {!AVATAR_10_HOME_CUTOVER && showPetStats && activePetForModal && (
+        <PetDetailPage
+          pet={activePetForModal as any}
+          onClose={() => setShowPetStats(false)}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ["/api/inventory"] })}
+          userCoins={currentUser.coins}
+          onUserUpdate={(u) => setCurrentUser(u)}
+          allowReset
+        />
+      )}
+
+      {/* ── Ring sparkle bursts (rendered above the action menu) ── */}
+      {ringSparkles.length > 0 && createPortal(
+        <div className="fixed inset-0 pointer-events-none z-[60]">
+          {ringSparkles.map((s) => (
+            <div
+              key={s.id}
+              className="absolute ring-sparkle"
+              style={{
+                left: s.x,
+                top: s.y,
+                width: s.size,
+                height: s.size,
+                color: s.color,
+                ["--dx" as any]: `${s.dx}px`,
+                ["--dy" as any]: `${s.dy}px`,
+                animationDelay: `${s.delay}s`,
+              }}
+            >
+              <svg viewBox="0 0 24 24" width={s.size} height={s.size} style={{ filter: `drop-shadow(0 0 6px ${s.color})` }}>
+                <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" fill={s.color} />
+              </svg>
+            </div>
+          ))}
+        </div>, document.body
+      )}
+
+      {/* ── Power Up modal ── */}
+      {!AVATAR_10_HOME_CUTOVER && activePetModal === "power_up" && activePetForModal && (
+        <PetPowerUpPage
+          admin={user.isAdmin}
+          petName={activePetForModal.petNickname || activePetForModal.name}
+          petInventoryId={activePetForModal.inventoryId}
+          petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
+          petTemplateId={activePetForModal.petTemplateId}
+          rarity={activePetForModal.rarity || 1}
+          petLevel={activePetForModal.petLevel}
+          petAtk={activePetForModal.petAtk ?? 50}
+          petDef={activePetForModal.petDef ?? 50}
+          petHealth={activePetForModal.petHealth ?? 1000}
+          itemsRemaining={remainingPetPowerUpSlots(activePetForModal.rarity, activePetForModal.petLevel, activePetForModal.itemsUsedThisLevel)}
+          items={powerUpItems}
+          specialItems={powerUpSpecialItems}
+          isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
+          subtitle={`Drag an item onto ${activePetForModal.petNickname || activePetForModal.name} to boost their stats`}
+          showBuyButton={powerUpFromQuest}
+          successEffect={petModalSuccess}
+          onUseItem={handleModalUseItem}
+          onSuccessAnimEnd={() => setPetModalSuccess(null)}
+          onClose={() => { setActivePetModal(null); setPowerUpFromQuest(false); }}
+        />
+      )}
+
       {showProfile && (
         <UserProfilePanel
-          user={homeUser}
+          user={currentUser}
           onClose={() => setShowProfile(false)}
           onUserUpdate={(updatedUser) => {
             setCurrentUser(updatedUser);
@@ -275,9 +1695,123 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           }}
         />
       )}
+      {!AVATAR_10_HOME_CUTOVER && !isOverlayActive && hatchRevealing && (
+        <ViewportModalPortal>
+        <div
+          data-testid="active-pet-hatch-reveal-viewport-modal"
+          className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
+          style={{
+            opacity: hatchFadingOut ? 0 : 1,
+            transition: hatchFadingOut ? "opacity 0.6s ease-out" : "none",
+          }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{ animation: "hatchFlashBg 3.5s ease-out forwards" }}
+          />
+          {[...Array(14)].map((_, i) => {
+            const angle = (i / 14) * 360;
+            const rad = (angle * Math.PI) / 180;
+            const dist = 100 + Math.random() * 80;
+            const endX = Math.cos(rad) * dist;
+            const endY = Math.sin(rad) * dist;
+            const size = 10 + Math.random() * 14;
+            const delay = i * 0.04;
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  width: `${size}px`,
+                  height: `${size}px`,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)",
+                  boxShadow: "0 0 16px rgba(240,192,64,0.9), 0 0 32px rgba(240,192,64,0.5)",
+                  animation: `hatchOrbDramatic 2s ${delay}s ease-out forwards`,
+                  opacity: 0,
+                  ["--endX" as any]: `${endX}px`,
+                  ["--endY" as any]: `${endY}px`,
+                }}
+              />
+            );
+          })}
+          {[...Array(8)].map((_, i) => {
+            const delay = 0.2 + i * 0.06;
+            const size = 6 + Math.random() * 8;
+            const angle = Math.random() * 360;
+            const rad = (angle * Math.PI) / 180;
+            const dist = 50 + Math.random() * 60;
+            const endX = Math.cos(rad) * dist;
+            const endY = Math.sin(rad) * dist;
+            return (
+              <div
+                key={`x${i}`}
+                style={{
+                  position: "absolute",
+                  width: `${size}px`,
+                  height: `${size}px`,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, #fff8c0 0%, #f0c040 50%, rgba(240,192,64,0) 80%)",
+                  boxShadow: "0 0 10px rgba(255,248,192,0.7)",
+                  animation: `hatchOrbDramatic 1.6s ${delay}s ease-out forwards`,
+                  opacity: 0,
+                  ["--endX" as any]: `${endX}px`,
+                  ["--endY" as any]: `${endY}px`,
+                }}
+              />
+            );
+          })}
+          <div
+            style={{
+              position: "absolute",
+              width: "50px",
+              height: "50px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(255,248,192,1) 0%, rgba(240,192,64,0.7) 30%, rgba(240,192,64,0) 70%)",
+              boxShadow: "0 0 50px rgba(240,192,64,0.9), 0 0 100px rgba(240,192,64,0.4), 0 0 150px rgba(240,192,64,0.2)",
+              animation: "hatchCenterDramatic 2.5s ease-out forwards",
+            }}
+          />
+          {hatchedPetCache && (hatchedPetCache.hatchedImageUrl || hatchedPetCache.imageUrl) && (
+            <div
+              style={{
+                position: "absolute",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "70%",
+                maxWidth: 280,
+                animation: "hatchPetReveal 2.8s 0.55s ease-out forwards",
+                opacity: 0,
+                filter: "drop-shadow(0 0 40px rgba(240,192,64,0.9)) drop-shadow(0 0 80px rgba(240,192,64,0.5))",
+              }}
+            >
+              <img
+                src={hatchedPetCache.hatchedImageUrl || hatchedPetCache.imageUrl || ""}
+                alt={hatchedPetCache.name}
+                style={{ width: "100%", height: "auto", objectFit: "contain" }}
+              />
+            </div>
+          )}
+          <span
+            className="font-fantasy text-2xl font-bold tracking-[0.2em] absolute"
+            style={{
+              color: "#f0c040",
+              textShadow: "0 0 20px rgba(240,192,64,0.9), 0 0 40px rgba(240,192,64,0.5), 0 2px 8px rgba(0,0,0,0.8)",
+              animation: "hatchRevealText 3s 0.5s ease-out forwards",
+              opacity: 0,
+              bottom: "28%",
+            }}
+            data-testid="text-hatch-reveal"
+          >
+            HATCHED!
+          </span>
+        </div>
+        </ViewportModalPortal>
+      )}
 
       {/* Veridian Watcher + Support — device-edge upper-right HUD */}
-      {!showProfile && !showWorldChat && !showSupportModal && (
+      {!showProfile && !activePetModal && !showWorldChat && !showSupportModal && (
         <ViewportHudPortal>
           <div
             data-testid="viewport-hud-corner-actions"
@@ -373,7 +1907,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               onClick={() => setShowWorldChat(false)}
             />
             <WorldChatPanel
-              currentUserId={homeUser.id}
+              currentUserId={currentUser.id}
               onClose={() => setShowWorldChat(false)}
               onNewMessage={() => setChatHasNewMsg(true)}
             />
@@ -496,7 +2030,147 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </ViewportModalPortal>
       )}
 
+      <PowerUpOverlay
+        visible={!AVATAR_10_HOME_CUTOVER && showSpeedEffect}
+        effectType="hatch"
+        label={speedEffectLabel}
+        onDone={() => setShowSpeedEffect(false)}
+      />
+    </div>
+  );
+}
 
+function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt: string; testId: string; onClick?: () => void; round?: boolean; badge?: "new" | "complete" }) {
+  const [tapped, setTapped] = useState(false);
+
+  const handleTap = () => {
+    setTapped(true);
+    setTimeout(() => setTapped(false), 200);
+    onClick?.();
+  };
+
+  return (
+    <button
+      data-testid={testId}
+      onClick={handleTap}
+      className="relative flex flex-col items-center group"
+      style={{ background: "none", border: "none", cursor: "pointer" }}
+    >
+      <div
+        className={`flex items-center justify-center transition-transform duration-150 overflow-hidden ${round ? "nav-icon-size-lg rounded-full" : "nav-icon-size rounded-xl"}`}
+        style={{
+          transform: tapped ? "scale(0.88)" : "scale(1)",
+          filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.8))",
+          border: "2px solid rgba(212,160,23,0.35)",
+          background: "rgba(15,8,2,0.6)",
+        }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className={`transition-all duration-150 group-active:brightness-125 ${round ? "rounded-full" : "rounded-xl"}`}
+          style={{ width: "115%", height: "115%", objectFit: "cover" }}
+        />
+      </div>
+      {badge === "new" && (
+        <QuillBadge size={13} glow="#4ade80" style={{ position: "absolute", top: -18, zIndex: 10 }} data-testid="badge-quest-new" />
+      )}
+      {badge === "complete" && (
+        <div
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+          style={{
+            background: "radial-gradient(circle, #4ade80 0%, #22c55e 100%)",
+            border: "2px solid rgba(30,15,5,0.8)",
+            boxShadow: "0 0 8px rgba(74,222,128,0.8), 0 0 16px rgba(74,222,128,0.4)",
+          }}
+          data-testid="badge-quest-complete"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0a3a0a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      )}
+    </button>
+  );
+}
+
+function HomePetBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5 w-full">
+      <span className="font-fantasy text-[8px] tracking-wider w-5 text-right" style={{ color }}>{label}</span>
+      <div className="flex-1 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+        <div
+          style={{
+            width: `${Math.min(100, (value / max) * 100)}%`,
+            background: `linear-gradient(90deg, ${color}, ${color}88)`,
+            height: "100%",
+            borderRadius: "4px",
+            boxShadow: `0 0 4px ${color}40`,
+          }}
+        />
+      </div>
+      <span className="font-fantasy text-[7px] text-[#a89878] w-8">{value}</span>
+    </div>
+  );
+}
+
+function HomeHatchBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: string; hatchTime: number }) {
+  const [progress, setProgress] = useState(0);
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const start = new Date(hatchStartedAt).getTime();
+      const required = hatchTime * 3600000;
+      const elapsed = Date.now() - start;
+      const pct = Math.min(1, elapsed / required);
+      setProgress(pct);
+
+      if (pct >= 1) {
+        setTimeLeft("Ready to hatch!");
+      } else {
+        const remaining = required - elapsed;
+        const hrs = Math.floor(remaining / 3600000);
+        const mins = Math.floor((remaining % 3600000) / 60000);
+        if (hrs > 0) {
+          setTimeLeft(`${hrs}h ${mins}m`);
+        } else {
+          const secs = Math.floor((remaining % 60000) / 1000);
+          setTimeLeft(`${mins}m ${secs}s`);
+        }
+      }
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [hatchStartedAt, hatchTime]);
+
+  const isReady = progress >= 1;
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center gap-1.5 w-full">
+        <span className="font-fantasy text-[8px] tracking-wider w-5 text-right" style={{ color: isReady ? "#4ade80" : "#f0c040" }}>🥚</span>
+        <div
+          className={`flex-1 h-1.5 rounded-full overflow-hidden${isReady ? " animate-pulse" : ""}`}
+          style={{
+            background: "rgba(0,0,0,0.4)",
+            boxShadow: isReady ? "0 0 6px rgba(74,222,128,0.5)" : "none",
+          }}
+        >
+          <div
+            style={{
+              width: `${progress * 100}%`,
+              background: isReady ? "linear-gradient(90deg, #4ade80, #22c55e)" : "linear-gradient(90deg, #f0c040, #d4a017)",
+              height: "100%",
+              transition: "width 1s linear",
+            }}
+          />
+        </div>
+      </div>
+      <p className="font-fantasy text-[7px] tracking-wider text-center mt-0.5" style={{ color: isReady ? "#4ade80" : "#d4a017" }} data-testid="text-home-hatch-time">
+        {timeLeft}
+      </p>
     </div>
   );
 }
