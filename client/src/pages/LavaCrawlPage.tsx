@@ -1462,7 +1462,7 @@ export default function LavaCrawlPage() {
       />
       {/* Reuse the saved, clothed 8-part avatar instead of the old active pet.
           Physical motion stays in Lava Crawl's existing canvas update loop. */}
-      {screen === "playing" && avatar?.base && (
+      {(screen === "playing" || screen === "paused") && avatar?.base && (
         <div
           ref={avatarSpriteRef}
           data-testid="lava-player-avatar"
