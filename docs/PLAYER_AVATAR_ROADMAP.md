@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** 7 of 12 main phases merged; **07A/12 (#1033) and 07B/12 (#1034) merged**; **Avatar 08A/12 implemented in a review branch**. Sub-PRs are tracked separately from the twelve primary phases; passing CI or merging does not prove real-device behavior.  
+**Progress:** 7 of 12 main phases merged; **08A/12 (#1035) also merged**, and **08B/12 implemented on a review branch**. The 08/12 sub-stages count together as one main phase once 08A–08C have merged; CI or merge is not real-device verification.  
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -39,8 +39,8 @@
 | **Avatar 06/12** | Original seven-part admin Avatar draft/publish editor | **Merged — GitHub #1032** | User confirms CI/merge; real phone/tablet publish flow unverified; anatomy superseded by 07A |
 | **Avatar 07A/12** | Align merged admin anatomy to eight base anchors; preserve legacy Body/Eyes; define separate seven-category, eight-segment clothing contract | **Merged — GitHub #1033** | User confirms merge; mobile/tablet anatomy verification not recorded |
 | **Avatar 07B/12** | One lightweight PlayerCharacterRenderer with idle/walk anchored to new eight-part rig; shared with admin preview | **Merged — GitHub #1034** | User confirms merge; physical phone/tablet animation/placement verification not recorded |
-| **Avatar 08A/12** | Admin Create Clothing: one named item with multiple part images, **drag-to-fit live avatar viewer**, scale/rotate, depth, and category selection | **Open GitHub PR #1035** (`feature/avatar-08a-admin-clothing-drag-fit`) | Automated tests, CI, admin mobile/tablet visual fit and server publish verification pending |
-| **Avatar 08B/12** | Per-user created-avatar state, saved appearance, owned clothing inventory, equip/unequip by category | Planned | Authoritative ownership, inventory transfer, null first-time state, retries and account isolation |
+| **Avatar 08A/12** | Admin Create Clothing: one named item with multiple part images, **drag-to-fit live avatar viewer**, scale/rotate, depth, and category selection | **Merged — GitHub #1035** | User confirms merge; actual phone/tablet fitting and deployed DB behavior not yet verified |
+| **Avatar 08B/12** | Explicit per-user first-save avatar, immutable published base snapshot, owned clothing API, seven secure equip/unequip slots | **Open GitHub PR #1036** (`feature/avatar-08b-player-ownership-equipment`) | CI, account isolation, item listings/transfers, stale revisions and deployed API QA pending |
 | **Avatar 08C/12** | Player Avatar page: top-centered character viewer, seven circular category buttons, scrollable owned clothing row under viewer | Planned | Thumb targets, narrow phones/tablets, empty states, equip previews, persistence, navigation |
 | **Avatar 09/12** | Main page lower HUD: player name/XP, five unfilled stars, five saved team portraits | Planned | Small-phone/tablet layout, empty team, long names, safe-area |
 | **Avatar 10/12** | Home avatar replaces active pet; tap avatar opens Avatar page; before player creates one show animated gold **Design Character** circle; remove Home Pet Menu only after pet routes are verified | Planned | Safe-area, gold animation/reduced motion, player created-state, quest guidance, welcome gifts, legacy Murk compatibility |
@@ -110,6 +110,40 @@
 - [ ] Merge and independently verify deployed database and on-device behavior.
 
 **Deferred:** No player can buy, equip, trade or create a character from this PR. That belongs to **08B** (account-owned clothing/equipment) and **08C** (player wardrobe). The Home create-circle and page cutover remain **10/12**. No PC gameplay changes.
+
+## Avatar 08B/12 — player-created identity and authoritative wardrobe storage
+
+**Scope:** Account-owned character creation, base snapshots, inventory lookup and seven secure clothing equipment slots. No player wardrobe screen yet, no Home avatar cutover, no new shop purchases, and no pet adornment changes.
+
+- [x] Confirm Avatar 08A (#1035) is merged and trace authoritative `user_inventory`, shop catalog, published clothing design records, account auth, and pet closet ownership patterns.
+- [x] New `player_avatar_profiles` row is created **only by explicit first-save action**, never on login or when the admin publishes a default base. Until then, the `GET /api/player-avatar` response reports `created:false`, allowing the later animated Design Character Home prompt.
+- [x] First save retains a copy of the **eight published body parts** and the chosen base publication timestamp. A later admin republish cannot silently rewrite player anatomy or break compatible clothing.
+- [x] One saved outfit is still one catalog item, although its published segment images may animate with separate limbs. Equipment is seven account-owned category slots linked to existing **inventory record IDs**, not bare catalog IDs.
+- [x] `GET /api/player-avatar` reports created state, selected character base, current revision, strictly owned clothing definitions and equipped items. Listed, revoked, malformed or incompatible items cannot appear as wearable.
+- [x] Transaction-safe first save (idempotent same-base retry), base switch (clears equipment references but preserves inventory), equip and unequip. Revision checks reject stale-device edits; server validates owner, quantity, unlisted status, category, published definition and base version before equipping.
+- [x] New additive boot migration with owner/category uniqueness, inventory FK cascade and per-player snapshot; no inventory or player data reset.
+- [x] Separate **Avatar Clothing** taxonomy/category from pet Adornments and Specials. Bag remains view-only; no additional pet action flows.
+- [x] Preserve published clothing category separately from draft category, so unfinished admin edits do not change an owned item's slot.
+- [x] Add focused tests for creation state, revision guards, ownership/isListed/quantity, category matching, base published version and no premature shop or Home cutover.
+- [ ] Latest GitHub PR commit passes app TypeScript, test compilation, full suite, production build and public-route smoke.
+- [ ] On deployed authenticated QA accounts: no avatar -> `created:false`, first save and retry, account isolation, fitted owned outfit equip/unequip, wrong user/item/category rejects, sold/listed item becomes unavailable, base republish snapshot stability, and stale revision conflicts.
+- [ ] User reviews/merges the PR. CI and merging do not substitute for real phone/tablet behavior testing.
+
+**Deferred:** Player-facing Avatar page with seven circular wardrobe selectors and a scrollable owned-inventory row (**08C/12**); five-slot Home HUD (**09/12**); clickable Home avatar / gold Design Character circle (**10/12**); exploration/combat/XP awards later. Ordinary shop clothing purchases stay blocked until acquisition/eligibility policy is separately approved.
+
+## Avatar 08C/12 — player character design page and owned-clothing wardrobe
+
+**Scope:** The first player-facing Avatar screen, built on the merged 07B character renderer and 08B account/equipment API. This is separate from the existing profile-photo avatar. Do not replace Home's pet/platform yet; that is 10/12.
+
+- [ ] Add an authenticated, phone/tablet-friendly Avatar page with the **assembled character viewer centered near the top**. For an uncreated account, preview a published eight-part base, let the player explicitly create/save it through `POST /api/player-avatar/create`, and preserve `created:false` until Save succeeds. A global published base is not an auto-created player avatar.
+- [ ] Around the viewer, display exactly **seven circular clothing buttons** in this player-facing order: Head, Hair, Face, Top, Bottom, Shoes, Back Accessory. Each selects a wardrobe category; these controls are **not** the eight underlying animation parts.
+- [ ] Beneath the viewer, open a **horizontally scrollable row of that player's owned clothing for the selected category**. Clearly distinguish empty, equipped, incompatible-base and listed/unavailable items. Tapping an eligible item previews its appearance; equip/unequip persists using the owned `inventoryId`, authenticated category endpoint and latest revision. Handle stale revisions, failed saves and loading without silently losing an outfit.
+- [ ] Combine all seven equipped items into the **one existing PlayerCharacterRenderer**. A shirt may have torso and both sleeve segments; pants may have left and right legs. Different wardrobe categories can also attach to the *same* anatomy part (e.g. Head/Hair/Face): make segment identity stable by clothing item/category **plus** attachment part, not just `partType`, and preserve deterministic layering/depth choices without duplicating character motion or viewport coordinate systems.
+- [ ] Reuse the shared forest-green/gold UI conventions and artwork-relative eight-part rig. Keep navigation and close/back behavior consistent with existing mobile pages, with safe-area, scroll/touch, reduced-motion and narrow-phone/tablet checks. No desktop gameplay unlock.
+- [ ] Test new-account first-save/retry, returning character and wardrobe, category buttons, scroll and thumbnails, multiple garments sharing an attachment, separate pant-leg movement, preview/equip/unequip persistence, stale revision, listed/incompatible item rejection and no pet-adornment changes. Record CI separately from authenticated deployed device verification.
+
+**Still deferred:** 09/12 adds the five team portraits, player name/level/XP and empty stars on Home. 10/12 makes the Home avatar clickable and shows the gently rotating/swaying gold `Design Character` circle before the first player save. 11–12 add exploration and approved player XP behavior. No premature Home cutover or Murk Cave redesign.
+
 
 ## Avatar 02/12 implementation contract and acceptance
 

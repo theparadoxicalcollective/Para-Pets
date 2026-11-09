@@ -210,6 +210,7 @@ export function registerPlayerClothingAdminRoutes(
         const [saved] = await tx.update(playerClothingDrafts).set({
           shopItemId,
           publishedSegments: draft.draftSegments.map(part => ({ ...part, fit: { ...part.fit } })),
+          publishedCategory: draft.category,
           revision: draft.revision + 1,
           publishedAt: new Date(),
           updatedAt: new Date(),

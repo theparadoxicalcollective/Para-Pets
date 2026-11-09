@@ -12,17 +12,19 @@ import {
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("shared item taxonomy follows Pets, Fish, Home, Items in the requested order", () => {
+test("shared item taxonomy follows Pets, Fish, Home, Avatar, Items in the requested order", () => {
   assert.deepEqual(
     GAME_ITEM_GROUPS.map(group => [group.key, group.label, [...group.categories]]),
     [
       ["pets", "Pets", ["pets", "mini_pets", "costumes", "accessories"]],
       ["fish", "Fish", ["fish", "poles", "bait"]],
       ["home", "Home", ["objects", "decor", "homes"]],
+      ["avatars", "Avatar", ["clothing"]],
       ["items", "Items", ["potions", "power_ups", "specials", "edibles", "gifts", "ingredients", "recipes", "clearing", "garden"]],
     ],
   );
   assert.equal(GAME_ITEM_CATEGORY_LABELS.costumes, "Adornments");
+  assert.equal(GAME_ITEM_CATEGORY_LABELS.clothing, "Avatar Clothing");
   assert.equal(GAME_ITEM_CATEGORY_LABELS.clearing, "Clearing Equipment");
   assert.equal(GAME_ITEM_CATEGORY_LABELS.homes, "Homes");
   assert.deepEqual(GAME_ITEM_CATEGORY_ORDER, GAME_ITEM_GROUPS.flatMap(group => [...group.categories]));

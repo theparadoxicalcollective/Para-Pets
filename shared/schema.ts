@@ -191,6 +191,8 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   category: text("category").$type<PlayerClothingCategory>().notNull(),
   draftSegments: jsonb("draft_segments").$type<PlayerClothingSegment[]>().notNull().default(sql`'[]'::jsonb`),
   publishedSegments: jsonb("published_segments").$type<PlayerClothingSegment[] | null>(),
+  // Draft category edits stay private until Save Clothing, just like segments.
+  publishedCategory: text("published_category").$type<PlayerClothingCategory | null>(),
   shopItemId: varchar("shop_item_id").unique().references(() => shopItems.id, { onDelete: "set null" }),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
@@ -269,6 +271,36 @@ export const userInventory = pgTable("user_inventory", {
   // Base slots = 3, so a pet can have up to 5 total.
   accessoryExtraSlots: integer("accessory_extra_slots").notNull().default(0),
 });
+
+// One explicit per-account character creation. Published admin bases alone
+// do not mean a player has created an avatar. Unlike users.profileImage,
+// this stores character anatomy selection, not an account picture.
+export const playerAvatarProfiles = pgTable("player_avatar_profiles", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  baseId: varchar("base_id").notNull().references(() => playerCharacterBases.id),
+  basePublishedAt: timestamp("base_published_at").notNull(),
+  // Immutable artwork snapshot at explicit player save; a later admin
+  // republish never silently changes this player’s character anatomy.
+  baseParts: jsonb("base_parts").$type<StoredPlayerCharacterPart[]>().notNull(),
+  revision: integer("revision").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Each of the seven clothing categories has ONE equipped inventory stack.
+// The actual clothing definition remains one catalog item with 1-8 fitted
+// images; player equipment references the inventory record, never a client URL.
+export const playerAvatarEquipment = pgTable("player_avatar_equipment", {
+  userId: varchar("user_id").notNull()
+    .references(() => playerAvatarProfiles.userId, { onDelete: "cascade" }),
+  category: text("category").$type<PlayerClothingCategory>().notNull(),
+  inventoryId: varchar("inventory_id").notNull()
+    .references(() => userInventory.id, { onDelete: "cascade" }),
+  equippedAt: timestamp("equipped_at").notNull().default(sql`now()`),
+}, table => [
+  uniqueIndex("player_avatar_equipment_owner_category_uidx").on(table.userId, table.category),
+  uniqueIndex("player_avatar_equipment_owner_inventory_uidx").on(table.userId, table.inventoryId),
+]);
 
 export const userClearingLoadouts = pgTable("user_clearing_loadouts", {
   userId: varchar("user_id").primaryKey(),

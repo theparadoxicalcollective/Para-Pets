@@ -2,6 +2,7 @@ export const GAME_ITEM_GROUPS = [
   { key: "pets", label: "Pets", categories: ["pets", "mini_pets", "costumes", "accessories"] },
   { key: "fish", label: "Fish", categories: ["fish", "poles", "bait"] },
   { key: "home", label: "Home", categories: ["objects", "decor", "homes"] },
+  { key: "avatars", label: "Avatar", categories: ["clothing"] },
   { key: "items", label: "Items", categories: ["potions", "power_ups", "specials", "edibles", "gifts", "ingredients", "recipes", "clearing", "garden"] },
 ] as const;
 
@@ -12,6 +13,7 @@ export const GAME_ITEM_CATEGORY_LABELS: Record<GameItemCategoryKey, string> = {
   pets: "Pets",
   mini_pets: "Mini Pets",
   costumes: "Adornments",
+  clothing: "Avatar Clothing",
   accessories: "Accessories",
   fish: "Fish",
   poles: "Poles",
@@ -52,6 +54,7 @@ export function getGameItemCategory(input: GameItemTaxonomyInput): GameItemCateg
   if (rawType === "pet" || rawType === "pet_egg") return "pets";
   if (rawType === "mini_pet") return "mini_pets";
   if (rawType === "costume" || rawType === "adornment") return "costumes";
+  if (rawType === "clothing") return "clothing";
   if (rawType === "accessory") return "accessories";
 
   if (rawType === "fish") return "fish";

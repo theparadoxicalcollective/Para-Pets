@@ -3,6 +3,7 @@ import { ensureGardenStorage } from "./ensureGardenStorage";
 import { ensurePlayerProgressionStorage } from "./ensurePlayerProgressionStorage";
 import { ensurePlayerCharacterStorage } from "./ensurePlayerCharacterStorage";
 import { ensurePlayerClothingStorage } from "./ensurePlayerClothingStorage";
+import { ensurePlayerAvatarEquipmentStorage } from "./ensurePlayerAvatarEquipmentStorage";
 import { ensureWorldSceneDraftStorage } from "./ensureWorldSceneDraftStorage";
 import { ensureWorldSceneContentStorage } from "./ensureWorldSceneContentStorage";
 import { ensureWorldGardenStorage } from "./ensureWorldGardenStorage";
@@ -19,6 +20,8 @@ export async function runEssentialBoot(): Promise<void> {
   // Independent seven-part player-character drafts and published snapshots.
   await ensurePlayerCharacterStorage();
   await ensurePlayerClothingStorage();
+  // Explicit account-owned character saves and wardrobe slots (no auto-creation).
+  await ensurePlayerAvatarEquipmentStorage();
   // Private world drafts must exist before admin endpoints begin serving.
   await ensureWorldSceneDraftStorage();
   await ensureWorldSceneContentStorage();
