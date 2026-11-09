@@ -19,9 +19,9 @@ const part = (type: typeof PLAYER_CHARACTER_PART_TYPES[number], n: number): Play
 });
 const full = () => PLAYER_CHARACTER_PART_TYPES.map((type, n) => part(type, n));
 
-test("the Avatar 06 base has exactly seven front-facing, reusable parts", () => {
+test("the Avatar 07A anatomy has exactly eight front-facing, reusable base parts", () => {
   assert.deepEqual(PLAYER_CHARACTER_PART_TYPES, [
-    "left_leg", "right_leg", "body", "left_arm", "right_arm", "head", "eyes",
+    "left_leg", "right_leg", "left_foot", "right_foot", "top", "left_arm", "right_arm", "head",
   ]);
   assert.equal(completePlayerCharacterParts([]), false);
   assert.equal(completePlayerCharacterParts(full().slice(0, 6)), false);
@@ -49,13 +49,13 @@ test("part metadata is coordinate-relative, bounded, finite, validated, and anch
 
 test("upserting one part is immutable, ordered, and preserves all other saved layers", () => {
   const initial = full();
-  const next = { ...part("eyes", 6), xPct: 61, zIndex: 88 };
+  const next = { ...part("head", 7), xPct: 61, zIndex: 88 };
   const edited = upsertPlayerCharacterPart(initial, next);
-  assert.equal(edited.length, 7);
-  assert.deepEqual(edited.find(p => p.partType === "eyes"), next);
-  assert.equal(initial.find(p => p.partType === "eyes")?.xPct, part("eyes", 6).xPct);
-  assert.equal(edited.at(-1)?.partType, "eyes");
-  assert.deepEqual(edited.filter(p => p.partType !== "eyes"), initial.filter(p => p.partType !== "eyes"));
+  assert.equal(edited.length, 8);
+  assert.deepEqual(edited.find(p => p.partType === "head"), next);
+  assert.equal(initial.find(p => p.partType === "head")?.xPct, part("head", 7).xPct);
+  assert.equal(edited.at(-1)?.partType, "head");
+  assert.deepEqual(edited.filter(p => p.partType !== "head"), initial.filter(p => p.partType !== "head"));
 });
 
 test("uploaded parts require valid transform and bounded PNG/WebP data, not arbitrary URL strings", () => {
@@ -84,7 +84,7 @@ test("backend separates private drafts and published snapshots with explicit aut
   assert.match(route, /\.for\("update"\)/);
   assert.match(route, /pg_advisory_xact_lock/);
   assert.match(route, /completePlayerCharacterParts\(base\.draftParts\)/);
-  assert.match(route, /publishedParts: base\.draftParts\.map/);
+  assert.match(route, /publishedParts: resolvePlayerCharacterParts\(base\.draftParts\)\.map/);
   assert.match(route, /eq\(playerCharacterBases\.revision/);
   assert.match(route, /processImage\(payload\.data\.imageData, 1000\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS player_character_bases/);
