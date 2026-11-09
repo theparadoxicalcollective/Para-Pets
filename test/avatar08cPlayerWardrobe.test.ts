@@ -116,8 +116,9 @@ test("the player page uses the authenticated 08B API and does not save a preview
   assert.match(page, /expectedRevision: avatar.revision/);
   assert.match(page, /const avatarKey = playerAvatarQueryKey\(userId\)/);
   assert.match(page, /queryKey: avatarKey/);
-  assert.match(page, /qc\.setQueryData\(avatarKey, saved\)/);
-  assert.match(page, /qc\.invalidateQueries\(\{ queryKey: avatarKey \}\)/);
+  assert.match(page, /qc\.setQueryData\(playerAvatarQueryKey\(accountId\), saved\)/);
+  assert.match(page, /cacheSavedAvatar\(saved, input\.accountId\)/);
+  assert.match(page, /qc\.invalidateQueries\(\{ queryKey: playerAvatarQueryKey\(input\.accountId\) \}\)/);
   assert.doesNotMatch(page, /qc\.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
   assert.match(page, /setPreviewId\(null\)/);
   assert.match(page, /error.status === 409/);
