@@ -152,6 +152,9 @@ try {
     // Screenshot-driven Home layout: profile frame without duplicate name,
     // curved player stars over the actor, larger XP below, separated team panel.
     await page.getByTestId("home-player-xp-track").waitFor({state:"visible"});
+    await page.getByTestId("home-player-team-stars-1").waitFor({state:"visible"});
+    await page.waitForFunction(() =>
+      document.querySelector('.home-player-hud__status')?.textContent?.trim() === "");
     const homeLayout = await page.evaluate(() => {
       const rect = (selector) => {
         const el = document.querySelector(selector);
