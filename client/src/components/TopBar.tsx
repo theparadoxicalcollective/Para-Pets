@@ -401,7 +401,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               </div>
             )}
 
-            {/* Nameplate — below frame */}
+            {/* Player name now belongs under the central Home avatar.
+                Preserve the original profile nameplate on other pages. */}
+            {location !== "/" && (
             <div style={{ position: "relative", width: 108, marginTop: -18, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 4px 22px rgba(0,0,0,0.55))" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 6 }}>
@@ -414,6 +416,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 </p>
               </div>
             </div>
+            )}
           </div>}
 
           {/* Coins + Essence + coin bundles — one compact HUD cluster */}
