@@ -1,12 +1,19 @@
-/** Player level and XP are account-owned; pet XP remains independent. */
+/** Player XP and stars belong to the account, never to the featured pet. */
 export interface PlayerProgression {
   level: number;
+  /** Lifetime account XP, preserved through every future Seer Elevation. */
   totalXp: number;
+  /** Persistent completed Elevations. Optional for pre-12B test/mock compatibility. */
+  stars?: number;
+  /** Lifetime XP when the current 1–100 journey began. */
+  cycleStartXp?: number;
 }
-export const INITIAL_PLAYER_PROGRESSION: Readonly<PlayerProgression> = Object.freeze({ level: 1, totalXp: 0 });
+export const INITIAL_PLAYER_PROGRESSION: Readonly<Required<PlayerProgression>> =
+  Object.freeze({ level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 });
 export const MAX_PLAYER_TOTAL_XP = 2_147_483_647;
 export const MAX_PLAYER_XP_AWARD = 1_000_000;
 export const PLAYER_MAX_LEVEL = 100;
+export const PLAYER_MAX_STARS = 5;
 
 /** Story quests dominate; repeatable and competitive activities are intentionally small. */
 export const PLAYER_XP_REWARDS = Object.freeze({
@@ -20,15 +27,15 @@ export const PLAYER_XP_REWARDS = Object.freeze({
   minigameBest: 4,
 });
 
-/** Total cumulative XP required to begin a level (not XP for only that level). */
+/** Total XP required to begin a level within ONE 1–100 Elevation cycle. */
 export function totalXpRequiredForPlayerLevel(level: number): number {
   const n = Math.max(0, Math.min(PLAYER_MAX_LEVEL - 1, Math.floor(level) - 1));
   return 80 * n + 20 * n * n;
 }
 
-/** A simple monotone curve, capped at level 100 even if lifetime XP continues. */
-export function levelForPlayerTotalXp(totalXp: number): number {
-  const total = Math.max(0, totalXp);
+/** Per-cycle player level; no automatic Elevation beyond 100. */
+export function levelForPlayerTotalXp(cycleXp: number): number {
+  const total = Math.max(0, cycleXp);
   let low = 1;
   let high = PLAYER_MAX_LEVEL;
   while (low < high) {
@@ -39,20 +46,60 @@ export function levelForPlayerTotalXp(totalXp: number): number {
   return low;
 }
 
-export interface PlayerProgressionResponse extends PlayerProgression {
+/** Lifetime XP continues tracking achievements, but excess XP earned while
+ * capped does not carry into the next cycle or auto-award player stars.
+ */
+export function playerCycleXp(progress: PlayerProgression | null | undefined): number {
+  if (!progress) return 0;
+  return Math.max(0, progress.totalXp - (progress.cycleStartXp ?? 0));
+}
+
+export function canPlayerElevate(progress: PlayerProgression | null | undefined): boolean {
+  if (!progress) return false;
+  return (progress.stars ?? 0) < PLAYER_MAX_STARS &&
+    levelForPlayerTotalXp(playerCycleXp(progress)) === PLAYER_MAX_LEVEL;
+}
+
+/** Pure future Seer transition. Do NOT wire to a player-writable endpoint:
+ * the future Seer NPC must authenticate, authorize and atomically commit it.
+ * Level resets to 1, earned stars and lifetime XP are retained, and the
+ * current XP remainder is discarded rather than carried to the next cycle.
+ */
+export function planSeerElevation(progress: PlayerProgression): Required<PlayerProgression> | null {
+  if (!canPlayerElevate(progress)) return null;
+  return {
+    level: 1,
+    stars: (progress.stars ?? 0) + 1,
+    totalXp: progress.totalXp,
+    cycleStartXp: progress.totalXp,
+  };
+}
+
+export interface PlayerProgressionResponse {
+  level: number;
+  totalXp: number;
+  /** XP earned since the last Elevation (may exceed the level-100 threshold). */
+  cycleXp: number;
+  stars: number;
+  canElevate: boolean;
   nextLevelTotalXp: number | null;
   xpToNextLevel: number | null;
 }
 
 export function playerProgressionResponse(saved: PlayerProgression | null | undefined): PlayerProgressionResponse {
   const totalXp = saved?.totalXp ?? 0;
-  // Derive rather than trust a stored level from an older version of the game.
-  const level = levelForPlayerTotalXp(totalXp);
+  const cycleXp = playerCycleXp(saved);
+  const stars = saved?.stars ?? 0;
+  // Always derive level from the current cycle, not lifetime XP or old pet XP.
+  const level = levelForPlayerTotalXp(cycleXp);
   const nextLevelTotalXp = level < PLAYER_MAX_LEVEL ? totalXpRequiredForPlayerLevel(level + 1) : null;
   return {
     level,
     totalXp,
+    cycleXp,
+    stars,
+    canElevate: stars < PLAYER_MAX_STARS && level === PLAYER_MAX_LEVEL,
     nextLevelTotalXp,
-    xpToNextLevel: nextLevelTotalXp === null ? null : Math.max(0, nextLevelTotalXp - totalXp),
+    xpToNextLevel: nextLevelTotalXp === null ? null : Math.max(0, nextLevelTotalXp - cycleXp),
   };
 }
