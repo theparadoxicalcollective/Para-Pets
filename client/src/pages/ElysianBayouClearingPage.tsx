@@ -1,8 +1,8 @@
 /**
  * Elysian Bayou Clearing — walk-around explore area.
  *
- * Loads the active pet, builds the location config, and passes everything
- * into the reusable WalkAroundScene component.
+ * Loads the active combat pet and player-owned avatar separately, then
+ * passes them into the one existing WalkAroundScene component.
  *
  * Combat is enabled only by this location configuration and uses the existing
  * walk-around movement controller.
@@ -125,6 +125,7 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
         config={CLEARING_CONFIG}
         petTemplateId={petTemplateId}
         activePet={activePet}
+        userId={user.id}
         onBack={handleBack}
         isAdmin={Boolean(user.isAdmin)}
       />
