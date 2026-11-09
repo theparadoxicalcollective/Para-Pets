@@ -193,8 +193,11 @@ try {
       sc.name+": avatar, player progress and party surfaces all render");
     assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,
       sc.name+": player stars centered above actor");
-    assert.ok(homeLayout.stars.top < homeLayout.actor.top+8,
-      sc.name+": player stars arc starts above actor");
+    // The avatar's rendered ring begins inside its layout square. Keep the
+    // enlarged star arc close to its top rather than floating far above it.
+    assert.ok(homeLayout.stars.top >= homeLayout.actor.top - 25 &&
+      homeLayout.stars.top < homeLayout.actor.top + 30,
+      sc.name+": player stars arc frames the avatar top");
     assert.ok(Math.abs(homeLayout.progress.centerX-homeLayout.actor.centerX)<6,
       sc.name+": player XP centered below actor");
     assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-3,
