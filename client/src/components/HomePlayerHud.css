@@ -81,6 +81,14 @@
   height: 100%;
   background: repeating-linear-gradient(90deg, rgba(172, 148, 89, .15) 0 5px, rgba(172, 148, 89, .05) 5px 12px);
 }
+.home-player-hud__xp-track--ready > span {
+  background: linear-gradient(90deg, #2c6a44 0%, #619356 65%, #d7bb6d 100%);
+  box-shadow: inset 0 0 3px rgba(234, 209, 144, .32);
+  transition: width .3s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-player-hud__xp-track--ready > span { transition: none; }
+}
 .home-player-hud__xp-text {
   min-width: 72px;
   font-size: 10px;
