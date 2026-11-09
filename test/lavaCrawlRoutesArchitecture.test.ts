@@ -51,7 +51,7 @@ test("completed-run score and coin caps remain unchanged", () => {
     /Math\.max\(0, Math\.min\(500, Math\.floor\(coinsCollected\)\)\)/,
   );
   assert.match(lavaRoutes, /INSERT INTO lava_crawl_scores/);
-  assert.match(lavaRoutes, /storage\.addCoins\(user\.id, safeCoins\)/);
+  assert.match(lavaRoutes, /total_coins_earned = total_coins_earned/);
   assert.match(lavaRoutes, /return res\.json\(\{ ok: true, \.\.\.completed \}\)/);
 });
 
