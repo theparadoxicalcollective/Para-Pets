@@ -2,6 +2,9 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { FishingAttemptError, abandonFishingAttempt, completeFishingAttempt, startFishingAttempt } from "../fishingAttempt";
 import { getAquariumUnlockErrorReason, purchaseAquariumUnlock } from "../aquariumUnlock";
+import { awardPlayerXp } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
+import { playerXpDayKey } from "../playerXpDayKey";
 
 const FISH_CATCH_REWARD_COINS = 10;
 
@@ -399,6 +402,16 @@ export function registerFishingRoutes(app: Express, deps: FishingRouteDependenci
       if (result.caught && !result.replayed) {
         maybeAwardFisherBadges(user.id, result.totalFishCaught ?? 0).catch(() => {});
         if (result.worldId) maybeAwardFishBookBadge(user.id, result.worldId).catch(() => {});
+        // A trusted, one-time completed fishing attempt counts toward just
+        // one small fishing XP award per Central day (no catch farming).
+        try {
+          await awardPlayerXp(user.id, {
+            source: "fishing_catch", eventId: playerXpDayKey(),
+            amount: PLAYER_XP_REWARDS.fishingDailyCatch,
+          });
+        } catch (xpError) {
+          console.warn("Fishing player XP award failed:", xpError);
+        }
       }
       return res.json(result);
     } catch (err: any) {
