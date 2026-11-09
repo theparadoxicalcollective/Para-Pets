@@ -30,6 +30,7 @@ import { StripePurchaseError } from "./payments/errors";
 import { claimPurchaseMilestone } from "./milestones/claimPurchaseMilestone";
 import { PurchaseMilestoneError } from "./milestones/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
+import { canEnterDuringMaintenance } from "@shared/maintenanceAccess";
 import { isConfiguredQaIdentity, isDedicatedQaTester } from "./qaTester";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 import { baseGardenToolKind } from "@shared/garden";
@@ -944,8 +945,10 @@ export async function registerRoutes(
       req.login(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
         try {
-          // Block non-admins when maintenance mode is active
-          if (!user.isAdmin) {
+          // Maintenance entry accepts verified account roles of admin OR
+          // moderator; this does not change /api/admin route authorization.
+          const freshUser = await storage.getUser(user.id);
+          if (!canEnterDuringMaintenance(freshUser)) {
             const maintenance = await storage.getGameSetting("maintenance_mode");
             if (maintenance === "true") {
               req.logout(() => {});
@@ -956,7 +959,6 @@ export async function registerRoutes(
           if (!user.welcomeV2Sent) {
             try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
           }
-          const freshUser = await storage.getUser(user.id);
           const safeUser = publicAccount(freshUser ?? user);
           // Log login event for metrics (fire-and-forget)
           setImmediate(async () => {

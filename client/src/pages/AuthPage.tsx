@@ -196,7 +196,7 @@ export default function AuthPage() {
       try { parsed = JSON.parse(msg); } catch {}
       if (parsed.maintenance === true) {
         setAdminBypass(false);
-        setLoginError("The realm is under maintenance. Only admins may enter.");
+        setLoginError("The realm is under maintenance. Only admins and moderators may enter.");
       } else {
         setLoginError(parsed.message || "Unable to sign in. Check your connection and try again.");
       }
@@ -318,7 +318,7 @@ export default function AuthPage() {
             padding: "12px 24px",
           }}
         >
-          Admin Login
+          Admin / Moderator Login
         </button>
       </div>
     );
