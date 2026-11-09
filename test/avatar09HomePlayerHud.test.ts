@@ -65,7 +65,7 @@ test("Home mounts the account HUD on the existing viewport portal without replac
 });
 
 test("viewport UI supports small phones, long usernames, tablets, and error/loading states", () => {
-  assert.match(css, /bottom: calc\(85px \+ env\(safe-area-inset-bottom/);
+  assert.match(css, /bottom: calc\(148px \+ env\(safe-area-inset-bottom/);
   assert.match(css, /width: min\(calc\(100vw - 28px\), 350px\)/);
   assert.match(css, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(css, /text-overflow: ellipsis/);
