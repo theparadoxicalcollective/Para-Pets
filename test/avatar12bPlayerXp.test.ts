@@ -67,7 +67,7 @@ test("five intentional Seer Elevations reset only cycle XP, never lifetime XP or
   assert.equal(playerProgressionResponse(elevated).level, 1);
   assert.equal(playerProgressionResponse(elevated).cycleXp, 0);
   // Seer interaction is intentionally absent until a Seer NPC is published.
-  assert.doesNotMatch(read("server/routes/playerProgression.routes.ts"), /elevat|app\\.(post|put|patch)\\(/i);
+  assert.doesNotMatch(read("server/routes/playerProgression.routes.ts"), /elevat|app\.(?:post|put|patch)\(/i);
 });
 
 test("elevation state is additive and saved independently from pet progression", () => {
