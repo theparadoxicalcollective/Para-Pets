@@ -91,7 +91,9 @@ test("character stands at the existing artwork landmark with short-screen HUD cl
   const createButtonStyles = css.slice(css.indexOf(".home-avatar-stage__create {"),
     css.indexOf(".home-avatar-stage__gold-ring {"));
   assert.doesNotMatch(createButtonStyles, /animation:/);
-  assert.match(css, /home-avatar-stage__create-center[\\s\\S]*animation: home-avatar-gold-hover/);
+  const labelStyles = css.slice(css.indexOf(".home-avatar-stage__create-center {"),
+    css.indexOf(".home-avatar-stage__create-center svg"));
+  assert.match(labelStyles, /animation: home-avatar-gold-hover/);
   assert.match(hud, /avatarHome = false/);
   assert.match(hud, /home-player-hud--avatar-home/);
   assert.match(hudCss, /home-player-hud--avatar-home/);
