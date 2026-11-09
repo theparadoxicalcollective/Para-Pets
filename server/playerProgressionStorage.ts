@@ -3,7 +3,7 @@ import {
   playerProgression,
   playerXpReceipts,
 } from "@shared/schema";
-import { levelForPlayerTotalXp, playerCycleXp, type PlayerProgression } from "@shared/playerProgression";
+import { levelForPlayerTotalXp, type PlayerProgression } from "@shared/playerProgression";
 import { db } from "./db";
 import {
   executePlayerXpAward,
