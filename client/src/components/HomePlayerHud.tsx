@@ -23,7 +23,14 @@ export interface HomeHudPet {
 export async function fetchHomePlayerProgression(signal?: AbortSignal): Promise<PlayerProgressionResponse> {
   const response = await fetch("/api/player/progression", { credentials: "include", signal, cache: "no-store" });
   if (!response.ok) throw new Error("Could not load your player level");
-  return response.json();
+  const data: unknown = await response.json();
+  if (!data || typeof data !== "object" ||
+      !("level" in data) || !Number.isSafeInteger(data.level) || Number(data.level) < 1 ||
+      !("totalXp" in data) || !Number.isSafeInteger(data.totalXp) || Number(data.totalXp) < 0) {
+    // Never unmount Home or its quest/menu controls on a malformed response.
+    throw new Error("Player progression response was invalid");
+  }
+  return data as PlayerProgressionResponse;
 }
 
 /**
