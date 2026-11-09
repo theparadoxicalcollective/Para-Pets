@@ -1,5 +1,9 @@
 import type { PlayerCharacterPart, PlayerCharacterPartType } from "@shared/playerCharacter";
-import type { PlayerClothingSegment } from "@shared/playerCharacterClothing";
+import {
+  PLAYER_CLOTHING_CATEGORIES,
+  type PlayerClothingSegment,
+} from "@shared/playerCharacterClothing";
+import type { AvatarClothingLayer } from "@/lib/playerAvatarWardrobe";
 import "./PlayerCharacterRenderer.css";
 
 /**
@@ -16,6 +20,8 @@ export type PlayerCharacterMotion = "static" | "idle" | "walk";
 export interface PlayerCharacterRendererProps {
   parts: readonly PlayerCharacterPart[];
   clothingSegments?: readonly PlayerClothingSegment[];
+  /** The seven player outfit slots may share the same anatomy anchor. */
+  clothingLayers?: readonly AvatarClothingLayer[];
   motion?: PlayerCharacterMotion;
   selectedPartType?: PlayerCharacterPartType | null;
   ariaLabel?: string;
@@ -24,12 +30,26 @@ export interface PlayerCharacterRendererProps {
 export default function PlayerCharacterRenderer({
   parts,
   clothingSegments = [],
+  clothingLayers = [],
   motion = "static",
   selectedPartType = null,
   ariaLabel = "Player character",
 }: PlayerCharacterRendererProps) {
   // Never mutate the caller's draft or the published snapshot.
   const sorted = [...parts].sort((a, b) => a.zIndex - b.zIndex);
+  const layers = [
+    ...clothingSegments.map(segment => ({
+      segment, key: `draft:${segment.partType}`, categoryOrder: -1,
+    })),
+    ...clothingLayers.flatMap(outfit => outfit.segments.map(segment => ({
+      segment,
+      key: `${outfit.category}:${outfit.inventoryId}:${segment.partType}`,
+      categoryOrder: PLAYER_CLOTHING_CATEGORIES.indexOf(outfit.category),
+    }))),
+  ];
+  // Part-local fit follows the same animated limb, while the authored plane
+  // takes precedence over category ordering. The base image has depth 1.
+  const planeDepth = { behind_character: -1000, with_part: 100, in_front_of_character: 1000 };
   return (
     <div
       data-testid="player-character-renderer"
@@ -77,24 +97,25 @@ export default function PlayerCharacterRenderer({
             {/* A clothing item owns multiple images, each fitted INSIDE the
                 same motion wrapper as its selected body part. Both halves
                 of pants therefore inherit their own leg's movement. */}
-            {clothingSegments.filter(item => item.partType === part.partType).map(item => (
+            {layers.filter(layer => layer.segment.partType === part.partType).map(layer => (
               <img
-                key={item.partType}
-                src={item.imageUrl}
+                key={layer.key}
+                src={layer.segment.imageUrl}
                 alt=""
                 aria-hidden="true"
                 draggable={false}
-                data-clothing-part={item.partType}
-                data-clothing-plane={item.renderPlane}
+                data-clothing-part={layer.segment.partType}
+                data-clothing-plane={layer.segment.renderPlane}
+                data-clothing-key={layer.key}
                 className="player-character-renderer__clothing"
                 style={{
-                  left: `${item.fit.xPct}%`,
-                  top: `${item.fit.yPct}%`,
-                  width: `${item.fit.widthPct}%`,
-                  transformOrigin: `${item.fit.pivotXPct}% ${item.fit.pivotYPct}%`,
-                  transform: `translate(-${item.fit.pivotXPct}%, -${item.fit.pivotYPct}%) rotate(${item.fit.rotationDeg}deg)`,
-                  zIndex: item.renderPlane === "behind_character" ? 0
-                    : item.renderPlane === "with_part" ? 2 : 3,
+                  left: `${layer.segment.fit.xPct}%`,
+                  top: `${layer.segment.fit.yPct}%`,
+                  width: `${layer.segment.fit.widthPct}%`,
+                  transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
+                  transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
+                  zIndex: planeDepth[layer.segment.renderPlane] +
+                    layer.categoryOrder * 101 + layer.segment.fit.zIndex,
                 }}
               />
             ))}
