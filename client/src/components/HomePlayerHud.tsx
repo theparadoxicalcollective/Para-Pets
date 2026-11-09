@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { PlayerProgressionResponse } from "@shared/playerProgression";
 import { usePlayerPetTeam } from "@/hooks/usePlayerPetTeam";
 import { cleanPetTeam, eligiblePetIds, PLAYER_PET_TEAM_MAX } from "@/lib/playerPetTeam";
+import ViewportModalPortal from "@/components/ViewportModalPortal";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import "./HomePlayerHud.css";
@@ -148,6 +149,7 @@ export default function HomePlayerHud({
       </div>
 
       {pickerSlot !== null && (
+        <ViewportModalPortal>
         <div data-testid="home-player-team-picker" className="home-player-hud__picker"
           role="presentation" onClick={() => setPickerSlot(null)}>
           <section role="dialog" aria-modal="true" aria-label={`Choose companion for slot ${pickerSlot + 1}`}
@@ -191,6 +193,7 @@ export default function HomePlayerHud({
             )}
           </section>
         </div>
+        </ViewportModalPortal>
       )}
     </div>
   );
