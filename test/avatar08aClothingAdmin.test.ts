@@ -146,6 +146,7 @@ test("admin drag preview reuses the shared eight-part renderer and preserves exi
   assert.match(component, /touchAction: "none"/);
   assert.match(component, /avatar-publish-clothing/);
   assert.match(renderer, /clothingSegments\.map\(segment =>/);
+  assert.match(renderer, /categoryOrder: 0/, "Admin clothing drafts must render above the base image in with_part mode");
   assert.match(renderer, /layers\.filter\(layer => layer\.segment\.partType === part\.partType\)/);
   assert.match(renderer, /data-clothing-part=\{layer\.segment\.partType\}/);
   assert.match(styles, /player-character-renderer__clothing/);
