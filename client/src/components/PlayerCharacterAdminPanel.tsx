@@ -79,6 +79,7 @@ export default function PlayerCharacterAdminPanel() {
   // re-upload. Legacy Eyes stay archived and are not silently discarded.
   const resolvedParts = selected ? resolvePlayerCharacterParts(selected.draftParts) : [];
   const savedPart = resolvedParts.find(part => part.partType === partType);
+  const hasNativePart = selected?.draftParts.some(part => part.partType === partType) ?? false;
   const archivedEyes = selected?.draftParts.find(part => part.partType === "eyes");
 
   useEffect(() => {
@@ -323,7 +324,7 @@ export default function PlayerCharacterAdminPanel() {
                 data-testid="avatar-save-part" onClick={() => save.mutate()}>
                 {save.isPending ? "Saving Part…" : "Save Selected Part"}
               </button>
-              {savedPart && (
+              {hasNativePart && (
                 <button type="button" disabled={busy || dirty} onClick={() => remove.mutate()}
                   className="min-h-[40px] w-full rounded-lg border border-[#786348] bg-[#35291c] text-xs text-[#f2cfa2]">
                   Remove from Draft
