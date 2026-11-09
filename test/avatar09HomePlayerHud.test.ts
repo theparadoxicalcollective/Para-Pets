@@ -29,7 +29,7 @@ test("five independently editable slots reuse the one server-authoritative roste
   assert.match(hud, /usePlayerPetTeam\(userId\)/);
   assert.match(hud, /saveTeam\(next\)/);
   assert.match(hud, /<ViewportModalPortal>/);
-  assert.match(hud, /selectedPetIds\.some\(\(id, index\) =>/);
+  assert.match(hud, /current\.some\(\(id, index\) =>/);
   assert.match(hud, /current\.splice\(pickerSlot, 1\)/);
   assert.match(hud, /const next = cleanPetTeam\(current, eligibleIds\)/);
   assert.match(hud, /if \(saveTeam\(next\)\) setPickerSlot\(null\)/);
