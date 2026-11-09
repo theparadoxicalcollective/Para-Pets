@@ -464,8 +464,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               </div>
             )}
 
-            {/* Player name now belongs under the central Home avatar.
-                Preserve the original profile nameplate on other pages. */}
+            {/* Keep the legacy profile nameplate only on non-Home pages. */}
             {location !== "/" && (
             <div style={{ position: "relative", width: 108, marginTop: -18, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 4px 22px rgba(0,0,0,0.55))" }} />
@@ -484,13 +483,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           {location === "/" && !hideProfile && (
             <div data-testid="home-account-header"
               className="flex min-w-0 flex-col items-start gap-2 self-start pt-3"
-              style={{ maxWidth: "min(calc(100vw - 158px), 160px)" }}>
+              style={{ maxWidth: "max(90px, min(160px, calc(100vw - 230px)))" }}>
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#f7dfa0] font-bold"
                 style={{ fontSize: "clamp(12px, 3.7vw, 17px)", textShadow: "0 2px 5px #010b06, 0 0 8px #010b06" }}>
                 {user.username}
               </span>
-              {coinBundleShopButton}
+              {!hideCoins && coinBundleShopButton}
             </div>
           )}
 
