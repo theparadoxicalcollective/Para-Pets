@@ -9,6 +9,7 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
       user_id varchar PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       base_id varchar NOT NULL REFERENCES player_character_bases(id),
       base_published_at timestamp NOT NULL,
+      base_parts jsonb NOT NULL,
       revision integer NOT NULL DEFAULT 0 CHECK (revision >= 0),
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now()
