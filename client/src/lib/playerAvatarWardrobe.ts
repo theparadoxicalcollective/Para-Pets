@@ -7,6 +7,14 @@ import {
 
 export const PLAYER_AVATAR_QUERY_KEY = ["/api/player-avatar"] as const;
 
+/** All avatar UI (Home, walking and wardrobe) must cache owned artwork by
+ * authenticated account, never at the unscoped endpoint prefix. Otherwise an
+ * account switch can briefly display another player's cached outfit.
+ * Keep the prefix for targeted invalidations without storing player data on it.
+ */
+export const playerAvatarQueryKey = (userId: string) =>
+  [...PLAYER_AVATAR_QUERY_KEY, userId] as const;
+
 /**
  * Shared authenticated, no-store read for the wardrobe and Home actor.
  * A failed or malformed read must never be confused with created:false:

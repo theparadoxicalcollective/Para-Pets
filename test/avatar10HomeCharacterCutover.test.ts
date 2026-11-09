@@ -60,8 +60,10 @@ test("Home and wardrobe retain each other's navigation destinations", () => {
   assert.match(wardrobe, /const fromHome = new URLSearchParams\(useSearch\(\)\)\.get\("from"\) === "home"/);
   assert.match(wardrobe, /navigate\(fromHome \? "\/" : "\/bag"\)/);
   assert.match(wardrobe, /aria-label=\{fromHome \? "Back to Home" : "Back to Bag"\}/);
-  assert.match(wardrobe, /qc\.getQueryData<\{ id\?: string \}>\(\["\/api\/auth\/me"\]\)/);
-  assert.match(wardrobe, /qc\.setQueryData\(\[\.\.\.PLAYER_AVATAR_QUERY_KEY, signedIn\.id\], saved\)/);
+  assert.match(wardrobe, /const avatarKey = playerAvatarQueryKey\(userId\)/);
+  assert.match(wardrobe, /qc\.setQueryData\(playerAvatarQueryKey\(accountId\), saved\)/);
+  assert.match(wardrobe, /cacheSavedAvatar\(saved, input\.accountId\)/);
+  assert.doesNotMatch(wardrobe, /qc\.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
   assert.doesNotMatch(wardrobe, /setQueriesData\(/);
 });
 

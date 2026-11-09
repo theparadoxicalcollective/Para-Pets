@@ -560,7 +560,7 @@ function AppRouter() {
         )}
         {location === "/player-avatar" && (
           <StagePageSurface layout="viewport">
-            <PlayerAvatarPage />
+            <PlayerAvatarPage userId={user.id} />
           </StagePageSurface>
         )}
         {location === "/cards" && (

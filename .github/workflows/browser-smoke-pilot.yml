@@ -81,6 +81,8 @@ jobs:
             exit 1
           fi
           # 10/12: real Home actor, first-save, saved outfits, error and Back navigation.
+          # 12A/12: prevent personal wardrobe cache leaking across account switches.
+          node script/avatar12a-account-isolation-smoke.mjs
           node script/home-avatar-cutover-smoke.mjs
           # 11/12: real walking actor, wardrobe layers, phone/tablet joystick.
           node script/avatar11-exploration-walk-smoke.mjs
