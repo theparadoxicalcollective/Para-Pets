@@ -24,6 +24,11 @@ test("the live explore scene renders the same account-owned 8-part avatar used o
   assert.match(scene, /avatarQuery\.data\?\.created === true/);
   assert.match(scene, /avatarQuery\.data\.base\.parts\.length === 8/);
   assert.match(scene, /data-testid="walk-avatar-actor"/);
+  assert.match(scene, /clearing-avatar-special-ready/);
+  assert.match(scene, /specialReady \? "clearing-avatar-special-ready" : ""/);
+  const walkUi = read("client/src/components/FloatingWalkJoystick.css");
+  assert.match(walkUi, /\.clearing-avatar-special-ready/);
+  assert.match(walkUi, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(scene, /data-walk-actor=\{walkingAvatar \? "avatar" : "pet"\}/);
   assert.doesNotMatch(scene, /writePlayerAvatar|player-avatar\/create|localStorage\.setItem/);
 });
@@ -33,7 +38,7 @@ test("avatar and pet use exactly one existing movement/camera/bounds controller"
   assert.match(scene, /petPos,/);
   assert.match(scene, /bounds: movementBounds/);
   assert.match(scene, /speed:  config\.movementSpeed/);
-  assert.match(scene, /enabled: !gameplayBlocked/);
+  assert.match(scene, /enabled: config\.features\.movement && !gameplayBlocked/);
   assert.match(scene, /left: `\$\{petPos\.x \* 100\}%`/);
   assert.match(scene, /top: `\$\{petPos\.y \* 100\}%`/);
   assert.match(scene, /worldYToDepth\(petPos\.y\)/);
@@ -69,7 +74,11 @@ test("uncreated or failed-avatar read safely falls back to legacy pet without a 
   assert.match(scene, /showLegacyPet && !!petTemplateId/);
   assert.match(scene, /<PetAnimator petTemplateId=\{petTemplateId\}/);
   assert.match(scene, /data-testid="walk-pet-sprite"/);
-  assert.match(scene, /!activePetInventoryId \|\| !petTemplateId/);
+  assert.match(scene, /if \(activePetInventoryId && petTemplateId\)/);
+  assert.match(scene, /setClearingReady\(false\)/);
+  assert.match(scene, /setLoadingComplete\(false\)/);
+  assert.match(scene, /setClearingReady\(true\)/);
+  assert.match(scene, /setLoadingComplete\(true\)/);
   assert.match(scene, /data-testid="clearing-featured-pet-notice"/);
   assert.match(scene, /Choose a hatched Featured Companion in Bag/);
   assert.match(scene, /!loadingComplete && activePetInventoryId && petTemplateId/);
@@ -95,4 +104,27 @@ test("only existing publicly live Clearing uses walking; unpublished world draft
   assert.match(page, /cameraMode: "device-viewport"/);
   assert.doesNotMatch(scene, /\/api\/admin\/world-scene|worldSceneDraft|publishWorld/);
   assert.doesNotMatch(page, /\.isAdmin\s*=\s*true/);
+});
+
+test("movement joystick stays hidden until a walk touch, is small and never steals input", () => {
+  const ui = read("client/src/components/FloatingWalkJoystick.tsx");
+  const css = read("client/src/components/FloatingWalkJoystick.css");
+  assert.match(scene, /config\.features\.movement && isJoystickActive && \(/);
+  assert.match(scene, /<FloatingWalkJoystick center=\{joystickCenter\} offset=\{joystickOffset\}/);
+  assert.match(scene, /if \(!config\.features\.movement \|\| gameplayBlocked/);
+  assert.match(scene, /\[config\.features\.movement, gameplayBlocked, onJoystickPointerDown\]/);
+  assert.match(scene, /onJoystickPointerDown\(e, \{ x: e\.clientX, y: e\.clientY \}\)/);
+  assert.match(ui, /FLOATING_WALK_JOYSTICK_SIZE = 72/);
+  assert.match(ui, /FLOATING_WALK_JOYSTICK_EDGE_GAP = 8/);
+  assert.match(css, /width: 72px/);
+  assert.match(css, /height: 72px/);
+  assert.match(css, /width: 30px/);
+  assert.match(css, /pointer-events: none/);
+  assert.match(css, /opacity: \.68/);
+  assert.doesNotMatch(ui, /onPointerDown|setInterval|requestAnimationFrame/);
+  assert.match(controller, /activePointerIdRef/);
+  assert.match(controller, /e\.pointerId !== activePointerIdRef\.current/);
+  assert.match(controller, /e\.pointerId === activePointerIdRef\.current/);
+  assert.match(controller, /MAX_JOY_RADIUS = 26/);
+  assert.match(controller, /document\.addEventListener\("visibilitychange", onVisibility\)/);
 });
