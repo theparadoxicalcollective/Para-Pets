@@ -1,4 +1,9 @@
 import type { Express, RequestHandler } from "express";
+import { sql } from "drizzle-orm";
+import { db } from "../db";
+import { awardPlayerXpInTransaction } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
+import { playerXpDayKey } from "../playerXpDayKey";
 
 export interface MoltenBlocksRouteDependencies {
   storage: typeof import("../storage").storage;
@@ -109,12 +114,33 @@ export function registerMoltenBlocksRoutes(
   app.post("/api/games/molten-blocks/score", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const score = Number((req.body ?? {}).score);
-      if (!Number.isFinite(score) || score < 0) {
+      const score = (req.body ?? {}).score;
+      if (typeof score !== "number" || !Number.isSafeInteger(score) || score < 0 || score > 999999) {
         return res.status(400).json({ message: "Invalid score" });
       }
-      const highScore = await storage.submitMoltenBlocksScore(user.id, Math.floor(score));
-      return res.json({ highScore });
+      const result = await db.transaction(async tx => {
+        const rows = await tx.execute(sql`
+          SELECT molten_blocks_high_score AS best FROM users
+          WHERE id = ${user.id} FOR UPDATE
+        `);
+        if (!rows.rows.length) throw new Error("User not found");
+        const prior = Number((rows.rows[0] as any).best ?? 0);
+        const isNewBest = score > prior && score > 0;
+        const updated = await tx.execute(sql`
+          UPDATE users SET molten_blocks_high_score = GREATEST(COALESCE(molten_blocks_high_score, 0), ${score})
+          WHERE id = ${user.id} RETURNING molten_blocks_high_score AS best
+        `);
+        let playerXpGranted = 0;
+        if (isNewBest) {
+          const award = await awardPlayerXpInTransaction(tx, user.id, {
+            source: "minigame_best", eventId: `molten:${playerXpDayKey()}`,
+            amount: PLAYER_XP_REWARDS.minigameBest,
+          });
+          if (award.status === "applied") playerXpGranted = PLAYER_XP_REWARDS.minigameBest;
+        }
+        return { highScore: Number((updated.rows[0] as any).best), playerXpGranted };
+      });
+      return res.json(result);
     } catch (err) {
       console.error("Molten Blocks score error:", err);
       return res.status(500).json({ message: "Failed to submit score" });
