@@ -12,7 +12,7 @@ const fixture = [
   'import PlayerAvatarPage from "@/pages/PlayerAvatarPage";',
   'import "@/index.css";',
   'const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });',
-  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}><PlayerAvatarPage /></QueryClientProvider>);',
+  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={qc}><PlayerAvatarPage userId="wardrobe-fixture-user" /></QueryClientProvider>);',
 ].join("\n");
 const server = await createServer({
   server: { host: "127.0.0.1", port: 4197, strictPort: true },
