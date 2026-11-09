@@ -16,6 +16,7 @@ export const PLAYER_XP_REWARDS = Object.freeze({
   clearingBoss: 10,
   pvpWin: 2,
   newBadge: 8,
+  fishingDailyCatch: 2,
   minigameBest: 4,
 });
 
