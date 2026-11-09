@@ -39,7 +39,7 @@ export async function fetchHomePlayerProgression(signal?: AbortSignal): Promise<
  * This component never changes pet progress or invents an XP level curve.
  */
 export default function HomePlayerHud({
-  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, visible = true,
+  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, avatarHome = false, visible = true,
 }: {
   userId: string;
   username: string;
@@ -48,6 +48,8 @@ export default function HomePlayerHud({
   /** Only a successful /api/inventory read authorizes roster edits. */
   inventoryReady: boolean;
   inventoryError: boolean;
+  /** The Pet Menu has moved into Bag; release its old bottom clearance. */
+  avatarHome?: boolean;
   visible?: boolean;
 }) {
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
@@ -101,7 +103,7 @@ export default function HomePlayerHud({
 
   const player = progression.data;
   return (
-    <div className="home-player-hud" data-testid="home-player-hud" data-coordinate-owner="viewport">
+    <div className={avatarHome ? "home-player-hud home-player-hud--avatar-home" : "home-player-hud"} data-testid="home-player-hud" data-coordinate-owner="viewport">
       <div className="home-player-hud__stars" data-testid="home-player-empty-stars"
         aria-label="Five unearned player stars" role="img">
         {Array.from({ length: 5 }, (_, i) => (
