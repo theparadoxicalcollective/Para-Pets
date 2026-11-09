@@ -27,10 +27,46 @@ export const PLAYER_CLOTHING_CATEGORY_LABELS: Record<PlayerClothingCategory, str
  */
 export const PLAYER_CLOTHING_SEGMENT_TYPES = PLAYER_CHARACTER_PART_TYPES;
 export const playerClothingCategorySchema = z.enum(PLAYER_CLOTHING_CATEGORIES);
-export const playerClothingSegmentSchema = playerCharacterTransformSchema.extend({
+
+/**
+ * Suggested upload boxes in the future admin Create Clothing editor.
+ * They are not mandatory: a skirt, cape, robe or unusual fantasy item may
+ * fit to a different subset of animation parts.
+ */
+export const PLAYER_CLOTHING_DEFAULT_ATTACHMENTS: Record<
+  PlayerClothingCategory, readonly (typeof PLAYER_CLOTHING_SEGMENT_TYPES)[number][]
+> = {
+  head: ["head"],
+  hair: ["head"],
+  face: ["head"],
+  top: ["top", "left_arm", "right_arm"],
+  bottom: ["left_leg", "right_leg"],
+  shoes: ["left_foot", "right_foot"],
+  back: ["top"],
+};
+
+/** Front/back layer choice per image segment, independent of the clothing
+ * inventory category. Back gear often draws behind the torso but is still
+ * attached to that torso so it follows animation.
+ */
+export const PLAYER_CLOTHING_RENDER_PLANES = [
+  "behind_character", "with_part", "in_front_of_character",
+] as const;
+export const playerClothingRenderPlaneSchema = z.enum(PLAYER_CLOTHING_RENDER_PLANES);
+
+/**
+ * One uploaded image fitted to ONE rig part. The fit is part-local, not
+ * whole-avatar placement: xPct/yPct/widthPct are relative to the attachment
+ * part's unanimated image bounds. The renderer composes fit UNDER the parent
+ * part's motion transform so leg pieces move with each respective leg.
+ * Reuse bounded transform validation rather than a second coordinate system.
+ */
+export const playerClothingSegmentSchema = z.object({
   partType: z.enum(PLAYER_CLOTHING_SEGMENT_TYPES),
   imageUrl: z.string().regex(/^\/api\/media\/[a-zA-Z0-9-]{1,80}$/),
-});
+  fit: playerCharacterTransformSchema,
+  renderPlane: playerClothingRenderPlaneSchema.default("with_part"),
+}).strict();
 export type PlayerClothingSegment = z.infer<typeof playerClothingSegmentSchema>;
 
 export const playerClothingDefinitionSchema = z.object({
@@ -51,9 +87,3 @@ export const playerClothingDefinitionSchema = z.object({
 });
 export type PlayerClothingDefinition = z.infer<typeof playerClothingDefinitionSchema>;
 
-/** Draw order is resolved by attachment + front/back layering in 07B/08,
- * not by the menu category enumeration.
- */
-export const PLAYER_CLOTHING_RENDER_PLANES = [
-  "behind_character", "with_part", "in_front_of_character",
-] as const;
