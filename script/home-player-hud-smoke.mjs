@@ -83,7 +83,8 @@ try {
     await page.goto("http://127.0.0.1:4198/home-player-hud", { waitUntil: "commit" });
     const hud = page.getByTestId("home-player-hud");
     await hud.waitFor({ state: "visible" });
-    await page.getByTestId("home-player-level").getByText("LV 4").waitFor({ state: "visible" });
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="home-player-level"]')?.textContent?.includes("LV 4"));
     assert.match(await page.getByTestId("home-player-total-xp").innerText(), /240 XP/);
     assert.equal(await page.getByTestId("home-player-empty-stars").locator("img").count(), 5);
     assert.equal(await page.locator('[data-testid^="home-player-team-slot-"]').count(), 5);
