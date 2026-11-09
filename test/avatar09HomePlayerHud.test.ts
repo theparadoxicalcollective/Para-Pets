@@ -60,6 +60,8 @@ test("Home mounts the account HUD on the existing viewport portal without replac
   assert.match(home, /<ViewportHudPortal>\s*<HomePlayerHud/);
   assert.match(home, /inventory=\{inventory\}/);
   assert.match(home, /inventoryLoading=\{inventoryLoading\}/);
+  assert.match(home, /inventoryReady=\{inventoryReady\}/);
+  assert.match(home, /inventoryError=\{inventoryError\}/);
   assert.match(home, /!showPetStats && !showProfile/);
   assert.match(home, /!showActionMenu && !questGuideMode/);
   assert.match(home, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
@@ -77,7 +79,10 @@ test("viewport UI supports small phones, long usernames, tablets, and error/load
   assert.match(css, /touch-action: manipulation/);
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(hud, /progression\.isError \? "XP unavailable"/);
-  assert.match(hud, /isLoading \|\| inventoryLoading \? "Loading your team/);
+  assert.match(hud, /isLoading \|\| inventoryLoading \|\| !inventoryReady \? "Loading your team/);
+  assert.match(hud, /inventoryLoading \|\| !inventoryReady\) return/);
+  assert.match(hud, /disabled=\{!isReady \|\| isSaving \|\| inventoryLoading \|\| !inventoryReady\}/);
+  assert.match(hud, /inventoryError \? <span role="alert">Pet inventory could not load/);
   assert.match(hud, /saveError \? <span role="alert">/);
   assert.match(hud, /data-testid="home-player-team-picker"/);
   assert.match(hud, /aria-modal="true"/);
