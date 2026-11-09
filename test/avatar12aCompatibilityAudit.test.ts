@@ -52,14 +52,14 @@ test("user A's outfit and revision never get stored under user B or the unscoped
   cache.clear();
 });
 
-test("Home now delegates pet workflows to dedicated routes without altering inventory or cave ownership", () => {
+test("Home pet compatibility is not deleted before Murk/quest QA", () => {
   const home = read("client/src/pages/HomePage.tsx");
   const inventory = read("client/src/components/PetInventory.tsx");
   const roadmap = read("docs/PLAYER_AVATAR_ROADMAP.md");
+  assert.match(home, /const AVATAR_10_HOME_CUTOVER = true/);
   assert.match(home, /<HomeAvatarStage/);
-  assert.match(home, /if \(currentUser\.id !== user\.id\) return null/);
-  assert.doesNotMatch(home, /AVATAR_10_HOME_CUTOVER|PetPowerUpPage|hatchHomeMutation|homePettingRewardMutation/);
-  assert.match(home, /encodeURIComponent\(homeUser\.activePetId\)/);
+  assert.match(home, /!AVATAR_10_HOME_CUTOVER && \(<>/);
+  assert.match(home, /encodeURIComponent\(currentUser\.activePetId\)/);
   assert.match(home, /\?from=quest/);
   assert.match(inventory, /Set Featured Companion/);
   assert.match(roadmap, /12C\/12/);
