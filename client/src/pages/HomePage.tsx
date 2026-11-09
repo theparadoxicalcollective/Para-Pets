@@ -122,8 +122,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, []);
 
   useEffect(() => {
-    setCurrentUser(prev => ({ ...prev, ...user }));
-  }, [user.activePetId, user.coins, user.profileImage, user.username]);
+    setCurrentUser(prev => prev.id === user.id ? { ...prev, ...user } : user);
+  }, [user.id, user.activePetId, user.coins, user.profileImage, user.username]);
 
   const [hatchRevealing, setHatchRevealing] = useState(false);
   const [hatchFadingOut, setHatchFadingOut] = useState(false);
@@ -190,6 +190,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showWorldChat, setShowWorldChat] = useState(false);
   const [chatHasNewMsg, setChatHasNewMsg] = useState(false);
   const bgChatCountRef = useRef(-1);
+  useEffect(() => {
+    bgChatCountRef.current = -1;
+    setChatHasNewMsg(false);
+    setShowWorldChat(false);
+    setShowSupportModal(false);
+    setSupportSent(false);
+    setSupportSubject("");
+    setSupportMessage("");
+    setShowProfile(false);
+    setShowActionMenu(false);
+  }, [user.id]);
 
   // Background poll for world chat — detects new messages even when the panel is closed
   // so the icon can glow when Veridian Watcher or other players post.
@@ -237,7 +248,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const destination =
       action === "powerup" || hint === "powerup" ? "pet-power-up" :
       hint === "feed" ? "pet-care" : null;
-    if (!destination) return;
+    if (!destination || currentUser.id !== user.id) return;
     window.history.replaceState({}, "", "/");
     if (AVATAR_10_HOME_CUTOVER) {
       navigate(currentUser.activePetId
@@ -249,7 +260,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     } else {
       setQuestGuideMode("feed");
     }
-  }, [searchString, currentUser.activePetId, navigate]);
+  }, [searchString, user.id, currentUser.id, currentUser.activePetId, navigate]);
 
   // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
   // Pet taps do not open navigation. A circular swipe over the pet calls
@@ -776,6 +787,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   };
 
   const petLoading = currentUser.activePetId && inventoryLoading;
+
+  // Do not render the previous account's profile, avatar or pet inventory
+  // while the authenticated identity is being synchronized after a switch.
+  if (currentUser.id !== user.id) return null;
 
   return (
     <div
