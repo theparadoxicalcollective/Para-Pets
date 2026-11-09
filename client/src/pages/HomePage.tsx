@@ -50,6 +50,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const bgChatCountRef = useRef(-1);
   const [, navigate] = useLocation();
   const searchString = useSearch();
+  // App's floating-navigation gate still listens for this event. The retired
+  // Home stats modal can no longer open, so reset any stale "open" state.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: false } }));
+  }, []);
   useEffect(() => {
     setCurrentUser(previous => previous.id === user.id ? { ...previous, ...user } : user);
   }, [user.id, user.activePetId, user.coins, user.profileImage, user.username]);
