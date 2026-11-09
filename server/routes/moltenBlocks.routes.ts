@@ -114,10 +114,13 @@ export function registerMoltenBlocksRoutes(
   app.post("/api/games/molten-blocks/score", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const score = (req.body ?? {}).score;
-      if (typeof score !== "number" || !Number.isSafeInteger(score) || score < 0 || score > 999999) {
+      // Preserve legacy Molten Blocks scoring input: parse numeric values and
+      // floor fractional scores; do not impose an unrelated new high-score cap.
+      const rawScore = Number((req.body ?? {}).score);
+      if (!Number.isFinite(rawScore) || rawScore < 0) {
         return res.status(400).json({ message: "Invalid score" });
       }
+      const score = Math.floor(rawScore);
       const result = await db.transaction(async tx => {
         const rows = await tx.execute(sql`
           SELECT molten_blocks_high_score AS best FROM users
