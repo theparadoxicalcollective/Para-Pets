@@ -59,17 +59,19 @@ test("unearned account stars remain unfilled even if the current pet has high ra
   assert.doesNotMatch(hud, /\.rarity/);
 });
 
-test("Home mounts the account HUD with the avatar while retaining the saved five-pet roster", () => {
-  assert.match(home, /import HomePlayerHud, \{ type HomeHudPet \} from/);
+test("Home mounts the account HUD on the existing viewport portal without replacing pets prematurely", () => {
+  assert.match(home, /import HomePlayerHud from/);
   assert.match(home, /<ViewportHudPortal>\s*<HomePlayerHud/);
   assert.match(home, /inventory=\{inventory\}/);
   assert.match(home, /inventoryLoading=\{inventoryLoading\}/);
   assert.match(home, /inventoryReady=\{inventoryReady\}/);
   assert.match(home, /inventoryError=\{inventoryError\}/);
-  assert.match(home, /<HomeAvatarStage/);
-  assert.match(home, /!isOverlayActive && !showProfile && !showSupportModal && !showWorldChat/);
-  assert.doesNotMatch(home, /AVATAR_10_HOME_CUTOVER|ActivePetPlacement|PetAnimator|MiniPetRenderer/);
-  assert.doesNotMatch(home, /homePettingRewardMutation|hatchHomeMutation|activePetModal/);
+  assert.match(home, /!showPetStats && !showProfile/);
+  assert.match(home, /!showActionMenu && !questGuideMode/);
+  assert.match(home, /<ActivePetPlacement templateId=\{activePet\.petTemplateId\}/);
+  assert.match(home, /data-testid="active-pet-name-level-anchor"/);
+  assert.match(home, /data-testid="button-open-pet-menu"/);
+  assert.match(home, /data-testid="display-pet-rarity-stars"/);
   assert.doesNotMatch(hud, /PlayerCharacterRenderer|PetAnimator|\/api\/player-avatar/);
 });
 
