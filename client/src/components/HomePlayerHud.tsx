@@ -157,7 +157,7 @@ export default function HomePlayerHud({
         {inventoryError ? <span role="alert">Pet inventory could not load. Your saved team is safe; reopen Home to retry.</span> :
           saveError ? <span role="alert">{saveError} Choose a pet to retry.</span> :
           isSaving ? "Saving your team…" :
-          isLoading || inventoryLoading || !inventoryReady ? "Loading your team…" : "Tap a portrait to edit your team"
+          isLoading || inventoryLoading || !inventoryReady ? "Loading your team…" : "Tap a portrait to edit your team"}
       </div>
 
       {pickerSlot !== null && (
