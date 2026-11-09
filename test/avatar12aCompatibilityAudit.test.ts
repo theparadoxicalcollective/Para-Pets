@@ -73,7 +73,7 @@ test("player XP rewards are still gated on an approved curve and trusted event s
   const schema = read("shared/playerProgression.ts");
   assert.match(route, /app\.get\("\/api\/player\/progression"/);
   assert.doesNotMatch(route, /app\.post|app\.patch|app\.put/);
-  assert.match(award, /levelForTotalXp: \(totalXp: number\) => number/);
+  assert.match(award, /levelForPlayerTotalXp/);
   assert.match(award, /playerXpReceipts/);
   assert.match(schema, /nextLevelTotalXp:/);
   assert.match(read("docs/PLAYER_AVATAR_ROADMAP.md"), /12B\/12/);
