@@ -22,7 +22,7 @@ import FloatingWalkJoystick, {
 } from "@/components/FloatingWalkJoystick";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import {
-  PLAYER_AVATAR_QUERY_KEY,
+  playerAvatarQueryKey,
   fetchPlayerAvatar,
   wardrobeLayers,
   type PlayerAvatarState,
@@ -67,7 +67,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, user
   // Visual identity is owned by the player, not by the featured combat pet.
   // Reuse Home/wardrobe's account-scoped query and existing eight-part renderer.
   const avatarQuery = useQuery<PlayerAvatarState>({
-    queryKey: [...PLAYER_AVATAR_QUERY_KEY, userId],
+    queryKey: playerAvatarQueryKey(userId),
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
     enabled: !!userId,
     staleTime: 30_000,
