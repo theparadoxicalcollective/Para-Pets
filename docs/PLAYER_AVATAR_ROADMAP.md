@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-09  
 **Numbering:** `Avatar 01/12` through `Avatar 12/12` are *program phases/PR identifiers*, not GitHub PR numbers. If one phase must be split, use `07A/12`, `07B/12` and update this ledger.  
-**Progress:** **11 of 12 main phases merged through Avatar 11/12 (#1041)**; moderator maintenance entry (#1040) is also merged. **12A/12** is in review for the final compatibility audit, account-cache isolation and QA gates. Remaining 12B/12 (XP awards) and 12C/12 (device-backed cleanup) are separate follow-ups. CI/merging are not physical-device verification; 08A–08C count as one main phase.  
+**Progress:** Avatar 01–11 and **12A/12B** are merged (through #1043). **12C** is the final Home cleanup and device-stability audit, now in a separate PR. CI/browser checks do not establish physical-device or production stability. The 08A–08C and 12A–12C suffixes are subphases.
 **Branching:** Every next PR starts from the latest merged `main`; do not stack on an unmerged feature branch. The user reviews/merges after checks.  
 **Supported gameplay:** iOS and Android phones/tablets. Desktop gameplay stays behind Coming Soon, with existing admin/auth exceptions.
 
@@ -45,9 +45,9 @@
 | **Avatar 09/12** | Compact Home account HUD: player name, level and real XP, five unfilled player stars, editable saved five-pet PvP/Raid team | **Merged — GitHub #1038** | CI and browser fixtures passed; physical phone/tablet QA remains separately unverified |
 | **Avatar 10/12** | Home displays account-owned animated avatar or gold **Design Character** circle; tap opens wardrobe, returns Home; retires Home pet actor/nameplate/stars/menu while preserving pet-ID destinations | **Merged — GitHub #1039** | Owner confirms merge; deployed physical phone/tablet QA outstanding |
 | **Avatar 11/12** | Saved eight-part avatar and equipped clothing walk in live Bayou Clearing; 72px on-demand joystick, camera/bounds, equipped layers and legacy combat pet | **Merged — GitHub #1041** | Final PR CI and browser workflows passed; deployed hardware QA not recorded |
-| **Avatar 12A/12** | Compatibility/ownership audit, account-scoped shared avatar cache, device QA matrix, regression gates | **In review — `feature/avatar-12a-compatibility-audit`** | CI/browser checks pending; no deployed or physical QA implied |
-| **Avatar 12B/12** | Approved player level curve, trusted award events and idempotent reward integration | **Pending explicit XP design approval** | No live XP awards, pet XP conversion or star thresholds guessed |
-| **Avatar 12C/12** | Live-device regression evidence, safe legacy Home removal, mobile performance and final audit | **Deferred until after 12A/12B and device QA** | Preserve quests, Murk Cave, eggs, special attack, editor drafts and desktop gate |
+| **Avatar 12A/12** | Compatibility/ownership audit, account-scoped shared avatar cache, device QA matrix, regression gates | **Merged — GitHub #1042** | CI/browser passed; physical device QA still outstanding |
+| **Avatar 12B/12** | Quest-first player XP, per-cycle Level 100, five future Seer Elevations, trusted/idempotent awards and Lava avatar | **Merged — GitHub #1043** | CI/browser passed; Seer NPC interaction and unlock gates intentionally not yet present |
+| **Avatar 12C/12** | Remove unreachable legacy Home pet subtree, preserve pet-ID routes and gameplay boundaries; regression and live-device audit | **In implementation — `feature/avatar-12c-home-legacy-cleanup`** | Automated checks and physical iOS/Android/tablet QA tracked separately; not yet verified |
 
 **Do not mark a phase complete because its PR merged.** Record separately: code implemented → CI passed → merged → live behavior verified. A feature may be marked *released and verified* only with recorded behavior evidence.
 
@@ -301,7 +301,7 @@
 
 ## Avatar 12/12 — final sequence and merge gates
 
-**12A/12: Compatibility audit and account-cache isolation.** The current code stores authenticated wardrobe data at an unscoped `["/api/player-avatar"]` React Query entry while Home and walking key their cached appearances by user ID. 12A unifies them under `playerAvatarQueryKey(userId)`, updates first-save/equipment cache writes and invalidations, and adds a cross-account cache regression. It also documents every preserved compatibility boundary; see [AVATAR_12A_COMPATIBILITY_AUDIT.md](./AVATAR_12A_COMPATIBILITY_AUDIT.md).
+**12A/12: Compatibility audit and account-cache isolation — merged #1042.** Account-owned wardrobe appearance now uses the scoped `playerAvatarQueryKey(userId)` in Home, the wardrobe and walking, with first-save/equipment writes scoped to the same account. It also documents every preserved compatibility boundary; see [AVATAR_12A_COMPATIBILITY_AUDIT.md](./AVATAR_12A_COMPATIBILITY_AUDIT.md).
 
 - [x] Inspect current `main` after merged #1040 and #1041, compare the avatar roadmap to merged source and record what has *not* had physical-device QA.
 - [x] Update program ledger for 11/12, separate 12A/12B/12C and record the audit baseline.
@@ -310,7 +310,7 @@
 - [ ] Latest-head TypeScript checks, test compilation, full suite, build and browser workflow pass.
 - [ ] Deployed authenticated multi-account and **physical iOS/Android/tablet** verification.
 
-**12B/12: Quest-first player XP awards and levels (implementation branch).** The user approved XP chiefly from completed story quests and daily quests, with only small rewards from Clearing victories, PvP wins, newly earned gameplay badges, fishing, and mini-game personal bests. Account XP begins at Level 1 / 0 XP, without historic backfill or conversion from pet XP. Existing account-specific progress and unique (user, source, event) receipts are reused. XP is never client-supplied and there is no public XP-award route.
+**12B/12: Quest-first player XP awards and levels — merged #1043.** The user approved XP chiefly from completed story quests and daily quests, with only small rewards from Clearing victories, PvP wins, newly earned gameplay badges, fishing, and mini-game personal bests. Account XP begins at Level 1 / 0 XP, without historic backfill or conversion from pet XP. Existing account-specific progress and unique (user, source, event) receipts are reused. XP is never client-supplied and there is no public XP-award route.
 
 - [x] Centralized initial XP amounts: story quests **120**, daily quests **30**, Clearing victories **3** (boss **10**), PvP wins **2**, newly earned noncommercial badges **8**, one verified catch/day **2**, and a new Lava Crawl or Molten Blocks personal best **4** per game/day. These are intentionally adjustable constants, not multiplied by pet level.
 - [x] Account level formula: the cumulative threshold for level *L* is `80 × (L−1) + 20 × (L−1)²`, capped at Level 100 **per Elevation journey**. The progress API calculates the next threshold and remaining XP without changing pet progression.
@@ -324,8 +324,18 @@
 
 **Safety boundary:** Keep active pet as combat companion for existing Clearing/PvP/Raid mechanics; this PR does **not** introduce avatar combat stats, Seer interactions, star-gated unlocks, publish private World Editor drafts, enable desktop gameplay, or remove legacy Home compatibility. Stage 12C handles cleanup only after device QA.
 
-**12C/12: Cleanup and production/device stability.** Delete legacy Home pet JSX/state/effects **only after** verifying pet-ID routes, egg hatching, Murk Cave, tutorials and daily quest links on real devices. Keep the existing combat actor and admin positions until migrations are proven. Run performance and Safari-memory checks; do not change private world publishing, Pet Park movement, PC access or the payment economy within this scope.
+**12C/12: Cleanup and production/device stability.** Remove Home-only unreachable pet JSX/state/effects while retaining pet-ID routes, combat ownership, and quest redirects. Merging the cleanup must **not** be treated as verification of egg hatching, Murk Cave, tutorials, or other gameplay on real devices. Keep the existing combat actor and admin positions until migrations are proven. Run performance and Safari-memory checks; do not change private world publishing, Pet Park movement, PC access or the payment economy within this scope.
 
 **Current state:** Desktop gameplay remains locked. World Editor's new scenes are admin-private drafts, not published player areas. Clothing acquisition in public shops is still gated; both require independent decisions. Moderator maintenance access is merged in #1040, but the real moderator/ordinary-user login matrix has not yet been observed on devices.
 
 **Completion rule:** Only declare phase 12 done after the merged PRs have successful final-head automation **and** recorded real-world player/admin QA. The stage-07 through stage-11 historical unmarked checklists represent pending or unrecorded hardware verification, not unmerged code.
+
+
+### Avatar 12C — safe code cleanup, not final live-device signoff
+
+- Home's disabled legacy active-pet actor, gesture/petting timers, hatch/potion sheet, rarity visuals, Pet Menu, pet stats and modal handlers are removed **only from `HomePage.tsx`**. The dedicated inventory-ID pet pages, shared pet APIs and Murk Cave stay untouched.
+- Retain the exact existing Home background-cover projection, stone-platform asset landmark, player avatar/wardrobe button, account level + five-star HUD, shared five-pet PvP/Raid team, profile, support and World Chat.
+- The retired `questHint` and `action=powerup` links must keep routing to the currently featured owned pet, or to Bag when none is selected.
+- Update source-level regression tests for the new Home-only contract and run final-head `npm run check`, `npm run check:tests`, `npm test`, production build, Home fixture/browser smoke and tutorial/viewport checks before merging.
+- **Still required before full 12/12 release signoff:** physical iPhone, Android phone, iPad/Android tablet and low-memory Safari; avatar first-save/reload, equipment/account switch, Team 5, profile/chat/support, egg hatching, pet care, Level Up, Power Up, Closet, quests, Clearing, Murk Cave, PvP/Raid and Lava Crawl.
+- **Next separate pass after stability:** visual alignment/spacing of avatar, stars/XP, five-pet roster, category/equipment controls, and walking/combat overlays. Do not modify artwork anchors or editor positions in this cleanup PR.
