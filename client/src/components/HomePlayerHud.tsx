@@ -39,12 +39,15 @@ export async function fetchHomePlayerProgression(signal?: AbortSignal): Promise<
  * This component never changes pet progress or invents an XP level curve.
  */
 export default function HomePlayerHud({
-  userId, username, inventory, inventoryLoading, visible = true,
+  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, visible = true,
 }: {
   userId: string;
   username: string;
   inventory: readonly HomeHudPet[];
   inventoryLoading: boolean;
+  /** Only a successful /api/inventory read authorizes roster edits. */
+  inventoryReady: boolean;
+  inventoryError: boolean;
   visible?: boolean;
 }) {
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
@@ -68,6 +71,7 @@ export default function HomePlayerHud({
   // A profile change or a navigation opening must never leave a picker over
   // another account's Home or the main navigation.
   useEffect(() => { setPickerSlot(null); }, [userId]);
+  useEffect(() => { if (!inventoryReady) setPickerSlot(null); }, [inventoryReady]);
   useEffect(() => {
     const dismiss = () => setPickerSlot(null);
     window.addEventListener("para-pets:main-nav-open", dismiss);
@@ -77,7 +81,7 @@ export default function HomePlayerHud({
   if (!visible) return null;
 
   const changePet = (inventoryId: string | null) => {
-    if (pickerSlot === null || !isReady || isSaving || inventoryLoading) return;
+    if (pickerSlot === null || !isReady || isSaving || inventoryLoading || !inventoryReady) return;
     if (inventoryId && !eligibleIds.includes(inventoryId)) return;
     const current = [...selectedPetIds];
     if (inventoryId && current.some((id, index) => id === inventoryId && index !== pickerSlot)) return;
@@ -134,7 +138,7 @@ export default function HomePlayerHud({
             <button key={index} type="button"
               data-testid={`home-player-team-slot-${index + 1}`}
               className="home-player-hud__slot"
-              disabled={!isReady || isSaving || inventoryLoading}
+              disabled={!isReady || isSaving || inventoryLoading || !inventoryReady}
               aria-label={`Team slot ${index + 1}: ${name}. Edit companion`}
               title={name}
               onClick={() => setPickerSlot(index)}>
@@ -150,9 +154,10 @@ export default function HomePlayerHud({
         })}
       </div>
       <div className="home-player-hud__status" role="status">
-        {saveError ? <span role="alert">{saveError} Choose a pet to retry.</span> :
+        {inventoryError ? <span role="alert">Pet inventory could not load. Your saved team is safe; reopen Home to retry.</span> :
+          saveError ? <span role="alert">{saveError} Choose a pet to retry.</span> :
           isSaving ? "Saving your team…" :
-          isLoading || inventoryLoading ? "Loading your team…" : "Tap a portrait to edit your team"}
+          isLoading || inventoryLoading || !inventoryReady ? "Loading your team…" : "Tap a portrait to edit your team"
       </div>
 
       {pickerSlot !== null && (
