@@ -4,6 +4,9 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  /* The shared viewport portal intentionally ignores clicks; the active
+     page must explicitly own pointer events for buttons and touch swipes. */
+  pointer-events: auto;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
