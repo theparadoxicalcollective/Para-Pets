@@ -145,7 +145,8 @@ try {
       const writesBefore = requests.length;
       await page.goto("http://127.0.0.1:4198/home-player-hud?inventory-failed=1",
         { waitUntil: "commit" });
-      await page.getByRole("alert").getByText(/Pet inventory could not load/).waitFor({ state: "visible" });
+      await page.getByRole("alert").waitFor({ state: "visible" });
+      assert.match(await page.getByRole("alert").innerText(), /Pet inventory could not load/);
       assert.equal(await page.locator('[data-testid^="home-player-team-slot-"]:not([disabled])').count(), 0,
         name + ": no team edits are allowed after an inventory load failure");
       assert.equal(requests.length, writesBefore, name + ": failed inventory cannot erase saved roster");
