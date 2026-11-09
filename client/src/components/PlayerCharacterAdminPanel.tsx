@@ -64,7 +64,7 @@ export default function PlayerCharacterAdminPanel() {
   const [newName, setNewName] = useState("Player Avatar");
   const [renameValue, setRenameValue] = useState("");
   const [partType, setPartType] = useState<PlayerCharacterPartType>("top");
-  const [transform, setTransform] = useState<PlayerCharacterTransform>(DEFAULT_PLAYER_CHARACTER_TRANSFORMS.body);
+  const [transform, setTransform] = useState<PlayerCharacterTransform>(DEFAULT_PLAYER_CHARACTER_TRANSFORMS.top);
   const [imageData, setImageData] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
 
