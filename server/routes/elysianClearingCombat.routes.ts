@@ -21,6 +21,8 @@ import { claimClearingRewardChest, ClearingChestError, createClearingRewardChest
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
 import { collectSpecialEggDrop, createSpecialEggDrop, getSpecialEggDrops } from "../clearingSpecialMobs";
 import { recordLonelleClearingDefeat } from "../lonelleQuest";
+import { awardPlayerXpInTransaction } from "../playerProgressionStorage";
+import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 
 type RequestedStrikeTarget = {
   enemyInstanceId: string;
@@ -94,6 +96,12 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
             boss: enemy.isBoss,
           });
       const lonelleQuest = enemy.isBoss ? null : await recordLonelleClearingDefeat(tx, userId);
+      // Grant account XP only for a server-confirmed, uniquely receipted defeat.
+      // Pet XP and quest/loot claims still use their established transaction.
+      await awardPlayerXpInTransaction(tx, userId, {
+        source: "clearing_victory", eventId: enemyInstanceId,
+        amount: enemy.isBoss ? PLAYER_XP_REWARDS.clearingBoss : PLAYER_XP_REWARDS.clearingVictory,
+      });
       return { chest, eggDrop, expAwarded: boostedExp, boss: enemy.isBoss, pet: { level, levelPoints: points }, lonelleQuest };
     });
   };
