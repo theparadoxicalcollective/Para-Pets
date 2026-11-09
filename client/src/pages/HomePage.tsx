@@ -28,6 +28,7 @@ import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import HomePlayerHud from "@/components/HomePlayerHud";
+import HomeAvatarStage from "@/components/HomeAvatarStage";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
@@ -45,6 +46,10 @@ import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import { useActivePetAnchor } from "@/lib/petPresentation";
 import { petChromeAnchorOffset } from "@/lib/petChromeAnchor";
 import { coverArtworkPoint, viewportPointToCoverArtwork } from "@/lib/artworkCoverGeometry";
+
+// Phase 10 cuts over Home display while keeping legacy pet/egg handlers
+// isolated for the phase-12 compatibility cleanup. Pet care lives in Bag.
+const AVATAR_10_HOME_CUTOVER = true;
 
 interface HomePageProps {
   user: {
@@ -222,25 +227,29 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     onError: () => toast({ title: "Error", description: "Failed to send message. Please try again.", variant: "destructive" }),
   });
 
-  // Open Power Up modal when navigated here via "/?action=powerup" (daily quest Go button)
-  useEffect(() => {
-    const params = new URLSearchParams(searchString);
-    if (params.get("action") === "powerup") {
-      window.history.replaceState({}, "", "/");
-      setPowerUpFromQuest(true);
-      setActivePetModal("power_up");
-    }
-  }, [searchString]);
-
-  // Quest guided arrow — activated by "Go" on Power Up / Feed Pet quests
+  // The retired Home Pet Menu is no longer a quest target. Forward old
+  // daily-quest links to the existing owned-pet routes instead of leaving
+  // a spotlight pointing at a removed control.
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const hint = params.get("questHint");
-    if (hint === "powerup" || hint === "feed") {
-      window.history.replaceState({}, "", "/");
-      setQuestGuideMode(hint as "powerup" | "feed");
+    const action = params.get("action");
+    const destination =
+      action === "powerup" || hint === "powerup" ? "pet-power-up" :
+      hint === "feed" ? "pet-care" : null;
+    if (!destination) return;
+    window.history.replaceState({}, "", "/");
+    if (AVATAR_10_HOME_CUTOVER) {
+      navigate(currentUser.activePetId
+        ? `/${destination}/${encodeURIComponent(currentUser.activePetId)}`
+        : "/bag");
+    } else if (destination === "pet-power-up") {
+      setPowerUpFromQuest(true);
+      setActivePetModal("power_up");
+    } else {
+      setQuestGuideMode("feed");
     }
-  }, [searchString]);
+  }, [searchString, currentUser.activePetId, navigate]);
 
   // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
   // Pet taps do not open navigation. A circular swipe over the pet calls
@@ -847,12 +856,33 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             inventoryLoading={inventoryLoading}
             inventoryReady={inventoryReady}
             inventoryError={inventoryError}
+            avatarHome={AVATAR_10_HOME_CUTOVER}
             visible={!isOverlayActive && !showPetStats && !showProfile &&
               !showSupportModal && !showWorldChat && activePetModal === null &&
               !showSpeedUp && !hatchRevealing && !showActionMenu && !questGuideMode}
           />
         </ViewportHudPortal>
 
+        {/* Player-owned avatar is positioned from the real stone-platform
+            landmark, not the active pet's ID or the old reference stage. */}
+        {AVATAR_10_HOME_CUTOVER && (
+          <ViewportHudPortal>
+            <HomeAvatarStage
+              userId={currentUser.id}
+              landmark={activePetGroundViewport}
+              backdrop={activePetBackdropRect}
+              visible={!isOverlayActive && !showProfile && !showPetStats &&
+                !showWorldChat && !showSupportModal && !showSpeedUp &&
+                activePetModal === null && !hatchRevealing}
+              onOpen={() => navigate("/player-avatar")}
+            />
+          </ViewportHudPortal>
+        )}
+
+        {/* Compatibility island: fully unmounted for Home avatar cutover.
+            Owned-pet actions, eggs and quests now have dedicated routes.
+            Cleanup of this retired markup is intentionally phase 12. */}
+        {!AVATAR_10_HOME_CUTOVER && (<>
         {activePet && !(activePet.isHatched && activePet.petTemplateId) && (
           <div
             data-testid="display-pet-rarity-stars"
@@ -1376,11 +1406,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             ) : null}
           </div>
         )}
+        </>)}
 
       </div>
 
 
-      {!isOverlayActive && showSpeedUp && activePet && !activePet.isHatched && (
+      {!AVATAR_10_HOME_CUTOVER && !isOverlayActive && showSpeedUp && activePet && !activePet.isHatched && (
         <ViewportModalPortal>
         <div
           data-testid="active-pet-speedup-viewport-modal"
@@ -1545,7 +1576,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Screen-relative Pet Menu: independent of tapping or petting the pet. */}
-      {!isOverlayActive && !showProfile && !showPetStats && !showSupportModal && !showWorldChat && activePetModal === null && activePetForModal && (
+      {!AVATAR_10_HOME_CUTOVER && !isOverlayActive && !showProfile && !showPetStats && !showSupportModal && !showWorldChat && activePetModal === null && activePetForModal && (
         <ViewportHudPortal>
           <div data-testid="active-pet-side-menu" className="absolute flex flex-col-reverse items-center gap-3" style={{ left: 12, bottom: "calc(82px + env(safe-area-inset-bottom, 0px))", zIndex: 150, pointerEvents: "auto" }}>
             <button type="button" data-testid="button-open-pet-menu" aria-label="Pet Menu" aria-expanded={showActionMenu} onClick={() => { if (!showActionMenu) window.dispatchEvent(new Event("para-pets:pet-menu-open")); setShowActionMenu(value => !value); }} className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]" style={{ touchAction: "manipulation" }}><img src={petMenuIconImg} alt="" aria-hidden="true" className="h-full w-full object-contain drop-shadow-[0_2px_3px_#000]" draggable={false} /></button>
@@ -1560,7 +1591,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* Daily quest hints follow the actual left-side Pet Menu controls. */}
-      {questGuideMode && !isOverlayActive && activePetForModal && (
+      {!AVATAR_10_HOME_CUTOVER && questGuideMode && !isOverlayActive && activePetForModal && (
         <QuestGuideSpotlight
           selector={showActionMenu
             ? questGuideMode === "powerup"
@@ -1576,7 +1607,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* ── Pet stats page (opened from the ring's left button) ── */}
-      {showPetStats && activePetForModal && (
+      {!AVATAR_10_HOME_CUTOVER && showPetStats && activePetForModal && (
         <PetDetailPage
           pet={activePetForModal as any}
           onClose={() => setShowPetStats(false)}
@@ -1614,7 +1645,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       {/* ── Power Up modal ── */}
-      {activePetModal === "power_up" && activePetForModal && (
+      {!AVATAR_10_HOME_CUTOVER && activePetModal === "power_up" && activePetForModal && (
         <PetPowerUpPage
           admin={user.isAdmin}
           petName={activePetForModal.petNickname || activePetForModal.name}
@@ -1649,7 +1680,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           }}
         />
       )}
-      {!isOverlayActive && hatchRevealing && (
+      {!AVATAR_10_HOME_CUTOVER && !isOverlayActive && hatchRevealing && (
         <ViewportModalPortal>
         <div
           data-testid="active-pet-hatch-reveal-viewport-modal"
@@ -1985,7 +2016,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       )}
 
       <PowerUpOverlay
-        visible={showSpeedEffect}
+        visible={!AVATAR_10_HOME_CUTOVER && showSpeedEffect}
         effectType="hatch"
         label={speedEffectLabel}
         onDone={() => setShowSpeedEffect(false)}
