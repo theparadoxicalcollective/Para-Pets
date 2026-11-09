@@ -54,6 +54,9 @@ export default function PetPowerUpRoute() {
   const [, navigate] = useLocation();
   const [, params] = useRoute<{ inventoryId: string }>("/pet-power-up/:inventoryId");
   const inventoryId = params?.inventoryId ?? null;
+  // The old Home quest modal exposed a purchase shortcut. Preserve it when
+  // opening the existing inventory-ID route from daily quest Go.
+  const fromQuest = new URLSearchParams(window.location.search).get("from") === "quest";
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [successEffect, setSuccessEffect] = useState<{
@@ -168,6 +171,7 @@ export default function PetPowerUpRoute() {
         <PetPowerUpPage
           deviceSurface
           admin={userQuery.data.isAdmin === true}
+          showBuyButton={fromQuest}
           petName={pet.petNickname || pet.name}
           petInventoryId={pet.inventoryId}
           petImage={pet.hatchedImageUrl || pet.imageUrl}
