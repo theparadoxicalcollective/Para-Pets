@@ -17,6 +17,10 @@
   pointer-events: none;
 }
 
+.player-character-renderer__motion {
+  position: relative;
+}
+
 .player-character-renderer__motion,
 .player-character-renderer__image {
   display: block;
@@ -24,6 +28,17 @@
   height: auto;
   max-width: none;
   pointer-events: none;
+}
+
+/* Each garment segment is part-local, never screen-relative. The base
+   image and garment share the SAME animated parent for exact limb tracking. */
+.player-character-renderer__clothing {
+  position: absolute;
+  display: block;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
 }
 
 .player-character-renderer__motion--idle,
