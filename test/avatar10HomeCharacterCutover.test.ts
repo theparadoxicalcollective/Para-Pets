@@ -87,6 +87,11 @@ test("character stands at the existing artwork landmark with short-screen HUD cl
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /home-avatar-gold-turn/);
   assert.match(css, /home-avatar-gold-hover/);
+  // The tap target stays stationary while only its ring/label animates.
+  const createButtonStyles = css.slice(css.indexOf(".home-avatar-stage__create {"),
+    css.indexOf(".home-avatar-stage__gold-ring {"));
+  assert.doesNotMatch(createButtonStyles, /animation:/);
+  assert.match(css, /home-avatar-stage__create-center[\\s\\S]*animation: home-avatar-gold-hover/);
   assert.match(hud, /avatarHome = false/);
   assert.match(hud, /home-player-hud--avatar-home/);
   assert.match(hudCss, /home-player-hud--avatar-home/);
