@@ -281,7 +281,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
 
         {/* LEFT: portrait, Home account header, and resource balances */}
         <div className="flex flex-col items-start gap-0 min-w-0" data-testid="topbar-profile-resources">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2"
+            style={location === "/" ? { flexWrap: "wrap", width: "min(calc(100vw - 24px), 260px)" } : undefined}>
           {/* Profile frame stays in place; only Home rearranges adjacent controls. */}
           {!hideProfile && <div className="flex flex-col items-center gap-0 flex-shrink-0" style={{ transform: "translateY(14px)" }}>
             <div className="relative flex-shrink-0" style={{ width: 100 }}>
@@ -504,6 +505,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 columnGap: 4,
                 rowGap: 2,
                 marginTop: location === "/" ? 17 : 0,
+                flexBasis: location === "/" ? "100%" : undefined,
                 alignItems: "center",
                 flexShrink: 0,
               }}
