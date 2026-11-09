@@ -1,0 +1,181 @@
+import assert from "node:assert/strict";
+import { createServer } from "vite";
+import { chromium } from "playwright";
+
+// Exercise actual Home and Avatar page components in isolated maintenance-admin
+// fixture accounts. No Railway requests or live character creation.
+const fixtureId = "/__avatar10-home-fixture.tsx";
+const fixture = [
+  'import React,{useEffect} from "react";',
+  'import {createRoot} from "react-dom/client";',
+  'import {useLocation} from "wouter";',
+  'import {QueryClientProvider,useQuery} from "@tanstack/react-query";',
+  'import {queryClient} from "@/lib/queryClient";',
+  'import {useStageViewportLayout,publishStageViewportCss} from "@/lib/stageViewport";',
+  'import HomePage from "@/pages/HomePage";',
+  'import PlayerAvatarPage from "@/pages/PlayerAvatarPage";',
+  'import FloatingNav from "@/components/FloatingNav";',
+  'import {TooltipProvider} from "@/components/ui/tooltip";',
+  'import {Toaster} from "@/components/ui/toaster";',
+  'import "@/index.css";',
+  'queryClient.setDefaultOptions({queries:{...queryClient.getDefaultOptions().queries,retry:false,refetchOnWindowFocus:false}});',
+  'function Fixture(){',
+  ' const [location]=useLocation();',
+  ' const layout=useStageViewportLayout(location);',
+  ' const {data:user}=useQuery({queryKey:["/api/auth/me"]});',
+  ' useEffect(()=>{',
+  '  publishStageViewportCss(layout);',
+  '  Object.assign(document.getElementById("game-stage").style,{position:"absolute",left:layout.left+"px",top:layout.top+"px",width:layout.designWidth+"px",height:layout.designHeight+"px",overflow:"hidden"});',
+  ' },[layout]);',
+  ' if(!user)return null;',
+  ' return <><div style={{position:"absolute",inset:0,pointerEvents:"auto"}}>',
+  '   {location.startsWith("/player-avatar")?<PlayerAvatarPage/>:<HomePage user={user}/>}</div>',
+  '  <FloatingNav user={user}/><Toaster/></>;',
+  '}',
+  'createRoot(document.getElementById("root")).render(<QueryClientProvider client={queryClient}><TooltipProvider><Fixture/></TooltipProvider></QueryClientProvider>);',
+].join("\n");
+
+const server = await createServer({
+  server: { host:"127.0.0.1",port:4199,strictPort:true },
+  plugins: [{
+    name:"isolated-avatar10-home",
+    resolveId:id=>id===fixtureId?id:null,
+    load:id=>id===fixtureId?fixture:null,
+    configureServer(server) {
+      server.middlewares.use(async(req,res,next)=>{
+        if(!req.headers.accept?.includes("text/html"))return next();
+        res.setHeader("Content-Type","text/html");
+        res.end(await server.transformIndexHtml(req.url,
+          '<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>'+
+          '<div class="game-stage-shell" style="position:fixed;inset:0;overflow:hidden">'+
+          '<div id="game-stage" data-coordinate-owner="viewport">'+
+          '<div id="game-viewport-page" style="position:absolute;inset:0;pointer-events:none;z-index:20"></div>'+
+          '<div id="game-viewport-backdrop" style="position:absolute;inset:0;pointer-events:none;z-index:17"></div>'+
+          '<div id="game-viewport-scene" style="position:absolute;inset:0;pointer-events:none;z-index:30"></div>'+
+          '<div id="root" style="position:absolute;inset:0;z-index:15"></div>'+
+          '<div id="game-viewport-hud" style="position:absolute;inset:0;pointer-events:none;z-index:40"></div>'+
+          '</div></div><script type="module" src="'+fixtureId+'"></script></body></html>'));
+      });
+    },
+  }],
+});
+const art = "data:image/svg+xml;base64,"+Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140"><ellipse cx="70" cy="70" rx="45" ry="55" fill="#d8b876"/></svg>'
+).toString("base64");
+const parts = ["head","top","left_arm","right_arm","left_leg","right_leg","left_foot","right_foot"].map((partType,i)=>({
+  partType,imageUrl:art,
+  xPct:50+(i%3-1)*6,yPct:25+i*8,widthPct:24+(i===1?18:0),
+  pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:i+10,
+}));
+const hat = {category:"head",inventoryId:"hat-owned",shopItemId:"hat-item",
+  name:"Golden Hat",imageUrl:art,segments:[{partType:"head",imageUrl:art,
+  fit:{xPct:50,yPct:50,widthPct:85,pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:1},
+  renderPlane:"in_front_of_character"}]};
+const base = {id:"published-base",name:"Forest Character",
+  publishedAt:"2026-11-09T00:00:00.000Z",parts};
+const playerPet = {inventoryId:"pet-owned",id:"pet-owned",shopItemId:"pet-template",
+  name:"Original Companion",type:"pet",rarity:4,starRarity:4,isHatched:true,
+  isListed:false,petTemplateId:null,hatchTime:3,hatchStartedAt:null,
+  eggImageUrl:art,hatchedImageUrl:art,imageUrl:art,petNickname:"Flora",
+  petLevel:11,petLevelPoints:270,petHp:12,petAtk:5,petDef:3,quantity:1,
+  itemsUsedThisLevel:0,petHealth:12,petAtk:5,petDef:3};
+await server.listen();
+const browser=await chromium.launch({headless:true});
+try {
+  const scenarios=[
+    {name:"first-time compact phone",width:320,height:568,created:false},
+    {name:"first-time phone",width:390,height:844,created:false},
+    {name:"saved character phone",width:390,height:844,created:true},
+    {name:"saved character tablet",width:834,height:1194,created:true},
+    {name:"avatar API unavailable",width:390,height:844,created:false,apiError:true},
+    {name:"avatar API malformed",width:360,height:800,created:false,malformed:true},
+  ];
+  for(const sc of scenarios){
+    const context=await browser.newContext({
+      viewport:{width:sc.width,height:sc.height},isMobile:true,hasTouch:true,
+    });
+    const page=await context.newPage();
+    const errors=[],writes=[];
+    page.on("pageerror",e=>errors.push(e.message));
+    page.setDefaultTimeout(18000);
+    const user={id:"home-avatar-fixture",username:"QA",email:"qa@example.invalid",
+      coins:1200,isAdmin:true,isModerator:true,emailVerified:true,profileImage:null,
+      activePetId:"pet-owned"};
+    let avatar={created:sc.created,revision:sc.created?1:null,base,
+      ownedClothing:[],equipped:sc.created?[hat]:[],unavailableEquipmentSlots:[]};
+    const fulfill=(route,json,status=200)=>route.fulfill({status,json});
+    await page.route("**/api/**",async route=>{
+      const path=new URL(route.request().url()).pathname;
+      const method=route.request().method();
+      if(path==="/api/auth/me")return fulfill(route,user);
+      if(path==="/api/inventory")return fulfill(route,[playerPet]);
+      if(path==="/api/player/progression")
+        return fulfill(route,{level:4,totalXp:240,nextLevelTotalXp:null,xpToNextLevel:null});
+      if(path==="/api/player/pet-team")
+        return fulfill(route,{petInventoryIds:["pet-owned"],attackPower:100});
+      if(path==="/api/player-avatar" && method==="GET") {
+        if(sc.apiError)return fulfill(route,{message:"Service unavailable"},503);
+        if(sc.malformed)return fulfill(route,[]);
+        return fulfill(route,avatar);
+      }
+      if(path==="/api/player-avatar/create" && method==="POST"){
+        const body=route.request().postDataJSON();
+        assert.equal(body.baseId,"published-base");
+        writes.push(body);
+        avatar={...avatar,created:true,revision:0};
+        return fulfill(route,avatar);
+      }
+      if(path.startsWith("/api/tutorial/"))return fulfill(route,{message:"retired"},410);
+      if(path.includes("pet-page-placement"))return fulfill(route,{x:0,y:0,scale:1});
+      if(path==="/api/active-pet-anchor")return fulfill(route,{x:0,y:0});
+      if(path==="/api/quests/daily" || path==="/api/quests/janson")
+        return fulfill(route,{quests:[]});
+      if(path==="/api/quests/ginny-mini-pet")return fulfill(route,{status:"available"});
+      if(path==="/api/friends/requests/count")return fulfill(route,{count:0});
+      return fulfill(route,[]);
+    });
+    await page.goto("http://127.0.0.1:4199/",{waitUntil:"domcontentloaded",timeout:30000});
+    await page.getByTestId("home-avatar-stage").waitFor({state:"visible",timeout:30000});
+    await page.getByTestId("home-player-hud").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("button-open-pet-menu").count(),0,
+      sc.name+": retired Home Pet Menu is absent");
+    assert.equal(await page.getByTestId("active-pet-placement-stage").count(),0,
+      sc.name+": active pet is not the Home actor");
+    assert.equal(await page.getByTestId("display-pet-rarity-stars").count(),0,
+      sc.name+": old pet rarity stars are gone");
+    const bounds=await page.getByTestId("home-avatar-stage").evaluate(el=>{
+      const r=el.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+    });
+    assert.ok(bounds.left>=-2 && bounds.right<=sc.width+2 && bounds.top>=0 &&
+      bounds.bottom<sc.height-90,sc.name+": centered Home actor fits above HUD/nav");
+    if(sc.apiError||sc.malformed){
+      await page.getByTestId("home-avatar-error").waitFor({state:"visible"});
+      assert.equal(await page.getByTestId("home-design-character").count(),0,
+        sc.name+": network/malformed failure cannot be treated as uncreated");
+    }else if(!sc.created){
+      const invitation=page.getByTestId("home-design-character");
+      await invitation.waitFor({state:"visible"});
+      assert.equal(writes.length,0,sc.name+": Home never auto-creates player account");
+      await invitation.tap();
+      await page.getByTestId("player-avatar-page").waitFor({state:"visible"});
+      await page.getByTestId("avatar-create-button").tap();
+      assert.equal(writes.length,1,sc.name+": only the explicit wardrobe Save creates");
+      await page.getByRole("button",{name:"Back to Home"}).tap();
+      await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
+      assert.equal(await page.getByTestId("home-design-character").count(),0,
+        sc.name+": confirmed save replaces gold prompt");
+    }else{
+      await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
+      assert.equal(await page.locator('[data-clothing-part="head"]').count(),1,
+        sc.name+": equipped clothing displays over the shared rig");
+      await page.getByTestId("home-avatar-character").tap();
+      await page.getByRole("button",{name:"Back to Home"}).waitFor({state:"visible"});
+      await page.getByRole("button",{name:"Back to Home"}).tap();
+      await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
+    }
+    assert.deepEqual(errors,[],sc.name+": no React runtime errors");
+    console.log("PASS "+sc.name+": created-state, Home actor, wardrobe route and retired pet chrome");
+    await context.close();
+  }
+}finally{await browser.close();await server.close();}
