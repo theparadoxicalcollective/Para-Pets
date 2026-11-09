@@ -242,7 +242,7 @@
   touch-action: manipulation;
 }
 @media (max-width: 350px) {
-  .home-player-hud { bottom: calc(82px + env(safe-area-inset-bottom, 0px)); padding-inline: 7px; }
+  .home-player-hud { bottom: calc(145px + env(safe-area-inset-bottom, 0px)); padding-inline: 7px; }
   .home-player-hud__slot { width: min(100%, 45px); }
 }
 @media (max-height: 690px) {
