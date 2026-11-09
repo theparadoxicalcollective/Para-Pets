@@ -526,8 +526,12 @@ async function getOrCreateBrawlerBadge(key: keyof typeof BRAWLER_BADGES): Promis
 /** Only badges newly earned from gameplay award XP. Exclude startup backfills
  * and purchased/admin-issued badges; never replay historical achievements. */
 async function awardNewGameplayBadge(userId: string, badgeId: string, earnXp = true) {
+  // awardBadge returns an existing badge on duplicate calls, so a truthy
+  // result alone does NOT mean it was newly earned. Snapshot ownership first.
+  const previouslyOwned = earnXp &&
+    (await storage.getUserBadges(userId)).some(badge => badge.badgeId === badgeId);
   const awarded = await storage.awardBadge(userId, badgeId);
-  if (awarded && earnXp) {
+  if (awarded && earnXp && !previouslyOwned) {
     try {
       await awardPlayerXp(userId, {
         source: "gameplay_badge", eventId: badgeId, amount: PLAYER_XP_REWARDS.newBadge,
