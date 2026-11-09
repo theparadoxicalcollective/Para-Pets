@@ -872,6 +872,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             inventoryReady={inventoryReady}
             inventoryError={inventoryError}
             avatarHome={AVATAR_10_HOME_CUTOVER}
+            avatarLandmark={activePetGroundViewport}
+            avatarBackdrop={activePetBackdropRect}
             visible={!isOverlayActive && !showPetStats && !showProfile &&
               !showSupportModal && !showWorldChat && activePetModal === null &&
               !showSpeedUp && !hatchRevealing && !showActionMenu && !questGuideMode}
