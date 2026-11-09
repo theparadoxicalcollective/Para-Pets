@@ -126,14 +126,14 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-.home-player-hud__slot img {
+.home-player-hud__slot-portrait img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
   pointer-events: none;
 }
-.home-player-hud__slot > span:first-child {
+.home-player-hud__slot-empty-label {
   font: bold 21px Georgia, serif;
   opacity: .73;
 }
@@ -266,14 +266,145 @@
   .home-player-hud * { transition: none !important; }
 }
 
-/* 10/12: Home no longer has the lower-left 56px pet action menu.
-   The account name/XP and team now sit under the central player character,
-   just above the persistent main navigation and device safe area. */
+/* Home's avatar, stars and XP are one artwork-anchored visual stack.
+   The party is a separate transparent forest panel, not a nameplate. */
 .home-player-hud--avatar-home {
+  inset: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  pointer-events: none;
+  isolation: auto;
+}
+.home-player-hud--avatar-home .home-player-hud__stars {
+  position: absolute;
+  left: var(--home-avatar-x, 50%);
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - var(--home-avatar-visual-size, 220px) - 19px);
+  transform: translateX(-50%);
+  width: max-content;
+  height: 32px;
+  gap: 2px;
+  z-index: 4;
+  pointer-events: none;
+}
+.home-player-hud--avatar-home .home-player-hud__stars img {
+  width: clamp(22px, 6vw, 31px);
+  height: clamp(22px, 6vw, 31px);
+}
+.home-player-hud--avatar-home .home-player-hud__progress {
+  position: absolute;
+  left: var(--home-avatar-x, 50%);
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px);
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(calc(100vw - 42px), 400px);
+  max-width: none;
+  margin: 0;
+  color: #f4dfa6;
+  text-align: center;
+  pointer-events: none;
+}
+.home-player-hud--avatar-home .home-player-hud__progress-heading {
+  gap: 9px;
+  justify-content: center;
+  text-shadow: 0 2px 5px #041009, 0 0 10px #041009;
+}
+.home-player-hud--avatar-home .home-player-hud__name {
+  max-width: min(73%, 300px);
+  font-size: clamp(15px, 3.9vw, 20px);
+}
+.home-player-hud--avatar-home .home-player-hud__level {
+  font-size: clamp(11px, 3vw, 14px);
+}
+.home-player-hud--avatar-home .home-player-hud__xp-row {
+  gap: 8px;
+  margin-top: 7px;
+}
+.home-player-hud--avatar-home .home-player-hud__xp-track {
+  height: 12px;
+  border: 1.5px solid rgba(234, 199, 119, .72);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .7);
+}
+.home-player-hud--avatar-home .home-player-hud__xp-text {
+  font-size: clamp(10px, 2.8vw, 13px);
+  min-width: 66px;
+  color: #f2e1b7;
+  text-shadow: 0 2px 4px #03110b;
+}
+.home-player-hud--avatar-home .home-player-hud__party-panel {
+  position: absolute;
+  left: 50%;
   bottom: calc(77px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(calc(100vw - 34px), 430px);
+  padding: 17px 12px 10px;
+  border: 1px solid rgba(191, 159, 93, .66);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(8, 32, 22, .83), rgba(3, 22, 16, .75));
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+  box-shadow: 0 5px 22px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(239, 213, 149, .08);
+  pointer-events: auto;
+}
+.home-player-hud--avatar-home .home-player-hud__team { max-width: 365px; }
+.home-player-hud__slot-portrait {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  opacity: 1;
+  pointer-events: none;
+}
+.home-player-hud--avatar-home .home-player-hud__slot {
+  overflow: visible;
+  width: min(100%, 55px);
+}
+.home-player-hud__slot-stars {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  width: max-content;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 2;
+}
+.home-player-hud__slot-stars img {
+  display: block;
+  width: clamp(9px, 2.6vw, 12px);
+  height: clamp(9px, 2.6vw, 12px);
+  object-fit: contain;
+  opacity: 1;
+  filter: drop-shadow(0 1px 2px #000) drop-shadow(0 0 2px rgba(255, 217, 135, .65));
+}
+.home-player-hud--avatar-home .home-player-hud__status {
+  margin: 0;
+  min-height: 0;
+  font-size: 10px;
 }
 @media (max-height: 690px) {
-  .home-player-hud--avatar-home {
+  .home-player-hud--avatar-home .home-player-hud__party-panel {
     bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
+  .home-player-hud--avatar-home .home-player-hud__progress {
+    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 4px);
+  }
+  .home-player-hud--avatar-home .home-player-hud__slot { width: min(100%, 42px); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .home-player-hud--avatar-home .home-player-hud__stars img,
+  .home-player-hud--avatar-home .home-player-hud__slot-stars img { transition: none !important; }
+}
+

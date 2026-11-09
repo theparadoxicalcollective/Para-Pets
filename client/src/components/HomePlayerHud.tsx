@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { totalXpRequiredForPlayerLevel, type PlayerProgressionResponse } from "@shared/playerProgression";
@@ -7,6 +7,8 @@ import { cleanPetTeam, eligiblePetIds, PLAYER_PET_TEAM_MAX } from "@/lib/playerP
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import cardStarImg from "@assets/uploads/CardStar.png";
+import type { ArtworkPoint, BackdropRect } from "@/lib/artworkCoverGeometry";
+import { homeAvatarPosition } from "@/lib/homeAvatarLayout";
 import "./HomePlayerHud.css";
 
 export interface HomeHudPet {
@@ -15,6 +17,7 @@ export interface HomeHudPet {
   petNickname: string | null;
   type: string;
   isHatched: boolean;
+  rarity?: number | null;
   isListed?: boolean;
   imageUrl: string | null;
   hatchedImageUrl: string | null;
@@ -39,7 +42,7 @@ export async function fetchHomePlayerProgression(signal?: AbortSignal): Promise<
  * This component never changes pet progress; the server owns the player XP curve.
  */
 export default function HomePlayerHud({
-  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, avatarHome = false, visible = true,
+  userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, avatarHome = false, avatarLandmark = null, avatarBackdrop, visible = true,
 }: {
   userId: string;
   username: string;
@@ -50,6 +53,9 @@ export default function HomePlayerHud({
   inventoryError: boolean;
   /** The Pet Menu has moved into Bag; release its old bottom clearance. */
   avatarHome?: boolean;
+  /** Same world-artwork point and backdrop as HomeAvatarStage. */
+  avatarLandmark?: ArtworkPoint | null;
+  avatarBackdrop?: BackdropRect;
   visible?: boolean;
 }) {
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
@@ -82,6 +88,14 @@ export default function HomePlayerHud({
 
   if (!visible) return null;
 
+  const avatarPosition = avatarHome && avatarBackdrop
+    ? homeAvatarPosition(avatarLandmark, avatarBackdrop) : null;
+  const avatarLayoutStyle = avatarPosition ? {
+    "--home-avatar-x": avatarPosition.x !== null ? `${avatarPosition.x}px` : "50%",
+    "--home-avatar-standing-y": avatarPosition.standingY !== null
+      ? `${avatarPosition.standingY}px` : "min(68dvh, calc(100dvh - 228px))",
+  } as CSSProperties : undefined;
+
   const changePet = (inventoryId: string | null) => {
     if (pickerSlot === null || !isReady || isSaving || inventoryLoading || !inventoryReady) return;
     if (inventoryId && !eligibleIds.includes(inventoryId)) return;
@@ -112,13 +126,14 @@ export default function HomePlayerHud({
     ? (player.canElevate ? "Level 100 complete; Seer Elevation coming later" : "Five-star Level 100 reached: maximum player progression")
     : `Level ${player.level}: ${xpEarnedThisLevel} of ${xpNeededThisLevel} XP toward Level ${player.level + 1}`;
   return (
-    <div className={avatarHome ? "home-player-hud home-player-hud--avatar-home" : "home-player-hud"} data-testid="home-player-hud" data-coordinate-owner="viewport">
+    <div className={avatarHome ? "home-player-hud home-player-hud--avatar-home" : "home-player-hud"}
+      style={avatarLayoutStyle} data-testid="home-player-hud" data-coordinate-owner="viewport">
       <div className="home-player-hud__stars" data-testid="home-player-empty-stars"
         aria-label={`${player?.stars ?? 0} of 5 player Elevation stars earned`} role="img">
         {Array.from({ length: 5 }, (_, i) => (
           <img key={i} src={cardStarImg} alt="" draggable={false}
             className={i < (player?.stars ?? 0) ? "home-player-hud__star--earned" : undefined}
-            style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * 6}px)` }} />
+            style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * 14}px) rotate(${(i - 2) * 9}deg)` }} />
         ))}
       </div>
       <div className="home-player-hud__progress" aria-label="Player level and experience">
@@ -143,6 +158,7 @@ export default function HomePlayerHud({
         </div>
       </div>
 
+      <div className="home-player-hud__party-panel">
       <div className="home-player-hud__team" aria-label="Your five companion team slots"
         data-testid="home-player-team-slots">
         {Array.from({ length: PLAYER_PET_TEAM_MAX }, (_, index) => {
@@ -150,6 +166,8 @@ export default function HomePlayerHud({
           const pet = id ? petsById.get(id) : undefined;
           const name = pet?.petNickname || pet?.name || (id ? "Unavailable companion" : `Empty slot ${index + 1}`);
           const image = pet?.hatchedImageUrl || pet?.imageUrl;
+          const rarity = pet && typeof pet.rarity === "number" && Number.isFinite(pet.rarity)
+            ? Math.max(0, Math.min(5, Math.trunc(pet.rarity ?? 0))) : 0;
           return (
             <button key={index} type="button"
               data-testid={`home-player-team-slot-${index + 1}`}
@@ -159,10 +177,20 @@ export default function HomePlayerHud({
               title={name}
               onClick={() => setPickerSlot(index)}>
               {id && pet ? (
-                image ? <img src={image} alt="" draggable={false} /> :
-                  <img src={petPawIcon} alt="" draggable={false} />
+                <span className="home-player-hud__slot-portrait">
+                  <img src={image || petPawIcon} alt="" draggable={false} />
+                </span>
               ) : (
-                <span aria-hidden="true">{id ? "!" : "+"}</span>
+                <span className="home-player-hud__slot-empty-label" aria-hidden="true">{id ? "!" : "+"}</span>
+              )}
+              {rarity > 0 && (
+                <span className="home-player-hud__slot-stars"
+                  aria-hidden="true" data-testid={`home-player-team-stars-${index + 1}`}>
+                  {Array.from({ length: rarity }, (_, starIndex) => (
+                    <img key={starIndex} src={cardStarImg} alt="" draggable={false}
+                      style={{ transform: `translateY(${Math.abs(starIndex - (rarity - 1) / 2) * 3}px) rotate(${(starIndex - (rarity - 1) / 2) * 11}deg)` }} />
+                  ))}
+                </span>
               )}
               {pet && <span className="home-player-hud__slot-dot" aria-hidden="true" />}
             </button>
@@ -173,7 +201,8 @@ export default function HomePlayerHud({
         {inventoryError ? <span role="alert">Pet inventory could not load. Your saved team is safe; reopen Home to retry.</span> :
           saveError ? <span role="alert">{saveError} Choose a pet to retry.</span> :
           isSaving ? "Saving your team…" :
-          isLoading || inventoryLoading || !inventoryReady ? "Loading your team…" : "Tap a portrait to edit your team"}
+          isLoading || inventoryLoading || !inventoryReady ? "Loading your team…" : avatarHome ? null : "Tap a portrait to edit your team"}
+      </div>
       </div>
 
       {pickerSlot !== null && (

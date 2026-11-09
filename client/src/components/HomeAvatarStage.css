@@ -1,11 +1,13 @@
+/* One viewport-relative visual size shared by Home avatar and its player HUD. */
+:root { --home-avatar-visual-size: max(168px, min(62vw, 40dvh, 350px)); }
 /* 10/12 Home actor: same full-device background and artwork-relative rig. */
 .home-avatar-stage {
   position: absolute;
   top: min(68dvh, calc(100dvh - 228px));
   left: 50%;
   transform: translate(-50%, -100%);
-  width: min(62vw, 40dvh, 350px);
-  height: min(62vw, 40dvh, 350px);
+  width: var(--home-avatar-visual-size);
+  height: var(--home-avatar-visual-size);
   min-width: 168px;
   min-height: 168px;
   z-index: 18;
@@ -144,7 +146,7 @@
   50% { transform: translateY(-5px) rotate(1.2deg); }
 }
 @media (max-height: 600px) {
-  .home-avatar-stage { width: min(58vw, 34dvh, 280px); height: min(58vw, 34dvh, 280px); }
+  :root { --home-avatar-visual-size: max(168px, min(58vw, 34dvh, 280px)); }
   .home-avatar-stage__create { max-width: 160px; }
 }
 @media (prefers-reduced-motion: reduce) {

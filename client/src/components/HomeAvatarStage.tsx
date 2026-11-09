@@ -8,6 +8,7 @@ import {
   type PlayerAvatarState,
 } from "@/lib/playerAvatarWardrobe";
 import type { ArtworkPoint, BackdropRect } from "@/lib/artworkCoverGeometry";
+import { homeAvatarPosition } from "@/lib/homeAvatarLayout";
 import "./HomeAvatarStage.css";
 
 /**
@@ -39,14 +40,7 @@ export default function HomeAvatarStage({
   // Project the actual forest platform landmark into the device viewport.
   // On short phones reserve space for the account HUD and bottom main nav.
   // If the artwork hasn't loaded, the CSS fallback uses the same live viewport.
-  const groundedY = landmark && backdrop.height > 0
-    ? landmark.y - backdrop.top
-    : null;
-  const bottomLimit = backdrop.height > 0 ? backdrop.height - 228 : null;
-  const standingY = groundedY != null && bottomLimit != null
-    ? Math.max(195, Math.min(groundedY, bottomLimit))
-    : null;
-  const x = landmark && backdrop.width > 0 ? landmark.x - backdrop.left : null;
+  const { x, standingY } = homeAvatarPosition(landmark, backdrop);
 
   const created = avatar.data?.created === true;
   const base = avatar.data?.base;
