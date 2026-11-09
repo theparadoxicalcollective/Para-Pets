@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { PlayerProgressionResponse } from "@shared/playerProgression";
+import { totalXpRequiredForPlayerLevel, type PlayerProgressionResponse } from "@shared/playerProgression";
 import { usePlayerPetTeam } from "@/hooks/usePlayerPetTeam";
 import { cleanPetTeam, eligiblePetIds, PLAYER_PET_TEAM_MAX } from "@/lib/playerPetTeam";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
@@ -36,7 +36,7 @@ export async function fetchHomePlayerProgression(signal?: AbortSignal): Promise<
 /**
  * Stage 09: one compact account HUD. Stage 10 will move this under the
  * assembled Home avatar and retire the active-pet nameplate, stars and menu.
- * This component never changes pet progress or invents an XP level curve.
+ * This component never changes pet progress; the server owns the player XP curve.
  */
 export default function HomePlayerHud({
   userId, username, inventory, inventoryLoading, inventoryReady, inventoryError, avatarHome = false, visible = true,
@@ -102,6 +102,15 @@ export default function HomePlayerHud({
   };
 
   const player = progression.data;
+  const levelStartXp = player ? totalXpRequiredForPlayerLevel(player.level) : 0;
+  const levelTargetXp = player?.nextLevelTotalXp ?? null;
+  const xpEarnedThisLevel = player ? Math.max(0, player.totalXp - levelStartXp) : 0;
+  const xpNeededThisLevel = levelTargetXp === null ? null : Math.max(1, levelTargetXp - levelStartXp);
+  const xpFillPct = !player ? null : xpNeededThisLevel === null
+    ? 100 : Math.min(100, (xpEarnedThisLevel / xpNeededThisLevel) * 100);
+  const xpProgressLabel = !player ? "Player experience unavailable" : xpNeededThisLevel === null
+    ? `Level ${player.level}: maximum player level reached`
+    : `Level ${player.level}: ${xpEarnedThisLevel} of ${xpNeededThisLevel} XP toward Level ${player.level + 1}`;
   return (
     <div className={avatarHome ? "home-player-hud home-player-hud--avatar-home" : "home-player-hud"} data-testid="home-player-hud" data-coordinate-owner="viewport">
       <div className="home-player-hud__stars" data-testid="home-player-empty-stars"
@@ -119,9 +128,12 @@ export default function HomePlayerHud({
           </span>
         </div>
         <div className="home-player-hud__xp-row">
-          <div data-testid="home-player-xp-track" className="home-player-hud__xp-track"
-            aria-label="XP progress not yet available; level threshold is not defined">
-            <span aria-hidden="true" />
+          <div data-testid="home-player-xp-track"
+            className={`home-player-hud__xp-track ${player ? "home-player-hud__xp-track--ready" : ""}`}
+            role="progressbar" aria-label={xpProgressLabel}
+            aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpFillPct === null ? undefined : Math.round(xpFillPct)}
+            title={xpProgressLabel}>
+            <span aria-hidden="true" style={xpFillPct === null ? undefined : { width: `${xpFillPct}%` }} />
           </div>
           <span data-testid="home-player-total-xp" className="home-player-hud__xp-text">
             {player ? `${player.totalXp.toLocaleString()} XP` : progression.isError ? "XP unavailable" : "Loading XP"}
