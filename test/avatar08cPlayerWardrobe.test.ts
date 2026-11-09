@@ -114,7 +114,11 @@ test("the player page uses the authenticated 08B API and does not save a preview
   assert.match(page, /writePlayerAvatar\("POST", "\/api\/player-avatar\/create"/);
   assert.match(page, /\`\/api\/player-avatar\/equipment\/\$\{input.category\}\`/);
   assert.match(page, /expectedRevision: avatar.revision/);
-  assert.match(page, /qc.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
+  assert.match(page, /const avatarKey = playerAvatarQueryKey\(userId\)/);
+  assert.match(page, /queryKey: avatarKey/);
+  assert.match(page, /qc\.setQueryData\(avatarKey, saved\)/);
+  assert.match(page, /qc\.invalidateQueries\(\{ queryKey: avatarKey \}\)/);
+  assert.doesNotMatch(page, /qc\.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
   assert.match(page, /setPreviewId\(null\)/);
   assert.match(page, /error.status === 409/);
   assert.match(page, /data-testid="avatar-create-button"/);
@@ -130,7 +134,7 @@ test("Bag remains linked to the isolated wardrobe with PC gating and owned-pet s
   const bag = read("client/src/components/PetInventory.tsx");
   assert.match(app, /const PlayerAvatarPage\s*= lazy\(/);
   assert.match(app, /location === "\/player-avatar"/);
-  assert.match(app, /<StagePageSurface layout="viewport">\s*<PlayerAvatarPage/);
+  assert.match(app, /<StagePageSurface layout="viewport">\s*<PlayerAvatarPage userId=\{user\.id\}/);
   assert.match(bag, /data-testid="open-player-avatar-wardrobe"/);
   assert.match(bag, /navigateBag\("\/player-avatar"\)/);
   assert.match(bag, /grid grid-cols-5/);
