@@ -159,7 +159,10 @@ try {
       assert.equal(writes.length,0,sc.name+": Home never auto-creates player account");
       await invitation.tap();
       await page.getByTestId("player-avatar-page").waitFor({state:"visible"});
+      const firstSave = page.waitForResponse(r =>
+        r.url().endsWith("/api/player-avatar/create") && r.request().method()==="POST");
       await page.getByTestId("avatar-create-button").tap();
+      await firstSave;
       assert.equal(writes.length,1,sc.name+": only the explicit wardrobe Save creates");
       await page.getByRole("button",{name:"Back to Home"}).tap();
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
