@@ -129,15 +129,18 @@ try {
     assert.equal(avatar.equipped.length, 0, name + ": preview does not save outfit");
     assert.equal(await page.locator('[data-clothing-part="head"]').count(), 1);
     await page.getByTestId("avatar-equip-button").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
     assert.equal(avatar.equipped.length, 1, name + ": head item saved");
     assert.equal(writes.at(-1).body.inventoryId, "hat");
 
     await page.getByTestId("avatar-category-hair").tap();
     await page.getByTestId("avatar-clothing-hair").tap();
     await page.getByTestId("avatar-equip-button").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--hair .player-avatar-page__equipped-dot"));
     await page.getByTestId("avatar-category-face").tap();
     await page.getByTestId("avatar-clothing-face").tap();
     await page.getByTestId("avatar-equip-button").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--face .player-avatar-page__equipped-dot"));
     assert.equal(await page.locator('[data-clothing-part="head"]').count(), 3,
       name + ": head, hair and face use one head anchor without clobbering");
     const keys = await page.locator('[data-clothing-part="head"]').evaluateAll(nodes =>
@@ -149,7 +152,9 @@ try {
     assert.equal(await page.locator('[data-clothing-part="left_leg"]').count(), 1);
     assert.equal(await page.locator('[data-clothing-part="right_leg"]').count(), 1);
     await page.getByTestId("avatar-equip-button").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
     await page.getByTestId("avatar-unequip-button").tap();
+    await page.waitForFunction(() => !document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
     assert.equal(avatar.equipped.some(entry => entry.category === "bottom"), false,
       name + ": remove unlinks only selected category");
 
