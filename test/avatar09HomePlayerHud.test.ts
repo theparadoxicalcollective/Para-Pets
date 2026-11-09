@@ -56,7 +56,9 @@ test("unearned account stars remain unfilled even if the current pet has high ra
   assert.match(hud, /Array\.from\(\{ length: 5 \}/);
   assert.match(hud, /src=\{cardStarImg\}/);
   assert.match(css, /opacity: \.25/);
-  assert.doesNotMatch(hud, /\.rarity/);
+  assert.match(hud, /i < \(player\?\.stars \?\? 0\)/);
+  assert.match(hud, /const rarity = pet/);
+  assert.match(hud, /home-player-hud__slot-stars/);
 });
 
 test("Home mounts the account HUD on the existing viewport portal without replacing pets prematurely", () => {
