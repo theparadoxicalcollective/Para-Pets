@@ -133,16 +133,18 @@ export default function HomePlayerHud({
         {Array.from({ length: 5 }, (_, i) => (
           <img key={i} src={cardStarImg} alt="" draggable={false}
             className={i < (player?.stars ?? 0) ? "home-player-hud__star--earned" : undefined}
-            style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * 14}px) rotate(${(i - 2) * 9}deg)` }} />
+            style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * (avatarHome ? 22 : 14)}px) rotate(${(i - 2) * 9}deg)` }} />
         ))}
       </div>
       <div className="home-player-hud__progress" aria-label="Player level and experience">
-        <div className="home-player-hud__progress-heading">
-          <span data-testid="home-player-name" className="home-player-hud__name" title={username}>{username}</span>
-          <span data-testid="home-player-level" className="home-player-hud__level">
-            {player ? `LV ${player.level}` : progression.isError ? "Level unavailable" : "LV …"}
-          </span>
-        </div>
+        {!avatarHome && (
+          <div className="home-player-hud__progress-heading">
+            <span data-testid="home-player-name" className="home-player-hud__name" title={username}>{username}</span>
+            <span data-testid="home-player-level" className="home-player-hud__level">
+              {player ? `LV ${player.level}` : progression.isError ? "Level unavailable" : "LV …"}
+            </span>
+          </div>
+        )}
         <div className="home-player-hud__xp-row">
           <div data-testid="home-player-xp-track"
             className={`home-player-hud__xp-track ${player ? "home-player-hud__xp-track--ready" : ""}`}
@@ -156,6 +158,13 @@ export default function HomePlayerHud({
             {player ? `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP` : progression.isError ? "XP unavailable" : "Loading XP"}
           </span>
         </div>
+        {avatarHome && (
+          <div className="home-player-hud__level-below">
+            <span data-testid="home-player-level" className="home-player-hud__level">
+              {player ? `LV ${player.level}` : progression.isError ? "Level unavailable" : "LV …"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="home-player-hud__party-panel">
@@ -192,7 +201,6 @@ export default function HomePlayerHud({
                   ))}
                 </span>
               )}
-              {pet && <span className="home-player-hud__slot-dot" aria-hidden="true" />}
             </button>
           );
         })}
