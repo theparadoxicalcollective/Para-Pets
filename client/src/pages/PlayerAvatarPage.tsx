@@ -6,16 +6,10 @@ import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type Playe
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { useToast } from "@/hooks/use-toast";
 import {
-  PLAYER_AVATAR_QUERY_KEY, wardrobeLayers, writePlayerAvatar,
+  PLAYER_AVATAR_QUERY_KEY, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
   type OwnedAvatarClothing, type PlayerAvatarState,
 } from "@/lib/playerAvatarWardrobe";
 import "./PlayerAvatarPage.css";
-
-async function loadAvatar(signal?: AbortSignal): Promise<PlayerAvatarState> {
-  const response = await fetch("/api/player-avatar", { credentials: "include", signal, cache: "no-store" });
-  if (!response.ok) throw new Error("Could not load your character and clothing");
-  return response.json();
-}
 
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
 export default function PlayerAvatarPage() {
@@ -26,7 +20,7 @@ export default function PlayerAvatarPage() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const avatarQuery = useQuery<PlayerAvatarState>({
     queryKey: PLAYER_AVATAR_QUERY_KEY,
-    queryFn: ({ signal }) => loadAvatar(signal),
+    queryFn: ({ signal }) => fetchPlayerAvatar(signal),
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
