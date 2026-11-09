@@ -8,7 +8,9 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  touch-action: pan-y;
+  /* Do not restrict the parent to pan-y: that would cancel the child wardrobe's
+     horizontal pan-x gesture on Mobile Safari. */
+  touch-action: auto;
   color: #f6e8bd;
   background: #091b12;
   isolation: isolate;
