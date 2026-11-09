@@ -57,7 +57,7 @@ export function validatePlayerXpAward(award: PlayerXpAward): PlayerXpAward {
 export async function executePlayerXpAward(
   award: PlayerXpAward,
   operations: PlayerXpAwardOperations,
-  levelForTotalXp: (totalXp: number) => number,
+  levelForTotalXp: (totalXp: number, current: PlayerProgression) => number,
 ): Promise<PlayerXpAwardResult> {
   validatePlayerXpAward(award);
   const current = await operations.loadLockedProgress();
@@ -74,7 +74,7 @@ export async function executePlayerXpAward(
     throw new PlayerXpAwardError("Player XP total would exceed storage limit");
   }
   const totalXp = current.totalXp + award.amount;
-  const level = levelForTotalXp(totalXp);
+  const level = levelForTotalXp(totalXp, current);
   if (!Number.isSafeInteger(level) || level < current.level || level < 1) {
     throw new PlayerXpAwardError("Player XP level policy must be valid and monotonic");
   }
