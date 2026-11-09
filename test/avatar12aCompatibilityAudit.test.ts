@@ -58,7 +58,7 @@ test("Home now delegates pet workflows to dedicated routes without altering inve
   const roadmap = read("docs/PLAYER_AVATAR_ROADMAP.md");
   assert.match(home, /<HomeAvatarStage/);
   assert.doesNotMatch(home, /AVATAR_10_HOME_CUTOVER|PetPowerUpPage|hatchHomeMutation|homePettingRewardMutation/);
-  assert.match(home, /encodeURIComponent\(currentUser\.activePetId\)/);
+  assert.match(home, /encodeURIComponent\(homeUser\.activePetId\)/);
   assert.match(home, /\?from=quest/);
   assert.match(inventory, /Set Featured Companion/);
   assert.match(roadmap, /12C\/12/);
