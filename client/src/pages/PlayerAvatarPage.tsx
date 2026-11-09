@@ -21,8 +21,10 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   // Clearing use the same key; a first-save/equip response can never update
   // another account's outfit or an unscoped shared cache entry.
   const avatarKey = playerAvatarQueryKey(userId);
-  const cacheSavedAvatar = (saved: PlayerAvatarState) => {
-    qc.setQueryData(avatarKey, saved);
+  const cacheSavedAvatar = (saved: PlayerAvatarState, accountId: string) => {
+    // A mutation can finish after the component has switched to another
+    // account; use the identity captured at the time Save was requested.
+    qc.setQueryData(playerAvatarQueryKey(accountId), saved);
   };
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -36,15 +38,19 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const avatar = avatarQuery.data;
 
   const creation = useMutation({
-    mutationFn: (baseId: string) => writePlayerAvatar("POST", "/api/player-avatar/create", { baseId }),
-    onSuccess: (saved) => {
-      cacheSavedAvatar(saved);
+    mutationFn: (input: { baseId: string; accountId: string }) =>
+      writePlayerAvatar("POST", "/api/player-avatar/create", { baseId: input.baseId }),
+    onSuccess: (saved, input) => {
+      cacheSavedAvatar(saved, input.accountId);
+      if (input.accountId !== userId) return;
       setPreviewId(null);
       toast({ title: "Character created", description: "Your character is saved to your account." });
     },
-    onError: (error: Error) => {
-      toast({ title: "Could not create character", description: error.message, variant: "destructive" });
-      void qc.invalidateQueries({ queryKey: avatarKey });
+    onError: (error: Error, input) => {
+      if (input.accountId === userId) {
+        toast({ title: "Could not create character", description: error.message, variant: "destructive" });
+      }
+      void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
     },
   });
 
@@ -53,22 +59,26 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       category: PlayerClothingCategory;
       inventoryId: string | null;
       expectedRevision: number;
+      accountId: string;
     }) => writePlayerAvatar(
       "PUT",
       `/api/player-avatar/equipment/${input.category}`,
       { inventoryId: input.inventoryId, expectedRevision: input.expectedRevision },
     ),
-    onSuccess: (saved) => {
-      cacheSavedAvatar(saved);
+    onSuccess: (saved, input) => {
+      cacheSavedAvatar(saved, input.accountId);
+      if (input.accountId !== userId) return;
       setPreviewId(null);
       toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
     },
-    onError: (error: Error & { status?: number }) => {
-      toast({ title: "Wardrobe not saved", description: error.message, variant: "destructive" });
+    onError: (error: Error & { status?: number }, input) => {
+      if (input.accountId === userId) {
+        toast({ title: "Wardrobe not saved", description: error.message, variant: "destructive" });
+      }
       if (error.status === 409 || error.status === 404 || error.status === 422) {
         // Trust the server over a stale item, base publication or second device.
-        setPreviewId(null);
-        void qc.invalidateQueries({ queryKey: avatarKey });
+        if (input.accountId === userId) setPreviewId(null);
+        void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
       }
     },
   });
@@ -85,7 +95,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
 
   const saveEquipment = (inventoryId: string | null) => {
     if (!avatar?.created || avatar.revision == null || busy) return;
-    equipment.mutate({ category, inventoryId, expectedRevision: avatar.revision });
+    equipment.mutate({ category, inventoryId, expectedRevision: avatar.revision, accountId: userId });
   };
 
   const selectCategory = (next: PlayerClothingCategory) => {
@@ -163,7 +173,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 <p>Preview the character above, then save it to begin choosing your clothing. Your character isn't created until you save.</p>
                 <button type="button" disabled={!avatar.base || busy}
                   data-testid="avatar-create-button"
-                  onClick={() => avatar.base && creation.mutate(avatar.base.id)}>
+                  onClick={() => avatar.base && creation.mutate({ baseId: avatar.base.id, accountId: userId })}>
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
               </section>
