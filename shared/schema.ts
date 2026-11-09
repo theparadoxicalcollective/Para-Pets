@@ -8,7 +8,7 @@ import type { HouseInteriorEffect } from "./housing";
 import type { ParkInteriorEffect } from "./petParkRooms";
 import type { ParkDecorEffect } from "./petParkDecorEffects";
 import type { GardenStagePlacements } from "./garden";
-import type { PlayerCharacterPart } from "./playerCharacter";
+import type { StoredPlayerCharacterPart } from "./playerCharacter";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -64,8 +64,8 @@ export const users = pgTable("users", {
 export const playerCharacterBases = pgTable("player_character_bases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  draftParts: jsonb("draft_parts").$type<PlayerCharacterPart[]>().notNull().default(sql`'[]'::jsonb`),
-  publishedParts: jsonb("published_parts").$type<PlayerCharacterPart[] | null>(),
+  draftParts: jsonb("draft_parts").$type<StoredPlayerCharacterPart[]>().notNull().default(sql`'[]'::jsonb`),
+  publishedParts: jsonb("published_parts").$type<StoredPlayerCharacterPart[] | null>(),
   isDefault: boolean("is_default").notNull().default(false),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
