@@ -109,6 +109,10 @@ test("old quest Go links forward to inventory-owned actions, not a removed Pet M
   assert.match(home, /"pet-power-up"/);
   assert.match(home, /"pet-care"/);
   assert.match(home, /encodeURIComponent\(currentUser\.activePetId\)/);
+  assert.match(home, /\?from=quest/);
+  const powerUp = read("client/src/pages/PetPowerUpRoute.tsx");
+  assert.match(powerUp, /const fromQuest = new URLSearchParams\(window\.location\.search\)\.get\("from"\) === "quest"/);
+  assert.match(powerUp, /showBuyButton=\{fromQuest\}/);
   assert.match(home, /: "\/bag"/);
   assert.match(home, /setQuestGuideMode\("feed"\)/);
   assert.match(home, /!AVATAR_10_HOME_CUTOVER && questGuideMode/);
