@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerCharacterPartsPreview from "./PlayerCharacterPartsPreview";
+import type { PlayerCharacterMotion } from "./PlayerCharacterRenderer";
 import {
   DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_LABELS,
@@ -67,6 +68,7 @@ export default function PlayerCharacterAdminPanel() {
   const [transform, setTransform] = useState<PlayerCharacterTransform>(DEFAULT_PLAYER_CHARACTER_TRANSFORMS.top);
   const [imageData, setImageData] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [previewMotion, setPreviewMotion] = useState<PlayerCharacterMotion>("static");
 
   const query = useQuery<CharacterBase[]>({
     queryKey: LIST_KEY,
@@ -126,7 +128,7 @@ export default function PlayerCharacterAdminPanel() {
     onSuccess: base => {
       updateCache(base);
       setSelectedId(base.id);
-      toast({ title: "Avatar draft created", description: "Upload the seven parts and publish when ready." });
+      toast({ title: "Avatar draft created", description: "Upload the eight base parts and publish when ready." });
     },
     onError: reportError,
   });
@@ -171,7 +173,7 @@ export default function PlayerCharacterAdminPanel() {
     onSuccess: base => {
       updateCache(base);
       void qc.invalidateQueries({ queryKey: LIST_KEY });
-      toast({ title: "Default avatar published", description: "The saved seven-part snapshot is now the published default." });
+      toast({ title: "Default avatar published", description: "The saved eight-part snapshot is now the published default." });
     },
     onError: reportError,
   });
@@ -206,8 +208,8 @@ export default function PlayerCharacterAdminPanel() {
       <div className="rounded-xl border border-[#9c854b]/55 bg-[#10251a]/90 p-3">
         <h2 className="font-fantasy text-lg font-bold text-[#f3d58b]">Avatar Base Editor</h2>
         <p className="mt-1 text-xs leading-relaxed text-[#d1c69f]">
-          Build a front-facing, seven-part player avatar. Draft changes never alter the published character.
-          Clothing fitting and walking animation come in later Avatar Program stages.
+          Build a front-facing, eight-part player avatar. Draft changes never alter the published character.
+          Preview gentle idle and walking motion here; clothing fitting arrives in Avatar 08A.
         </p>
       </div>
 
@@ -276,8 +278,29 @@ export default function PlayerCharacterAdminPanel() {
                   );
                 })}
               </div>
+              <div role="group" aria-label="Avatar preview motion" className="grid grid-cols-3 gap-2">
+                {([
+                  { mode: "static", label: "Edit" },
+                  { mode: "idle", label: "Idle" },
+                  { mode: "walk", label: "Walk" },
+                ] as const).map(({ mode, label }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    disabled={busy}
+                    aria-pressed={previewMotion === mode}
+                    data-testid={`avatar-preview-mode-${mode}`}
+                    onClick={() => setPreviewMotion(mode)}
+                    className={buttonClass}
+                    style={{ borderColor: previewMotion === mode ? "#f4cd75" : "#88723e" }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <PlayerCharacterPartsPreview parts={previewParts} activePartType={partType}
-                editable={Boolean(imageData || savedPart)}
+                motion={previewMotion}
+                editable={previewMotion === "static" && Boolean(imageData || savedPart)}
                 onMovePart={(xPct, yPct) => {
                   setTransform(current => ({ ...current, xPct, yPct }));
                   setDirty(true);
@@ -289,8 +312,8 @@ export default function PlayerCharacterAdminPanel() {
                 </div>
               )}
               <p className="text-[11px] text-[#cfc1a0]">
-                Select a body part above, then tap or drag within the preview to reposition it.
-                The placement and pivot are saved relative to the avatar artwork, not the screen.
+                Use Edit to tap or drag the selected body part into position. Idle and Walk preview the same
+                saved pivots without changing them. The positions remain artwork-relative.
               </p>
             </div>
 
