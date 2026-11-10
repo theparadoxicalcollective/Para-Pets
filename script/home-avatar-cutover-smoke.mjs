@@ -161,7 +161,7 @@ try {
         if (!el) return null;
         const r = el.getBoundingClientRect();
         return { left:r.left, right:r.right, top:r.top, bottom:r.bottom,
-          centerX:r.left+r.width/2, height:r.height };
+          centerX:r.left+r.width/2, width:r.width, height:r.height };
       };
       const actor = rect('[data-testid="home-avatar-stage"]');
       const stars = rect('[data-testid="home-player-empty-stars"]');
