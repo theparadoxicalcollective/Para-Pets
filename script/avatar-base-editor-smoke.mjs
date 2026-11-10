@@ -90,7 +90,7 @@ try{
           // processed asset IDs; otherwise completePlayerCharacterParts()
           // legitimately rejects the mock even though uploads succeeded.
           const imageUrl="/api/media/"+id+"-"+part.partType.replaceAll("_","-");
-          assert.match(imageUrl,/^\\/api\\/media\\/[a-zA-Z0-9-]{1,80}$/);
+          assert.ok(imageUrl.startsWith("/api/media/") && /^[A-Za-z0-9-]{1,80}$/.test(imageUrl.slice(11)), "mock media IDs follow the production format");
           next.set(part.partType,{
             partType:part.partType,
             imageUrl,
