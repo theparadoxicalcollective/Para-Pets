@@ -6,9 +6,10 @@ import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
 import { setMainNavOpen } from "@/lib/mainNavState";
 import { useToast } from "@/hooks/use-toast";
-import { Compass, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.webp";
-import coinBundleIcon from "@assets/uploads/CoinBundleIcon.png";
+import mainNavIcon from "@assets/uploads/NewMainNavButton.PNG";
+import supportIcon from "@assets/Photoroom_20260708_111738_PM_1783570684580.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
 import petsIcon from "@assets/generated_images/nav_icon_pets.png";
@@ -323,7 +324,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   const handleRight = (id: string) => {
     closeAll();
-    if (id === "coins")    { setTimeout(() => navigate("/coins"), NAV_DELAY); return; }
+    if (id === "support")  {
+      // Reuse Home's existing forest/gold Support modal, not a second popup.
+      window.dispatchEvent(new Event("para-pets:open-support"));
+      return;
+    }
     if (id === "home")     { setTimeout(() => navigate("/"), NAV_DELAY); return; }
     if (id === "pethouse") { setTimeout(() => navigate("/pet-house"), NAV_DELAY); return; }
     if (id === "market")   { setTimeout(() => navigate("/market"), NAV_DELAY); return; }
@@ -373,12 +378,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
             aria-label="Realm navigation" className="home-realm-nav">
             <div className="home-realm-nav__shortcut-row">
-              <button type="button" data-testid="nav-item-coins"
-                className="home-realm-nav__shop-link"
-                aria-label="Open coin bundles" title="Coin Bundles"
-                onClick={() => handleRight("coins")}>
-                <img src={coinBundleIcon} alt="" aria-hidden="true" draggable={false} />
-                <span>Coins</span>
+              <button type="button" data-testid="nav-item-support"
+                className="home-realm-nav__support-link"
+                aria-label="Contact Support" title="Support"
+                onClick={() => handleRight("support")}>
+                <img src={supportIcon} alt="" aria-hidden="true" draggable={false} />
+                <span>Support</span>
               </button>
             </div>
             {HOME_NAV_SECTIONS.map(section => (
@@ -458,15 +463,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             cursor: "pointer",
           }}
         >
-          <Compass
-            size={36}
-            strokeWidth={1.75}
-            aria-hidden="true"
+          <img src={mainNavIcon} alt="" aria-hidden="true" draggable={false}
             style={{
-              color: "#f4d68c",
-              transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
-              transition: "transform 0.3s ease",
-              filter: "drop-shadow(0 1px 5px rgba(245,203,109,0.55)) drop-shadow(0 2px 5px rgba(0,0,0,0.7))",
+              width: BUTTON_SIZE - 9,
+              height: BUTTON_SIZE - 9,
+              objectFit: "contain",
+              transform: isOpen ? "scale(0.94)" : "scale(1)",
+              transition: "transform 0.2s ease",
+              filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.65))",
             }}
           />
           {/* Quest notification badge — visible on main button when nav is closed */}
