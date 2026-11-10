@@ -107,6 +107,27 @@ export const playerCharacterPartWriteSchema = z.object({
     .optional(),
 }).strict();
 
+/**
+ * One-click body save. All selected images are validated together and share
+ * one revision update, so the admin never needs eight separate Save Part steps.
+ * Existing untouched parts stay on the draft; no data URIs are stored in DB.
+ */
+export const playerCharacterBodyWriteSchema = z.object({
+  expectedRevision: z.number().int().min(0),
+  parts: z.array(z.object({
+    partType: playerCharacterPartTypeSchema,
+    imageData: playerCharacterPartWriteSchema.shape.imageData.unwrap(),
+  }).strict()).min(1).max(8),
+}).strict().superRefine(({ parts }, ctx) => {
+  const seen = new Set<PlayerCharacterPartType>();
+  for (const [index, part] of parts.entries()) {
+    if (seen.has(part.partType)) {
+      ctx.addIssue({ code: "custom", path: ["parts", index, "partType"], message: "Duplicate avatar body part" });
+    }
+    seen.add(part.partType);
+  }
+});
+
 export const playerCharacterRevisionSchema = z.object({
   expectedRevision: z.number().int().min(0),
 }).strict();
