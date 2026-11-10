@@ -85,9 +85,15 @@ try{
             right_arm:[72,48,21],left_leg:[42,72,24],
             right_leg:[58,72,24],left_foot:[42,88,24],right_foot:[58,88,24],
           }[part.partType];
+          // Match the real processed-media URL contract. Raw anatomy names
+          // contain underscores (left_arm, right_foot), which are NOT valid
+          // processed asset IDs; otherwise completePlayerCharacterParts()
+          // legitimately rejects the mock even though uploads succeeded.
+          const imageUrl="/api/media/"+id+"-"+part.partType.replaceAll("_","-");
+          assert.match(imageUrl,/^\\/api\\/media\\/[a-zA-Z0-9-]{1,80}$/);
           next.set(part.partType,{
             partType:part.partType,
-            imageUrl:"/api/media/"+id+"-"+part.partType,
+            imageUrl,
             xPct:defaults[0],yPct:defaults[1],widthPct:defaults[2],
             pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:zIndex[part.partType],
           });
