@@ -431,7 +431,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           <ViewportBackdropPortal>
             <div data-testid="inventory-viewport-backdrop" className="absolute inset-0 pointer-events-none">
               <img src={petInvForestBg} alt="" className="h-full w-full object-cover" style={{ objectPosition: "center top" }} />
-              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.38)" }} />
+              <div className="absolute inset-0" style={{
+                background: showBag ? "rgba(0,0,0,0.38)"
+                  : "linear-gradient(180deg, rgba(4,28,18,.35), rgba(3,24,17,.47) 58%, rgba(3,18,13,.59))",
+              }} />
             </div>
           </ViewportBackdropPortal>
         )}
@@ -447,7 +450,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             className="w-full h-full object-cover"
             style={{ objectPosition: "center top" }}
           />
-          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.78)" }} />
+          <div className="absolute inset-0" style={{
+            background: !showBag
+              ? "linear-gradient(180deg, rgba(4,28,18,.37), rgba(2,29,19,.38) 58%, rgba(2,18,13,.62))"
+              : pageMode ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.78)",
+          }} />
         </div>
 
         <div data-testid={pageMode ? "inventory-canonical-content" : undefined} className="relative z-10 flex flex-col h-full overflow-hidden">
@@ -457,11 +464,19 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             <div className="flex items-center justify-between mb-3">
               {pageMode ? (
                 /* Page mode: slim count row */
-                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
-                  {showBag
-                    ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}`
-                    : `${pets.length} ${pets.length === 1 ? "companion" : "companions"}`}
-                </p>
+                <div>
+                  {!showBag && (
+                    <h1 className="font-fantasy text-[#f5d99c] text-xl tracking-wide font-bold"
+                      style={{ textShadow: "0 2px 8px #07180e" }}>
+                      Companion Grove
+                    </h1>
+                  )}
+                  <p className="font-fantasy text-[#d7c897] text-xs tracking-wide">
+                    {showBag
+                      ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}`
+                      : `${pets.filter(p => p.isHatched).length} hatched · ${pets.filter(p => !p.isHatched).length} eggs`}
+                  </p>
+                </div>
               ) : (
                 /* Overlay mode: full icon + title */
                 <div className="flex items-center gap-3">
@@ -587,9 +602,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 onClick={onClose}
                 className="w-full flex items-center justify-center gap-2 transition-transform active:scale-95 font-fantasy tracking-wider"
                 style={{
-                  background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-                  border: "2px solid rgba(212,160,23,0.6)",
-                  color: "#f0c040",
+                  background: showBag
+                    ? "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)"
+                    : "linear-gradient(135deg, #1b4e33, #092c1e)",
+                  border: "2px solid rgba(212,174,99,0.76)",
+                  color: "#f5dfa7",
                   cursor: "pointer",
                   fontSize: "13px",
                   fontWeight: "bold",
