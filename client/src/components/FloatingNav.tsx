@@ -129,8 +129,9 @@ function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: s
 }
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const navHidden = useNavHidden();
+  const isHome = location === "/";
   const [isOpen, setIsOpen]             = useState(false);
   // Page-level quest guides observe the committed menu state, including
   // backdrop closes, pet-menu handoffs, and hiding the HUD for dialogs.
@@ -311,7 +312,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       <div
         className="absolute"
         style={{
-          bottom: 16,
+          // On Home, place the main button below the resource balances.
+          // All other routes retain the original bottom-right placement.
+          top: isHome ? "min(242px, max(172px, calc(100dvh - 355px)))" : undefined,
+          bottom: isHome ? undefined : 16,
           right: 12,
           width: BUTTON_SIZE,
           height: BUTTON_SIZE,
@@ -327,8 +331,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             label={item.label}
             isOpen={isOpen}
             delay={i * 45}
-            translateX={-(spacing * (i + 1))}
-            translateY={0}
+            // Home opens into a compact 3-column grid BELOW the higher
+            // button. The legacy upward fan would clip off the top edge.
+            translateX={isHome ? -(i % 3) * 62 : -(spacing * (i + 1))}
+            translateY={isHome ? (Math.floor(i / 3) + 1) * 65 : 0}
             fillIcon={!!(item as any).fill}
             badge={item.id === "quest" && questRewardReady ? "quest" : null}
             onClick={() => handleLeft(item.id)}
@@ -339,6 +345,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         {/* RIGHT items – fan up on the right side */}
         {RIGHT_ITEMS.map((item, i) => {
           const isLocked = false;
+          const homeIndex = LEFT_ITEMS.length + i;
           return (
             <NavButton
               key={item.id}
@@ -346,8 +353,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               label={item.label}
               isOpen={isOpen}
               delay={i * 45}
-              translateX={0}
-              translateY={-(spacing * (i + 1))}
+              translateX={isHome ? -(homeIndex % 3) * 62 : 0}
+              translateY={isHome ? (Math.floor(homeIndex / 3) + 1) * 65 : -(spacing * (i + 1))}
               locked={isLocked}
               onClick={() => handleRight(item.id)}
               testId={`nav-item-${item.id}`}
