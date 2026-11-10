@@ -31,7 +31,7 @@ test("XP stack shifts down without losing the bottom party clearance on short ph
 test("Home-only main nav moves below resource balances, while all other pages retain the old anchor", () => {
   assert.match(nav, /const \[location, navigate\] = useLocation\(\)/);
   assert.match(nav, /const isHome = location === "\/"/);
-  assert.match(nav, /top: isHome \? "min\(242px, max\(172px, calc\(100dvh - 355px\)\)\)" : undefined/);
+  assert.match(nav, /top: isHome \? "min\(242px, max\(172px, calc\(100dvh - 330px\)\)\)" : undefined/);
   assert.match(nav, /bottom: isHome \? undefined : 16/);
   assert.match(nav, /data-testid="button-floating-nav"/);
   assert.match(nav, /aria-expanded=\{isOpen\}/);
