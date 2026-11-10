@@ -96,11 +96,11 @@ test("menu portal avoids clipping, dismisses on scroll/outside/Escape, and does 
   assert.doesNotMatch(menu, /garden_tool|GardenPlayerAction|mutation\.mutate/);
 });
 
-test("legacy main pet can still be changed without restoring the large Select control", () => {
+test("retired featured pet CTA is absent, but legacy pet state stays for combat consumers", () => {
   const inventory = read("client/src/components/PetInventory.tsx");
   const home = read("client/src/pages/HomePage.tsx");
-  assert.match(inventory, /button-feature-main-pet-\$\{selectedPet\.inventoryId\}/);
-  assert.match(inventory, /activePetId !== selectedPet\.inventoryId && !isPending\) onToggle\(selectedPet\.inventoryId\)/);
+  assert.doesNotMatch(inventory, /button-feature-main-pet-|Set Featured Companion| · Featured/);
+  assert.match(inventory, /hatchedPets\.find\(pet => pet\.inventoryId === activePetId\)/);
   assert.match(inventory, /PATCH", "\/api\/user\/active-pet"/);
   assert.match(home, /data-testid="active-pet-side-menu"/);
   assert.match(home, /data-testid="button-open-pet-menu"/);
