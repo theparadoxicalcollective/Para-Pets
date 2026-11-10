@@ -33,18 +33,47 @@
   border-right: 1.5px solid rgba(225, 187, 104, .78);
   pointer-events: none;
 }
-.home-realm-nav__title {
-  margin: 0 0 5px;
-  text-align: center;
-  font: 700 11px/1.1 Georgia, serif;
-  letter-spacing: .13em;
-  color: #f8dc9b;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, .9);
+.home-realm-nav__shortcut-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin: -3px 0 2px;
+}
+.home-realm-nav__shop-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 31px;
+  padding: 1px 8px 1px 5px;
+  border: 1px solid rgba(225, 187, 104, .52);
+  border-radius: 9px;
+  background: rgba(29, 64, 41, .68);
+  color: #f6dd9e;
+  font: 700 10px/1.1 Georgia, serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.home-realm-nav__shop-link img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.65));
+}
+.home-realm-nav__shop-link:active { background: rgba(53, 98, 58, .93); }
+.home-realm-nav__shop-link:focus-visible {
+  outline: 2px solid #ffe9ab;
+  outline-offset: 2px;
 }
 .home-realm-nav__section {
   border-top: 1px solid rgba(199, 164, 91, .23);
   padding-top: 3px;
   margin-top: 3px;
+}
+.home-realm-nav__section:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
 }
 .home-realm-nav__grid {
   display: grid;
