@@ -110,8 +110,8 @@ try {
 
     await page.goto("http://127.0.0.1:4197/avatar-wardrobe-fixture", { waitUntil: "commit" });
     await page.getByTestId("avatar-character-viewer").waitFor({ state: "visible" });
-    assert.equal(await page.locator('[data-testid^="avatar-category-"]').count(), 7,
-      name + ": seven circular categories");
+    assert.equal(await page.locator('[data-testid^="avatar-category-"]').count(), 8,
+      name + ": eight circular categories");
     const categoriesFit = await page.locator('[data-testid^="avatar-category-"]').evaluateAll(elements =>
       elements.every(el => {
         const r = el.getBoundingClientRect();
@@ -164,7 +164,7 @@ try {
     await page.getByTestId("avatar-category-shoes").tap();
     await page.getByTestId("avatar-wardrobe-empty").waitFor({ state: "visible" });
     assert.deepEqual(errors, [], name + ": no runtime page errors");
-    console.log("PASS " + name + ": 08C first-save, owned shelf, previews, seven slots, shared head art, pants and remove");
+    console.log("PASS " + name + ": 08C first-save, owned shelf, previews, eight slots, shared head art, pants and remove");
     await context.close();
   }
 } finally {
