@@ -45,8 +45,8 @@ const makeState = (items: OwnedAvatarClothing[]): PlayerAvatarState => ({
   unavailableEquipmentSlots: [],
 });
 
-test("the seven wardrobe buttons are not the eight animation parts", () => {
-  assert.deepEqual(PLAYER_CLOTHING_CATEGORIES, ["head", "hair", "face", "top", "bottom", "shoes", "back"]);
+test("the eight wardrobe buttons are independent of the eight animation parts", () => {
+  assert.deepEqual(PLAYER_CLOTHING_CATEGORIES, ["accessories", "head", "hair", "face", "top", "bottom", "shoes", "back"]);
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
   assert.match(page, /PLAYER_CLOTHING_CATEGORIES\.map\(slot =>/);
   assert.match(page, /data-testid=\{\`avatar-category-\$\{slot\}\`\}/);
