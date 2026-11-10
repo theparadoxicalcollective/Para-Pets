@@ -167,6 +167,10 @@ try{
       await response;
       const last=calls.filter(x=>x.method==="PUT").at(-1);
       assert.equal(last.body.images.length,count,sc.name+": save all clothing images once");
+      if(last.body.images.length){
+        await page.getByTestId("clothing-part-"+last.body.images[0].slot)
+          .getByText("New").waitFor({state:"detached"});
+      }
       for(const part of drafts.at(-1).draftSegments){
         assert.deepEqual(part.fit,fit);
         assert.equal(part.canvasAligned,true);
