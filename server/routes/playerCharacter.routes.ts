@@ -6,6 +6,7 @@ import {
   completePlayerCharacterParts,
   DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_TYPES,
+  SIMPLE_AVATAR_BODY_Z_INDEX,
   playerCharacterBodyWriteSchema,
   resolvePlayerCharacterParts,
   playerCharacterNameSchema,
@@ -151,7 +152,7 @@ export function registerPlayerCharacterRoutes(
         const imageUrl = await processImage(part.imageData, 1000);
         draftParts = upsertPlayerCharacterPart(draftParts, {
           ...transform,
-          zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS[part.partType].zIndex,
+          zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[part.partType],
           partType: part.partType,
           imageUrl,
         });
@@ -160,9 +161,9 @@ export function registerPlayerCharacterRoutes(
       // topmost; older legacy Body/Eyes records remain archived and untouched.
       const orderedDraft = draftParts.map(part =>
         PLAYER_CHARACTER_PART_TYPES.some(type => type === part.partType)
-          ? { ...part, zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS[
-              part.partType as keyof typeof DEFAULT_PLAYER_CHARACTER_TRANSFORMS
-            ].zIndex }
+          ? { ...part, zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[
+              part.partType as keyof typeof SIMPLE_AVATAR_BODY_Z_INDEX
+            ] }
           : part
       );
       const [updated] = await db.update(playerCharacterBases).set({
