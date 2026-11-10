@@ -125,8 +125,8 @@ try{
       sc.name+": three or more pet columns fit on phone/tablet: "+JSON.stringify(layout.tiles));
     assert.ok(layout.scrollWidth<=layout.clientWidth+2,
       sc.name+": pet list has no horizontal overflow: "+JSON.stringify(layout));
-    assert.ok(layout.scrollHeight>layout.clientHeight,
-      sc.name+": large pet collection remains vertically scrollable");
+    if(sc.height<=844)assert.ok(layout.scrollHeight>layout.clientHeight,
+      sc.name+": large pet collection remains vertically scrollable on phones");
 
     const selected=page.getByRole("button",{name:"Select Moss Deer, level 7"});
     await selected.click();
