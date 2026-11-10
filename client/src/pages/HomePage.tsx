@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { createPortal } from "react-dom";
 import { X, Zap, Star, RotateCcw, ShieldPlus, PawPrint, Heart, Shirt, ArrowUpCircle, BellOff } from "lucide-react";
-import supportIconImg from "@assets/Photoroom_20260708_111738_PM_1783570684580.png";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
 import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.png";
@@ -882,7 +881,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible",
             }}
           >
-            <div style={{ pointerEvents: "auto" }}>
+            {/* Only TopBar's actual buttons/balance bars should accept taps.
+                The former full-width auto hit box covered Design Character
+                on compact phones after the third resource row was added. */}
+            <div style={{ pointerEvents: "none" }}>
               <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
             </div>
           </div>
