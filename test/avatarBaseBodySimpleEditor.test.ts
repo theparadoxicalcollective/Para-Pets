@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import {
   DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_TYPES,
+  SIMPLE_AVATAR_BODY_ORDER,
+  SIMPLE_AVATAR_BODY_Z_INDEX,
   playerCharacterBodyWriteSchema,
   resolvePlayerCharacterParts,
   type PlayerCharacterPart,
@@ -42,19 +44,20 @@ test("one Save Body request validates all eight unique bounded PNG/WebP uploads"
   assert.match(read("client/src/components/PlayerCharacterAdminPanel.tsx"), /pendingBytes > 40_000_000/);
 });
 
-test("anatomy layering remains stable with head over arms, torso, legs and feet", () => {
-  const defaults = DEFAULT_PLAYER_CHARACTER_TRANSFORMS;
-  const sorted = [...PLAYER_CHARACTER_PART_TYPES].sort((a,b) => defaults[a].zIndex - defaults[b].zIndex);
-  assert.equal(sorted.at(-1), "head");
-  assert.ok(defaults.head.zIndex > defaults.left_arm.zIndex);
-  assert.ok(defaults.head.zIndex > defaults.right_arm.zIndex);
-  assert.ok(defaults.left_arm.zIndex > defaults.top.zIndex);
-  assert.ok(defaults.top.zIndex > defaults.left_foot.zIndex);
-  assert.ok(defaults.left_foot.zIndex > defaults.left_leg.zIndex);
+test("new Masc/Fem uploads layer in the requested front-to-back order, Head foremost", () => {
+  assert.deepEqual(SIMPLE_AVATAR_BODY_ORDER, [
+    "head", "top", "left_arm", "right_arm",
+    "left_leg", "right_leg", "left_foot", "right_foot",
+  ]);
+  for (let i=0; i<SIMPLE_AVATAR_BODY_ORDER.length-1; i++) {
+    assert.ok(SIMPLE_AVATAR_BODY_Z_INDEX[SIMPLE_AVATAR_BODY_ORDER[i]] >
+      SIMPLE_AVATAR_BODY_Z_INDEX[SIMPLE_AVATAR_BODY_ORDER[i+1]]);
+  }
   const old: PlayerCharacterPart[] = PLAYER_CHARACTER_PART_TYPES.map((partType, index) => ({
     partType,
     imageUrl: "/api/media/00000000-0000-4000-8000-" + String(index).padStart(12, "0"),
-    ...defaults[partType],
+    ...DEFAULT_PLAYER_CHARACTER_TRANSFORMS[partType],
+    zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[partType],
   }));
   const imageSnapshot = JSON.stringify(old);
   assert.equal(resolvePlayerCharacterParts(old).at(-1)?.partType, "head");
@@ -72,7 +75,7 @@ test("one authenticated admin batch saves a revision-checked private body draft 
   assert.match(bodyWrite, /for \(const part of payload.data.parts\)/);
   assert.match(bodyWrite, /await processImage\(part.imageData, 1000\)/);
   assert.match(bodyWrite, /upsertPlayerCharacterPart\(draftParts/);
-  assert.match(bodyWrite, /zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS\[part.partType\].zIndex/);
+  assert.match(bodyWrite, /zIndex: SIMPLE_AVATAR_BODY_Z_INDEX/);
   assert.match(bodyWrite, /draftParts: orderedDraft/);
   assert.match(bodyWrite, /eq\(playerCharacterBases.revision, current.revision\)/);
   assert.equal((bodyWrite.match(/db.update\(playerCharacterBases\)/g) ?? []).length, 1);
@@ -84,7 +87,7 @@ test("simple Masc and Fem editor exposes eight upload tiles, one save and a laye
   const preview = read("client/src/components/PlayerCharacterPartsPreview.tsx");
   assert.match(panel, /type BodyKind = "Masc" \| "Fem"/);
   assert.match(panel, /base.name.trim\(\).toLowerCase\(\) === bodyKind.toLowerCase\(\)/);
-  assert.match(panel, /const UPLOAD_PART_ORDER/);
+  assert.match(panel, /SIMPLE_AVATAR_BODY_ORDER.map/);
   for (const type of PLAYER_CHARACTER_PART_TYPES) {
     assert.ok(panel.includes('"' + type + '"'), "missing part upload: " + type);
   }
