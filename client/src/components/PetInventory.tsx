@@ -1011,7 +1011,14 @@ function PetView({
             {selectedPet.specialSkill && (
               <p className="pet-spotlight__skill" data-testid={`text-pet-skill-${selectedPet.inventoryId}`}>
                 {selectedPet.specialSkill}
-                {selectedPet.skillType ? ` · ${selectedPet.skillType}` : ""}
+                {selectedPet.skillType && (
+                  <>
+                    {" — "}
+                    {({ heal: "Heal", poison: "Poison", damage: "Damage", stun: "Stun", revive: "Revive" } as Record<string, string>)[selectedPet.skillType] ?? selectedPet.skillType}
+                    {" "}
+                    {({ self: "Pet", party: "Party", enemy: "Enemy", enemy_party: "Enemy Party" } as Record<string, string>)[selectedPet.skillAffects ?? ""] ?? ""}
+                  </>
+                )}
               </p>
             )}
             {!readOnly && (
