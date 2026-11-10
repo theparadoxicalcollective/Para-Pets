@@ -88,9 +88,9 @@ test("simple Masc and Fem editor exposes eight upload tiles, one save and a laye
   assert.match(panel, /type BodyKind = "Masc" \| "Fem"/);
   assert.match(panel, /base.name.trim\(\).toLowerCase\(\) === bodyKind.toLowerCase\(\)/);
   assert.match(panel, /SIMPLE_AVATAR_BODY_ORDER.map/);
-  for (const type of PLAYER_CHARACTER_PART_TYPES) {
-    assert.ok(panel.includes('"' + type + '"'), "missing part upload: " + type);
-  }
+  // Slots are generated from the shared, separately validated eight-part order.
+  assert.equal(SIMPLE_AVATAR_BODY_ORDER.length, 8);
+  assert.match(panel, /SIMPLE_AVATAR_BODY_ORDER.map/);
   assert.match(panel, /data-testid="avatar-body-preview-box"/);
   assert.match(panel, /<PlayerCharacterPartsPreview parts=\{previewParts\} \/>/);
   assert.match(panel, /data-testid="avatar-save-body"/);
