@@ -49,7 +49,7 @@ test("all twelve actions and their route handlers remain available in three rows
   assert.match(nav, /title: "Activities"/);
   assert.match(nav, /section\.ids\.map\(id =>/);
   assert.match(nav, /handleLeft\(item\.id\) : handleRight\(item\.id\)/);
-  assert.match(nav, /questBadge=\{item\.id === "quest" && questRewardReady\}/);
+  assert.match(nav, /showQuestReward=\{item\.id === "quest" && questRewardReady\}/);
   assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
   assert.match(nav, /!isHome && RIGHT_ITEMS\.map/);
   assert.match(nav, /window\.dispatchEvent\(new Event\("para-pets:main-nav-open"\)\)/);
