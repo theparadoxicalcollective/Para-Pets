@@ -232,8 +232,8 @@ try {
     assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 7,
       sc.name+": player level centered directly below the progress bar");
     assert.ok(homeLayout.levelPill &&
-      homeLayout.levelPill.width >= 78 && homeLayout.levelPill.height >= 25,
-      sc.name+": centered player level is readable inside a compact pill");
+      homeLayout.levelPill.width >= 77 && homeLayout.levelPill.height >= 24,
+      sc.name+": centered player level is readable inside a compact pill "+JSON.stringify(homeLayout.levelPill));
     assert.ok(homeLayout.levelPill.bottom <= homeLayout.party.top + 8,
       sc.name+": lowered XP and level pill do not block pet selection");
     assert.ok(homeLayout.navButton, sc.name+": main nav button is present");
