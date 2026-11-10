@@ -20,6 +20,7 @@ export interface PlayerCharacterRendererProps {
   clothingSegments?: readonly PlayerClothingSegment[];
   clothingLayers?: readonly AvatarClothingLayer[];
   previewClothingCategory?: PlayerClothingCategory;
+  previewEyesClosed?: boolean;
   motion?: PlayerCharacterMotion;
   selectedPartType?: PlayerCharacterPartType | null;
   ariaLabel?: string;
@@ -30,6 +31,7 @@ export default function PlayerCharacterRenderer({
   clothingSegments = [],
   clothingLayers = [],
   previewClothingCategory = "top",
+  previewEyesClosed = false,
   motion = "static",
   selectedPartType = null,
   ariaLabel = "Player character",
@@ -62,6 +64,7 @@ export default function PlayerCharacterRenderer({
     <div data-testid="player-character-renderer"
       data-coordinate-space="character-relative"
       data-character-motion={motion}
+      data-preview-eyes-closed={previewEyesClosed}
       role="img" aria-label={ariaLabel}
       className="player-character-renderer">
       {sorted.map(part => (
