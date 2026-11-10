@@ -1,12 +1,9 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
-
-const PlayerClothingAdminPanel = lazyWithRetry(() => import("./PlayerClothingAdminPanel"));
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerCharacterPartsPreview from "./PlayerCharacterPartsPreview";
-import type { PlayerCharacterMotion } from "./PlayerCharacterRenderer";
 import {
   DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_LABELS,
@@ -16,8 +13,9 @@ import {
   type PlayerCharacterPart,
   type StoredPlayerCharacterPart,
   type PlayerCharacterPartType,
-  type PlayerCharacterTransform,
 } from "@shared/playerCharacter";
+
+const PlayerClothingAdminPanel = lazyWithRetry(() => import("./PlayerClothingAdminPanel"));
 
 interface CharacterBase {
   id: string;
@@ -27,27 +25,23 @@ interface CharacterBase {
   isDefault: boolean;
   revision: number;
 }
+type BodyKind = "Masc" | "Fem";
+type PendingImages = Partial<Record<PlayerCharacterPartType, string>>;
 
-const LIST_KEY = ["/api/admin/player-character/bases"];
-const inputClass = "w-full min-h-[42px] rounded-lg border border-[#88723e]/60 bg-[#0d2117] px-3 py-2 text-sm text-[#f6e7be] focus:outline-none focus:ring-2 focus:ring-[#d7b86d]";
-const buttonClass = "min-h-[44px] rounded-lg border border-[#b79b55]/70 bg-[#20412b] px-3 py-2 text-xs font-bold text-[#f2da99] disabled:opacity-45";
-const transformFields: ReadonlyArray<{
-  key: keyof PlayerCharacterTransform;
-  label: string;
-  min: number; max: number; step: number;
-}> = [
-  { key: "xPct", label: "Horizontal position (%)", min: 0, max: 100, step: 0.1 },
-  { key: "yPct", label: "Vertical position (%)", min: 0, max: 100, step: 0.1 },
-  { key: "widthPct", label: "Width (% of avatar)", min: 2, max: 150, step: 0.5 },
-  { key: "pivotXPct", label: "Horizontal pivot (%)", min: 0, max: 100, step: 1 },
-  { key: "pivotYPct", label: "Vertical pivot (%)", min: 0, max: 100, step: 1 },
-  { key: "rotationDeg", label: "Rotation (°)", min: -180, max: 180, step: 1 },
-  { key: "zIndex", label: "Layer order", min: 0, max: 100, step: 1 },
+// Upload order is for the artist. Rendering depth remains owned by the
+// shared artwork-relative transforms: legs/feet, torso, arms, HEAD foremost.
+const UPLOAD_PART_ORDER: readonly PlayerCharacterPartType[] = [
+  "head", "top", "left_arm", "right_arm",
+  "left_leg", "right_leg", "left_foot", "right_foot",
 ];
+const LIST_KEY = ["/api/admin/player-character/bases"];
+const buttonClass = "min-h-[44px] rounded-lg border border-[#b79b55]/70 bg-[#20412b] px-3 py-2 text-sm font-bold text-[#f2da99] disabled:opacity-45";
+const cardClass = "rounded-xl border border-[#9c854b]/60 bg-[#10291d]/90 p-3";
 
 const dataFromFile = (file: File) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
-  reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Image could not be read"));
+  reader.onload = () => typeof reader.result === "string"
+    ? resolve(reader.result) : reject(new Error("Image could not be read"));
   reader.onerror = () => reject(new Error("Image could not be read"));
   reader.readAsDataURL(file);
 });
@@ -56,369 +50,229 @@ async function requestJson<T>(method: string, url: string, body?: unknown): Prom
   return (await apiRequest(method, url, body)).json();
 }
 
-/**
- * One small lazy-loaded editor for the new character domain, with no pet
- * inventory, evolution or NPC dependencies. Draft writes use a revision
- * check; a second editor cannot silently overwrite an earlier save.
- */
+/** One compact body editor; the clothing editor and shared renderer stay intact. */
 export default function PlayerCharacterAdminPanel() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [newName, setNewName] = useState("Player Avatar");
-  const [renameValue, setRenameValue] = useState("");
-  const [partType, setPartType] = useState<PlayerCharacterPartType>("top");
-  const [transform, setTransform] = useState<PlayerCharacterTransform>(DEFAULT_PLAYER_CHARACTER_TRANSFORMS.top);
-  const [imageData, setImageData] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
-  const [previewMotion, setPreviewMotion] = useState<PlayerCharacterMotion>("static");
+  const [bodyKind, setBodyKind] = useState<BodyKind>("Fem");
+  const [pendingImages, setPendingImages] = useState<PendingImages>({});
+  const [readingParts, setReadingParts] = useState(0);
   const [editorTab, setEditorTab] = useState<"base" | "clothing">("base");
   const [clothingOpened, setClothingOpened] = useState(false);
   const [clothingDirty, setClothingDirty] = useState(false);
 
   const query = useQuery<CharacterBase[]>({
     queryKey: LIST_KEY,
-    queryFn: async () => requestJson<CharacterBase[]>("GET", "/api/admin/player-character/bases"),
+    queryFn: () => requestJson<CharacterBase[]>("GET", "/api/admin/player-character/bases"),
   });
   const bases = query.data ?? [];
-  const selected = bases.find(base => base.id === selectedId) ?? (selectedId === null ? bases[0] : undefined);
-  const currentId = selected?.id ?? null;
-  // Existing 06/12 Body artwork is a Torso source; don't require a
-  // re-upload. Legacy Eyes stay archived and are not silently discarded.
-  const resolvedParts = selected ? resolvePlayerCharacterParts(selected.draftParts) : [];
-  const savedPart = resolvedParts.find(part => part.partType === partType);
-  const hasNativePart = selected?.draftParts.some(part => part.partType === partType) ?? false;
-  const archivedEyes = selected?.draftParts.find(part => part.partType === "eyes");
-
-  useEffect(() => {
-    setTransform(savedPart
-      ? {
-          xPct: savedPart.xPct, yPct: savedPart.yPct, widthPct: savedPart.widthPct,
-          pivotXPct: savedPart.pivotXPct, pivotYPct: savedPart.pivotYPct,
-          rotationDeg: savedPart.rotationDeg, zIndex: savedPart.zIndex,
-        }
-      : { ...DEFAULT_PLAYER_CHARACTER_TRANSFORMS[partType] });
-    setImageData(null);
-    setDirty(false);
-  }, [currentId, selected?.revision, partType]);
-
-  useEffect(() => {
-    setRenameValue(selected?.name ?? "");
-  }, [currentId, selected?.revision]);
-
+  // Existing Masc and Fem drafts are reused, not silently recreated or deleted.
+  const selected = bases.find(base => base.name.trim().toLowerCase() === bodyKind.toLowerCase());
+  const changedTypes = UPLOAD_PART_ORDER.filter(type => !!pendingImages[type]);
+  const dirty = changedTypes.length > 0;
   const previewParts = useMemo(() => {
-    if (!selected) return [];
-    const draft = resolvePlayerCharacterParts(selected.draftParts);
-    const url = imageData || savedPart?.imageUrl;
-    if (!url) return draft;
-    return upsertPlayerCharacterPartPreview(draft, {
-      partType, imageUrl: url, ...transform,
-    });
-  }, [selected, partType, savedPart?.imageUrl, imageData, transform]);
+    let draft = selected ? resolvePlayerCharacterParts(selected.draftParts) : [];
+    for (const type of PLAYER_CHARACTER_PART_TYPES) {
+      const upload = pendingImages[type];
+      if (!upload) continue;
+      const saved = draft.find(part => part.partType === type);
+      const next: PlayerCharacterPart = {
+        ...(saved ?? DEFAULT_PLAYER_CHARACTER_TRANSFORMS[type]),
+        zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS[type].zIndex,
+        partType: type,
+        imageUrl: upload,
+      };
+      draft = [...draft.filter(part => part.partType !== type), next];
+    }
+    return draft.sort((a, b) => a.zIndex - b.zIndex);
+  }, [selected, pendingImages]);
 
   const updateCache = (base: CharacterBase) => {
     qc.setQueryData<CharacterBase[]>(LIST_KEY, old => {
-      const next = old ?? [];
-      return next.some(item => item.id === base.id)
-        ? next.map(item => item.id === base.id ? base : item)
-        : [...next, base];
+      const values = old ?? [];
+      return values.some(item => item.id === base.id)
+        ? values.map(item => item.id === base.id ? base : item)
+        : [...values, base];
     });
   };
   const reportError = (error: unknown) => {
-    toast({ title: "Avatar change not saved", description: error instanceof Error ? error.message : "Please retry." });
+    toast({
+      title: "Avatar body not saved",
+      description: error instanceof Error ? error.message : "Please retry.",
+      variant: "destructive",
+    });
     void qc.invalidateQueries({ queryKey: LIST_KEY });
   };
 
-  const create = useMutation({
-    mutationFn: () => requestJson<CharacterBase>("POST", "/api/admin/player-character/bases", { name: newName.trim() }),
+  // Create the selected base if needed, then commit every new part in one
+  // version-checked update. Failure keeps uploads visible for retry.
+  const saveBody = useMutation({
+    mutationFn: async (input: { kind: BodyKind; base?: CharacterBase; images: PendingImages }) => {
+      const base = input.base ?? await requestJson<CharacterBase>(
+        "POST", "/api/admin/player-character/bases", { name: input.kind },
+      );
+      const parts = UPLOAD_PART_ORDER
+        .filter(type => !!input.images[type])
+        .map(type => ({ partType: type, imageData: input.images[type]! }));
+      return requestJson<CharacterBase>(
+        "PUT", "/api/admin/player-character/bases/" + base.id + "/body",
+        { expectedRevision: base.revision, parts },
+      );
+    },
     onSuccess: base => {
       updateCache(base);
-      setSelectedId(base.id);
-      toast({ title: "Avatar draft created", description: "Upload the eight base parts and publish when ready." });
+      setPendingImages({});
+      toast({ title: bodyKind + " body saved" });
     },
     onError: reportError,
   });
-  const save = useMutation({
-    mutationFn: () => requestJson<CharacterBase>(
-      "PUT", `/api/admin/player-character/bases/${selected!.id}/parts/${partType}`,
-      { expectedRevision: selected!.revision, transform, ...(imageData ? { imageData } : {}) },
-    ),
-    onSuccess: base => {
-      updateCache(base);
-      toast({ title: "Part saved", description: "The draft was updated; published artwork is unchanged." });
-    },
-    onError: reportError,
-  });
-  const remove = useMutation({
-    mutationFn: () => requestJson<CharacterBase>(
-      "DELETE", `/api/admin/player-character/bases/${selected!.id}/parts/${partType}`,
-      { expectedRevision: selected!.revision },
-    ),
-    onSuccess: base => {
-      updateCache(base);
-      toast({ title: "Draft part removed", description: "The published avatar, if any, is unaffected." });
-    },
-    onError: reportError,
-  });
-  const rename = useMutation({
-    mutationFn: () => requestJson<CharacterBase>(
-      "PATCH", `/api/admin/player-character/bases/${selected!.id}/name`,
-      { expectedRevision: selected!.revision, name: renameValue.trim() },
-    ),
-    onSuccess: base => {
-      updateCache(base);
-      toast({ title: "Avatar renamed" });
-    },
-    onError: reportError,
-  });
+
   const publish = useMutation({
     mutationFn: () => requestJson<CharacterBase>(
-      "POST", `/api/admin/player-character/bases/${selected!.id}/publish`,
+      "POST", "/api/admin/player-character/bases/" + selected!.id + "/publish",
       { expectedRevision: selected!.revision },
     ),
     onSuccess: base => {
       updateCache(base);
       void qc.invalidateQueries({ queryKey: LIST_KEY });
-      toast({ title: "Default avatar published", description: "The saved eight-part snapshot is now the published default." });
+      toast({ title: "Default avatar published" });
     },
     onError: reportError,
   });
+  const busy = saveBody.isPending || publish.isPending || readingParts > 0;
 
-  const busy = create.isPending || save.isPending || remove.isPending || rename.isPending || publish.isPending;
-
-  const openImage = async (file: File | undefined) => {
+  const openImage = async (partType: PlayerCharacterPartType, file: File | undefined) => {
     if (!file) return;
     if (!["image/png", "image/webp"].includes(file.type) || file.size > 5_000_000) {
-      toast({ title: "Unsupported image", description: "Use a transparent PNG or WebP under 5 MB." });
+      toast({ title: "Unsupported image", description: "Choose a PNG or WebP under 5 MB.", variant: "destructive" });
       return;
     }
+    setReadingParts(value => value + 1);
     try {
-      const image = await dataFromFile(file);
-      setImageData(image);
-      setDirty(true);
+      const imageData = await dataFromFile(file);
+      setPendingImages(previous => ({ ...previous, [partType]: imageData }));
     } catch (error) {
       reportError(error);
+    } finally {
+      setReadingParts(value => value - 1);
     }
   };
 
-  const updateField = (key: keyof PlayerCharacterTransform, value: number, min: number, max: number) => {
-    if (!Number.isFinite(value)) return;
-    const next = Math.max(min, Math.min(max, key === "zIndex" ? Math.round(value) : value));
-    setTransform(current => ({ ...current, [key]: next }));
-    setDirty(true);
+  const chooseBody = (kind: BodyKind) => {
+    if (busy || dirty) return;
+    setBodyKind(kind);
   };
   const canPublish = !!selected && completePlayerCharacterParts(selected.draftParts) && !dirty && !busy;
 
   return (
-    <section data-testid="player-character-admin-panel" className="space-y-4 text-[#f3dfac]">
+    <section data-testid="player-character-admin-panel" className="space-y-3 text-[#f3dfac]">
       <div role="tablist" aria-label="Avatar administration" className="grid grid-cols-2 gap-2">
         <button type="button" role="tab" aria-selected={editorTab === "base"}
           disabled={clothingDirty} className={buttonClass}
           onClick={() => setEditorTab("base")}
           style={{ borderColor: editorTab === "base" ? "#f1d18c" : "#816f43" }}>
-          Base Body Parts
+          Base Body
         </button>
         <button type="button" role="tab" aria-selected={editorTab === "clothing"}
-          disabled={dirty} className={buttonClass}
+          disabled={dirty || busy} className={buttonClass}
           data-testid="avatar-open-create-clothing"
           onClick={() => { setClothingOpened(true); setEditorTab("clothing"); }}
           style={{ borderColor: editorTab === "clothing" ? "#f1d18c" : "#816f43" }}>
           Create Clothing
         </button>
       </div>
-      {(dirty || clothingDirty) && (
-        <p role="status" className="text-xs text-[#e4d1a0]">
-          Save or discard your unsaved artwork changes before switching editors.
-        </p>
-      )}
-      <div className={editorTab === "base" ? "space-y-4" : "hidden"}>
-      <div className="rounded-xl border border-[#9c854b]/55 bg-[#10251a]/90 p-3">
-        <h2 className="font-fantasy text-lg font-bold text-[#f3d58b]">Avatar Base Editor</h2>
-        <p className="mt-1 text-xs leading-relaxed text-[#d1c69f]">
-          Build a front-facing, eight-part player avatar. Draft changes never alter the published character.
-          Preview gentle idle and walking motion here; clothing fitting arrives in Avatar 08A.
-        </p>
-      </div>
 
-      <div className="rounded-xl border border-[#8b7747]/45 bg-black/30 p-3">
-        <label htmlFor="new-avatar-base" className="mb-1 block text-xs">New avatar base name</label>
-        <div className="flex flex-wrap gap-2">
-          <input id="new-avatar-base" className={`${inputClass} min-w-0 flex-1`}
-            value={newName} maxLength={80} onChange={event => setNewName(event.target.value)} />
-          <button type="button" className={buttonClass} disabled={busy || dirty || !newName.trim()}
-            onClick={() => create.mutate()}>Add Avatar Base</button>
-        </div>
-        {query.isLoading && <p className="mt-2 text-xs">Loading avatar definitions…</p>}
-        {query.isError && (
-          <button type="button" className={`${buttonClass} mt-2`} onClick={() => void query.refetch()}>
-            Could not load avatars — retry
-          </button>
-        )}
-        {bases.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Avatar bases">
-            {bases.map(base => (
-              <button type="button" key={base.id} disabled={busy || dirty}
-                onClick={() => setSelectedId(base.id)}
-                aria-pressed={base.id === currentId}
-                className={buttonClass}
-                style={{ borderColor: base.id === currentId ? "#f4cd75" : "#88723e" }}>
-                {base.name}{base.isDefault ? " · Published default" : ""}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {selected && (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-[#8b7747]/45 bg-black/30 p-3">
-            <label htmlFor="rename-avatar" className="mb-1 block text-xs">Avatar base name</label>
-            <div className="flex flex-wrap gap-2">
-              <input id="rename-avatar" className={`${inputClass} min-w-0 flex-1`}
-                value={renameValue} maxLength={80} onChange={event => setRenameValue(event.target.value)} />
-              <button className={buttonClass} type="button" disabled={busy || dirty || !renameValue.trim() || renameValue.trim() === selected.name}
-                onClick={() => rename.mutate()}>Save Name</button>
+      {editorTab === "base" && (
+        <div className="space-y-3">
+          <div className={cardClass}>
+            <div role="group" aria-label="Avatar body type" className="grid grid-cols-2 gap-2">
+              {(["Masc", "Fem"] as const).map(kind => (
+                <button key={kind} type="button"
+                  data-testid={"avatar-body-" + kind.toLowerCase()}
+                  aria-pressed={bodyKind === kind}
+                  disabled={busy || (dirty && bodyKind !== kind)}
+                  className={buttonClass}
+                  style={{ borderColor: bodyKind === kind ? "#f7d58f" : "#816f43",
+                    background: bodyKind === kind ? "#28553a" : "#102b1e" }}
+                  onClick={() => chooseBody(kind)}>
+                  {kind}
+                </button>
+              ))}
             </div>
-            <p className="mt-2 text-[11px] text-[#d0c4a4]">
-              Draft parts: {resolvedParts.length}/8 · {selected.isDefault ? "Published default" :
-                selected.publishedParts ? "Previously published, not default" : "Not published"} · Revision {selected.revision}
-            </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label="Choose avatar part">
-                {PLAYER_CHARACTER_PART_TYPES.map(type => {
-                  const part = selected.draftParts.find(p => p.partType === type);
-                  return (
-                    <button key={type} type="button" disabled={busy || (dirty && type !== partType)}
-                      data-testid={`avatar-part-select-${type}`}
-                      onClick={() => setPartType(type)}
-                      aria-pressed={type === partType}
-                      className={`${buttonClass} flex flex-col items-center justify-center gap-1`}
-                      style={{ borderColor: type === partType ? "#edcb7c" : "#74643d", minHeight: 65 }}>
-                      {part
-                        ? <img alt="" src={part.imageUrl} className="h-7 w-7 object-contain" draggable={false} />
-                        : <span className="text-lg text-[#a6915e]">+</span>}
-                      <span>{PLAYER_CHARACTER_PART_LABELS[type]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div role="group" aria-label="Avatar preview motion" className="grid grid-cols-3 gap-2">
-                {([
-                  { mode: "static", label: "Edit" },
-                  { mode: "idle", label: "Idle" },
-                  { mode: "walk", label: "Walk" },
-                ] as const).map(({ mode, label }) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    disabled={busy}
-                    aria-pressed={previewMotion === mode}
-                    data-testid={`avatar-preview-mode-${mode}`}
-                    onClick={() => setPreviewMotion(mode)}
-                    className={buttonClass}
-                    style={{ borderColor: previewMotion === mode ? "#f4cd75" : "#88723e" }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <PlayerCharacterPartsPreview parts={previewParts} activePartType={partType}
-                motion={previewMotion}
-                editable={previewMotion === "static" && Boolean(imageData || savedPart)}
-                onMovePart={(xPct, yPct) => {
-                  setTransform(current => ({ ...current, xPct, yPct }));
-                  setDirty(true);
-                }} />
-              {archivedEyes && (
-                <div className="flex items-center gap-2 rounded-lg border border-[#987d49]/50 bg-[#11281c] p-2 text-[11px] text-[#e6d5ac]">
-                  <img src={archivedEyes.imageUrl} alt="Legacy open-eyes layer" className="h-10 w-10 shrink-0 object-contain" />
-                  <p>Original Eyes artwork is preserved in this draft for the upcoming Face clothing system. It is no longer one of the eight animation base parts.</p>
-                </div>
-              )}
-              <p className="text-[11px] text-[#cfc1a0]">
-                Use Edit to tap or drag the selected body part into position. Idle and Walk preview the same
-                saved pivots without changing them. The positions remain artwork-relative.
-              </p>
+          <div className={cardClass}>
+            <h2 className="mb-2 text-center font-fantasy text-lg font-bold text-[#f6da92]">{bodyKind} Body</h2>
+            <div className="mx-auto w-full max-w-[248px]" data-testid="avatar-body-preview-box">
+              <PlayerCharacterPartsPreview parts={previewParts} />
             </div>
+          </div>
 
-            <div className="space-y-3 rounded-xl border border-[#8b7747]/45 bg-[#11291d]/80 p-3">
-              <h3 className="text-sm font-bold text-[#f3d58b]">
-                {PLAYER_CHARACTER_PART_LABELS[partType]} · Draft
-              </h3>
-              <label className="block text-xs">
-                Upload transparent PNG/WebP
-                <input type="file" accept="image/png,image/webp" disabled={busy}
-                  data-testid={`avatar-upload-${partType}`}
-                  className="mt-1 block w-full text-xs file:mr-2 file:rounded-lg file:border file:border-[#bca15d] file:bg-[#244532] file:px-3 file:py-2 file:text-[#f3d58b]"
-                  onChange={event => {
-                    void openImage(event.target.files?.[0]);
-                    event.currentTarget.value = "";
-                  }} />
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {transformFields.map(field => (
-                  <label key={field.key} className="block text-[11px] text-[#e7d7ad]">
-                    {field.label}
-                    <input type="number" className={`${inputClass} mt-1`} min={field.min} max={field.max}
-                      step={field.step} disabled={busy}
-                      value={transform[field.key]}
-                      onChange={event => updateField(field.key, Number(event.target.value), field.min, field.max)} />
+          <div className={cardClass}>
+            <div role="group" aria-label="Body part image uploads"
+              className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {UPLOAD_PART_ORDER.map(type => {
+                const image = pendingImages[type] ?? previewParts.find(part => part.partType === type)?.imageUrl;
+                return (
+                  <label key={type}
+                    data-testid={"avatar-body-upload-tile-" + type}
+                    className="relative flex min-h-[90px] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-[#b79b55]/65 bg-[#123425] px-2 py-2 text-center text-xs text-[#f4dda4] focus-within:outline focus-within:outline-2 focus-within:outline-[#f7d58f]">
+                    {image
+                      ? <img src={image} alt="" draggable={false} className="h-10 w-12 object-contain" />
+                      : <span aria-hidden="true" className="text-2xl leading-none">+</span>}
+                    <span>{PLAYER_CHARACTER_PART_LABELS[type] === "Torso / Top" ? "Torso" : PLAYER_CHARACTER_PART_LABELS[type]}</span>
+                    {pendingImages[type] && <span className="text-[10px] text-[#ffe58f]">New</span>}
+                    <input type="file" accept="image/png,image/webp"
+                      aria-label={"Upload " + (type === "top" ? "Torso" : PLAYER_CHARACTER_PART_LABELS[type])}
+                      data-testid={"avatar-upload-" + type}
+                      className="sr-only"
+                      disabled={busy}
+                      onChange={event => {
+                        void openImage(type, event.currentTarget.files?.[0]);
+                        event.currentTarget.value = "";
+                      }} />
                   </label>
-                ))}
-              </div>
-              <button type="button" className={`${buttonClass} w-full`}
-                disabled={busy || !dirty || (!savedPart && !imageData)}
-                data-testid="avatar-save-part" onClick={() => save.mutate()}>
-                {save.isPending ? "Saving Part…" : "Save Selected Part"}
-              </button>
-              {hasNativePart && (
-                <button type="button" disabled={busy || dirty} onClick={() => remove.mutate()}
-                  className="min-h-[40px] w-full rounded-lg border border-[#786348] bg-[#35291c] text-xs text-[#f2cfa2]">
-                  Remove from Draft
-                </button>
-              )}
-              {dirty && (
-                <button type="button" className={`${buttonClass} w-full`}
-                  onClick={() => {
-                    setTransform(savedPart
-                      ? {
-                          xPct: savedPart.xPct, yPct: savedPart.yPct, widthPct: savedPart.widthPct,
-                          pivotXPct: savedPart.pivotXPct, pivotYPct: savedPart.pivotYPct,
-                          rotationDeg: savedPart.rotationDeg, zIndex: savedPart.zIndex,
-                        }
-                      : { ...DEFAULT_PLAYER_CHARACTER_TRANSFORMS[partType] });
-                    setImageData(null);
-                    setDirty(false);
-                  }}>
-                  Discard Unsaved Changes
-                </button>
-              )}
-              <p className="text-[11px] text-[#c7b992]">
-                {dirty ? "Unsaved part placement or artwork — save or discard before switching parts or publishing." :
-                  "Saved draft. Publish separately when all eight parts are ready."}
-              </p>
+                );
+              })}
             </div>
-          </div>
-          <div className="rounded-xl border border-[#b99b56]/55 bg-[#10281c] p-3">
-            <h3 className="font-fantasy font-bold text-[#f3d58b]">Publish Default Player Avatar</h3>
-            <p className="my-2 text-xs leading-relaxed text-[#decda7]">
-              All eight base parts are required. Publishing copies this draft into a separate live snapshot
-              and selects it as the one default avatar. Later edits remain private until republished.
+            <p className="mt-2 text-center text-[11px] text-[#cbbb91]">
+              Transparent PNG or WebP · {previewParts.length}/8 parts
             </p>
-            <button type="button" data-testid="avatar-publish-default" className={`${buttonClass} w-full`}
-              disabled={!canPublish} onClick={() => publish.mutate()}>
-              {publish.isPending ? "Publishing…" : selected.isDefault ? "Republish Updated Default" : "Publish as Default"}
+            <button type="button" data-testid="avatar-save-body"
+              className={buttonClass + " mt-3 w-full"}
+              disabled={busy || !dirty}
+              onClick={() => saveBody.mutate({ kind: bodyKind, base: selected, images: { ...pendingImages } })}>
+              {saveBody.isPending ? "Saving Body…" : "Save Body"}
             </button>
-            {!completePlayerCharacterParts(selected.draftParts) && (
-              <p className="mt-2 text-xs text-[#decda7]">Complete and save all 8 base parts before publishing.</p>
+            {dirty && (
+              <button type="button" className="mt-2 min-h-[44px] w-full text-xs text-[#ddc99b] underline"
+                disabled={busy} onClick={() => setPendingImages({})}>
+                Discard unsaved uploads
+              </button>
             )}
           </div>
+
+          {selected && completePlayerCharacterParts(selected.draftParts) && (
+            <div className={cardClass}>
+              <button type="button" data-testid="avatar-publish-default"
+                className={buttonClass + " w-full"}
+                disabled={!canPublish} onClick={() => publish.mutate()}>
+                {publish.isPending ? "Publishing…" : selected.isDefault ? "Republish Default" : "Publish as Default"}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-[#cbbb91]">
+                Only one default body is published at a time.
+              </p>
+            </div>
+          )}
+          {query.isLoading && <p role="status" className="text-center text-xs">Loading bodies…</p>}
+          {query.isError && (
+            <button type="button" className={buttonClass} onClick={() => void query.refetch()}>
+              Retry loading bodies
+            </button>
+          )}
         </div>
       )}
-      </div>
+
       {clothingOpened && (
         <div className={editorTab === "clothing" ? "" : "hidden"}>
           <Suspense fallback={<p className="p-3 text-sm text-[#e3cc9a]">Loading clothing editor…</p>}>
@@ -428,14 +282,4 @@ export default function PlayerCharacterAdminPanel() {
       )}
     </section>
   );
-}
-
-/** Preview may show an unsaved data URI. Persisted parts always use strict
- * processed media URLs; avoid passing the ephemeral preview to the parser.
- */
-function upsertPlayerCharacterPartPreview(
-  saved: readonly PlayerCharacterPart[], next: PlayerCharacterPart,
-): PlayerCharacterPart[] {
-  return [...saved.filter(p => p.partType !== next.partType), next]
-    .sort((a, b) => a.zIndex - b.zIndex);
 }
