@@ -66,7 +66,7 @@ try{
           return route.fulfill({status:201,json:base});
         }
       }
-      if(method==="PUT" && /\\/api\\/admin\\/player-character\\/bases\\/[^/]+\\/body$/.test(url.pathname)){
+      if(method==="PUT" && url.pathname.startsWith("/api/admin/player-character/bases/") && url.pathname.endsWith("/body")){
         const body=route.request().postDataJSON();
         requests.push({method,path:url.pathname,body});
         if(failNextBody){
@@ -79,7 +79,7 @@ try{
         assert.equal(body.expectedRevision,old.revision,sc.name+": revision matches saved state");
         const next=new Map(old.draftParts.map(p=>[p.partType,p]));
         for(const part of body.parts){
-          assert.match(part.imageData,/^data:image\\/png;base64,/);
+          assert.ok(part.imageData.startsWith("data:image/png;base64,"));
           const defaults={
             head:[50,29,42],top:[50,58,50],left_arm:[28,48,21],
             right_arm:[72,48,21],left_leg:[42,72,24],
