@@ -529,6 +529,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 style={{
                   gridColumn: 1,
                   gridRow: location === "/" ? 2 : 1,
+                  // Absorb taps on the balance art itself without opening any route.
+                  pointerEvents: "auto",
                   background: "transparent",
                   border: "none",
                   padding: 0,
@@ -561,6 +563,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 style={{
                   gridColumn: 1,
                   gridRow: location === "/" ? 1 : 2,
+                  pointerEvents: "auto",
                   flexShrink: 0,
                   position: "relative",
                   display: "inline-flex",
