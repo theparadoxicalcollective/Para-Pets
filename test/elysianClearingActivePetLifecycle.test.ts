@@ -71,7 +71,8 @@ test("the Clearing client lifecycle is keyed, abortable, identity checked, and b
 test("pet selection waits for server confirmation and preserves the auth user cache shape", () => {
   const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
   assert.match(inventory, /if \(setActivePetMutation\.isPending\) return/);
-  assert.match(inventory, /disabled=\{isActive \|\| isPending\}/);
+  assert.match(inventory, /disabled=\{activePetId === selectedPet.inventoryId \|\| isPending\}/);
+  assert.match(inventory, /activePetId !== selectedPet.inventoryId && !isPending\) onToggle\(selectedPet.inventoryId\)/);
   assert.match(inventory, /Updating featured pet…/);
   assert.match(inventory, /\{ \.\.\.current, activePetId:/);
   assert.match(inventory, /setQueryData\(\["\/api\/auth\/me"\][\s\S]*?activePetId:/);
