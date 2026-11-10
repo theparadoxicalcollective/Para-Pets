@@ -8,7 +8,7 @@ import { setMainNavOpen } from "@/lib/mainNavState";
 import { useToast } from "@/hooks/use-toast";
 import { Lock } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.webp";
-import mainNavIcon from "@assets/uploads/NewMainNavButton.PNG";
+import mainNavIcon from "@assets/uploads/NewMainNavButton.PNG?url";
 import supportIcon from "@assets/Photoroom_20260708_111738_PM_1783570684580.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
