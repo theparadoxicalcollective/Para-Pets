@@ -38,6 +38,8 @@ test("one Save Body request validates all eight unique bounded PNG/WebP uploads"
     }).success, false);
   }
   assert.equal(playerCharacterBodyWriteSchema.safeParse({ ...full, unknown: true }).success, false);
+  assert.match(read("shared/playerCharacter.ts"), /40_000_000/);
+  assert.match(read("client/src/components/PlayerCharacterAdminPanel.tsx"), /pendingBytes > 40_000_000/);
 });
 
 test("anatomy layering remains stable with head over arms, torso, legs and feet", () => {
