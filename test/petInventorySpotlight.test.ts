@@ -23,24 +23,35 @@ test("companion spotlight selects one saved hatched pet and retains active-pet f
 });
 
 test("selected pet actions stay routed by inventory ID without a featured companion button", () => {
-  assert.match(inventory, /data-testid=\{`button-pet-menu-\$\{selectedPet\.inventoryId\}`\}/);
-  assert.match(inventory, /data-pet-menu-trigger/);
-  assert.match(inventory, /<PetActionMenu inline/);
+  assert.doesNotMatch(inventory, /data-testid=\{`button-pet-menu-\$\{selectedPet\.inventoryId\}`\}|data-pet-menu-trigger/);
+  assert.match(inventory, /<PetActionMenu inline alwaysVisible/);
   assert.match(inventory, /navigate\(petInventoryActionHref\(action, inventoryId\)\)/);
   assert.doesNotMatch(inventory, /button-feature-main-pet-|Set Featured Companion| · Featured/);
-  assert.match(inventory, /spotlightRef\.current\?\.scrollIntoView/);
+  assert.doesNotMatch(inventory, /spotlightRef\.current\?\.scrollIntoView/);
+  assert.match(inventory, /className=\{pageMode \? "pet-collection pet-collection--page"/);
   assert.match(inventory, /apiRequest\("PATCH", "\/api\/user\/active-pet"/);
   assert.match(menu, /function InlinePetActionMenu/);
   assert.match(menu, /PET_MENU_ACTIONS\.map/);
   assert.match(menu, /data-testid=\{`inventory-pet-action-\$\{action\}`\}/);
   assert.match(menu, /onSelect\(action, petInventoryId\)/);
   assert.match(menu, /<FloatingPetActionMenu/);
+  assert.match(menu, /if \(alwaysVisible\) return/);
+  assert.match(menu, /if \(!alwaysVisible\)/);
   assert.match(menuCss, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(menuCss, /font: 700 clamp\(10px, 2\.8vw, 12px\)/);
 });
 
-test("unhatched eggs occupy a separated section with existing hatch-check and speedup flows", () => {
+test("Pets and Eggs tabs switch one independently scrollable grid and retain hatching flows", () => {
   assert.match(inventory, /data-testid="inventory-pets-eggs-divider"/);
+  assert.match(inventory, /data-testid="inventory-tab-pets"/);
+  assert.match(inventory, /data-testid="inventory-tab-eggs"/);
+  assert.match(inventory, /aria-selected=\{activeCollectionTab === "pets"\}/);
+  assert.match(inventory, /aria-selected=\{activeCollectionTab === "eggs"\}/);
+  assert.match(inventory, /data-testid="inventory-pet-collection-scroll"/);
+  assert.match(inventory, /ref=\{collectionScrollRef\}/);
+  assert.match(inventory, /collectionScrollRef\.current\.scrollTop = 0/);
+  assert.match(showcaseCss, /scrollbar-width: none/);
+  assert.match(showcaseCss, /touch-action: pan-y/);
   assert.doesNotMatch(inventory, /Unhatched Eggs ·|Hatched Companions ·/);
   assert.match(inventory, /data-testid="inventory-pet-eggs"/);
   assert.match(inventory, /petEggs\.map\(pet =>/);
@@ -49,6 +60,7 @@ test("unhatched eggs occupy a separated section with existing hatch-check and sp
   assert.match(inventory, /onEggSpeedUp\?\.\(pet\.inventoryId\)/);
   assert.match(inventory, /<HatchProgressBar hatchStartedAt=\{pet\.hatchStartedAt\} hatchTime=\{pet\.hatchTime\} \/>/);
   assert.match(inventory, /data-pet-inv-id=\{pet\.inventoryId\}/);
+  assert.match(showcaseCss, /\.pet-collection__overview-divider/);
   assert.match(showcaseCss, /\.pet-collection__divider::before, \.pet-collection__divider::after/);
 });
 
