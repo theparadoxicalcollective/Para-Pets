@@ -26,6 +26,7 @@ import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import { AquariumPage } from "@/pages/AquariumPage";
 import ViewportHudPortal from "@/components/ViewportHudPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
+import "./FloatingNavHome.css";
 
 interface NavUser {
   id: string;
@@ -85,6 +86,14 @@ const RIGHT_ITEMS = [
   { id: "home",     label: "Main",    icon: activePetIcon  },
 ];
 
+// Home groups reuse the same route definitions and handlers as the ordinary
+// floating navigation. Only their presentation differs.
+const HOME_NAV_SECTIONS = [
+  { title: "Explore", ids: ["map", "pethouse", "keepers", "aquarium"] },
+  { title: "Companions", ids: ["inventory", "bag", "cards", "market"] },
+  { title: "Activities", ids: ["quest", "pvp", "badges", "home"] },
+] as const;
+
 const ICON_SIZE   = 50;
 const BUTTON_SIZE = 58;
 const NAV_RIGHT   = 12;
@@ -128,11 +137,45 @@ function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: s
   );
 }
 
+/** Home-only dense navigation. Labels remain visible, buttons are at least
+ * 44px high, and route/badge logic stays owned by FloatingNav. */
+function HomeNavTile({
+  icon, label, onClick, testId, showQuestReward,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+  testId: string;
+  showQuestReward: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      className="home-realm-nav__tile"
+      aria-label={label}
+      onClick={onClick}
+    >
+      <img src={icon} alt="" draggable={false} aria-hidden="true" />
+      <span className="home-realm-nav__tile-label">{label}</span>
+      {showQuestReward && <QuestRewardBadge style={{ top: -7, right: -6 }} />}
+    </button>
+  );
+}
+
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [location, navigate] = useLocation();
   const navHidden = useNavHidden();
   const isHome = location === "/";
   const [isOpen, setIsOpen]             = useState(false);
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen]);
   // Page-level quest guides observe the committed menu state, including
   // backdrop closes, pet-menu handoffs, and hiding the HUD for dialogs.
   useEffect(() => {
@@ -312,9 +355,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       <div
         className="absolute"
         style={{
-          // On Home, place the main button below the resource balances.
-          // All other routes retain the original bottom-right placement.
-          top: isHome ? "min(242px, max(172px, calc(100dvh - 330px)))" : undefined,
+          // A small upper-right folio leaves the avatar/stars/XP unobstructed.
+          // Every non-Home page retains the original bottom-right anchor.
+          top: isHome ? "clamp(108px, calc(env(safe-area-inset-top, 0px) + 94px), 128px)" : undefined,
           bottom: isHome ? undefined : 16,
           right: 12,
           width: BUTTON_SIZE,
@@ -323,18 +366,47 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           pointerEvents: "auto",
         }}
       >
-        {/* LEFT items – fan out to the left */}
-        {LEFT_ITEMS.map((item, i) => (
+        {/* Home has one compact, grouped flyout to the left of the main
+            button. This prevents 12 independent floating circles from
+            covering the player's avatar or the XP/party layout. */}
+        {isHome && isOpen && (
+          <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
+            aria-label="Realm navigation" className="home-realm-nav">
+            <p className="home-realm-nav__title">Realm Paths</p>
+            {HOME_NAV_SECTIONS.map(section => (
+              <section key={section.title} className="home-realm-nav__section"
+                aria-label={section.title}>
+                <div className="home-realm-nav__grid">
+                  {section.ids.map(id => {
+                    const leftItem = LEFT_ITEMS.find(item => item.id === id);
+                    const item = leftItem ?? RIGHT_ITEMS.find(item => item.id === id);
+                    if (!item) return null;
+                    return (
+                      <HomeNavTile key={item.id} icon={item.icon}
+                        label={item.label}
+                        testId={`nav-item-${item.id}`}
+                        showQuestReward={item.id === "quest" && questRewardReady}
+                        onClick={() => leftItem ? handleLeft(item.id) : handleRight(item.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </nav>
+        )}
+
+        {/* Non-Home pages retain the original left/up fan and its existing
+            positioning, labels, badges and route actions unchanged. */}
+        {!isHome && LEFT_ITEMS.map((item, i) => (
           <NavButton
             key={item.id}
             icon={item.icon}
             label={item.label}
             isOpen={isOpen}
             delay={i * 45}
-            // Home opens into a compact 3-column grid BELOW the higher
-            // button. The legacy upward fan would clip off the top edge.
-            translateX={isHome ? -(i % 3) * 62 : -(spacing * (i + 1))}
-            translateY={isHome ? (Math.floor(i / 3) + 1) * 65 : 0}
+            translateX={-(spacing * (i + 1))}
+            translateY={0}
             fillIcon={!!(item as any).fill}
             badge={item.id === "quest" && questRewardReady ? "quest" : null}
             onClick={() => handleLeft(item.id)}
@@ -342,10 +414,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           />
         ))}
 
-        {/* RIGHT items – fan up on the right side */}
-        {RIGHT_ITEMS.map((item, i) => {
+        {!isHome && RIGHT_ITEMS.map((item, i) => {
           const isLocked = false;
-          const homeIndex = LEFT_ITEMS.length + i;
           return (
             <NavButton
               key={item.id}
@@ -353,8 +423,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               label={item.label}
               isOpen={isOpen}
               delay={i * 45}
-              translateX={isHome ? -(homeIndex % 3) * 62 : 0}
-              translateY={isHome ? (Math.floor(homeIndex / 3) + 1) * 65 : -(spacing * (i + 1))}
+              translateX={0}
+              translateY={-(spacing * (i + 1))}
               locked={isLocked}
               onClick={() => handleRight(item.id)}
               testId={`nav-item-${item.id}`}
@@ -366,6 +436,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         <button
           data-testid="button-floating-nav"
           aria-expanded={isOpen}
+          aria-controls={isHome ? "home-realm-nav-panel" : undefined}
           aria-label="Main navigation"
           onClick={() => { if (!isOpen) window.dispatchEvent(new Event("para-pets:main-nav-open")); setIsOpen(v => !v); }}
           className="absolute inset-0 rounded-full transition-transform duration-200 active:scale-90 flex items-center justify-center"

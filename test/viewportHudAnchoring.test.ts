@@ -93,7 +93,7 @@ test("main navigation is device-edge anchored while its panels stay in the canon
 
   assert.match(nav, /<ViewportHudPortal>/);
   assert.match(nav, /bottom: isHome \? undefined : 16/);
-  assert.match(nav, /top: isHome \? "min\(242px/);
+  assert.match(nav, /top: isHome \? "clamp\(108px/);
   assert.match(nav, /right: 12/);
   assert.match(nav, /pointerEvents: "auto"/);
 
