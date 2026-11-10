@@ -119,7 +119,7 @@ try{
 
     async function create(name,category){
       await page.getByLabel("New clothing name").fill(name);
-      await page.getByLabel("Category",{exact:true}).selectOption(category);
+      await page.getByTestId("avatar-new-clothing-category").selectOption(category);
       const response=page.waitForResponse(r=>r.url().endsWith("/api/admin/player-character/clothing")
         && r.request().method()==="POST");
       await page.getByTestId("avatar-create-clothing").click();
