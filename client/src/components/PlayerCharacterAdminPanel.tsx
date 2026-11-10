@@ -111,6 +111,9 @@ export default function PlayerCharacterAdminPanel() {
       const base = input.base ?? await requestJson<CharacterBase>(
         "POST", "/api/admin/player-character/bases", { name: input.kind },
       );
+      // A new empty base may be created even if the later image save fails.
+      // Cache its ID immediately so retry does not create a duplicate body.
+      if (!input.base) updateCache(base);
       const parts = UPLOAD_PART_ORDER
         .filter(type => !!input.images[type])
         .map(type => ({ partType: type, imageData: input.images[type]! }));
