@@ -42,12 +42,19 @@ test("Home-only navigation presents a grouped upper-right folio; other routes ke
   assert.match(nav, /setMainNavOpen\(isOpen && !navHidden\)/);
 });
 
-test("all twelve actions and their route handlers remain available in three rows", () => {
+test("Main leads the original twelve routes, plus a compact Home-only coin shortcut", () => {
   assert.match(nav, /const HOME_NAV_SECTIONS = \[/);
   assert.match(nav, /title: "Explore"/);
   assert.match(nav, /title: "Companions"/);
   assert.match(nav, /title: "Activities"/);
+  assert.match(nav, /ids: \["home", "map", "pethouse", "keepers"\]/);
   assert.match(nav, /section\.ids\.map\(id =>/);
+  assert.doesNotMatch(nav, /Realm Paths/);
+  assert.match(nav, /data-testid="nav-item-coins"/);
+  assert.match(nav, /aria-label="Open coin bundles"/);
+  assert.match(nav, /if \(id === "coins"\).*navigate\("\/coins"\)/);
+  assert.match(nav, /<Compass/);
+  assert.doesNotMatch(nav, /mainNavIcon/);
   assert.match(nav, /handleLeft\(item\.id\) : handleRight\(item\.id\)/);
   assert.match(nav, /showQuestReward=\{item\.id === "quest" && questRewardReady\}/);
   assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
@@ -55,10 +62,11 @@ test("all twelve actions and their route handlers remain available in three rows
   assert.match(nav, /window\.dispatchEvent\(new Event\("para-pets:main-nav-open"\)\)/);
   assert.match(nav, /window\.addEventListener\("para-pets:pet-menu-open", closeForPetMenu\)/);
   const ids = [
-    ["map", "pethouse", "keepers", "aquarium"],
-    ["inventory", "bag", "cards", "market"],
-    ["quest", "pvp", "badges", "home"],
+    ["home", "map", "pethouse", "keepers"],
+    ["aquarium", "inventory", "bag", "cards"],
+    ["market", "quest", "pvp", "badges"],
   ];
+  assert.equal(ids[0][0], "home");
   assert.equal(ids.flat().length, 12);
   assert.equal(new Set(ids.flat()).size, 12);
 });
