@@ -38,7 +38,7 @@ test("Home moves XP beneath bar and places level centered with XP to its left", 
   assert.match(hud, /data-testid="home-player-total-xp"/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__level-below/);
   assert.match(hudCss, /justify-content: center/);
-  assert.match(hudCss, /top: calc\(100% \+ 8px\)/);
+  assert.match(hudCss, /top: calc\(100% \+ 14px\)/);
   assert.match(hudCss, /text-align: left/);
   assert.match(hud, /xpFillPct/); // Progression calculations are unchanged.
 });
