@@ -4,17 +4,22 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const topBar = read("client/src/components/TopBar.tsx");
+const nav = read("client/src/components/FloatingNav.tsx");
 const hud = read("client/src/components/HomePlayerHud.tsx");
 const hudCss = read("client/src/components/HomePlayerHud.css");
 
-test("Home header puts the name/shop beside portrait, and resources below it", () => {
+test("Home name is lower and more legible; shop moves to menu while balances stay below portrait", () => {
   assert.match(topBar, /data-testid="home-account-header"/);
   assert.match(topBar, /data-testid="home-header-player-name"/);
   assert.match(topBar, /data-testid="button-profile"/);
   assert.match(topBar, /data-testid="button-coin-bag"/);
   assert.match(topBar, /location === "\/" && !hideProfile/);
-  assert.match(topBar, /!hideCoins && coinBundleShopButton/);
+  assert.doesNotMatch(topBar, /!hideCoins && coinBundleShopButton/);
   assert.match(topBar, /location !== "\/" && coinBundleShopButton/);
+  assert.match(topBar, /paddingTop: 23/);
+  assert.match(topBar, /borderLeft: "2px solid rgba\(245, 205, 118/);
+  assert.match(nav, /data-testid="nav-item-coins"/);
+  assert.match(nav, /@assets\/uploads\/CoinBundleIcon\.png/);
   assert.match(topBar, /marginTop: location === "\/" \? 17 : 0/);
   assert.match(topBar, /\{location !== "\/" && \(/); // Non-Home nameplates survive.
 });

@@ -171,6 +171,7 @@ try {
       return {
         actor, stars, progress, party, xp,
         profile: rect('[data-testid="button-profile"]'),
+        accountHeader: rect('[data-testid="home-account-header"]'),
         headerName: rect('[data-testid="home-header-player-name"]'),
         shopIcon: rect('[data-testid="button-coin-bag"]'),
         coins: rect('[data-testid="display-coin-balance"]'),
@@ -208,15 +209,20 @@ try {
       sc.name+": XP bar enlarged");
     assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
       sc.name+": team panel not overlapping player XP");
-    assert.ok(homeLayout.profile && homeLayout.headerName && homeLayout.shopIcon &&
+    assert.ok(homeLayout.profile && homeLayout.headerName &&
       homeLayout.coins && homeLayout.essence && homeLayout.xpText && homeLayout.playerLevel,
       sc.name+": top profile/resources and level labels all render");
     assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
       sc.name+": player name is to the right of the profile");
-    assert.ok(homeLayout.shopIcon.left >= homeLayout.profile.right - 5,
-      sc.name+": coin shop icon is under name, to right of profile");
-    assert.ok(homeLayout.shopIcon.top > homeLayout.headerName.top,
-      sc.name+": shop icon follows account name");
+    // Profile artwork has its own translateY(14px). Compare the name with
+    // its actual layout owner, not the transformed portrait button.
+    assert.ok(homeLayout.accountHeader &&
+      homeLayout.headerName.top >= homeLayout.accountHeader.top + 20 &&
+      homeLayout.headerName.top <= homeLayout.accountHeader.top + 32,
+      sc.name+": player name gets the intended lower spacing in its header: "+
+        JSON.stringify({name:homeLayout.headerName,header:homeLayout.accountHeader,profile:homeLayout.profile}));
+    assert.equal(homeLayout.shopIcon, null,
+      sc.name+": coin bundle shortcut no longer clutters the Home header");
     assert.ok(homeLayout.coins.top >= homeLayout.profile.bottom - 6,
       sc.name+": coins sit below profile picture "+JSON.stringify({
         profile:homeLayout.profile, coins:homeLayout.coins, header:homeLayout.headerName, shop:homeLayout.shopIcon,
@@ -244,8 +250,8 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // The twelve routes are inside a compact, green-and-gold Home folio
-    // to the left of the upper-right button. Other pages keep their old fan.
+    // Twelve original routes plus a small coin shortcut share the same
+    // Home folio. Other pages keep their old fan and header shop button.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
@@ -267,6 +273,13 @@ try {
     }
     assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").count(),3,
       sc.name+": world, companions and activity categories are grouped");
+    assert.equal(await page.getByTestId("home-realm-nav-panel").getByText("Realm Paths").count(),0,
+      sc.name+": old Realm Paths heading is gone");
+    assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").first()
+      .locator('[data-testid^="nav-item-"]').first().getAttribute("data-testid"),"nav-item-home",
+      sc.name+": Main is the first menu route");
+    assert.equal(await page.getByTestId("nav-item-coins").getAttribute("aria-label"),"Open coin bundles",
+      sc.name+": the small coin bundle shortcut is in main navigation");
     const navigation = await page.evaluate(() => {
       const elements = Array.from(document.querySelectorAll('[data-testid^="nav-item-"]'));
       return elements.map(el => {
@@ -279,8 +292,8 @@ try {
         };
       });
     });
-    assert.equal(navigation.length,12, sc.name+": all twelve original navigation actions remain");
-    assert.equal(new Set(navigation.map(item=>item.id)).size,12,
+    assert.equal(navigation.length,13, sc.name+": all twelve routes and the coin shortcut remain");
+    assert.equal(new Set(navigation.map(item=>item.id)).size,13,
       sc.name+": no duplicated navigation routes");
     for (const item of navigation) {
       assert.ok(item.left >= -1 && item.right <= sc.width + 1 &&
