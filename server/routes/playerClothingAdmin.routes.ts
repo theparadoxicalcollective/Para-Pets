@@ -118,6 +118,12 @@ export function registerPlayerClothingAdminRoutes(
       if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
         return res.status(409).json(baseChanged);
 
+      if (parsed.data.shoesLayer && draft.category !== "shoes") {
+        return res.status(400).json({ message: "Pants layering is only available for Shoes" });
+      }
+      const shoesLayer = draft.category === "shoes"
+        ? parsed.data.shoesLayer ?? draft.draftSegments.find(part => part.shoesLayer)?.shoesLayer ?? "under"
+        : undefined;
       const validSlots = PLAYER_CLOTHING_UPLOAD_SLOTS[draft.category];
       if ([...parsed.data.images.map(x => x.slot), ...(parsed.data.removeSlots ?? [])]
         .some(slot => !(validSlots as readonly string[]).includes(slot))) {
@@ -133,6 +139,7 @@ export function registerPlayerClothingAdminRoutes(
           : segment.partType);
         return {
           ...segment, slot, canvasAligned: true,
+          ...(draft.category === "shoes" ? { shoesLayer } : {}),
           fit: canvasClothingFit(), renderPlane: "with_part" as const,
         };
       });
@@ -147,6 +154,7 @@ export function registerPlayerClothingAdminRoutes(
           partType: clothingSlotPartType(image.slot),
           imageUrl,
           canvasAligned: true,
+          ...(draft.category === "shoes" ? { shoesLayer } : {}),
           fit: canvasClothingFit(),
           renderPlane: "with_part",
         }));
