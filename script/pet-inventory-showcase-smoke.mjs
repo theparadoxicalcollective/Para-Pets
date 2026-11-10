@@ -92,51 +92,80 @@ try{
     await page.goto("http://127.0.0.1:4215/pets",{waitUntil:"domcontentloaded"});
     await page.getByTestId("inventory-featured-pet").waitFor({state:"visible"});
     assert.match(await page.getByTestId("text-featured-pet-name").innerText(),/Forest Cow/);
+    const petsTab=page.getByTestId("inventory-tab-pets");
+    const eggsTab=page.getByTestId("inventory-tab-eggs");
+    assert.equal(await petsTab.getAttribute("aria-selected"),"true",
+      sc.name+": Pets tab is the default with hatched pets");
+    assert.equal(await eggsTab.getAttribute("aria-selected"),"false");
     assert.equal(await page.getByTestId("inventory-hatched-pets").locator('[data-testid^="card-pet-"]').count(),12,
-      sc.name+": large pet collection remains fully reachable");
-    assert.equal(await page.getByTestId("inventory-pet-eggs").locator('[data-testid^="card-pet-"]').count(),2,
-      sc.name+": two eggs remain separate");
+      sc.name+": all twelve hatched companions remain reachable");
+    assert.equal(await page.getByTestId("inventory-pet-eggs").count(),0,
+      sc.name+": egg cards are separated into their own tab");
     assert.equal(await page.getByTestId("inventory-pets-eggs-divider").count(),1,
-      sc.name+": decorative divider between hatched pets and eggs");
-    assert.equal(await page.getByText(/Companion Grove|Hatched Companions ·|Unhatched Eggs ·|Set Featured Companion|Your Selected Companion/).count(),0,
-      sc.name+": no unwanted collection headings or featured-pet controls");
-    assert.equal(await page.locator('[data-testid^="button-feature-main-pet-"]').count(),0,
-      sc.name+": legacy feature button is removed from this page");
-    const layout=await page.evaluate(()=>{
+      sc.name+": divider is pinned under the pet overview");
+    assert.equal(await page.getByText(/Companion Grove|Hatched Companions ·|Unhatched Eggs ·|Set Featured Companion|Your Selected Companion/).count(),0);
+    assert.equal(await page.locator('[data-testid^="button-pet-menu-"]').count(),0,
+      sc.name+": unnecessary Pet Menu opener is gone");
+    const actionBar=page.getByTestId("inventory-pet-action-menu");
+    await actionBar.waitFor({state:"visible"});
+    assert.equal(await actionBar.locator('[data-pet-action]').count(),4,
+      sc.name+": all four pet actions appear without another tap");
+    assert.equal(await actionBar.getAttribute("data-pet-inventory-id"),"pet-a");
+    const getLayout=()=>page.evaluate(()=>{
       const rect=selector=>{
         const e=document.querySelector(selector);
         if(!e)return null;
         const r=e.getBoundingClientRect();
         return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};
       };
-      const tiles=Array.from(document.querySelectorAll('.pet-collection__tile')).slice(0,3)
-        .map(e=>e.getBoundingClientRect().left);
-      const scroll=document.querySelector('[data-testid="inventory-canonical-content"] .overflow-y-auto');
-      return {spotlight:rect('[data-testid="inventory-featured-pet"]'),
-        firstTile:rect('.pet-collection__tile'), tiles, scrollWidth:scroll?.scrollWidth,
-        clientWidth:scroll?.clientWidth, scrollHeight:scroll?.scrollHeight,
-        clientHeight:scroll?.clientHeight};
+      const scroll=document.querySelector('[data-testid="inventory-pet-collection-scroll"]');
+      const tiles=Array.from(document.querySelectorAll('.pet-collection__tile')).slice(0,3).map(e=>e.getBoundingClientRect().left);
+      return {
+        overview:rect('[data-testid="inventory-featured-pet"]'),
+        divider:rect('[data-testid="inventory-pets-eggs-divider"]'),
+        tabs:rect('.pet-collection__tabs'),
+        scroll:rect('[data-testid="inventory-pet-collection-scroll"]'),
+        firstTile:rect('.pet-collection__tile'), tiles,
+        scrollWidth:scroll?.scrollWidth,clientWidth:scroll?.clientWidth,
+        scrollHeight:scroll?.scrollHeight,clientHeight:scroll?.clientHeight,
+        scrollTop:scroll?.scrollTop,
+        scrollbar:getComputedStyle(scroll).scrollbarWidth,
+        touchAction:getComputedStyle(scroll).touchAction,
+      };
     });
-    assert.ok(layout.spotlight.height<=215,
-      sc.name+": compact selected pet panel leaves room for more pets: "+JSON.stringify(layout));
-    assert.ok(layout.firstTile.height<=155,
-      sc.name+": compact card height: "+JSON.stringify(layout.firstTile));
+    const layout=await getLayout();
+    assert.ok(layout.overview.height<=255, sc.name+": selected overview remains compact "+JSON.stringify(layout));
+    assert.ok(layout.firstTile.height<=155, sc.name+": pet cards remain compact");
     assert.ok(new Set(layout.tiles.map(Math.round)).size>=3,
-      sc.name+": three or more pet columns fit on phone/tablet: "+JSON.stringify(layout.tiles));
+      sc.name+": at least three pet columns at phone/tablet widths");
+    assert.ok(layout.divider.top>=layout.overview.bottom-1 &&
+      layout.tabs.top>=layout.divider.bottom &&
+      layout.scroll.top>=layout.tabs.bottom-1,
+      sc.name+": divider and tabs sit between fixed overview and list: "+JSON.stringify(layout));
+    assert.equal(layout.scrollbar,"none",sc.name+": scrollbar is visually hidden");
+    assert.equal(layout.touchAction,"pan-y",sc.name+": finger drag remains enabled");
     assert.ok(layout.scrollWidth<=layout.clientWidth+2,
-      sc.name+": pet list has no horizontal overflow: "+JSON.stringify(layout));
-    if(sc.height<=844)assert.ok(layout.scrollHeight>layout.clientHeight,
-      sc.name+": large pet collection remains vertically scrollable on phones");
+      sc.name+": no horizontal scroll or clipping");
+    if(sc.height<=844) assert.ok(layout.scrollHeight>layout.clientHeight,
+      sc.name+": long phone collection scrolls within the list");
+    if(layout.scrollHeight>layout.clientHeight){
+      await page.evaluate(()=>{
+        const el=document.querySelector('[data-testid="inventory-pet-collection-scroll"]');
+        el.scrollTop=el.scrollHeight;
+      });
+      const moved=await getLayout();
+      assert.ok(moved.scrollTop>0,sc.name+": pet collection scrollTop moves");
+      assert.ok(Math.abs(moved.overview.top-layout.overview.top)<=2 &&
+        Math.abs(moved.divider.top-layout.divider.top)<=2 &&
+        Math.abs(moved.tabs.top-layout.tabs.top)<=2,
+        sc.name+": pet details, divider and tabs remain pinned while scrolling: "+JSON.stringify(moved));
+    }
 
-    const selected=page.getByRole("button",{name:"Select Moss Deer, level 7"});
-    await selected.click();
-    assert.equal(await selected.getAttribute("aria-pressed"),"true");
+    await page.getByRole("button",{name:"Select Moss Deer, level 7"}).click();
     assert.match(await page.getByTestId("text-featured-pet-name").innerText(),/Moss Deer/);
-    const trigger=page.getByTestId("button-pet-menu-pet-b");
-    await trigger.click();
-    await page.getByTestId("inventory-pet-action-menu").waitFor({state:"visible"});
-    assert.equal(await page.locator('[data-pet-action]').count(),4,
-      sc.name+": care, level-up, power-up and closet all remain");
+    assert.equal(await actionBar.getAttribute("data-pet-inventory-id"),"pet-b",
+      sc.name+": visible action targets update to the selected inventory ID");
+    assert.equal(await page.locator('[data-pet-action]').count(),4);
     const geometry=await page.evaluate(()=>{
       const hero=document.querySelector('[data-testid="inventory-featured-pet"]')?.getBoundingClientRect();
       const menu=document.querySelector('[data-testid="inventory-pet-action-menu"]')?.getBoundingClientRect();
@@ -150,45 +179,45 @@ try{
     assert.ok(geometry.menu.left>=geometry.hero.left-1 &&
       geometry.menu.right<=geometry.hero.right+1 &&
       geometry.menu.bottom<=geometry.hero.bottom+1,
-      sc.name+": menu remains anchored inside selected pet's panel");
-    for(let i=0;i<geometry.items.length;i++)for(let j=i+1;j<geometry.items.length;j++){
-      const a=geometry.items[i],b=geometry.items[j];
-      const overlappingX=Math.min(a.right,b.right)-Math.max(a.left,b.left);
-      const overlappingY=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
-      assert.ok(overlappingX<=0||overlappingY<=0,sc.name+": action targets do not overlap");
+      sc.name+": permanent action bar remains inside the fixed pet overview");
+    for(let a=0;a<geometry.items.length;a++)for(let b=a+1;b<geometry.items.length;b++){
+      const x=geometry.items[a],y=geometry.items[b];
+      assert.ok(Math.min(x.right,y.right)-Math.max(x.left,y.left)<=0 ||
+        Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)<=0,
+        sc.name+": action buttons do not overlap");
     }
-    assert.equal(await page.getByTestId("inventory-pet-action-menu").getAttribute("data-menu-layout"),"inline");
     await page.keyboard.press("Escape");
-    assert.equal(await page.getByTestId("inventory-pet-action-menu").count(),0,
-      sc.name+": Escape closes menu");
+    assert.equal(await actionBar.locator('[data-pet-action]').count(),4,
+      sc.name+": Escape does not dismiss the permanent tools");
 
-    // A pet far down the list can be selected, and its compact detail returns
-    // into view without modifying the server's active/featured companion.
     await page.getByRole("button",{name:"Select Companion 9, level 2"}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-testid="text-featured-pet-name"]')
-      ?.textContent?.includes("Companion 9"));
-    // The app deliberately scrolls the detail smoothly for motion-enabled
-    // users; wait for the finished geometry instead of racing that animation.
-    await page.waitForFunction(()=>{
-      const r=document.querySelector('[data-testid="inventory-featured-pet"]')?.getBoundingClientRect();
-      const scroll=document.querySelector('[data-testid="inventory-canonical-content"] .overflow-y-auto');
-      if(!r||!scroll)return false;
-      const visible=scroll.getBoundingClientRect();
-      return r.top>=visible.top-2 && r.top<visible.bottom-40 && r.bottom>visible.top;
-    },null,{timeout:5000});
+    assert.match(await page.getByTestId("text-featured-pet-name").innerText(),/Companion 9/);
     const selectedTop=await page.getByTestId("inventory-featured-pet").evaluate(el=>el.getBoundingClientRect().top);
-    assert.ok(selectedTop>=-2 && selectedTop<sc.height,
-      sc.name+": choosing a later pet brings its detail back into the mobile viewport");
-    assert.equal(writes.length,0,sc.name+": browsing pets doesn't mutate active-pet selection");
+    assert.ok(Math.abs(selectedTop-layout.overview.top)<=2,
+      sc.name+": selecting a distant pet keeps overview stationary");
+    assert.equal(writes.length,0,sc.name+": browsing pets does not change the server's active pet");
 
+    await eggsTab.click();
+    assert.equal(await eggsTab.getAttribute("aria-selected"),"true",
+      sc.name+": Eggs tab activates");
+    assert.equal(await petsTab.getAttribute("aria-selected"),"false");
+    assert.equal(await page.getByTestId("inventory-hatched-pets").count(),0,
+      sc.name+": pet cards are hidden on Eggs");
+    assert.equal(await page.getByTestId("inventory-pet-eggs").locator('[data-testid^="card-pet-"]').count(),2,
+      sc.name+": two eggs remain accessible");
+    assert.equal(await actionBar.locator('[data-pet-action]').count(),4,
+      sc.name+": changing tabs never removes the selected pet actions");
     await page.getByTestId("card-pet-egg-wait").click();
     await page.getByTestId("button-close-inv-speedup").waitFor({state:"visible"});
     await page.getByTestId("button-close-inv-speedup").click();
     await page.getByTestId("card-pet-egg-ready").click();
     assert.deepEqual(writes,["/api/pet/egg-ready/hatch-check"],
-      sc.name+": ready eggs preserve hatch-check API and unready eggs keep speed-up sheet");
+      sc.name+": hatching and speed-up actions retain their original APIs");
     await page.getByText("HATCHED!").first().waitFor({state:"visible"});
-
+    await petsTab.click();
+    assert.equal(await petsTab.getAttribute("aria-selected"),"true");
+    assert.equal(await page.getByTestId("inventory-hatched-pets").locator('[data-testid^="card-pet-"]').count(),12,
+      sc.name+": returning to Pets restores collection");
     const style=await page.getByTestId("inventory-featured-pet").evaluate(el=>{
       const s=getComputedStyle(el);
       return {border:s.borderColor,background:s.backgroundImage};
