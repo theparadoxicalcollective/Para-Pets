@@ -317,7 +317,7 @@ export default function PlayerClothingAdminPanel({
           <h3 className="mb-2 text-center font-fantasy text-lg text-[#f4d88f]">
             {selected.name} · Preview
           </h3>
-          <div className="mx-auto aspect-square w-full max-w-[360px] overflow-hidden rounded-xl border border-[#ba9956]/55"
+          <div className="relative mx-auto aspect-square w-full max-w-[360px] overflow-hidden rounded-xl border border-[#ba9956]/55"
             data-testid="avatar-clothing-fit-canvas"
             style={{background:"radial-gradient(circle,#345d40,#0a1b11)"}}>
             <PlayerCharacterRenderer parts={bodyParts} clothingSegments={previewSegments}
