@@ -2,40 +2,65 @@ import { z } from "zod";
 import {
   PLAYER_CHARACTER_PART_TYPES,
   playerCharacterTransformSchema,
+  type PlayerCharacterPartType,
+  type PlayerCharacterTransform,
 } from "./playerCharacter";
 
-/**
- * Clothing ownership/category is independent of pet adornment type "costume".
- * The category list orders PLAYER CONTROLS, not 2D draw depth. In particular,
- * Back accessories may render behind the base torso, not on top of the face.
- */
+/** Wardrobe ownership categories. Front and back hair are one inventory item. */
 export const PLAYER_CLOTHING_ITEM_TYPE = "clothing" as const;
 export const PLAYER_CLOTHING_CATEGORIES = [
-  "head", "hair", "face", "top", "bottom", "shoes", "back",
+  "accessories", "head", "hair", "face", "top", "bottom", "shoes", "back",
 ] as const;
 export type PlayerClothingCategory = typeof PLAYER_CLOTHING_CATEGORIES[number];
-
-export const PLAYER_CLOTHING_CATEGORY_LABELS: Record<PlayerClothingCategory, string> = {
-  head: "Head", hair: "Hair", face: "Face", top: "Top",
-  bottom: "Bottom", shoes: "Shoes", back: "Back Accessory",
+export const PLAYER_CLOTHING_CATEGORY_LABELS: Record<PlayerClothingCategory,string> = {
+  accessories: "Accessories",
+  head: "Head Accessories",
+  hair: "Hair",
+  face: "Face",
+  top: "Tops",
+  bottom: "Bottoms",
+  shoes: "Shoes",
+  back: "Back Accessories",
 };
 
-/** Each clothing item may contain multiple uploaded images fitted to one
- * or more of the eight avatar animation anchors. Unused boxes are empty.
- * The admin fits layers once to the base rather than uploading separate
- * copies for every owner.
+/**
+ * Different artwork pieces may share the same animated body attachment:
+ * front/back hair and open/closed eyes/mouth all follow the HEAD.
+ * Existing published records without a slot remain readable as the
+ * corresponding anatomy part name.
  */
 export const PLAYER_CLOTHING_SEGMENT_TYPES = PLAYER_CHARACTER_PART_TYPES;
+export const PLAYER_CLOTHING_SPECIAL_SLOTS = [
+  "hair_front", "hair_back",
+  "face_open_eyes", "face_closed_eyes", "face_mouth",
+] as const;
+export const PLAYER_CLOTHING_SLOTS = [
+  ...PLAYER_CHARACTER_PART_TYPES, ...PLAYER_CLOTHING_SPECIAL_SLOTS,
+] as const;
+export type PlayerClothingSlot = typeof PLAYER_CLOTHING_SLOTS[number];
+export const playerClothingSlotSchema = z.enum(PLAYER_CLOTHING_SLOTS);
 export const playerClothingCategorySchema = z.enum(PLAYER_CLOTHING_CATEGORIES);
 
-/**
- * Suggested upload boxes in the future admin Create Clothing editor.
- * They are not mandatory: a skirt, cape, robe or unusual fantasy item may
- * fit to a different subset of animation parts.
- */
-export const PLAYER_CLOTHING_DEFAULT_ATTACHMENTS: Record<
-  PlayerClothingCategory, readonly (typeof PLAYER_CLOTHING_SEGMENT_TYPES)[number][]
-> = {
+export function clothingSlotPartType(slot: PlayerClothingSlot): PlayerCharacterPartType {
+  return (PLAYER_CLOTHING_SPECIAL_SLOTS as readonly string[]).includes(slot)
+    ? "head" : slot as PlayerCharacterPartType;
+}
+
+/** Upload boxes are bounded, but one item can contain multiple images. */
+export const PLAYER_CLOTHING_UPLOAD_SLOTS: Record<PlayerClothingCategory, readonly PlayerClothingSlot[]> = {
+  accessories: ["head", "top", "left_arm", "right_arm"],
+  head: ["head"],
+  hair: ["hair_front", "hair_back"],
+  face: ["face_open_eyes", "face_closed_eyes", "face_mouth"],
+  top: ["top", "left_arm", "right_arm"],
+  bottom: ["left_leg", "right_leg", "top"],
+  shoes: ["left_foot", "right_foot"],
+  back: ["top"],
+};
+
+/** Older callers select the default anatomy anchors by clothing category. */
+export const PLAYER_CLOTHING_DEFAULT_ATTACHMENTS: Record<PlayerClothingCategory, readonly PlayerCharacterPartType[]> = {
+  accessories: ["head", "top", "left_arm", "right_arm"],
   head: ["head"],
   hair: ["head"],
   face: ["head"],
@@ -45,45 +70,66 @@ export const PLAYER_CLOTHING_DEFAULT_ATTACHMENTS: Record<
   back: ["top"],
 };
 
-/** Front/back layer choice per image segment, independent of the clothing
- * inventory category. Back gear often draws behind the torso but is still
- * attached to that torso so it follows animation.
- */
 export const PLAYER_CLOTHING_RENDER_PLANES = [
   "behind_character", "with_part", "in_front_of_character",
 ] as const;
 export const playerClothingRenderPlaneSchema = z.enum(PLAYER_CLOTHING_RENDER_PLANES);
 
-/**
- * One uploaded image fitted to ONE rig part. The fit is part-local, not
- * whole-avatar placement: xPct/yPct/widthPct are relative to the attachment
- * part's unanimated image bounds. The renderer composes fit UNDER the parent
- * part's motion transform so leg pieces move with each respective leg.
- * Reuse bounded transform validation rather than a second coordinate system.
- */
+export const canvasClothingFit = (): PlayerCharacterTransform => ({
+  xPct: 50, yPct: 50, widthPct: 100,
+  pivotXPct: 50, pivotYPct: 50, rotationDeg: 0, zIndex: 1,
+});
+
+/** Stable global depth: Back < Hair Back < Body < Shoes < Bottoms < Tops
+ * < Face < Hair Front < Head Accessories < Accessories. */
+export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string): number {
+  if (category === "back") return -10;
+  if (category === "hair" && slot === "hair_back") return -5;
+  if (category === "shoes") return 35;
+  if (category === "bottom") return 55;
+  if (category === "top") return 75;
+  if (category === "face") return slot === "face_mouth" ? 102 : 100;
+  if (category === "hair") return 110;
+  if (category === "head") return 120;
+  return 130; // Accessories, above all other artwork
+}
+
+/** Saved segment shape retains legacy local-fit data for older items.
+ * New editor uploads set canvasAligned=true and receive no offsets. */
 export const playerClothingSegmentSchema = z.object({
   partType: z.enum(PLAYER_CLOTHING_SEGMENT_TYPES),
+  slot: playerClothingSlotSchema.optional(),
+  canvasAligned: z.boolean().optional(),
   imageUrl: z.string().regex(/^\/api\/media\/[a-zA-Z0-9-]{1,80}$/),
   fit: playerCharacterTransformSchema,
   renderPlane: playerClothingRenderPlaneSchema.default("with_part"),
-}).strict();
+}).strict().superRefine((segment, ctx) => {
+  if (segment.slot && clothingSlotPartType(segment.slot) !== segment.partType) {
+    ctx.addIssue({ code: "custom", message: "Clothing slot must match its animated attachment", path: ["partType"] });
+  }
+});
 export type PlayerClothingSegment = z.infer<typeof playerClothingSegmentSchema>;
+export const clothingSegmentKey = (segment: Pick<PlayerClothingSegment,"partType"|"slot">) =>
+  segment.slot ?? segment.partType;
 
 export const playerClothingDefinitionSchema = z.object({
   name: z.string().trim().min(1).max(80),
   category: playerClothingCategorySchema,
-  // One clothing SKU can include sleeves, pant legs, separate shoes, etc.
-  segments: z.array(playerClothingSegmentSchema).min(1).max(8),
-}).strict().superRefine((value, ctx) => {
+  segments: z.array(playerClothingSegmentSchema).min(1).max(13),
+}).strict().superRefine(({ segments, category }, ctx) => {
   const used = new Set<string>();
-  value.segments.forEach((segment, index) => {
-    if (used.has(segment.partType)) ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["segments", index, "partType"],
-      message: "A clothing segment can be fitted to each base part only once",
-    });
-    used.add(segment.partType);
+  segments.forEach((segment, index) => {
+    const key = clothingSegmentKey(segment);
+    if (used.has(key)) {
+      ctx.addIssue({ code: "custom", path: ["segments", index, "slot"],
+        message: "Each clothing image slot may be used once" });
+    }
+    used.add(key);
+    if (segment.canvasAligned && segment.slot &&
+        !(PLAYER_CLOTHING_UPLOAD_SLOTS[category] as readonly string[]).includes(segment.slot)) {
+      ctx.addIssue({ code: "custom", path: ["segments", index, "slot"],
+        message: "This image slot is not part of this clothing category" });
+    }
   });
 });
 export type PlayerClothingDefinition = z.infer<typeof playerClothingDefinitionSchema>;
-
