@@ -4,38 +4,29 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Veridian Watcher and Support are anchored to the real device upper-right HUD", () => {
+test("Watcher docks below the pet team in real viewport HUD coordinates", () => {
   const home = read("client/src/pages/HomePage.tsx");
-
   assert.match(home, /<ViewportHudPortal>/);
-  assert.match(home, /data-testid="viewport-hud-corner-actions"/);
-  assert.match(home, /top: 58/);
-  assert.match(home, /right: 12/);
-  assert.match(home, /display: "flex"/);
-  assert.match(home, /gap: 6/);
-
+  assert.match(home, /data-testid="viewport-hud-watcher-dock"/);
+  assert.match(home, /bottom: "calc\(2px \+ env\(safe-area-inset-bottom, 0px\)\)"/);
+  assert.match(home, /width: "min\(calc\(100vw - 34px\), 430px\)"/);
   assert.match(home, /data-testid="button-open-world-chat"/);
-  assert.match(home, /width: 44/);
-  assert.match(home, /height: 44/);
-
-  assert.match(home, /data-testid="button-open-support"/);
-  assert.match(home, /marginTop: 8/);
   assert.match(home, /width: 36/);
   assert.match(home, /height: 36/);
+  assert.doesNotMatch(home, /data-testid="viewport-hud-corner-actions"|data-testid="button-open-support"/);
 });
 
-test("upper-right button group preserves the original iPhone 12 geometry", () => {
-  // right edge = 12. Support is 36 wide. Gap is 6. Therefore the Watcher
-  // remains 12 + 36 + 6 = 54 logical pixels from the right.
-  const supportRight = 12;
-  const supportWidth = 36;
-  const gap = 6;
-  const watcherRight = supportRight + supportWidth + gap;
-  assert.equal(watcherRight, 54);
-
-  const groupTop = 58;
-  const supportTop = groupTop + 8;
-  assert.equal(supportTop, 66);
+test("only new bot IDs produce speech bubbles, and mute is per-account", () => {
+  const home = read("client/src/pages/HomePage.tsx");
+  const watcher = read("client/src/components/WorldChatPanel.tsx");
+  assert.match(home, /msg\?\.isBot === true/);
+  assert.match(home, /watcherSeenIdsRef\.current = new Set/);
+  assert.match(home, /if \(!seen\) return/);
+  assert.match(home, /data-testid="watcher-announcement-bubble"/);
+  assert.match(home, /data-testid="button-silence-watcher-announcements"/);
+  assert.match(home, /localStorage\.setItem\(\`para-pets:watcher-bubble-muted:/);
+  assert.match(watcher, /data-testid="button-toggle-watcher-announcement-bubbles"/);
+  assert.match(watcher, /data-testid="button-toggle-shoutouts"/);
 });
 
 test("chat uses the device HUD while support uses the topmost modal layer", () => {
@@ -56,13 +47,13 @@ test("coin and essence balances share a compact coordinated resource cluster", (
   // their original coin/essence + bundle-button grid.
   assert.match(topBar, /gridTemplateColumns: location === "\/" \? "max-content" : "auto 44px"/);
   assert.match(topBar, /flexBasis: location === "\/" \? "100%" : undefined/);
-  assert.match(topBar, /gridTemplateRows: "30px 30px"/);
+  assert.match(topBar, /gridTemplateRows: location === "\/" \? "30px 30px 34px" : "30px 30px"/);
   assert.match(topBar, /data-testid="display-coin-balance"/);
   assert.doesNotMatch(topBar, /data-testid="button-coin-shop"/);
   assert.match(topBar, /gridColumn: 1/);
-  assert.match(topBar, /gridRow: 1/);
+  assert.match(topBar, /gridRow: location === "\/" \? 2 : 1/);
   assert.match(topBar, /data-testid="display-essence"/);
-  assert.match(topBar, /gridRow: 2/);
+  assert.match(topBar, /gridRow: location === "\/" \? 1 : 2/);
 });
 
 test("coin-bundle control is more visible without changing the coin shop destination", () => {
@@ -75,13 +66,13 @@ test("coin-bundle control is more visible without changing the coin shop destina
   assert.match(block, /aria-label="Open coin bundles"/);
   assert.match(block, /title="Coin Bundles"/);
   assert.match(block, /navigate\("\/coins"\)/);
-  assert.match(block, /gridRow: "1 \/ span 2"/);
-  assert.match(block, /width: 44/);
-  assert.match(block, /height: 44/);
+  assert.match(block, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
+  assert.match(block, /width: location === "\/" \? 32 : 44/);
+  assert.match(block, /height: location === "\/" \? 32 : 44/);
   assert.match(block, /border: "1\.5px solid rgba\(240,192,64,0\.72\)"/);
   assert.match(block, /boxShadow: "0 3px 10px/);
-  assert.match(block, /width: 38/);
-  assert.match(block, /height: 38/);
+  assert.match(block, /width: location === "\/" \? 26 : 38/);
+  assert.match(block, /height: location === "\/" \? 26 : 38/);
   assert.match(block, /brightness\(1\.06\)/);
   assert.match(block, />\s*\+\s*<\/span>/);
 });
@@ -95,5 +86,5 @@ test("profile stays in the upper-left resource group while corner actions stay i
   assert.match(home, /data-testid="viewport-hud-topbar"/);
   assert.match(home, /left: 0/);
   assert.match(home, /right: 0/);
-  assert.match(home, /data-testid="viewport-hud-corner-actions"/);
+  assert.match(home, /data-testid="viewport-hud-watcher-dock"/);
 });
