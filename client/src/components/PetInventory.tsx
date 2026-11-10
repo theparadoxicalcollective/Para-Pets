@@ -1081,6 +1081,7 @@ function PetView({
                 key={pet.inventoryId}
                 data-testid={`card-pet-${pet.shopItemId}`}
                 data-pet-inv-id={pet.inventoryId}
+                data-selected={selectedPet?.inventoryId === pet.inventoryId ? "true" : "false"}
                 className="pet-collection__tile"
               >
                 <button
