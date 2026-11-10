@@ -41,9 +41,11 @@ test("legacy accessory stacks preserve the equipped row and expose remaining cop
   assert.match(essentialBoot, /UPDATE user_inventory ui[\s\S]*?SET quantity = 1[\s\S]*?WHERE ui\.id = s\.id/);
 });
 
-test("pet inventory cards no longer open the removed detail popup", () => {
-  assert.doesNotMatch(inventory, /PetDetailPage/);
-  assert.doesNotMatch(inventory, /selectedPetId|onPetClick/);
+test("pet inventory selection updates the in-page spotlight, not the removed detail popup", () => {
+  assert.doesNotMatch(inventory, /PetDetailPage|onPetClick/);
+  assert.match(inventory, /const \[selectedPetId, setSelectedPetId\] = useState/);
+  assert.match(inventory, /data-testid="inventory-featured-pet"/);
+  assert.match(inventory, /setSelectedPetId\(pet.inventoryId\)/);
 });
 
 test("market pet listing uses one atomic request", () => {
