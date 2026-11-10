@@ -376,7 +376,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             {HOME_NAV_SECTIONS.map(section => (
               <section key={section.title} className="home-realm-nav__section"
                 aria-label={section.title}>
-                <span className="home-realm-nav__label">{section.title}</span>
                 <div className="home-realm-nav__grid">
                   {section.ids.map(id => {
                     const leftItem = LEFT_ITEMS.find(item => item.id === id);
