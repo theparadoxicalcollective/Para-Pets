@@ -160,6 +160,8 @@
   pointer-events: none;
 }
 .player-character-renderer__eyes-closed { opacity: 0; }
+[data-preview-eyes-closed="true"] .player-character-renderer__eyes-open { opacity: 0; }
+[data-preview-eyes-closed="true"] .player-character-renderer__eyes-closed { opacity: 1; }
 /* Static admin previews show open eyes. During idle/walk, closed eyes replace
    open eyes briefly rather than stacking both images visibly. */
 [data-character-motion="idle"] .player-character-renderer__eyes-open,
