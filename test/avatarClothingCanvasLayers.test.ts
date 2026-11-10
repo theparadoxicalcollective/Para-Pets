@@ -158,4 +158,10 @@ test("existing clothing storage CHECK is migrated additively for eighth Accessor
   assert.match(migration,/DROP CONSTRAINT player_clothing_drafts_category_check/);
   assert.match(migration,/ADD CONSTRAINT player_clothing_drafts_category_check/);
   assert.doesNotMatch(migration,/DROP TABLE|DELETE FROM player_clothing_drafts/);
+  const equipment=read("server/startup/migrations/ensurePlayerAvatarEquipmentStorage.ts");
+  assert.match(equipment,/CHECK \(category IN \('accessories','head','hair','face','top','bottom','shoes','back'\)\)/);
+  assert.match(equipment,/DROP CONSTRAINT player_avatar_equipment_category_check/);
+  assert.match(equipment,/ADD CONSTRAINT player_avatar_equipment_category_check/);
+  assert.match(equipment,/pg_get_constraintdef\(oid\) NOT ILIKE '%accessories%'/);
+  assert.doesNotMatch(equipment,/DROP TABLE|DELETE FROM player_avatar_equipment/);
 });
