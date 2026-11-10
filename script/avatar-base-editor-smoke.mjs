@@ -130,8 +130,7 @@ try{
     const firstSaveResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
     await page.getByTestId("avatar-save-body").click();
     await firstSaveResponse;
-    await page.waitForFunction(()=>document.querySelectorAll('[data-testid^="avatar-body-upload-tile-"] .text-\\[10px\\]').length===0 ||
-      !document.querySelector('[data-testid="avatar-body-upload-tile-head"]')?.textContent?.includes("New"));
+    await page.getByTestId("avatar-body-upload-tile-head").getByText("New").waitFor({state:"detached"});
     assert.equal(requests.filter(x=>x.method==="POST").length,1,sc.name+": Fem created once");
     const saves=requests.filter(x=>x.method==="PUT");
     assert.equal(saves.length,1,sc.name+": eight images saved in one body request");
