@@ -903,8 +903,14 @@ function PetView({
   });
   const hatchedPets = sortedPets.filter(pet => pet.isHatched);
   const petEggs = sortedPets.filter(pet => !pet.isHatched);
-  const activeCollectionTab = pageMode && hatchedPets.length === 0 && petEggs.length > 0
-    ? "eggs" : collectionTab;
+  // Start on Eggs for an eggs-only account, but allow players to switch
+  // back to Pets to see its empty state. Do not force Eggs on every render.
+  useEffect(() => {
+    if (pageMode && hatchedPets.length === 0 && petEggs.length > 0) {
+      setCollectionTab("eggs");
+    }
+  }, [pageMode, hatchedPets.length, petEggs.length]);
+  const activeCollectionTab = collectionTab;
   const selectedPet = hatchedPets.find(pet => pet.inventoryId === selectedPetId)
     ?? hatchedPets.find(pet => pet.inventoryId === activePetId)
     ?? hatchedPets[0]
