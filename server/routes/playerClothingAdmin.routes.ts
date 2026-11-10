@@ -13,6 +13,7 @@ import {
   clothingSegmentKey,
   playerClothingCategorySchema,
   playerClothingSegmentSchema,
+  type PlayerClothingSegment,
 } from "@shared/playerCharacterClothing";
 import {
   AVATAR_CLOTHING_UNRELEASED_WORLD,
@@ -125,7 +126,7 @@ export function registerPlayerClothingAdminRoutes(
 
       // Normalize previous private drafts as well. No image reupload is
       // necessary to correct old offsets/pivots in saved 1000px artwork.
-      const existing = draft.draftSegments.map(segment => {
+      const existing: PlayerClothingSegment[] = draft.draftSegments.map(segment => {
         const slot = segment.slot ??
           (draft.category === "hair" && segment.partType === "head" ? "hair_front"
           : draft.category === "face" && segment.partType === "head" ? "face_open_eyes"
@@ -135,7 +136,9 @@ export function registerPlayerClothingAdminRoutes(
           fit: canvasClothingFit(), renderPlane: "with_part" as const,
         };
       });
-      const bySlot = new Map(existing.map(segment => [clothingSegmentKey(segment), segment]));
+      const bySlot = new Map<string, PlayerClothingSegment>(
+        existing.map(segment => [clothingSegmentKey(segment), segment]),
+      );
       for (const slot of parsed.data.removeSlots ?? []) bySlot.delete(slot);
       for (const image of parsed.data.images) {
         const imageUrl = await processImage(image.imageData, 1000);
