@@ -22,15 +22,16 @@ const ACTION_IMAGES: Record<PetAction, string> = {
   closet: closetIconImg,
 };
 
-interface PetActionMenuProps {
+interface PetActionMenuBase {
   petInventoryId: string;
   petName: string;
-  anchor: HTMLButtonElement;
   onSelect: (action: PetAction, inventoryId: string) => void;
   onClose: () => void;
-  /** Keep the four tools physically attached to the featured pet card. */
-  inline?: boolean;
 }
+type PetActionMenuProps = PetActionMenuBase & (
+  | { inline: true; alwaysVisible?: boolean; anchor?: HTMLButtonElement }
+  | { inline?: false; anchor: HTMLButtonElement; alwaysVisible?: never }
+);
 
 /**
  * The action bubbles are rendered on the existing viewport modal host to avoid
@@ -44,7 +45,7 @@ function FloatingPetActionMenu({
   anchor,
   onSelect,
   onClose,
-}: PetActionMenuProps) {
+}: PetActionMenuBase & { anchor: HTMLButtonElement }) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -157,19 +158,20 @@ function FloatingPetActionMenu({
 }
 
 
-/** Four existing actions in a centered, readable bloom below the Pet Menu
- * trigger. Unlike the legacy viewport popover it never drifts while scrolling
- * or overlaps other pets, and it fits the smallest supported phone. */
+/** The same four pet-ID actions inline. The permanent overview toolbar does
+ * not install outside-click listeners or steal focus as the old popup did. */
 function InlinePetActionMenu({
   petInventoryId,
   petName,
   anchor,
   onSelect,
   onClose,
-}: PetActionMenuProps) {
+  alwaysVisible = false,
+}: PetActionMenuBase & { anchor?: HTMLButtonElement; alwaysVisible?: boolean }) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (alwaysVisible) return;
     const onPointerDown = (event: PointerEvent) => {
       if (!(event.target instanceof Node)) return;
       if (menuRef.current?.contains(event.target)) return;
@@ -179,7 +181,7 @@ function InlinePetActionMenu({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
-        if (anchor.isConnected) anchor.focus();
+        if (anchor?.isConnected) anchor.focus();
       }
     };
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -188,11 +190,13 @@ function InlinePetActionMenu({
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [anchor, onClose]);
+  }, [anchor, onClose, alwaysVisible]);
 
   useEffect(() => {
-    menuRef.current?.querySelector<HTMLButtonElement>("[data-pet-action]")?.focus({ preventScroll: true });
-  }, [petInventoryId]);
+    if (!alwaysVisible) {
+      menuRef.current?.querySelector<HTMLButtonElement>("[data-pet-action]")?.focus({ preventScroll: true });
+    }
+  }, [petInventoryId, alwaysVisible]);
 
   return (
     <div
@@ -202,7 +206,7 @@ function InlinePetActionMenu({
       data-menu-layout="inline"
       role="group"
       aria-label={`Pet actions for ${petName}`}
-      className="pet-action-inline-panel"
+      className={alwaysVisible ? "pet-action-inline-panel pet-action-inline-panel--always" : "pet-action-inline-panel"}
     >
       {PET_MENU_ACTIONS.map(({ action, label }, index) => (
         <button
