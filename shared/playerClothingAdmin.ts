@@ -97,7 +97,13 @@ export function upsertClothingSegment(
 ): PlayerClothingSegment[] {
   const validated = playerClothingSegmentSchema.parse(next);
   const result = [...segments.filter(item => clothingSegmentKey(item) !== clothingSegmentKey(validated)), validated];
-  playerClothingDefinitionSchema.parse({ name: "draft", category: "top", segments: result });
+  // A segment helper has no category argument. Validate shape and uniqueness
+  // here; category-specific slots are verified by the clothing definition on
+  // Save Clothing. Treating every draft as "top" rejected Hair/Face artwork.
+  z.array(playerClothingSegmentSchema).max(13).parse(result);
+  if (new Set(result.map(clothingSegmentKey)).size !== result.length) {
+    throw new Error("Each clothing image slot may be used only once");
+  }
   return result;
 }
 
