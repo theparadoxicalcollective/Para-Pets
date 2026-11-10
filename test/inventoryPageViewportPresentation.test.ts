@@ -25,7 +25,12 @@ test("larger-device inventory moves only its page-level back row to the physical
 });
 
 test("inventory interactions and modal ownership remain unchanged", () => {
-  assert.match(inventory, /onToggle=\{handlePetToggle\}/);
+  // Legacy /api/user/active-pet remains available for Bag and combat, but
+  // the dedicated Pet gallery no longer displays a featured-companion CTA.
+  assert.match(inventory, /const handlePetToggle = \(inventoryId: string\) =>/);
+  assert.match(inventory, /onPetToggle=\{handlePetToggle\}/);
+  assert.match(inventory, /apiRequest\("PATCH", "\/api\/user\/active-pet"/);
+  assert.doesNotMatch(inventory, /button-feature-main-pet-/);
   assert.match(inventory, /onEggSpeedUp=\{\(id\) => setSpeedUpTargetId\(id\)\}/);
   assert.match(inventory, /<ViewportModalPortal enabled=\{!!pageMode\}>/);
   assert.match(inventory, /data-testid="button-close-inventory"/);
