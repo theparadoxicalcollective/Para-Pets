@@ -229,6 +229,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         padding: 0,
         cursor: "pointer",
         flexShrink: 0,
+        pointerEvents: "auto",
       }}
     >
       <img
@@ -275,7 +276,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]"
         style={{
           visibility: globalHudHidden ? "hidden" : "visible",
-          pointerEvents: globalHudHidden ? "none" : "auto",
+          // The extra Home resource row must not create an invisible blocker
+          // over Design Character on compact phones. Opt in real controls only.
+          pointerEvents: globalHudHidden || location === "/" ? "none" : "auto",
         }}
       >
 
@@ -290,7 +293,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="button-profile"
                 onClick={onProfileClick}
                 className="transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%" }}
+                style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%", pointerEvents: "auto" }}
               >
                 <div className="relative w-full">
                   {/* Photo — bigger, pushed down within frame opening */}
@@ -345,6 +348,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                       ? "0 0 8px rgba(212,160,23,0.7)"
                       : "0 0 5px rgba(212,160,23,0.4)",
                     zIndex: 30,
+                    pointerEvents: "auto",
                   }}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(240,192,64,0.8))" }}>
@@ -370,6 +374,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                     boxShadow: showAdminMsgsPopup
                       ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(240,192,64,0.4)"
                       : "0 2px 10px rgba(0,0,0,0.6), 0 0 12px rgba(240,192,64,0.2)",
+                    pointerEvents: "auto",
                   }}
                   title="Messages from Admin"
                 >
@@ -402,6 +407,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                       borderRadius: 14,
                       boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(240,192,64,0.1)",
                       padding: "10px 10px 8px",
+                      pointerEvents: "auto",
                     }}
                   >
                     <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: "0.2em" }}>
