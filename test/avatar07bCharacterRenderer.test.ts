@@ -41,13 +41,11 @@ test("the admin preview uses the same renderer, and editing stays still and touc
   assert.match(preview, /setPointerCapture/);
   assert.match(preview, /hasPointerCapture/);
   assert.match(preview, /touchAction: editable \? "none" : "auto"/);
-  assert.match(panel, /useState<PlayerCharacterMotion>\("static"\)/);
-  assert.match(panel, /\{ mode: "static", label: "Edit" \}/);
-  assert.match(panel, /\{ mode: "idle", label: "Idle" \}/);
-  assert.match(panel, /\{ mode: "walk", label: "Walk" \}/);
-  assert.match(panel, /aria-pressed=\{previewMotion === mode\}/);
-  assert.match(panel, /editable=\{previewMotion === "static" && Boolean\(imageData \|\| savedPart\)\}/);
-  assert.match(panel, /motion=\{previewMotion\}/);
+  // The shared preview still supports motion, but the base-upload editor
+  // intentionally does not expose movement, pivot, or animation controls.
+  assert.match(panel, /<PlayerCharacterPartsPreview parts=\{previewParts\} \/>/);
+  assert.match(panel, /data-testid="avatar-body-preview-box"/);
+  assert.doesNotMatch(panel, /previewMotion|onMovePart|Save Selected Part|transformFields/);
 });
 
 test("walking legs and their own feet share phases, arms swing opposite, and head/torso remain separate", () => {
