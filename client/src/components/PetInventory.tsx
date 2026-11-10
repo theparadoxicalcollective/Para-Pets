@@ -460,25 +460,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         <div data-testid={pageMode ? "inventory-canonical-content" : undefined} className="relative z-10 flex flex-col h-full overflow-hidden">
 
           {/* Header */}
-          <div className="px-4 pb-0" style={{ paddingTop: pageMode ? "calc(env(safe-area-inset-top, 0px) + 44px)" : 56 }}>
+          <div className={pageMode ? "hidden" : "px-4 pb-0"} style={{ paddingTop: 56 }}>
             <div className="flex items-center justify-between mb-3">
-              {pageMode ? (
-                /* Page mode: slim count row */
-                <div>
-                  {!showBag && (
-                    <h1 className="font-fantasy text-[#f5d99c] text-xl tracking-wide font-bold"
-                      style={{ textShadow: "0 2px 8px #07180e" }}>
-                      Companion Grove
-                    </h1>
-                  )}
-                  <p className="font-fantasy text-[#d7c897] text-xs tracking-wide">
-                    {showBag
-                      ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}`
-                      : `${pets.filter(p => p.isHatched).length} hatched · ${pets.filter(p => !p.isHatched).length} eggs`}
-                  </p>
-                </div>
-              ) : (
-                /* Overlay mode: full icon + title */
+              {/* Overlay mode retains its existing navigation context. Page mode has no filler header. */}
+              {(
                 <div className="flex items-center gap-3">
                   <div
                     className="w-11 h-11 rounded-xl flex items-center justify-center"
@@ -564,17 +549,20 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             )}
           </div>
 
-          {/* Decorative gold divider between header and content */}
-          <div className="px-6 -mt-1 mb-1 flex justify-center">
-            <img
-              src={petInvDividerImg}
-              alt=""
-              aria-hidden="true"
-              style={{ width: "100%", maxWidth: 340, height: 22, objectFit: "contain", opacity: 0.55 }}
-            />
-          </div>
+          {/* Legacy overlay keeps its original divider; the full page starts with pets. */}
+          {!pageMode && (
+            <div className="px-6 -mt-1 mb-1 flex justify-center">
+              <img
+                src={petInvDividerImg}
+                alt=""
+                aria-hidden="true"
+                style={{ width: "100%", maxWidth: 340, height: 22, objectFit: "contain", opacity: 0.55 }}
+              />
+            </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6"
+            style={pageMode ? { paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)" } : undefined}>
             {isLoading ? (
               <div className="text-center py-12">
                 <p className="font-fantasy text-[#7fbfb0] text-sm animate-pulse">Loading inventory...</p>
@@ -585,11 +573,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
               <PetView
                 pets={pets}
                 activePetId={user.activePetId}
-                onToggle={handlePetToggle}
                 onEggSpeedUp={(id) => setSpeedUpTargetId(id)}
                 isDragging={!!dragging}
-                isPending={setActivePetMutation.isPending}
-                pendingPetId={setActivePetMutation.variables ?? null}
               />
             )}
           </div>
@@ -852,24 +837,18 @@ function HatchedPetArtwork({ pet }: { pet: InventoryItem }) {
       : <img src={petPawIcon} alt="" className="w-full h-full object-contain" />;
 }
 
-/** One authoritative pet selection. Eggs keep their separate hatch/speed-up
- * interactions; companions retain the existing pet-ID routes and featured flag. */
+/** A compact detail view and scrollable collection sharing the existing pet-ID
+ * actions. The legacy active-pet ID is only used as an initial selection fallback. */
 function PetView({
   pets,
   activePetId,
-  onToggle,
   onEggSpeedUp,
-  isPending,
-  pendingPetId,
   isDragging,
   readOnly = false,
 }: {
   pets: InventoryItem[];
   activePetId: string | null;
-  onToggle: (id: string) => void;
   onEggSpeedUp?: (petInvId: string) => void;
-  isPending: boolean;
-  pendingPetId: string | null;
   isDragging?: boolean;
   readOnly?: boolean;
 }) {
@@ -877,6 +856,7 @@ function PetView({
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const spotlightRef = useRef<HTMLElement>(null);
   const [openPetMenu, setOpenPetMenu] = useState<{
     inventoryId: string;
     anchor: HTMLButtonElement;
@@ -946,7 +926,6 @@ function PetView({
       <div className="pet-collection__empty" data-testid="inventory-pets-empty">
         <img src={eggMagicIcon} alt="" className="w-16 h-16 object-contain mx-auto mb-3 opacity-50" />
         <p>No companions yet</p>
-        <p className="mt-2 text-xs">Venture into the realm to discover creatures!</p>
       </div>
     );
   }
@@ -955,12 +934,12 @@ function PetView({
     <div className="pet-collection" data-testid="inventory-pet-showcase">
       {selectedPet && (
         <section
+          ref={spotlightRef}
           className="pet-spotlight"
           data-testid="inventory-featured-pet"
           data-pet-inv-id={selectedPet.inventoryId}
           aria-label={`Selected companion ${selectedPet.petNickname || selectedPet.name}`}
         >
-          <div className="pet-spotlight__eyebrow">Your Selected Companion</div>
           <div className="pet-spotlight__art">
             <div className="pet-spotlight__halo" aria-hidden="true" />
             <div className="pet-spotlight__portrait" data-testid="inventory-featured-pet-art">
@@ -1021,6 +1000,7 @@ function PetView({
                 )}
               </p>
             )}
+          </div>
             {!readOnly && (
               <div className="pet-spotlight__actions">
                 <button
@@ -1052,36 +1032,13 @@ function PetView({
                     onClose={closePetMenu}
                   />
                 )}
-                <button
-                  type="button"
-                  data-testid={`button-feature-main-pet-${selectedPet.inventoryId}`}
-                  disabled={activePetId === selectedPet.inventoryId || isPending}
-                  className="pet-spotlight__featured"
-                  title="For legacy pet-based features only. Home shows your player character."
-                  aria-label={activePetId === selectedPet.inventoryId
-                    ? `${selectedPet.petNickname || selectedPet.name} is the featured companion for legacy features`
-                    : `Set ${selectedPet.petNickname || selectedPet.name} as the featured companion for legacy features`}
-                  onClick={() => {
-                    closePetMenu();
-                    if (activePetId !== selectedPet.inventoryId && !isPending) onToggle(selectedPet.inventoryId);
-                  }}
-                >
-                  {isPending && pendingPetId === selectedPet.inventoryId
-                    ? "Updating featured pet…"
-                    : activePetId === selectedPet.inventoryId
-                      ? "Featured Companion" : "Set Featured Companion"}
-                </button>
               </div>
             )}
-          </div>
         </section>
       )}
 
       {hatchedPets.length > 0 && (
         <section aria-label="Hatched companions" data-testid="inventory-hatched-pets">
-          <h3 className="pet-collection__section-head">
-            Hatched Companions · {hatchedPets.length}
-          </h3>
           <div className="pet-collection__tiles">
             {hatchedPets.map(pet => (
               <div
@@ -1100,6 +1057,10 @@ function PetView({
                     closePetMenu();
                     setFlippedPetId(null);
                     setSelectedPetId(pet.inventoryId);
+                    spotlightRef.current?.scrollIntoView({
+                      block: "start",
+                      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+                    });
                   }}
                 />
                 <div className="pet-collection__tile-art">
@@ -1114,9 +1075,7 @@ function PetView({
                     <span key={i} className={i < (pet.rarity ?? 1) ? "is-earned" : ""}>★</span>
                   ))}
                 </span>
-                <span className="pet-collection__tile-level">Lvl {pet.petLevel}
-                  {activePetId === pet.inventoryId ? " · Featured" : ""}
-                </span>
+                <span className="pet-collection__tile-level">Lvl {pet.petLevel}</span>
               </div>
             ))}
           </div>
@@ -1125,9 +1084,10 @@ function PetView({
 
       {petEggs.length > 0 && (
         <section data-testid="inventory-pet-eggs" aria-label="Unhatched pet eggs">
-          <h3 className="pet-collection__divider" data-testid="inventory-pets-eggs-divider">
-            <span>Unhatched Eggs · {petEggs.length}</span>
-          </h3>
+          {hatchedPets.length > 0 && (
+            <div className="pet-collection__divider" data-testid="inventory-pets-eggs-divider"
+              role="separator" aria-label="Unhatched eggs" />
+          )}
           <div className="pet-collection__eggs">
             {petEggs.map(pet => {
               const started = pet.hatchStartedAt ? new Date(pet.hatchStartedAt).getTime() : NaN;
