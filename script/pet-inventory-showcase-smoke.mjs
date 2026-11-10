@@ -58,6 +58,7 @@ const pets=[
   ownedPet("pet-a","Forest Cow",3,true,5),
   ownedPet("pet-b","Moss Deer",4,true,7),
   ownedPet("pet-c","Small Mummy",1,true,1),
+  ...Array.from({length:9},(_,i)=>ownedPet(`pet-extra-${i}`,`Companion ${i+1}`,1,true,2)),
   {...ownedPet("egg-ready","Dawn Egg",2,false),hatchStartedAt:"2020-01-01T00:00:00.000Z"},
   {...ownedPet("egg-wait","Moon Egg",5,false),hatchStartedAt:new Date(Date.now()).toISOString()},
 ];
@@ -91,12 +92,41 @@ try{
     await page.goto("http://127.0.0.1:4215/pets",{waitUntil:"domcontentloaded"});
     await page.getByTestId("inventory-featured-pet").waitFor({state:"visible"});
     assert.match(await page.getByTestId("text-featured-pet-name").innerText(),/Forest Cow/);
-    assert.equal(await page.getByTestId("inventory-hatched-pets").locator('[data-testid^="card-pet-"]').count(),3,
-      sc.name+": three hatched pet selectors");
+    assert.equal(await page.getByTestId("inventory-hatched-pets").locator('[data-testid^="card-pet-"]').count(),12,
+      sc.name+": large pet collection remains fully reachable");
     assert.equal(await page.getByTestId("inventory-pet-eggs").locator('[data-testid^="card-pet-"]').count(),2,
       sc.name+": two eggs remain separate");
     assert.equal(await page.getByTestId("inventory-pets-eggs-divider").count(),1,
-      sc.name+": divider between hatched and eggs");
+      sc.name+": decorative divider between hatched pets and eggs");
+    assert.equal(await page.getByText(/Companion Grove|Hatched Companions ·|Unhatched Eggs ·|Set Featured Companion|Your Selected Companion/).count(),0,
+      sc.name+": no unwanted collection headings or featured-pet controls");
+    assert.equal(await page.locator('[data-testid^="button-feature-main-pet-"]').count(),0,
+      sc.name+": legacy feature button is removed from this page");
+    const layout=await page.evaluate(()=>{
+      const rect=selector=>{
+        const e=document.querySelector(selector);
+        if(!e)return null;
+        const r=e.getBoundingClientRect();
+        return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};
+      };
+      const tiles=Array.from(document.querySelectorAll('.pet-collection__tile')).slice(0,3)
+        .map(e=>e.getBoundingClientRect().left);
+      const scroll=document.querySelector('[data-testid="inventory-canonical-content"] .overflow-y-auto');
+      return {spotlight:rect('[data-testid="inventory-featured-pet"]'),
+        firstTile:rect('.pet-collection__tile'), tiles, scrollWidth:scroll?.scrollWidth,
+        clientWidth:scroll?.clientWidth, scrollHeight:scroll?.scrollHeight,
+        clientHeight:scroll?.clientHeight};
+    });
+    assert.ok(layout.spotlight.height<=215,
+      sc.name+": compact selected pet panel leaves room for more pets: "+JSON.stringify(layout));
+    assert.ok(layout.firstTile.height<=155,
+      sc.name+": compact card height: "+JSON.stringify(layout.firstTile));
+    assert.ok(new Set(layout.tiles.map(Math.round)).size>=3,
+      sc.name+": three or more pet columns fit on phone/tablet: "+JSON.stringify(layout.tiles));
+    assert.ok(layout.scrollWidth<=layout.clientWidth+2,
+      sc.name+": pet list has no horizontal overflow: "+JSON.stringify(layout));
+    assert.ok(layout.scrollHeight>layout.clientHeight,
+      sc.name+": large pet collection remains vertically scrollable");
 
     const selected=page.getByRole("button",{name:"Select Moss Deer, level 7"});
     await selected.click();
@@ -132,6 +162,16 @@ try{
     assert.equal(await page.getByTestId("inventory-pet-action-menu").count(),0,
       sc.name+": Escape closes menu");
 
+    // A pet far down the list can be selected, and its compact detail returns
+    // into view without modifying the server's active/featured companion.
+    await page.getByRole("button",{name:"Select Companion 9, level 2"}).click();
+    await page.waitForFunction(()=>document.querySelector('[data-testid="text-featured-pet-name"]')
+      ?.textContent?.includes("Companion 9"));
+    const selectedTop=await page.getByTestId("inventory-featured-pet").evaluate(el=>el.getBoundingClientRect().top);
+    assert.ok(selectedTop>=-2 && selectedTop<sc.height,
+      sc.name+": choosing a later pet brings its detail back into the mobile viewport");
+    assert.equal(writes.length,0,sc.name+": browsing pets doesn't mutate active-pet selection");
+
     await page.getByTestId("card-pet-egg-wait").click();
     await page.getByTestId("button-close-inv-speedup").waitFor({state:"visible"});
     await page.getByTestId("button-close-inv-speedup").click();
@@ -152,4 +192,4 @@ try{
   await browser.close();
   await server.close();
 }
-console.log("Pet inventory featured spotlight browser smoke passed");
+console.log("Compact pet inventory mobile/tablet browser smoke passed");
