@@ -313,3 +313,66 @@
   .pet-collection__hatch-burst { animation: none; }
   .pet-collection__tile { transition: none; }
 }
+
+/* The full-page inventory has one stationary overview and one independently
+   pannable grid. The app/game viewport remains the coordinate owner. */
+.pet-collection--page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.pet-collection__fixed-overview {
+  flex: 0 0 auto;
+}
+.pet-collection__overview-divider {
+  flex: 0 0 auto;
+  height: 1px;
+  margin: 8px 0 6px;
+  background: linear-gradient(90deg, transparent, rgba(229,191,112,.88) 15%, #f2d99b 50%, rgba(229,191,112,.88) 85%, transparent);
+  box-shadow: 0 1px 5px rgba(0,0,0,.45);
+}
+.pet-collection__tabs {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0 0 7px;
+}
+.pet-collection__tabs button {
+  min-height: 42px;
+  padding: 6px 9px;
+  border: 1px solid rgba(229,191,112,.46);
+  border-radius: 11px;
+  background: rgba(7,36,24,.88);
+  color: #d4c3a0;
+  font: 700 13px Georgia, serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.pet-collection__tabs button[aria-selected="true"] {
+  color: #ffe5ad;
+  border-color: rgba(245,209,136,.95);
+  background: linear-gradient(155deg, rgba(39,95,62,.95), rgba(13,49,32,.95));
+  box-shadow: inset 0 1px rgba(255,235,174,.17), 0 0 10px rgba(229,191,112,.12);
+}
+.pet-collection__scroll-region {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.pet-collection__scroll-region::-webkit-scrollbar {
+  display: none;
+}
+.pet-collection--page .pet-collection__tiles,
+.pet-collection--page .pet-collection__eggs {
+  padding-top: 5px;
+  padding-bottom: 12px;
+}
