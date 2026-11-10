@@ -84,6 +84,8 @@ test("profile stays in the upper-left resource group while corner actions stay i
   assert.match(topBar, /data-testid="button-profile"/);
   assert.match(topBar, /data-testid="topbar-resource-cluster"/);
   assert.match(home, /data-testid="viewport-hud-topbar"/);
+  assert.match(home, /<div style=\{\{ pointerEvents: "none" \}\}>\s*<TopBar user=\{currentUser\}/);
+  assert.match(topBar, /pointerEvents: globalHudHidden \|\| location === "\/" \? "none" : "auto"/);
   assert.match(home, /left: 0/);
   assert.match(home, /right: 0/);
   assert.match(home, /data-testid="viewport-hud-watcher-dock"/);
