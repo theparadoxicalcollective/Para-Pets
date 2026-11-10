@@ -119,6 +119,11 @@ export const playerCharacterBodyWriteSchema = z.object({
     imageData: playerCharacterPartWriteSchema.shape.imageData.unwrap(),
   }).strict()).min(1).max(8),
 }).strict().superRefine(({ parts }, ctx) => {
+  // Express's configured JSON limit is 50 MB; leave margin for encoding and
+  // request overhead rather than letting a full eight-image upload hit 413.
+  if (parts.reduce((sum, part) => sum + part.imageData.length, 0) > 40_000_000) {
+    ctx.addIssue({ code: "custom", path: ["parts"], message: "Body images are too large together" });
+  }
   const seen = new Set<PlayerCharacterPartType>();
   for (const [index, part] of parts.entries()) {
     if (seen.has(part.partType)) {
