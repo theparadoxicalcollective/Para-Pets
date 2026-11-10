@@ -177,6 +177,8 @@ try {
         essence: rect('[data-testid="display-essence"]'),
         xpText: rect('[data-testid="home-player-total-xp"]'),
         playerLevel: rect('[data-testid="home-player-level"]'),
+        levelPill: rect('.home-player-hud__level-pill'),
+        navButton: rect('[data-testid="button-floating-nav"]'),
         avatarStarSize: rect('.home-player-hud__stars img')?.height,
         equippedDots: document.querySelectorAll('.home-player-hud__slot-dot').length,
         profileNameplate: !!document.querySelector('[data-testid="text-username"]'),
@@ -229,6 +231,55 @@ try {
       sc.name+": XP amount is left of centered player level");
     assert.ok(Math.abs(homeLayout.playerLevel.centerX - homeLayout.xp.centerX) < 7,
       sc.name+": player level centered directly below the progress bar");
+    assert.ok(homeLayout.levelPill &&
+      homeLayout.levelPill.width >= 78 && homeLayout.levelPill.height >= 25,
+      sc.name+": centered player level is readable inside a compact pill");
+    assert.ok(homeLayout.levelPill.bottom <= homeLayout.party.top + 8,
+      sc.name+": lowered XP and level pill do not block pet selection");
+    assert.ok(homeLayout.navButton, sc.name+": main nav button is present");
+    assert.ok(homeLayout.navButton.top >= homeLayout.essence.bottom + 4,
+      sc.name+": main nav sits under the essence row, on the right");
+    assert.ok(homeLayout.navButton.left >= sc.width - 88 &&
+      homeLayout.navButton.right <= sc.width,
+      sc.name+": Home navigation is aligned to the right viewport edge");
+
+    // The floating button is higher on Home. Its previous seven-item UPWARD
+    // fan would clip off short phones; the same actions now expand into a
+    // three-column grid below it, with distinct fully tappable 50px targets.
+    const mainNav = page.getByTestId("button-floating-nav");
+    await mainNav.tap();
+    await page.waitForTimeout(700); // let staggered item transitions settle
+    const navigation = await page.evaluate(() => {
+      const elements = Array.from(document.querySelectorAll('[data-testid^="nav-item-"]'));
+      return elements.map(el => {
+        const r = el.getBoundingClientRect();
+        const elementAtCenter = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return {
+          id: el.getAttribute("data-testid"),
+          left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+          hit: el === elementAtCenter || el.contains(elementAtCenter),
+        };
+      });
+    });
+    assert.equal(navigation.length,12, sc.name+": all twelve original navigation actions remain");
+    for (const item of navigation) {
+      assert.ok(item.left >= -1 && item.right <= sc.width + 1 &&
+        item.top >= 0 && item.bottom <= sc.height - 8,
+        sc.name+": expanded nav fits the phone/tablet screen: "+JSON.stringify(item));
+      assert.ok(item.hit, sc.name+": expanded navigation item can be tapped: "+item.id);
+    }
+    for(let i=0;i<navigation.length;i++){
+      for(let j=i+1;j<navigation.length;j++){
+        const a=navigation[i],b=navigation[j];
+        const overlapWidth=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+        const overlapHeight=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+        assert.ok(overlapWidth<=0 || overlapHeight<=0,
+          sc.name+": expanded navigation targets do not overlap: "+a.id+" / "+b.id);
+      }
+    }
+    await mainNav.tap();
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="button-floating-nav"]')?.getAttribute("aria-expanded") === "false");
     assert.equal(homeLayout.equippedDots,0,
       sc.name+": selected party pets have no duplicate dot indicators");
     await page.getByTestId("display-coin-balance").tap();
