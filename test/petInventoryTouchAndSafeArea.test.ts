@@ -12,6 +12,9 @@ test("inventory restores hit testing under noninteractive viewport host", () => 
   assert.ok(inventory.includes("onEggSpeedUp?.(pet.inventoryId)"), "egg speed-up remains available");
 });
 test("inventory respects phone safe areas", () => {
-  assert.ok(inventory.includes("env(safe-area-inset-top, 0px) + 44px"));
+  // Compact page content still respects the actual device safe area,
+  // without reserving the retired, oversized title/count header.
+  assert.ok(inventory.includes("env(safe-area-inset-top, 0px) + 16px"));
+  assert.ok(inventory.includes('className={pageMode ? "hidden" : "px-4 pb-0"}'));
   assert.ok(inventory.includes("env(safe-area-inset-bottom, 0px) + 24px"));
 });
