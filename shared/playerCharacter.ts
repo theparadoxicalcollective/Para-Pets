@@ -153,7 +153,9 @@ export const playerCharacterBodyWriteSchema = z.object({
   parts: z.array(z.object({
     partType: playerCharacterPartTypeSchema,
     imageData: playerCharacterPartWriteSchema.shape.imageData.unwrap(),
-  }).strict()).min(1).max(8),
+  // An empty list realigns an existing saved draft without reuploading art.
+  // The route rejects this form for an entirely empty body.
+  }).strict()).min(0).max(8),
 }).strict().superRefine(({ parts }, ctx) => {
   // Express's configured JSON limit is 50 MB; leave margin for encoding and
   // request overhead rather than letting a full eight-image upload hit 413.
