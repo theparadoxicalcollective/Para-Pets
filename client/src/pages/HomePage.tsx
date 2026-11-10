@@ -1979,7 +1979,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <div
             className="relative w-full max-w-sm rounded-2xl px-5 py-6 flex flex-col gap-4 animate-slide-up"
             style={{
-              background: "linear-gradient(160deg, rgba(12,8,2,0.99) 0%, rgba(8,5,1,0.99) 100%)",
+              background: "linear-gradient(160deg, rgba(12,48,32,0.99) 0%, rgba(4,28,19,0.99) 100%)",
               border: "1.5px solid rgba(212,160,23,0.45)",
               boxShadow: "0 0 50px rgba(212,160,23,0.1), 0 8px 32px rgba(0,0,0,0.7)",
               maxHeight: "calc(90*var(--vh))",
@@ -1991,7 +1991,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               onClick={() => setShowSupportModal(false)}
               className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
               style={{
-                background: "rgba(60,25,5,0.85)",
+                background: "rgba(13,52,34,0.9)",
                 border: "1.5px solid rgba(212,160,23,0.35)",
                 color: "rgba(212,160,23,0.8)",
                 cursor: "pointer",
@@ -2004,8 +2004,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
             {supportSent ? (
               <div className="flex flex-col items-center gap-3 py-4">
-                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wide text-center">Message sent!</p>
-                <p className="font-fantasy text-[#a89878] text-[11px] tracking-wide text-center leading-relaxed">
+                <p className="font-fantasy text-[#f3d790] text-sm tracking-wide text-center">Message sent!</p>
+                <p className="font-fantasy text-[#d8c8a4] text-[11px] tracking-wide text-center leading-relaxed">
                   Your message has been delivered to the admin team. We'll look into it soon!
                 </p>
                 <button
@@ -2013,9 +2013,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   onClick={() => setShowSupportModal(false)}
                   className="mt-2 px-6 py-2 rounded-full font-fantasy text-xs tracking-widest transition-transform active:scale-95"
                   style={{
-                    background: "linear-gradient(135deg, rgba(0,80,50,0.9) 0%, rgba(0,50,30,0.9) 100%)",
-                    border: "1px solid rgba(0,200,160,0.4)",
-                    color: "#7fffd4",
+                    background: "linear-gradient(135deg, rgba(25,83,53,0.95) 0%, rgba(11,51,33,0.95) 100%)",
+                    border: "1px solid rgba(234,199,119,0.75)",
+                    color: "#ffe5a6",
                     cursor: "pointer",
                   }}
                 >
@@ -2066,9 +2066,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   disabled={supportMutation.isPending || !supportSubject.trim() || !supportMessage.trim()}
                   className="py-2.5 rounded-full font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-50"
                   style={{
-                    background: "linear-gradient(135deg, rgba(0,80,50,0.9) 0%, rgba(0,50,30,0.9) 100%)",
-                    border: "1px solid rgba(0,200,160,0.4)",
-                    color: "#7fffd4",
+                    background: "linear-gradient(135deg, rgba(25,83,53,0.95) 0%, rgba(11,51,33,0.95) 100%)",
+                    border: "1px solid rgba(234,199,119,0.75)",
+                    color: "#ffe5a6",
                     cursor: "pointer",
                   }}
                 >
