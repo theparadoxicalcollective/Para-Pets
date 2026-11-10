@@ -127,7 +127,10 @@ test("published snapshot is filtered to eight active parts, not legacy Eyes or B
   const panel = readFileSync("client/src/components/PlayerCharacterAdminPanel.tsx", "utf8");
   const preview = readFileSync("client/src/components/PlayerCharacterPartsPreview.tsx", "utf8");
   assert.match(route, /publishedParts: resolvePlayerCharacterParts\(base\.draftParts\)/);
-  assert.match(panel, /archivedEyes/);
+  // The simplified upload UI does not expose legacy Eyes or delete them.
+  assert.match(route, /draftParts: orderedDraft/);
+  assert.match(readFileSync("shared/playerCharacter.ts", "utf8"), /Preserve old Eyes and Body source artwork/);
+  assert.doesNotMatch(panel, /Remove from Draft|Save Selected Part/);
   assert.match(panel, /resolvePlayerCharacterParts\(selected\.draftParts\)/);
   assert.match(preview, /eight transparent avatar base parts/);
   assert.doesNotMatch(route, /DELETE FROM player_character_bases/);
