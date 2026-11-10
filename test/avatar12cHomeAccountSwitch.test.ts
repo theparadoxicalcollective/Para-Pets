@@ -8,7 +8,9 @@ test("Home isolates transient account state until the new authenticated account 
   assert.match(home, /setCurrentUser\(prev => prev\.id === user\.id \? \{ \.\.\.prev, \.\.\.user \} : user\)/);
   assert.match(home, /\[user\.id, user\.activePetId, user\.coins, user\.profileImage, user\.username\]/);
   assert.match(home, /if \(currentUser\.id !== user\.id\) return null/);
-  assert.match(home, /bgChatCountRef\.current = -1/);
+  assert.match(home, /watcherSeenIdsRef\.current = null/);
+  assert.match(home, /setWatcherAnnouncement\(null\)/);
+  assert.match(home, /localStorage\.getItem\(\`para-pets:watcher-bubble-muted:/);
   assert.match(home, /setShowWorldChat\(false\)/);
   assert.match(home, /setShowProfile\(false\)/);
   assert.match(home, /setShowSupportModal\(false\)/);
