@@ -167,6 +167,15 @@ try{
     await page.getByRole("button",{name:"Select Companion 9, level 2"}).click();
     await page.waitForFunction(()=>document.querySelector('[data-testid="text-featured-pet-name"]')
       ?.textContent?.includes("Companion 9"));
+    // The app deliberately scrolls the detail smoothly for motion-enabled
+    // users; wait for the finished geometry instead of racing that animation.
+    await page.waitForFunction(()=>{
+      const r=document.querySelector('[data-testid="inventory-featured-pet"]')?.getBoundingClientRect();
+      const scroll=document.querySelector('[data-testid="inventory-canonical-content"] .overflow-y-auto');
+      if(!r||!scroll)return false;
+      const visible=scroll.getBoundingClientRect();
+      return r.top>=visible.top-2 && r.top<visible.bottom-40 && r.bottom>visible.top;
+    },null,{timeout:5000});
     const selectedTop=await page.getByTestId("inventory-featured-pet").evaluate(el=>el.getBoundingClientRect().top);
     assert.ok(selectedTop>=-2 && selectedTop<sc.height,
       sc.name+": choosing a later pet brings its detail back into the mobile viewport");
