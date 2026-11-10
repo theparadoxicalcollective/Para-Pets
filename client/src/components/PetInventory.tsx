@@ -1077,20 +1077,23 @@ function PetView({
           </h3>
           <div className="pet-collection__tiles">
             {hatchedPets.map(pet => (
-              <button
+              <div
                 key={pet.inventoryId}
-                type="button"
                 data-testid={`card-pet-${pet.shopItemId}`}
                 data-pet-inv-id={pet.inventoryId}
                 className="pet-collection__tile"
-                aria-pressed={selectedPet?.inventoryId === pet.inventoryId}
-                aria-label={`Select ${pet.petNickname || pet.name}, level ${pet.petLevel}`}
-                onClick={() => {
-                  closePetMenu();
-                  setFlippedPetId(null);
-                  setSelectedPetId(pet.inventoryId);
-                }}
               >
+                <button
+                  type="button"
+                  className="pet-collection__tile-press"
+                  aria-pressed={selectedPet?.inventoryId === pet.inventoryId}
+                  aria-label={`Select ${pet.petNickname || pet.name}, level ${pet.petLevel}`}
+                  onClick={() => {
+                    closePetMenu();
+                    setFlippedPetId(null);
+                    setSelectedPetId(pet.inventoryId);
+                  }}
+                />
                 <div className="pet-collection__tile-art">
                   <HatchedPetArtwork pet={pet} />
                 </div>
@@ -1106,7 +1109,7 @@ function PetView({
                 <span className="pet-collection__tile-level">Lvl {pet.petLevel}
                   {activePetId === pet.inventoryId ? " · Featured" : ""}
                 </span>
-              </button>
+              </div>
             ))}
           </div>
         </section>
