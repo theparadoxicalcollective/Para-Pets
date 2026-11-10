@@ -203,8 +203,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
   }, [showAdminMsgsPopup]);
 
   const hasRewards = pendingRewards.length > 0;
-  // Non-Home pages retain their resource-grid coin shop control.
-  // Home exposes the smaller coin shortcut from its main navigation instead.
+  // Home stacks Essence, Coins, then a small centered Coin Bundles shortcut;
+  // other pages retain their unchanged two-row resource-grid presentation.
   const coinBundleShopButton = (
     <button
       data-testid="button-coin-bag"
@@ -213,10 +213,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       onClick={() => navigate("/coins")}
       className="transition-transform active:scale-90"
       style={{
-        gridColumn: 2,
-        gridRow: "1 / span 2",
-        width: 44,
-        height: 44,
+        gridColumn: location === "/" ? 1 : 2,
+        gridRow: location === "/" ? 3 : "1 / span 2",
+        width: location === "/" ? 32 : 44,
+        height: location === "/" ? 32 : 44,
         alignSelf: "center",
         justifySelf: "center",
         display: "grid",
@@ -229,14 +229,15 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         padding: 0,
         cursor: "pointer",
         flexShrink: 0,
+        pointerEvents: "auto",
       }}
     >
       <img
         src={coinBagIconImg}
         alt="Buy Coins"
         style={{
-          width: 38,
-          height: 38,
+          width: location === "/" ? 26 : 38,
+          height: location === "/" ? 26 : 38,
           objectFit: "contain",
           filter: "brightness(1.06) drop-shadow(0 0 7px rgba(240,192,64,0.58)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
         }}
@@ -248,8 +249,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           position: "absolute",
           top: -3,
           right: -3,
-          width: 15,
-          height: 15,
+          width: location === "/" ? 13 : 15,
+          height: location === "/" ? 13 : 15,
           display: "grid",
           placeItems: "center",
           borderRadius: 999,
@@ -275,7 +276,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]"
         style={{
           visibility: globalHudHidden ? "hidden" : "visible",
-          pointerEvents: globalHudHidden ? "none" : "auto",
+          // The extra Home resource row must not create an invisible blocker
+          // over Design Character on compact phones. Opt in real controls only.
+          pointerEvents: globalHudHidden || location === "/" ? "none" : "auto",
         }}
       >
 
@@ -290,7 +293,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="button-profile"
                 onClick={onProfileClick}
                 className="transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%" }}
+                style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%", pointerEvents: "auto" }}
               >
                 <div className="relative w-full">
                   {/* Photo — bigger, pushed down within frame opening */}
@@ -345,6 +348,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                       ? "0 0 8px rgba(212,160,23,0.7)"
                       : "0 0 5px rgba(212,160,23,0.4)",
                     zIndex: 30,
+                    pointerEvents: "auto",
                   }}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(240,192,64,0.8))" }}>
@@ -370,6 +374,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                     boxShadow: showAdminMsgsPopup
                       ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(240,192,64,0.4)"
                       : "0 2px 10px rgba(0,0,0,0.6), 0 0 12px rgba(240,192,64,0.2)",
+                    pointerEvents: "auto",
                   }}
                   title="Messages from Admin"
                 >
@@ -402,6 +407,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                       borderRadius: 14,
                       boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(240,192,64,0.1)",
                       padding: "10px 10px 8px",
+                      pointerEvents: "auto",
                     }}
                   >
                     <p className="font-fantasy tracking-widest text-center mb-2" style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: "0.2em" }}>
@@ -484,7 +490,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           {location === "/" && !hideProfile && (
             <div data-testid="home-account-header"
               className="flex min-w-0 flex-col items-start self-start"
-              style={{ paddingTop: 23, maxWidth: "min(205px, calc(100vw - 138px))" }}>
+              style={{ paddingTop: 30, maxWidth: "min(205px, calc(100vw - 138px))" }}>
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
                 style={{
@@ -509,7 +515,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               style={{
                 display: "grid",
                 gridTemplateColumns: location === "/" ? "max-content" : "auto 44px",
-                gridTemplateRows: "30px 30px",
+                gridTemplateRows: location === "/" ? "30px 30px 34px" : "30px 30px",
                 columnGap: 4,
                 rowGap: 2,
                 marginTop: location === "/" ? 17 : 0,
@@ -522,7 +528,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="display-coin-balance"
                 style={{
                   gridColumn: 1,
-                  gridRow: 1,
+                  gridRow: location === "/" ? 2 : 1,
+                  // Absorb taps on the balance art itself without opening any route.
+                  pointerEvents: "auto",
                   background: "transparent",
                   border: "none",
                   padding: 0,
@@ -554,7 +562,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="display-essence"
                 style={{
                   gridColumn: 1,
-                  gridRow: 2,
+                  gridRow: location === "/" ? 1 : 2,
+                  pointerEvents: "auto",
                   flexShrink: 0,
                   position: "relative",
                   display: "inline-flex",
@@ -579,7 +588,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 </span>
               </div>
 
-              {location !== "/" && coinBundleShopButton}
+              {coinBundleShopButton}
             </div>
           )}
           </div>

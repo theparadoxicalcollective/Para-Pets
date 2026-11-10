@@ -42,7 +42,7 @@ test("Home-only navigation presents a grouped upper-right folio; other routes ke
   assert.match(nav, /setMainNavOpen\(isOpen && !navHidden\)/);
 });
 
-test("Main leads the original twelve routes, plus a compact Home-only coin shortcut", () => {
+test("Main leads the twelve original routes, plus a compact Support shortcut", () => {
   assert.match(nav, /const HOME_NAV_SECTIONS = \[/);
   assert.match(nav, /title: "Explore"/);
   assert.match(nav, /title: "Companions"/);
@@ -50,11 +50,12 @@ test("Main leads the original twelve routes, plus a compact Home-only coin short
   assert.match(nav, /ids: \["home", "map", "pethouse", "keepers"\]/);
   assert.match(nav, /section\.ids\.map\(id =>/);
   assert.doesNotMatch(nav, /Realm Paths/);
-  assert.match(nav, /data-testid="nav-item-coins"/);
-  assert.match(nav, /aria-label="Open coin bundles"/);
-  assert.match(nav, /if \(id === "coins"\).*navigate\("\/coins"\)/);
-  assert.match(nav, /<Compass/);
-  assert.doesNotMatch(nav, /mainNavIcon/);
+  assert.match(nav, /data-testid="nav-item-support"/);
+  assert.match(nav, /aria-label="Contact Support"/);
+  assert.match(nav, /if \(id === "support"\)/);
+  assert.match(nav, /para-pets:open-support/);
+  assert.doesNotMatch(nav, /data-testid="nav-item-coins"|<Compass/);
+  assert.match(nav, /src=\{mainNavIcon\}/);
   assert.match(nav, /handleLeft\(item\.id\) : handleRight\(item\.id\)/);
   assert.match(nav, /showQuestReward=\{item\.id === "quest" && questRewardReady\}/);
   assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
