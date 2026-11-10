@@ -72,7 +72,7 @@ test("hat, hair and face can all use the same head attachment without overwritin
   assert.deepEqual(layers.map(layer => layer.category), ["head", "hair", "face"]);
   assert.equal(layers.flatMap(layer => layer.segments).filter(segment => segment.partType === "head").length, 3);
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
-  assert.match(renderer, /clothingSegmentKey\\(segment\\)/);
+  assert.match(renderer, /clothingSegmentKey\(segment\)/);
   assert.match(renderer, /key=\{layer.key\}/);
   assert.match(renderer, /planeDepth\[layer.segment.renderPlane\]/);
   assert.match(renderer, /player-character-renderer__motion/);
