@@ -46,14 +46,6 @@
   padding-top: 3px;
   margin-top: 3px;
 }
-.home-realm-nav__label {
-  display: block;
-  font: 700 9px/10px Georgia, serif;
-  letter-spacing: .10em;
-  color: #d7c590;
-  text-transform: uppercase;
-  margin: 0 0 2px 2px;
-}
 .home-realm-nav__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
