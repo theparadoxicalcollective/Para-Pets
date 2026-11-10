@@ -314,7 +314,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         style={{
           // On Home, place the main button below the resource balances.
           // All other routes retain the original bottom-right placement.
-          top: isHome ? "min(242px, max(172px, calc(100dvh - 355px)))" : undefined,
+          top: isHome ? "min(242px, max(172px, calc(100dvh - 330px)))" : undefined,
           bottom: isHome ? undefined : 16,
           right: 12,
           width: BUTTON_SIZE,
