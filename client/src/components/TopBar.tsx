@@ -203,8 +203,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
   }, [showAdminMsgsPopup]);
 
   const hasRewards = pendingRewards.length > 0;
-  // Reuse one coin-bundle control; on Home it sits below the username,
-  // while other pages retain the existing resource-grid placement.
+  // Non-Home pages retain their resource-grid coin shop control.
+  // Home exposes the smaller coin shortcut from its main navigation instead.
   const coinBundleShopButton = (
     <button
       data-testid="button-coin-bag"
@@ -282,7 +282,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         {/* LEFT: portrait, Home account header, and resource balances */}
         <div className="flex flex-col items-start gap-0 min-w-0" data-testid="topbar-profile-resources">
           <div className="flex items-center gap-2"
-            style={location === "/" ? { flexWrap: "wrap", width: "min(calc(100vw - 24px), 260px)" } : undefined}>
+            style={location === "/" ? { flexWrap: "wrap", width: "min(calc(100vw - 24px), 340px)" } : undefined}>
           {/* Profile frame stays in place; only Home rearranges adjacent controls. */}
           {!hideProfile && <div className="flex flex-col items-center gap-0 flex-shrink-0" style={{ transform: "translateY(14px)" }}>
             <div className="relative flex-shrink-0" style={{ width: 100 }}>
@@ -483,14 +483,22 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           </div>}
           {location === "/" && !hideProfile && (
             <div data-testid="home-account-header"
-              className="flex min-w-0 flex-col items-start gap-2 self-start pt-3"
-              style={{ maxWidth: "max(90px, min(160px, calc(100vw - 230px)))" }}>
+              className="flex min-w-0 flex-col items-start self-start"
+              style={{ paddingTop: 23, maxWidth: "min(205px, calc(100vw - 138px))" }}>
               <span data-testid="home-header-player-name" title={user.username}
-                className="block w-full truncate font-fantasy text-[#f7dfa0] font-bold"
-                style={{ fontSize: "clamp(12px, 3.7vw, 17px)", textShadow: "0 2px 5px #010b06, 0 0 8px #010b06" }}>
+                className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
+                style={{
+                  fontSize: "clamp(13px, 3.9vw, 18px)",
+                  padding: "5px 9px 6px",
+                  letterSpacing: ".015em",
+                  borderLeft: "2px solid rgba(245, 205, 118, 0.92)",
+                  borderRadius: 8,
+                  background: "linear-gradient(90deg, rgba(5,25,17,0.93), rgba(9,39,28,0.72) 78%, rgba(9,39,28,0.18))",
+                  boxShadow: "-2px 2px 12px rgba(0,0,0,0.48)",
+                  textShadow: "0 1px 3px #010b06, 0 0 10px rgba(255,209,111,0.45)",
+                }}>
                 {user.username}
               </span>
-              {!hideCoins && coinBundleShopButton}
             </div>
           )}
 
