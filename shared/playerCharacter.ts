@@ -16,6 +16,19 @@ export const PLAYER_CHARACTER_PART_TYPES = [
 ] as const;
 export type PlayerCharacterPartType = typeof PLAYER_CHARACTER_PART_TYPES[number];
 
+/** Upload and front-to-back layering order for the simplified Masc/Fem editor.
+ * Only the new Save Body flow applies these depths. Legacy saved/published
+ * bodies and clothing edits keep their existing artwork-relative positions.
+ */
+export const SIMPLE_AVATAR_BODY_ORDER = [
+  "head", "top", "left_arm", "right_arm",
+  "left_leg", "right_leg", "left_foot", "right_foot",
+] as const satisfies readonly PlayerCharacterPartType[];
+export const SIMPLE_AVATAR_BODY_Z_INDEX: Record<PlayerCharacterPartType, number> = {
+  head: 80, top: 70, left_arm: 60, right_arm: 50,
+  left_leg: 40, right_leg: 30, left_foot: 20, right_foot: 10,
+};
+
 export const PLAYER_CHARACTER_PART_LABELS: Record<PlayerCharacterPartType, string> = {
   head: "Head",
   top: "Torso / Top",
