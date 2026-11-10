@@ -946,22 +946,22 @@ function PetView({
           <div className="pet-spotlight__eyebrow">Your Selected Companion</div>
           <div className="pet-spotlight__art">
             <div className="pet-spotlight__halo" aria-hidden="true" />
-            <button
-              type="button"
-              className="pet-spotlight__portrait border-0 bg-transparent p-0"
-              data-testid="inventory-featured-pet-art"
-              aria-label={selectedPet.eggImageUrl
-                ? `View original egg of ${selectedPet.petNickname || selectedPet.name}`
-                : `Portrait of ${selectedPet.petNickname || selectedPet.name}`}
-              onClick={() => showOriginalEgg(selectedPet)}
-              disabled={isDragging || !selectedPet.eggImageUrl}
-              style={{ cursor: selectedPet.eggImageUrl ? "pointer" : "default" }}
-            >
+            <div className="pet-spotlight__portrait" data-testid="inventory-featured-pet-art">
               {flippedPetId === selectedPet.inventoryId && selectedPet.eggImageUrl
                 ? <VisibleAssetImage src={selectedPet.eggImageUrl} alt="Original egg"
                     className="w-full h-full object-contain" />
                 : <HatchedPetArtwork pet={selectedPet} />}
-            </button>
+              {selectedPet.eggImageUrl && (
+                <button
+                  type="button"
+                  className="absolute inset-0 w-full h-full border-0 bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffdda0]"
+                  aria-label={`View original egg of ${selectedPet.petNickname || selectedPet.name}`}
+                  onClick={() => showOriginalEgg(selectedPet)}
+                  disabled={isDragging}
+                  style={{ cursor: "pointer", touchAction: "manipulation" }}
+                />
+              )}
+            </div>
             <span className="pet-spotlight__mote" aria-hidden="true" />
             <span className="pet-spotlight__mote" aria-hidden="true" />
             <span className="pet-spotlight__mote" aria-hidden="true" />
@@ -1074,9 +1074,9 @@ function PetView({
                   setSelectedPetId(pet.inventoryId);
                 }}
               >
-                <span className="pet-collection__tile-art">
+                <div className="pet-collection__tile-art">
                   <HatchedPetArtwork pet={pet} />
-                </span>
+                </div>
                 <span className="pet-collection__tile-name"
                   data-testid={`text-pet-name-${pet.shopItemId}`}>
                   {pet.petNickname || pet.name}
