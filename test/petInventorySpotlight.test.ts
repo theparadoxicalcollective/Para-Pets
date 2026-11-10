@@ -22,13 +22,13 @@ test("companion spotlight selects one saved hatched pet and retains active-pet f
   assert.match(inventory, /<InventoryPetPortrait/);
 });
 
-test("featured pet controls keep server-backed featured companion and pet-ID routes", () => {
+test("selected pet actions stay routed by inventory ID without a featured companion button", () => {
   assert.match(inventory, /data-testid=\{`button-pet-menu-\$\{selectedPet\.inventoryId\}`\}/);
   assert.match(inventory, /data-pet-menu-trigger/);
   assert.match(inventory, /<PetActionMenu inline/);
   assert.match(inventory, /navigate\(petInventoryActionHref\(action, inventoryId\)\)/);
-  assert.match(inventory, /data-testid=\{`button-feature-main-pet-\$\{selectedPet\.inventoryId\}`\}/);
-  assert.match(inventory, /onToggle\(selectedPet\.inventoryId\)/);
+  assert.doesNotMatch(inventory, /button-feature-main-pet-|Set Featured Companion| · Featured/);
+  assert.match(inventory, /spotlightRef\.current\?\.scrollIntoView/);
   assert.match(inventory, /apiRequest\("PATCH", "\/api\/user\/active-pet"/);
   assert.match(menu, /function InlinePetActionMenu/);
   assert.match(menu, /PET_MENU_ACTIONS\.map/);
@@ -41,7 +41,7 @@ test("featured pet controls keep server-backed featured companion and pet-ID rou
 
 test("unhatched eggs occupy a separated section with existing hatch-check and speedup flows", () => {
   assert.match(inventory, /data-testid="inventory-pets-eggs-divider"/);
-  assert.match(inventory, /Unhatched Eggs · \{petEggs\.length\}/);
+  assert.doesNotMatch(inventory, /Unhatched Eggs ·|Hatched Companions ·/);
   assert.match(inventory, /data-testid="inventory-pet-eggs"/);
   assert.match(inventory, /petEggs\.map\(pet =>/);
   assert.match(inventory, /apiRequest\("POST", `\/api\/pet\/\$\{inventoryId\}\/hatch-check`\)/);
@@ -53,7 +53,11 @@ test("unhatched eggs occupy a separated section with existing hatch-check and sp
 });
 
 test("the new forest-gold presentation keeps effects subtle and accessible", () => {
-  assert.match(inventory, /Companion Grove/);
+  assert.doesNotMatch(inventory, /Companion Grove|Your Selected Companion/);
+  assert.match(inventory, /className=\{pageMode \? "hidden" : "px-4 pb-0"\}/);
+  assert.match(showcaseCss, /grid-template-columns: clamp\(90px, 28vw, 132px\) minmax\(0, 1fr\)/);
+  assert.match(showcaseCss, /grid-template-columns: repeat\(auto-fill, minmax\(min\(27vw, 90px\), 1fr\)\)/);
+  assert.doesNotMatch(showcaseCss, /pet-spotlight__featured|pet-collection__section-head/);
   assert.match(inventory, /PetInventoryShowcase\.css/);
   assert.match(showcaseCss, /rgba\(17, 57, 39, \.95\)/);
   assert.match(showcaseCss, /\.pet-spotlight__mote/);
