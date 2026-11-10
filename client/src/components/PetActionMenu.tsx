@@ -28,6 +28,8 @@ interface PetActionMenuProps {
   anchor: HTMLButtonElement;
   onSelect: (action: PetAction, inventoryId: string) => void;
   onClose: () => void;
+  /** Keep the four tools physically attached to the featured pet card. */
+  inline?: boolean;
 }
 
 /**
@@ -36,7 +38,7 @@ interface PetActionMenuProps {
  * clickable; outside taps, card scrolling and camera gestures pass through.
  * No changes to the gardening tool's action/state system are required.
  */
-export default function PetActionMenu({
+function FloatingPetActionMenu({
   petInventoryId,
   petName,
   anchor,
@@ -152,4 +154,81 @@ export default function PetActionMenu({
       </div>
     </ViewportModalPortal>
   );
+}
+
+
+/** Four existing actions in a centered, readable bloom below the Pet Menu
+ * trigger. Unlike the legacy viewport popover it never drifts while scrolling
+ * or overlaps other pets, and it fits the smallest supported phone. */
+function InlinePetActionMenu({
+  petInventoryId,
+  petName,
+  anchor,
+  onSelect,
+  onClose,
+}: PetActionMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (menuRef.current?.contains(event.target)) return;
+      if (event.target instanceof Element && event.target.closest("[data-pet-menu-trigger]")) return;
+      onClose();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+        if (anchor.isConnected) anchor.focus();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [anchor, onClose]);
+
+  useEffect(() => {
+    menuRef.current?.querySelector<HTMLButtonElement>("[data-pet-action]")?.focus({ preventScroll: true });
+  }, [petInventoryId]);
+
+  return (
+    <div
+      ref={menuRef}
+      data-testid="inventory-pet-action-menu"
+      data-pet-inventory-id={petInventoryId}
+      data-menu-layout="inline"
+      role="group"
+      aria-label={`Pet actions for ${petName}`}
+      className="pet-action-inline-panel"
+    >
+      {PET_MENU_ACTIONS.map(({ action, label }, index) => (
+        <button
+          key={action}
+          type="button"
+          data-pet-action={action}
+          data-testid={`inventory-pet-action-${action}`}
+          aria-label={`${label} for ${petName}`}
+          title={label}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(action, petInventoryId);
+          }}
+          className="pet-action-inline-option pet-action-bubble"
+          style={{ animationDelay: `${index * 40}ms`, touchAction: "manipulation" }}
+        >
+          <img src={ACTION_IMAGES[action]} alt="" aria-hidden="true" draggable={false} />
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function PetActionMenu(props: PetActionMenuProps) {
+  return props.inline
+    ? <InlinePetActionMenu {...props} />
+    : <FloatingPetActionMenu {...props} />;
 }
