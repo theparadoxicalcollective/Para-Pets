@@ -259,68 +259,64 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // Twelve original routes plus Support share the Home folio.
-    // The Coin Bundles shortcut now lives beneath the Home resource bars.
+    // Main opens independent right-edge icons. Once the vertical space is
+    // filled, remaining items wrap into columns to the left, never a folio box.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
-    await page.waitForTimeout(260); // short folio reveal animation
+    await page.waitForTimeout(240);
     const panelGeometry = await page.getByTestId("home-realm-nav-panel").evaluate(el => {
-      const r = el.getBoundingClientRect();
-      return { left:r.left, right:r.right, top:r.top, bottom:r.bottom };
+      const r = el.getBoundingClientRect(), style=getComputedStyle(el);
+      return { left:r.left,right:r.right,top:r.top,bottom:r.bottom,
+        background:style.backgroundImage,color:style.backgroundColor };
     });
     assert.ok(panelGeometry.left >= -1 && panelGeometry.right <= sc.width + 1 &&
-      panelGeometry.top >= 0 && panelGeometry.bottom <= sc.height - 8,
-      sc.name+": realm folio fits within device viewport: "+JSON.stringify(panelGeometry));
-    assert.ok(panelGeometry.right < homeLayout.navButton.left + 2,
-      sc.name+": realm folio stays beside the main menu button");
-    if (sc.height >= 800) {
-      assert.ok(panelGeometry.bottom <= homeLayout.stars.top + 12,
-        sc.name+": realm folio stays above player star arc: "+JSON.stringify({
-          panel:panelGeometry,stars:homeLayout.stars,
-        }));
-    }
-    assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").count(),3,
-      sc.name+": world, companions and activity categories are grouped");
-    assert.equal(await page.getByTestId("home-realm-nav-panel").getByText("Realm Paths").count(),0,
-      sc.name+": old Realm Paths heading is gone");
-    assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").first()
-      .locator('[data-testid^="nav-item-"]').first().getAttribute("data-testid"),"nav-item-home",
-      sc.name+": Main is the first menu route");
-    assert.equal(await page.getByTestId("nav-item-support").getAttribute("aria-label"),"Contact Support",
-      sc.name+": Support is in the main navigation");
+      panelGeometry.top >= homeLayout.navButton.bottom + 6 && panelGeometry.bottom <= sc.height - 8,
+      sc.name+": icon rail fits below main nav and within viewport: "+JSON.stringify(panelGeometry));
+    assert.equal(panelGeometry.background,"none",sc.name+": no boxed navigation background");
+    assert.ok(panelGeometry.color==="rgba(0, 0, 0, 0)" || panelGeometry.color==="transparent",
+      sc.name+": floating icons have no panel fill");
+    assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").count(),0,
+      sc.name+": obsolete boxed category sections are removed");
     assert.equal(await page.getByTestId("nav-item-coins").count(),0,
-      sc.name+": coin shop is no longer a main navigation tile");
+      sc.name+": Coin Bundles stays under the coin balance");
     const navigation = await page.evaluate(() => {
-      const elements = Array.from(document.querySelectorAll('[data-testid^="nav-item-"]'));
-      return elements.map(el => {
-        const r = el.getBoundingClientRect();
-        const elementAtCenter = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return {
-          id: el.getAttribute("data-testid"),
-          left: r.left, right: r.right, top: r.top, bottom: r.bottom,
-          hit: el === elementAtCenter || el.contains(elementAtCenter),
-        };
+      const elements=Array.from(document.querySelectorAll('[data-testid^="nav-item-"]'));
+      return elements.map(el=>{
+        const r=el.getBoundingClientRect();
+        const atCenter=document.elementFromPoint(r.left + r.width/2,r.top + r.height/2);
+        return {id:el.getAttribute("data-testid"),left:r.left,right:r.right,
+          top:r.top,bottom:r.bottom,hit:el===atCenter||el.contains(atCenter)};
       });
     });
-    assert.equal(navigation.length,13, sc.name+": all twelve routes and Support remain");
+    assert.equal(navigation.length,13,sc.name+": twelve original routes and Support remain");
     assert.equal(new Set(navigation.map(item=>item.id)).size,13,
-      sc.name+": no duplicated navigation routes");
-    for (const item of navigation) {
-      assert.ok(item.left >= -1 && item.right <= sc.width + 1 &&
-        item.top >= 0 && item.bottom <= sc.height - 8,
-        sc.name+": expanded nav fits the phone/tablet screen: "+JSON.stringify(item));
-      assert.ok(item.hit, sc.name+": expanded navigation item can be tapped: "+item.id);
+      sc.name+": no duplicated destinations");
+    assert.equal(navigation[0].id,"nav-item-home",sc.name+": Main is first priority");
+    assert.equal(navigation[navigation.length-1].id,"nav-item-support",
+      sc.name+": Support is always the last navigation action");
+    const columns=[...new Set(navigation.map(item=>Math.round(item.left)))].sort((x,y)=>y-x);
+    assert.ok(columns.length >= (sc.height<=844 ? 2 : 1) && columns.length <= 4,
+      sc.name+": compact screens flow excess icons left: "+JSON.stringify(columns));
+    assert.ok(Math.abs(navigation[0].right - homeLayout.navButton.right)<=2,
+      sc.name+": first icons align with the right edge of the main nav button");
+    for(const item of navigation){
+      assert.ok(item.left>=-1 && item.right<=sc.width+1 &&
+        item.top>=homeLayout.navButton.bottom+5 && item.bottom<=sc.height-8,
+        sc.name+": navigation icon remains on screen: "+JSON.stringify(item));
+      assert.ok(item.hit,sc.name+": floating icon remains tappable: "+item.id);
     }
-    for(let i=0;i<navigation.length;i++){
-      for(let j=i+1;j<navigation.length;j++){
-        const a=navigation[i],b=navigation[j];
-        const overlapWidth=Math.min(a.right,b.right)-Math.max(a.left,b.left);
-        const overlapHeight=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
-        assert.ok(overlapWidth<=0 || overlapHeight<=0,
-          sc.name+": expanded navigation targets do not overlap: "+a.id+" / "+b.id);
-      }
+    for(let i=0;i<navigation.length;i++)for(let j=i+1;j<navigation.length;j++){
+      const a=navigation[i],b=navigation[j];
+      assert.ok(Math.min(a.right,b.right)-Math.max(a.left,b.left)<=0 ||
+        Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)<=0,
+        sc.name+": no overlapping icon hit targets: "+a.id+" / "+b.id);
     }
+    const support=navigation[navigation.length-1];
+    assert.ok(Math.abs(support.bottom - Math.max(...navigation.map(item=>item.bottom))) <= 2,
+      sc.name+": Support is at the bottom of the navigation rail");
+    assert.ok(Math.abs(support.left - Math.min(...navigation.map(item=>item.left)))<=2,
+      sc.name+": overflow columns grow toward the left with Support last");
     await page.getByTestId("nav-item-support").tap();
     await page.getByTestId("button-close-support-modal").waitFor({state:"visible"});
     await page.getByTestId("button-close-support-modal").tap();
