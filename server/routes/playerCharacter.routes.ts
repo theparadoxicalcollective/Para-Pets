@@ -4,9 +4,8 @@ import type { db as database } from "../db";
 import { playerCharacterBases } from "@shared/schema";
 import {
   completePlayerCharacterParts,
-  DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_TYPES,
-  SIMPLE_AVATAR_BODY_Z_INDEX,
+  canvasAlignedAvatarBodyTransform,
   playerCharacterBodyWriteSchema,
   resolvePlayerCharacterParts,
   playerCharacterNameSchema,
@@ -138,32 +137,29 @@ export function registerPlayerCharacterRoutes(
       if (current.revision !== payload.data.expectedRevision)
         return res.status(409).json({ message: "This body changed elsewhere. Reload before saving." });
 
+      // An empty upload list is only useful to realign already saved artwork.
+      if (!payload.data.parts.length && !resolvePlayerCharacterParts(current.draftParts).length) {
+        return res.status(400).json({ message: "Upload a body part before saving" });
+      }
       let draftParts = current.draftParts;
       for (const part of payload.data.parts) {
-        const saved = resolvePlayerCharacterParts(draftParts)
-          .find(item => item.partType === part.partType);
-        const transform = saved
-          ? {
-              xPct: saved.xPct, yPct: saved.yPct, widthPct: saved.widthPct,
-              pivotXPct: saved.pivotXPct, pivotYPct: saved.pivotYPct,
-              rotationDeg: saved.rotationDeg,
-            }
-          : DEFAULT_PLAYER_CHARACTER_TRANSFORMS[part.partType];
         const imageUrl = await processImage(part.imageData, 1000);
         draftParts = upsertPlayerCharacterPart(draftParts, {
-          ...transform,
-          zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[part.partType],
+          ...canvasAlignedAvatarBodyTransform(part.partType),
           partType: part.partType,
           imageUrl,
         });
       }
-      // Keep all eight render layers in their stable anatomical order. Head is
-      // topmost; older legacy Body/Eyes records remain archived and untouched.
+      // Every native draft image is already a complete 1000×1000 transparent
+      // canvas. Align the previously saved pieces too (even when the request
+      // only uploads one replacement or just applies the alignment fix).
+      // Leave archived Body/Eyes and the published snapshot unchanged.
       const orderedDraft = draftParts.map(part =>
         PLAYER_CHARACTER_PART_TYPES.some(type => type === part.partType)
-          ? { ...part, zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[
-              part.partType as keyof typeof SIMPLE_AVATAR_BODY_Z_INDEX
-            ] }
+          ? {
+              ...part,
+              ...canvasAlignedAvatarBodyTransform(part.partType as typeof PLAYER_CHARACTER_PART_TYPES[number]),
+            }
           : part
       );
       const [updated] = await db.update(playerCharacterBases).set({
