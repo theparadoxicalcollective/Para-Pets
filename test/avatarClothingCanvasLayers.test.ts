@@ -143,5 +143,6 @@ test("admin and renderer actually use shared canvas images rather than local dra
   assert.match(batch,/canvasClothingFit\(\)/);
   assert.match(batch,/eq\(playerClothingDrafts.revision, draft.revision\)/);
   assert.equal((batch.match(/db.update\(playerClothingDrafts\)/g)??[]).length,1);
-  assert.doesNotMatch(batch,/publishedSegments:|shopItemId:|publishedAt:/);
+  assert.doesNotMatch(batch,/publishedSegments:|shopItemId:|publishedAt: new Date/);
+  assert.match(batch,/draftSegments,/);
 });
