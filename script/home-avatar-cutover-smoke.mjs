@@ -237,18 +237,36 @@ try {
     assert.ok(homeLayout.levelPill.bottom <= homeLayout.party.top + 8,
       sc.name+": lowered XP and level pill do not block pet selection");
     assert.ok(homeLayout.navButton, sc.name+": main nav button is present");
-    assert.ok(homeLayout.navButton.top >= homeLayout.essence.bottom + 4,
-      sc.name+": main nav sits under the essence row, on the right");
+    assert.ok(homeLayout.navButton.top >= homeLayout.headerName.bottom + 6 &&
+      homeLayout.navButton.top < homeLayout.actor.top - 14,
+      sc.name+": main nav sits above the avatar at the right edge, not on top of its stars");
     assert.ok(homeLayout.navButton.left >= sc.width - 88 &&
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // The floating button is higher on Home. Its previous seven-item UPWARD
-    // fan would clip off short phones; the same actions now expand into a
-    // three-column grid below it, with distinct fully tappable 50px targets.
+    // The twelve routes are inside a compact, green-and-gold Home folio
+    // to the left of the upper-right button. Other pages keep their old fan.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
-    await page.waitForTimeout(700); // let staggered item transitions settle
+    await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
+    await page.waitForTimeout(260); // short folio reveal animation
+    const panelGeometry = await page.getByTestId("home-realm-nav-panel").evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return { left:r.left, right:r.right, top:r.top, bottom:r.bottom };
+    });
+    assert.ok(panelGeometry.left >= -1 && panelGeometry.right <= sc.width + 1 &&
+      panelGeometry.top >= 0 && panelGeometry.bottom <= sc.height - 8,
+      sc.name+": realm folio fits within device viewport: "+JSON.stringify(panelGeometry));
+    assert.ok(panelGeometry.right < homeLayout.navButton.left + 2,
+      sc.name+": realm folio stays beside the main menu button");
+    if (sc.height >= 800) {
+      assert.ok(panelGeometry.bottom <= homeLayout.stars.top + 12,
+        sc.name+": realm folio stays above player star arc: "+JSON.stringify({
+          panel:panelGeometry,stars:homeLayout.stars,
+        }));
+    }
+    assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").count(),3,
+      sc.name+": world, companions and activity categories are grouped");
     const navigation = await page.evaluate(() => {
       const elements = Array.from(document.querySelectorAll('[data-testid^="nav-item-"]'));
       return elements.map(el => {
@@ -262,6 +280,8 @@ try {
       });
     });
     assert.equal(navigation.length,12, sc.name+": all twelve original navigation actions remain");
+    assert.equal(new Set(navigation.map(item=>item.id)).size,12,
+      sc.name+": no duplicated navigation routes");
     for (const item of navigation) {
       assert.ok(item.left >= -1 && item.right <= sc.width + 1 &&
         item.top >= 0 && item.bottom <= sc.height - 8,
