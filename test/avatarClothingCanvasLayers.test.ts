@@ -145,4 +145,6 @@ test("admin and renderer actually use shared canvas images rather than local dra
   assert.equal((batch.match(/db.update\(playerClothingDrafts\)/g)??[]).length,1);
   assert.doesNotMatch(batch,/publishedSegments:|shopItemId:|publishedAt: new Date/);
   assert.match(batch,/draftSegments,/);
+  assert.equal((route.match(/segment.canvasAligned \|\| segment.slot/g)??[]).length,2,
+    "Both legacy edit/delete routes must reject full-canvas multi-slot drafts");
 });
