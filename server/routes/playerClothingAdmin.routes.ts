@@ -180,6 +180,14 @@ export function registerPlayerClothingAdminRoutes(
         .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== body.data.expectedRevision) return res.status(409).json(conflict);
+      // Compatibility endpoint for OLD editor sessions only. Once an item
+      // uses named full-canvas slots, reject legacy per-part edits that could
+      // resize a new garment or delete several same-head images at once.
+      if (draft.draftSegments.some(segment => segment.canvasAligned || segment.slot)) {
+        return res.status(410).json({
+          message: "Refresh the clothing editor and use Save Artwork for this design",
+        });
+      }
       const [base] = await db.select({ publishedAt: playerCharacterBases.publishedAt })
         .from(playerCharacterBases).where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
       if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
@@ -225,6 +233,14 @@ export function registerPlayerClothingAdminRoutes(
         .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== body.data.expectedRevision) return res.status(409).json(conflict);
+      // Compatibility endpoint for OLD editor sessions only. Once an item
+      // uses named full-canvas slots, reject legacy per-part edits that could
+      // resize a new garment or delete several same-head images at once.
+      if (draft.draftSegments.some(segment => segment.canvasAligned || segment.slot)) {
+        return res.status(410).json({
+          message: "Refresh the clothing editor and use Save Artwork for this design",
+        });
+      }
       const [updated] = await db.update(playerClothingDrafts).set({
         draftSegments: draft.draftSegments.filter(item => item.partType !== type.data),
         revision: draft.revision + 1, updatedAt: new Date(),
