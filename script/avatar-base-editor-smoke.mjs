@@ -37,7 +37,7 @@ const server=await createServer({
 const png=Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==","base64");
 const partOrder=["head","top","left_arm","right_arm","left_leg","right_leg","left_foot","right_foot"];
-const zIndex={head:50,top:30,left_arm:35,right_arm:36,left_leg:10,right_leg:11,left_foot:15,right_foot:16};
+const zIndex={head:80,top:70,left_arm:60,right_arm:50,left_leg:40,right_leg:30,left_foot:20,right_foot:10};
 await server.listen();
 const browser=await chromium.launch({headless:true});
 try{
