@@ -133,7 +133,7 @@ test("server creates private draft storage and catalog SKU only at explicit Save
   assert.match(app, /if \(parse\.data\.type === "clothing"\)/);
 });
 
-test("admin drag preview reuses the shared eight-part renderer and preserves existing avatar editor", () => {
+test("clothing admin uses shared full-canvas renderer and upload tiles, not drag-fit tools", () => {
   const component = read("client/src/components/PlayerClothingAdminPanel.tsx");
   const base = read("client/src/components/PlayerCharacterAdminPanel.tsx");
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
@@ -141,15 +141,16 @@ test("admin drag preview reuses the shared eight-part renderer and preserves exi
   assert.match(base, /avatar-open-create-clothing/);
   assert.match(base, /lazyWithRetry\(\(\) => import\("\.\/PlayerClothingAdminPanel"\)\)/);
   assert.match(component, /<PlayerCharacterRenderer parts=\{bodyParts\} clothingSegments=\{previewSegments\}/);
-  assert.match(component, /setPointerCapture\(event\.pointerId\)/);
-  assert.match(component, /pointerToCharacterPartLocal/);
-  assert.match(component, /touchAction: "none"/);
+  assert.match(component, /previewClothingCategory=\{selected.category\}/);
+  assert.match(component, /avatar-clothing-fit-canvas/);
+  assert.match(component, /PLAYER_CLOTHING_UPLOAD_SLOTS\[selected.category\]/);
+  assert.match(component, /avatar-save-clothing-artwork/);
   assert.match(component, /avatar-publish-clothing/);
-  assert.match(renderer, /clothingSegments\.map\(segment =>/);
-  assert.match(renderer, /categoryOrder: 0/, "Admin clothing drafts must render above the base image in with_part mode");
-  assert.match(renderer, /layers\.filter\(layer => layer\.segment\.partType === part\.partType\)/);
-  assert.match(renderer, /data-clothing-part=\{layer\.segment\.partType\}/);
-  assert.match(styles, /player-character-renderer__clothing/);
+  assert.doesNotMatch(component, /setPointerCapture|pointerToCharacterPartLocal|Horizontal fit|Vertical fit|Rotation \(°\)|onPointerDown|onPointerMove|touchAction: "none"/);
+  assert.match(renderer, /fullCanvas\.map\(layer =>/);
+  assert.match(renderer, /oldPartLocal\.filter\(layer => layer.segment.partType === part.partType\)/);
+  assert.match(renderer, /data-clothing-slot=\{layer.segment.slot \?\? layer.segment.partType\}/);
+  assert.match(styles, /player-character-renderer__canvas-image/);
   assert.doesNotMatch(component, /PetAnimator|activePetId|390\s*[×x]\s*844/);
   assert.doesNotMatch(read("client/src/pages/HomePage.tsx"), /PlayerClothingAdminPanel/);
 });
