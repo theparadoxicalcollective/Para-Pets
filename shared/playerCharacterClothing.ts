@@ -75,17 +75,25 @@ export const PLAYER_CLOTHING_RENDER_PLANES = [
 ] as const;
 export const playerClothingRenderPlaneSchema = z.enum(PLAYER_CLOTHING_RENDER_PLANES);
 
+/** Per-shoe item layering preference, stored in each published image segment.
+ * Existing footwear without a preference continues to appear UNDER pants.
+ */
+export const PLAYER_SHOES_LAYER_OPTIONS = ["under", "over"] as const;
+export type PlayerShoesLayer = typeof PLAYER_SHOES_LAYER_OPTIONS[number];
+export const playerShoesLayerSchema = z.enum(PLAYER_SHOES_LAYER_OPTIONS);
+
 export const canvasClothingFit = (): PlayerCharacterTransform => ({
   xPct: 50, yPct: 50, widthPct: 100,
   pivotXPct: 50, pivotYPct: 50, rotationDeg: 0, zIndex: 1,
 });
 
-/** Stable global depth: Back < Hair Back < Body < Shoes < Bottoms < Tops
- * < Face < Hair Front < Head Accessories < Accessories. */
-export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string): number {
+/** Stable global depth. Shoes can sit UNDER (default) or OVER pants,
+ * but both choices remain below Tops; all other category depths are fixed.
+ */
+export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string, shoesLayer: PlayerShoesLayer = "under"): number {
   if (category === "back") return -10;
   if (category === "hair" && slot === "hair_back") return -5;
-  if (category === "shoes") return 35;
+  if (category === "shoes") return shoesLayer === "over" ? 65 : 35;
   if (category === "bottom") return 55;
   if (category === "top") return 75;
   if (category === "face") return slot === "face_mouth" ? 102 : 100;
@@ -100,6 +108,7 @@ export const playerClothingSegmentSchema = z.object({
   partType: z.enum(PLAYER_CLOTHING_SEGMENT_TYPES),
   slot: playerClothingSlotSchema.optional(),
   canvasAligned: z.boolean().optional(),
+  shoesLayer: playerShoesLayerSchema.optional(),
   imageUrl: z.string().regex(/^\/api\/media\/[a-zA-Z0-9-]{1,80}$/),
   fit: playerCharacterTransformSchema,
   renderPlane: playerClothingRenderPlaneSchema.default("with_part"),
@@ -118,6 +127,15 @@ export const playerClothingDefinitionSchema = z.object({
   segments: z.array(playerClothingSegmentSchema).min(1).max(13),
 }).strict().superRefine(({ segments, category }, ctx) => {
   const used = new Set<string>();
+  const footwearPreferences = new Set(segments.map(segment => segment.shoesLayer ?? "under"));
+  if (category === "shoes" && footwearPreferences.size > 1) {
+    ctx.addIssue({ code: "custom", path: ["segments"],
+      message: "All images in a pair of shoes must use the same pants layering" });
+  }
+  if (category !== "shoes" && segments.some(segment => segment.shoesLayer !== undefined)) {
+    ctx.addIssue({ code: "custom", path: ["segments"],
+      message: "Pants layering applies only to shoes" });
+  }
   segments.forEach((segment, index) => {
     const key = clothingSegmentKey(segment);
     if (used.has(key)) {
