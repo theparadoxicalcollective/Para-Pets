@@ -140,13 +140,13 @@ function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: s
 /** Home-only dense navigation. Labels remain visible, buttons are at least
  * 44px high, and route/badge logic stays owned by FloatingNav. */
 function HomeNavTile({
-  icon, label, onClick, testId, questBadge,
+  icon, label, onClick, testId, showQuestReward,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   testId: string;
-  questBadge: boolean;
+  showQuestReward: boolean;
 }) {
   return (
     <button
@@ -158,7 +158,7 @@ function HomeNavTile({
     >
       <img src={icon} alt="" draggable={false} aria-hidden="true" />
       <span className="home-realm-nav__tile-label">{label}</span>
-      {questBadge && <QuestRewardBadge style={{ top: -7, right: -6 }} />}
+      {showQuestReward && <QuestRewardBadge style={{ top: -7, right: -6 }} />}
     </button>
   );
 }
@@ -385,7 +385,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                       <HomeNavTile key={item.id} icon={item.icon}
                         label={item.label}
                         testId={`nav-item-${item.id}`}
-                        questBadge={item.id === "quest" && questRewardReady}
+                        showQuestReward={item.id === "quest" && questRewardReady}
                         onClick={() => leftItem ? handleLeft(item.id) : handleRight(item.id)}
                       />
                     );
