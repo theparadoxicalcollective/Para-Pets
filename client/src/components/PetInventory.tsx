@@ -926,7 +926,9 @@ function PetView({
     else onEggSpeedUp?.(pet.inventoryId);
   };
 
-  if (pets.length === 0) {
+  // Full-page view always exposes the Pets/Eggs tabs, even for an empty
+  // account. The legacy overlay keeps its existing empty presentation.
+  if (pets.length === 0 && !pageMode) {
     return (
       <div className="pet-collection__empty" data-testid="inventory-pets-empty">
         <img src={eggMagicIcon} alt="" className="w-16 h-16 object-contain mx-auto mb-3 opacity-50" />
