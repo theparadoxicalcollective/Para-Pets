@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Bell, BellOff } from "lucide-react";
+import { X, Bell, BellOff, MessageCircle, MessageCircleOff } from "lucide-react";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
 import { playClick } from "@/lib/sounds";
 
@@ -20,7 +20,9 @@ interface WorldChatMessage {
 interface WorldChatPanelProps {
   currentUserId: string;
   onClose: () => void;
-  onNewMessage?: () => void;
+  /** Mutes only the Home speech oval, not the server-side name shoutouts. */
+  announcementBubblesMuted?: boolean;
+  onAnnouncementBubblesMutedChange?: (muted: boolean) => void;
 }
 
 const GOLD = "#f0c040";
@@ -35,9 +37,11 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 3600)}h`;
 }
 
-export default function WorldChatPanel({ currentUserId: _currentUserId, onClose, onNewMessage }: WorldChatPanelProps) {
+export default function WorldChatPanel({
+  currentUserId: _currentUserId, onClose,
+  announcementBubblesMuted = false, onAnnouncementBubblesMutedChange,
+}: WorldChatPanelProps) {
   const [showShoutoutConfirm, setShowShoutoutConfirm] = useState(false);
-  const lastMsgCountRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
@@ -70,27 +74,18 @@ export default function WorldChatPanel({ currentUserId: _currentUserId, onClose,
     }
   }, [announcements.length]);
 
-  useEffect(() => {
-    if (messages.length > lastMsgCountRef.current) {
-      if (lastMsgCountRef.current > 0 && onNewMessage) {
-        onNewMessage();
-      }
-      lastMsgCountRef.current = messages.length;
-    }
-  }, [messages.length, onNewMessage]);
-
   return (
     <div
       data-testid="panel-world-chat"
       className="absolute flex flex-col"
       style={{
-        top: 56,
-        right: 12,
-        width: "min(320px, calc(calc(100*var(--vw)) - 24px))",
-        height: "min(420px, calc(58*var(--vh)))",
+        bottom: "calc(54px + env(safe-area-inset-bottom, 0px))",
+        left: "max(12px, calc((100vw - min(calc(100vw - 34px), 430px)) / 2))",
+        width: "min(320px, calc(100vw - 24px))",
+        height: "min(420px, calc(60dvh - 30px))",
         borderRadius: 16,
-        background: "linear-gradient(160deg, rgba(8,4,2,0.97) 0%, rgba(22,12,4,0.97) 100%)",
-        border: "1.5px solid rgba(240,192,64,0.35)",
+        background: "linear-gradient(160deg, rgba(9,39,27,0.98), rgba(3,22,16,0.98))",
+        border: "1.5px solid rgba(234,199,119,0.7)",
         boxShadow: "0 8px 40px rgba(0,0,0,0.85), 0 0 20px rgba(240,192,64,0.08)",
         zIndex: 10001,
         overflow: "hidden",
@@ -102,7 +97,7 @@ export default function WorldChatPanel({ currentUserId: _currentUserId, onClose,
       {showShoutoutConfirm && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center"
-          style={{ background: "rgba(6,3,1,0.97)", zIndex: 10, borderRadius: 15 }}
+          style={{ background: "rgba(4,28,18,0.98)", zIndex: 10, borderRadius: 15 }}
         >
           <Bell size={28} style={{ color: VW_COLOR }} />
           <p className="text-sm font-semibold" style={{ color: GOLD }}>
@@ -154,6 +149,23 @@ export default function WorldChatPanel({ currentUserId: _currentUserId, onClose,
           </span>
         </div>
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            data-testid="button-toggle-watcher-announcement-bubbles"
+            onClick={() => onAnnouncementBubblesMutedChange?.(!announcementBubblesMuted)}
+            title={announcementBubblesMuted ? "Show Watcher speech announcements" : "Silence Watcher speech announcements"}
+            aria-label={announcementBubblesMuted ? "Show Watcher speech announcements" : "Silence Watcher speech announcements"}
+            aria-pressed={announcementBubblesMuted}
+            className="flex items-center justify-center rounded-full transition-transform active:scale-90"
+            style={{
+              width: 28, height: 28,
+              background: "rgba(214,177,107,0.12)",
+              border: "1px solid rgba(234,199,119,0.5)",
+              cursor: "pointer", color: "#ffe4a7",
+            }}
+          >
+            {announcementBubblesMuted ? <MessageCircleOff size={14} /> : <MessageCircle size={14} />}
+          </button>
           <button
             data-testid="button-toggle-shoutouts"
             onClick={() => setShowShoutoutConfirm(true)}
