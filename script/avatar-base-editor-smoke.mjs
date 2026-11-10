@@ -12,6 +12,7 @@ const fixture=[
   'import PlayerCharacterAdminPanel from "@/components/PlayerCharacterAdminPanel";',
   'import "@/index.css";',
   'queryClient.setDefaultOptions({queries:{...queryClient.getDefaultOptions().queries,retry:false,refetchOnWindowFocus:false}});',
+  'window.__avatarBodyFixtureQueryClient=queryClient;',
   'createRoot(document.getElementById("root")).render(<QueryClientProvider client={queryClient}>',
   '<PlayerCharacterAdminPanel />',
   '</QueryClientProvider>);',
@@ -80,11 +81,6 @@ try{
         const next=new Map(old.draftParts.map(p=>[p.partType,p]));
         for(const part of body.parts){
           assert.ok(part.imageData.startsWith("data:image/png;base64,"));
-          const defaults={
-            head:[50,29,42],top:[50,58,50],left_arm:[28,48,21],
-            right_arm:[72,48,21],left_leg:[42,72,24],
-            right_leg:[58,72,24],left_foot:[42,88,24],right_foot:[58,88,24],
-          }[part.partType];
           // Match the real processed-media URL contract. Raw anatomy names
           // contain underscores (left_arm, right_foot), which are NOT valid
           // processed asset IDs; otherwise completePlayerCharacterParts()
@@ -94,11 +90,17 @@ try{
           next.set(part.partType,{
             partType:part.partType,
             imageUrl,
-            xPct:defaults[0],yPct:defaults[1],widthPct:defaults[2],
+            xPct:50,yPct:50,widthPct:100,
             pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:zIndex[part.partType],
           });
         }
-        const updated={...old,draftParts:[...next.values()],revision:old.revision+1};
+        // Re-saving an existing body with no new artwork should correct its
+        // old per-part placement without touching the stored image URLs.
+        const alignedParts=[...next.values()].map(part=>({
+          ...part,xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,
+          rotationDeg:0,zIndex:zIndex[part.partType],
+        }));
+        const updated={...old,draftParts:alignedParts,revision:old.revision+1};
         bases=bases.map(b=>b.id===id?updated:b);
         return route.fulfill({json:updated});
       }
@@ -117,8 +119,9 @@ try{
     assert.equal(await page.getByTestId("avatar-save-body").isDisabled(),true);
     const preview=page.getByTestId("avatar-body-preview-box");
     const originalBox=await preview.boundingBox();
-    assert.ok(originalBox && originalBox.width<=sc.width-24 && originalBox.height<=270,
-      sc.name+": preview fits the mobile screen");
+    assert.ok(originalBox && originalBox.width<=Math.min(360,sc.width-24) &&
+      originalBox.height<=360 && originalBox.width>=Math.min(255,sc.width-50),
+      sc.name+": enlarged square preview stays inside the mobile screen");
     for(const part of partOrder){
       await page.getByTestId("avatar-upload-"+part).setInputFiles({
         name:part+".png",mimeType:"image/png",buffer:png,
@@ -131,6 +134,24 @@ try{
         z:Number(getComputedStyle(el).zIndex)})));
     assert.equal(rendered.length,8,sc.name+": all eight uploads appear in actual compositor");
     assert.equal(rendered[rendered.length-1].part,"head",sc.name+": head sits on top");
+    const aligned=await page.locator('[data-character-part]').evaluateAll(els=>
+      els.map(el=>{
+        const r=el.getBoundingClientRect();
+        return {part:el.getAttribute("data-character-part"),
+          left:r.left,top:r.top,width:r.width,height:r.height};
+      }));
+    assert.equal(aligned.length,8);
+    for(const item of aligned){
+      assert.ok(Math.abs(item.left-aligned[0].left)<1 &&
+        Math.abs(item.top-aligned[0].top)<1 &&
+        Math.abs(item.width-aligned[0].width)<1 &&
+        Math.abs(item.height-aligned[0].height)<1,
+        sc.name+": "+item.part+" must share exactly the same image canvas "+
+        JSON.stringify({item,reference:aligned[0]}));
+      assert.ok(Math.abs(item.width-originalBox.width)<2,
+        sc.name+": avatar layer fills the full preview square");
+    }
+
     assert.equal(await page.getByTestId("avatar-publish-default").count(),0,
       sc.name+": incomplete unsaved body cannot publish");
     const firstSaveResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
@@ -143,6 +164,36 @@ try{
     assert.equal(saves[0].body.parts.length,8);
     assert.equal(bases.find(b=>b.name==="Fem")?.revision,1);
     await page.getByTestId("avatar-publish-default").waitFor({state:"visible"});
+
+    // Simulate an existing Fem draft saved with old anatomy sprite offsets.
+    // Reopening it should show aligned artwork immediately, and Save Body
+    // should migrate the draft with no need to upload every part again.
+    bases=bases.map(base=>base.name==="Fem"
+      ? {...base,draftParts:base.draftParts.map(part=>part.partType==="head"
+        ? {...part,xPct:50,yPct:29,widthPct:42,pivotXPct:50,pivotYPct:50}
+        : part)}
+      : base);
+    await page.evaluate(async()=>window.__avatarBodyFixtureQueryClient.invalidateQueries({
+      queryKey:["/api/admin/player-character/bases"],
+    }));
+    await page.getByTestId("avatar-save-body").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("avatar-save-body").isEnabled(),true,
+      sc.name+": old misaligned saved body can be fixed without reupload");
+    const oldHead=await page.locator('[data-character-part="head"]').evaluate(el=>{
+      const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width};
+    });
+    assert.ok(Math.abs(oldHead.x-aligned[0].left)<1 &&
+      Math.abs(oldHead.y-aligned[0].top)<1 &&
+      Math.abs(oldHead.width-aligned[0].width)<1,
+      sc.name+": legacy saved head previews on full canvas before resave");
+    const alignResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
+    await page.getByTestId("avatar-save-body").click();
+    await alignResponse;
+    assert.equal(requests.filter(x=>x.method==="PUT").at(-1).body.parts.length,0,
+      sc.name+": Save Body aligns old draft without replacement images");
+    assert.ok(bases.find(b=>b.name==="Fem")?.draftParts.every(part=>
+      part.xPct===50 && part.yPct===50 && part.widthPct===100),
+      sc.name+": corrected transforms persist in one draft update");
 
     await page.getByTestId("avatar-body-masc").click();
     assert.equal(await page.locator('[data-character-motion-part]').count(),0,
