@@ -84,6 +84,8 @@ jobs:
           # 12A/12: prevent personal wardrobe cache leaking across account switches.
           node script/avatar12a-account-isolation-smoke.mjs
           node script/home-avatar-cutover-smoke.mjs
+          # Featured Pet Inventory: real phone/tablet selection, anchored menu and separate eggs.
+          node script/pet-inventory-showcase-smoke.mjs
           # 11/12: real walking actor, wardrobe layers, phone/tablet joystick.
           node script/avatar11-exploration-walk-smoke.mjs
           node script/browser-smoke.mjs
