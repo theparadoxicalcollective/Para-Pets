@@ -153,6 +153,15 @@ export default function PlayerCharacterAdminPanel() {
     setReadingParts(value => value + 1);
     try {
       const imageData = await dataFromFile(file);
+      // The server accepts up to 50 MB of JSON; cap all pending artwork at
+      // 40 MB encoded so one Save Body cannot exceed the request limit.
+      const pendingBytes = Object.entries({ ...pendingImages, [partType]: imageData })
+        .reduce((sum, [, data]) => sum + (data?.length ?? 0), 0);
+      if (pendingBytes > 40_000_000) {
+        toast({ title: "Body images are too large together",
+          description: "Choose smaller images before saving.", variant: "destructive" });
+        return;
+      }
       setPendingImages(previous => ({ ...previous, [partType]: imageData }));
     } catch (error) {
       reportError(error);
