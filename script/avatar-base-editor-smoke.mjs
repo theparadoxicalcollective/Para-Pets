@@ -127,8 +127,11 @@ try{
     assert.equal(rendered[rendered.length-1].part,"head",sc.name+": head sits on top");
     assert.equal(await page.getByTestId("avatar-publish-default").count(),0,
       sc.name+": incomplete unsaved body cannot publish");
+    const firstSaveResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
     await page.getByTestId("avatar-save-body").click();
-    await page.waitForFunction(()=>document.querySelector('[data-testid="avatar-save-body"]')?.hasAttribute("disabled"));
+    await firstSaveResponse;
+    await page.waitForFunction(()=>document.querySelectorAll('[data-testid^="avatar-body-upload-tile-"] .text-\\[10px\\]').length===0 ||
+      !document.querySelector('[data-testid="avatar-body-upload-tile-head"]')?.textContent?.includes("New"));
     assert.equal(requests.filter(x=>x.method==="POST").length,1,sc.name+": Fem created once");
     const saves=requests.filter(x=>x.method==="PUT");
     assert.equal(saves.length,1,sc.name+": eight images saved in one body request");
@@ -144,14 +147,18 @@ try{
     });
     await page.getByTestId("avatar-body-upload-tile-head").getByText("New").waitFor({state:"visible"});
     failNextBody=true;
+    const conflictResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===409);
     await page.getByTestId("avatar-save-body").click();
+    await conflictResponse;
     await page.waitForFunction(()=>!document.querySelector('[data-testid="avatar-save-body"]')?.hasAttribute("disabled"));
     assert.equal(bases.find(b=>b.name==="Masc")?.draftParts.length,0,
       sc.name+": conflicting save did not partially persist artwork");
     assert.equal(await page.getByTestId("avatar-body-upload-tile-head").getByText("New").count(),1,
       sc.name+": failed artwork remains available for retry");
+    const retryResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
     await page.getByTestId("avatar-save-body").click();
-    await page.waitForFunction(()=>document.querySelector('[data-testid="avatar-save-body"]')?.hasAttribute("disabled"));
+    await retryResponse;
+    await page.getByTestId("avatar-body-upload-tile-head").getByText("New").waitFor({state:"detached"});
     assert.equal(bases.find(b=>b.name==="Masc")?.draftParts.length,1);
     await page.getByTestId("avatar-body-fem").click();
     assert.equal(await page.locator('[data-character-motion-part]').count(),8,
