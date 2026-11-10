@@ -203,8 +203,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
   }, [showAdminMsgsPopup]);
 
   const hasRewards = pendingRewards.length > 0;
-  // Non-Home pages retain their resource-grid coin shop control.
-  // Home exposes the smaller coin shortcut from its main navigation instead.
+  // Home stacks Essence, Coins, then a small centered Coin Bundles shortcut;
+  // other pages retain their unchanged two-row resource-grid presentation.
   const coinBundleShopButton = (
     <button
       data-testid="button-coin-bag"
@@ -213,10 +213,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       onClick={() => navigate("/coins")}
       className="transition-transform active:scale-90"
       style={{
-        gridColumn: 2,
-        gridRow: "1 / span 2",
-        width: 44,
-        height: 44,
+        gridColumn: location === "/" ? 1 : 2,
+        gridRow: location === "/" ? 3 : "1 / span 2",
+        width: location === "/" ? 32 : 44,
+        height: location === "/" ? 32 : 44,
         alignSelf: "center",
         justifySelf: "center",
         display: "grid",
@@ -235,8 +235,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         src={coinBagIconImg}
         alt="Buy Coins"
         style={{
-          width: 38,
-          height: 38,
+          width: location === "/" ? 26 : 38,
+          height: location === "/" ? 26 : 38,
           objectFit: "contain",
           filter: "brightness(1.06) drop-shadow(0 0 7px rgba(240,192,64,0.58)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
         }}
@@ -248,8 +248,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           position: "absolute",
           top: -3,
           right: -3,
-          width: 15,
-          height: 15,
+          width: location === "/" ? 13 : 15,
+          height: location === "/" ? 13 : 15,
           display: "grid",
           placeItems: "center",
           borderRadius: 999,
@@ -484,7 +484,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           {location === "/" && !hideProfile && (
             <div data-testid="home-account-header"
               className="flex min-w-0 flex-col items-start self-start"
-              style={{ paddingTop: 23, maxWidth: "min(205px, calc(100vw - 138px))" }}>
+              style={{ paddingTop: 30, maxWidth: "min(205px, calc(100vw - 138px))" }}>
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
                 style={{
@@ -509,7 +509,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               style={{
                 display: "grid",
                 gridTemplateColumns: location === "/" ? "max-content" : "auto 44px",
-                gridTemplateRows: "30px 30px",
+                gridTemplateRows: location === "/" ? "30px 30px 34px" : "30px 30px",
                 columnGap: 4,
                 rowGap: 2,
                 marginTop: location === "/" ? 17 : 0,
@@ -522,7 +522,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="display-coin-balance"
                 style={{
                   gridColumn: 1,
-                  gridRow: 1,
+                  gridRow: location === "/" ? 2 : 1,
                   background: "transparent",
                   border: "none",
                   padding: 0,
@@ -554,7 +554,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="display-essence"
                 style={{
                   gridColumn: 1,
-                  gridRow: 2,
+                  gridRow: location === "/" ? 1 : 2,
                   flexShrink: 0,
                   position: "relative",
                   display: "inline-flex",
@@ -579,7 +579,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 </span>
               </div>
 
-              {location !== "/" && coinBundleShopButton}
+              {coinBundleShopButton}
             </div>
           )}
           </div>
