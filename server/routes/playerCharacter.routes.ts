@@ -4,6 +4,9 @@ import type { db as database } from "../db";
 import { playerCharacterBases } from "@shared/schema";
 import {
   completePlayerCharacterParts,
+  DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
+  PLAYER_CHARACTER_PART_TYPES,
+  playerCharacterBodyWriteSchema,
   resolvePlayerCharacterParts,
   playerCharacterNameSchema,
   playerCharacterPartTypeSchema,
@@ -115,6 +118,65 @@ export function registerPlayerCharacterRoutes(
     } catch (error) {
       console.error("[player-character] part save failed", error);
       return res.status(500).json({ message: "Could not save avatar part" });
+    }
+  });
+
+  // Single Save Body request for Masc/Fem artwork. Process and validate all
+  // selected images before the one optimistic-revision draft update. Published
+  // snapshots remain unchanged until explicit Publish as Default.
+  app.put("/api/admin/player-character/bases/:id/body", isAdmin, async (req, res) => {
+    const payload = playerCharacterBodyWriteSchema.safeParse(req.body);
+    if (!payload.success)
+      return res.status(400).json({ message: "Select valid PNG/WebP artwork for each body part" });
+
+    try {
+      const id = String(req.params.id);
+      const [current] = await db.select().from(playerCharacterBases)
+        .where(eq(playerCharacterBases.id, id)).limit(1);
+      if (!current) return res.status(404).json({ message: "Avatar base not found" });
+      if (current.revision !== payload.data.expectedRevision)
+        return res.status(409).json({ message: "This body changed elsewhere. Reload before saving." });
+
+      let draftParts = current.draftParts;
+      for (const part of payload.data.parts) {
+        const saved = resolvePlayerCharacterParts(draftParts)
+          .find(item => item.partType === part.partType);
+        const transform = saved
+          ? {
+              xPct: saved.xPct, yPct: saved.yPct, widthPct: saved.widthPct,
+              pivotXPct: saved.pivotXPct, pivotYPct: saved.pivotYPct,
+              rotationDeg: saved.rotationDeg,
+            }
+          : DEFAULT_PLAYER_CHARACTER_TRANSFORMS[part.partType];
+        const imageUrl = await processImage(part.imageData, 1000);
+        draftParts = upsertPlayerCharacterPart(draftParts, {
+          ...transform,
+          zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS[part.partType].zIndex,
+          partType: part.partType,
+          imageUrl,
+        });
+      }
+      // Keep all eight render layers in their stable anatomical order. Head is
+      // topmost; older legacy Body/Eyes records remain archived and untouched.
+      const orderedDraft = draftParts.map(part =>
+        PLAYER_CHARACTER_PART_TYPES.some(type => type === part.partType)
+          ? { ...part, zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS[
+              part.partType as keyof typeof DEFAULT_PLAYER_CHARACTER_TRANSFORMS
+            ].zIndex }
+          : part
+      );
+      const [updated] = await db.update(playerCharacterBases).set({
+        draftParts: orderedDraft,
+        revision: current.revision + 1,
+        updatedAt: new Date(),
+      }).where(and(eq(playerCharacterBases.id, id),
+        eq(playerCharacterBases.revision, current.revision))).returning();
+      if (!updated)
+        return res.status(409).json({ message: "This body changed during upload. Reload before saving." });
+      return res.json(updated);
+    } catch (error) {
+      console.error("[player-character] body save failed", error);
+      return res.status(500).json({ message: "Could not save the avatar body" });
     }
   });
 
