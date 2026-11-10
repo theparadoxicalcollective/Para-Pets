@@ -148,3 +148,14 @@ test("admin and renderer actually use shared canvas images rather than local dra
   assert.equal((route.match(/segment.canvasAligned \|\| segment.slot/g)??[]).length,2,
     "Both legacy edit/delete routes must reject full-canvas multi-slot drafts");
 });
+
+test("existing clothing storage CHECK is migrated additively for eighth Accessories category",()=>{
+  const migration=read("server/startup/migrations/ensurePlayerClothingStorage.ts");
+  assert.match(migration,/CREATE TABLE IF NOT EXISTS player_clothing_drafts/);
+  assert.match(migration,/CHECK \(category IN \('accessories','head','hair','face','top','bottom','shoes','back'\)\)/);
+  assert.match(migration,/pg_constraint/);
+  assert.match(migration,/pg_get_constraintdef\(oid\) NOT ILIKE '%accessories%'/);
+  assert.match(migration,/DROP CONSTRAINT player_clothing_drafts_category_check/);
+  assert.match(migration,/ADD CONSTRAINT player_clothing_drafts_category_check/);
+  assert.doesNotMatch(migration,/DROP TABLE|DELETE FROM player_clothing_drafts/);
+});
