@@ -22,6 +22,10 @@ on:
       - 'shared/petParkTerrainDetails.ts'
       - 'client/src/components/FloatingNav.tsx'
       - 'client/src/components/PetInventory.tsx'
+      - 'client/src/components/PlayerCharacterAdminPanel.tsx'
+      - 'client/src/components/PlayerCharacterPartsPreview.tsx'
+      - 'shared/playerCharacter.ts'
+      - 'server/routes/playerCharacter.routes.ts'
       - 'client/src/pages/HomePage.tsx'
       - 'client/src/pages/PetInventoryPage.tsx'
       - 'client/src/pages/SellFishPage.tsx'
@@ -109,6 +113,8 @@ jobs:
           node script/janson-quest-smoke.mjs
           # Real player-avatar UI against isolated, disposable account fixtures.
           node script/player-avatar-wardrobe-smoke.mjs
+          # Real admin Masc/Fem body upload, preview, one-click save and conflict retry.
+          node script/avatar-base-editor-smoke.mjs
           # Stage 09 Home account HUD on small phones/tablets, using isolated player fixtures.
           node script/home-player-hud-smoke.mjs
 

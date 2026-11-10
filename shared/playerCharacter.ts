@@ -16,6 +16,19 @@ export const PLAYER_CHARACTER_PART_TYPES = [
 ] as const;
 export type PlayerCharacterPartType = typeof PLAYER_CHARACTER_PART_TYPES[number];
 
+/** Upload and front-to-back layering order for the simplified Masc/Fem editor.
+ * Only the new Save Body flow applies these depths. Legacy saved/published
+ * bodies and clothing edits keep their existing artwork-relative positions.
+ */
+export const SIMPLE_AVATAR_BODY_ORDER = [
+  "head", "top", "left_arm", "right_arm",
+  "left_leg", "right_leg", "left_foot", "right_foot",
+] as const satisfies readonly PlayerCharacterPartType[];
+export const SIMPLE_AVATAR_BODY_Z_INDEX: Record<PlayerCharacterPartType, number> = {
+  head: 80, top: 70, left_arm: 60, right_arm: 50,
+  left_leg: 40, right_leg: 30, left_foot: 20, right_foot: 10,
+};
+
 export const PLAYER_CHARACTER_PART_LABELS: Record<PlayerCharacterPartType, string> = {
   head: "Head",
   top: "Torso / Top",
@@ -106,6 +119,32 @@ export const playerCharacterPartWriteSchema = z.object({
     .regex(/^data:image\/(png|webp);base64,[A-Za-z0-9+/]+={0,2}$/)
     .optional(),
 }).strict();
+
+/**
+ * One-click body save. All selected images are validated together and share
+ * one revision update, so the admin never needs eight separate Save Part steps.
+ * Existing untouched parts stay on the draft; no data URIs are stored in DB.
+ */
+export const playerCharacterBodyWriteSchema = z.object({
+  expectedRevision: z.number().int().min(0),
+  parts: z.array(z.object({
+    partType: playerCharacterPartTypeSchema,
+    imageData: playerCharacterPartWriteSchema.shape.imageData.unwrap(),
+  }).strict()).min(1).max(8),
+}).strict().superRefine(({ parts }, ctx) => {
+  // Express's configured JSON limit is 50 MB; leave margin for encoding and
+  // request overhead rather than letting a full eight-image upload hit 413.
+  if (parts.reduce((sum, part) => sum + part.imageData.length, 0) > 40_000_000) {
+    ctx.addIssue({ code: "custom", path: ["parts"], message: "Body images are too large together" });
+  }
+  const seen = new Set<PlayerCharacterPartType>();
+  for (const [index, part] of parts.entries()) {
+    if (seen.has(part.partType)) {
+      ctx.addIssue({ code: "custom", path: ["parts", index, "partType"], message: "Duplicate avatar body part" });
+    }
+    seen.add(part.partType);
+  }
+});
 
 export const playerCharacterRevisionSchema = z.object({
   expectedRevision: z.number().int().min(0),
