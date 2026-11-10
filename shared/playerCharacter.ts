@@ -57,6 +57,29 @@ export const playerCharacterTransformSchema = z.object({
 }).strict();
 export type PlayerCharacterTransform = z.infer<typeof playerCharacterTransformSchema>;
 
+/**
+ * Masc/Fem artwork is authored on identical transparent 1000 × 1000 canvases.
+ * Treat the whole source image as the coordinate plane, just as the finished
+ * pet-part layers do: no per-part offsets, resizing, or rotation.
+ *
+ * This is used only for the simple body editor and its Save Body route.
+ * Legacy published characters and clothing placement are not migrated.
+ */
+export function canvasAlignedAvatarBodyTransform(
+  type: PlayerCharacterPartType,
+): PlayerCharacterTransform {
+  return {
+    xPct: 50,
+    yPct: 50,
+    widthPct: 100,
+    pivotXPct: 50,
+    pivotYPct: 50,
+    rotationDeg: 0,
+    zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[type],
+  };
+}
+
+
 const processedImageUrl = z.string().regex(/^\/api\/media\/[a-zA-Z0-9-]{1,80}$/);
 export const playerCharacterPartSchema = playerCharacterTransformSchema.extend({
   partType: playerCharacterPartTypeSchema,
