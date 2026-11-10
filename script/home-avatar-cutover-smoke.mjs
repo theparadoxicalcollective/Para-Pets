@@ -171,6 +171,7 @@ try {
       return {
         actor, stars, progress, party, xp,
         profile: rect('[data-testid="button-profile"]'),
+        accountHeader: rect('[data-testid="home-account-header"]'),
         headerName: rect('[data-testid="home-header-player-name"]'),
         shopIcon: rect('[data-testid="button-coin-bag"]'),
         coins: rect('[data-testid="display-coin-balance"]'),
@@ -213,8 +214,13 @@ try {
       sc.name+": top profile/resources and level labels all render");
     assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
       sc.name+": player name is to the right of the profile");
-    assert.ok(homeLayout.headerName.top >= homeLayout.profile.top + 12,
-      sc.name+": player name sits slightly lower beside the profile");
+    // Profile artwork has its own translateY(14px). Compare the name with
+    // its actual layout owner, not the transformed portrait button.
+    assert.ok(homeLayout.accountHeader &&
+      homeLayout.headerName.top >= homeLayout.accountHeader.top + 20 &&
+      homeLayout.headerName.top <= homeLayout.accountHeader.top + 32,
+      sc.name+": player name gets the intended lower spacing in its header: "+
+        JSON.stringify({name:homeLayout.headerName,header:homeLayout.accountHeader,profile:homeLayout.profile}));
     assert.equal(homeLayout.shopIcon, null,
       sc.name+": coin bundle shortcut no longer clutters the Home header");
     assert.ok(homeLayout.coins.top >= homeLayout.profile.bottom - 6,
