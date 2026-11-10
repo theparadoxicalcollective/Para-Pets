@@ -24,8 +24,6 @@ import petInvForestBg from "@assets/generated_images/pet_inventory_bg.png";
 import statAtkIcon from "@assets/generated_images/icon_stat_atk.png";
 import statDefIcon from "@assets/generated_images/icon_stat_def.png";
 import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
-import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
-import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
 import { itemTypeLabel } from "@/lib/itemTypeFilters";
 import {
@@ -46,6 +44,7 @@ import PetActionMenu from "@/components/PetActionMenu";
 import { petInventoryActionHref, type PetAction } from "@/lib/petActionRoutes";
 import petMenuIconImg from "@assets/uploads/NewPetMenuButton.PNG?url";
 import { clientPointInRenderedElement, clientToStage } from "@/lib/stage";
+import "./PetInventoryShowcase.css";
 
 function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, isEvolved }: {
   petInventoryId: string;
@@ -85,21 +84,6 @@ function InventoryPetPortrait({ petInventoryId, petTemplateId, imageUrl, name, i
   </div>;
 }
 
-function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string; borderOpacity: number; glowStrength: number } {
-  // Unified gold palette — intensity scales with rarity, no rainbow colors
-  const r = Math.min(5, Math.max(1, rarity ?? 1));
-  const borderOpacity = [0.22, 0.34, 0.50, 0.66, 0.86][r - 1];
-  const glowStrength  = [0.09, 0.14, 0.20, 0.28, 0.42][r - 1];
-  const glowRadius    = [8, 11, 15, 19, 25][r - 1];
-  return {
-    border:        `1.5px solid rgba(240,192,64,${borderOpacity})`,
-    glow:          `0 0 ${glowRadius}px rgba(240,192,64,${glowStrength})`,
-    bg:            "linear-gradient(160deg, rgba(14,10,3,0.97) 0%, rgba(22,14,4,0.97) 100%)",
-    starColor:     "#f0c040",
-    borderOpacity,
-    glowStrength,
-  };
-}
 
 interface InventoryItem {
   inventoryId: string;
@@ -447,7 +431,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           <ViewportBackdropPortal>
             <div data-testid="inventory-viewport-backdrop" className="absolute inset-0 pointer-events-none">
               <img src={petInvForestBg} alt="" className="h-full w-full object-cover" style={{ objectPosition: "center top" }} />
-              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.38)" }} />
+              <div className="absolute inset-0" style={{
+                background: showBag ? "rgba(0,0,0,0.38)"
+                  : "linear-gradient(180deg, rgba(4,28,18,.35), rgba(3,24,17,.47) 58%, rgba(3,18,13,.59))",
+              }} />
             </div>
           </ViewportBackdropPortal>
         )}
@@ -463,7 +450,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             className="w-full h-full object-cover"
             style={{ objectPosition: "center top" }}
           />
-          <div className="absolute inset-0" style={{ background: pageMode ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.78)" }} />
+          <div className="absolute inset-0" style={{
+            background: !showBag
+              ? "linear-gradient(180deg, rgba(4,28,18,.37), rgba(2,29,19,.38) 58%, rgba(2,18,13,.62))"
+              : pageMode ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.78)",
+          }} />
         </div>
 
         <div data-testid={pageMode ? "inventory-canonical-content" : undefined} className="relative z-10 flex flex-col h-full overflow-hidden">
@@ -473,11 +464,19 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             <div className="flex items-center justify-between mb-3">
               {pageMode ? (
                 /* Page mode: slim count row */
-                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
-                  {showBag
-                    ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}`
-                    : `${pets.length} ${pets.length === 1 ? "companion" : "companions"}`}
-                </p>
+                <div>
+                  {!showBag && (
+                    <h1 className="font-fantasy text-[#f5d99c] text-xl tracking-wide font-bold"
+                      style={{ textShadow: "0 2px 8px #07180e" }}>
+                      Companion Grove
+                    </h1>
+                  )}
+                  <p className="font-fantasy text-[#d7c897] text-xs tracking-wide">
+                    {showBag
+                      ? `${bagItems.length} ${bagItems.length === 1 ? "item" : "items"}`
+                      : `${pets.filter(p => p.isHatched).length} hatched · ${pets.filter(p => !p.isHatched).length} eggs`}
+                  </p>
+                </div>
               ) : (
                 /* Overlay mode: full icon + title */
                 <div className="flex items-center gap-3">
@@ -603,9 +602,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 onClick={onClose}
                 className="w-full flex items-center justify-center gap-2 transition-transform active:scale-95 font-fantasy tracking-wider"
                 style={{
-                  background: "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)",
-                  border: "2px solid rgba(212,160,23,0.6)",
-                  color: "#f0c040",
+                  background: showBag
+                    ? "linear-gradient(135deg, #5c3a1e 0%, #3a2010 100%)"
+                    : "linear-gradient(135deg, #1b4e33, #092c1e)",
+                  border: "2px solid rgba(212,174,99,0.76)",
+                  color: "#f5dfa7",
                   cursor: "pointer",
                   fontSize: "13px",
                   fontWeight: "bold",
@@ -839,6 +840,20 @@ function HatchProgressBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: strin
   );
 }
 
+
+function HatchedPetArtwork({ pet }: { pet: InventoryItem }) {
+  const image = pet.hatchedImageUrl || pet.imageUrl;
+  return pet.petTemplateId
+    ? <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId}
+        imageUrl={image} name={pet.name} isEvolved={pet.isEvolved} />
+    : image
+      ? <VisibleAssetImage src={image} alt={pet.petNickname || pet.name}
+          className="w-full h-full object-contain" />
+      : <img src={petPawIcon} alt="" className="w-full h-full object-contain" />;
+}
+
+/** One authoritative pet selection. Eggs keep their separate hatch/speed-up
+ * interactions; companions retain the existing pet-ID routes and featured flag. */
 function PetView({
   pets,
   activePetId,
@@ -860,14 +875,23 @@ function PetView({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [hatchingId, setHatchingId] = useState<string | null>(null);
-  const [flippedPets, setFlippedPets] = useState<Set<string>>(new Set());
+  const [, navigate] = useLocation();
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [openPetMenu, setOpenPetMenu] = useState<{
     inventoryId: string;
     anchor: HTMLButtonElement;
   } | null>(null);
-  const [, navigate] = useLocation();
+  const [hatchingId, setHatchingId] = useState<string | null>(null);
+  const [flippedPetId, setFlippedPetId] = useState<string | null>(null);
+  const hatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closePetMenu = useCallback(() => setOpenPetMenu(null), []);
+
+  useEffect(() => () => {
+    if (hatchTimerRef.current) clearTimeout(hatchTimerRef.current);
+    if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
+  }, []);
+
   const choosePetAction = (action: PetAction, inventoryId: string) => {
     closePetMenu();
     navigate(petInventoryActionHref(action, inventoryId));
@@ -879,376 +903,272 @@ function PetView({
       return res.json();
     },
     onSuccess: (data: any, inventoryId: string) => {
-      if (data.isHatched) {
-        setHatchingId(inventoryId);
-        setTimeout(() => {
-          setHatchingId(null);
-          queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-          toast({ title: "🎉 Hatched!", description: "Your pet has emerged from its egg!" });
-        }, 2200);
-      }
+      if (!data.isHatched) return;
+      setHatchingId(inventoryId);
+      if (hatchTimerRef.current) clearTimeout(hatchTimerRef.current);
+      hatchTimerRef.current = setTimeout(() => {
+        setHatchingId(null);
+        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        toast({ title: "Hatched!", description: "Your pet has emerged from its egg!" });
+      }, 2200);
     },
   });
 
+  const sortedPets = [...pets].sort((a, b) => {
+    const rarityDiff = (b.rarity ?? 0) - (a.rarity ?? 0);
+    return rarityDiff || (b.petLevel ?? 0) - (a.petLevel ?? 0);
+  });
+  const hatchedPets = sortedPets.filter(pet => pet.isHatched);
+  const petEggs = sortedPets.filter(pet => !pet.isHatched);
+  const selectedPet = hatchedPets.find(pet => pet.inventoryId === selectedPetId)
+    ?? hatchedPets.find(pet => pet.inventoryId === activePetId)
+    ?? hatchedPets[0]
+    ?? null;
+
+  const showOriginalEgg = (pet: InventoryItem) => {
+    if (isDragging || !pet.eggImageUrl || flippedPetId === pet.inventoryId) return;
+    setFlippedPetId(pet.inventoryId);
+    if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
+    flipTimerRef.current = setTimeout(() => setFlippedPetId(null), 2800);
+  };
+
+  const handleEggClick = (pet: InventoryItem) => {
+    if (isDragging || hatchCheckMutation.isPending) return;
+    const start = pet.hatchStartedAt ? new Date(pet.hatchStartedAt).getTime() : NaN;
+    const hatchReady = Number.isFinite(start)
+      && Date.now() - start >= (pet.hatchTime ? pet.hatchTime * 3600000 : 0);
+    if (hatchReady) hatchCheckMutation.mutate(pet.inventoryId);
+    else onEggSpeedUp?.(pet.inventoryId);
+  };
+
   if (pets.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div
-          className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(45,122,79,0.2) 0%, rgba(10,40,20,0.4) 100%)",
-            border: "2px dashed rgba(127,191,176,0.3)",
-          }}
-        >
-          <img src={eggMagicIcon} alt="" style={{ width: 48, height: 48, objectFit: "contain", filter: "grayscale(100%) opacity(0.4)" }} />
-        </div>
-        <p className="font-fantasy text-[#7fbfb0] text-sm tracking-wider mb-2">No companions yet</p>
-        <p className="font-fantasy text-[#5a8a78] text-xs tracking-wider">Venture into the realm to discover creatures!</p>
+      <div className="pet-collection__empty" data-testid="inventory-pets-empty">
+        <img src={eggMagicIcon} alt="" className="w-16 h-16 object-contain mx-auto mb-3 opacity-50" />
+        <p>No companions yet</p>
+        <p className="mt-2 text-xs">Venture into the realm to discover creatures!</p>
       </div>
     );
   }
 
-  const sortedPets = [...pets].sort((a, b) => {
-    // Unhatched eggs always surface to the top
-    const aEgg = a.isHatched ? 1 : 0;
-    const bEgg = b.isHatched ? 1 : 0;
-    if (aEgg !== bEgg) return aEgg - bEgg;
-    // Within each group: higher rarity first, then higher level
-    const rarityDiff = (b.rarity ?? 0) - (a.rarity ?? 0);
-    if (rarityDiff !== 0) return rarityDiff;
-    return (b.petLevel ?? 0) - (a.petLevel ?? 0);
-  });
-
   return (
-    <>
-    <div className="grid grid-cols-2 gap-3">
-      {sortedPets.map((pet) => {
-        const isActive = activePetId === pet.inventoryId;
-        const isEgg = !pet.isHatched;
-        const displayImage = isEgg ? pet.eggImageUrl : (pet.hatchedImageUrl || pet.imageUrl);
-
-        // Mirror the server hatch-check logic: an egg is ready if hatchStartedAt
-        // is set and elapsed time >= required time (0 when hatchTime is absent).
-        const hatchReady = isEgg && !!pet.hatchStartedAt
-          ? (Date.now() - new Date(pet.hatchStartedAt).getTime()) >= (pet.hatchTime ? pet.hatchTime * 3600000 : 0)
-          : false;
-
-        const handleImageClick = () => {
-          if (isDragging) return;
-          if (isEgg && hatchReady) {
-            hatchCheckMutation.mutate(pet.inventoryId);
-          } else if (isEgg && !hatchReady) {
-            onEggSpeedUp?.(pet.inventoryId);
-          } else {
-            // Coin flip: show egg for 2.5 seconds then flip back
-            if (flippedPets.has(pet.inventoryId)) return;
-            setFlippedPets(prev => new Set([...prev, pet.inventoryId]));
-            setTimeout(() => {
-              setFlippedPets(prev => { const n = new Set(prev); n.delete(pet.inventoryId); return n; });
-            }, 2800);
-          }
-        };
-
-        const handleInfoBoxClick = () => {
-          if (isDragging) return;
-          if (isEgg && hatchReady) {
-            hatchCheckMutation.mutate(pet.inventoryId);
-          } else if (isEgg && !hatchReady) {
-            onEggSpeedUp?.(pet.inventoryId);
-          }
-        };
-
-        const rs = getRarityStyle(pet.rarity ?? null);
-
-        const rarityLabel = pet.rarity === 5 ? "Legendary" : pet.rarity === 4 ? "Epic" : pet.rarity === 3 ? "Rare" : pet.rarity === 2 ? "Uncommon" : "Common";
-
-        const isFlipped = flippedPets.has(pet.inventoryId);
-        const eggDisplayImage = pet.eggImageUrl;
-
-        return (
-          <div
-            key={pet.inventoryId}
-            data-testid={`card-pet-${pet.shopItemId}`}
-            data-pet-inv-id={pet.inventoryId}
-            className="relative flex flex-col"
-            style={{ borderRadius: 18 }}
-          >
-            {/* Pet image — floating free above the stat card, no container */}
-            <div
-              className="flex justify-center"
-              style={{ position: "relative", zIndex: 2, marginBottom: -60 }}
-              onClick={handleImageClick}
-            >
-              <div style={{ position: "relative", width: 140, height: 140, cursor: "pointer", perspective: "400px" }}>
-
-                {/* 3D coin flipper */}
-                <div
-                  style={{
-                    width: 140, height: 140,
-                    position: "relative",
-                    transformStyle: "preserve-3d",
-                    transition: "transform 0.45s cubic-bezier(0.455,0.03,0.515,0.955)",
-                    transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+    <div className="pet-collection" data-testid="inventory-pet-showcase">
+      {selectedPet && (
+        <section
+          className="pet-spotlight"
+          data-testid="inventory-featured-pet"
+          data-pet-inv-id={selectedPet.inventoryId}
+          aria-label={`Selected companion ${selectedPet.petNickname || selectedPet.name}`}
+        >
+          <div className="pet-spotlight__eyebrow">Your Selected Companion</div>
+          <div className="pet-spotlight__art">
+            <div className="pet-spotlight__halo" aria-hidden="true" />
+            <div className="pet-spotlight__portrait" data-testid="inventory-featured-pet-art">
+              {flippedPetId === selectedPet.inventoryId && selectedPet.eggImageUrl
+                ? <VisibleAssetImage src={selectedPet.eggImageUrl} alt="Original egg"
+                    className="w-full h-full object-contain" />
+                : <HatchedPetArtwork pet={selectedPet} />}
+              {selectedPet.eggImageUrl && (
+                <button
+                  type="button"
+                  className="absolute inset-0 w-full h-full border-0 bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffdda0]"
+                  aria-label={`View original egg of ${selectedPet.petNickname || selectedPet.name}`}
+                  onClick={() => showOriginalEgg(selectedPet)}
+                  disabled={isDragging}
+                  style={{ cursor: "pointer", touchAction: "manipulation" }}
+                />
+              )}
+            </div>
+            <span className="pet-spotlight__mote" aria-hidden="true" />
+            <span className="pet-spotlight__mote" aria-hidden="true" />
+            <span className="pet-spotlight__mote" aria-hidden="true" />
+          </div>
+          <div className="pet-spotlight__info">
+            <h2 className="pet-spotlight__name" data-testid="text-featured-pet-name">
+              {selectedPet.petNickname || selectedPet.name}
+            </h2>
+            {selectedPet.petNickname && (
+              <p className="pet-spotlight__species">{selectedPet.name}</p>
+            )}
+            <div className="pet-collection__stars" role="img"
+              aria-label={`${selectedPet.rarity ?? 1} of 5 rarity stars`}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <span key={i} className={i < (selectedPet.rarity ?? 1) ? "is-earned" : ""}>★</span>
+              ))}
+            </div>
+            <span className="pet-spotlight__level">Lvl {selectedPet.petLevel}</span>
+            <div className="pet-spotlight__stats" aria-label="Pet statistics">
+              {([
+                [statHpIcon, "HP", selectedPet.petHealth],
+                [statAtkIcon, "ATK", selectedPet.petAtk],
+                [statDefIcon, "DEF", selectedPet.petDef],
+              ] as const).map(([icon, label, amount]) => (
+                <span className="pet-spotlight__stat" key={label}>
+                  <img src={icon} alt="" /> <span>{label} {amount}</span>
+                </span>
+              ))}
+            </div>
+            {selectedPet.specialSkill && (
+              <p className="pet-spotlight__skill" data-testid={`text-pet-skill-${selectedPet.inventoryId}`}>
+                {selectedPet.specialSkill}
+                {selectedPet.skillType && (
+                  <>
+                    {" — "}
+                    {({ heal: "Heal", poison: "Poison", damage: "Damage", stun: "Stun", revive: "Revive" } as Record<string, string>)[selectedPet.skillType] ?? selectedPet.skillType}
+                    {" "}
+                    {({ self: "Pet", party: "Party", enemy: "Enemy", enemy_party: "Enemy Party" } as Record<string, string>)[selectedPet.skillAffects ?? ""] ?? ""}
+                  </>
+                )}
+              </p>
+            )}
+            {!readOnly && (
+              <div className="pet-spotlight__actions">
+                <button
+                  type="button"
+                  data-pet-menu-trigger
+                  data-testid={`button-pet-menu-${selectedPet.inventoryId}`}
+                  data-inventory-id={selectedPet.inventoryId}
+                  className="pet-spotlight__menu-trigger"
+                  aria-label={`Open Pet Menu for ${selectedPet.petNickname || selectedPet.name}`}
+                  aria-expanded={openPetMenu?.inventoryId === selectedPet.inventoryId}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const anchor = event.currentTarget;
+                    setOpenPetMenu(previous =>
+                      previous?.inventoryId === selectedPet.inventoryId
+                        ? null : { inventoryId: selectedPet.inventoryId, anchor });
                   }}
                 >
-                  {/* Front face — bare image, no container */}
-                  <div
-                    style={{
-                      position: "absolute", inset: 0,
-                      backfaceVisibility: "hidden",
-                      WebkitBackfaceVisibility: "hidden",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    {/* Circular radial glow behind the pet — never looks square */}
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      borderRadius: "50%",
-                      background: isActive
-                        ? "radial-gradient(circle at 50% 55%, rgba(240,192,64,0.55) 0%, rgba(240,192,64,0.18) 35%, transparent 65%)"
-                        : `radial-gradient(circle at 50% 55%, rgba(240,192,64,${Math.min(0.5, rs.glowStrength + 0.05)}) 0%, rgba(240,192,64,${Math.min(0.18, rs.glowStrength * 0.55)}) 35%, transparent 65%)`,
-                      pointerEvents: "none",
-                    }} />
-                    {!isEgg && pet.petTemplateId ? (
-                      <InventoryPetPortrait petInventoryId={pet.inventoryId} petTemplateId={pet.petTemplateId} imageUrl={displayImage} name={pet.name} isEvolved={pet.isEvolved} />
-                    ) : displayImage ? (
-                      <img src={displayImage} alt={pet.name} style={{ width: 140, height: 140, objectFit: "contain", position: "relative" }} />
-                    ) : (
-                      <img src={isEgg ? eggMagicIcon : petPawIcon} alt="" style={{ width: 100, height: 100, objectFit: "contain", position: "relative" }} />
-                    )}
-                  </div>
-
-                  {/* Back face — egg image, bare */}
-                  <div
-                    style={{
-                      position: "absolute", inset: 0,
-                      backfaceVisibility: "hidden",
-                      WebkitBackfaceVisibility: "hidden",
-                      transform: "rotateY(180deg)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      borderRadius: "50%",
-                      background: "radial-gradient(circle at 50% 55%, rgba(240,192,64,0.4) 0%, rgba(240,192,64,0.12) 35%, transparent 65%)",
-                      pointerEvents: "none",
-                    }} />
-                    {eggDisplayImage ? (
-                      <img src={eggDisplayImage} alt="egg" style={{ width: 140, height: 140, objectFit: "contain", position: "relative" }} />
-                    ) : (
-                      <img src={eggMagicIcon} alt="egg" style={{ width: 100, height: 100, objectFit: "contain", position: "relative" }} />
-                    )}
-                  </div>
-                </div>
-
-                {/* Hatch ready glow ring */}
-                {!isDragging && hatchReady && hatchingId !== pet.inventoryId && (
-                  <div className="absolute inset-0 flex items-center justify-center animate-pulse pointer-events-none">
-                    <span className="font-fantasy text-[#f0c040] text-[10px] font-bold tracking-widest" style={{ textShadow: "0 0 10px rgba(240,192,64,0.9)", position: "absolute", bottom: 0 }}>READY!</span>
-                  </div>
+                  <img src={petMenuIconImg} alt="" aria-hidden="true" draggable={false} />
+                  <span>PET MENU</span>
+                </button>
+                {openPetMenu?.inventoryId === selectedPet.inventoryId && (
+                  <PetActionMenu inline
+                    key={selectedPet.inventoryId}
+                    petInventoryId={selectedPet.inventoryId}
+                    petName={selectedPet.petNickname || selectedPet.name}
+                    anchor={openPetMenu.anchor}
+                    onSelect={choosePetAction}
+                    onClose={closePetMenu}
+                  />
                 )}
-
-                {/* Drag-drop indicator */}
-                {isDragging && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                    style={{ border: "2px dashed rgba(240,192,64,0.7)", borderRadius: 12 }}>
-                    <span className="font-fantasy text-[#f0c040] text-[10px] font-bold" style={{ textShadow: "0 0 8px rgba(240,192,64,0.9)" }}>DROP</span>
-                  </div>
-                )}
-
-                {/* Hatch burst particles */}
-                {hatchingId === pet.inventoryId && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ overflow: "visible" }}>
-                    {[...Array(10)].map((_, i) => {
-                      const angle = (i / 10) * 360;
-                      const rad = (angle * Math.PI) / 180;
-                      const endX = Math.cos(rad) * 70;
-                      const endY = Math.sin(rad) * 70;
-                      const size = 6 + Math.random() * 6;
-                      const delay = i * 0.04;
-                      return (
-                        <div key={i} style={{ position: "absolute", width: `${size}px`, height: `${size}px`, borderRadius: "50%", background: "radial-gradient(circle, #ffe566 0%, #f0c040 40%, rgba(240,192,64,0) 70%)", boxShadow: "0 0 10px rgba(240,192,64,0.8)", animation: `hatchOrbBurst 1.4s ${delay}s ease-out forwards`, opacity: 0, ["--endX" as any]: `${endX}px`, ["--endY" as any]: `${endY}px` }} />
-                      );
-                    })}
-                    <span className="font-fantasy text-sm font-bold tracking-widest absolute" style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.8)", animation: "hatchTextRise 2s 0.3s ease-out forwards", opacity: 0 }}>HATCHED!</span>
-                  </div>
-                )}
-
-                {/* EGG label */}
-                {isEgg && !hatchReady && (
-                  <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", background: "rgba(8,4,1,0.92)", border: "1px solid rgba(240,192,64,0.42)", borderRadius: 20, padding: "1px 8px", whiteSpace: "nowrap" }}>
-                    <span className="font-fantasy text-[7px] text-[#f0c040] tracking-wider">EGG</span>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  data-testid={`button-feature-main-pet-${selectedPet.inventoryId}`}
+                  disabled={activePetId === selectedPet.inventoryId || isPending}
+                  className="pet-spotlight__featured"
+                  title="For legacy pet-based features only. Home shows your player character."
+                  aria-label={activePetId === selectedPet.inventoryId
+                    ? `${selectedPet.petNickname || selectedPet.name} is the featured companion for legacy features`
+                    : `Set ${selectedPet.petNickname || selectedPet.name} as the featured companion for legacy features`}
+                  onClick={() => {
+                    closePetMenu();
+                    if (activePetId !== selectedPet.inventoryId && !isPending) onToggle(selectedPet.inventoryId);
+                  }}
+                >
+                  {isPending && pendingPetId === selectedPet.inventoryId
+                    ? "Updating featured pet…"
+                    : activePetId === selectedPet.inventoryId
+                      ? "Featured Companion" : "Set Featured Companion"}
+                </button>
               </div>
-            </div>
-
-            {/* Stat card below the floating image */}
-            <div
-              className="relative flex flex-col items-center rounded-2xl overflow-hidden"
-              onClick={handleInfoBoxClick}
-              style={{ cursor: "pointer", background: rs.bg, border: isDragging ? "1.5px solid rgba(240,192,64,0.85)" : isActive ? "1.5px solid rgba(240,192,64,0.82)" : rs.border, boxShadow: isDragging ? "0 0 22px rgba(240,192,64,0.4)" : isActive ? "0 0 26px rgba(240,192,64,0.32), 0 4px 20px rgba(0,0,0,0.6)" : `${rs.glow}, 0 4px 16px rgba(0,0,0,0.5)`, transition: "box-shadow 0.2s", paddingTop: 68, paddingBottom: 10, paddingLeft: 8, paddingRight: 8 }}
-            >
-              {/* Texture overlay */}
-              <img
-                src={petCardTextureImg}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                style={{ opacity: 0.10, mixBlendMode: "soft-light" }}
-              />
-
-              {/* Active shimmer */}
-              {isActive && (
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.55), transparent)" }} />
-              )}
-
-              {/* Name — largest */}
-              <p
-                className="font-fantasy font-semibold leading-tight truncate text-center w-full"
-                style={{ fontSize: 14, color: "#f0c040", textShadow: "0 0 8px rgba(240,192,64,0.38)", letterSpacing: "0.04em" }}
-                data-testid={`text-pet-name-${pet.shopItemId}`}
-              >
-                {pet.petNickname || pet.name}
-              </p>
-
-              {/* Species — shown smaller when pet has a nickname */}
-              {pet.petNickname && (
-                <p className="font-fantasy leading-tight truncate text-center w-full" style={{ fontSize: 10, color: "#a89878", letterSpacing: "0.03em", marginTop: 1 }}>
-                  {pet.name}
-                </p>
-              )}
-
-              {/* Stars */}
-              <div className="flex items-center gap-0.5 mt-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      fontSize: 11,
-                      color: i < (pet.rarity ?? 1) ? "#f0c040" : "rgba(240,192,64,0.14)",
-                      textShadow: i < (pet.rarity ?? 1) ? "0 0 4px rgba(240,192,64,0.6)" : "none",
-                    }}
-                  >★</span>
-                ))}
-              </div>
-
-              {/* Stats or hatch progress */}
-              {isEgg && pet.hatchStartedAt && pet.hatchTime ? (
-                <HatchProgressBar hatchStartedAt={pet.hatchStartedAt} hatchTime={pet.hatchTime} />
-              ) : isEgg ? (
-                <p className="font-fantasy text-[#a89878] text-[9px] tracking-wider mt-1">Tap to hatch</p>
-              ) : (
-                <>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="font-fantasy text-[#c8a84b]" style={{ fontSize: 10, letterSpacing: "0.06em" }}>LV {pet.petLevel}</span>
-                    {isActive && <span style={{ fontSize: 8, color: "rgba(240,192,64,0.55)" }}>✦ ACTIVE</span>}
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap justify-center mt-0.5">
-                    <div className="flex items-center gap-0.5">
-                      <img src={statHpIcon} alt="HP" style={{ width: 12, height: 12, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#9ecfa0]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petHealth}</span>
-                    </div>
-                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 10 }}>·</span>
-                    <div className="flex items-center gap-0.5">
-                      <img src={statAtkIcon} alt="ATK" style={{ width: 12, height: 12, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#d4956a]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petAtk}</span>
-                    </div>
-                    <span style={{ color: "rgba(240,192,64,0.18)", fontSize: 10 }}>·</span>
-                    <div className="flex items-center gap-0.5">
-                      <img src={statDefIcon} alt="DEF" style={{ width: 12, height: 12, objectFit: "contain" }} />
-                      <span className="font-fantasy text-[#8ab4c8]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petDef}</span>
-                    </div>
-                  </div>
-                  {pet.specialSkill && (
-                    <div className="mt-1 px-1 text-center" data-testid={`text-pet-skill-${pet.inventoryId}`}>
-                      <span className="font-fantasy" style={{ fontSize: 8, color: "#c8a84b" }}>{pet.specialSkill}</span>
-                      {pet.skillType && (
-                        <span className="font-fantasy" style={{ fontSize: 8, color: "rgba(200,168,75,0.55)" }}>
-                          {" — "}
-                          {({ heal: "Heal", poison: "Poison", damage: "Damage", stun: "Stun", revive: "Revive" } as Record<string, string>)[pet.skillType] ?? pet.skillType}
-                          {" "}
-                          {({ self: "Pet", party: "Party", enemy: "Enemy", enemy_party: "Enemy Party" } as Record<string, string>)[pet.skillAffects ?? ""] ?? ""}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Hatched companions expose their individual actions here,
-                  without changing Home's still-live active pet automatically. */}
-              {!readOnly && !isEgg && (
-                <div className="relative z-10 mt-2 w-full">
-                  <button
-                    type="button"
-                    data-pet-menu-trigger
-                    data-testid={`button-pet-menu-${pet.inventoryId}`}
-                    data-inventory-id={pet.inventoryId}
-                    aria-label={`Open Pet Menu for ${pet.petNickname || pet.name}`}
-                    aria-expanded={openPetMenu?.inventoryId === pet.inventoryId}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      const anchor = event.currentTarget;
-                      setOpenPetMenu(previous =>
-                        previous?.inventoryId === pet.inventoryId ? null : {
-                          inventoryId: pet.inventoryId,
-                          anchor,
-                        });
-                    }}
-                    className="flex w-full min-h-[34px] items-center justify-center gap-2 rounded-lg border border-[#cda653]/65 bg-[#173824]/85 px-2 py-1 text-[#f4d28a] font-fantasy text-[11px] font-bold tracking-wider transition-transform active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffe5a1]"
-                    style={{ touchAction: "manipulation" }}
-                  >
-                    <img src={petMenuIconImg} alt="" aria-hidden="true" draggable={false}
-                      className="h-[25px] w-[25px] object-contain" />
-                    <span>PET MENU</span>
-                  </button>
-                  {/* Transitional compatibility: old pet-based features may still
-                      read activePetId. Home itself now renders the saved player
-                      character independently. Retire this compatibility selector
-                      only after the phase-12 cave/combat migration audit. */}
-                  <button
-                    type="button"
-                    data-testid={`button-feature-main-pet-${pet.inventoryId}`}
-                    disabled={isActive || isPending}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      closePetMenu();
-                      if (!isActive && !isPending) onToggle(pet.inventoryId);
-                    }}
-                    className="mt-1 w-full min-h-[24px] rounded-md px-1 font-fantasy text-[9px] tracking-wide text-[#c7b585] underline-offset-2 enabled:hover:underline disabled:opacity-55"
-                    style={{ touchAction: "manipulation" }}
-                    title="For legacy pet-based features only. Home shows your player character."
-                    aria-label={isActive
-                      ? `${pet.petNickname || pet.name} is the featured companion for legacy features`
-                      : `Set ${pet.petNickname || pet.name} as the featured companion for legacy features`}
-                  >
-                    {isPending && pendingPetId === pet.inventoryId
-                      ? "Updating featured pet…"
-                      : isActive ? "Featured Companion" : "Set Featured Companion"}
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        );
-      })}
+        </section>
+      )}
+
+      {hatchedPets.length > 0 && (
+        <section aria-label="Hatched companions" data-testid="inventory-hatched-pets">
+          <h3 className="pet-collection__section-head">
+            Hatched Companions · {hatchedPets.length}
+          </h3>
+          <div className="pet-collection__tiles">
+            {hatchedPets.map(pet => (
+              <div
+                key={pet.inventoryId}
+                data-testid={`card-pet-${pet.shopItemId}`}
+                data-pet-inv-id={pet.inventoryId}
+                data-selected={selectedPet?.inventoryId === pet.inventoryId ? "true" : "false"}
+                className="pet-collection__tile"
+              >
+                <button
+                  type="button"
+                  className="pet-collection__tile-press"
+                  aria-pressed={selectedPet?.inventoryId === pet.inventoryId}
+                  aria-label={`Select ${pet.petNickname || pet.name}, level ${pet.petLevel}`}
+                  onClick={() => {
+                    closePetMenu();
+                    setFlippedPetId(null);
+                    setSelectedPetId(pet.inventoryId);
+                  }}
+                />
+                <div className="pet-collection__tile-art">
+                  <HatchedPetArtwork pet={pet} />
+                </div>
+                <span className="pet-collection__tile-name"
+                  data-testid={`text-pet-name-${pet.shopItemId}`}>
+                  {pet.petNickname || pet.name}
+                </span>
+                <span className="pet-collection__stars" aria-hidden="true">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} className={i < (pet.rarity ?? 1) ? "is-earned" : ""}>★</span>
+                  ))}
+                </span>
+                <span className="pet-collection__tile-level">Lvl {pet.petLevel}
+                  {activePetId === pet.inventoryId ? " · Featured" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {petEggs.length > 0 && (
+        <section data-testid="inventory-pet-eggs" aria-label="Unhatched pet eggs">
+          <h3 className="pet-collection__divider" data-testid="inventory-pets-eggs-divider">
+            <span>Unhatched Eggs · {petEggs.length}</span>
+          </h3>
+          <div className="pet-collection__eggs">
+            {petEggs.map(pet => {
+              const started = pet.hatchStartedAt ? new Date(pet.hatchStartedAt).getTime() : NaN;
+              const hatchReady = Number.isFinite(started)
+                && Date.now() - started >= (pet.hatchTime ? pet.hatchTime * 3600000 : 0);
+              return (
+                <button
+                  key={pet.inventoryId}
+                  type="button"
+                  data-testid={`card-pet-${pet.shopItemId}`}
+                  data-pet-inv-id={pet.inventoryId}
+                  className={`pet-collection__egg${hatchReady ? " is-ready" : ""}`}
+                  aria-label={`${pet.petNickname || pet.name}: ${hatchReady ? "ready to hatch" : "hatching options"}`}
+                  onClick={() => handleEggClick(pet)}
+                >
+                  <span className="pet-collection__egg-art">
+                    <img src={pet.eggImageUrl || eggMagicIcon} alt="" draggable={false} />
+                    {hatchingId === pet.inventoryId && (
+                      <span className="pet-collection__hatch-burst" aria-live="polite">HATCHED!</span>
+                    )}
+                    {isDragging && <span className="pet-collection__hatch-burst">DROP</span>}
+                  </span>
+                  <span className="pet-collection__egg-name"
+                    data-testid={`text-pet-name-${pet.shopItemId}`}>{pet.petNickname || pet.name}</span>
+                  <span className="pet-collection__stars" aria-hidden="true">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <span key={i} className={i < (pet.rarity ?? 1) ? "is-earned" : ""}>★</span>
+                    ))}
+                  </span>
+                  {pet.hatchStartedAt && pet.hatchTime
+                    ? <HatchProgressBar hatchStartedAt={pet.hatchStartedAt} hatchTime={pet.hatchTime} />
+                    : <span className="pet-collection__egg-status">
+                        {hatchReady ? "Ready to hatch!" : "Tap for hatching options"}
+                      </span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
-    {openPetMenu && (() => {
-      const selectedPet = sortedPets.find(p => p.inventoryId === openPetMenu.inventoryId && p.isHatched);
-      return selectedPet ? (
-        <PetActionMenu
-          key={selectedPet.inventoryId}
-          petInventoryId={selectedPet.inventoryId}
-          petName={selectedPet.petNickname || selectedPet.name}
-          anchor={openPetMenu.anchor}
-          onSelect={choosePetAction}
-          onClose={closePetMenu}
-        />
-      ) : null;
-    })()}
-    </>
   );
 }
 

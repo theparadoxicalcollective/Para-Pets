@@ -52,11 +52,14 @@ test("near-top pet buttons open downward and the arc stays within a tablet viewp
   assert.ok(position.top + PET_MENU_HEIGHT <= 1180 - 8);
 });
 
-test("only the hatched pet inventory button opens the menu; eggs retain hatch and speed-up actions", () => {
+test("only a selected hatched pet opens in-card actions; eggs keep their separate hatch and speed-up flows", () => {
   const inventory = read("client/src/components/PetInventory.tsx");
-  assert.match(inventory, /!readOnly && !isEgg && \(/);
-  assert.match(inventory, /data-testid=\{\`button-pet-menu-\$\{pet\.inventoryId\}\`\}/);
+  assert.match(inventory, /const hatchedPets = sortedPets\.filter\(pet => pet\.isHatched\)/);
+  assert.match(inventory, /const petEggs = sortedPets\.filter\(pet => !pet\.isHatched\)/);
+  assert.match(inventory, /\{!readOnly && \(/);
+  assert.match(inventory, /data-testid=\{\`button-pet-menu-\$\{selectedPet\.inventoryId\}\`\}/);
   assert.match(inventory, /petInventoryId=\{selectedPet\.inventoryId\}/);
+  assert.match(inventory, /<PetActionMenu inline/);
   assert.match(inventory, /navigate\(petInventoryActionHref\(action, inventoryId\)\)/);
   assert.doesNotMatch(inventory, /button-select-pet-/);
   assert.match(inventory, /hatchCheckMutation\.mutate\(pet\.inventoryId\)/);
@@ -64,18 +67,24 @@ test("only the hatched pet inventory button opens the menu; eggs retain hatch an
   assert.match(inventory, /\/api\/pet\/\$\{petInvId\}\/use-special/);
 });
 
-test("only one inventory pet arc is open; choosing a different card replaces selection", () => {
+test("one selected companion owns one anchored menu; changing portraits dismisses actions", () => {
   const inventory = read("client/src/components/PetInventory.tsx");
+  assert.match(inventory, /const \[selectedPetId, setSelectedPetId\] = useState/);
   assert.match(inventory, /const \[openPetMenu, setOpenPetMenu\] = useState/);
-  assert.match(inventory, /previous\?\.inventoryId === pet\.inventoryId \? null : \{/);
+  assert.match(inventory, /previous\?\.inventoryId === selectedPet\.inventoryId/);
   assert.match(inventory, /anchor: HTMLButtonElement/);
-  assert.match(inventory, /selectedPet = sortedPets\.find\(p => p\.inventoryId === openPetMenu\.inventoryId && p\.isHatched\)/);
+  assert.match(inventory, /hatchedPets\.find\(pet => pet\.inventoryId === selectedPetId\)/);
+  assert.match(inventory, /closePetMenu\(\);\s*setFlippedPetId\(null\);\s*setSelectedPetId\(pet\.inventoryId\)/);
+  assert.match(inventory, /data-testid="inventory-pets-eggs-divider"/);
 });
 
 test("menu portal avoids clipping, dismisses on scroll/outside/Escape, and does not block unrelated taps", () => {
   const menu = read("client/src/components/PetActionMenu.tsx");
   const styles = read("client/src/components/PetActionMenu.css");
   assert.match(menu, /<ViewportModalPortal blocking=\{false\}>/);
+  assert.match(menu, /function InlinePetActionMenu/);
+  assert.match(menu, /<InlinePetActionMenu \{\.\.\.props\} \/>/);
+  assert.match(styles, /pet-action-inline-panel/);
   assert.match(menu, /pointer-events-none absolute inset-0/);
   assert.match(menu, /pet-action-bubble pointer-events-auto/);
   assert.match(menu, /event\.target\.closest\("\[data-pet-menu-trigger\]"\)/);
@@ -90,8 +99,8 @@ test("menu portal avoids clipping, dismisses on scroll/outside/Escape, and does 
 test("legacy main pet can still be changed without restoring the large Select control", () => {
   const inventory = read("client/src/components/PetInventory.tsx");
   const home = read("client/src/pages/HomePage.tsx");
-  assert.match(inventory, /button-feature-main-pet-\$\{pet\.inventoryId\}/);
-  assert.match(inventory, /!isActive && !isPending\) onToggle\(pet\.inventoryId\)/);
+  assert.match(inventory, /button-feature-main-pet-\$\{selectedPet\.inventoryId\}/);
+  assert.match(inventory, /activePetId !== selectedPet\.inventoryId && !isPending\) onToggle\(selectedPet\.inventoryId\)/);
   assert.match(inventory, /PATCH", "\/api\/user\/active-pet"/);
   assert.match(home, /data-testid="active-pet-side-menu"/);
   assert.match(home, /data-testid="button-open-pet-menu"/);

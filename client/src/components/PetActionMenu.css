@@ -14,3 +14,58 @@
 @media (prefers-reduced-motion: reduce) {
   .pet-action-bubble { animation: none; transition: none; }
 }
+
+/* Featured pet action panel: one anchored target, no viewport drift or
+   overlapping cards. Four iconic actions bloom in a shallow, readable arc. */
+.pet-action-inline-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: clamp(2px, 1.5vw, 10px);
+  box-sizing: border-box;
+  width: min(100%, 340px);
+  margin: 0 auto;
+  padding: 13px 7px 10px;
+  border: 1px solid rgba(231,190,102,.64);
+  border-radius: 16px;
+  background: linear-gradient(150deg, rgba(7,34,23,.97), rgba(3,19,14,.96));
+  box-shadow: 0 6px 19px rgba(0,0,0,.42), inset 0 1px rgba(243,224,163,.10);
+}
+.pet-action-inline-option {
+  min-width: 0;
+  min-height: 77px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  padding: 4px 0 3px;
+  gap: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #ffe6ab;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pet-action-inline-option:nth-child(2),
+.pet-action-inline-option:nth-child(3) { padding-bottom: 9px; }
+.pet-action-inline-option img {
+  width: clamp(42px, 12vw, 55px);
+  height: clamp(42px, 12vw, 55px);
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px #010b07);
+}
+.pet-action-inline-option span {
+  display: block;
+  font: 700 clamp(10px, 2.8vw, 12px)/1.18 Georgia, serif;
+  white-space: nowrap;
+  text-shadow: 0 2px 4px #000;
+}
+.pet-action-inline-option:focus-visible {
+  outline: 2px solid #ffe1a0;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-action-inline-option { animation: none; }
+}
