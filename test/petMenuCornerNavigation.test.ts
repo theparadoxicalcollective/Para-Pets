@@ -14,7 +14,8 @@ test("Pet Menu is anchored to the opposite lower corner with circular upward opt
   }
   assert.match(home, /className="absolute flex flex-col-reverse items-center gap-3"/);
   for (const label of ["Power-Up", "Level Up", "Closet", "Pet Care"]) assert.ok(home.includes(`>${label}</span>`));
-  assert.match(nav, /bottom: 16/);
+  assert.match(nav, /bottom: isHome \? undefined : 16/);
+  assert.match(nav, /top: isHome \? "min\(242px/);
   assert.match(nav, /right: 12/);
 });
 

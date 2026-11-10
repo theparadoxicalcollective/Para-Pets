@@ -160,8 +160,8 @@ export default function HomePlayerHud({
         </div>
         {avatarHome && (
           <div className="home-player-hud__level-below">
-            <span data-testid="home-player-level" className="home-player-hud__level">
-              {player ? `LV ${player.level}` : progression.isError ? "Level unavailable" : "LV …"}
+            <span data-testid="home-player-level" className="home-player-hud__level home-player-hud__level-pill">
+              {player ? `Lvl ${player.level}` : progression.isError ? "Level unavailable" : "Lvl …"}
             </span>
           </div>
         )}

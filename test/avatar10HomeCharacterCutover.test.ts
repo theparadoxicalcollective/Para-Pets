@@ -110,7 +110,7 @@ test("character stands at the existing artwork landmark with short-screen HUD cl
   assert.match(hud, /avatarHome = false/);
   assert.match(hud, /home-player-hud--avatar-home/);
   assert.match(hudCss, /home-player-hud--avatar-home/);
-  assert.match(hudCss, /bottom: calc\(77px \+ env\(safe-area-inset-bottom/);
+  assert.match(hudCss, /bottom: calc\(63px \+ env\(safe-area-inset-bottom/);
   assert.match(hudCss, /--home-avatar-standing-y/);
   assert.equal(shouldShowDesktopComingSoon("/", {
     userAgent:"Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
