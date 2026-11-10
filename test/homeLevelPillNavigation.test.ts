@@ -54,7 +54,7 @@ test("Home expanded navigation exposes all current routes in a screen-safe three
     assert.ok(dx >= 50 || dy >= 50, `menu item ${i} and ${j} do not overlap`);
   }
   for (const viewportHeight of [500, 568, 667, 844, 1194]) {
-    const top = Math.min(242, Math.max(172, viewportHeight - 355));
+    const top = Math.min(242, Math.max(172, viewportHeight - 330));
     assert.ok(top + 4 * 65 + 50 <= viewportHeight - 8,
       `Home nav fits viewport height ${viewportHeight}`);
   }
