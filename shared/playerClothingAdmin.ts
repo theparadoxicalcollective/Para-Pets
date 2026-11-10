@@ -9,6 +9,8 @@ import {
   playerClothingDefinitionSchema,
   playerClothingRenderPlaneSchema,
   playerClothingSegmentSchema,
+  playerClothingSlotSchema,
+  clothingSegmentKey,
   type PlayerClothingCategory,
   type PlayerClothingSegment,
 } from "./playerCharacterClothing";
@@ -39,6 +41,35 @@ export const clothingSegmentWriteSchema = z.object({
   imageData: uploadData.optional(),
 }).strict();
 
+/** One draft revision for all uploaded outfit artwork; no fitting controls.
+ * An empty list is allowed when realigning an existing incomplete draft.
+ */
+export const clothingCanvasWriteSchema = z.object({
+  expectedRevision: z.number().int().min(0),
+  images: z.array(z.object({
+    slot: playerClothingSlotSchema,
+    imageData: uploadData,
+  }).strict()).max(13),
+  removeSlots: z.array(playerClothingSlotSchema).max(13).optional(),
+}).strict().superRefine(({ images, removeSlots }, ctx) => {
+  const used = new Set<string>();
+  for (const [i, item] of images.entries()) {
+    if (used.has(item.slot)) ctx.addIssue({
+      code: "custom", path: ["images", i, "slot"], message: "Duplicate clothing image",
+    });
+    used.add(item.slot);
+  }
+  for (const slot of removeSlots ?? []) {
+    if (used.has(slot)) ctx.addIssue({
+      code: "custom", path: ["removeSlots"], message: "Cannot upload and remove the same image",
+    });
+    used.add(slot);
+  }
+  if (images.reduce((n, image) => n + image.imageData.length, 0) > 40_000_000) {
+    ctx.addIssue({ code: "custom", path: ["images"], message: "Combined clothing artwork is too large" });
+  }
+});
+
 export const clothingRevisionSchema = z.object({
   expectedRevision: z.number().int().min(0),
 }).strict();
@@ -58,14 +89,14 @@ export interface PlayerClothingDraft {
   publishedAt: Date | null;
 }
 
-/** Keep a single fitted image per animation anchor in a clothing item.
+/** Keep a single image per upload slot (multiple slots may share a head/arm anchor).
  * A named pants item may own both the left and right leg. */
 export function upsertClothingSegment(
   segments: readonly PlayerClothingSegment[],
   next: PlayerClothingSegment,
 ): PlayerClothingSegment[] {
   const validated = playerClothingSegmentSchema.parse(next);
-  const result = [...segments.filter(item => item.partType !== validated.partType), validated];
+  const result = [...segments.filter(item => clothingSegmentKey(item) !== clothingSegmentKey(validated)), validated];
   playerClothingDefinitionSchema.parse({ name: "draft", category: "top", segments: result });
   return result;
 }
