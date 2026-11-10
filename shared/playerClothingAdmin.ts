@@ -10,6 +10,7 @@ import {
   playerClothingRenderPlaneSchema,
   playerClothingSegmentSchema,
   playerClothingSlotSchema,
+  playerShoesLayerSchema,
   clothingSegmentKey,
   type PlayerClothingCategory,
   type PlayerClothingSegment,
@@ -51,6 +52,9 @@ export const clothingCanvasWriteSchema = z.object({
     imageData: uploadData,
   }).strict()).max(13),
   removeSlots: z.array(playerClothingSlotSchema).max(13).optional(),
+  // Optional so all existing clothing and historic save requests are valid.
+  // Only used for the Shoes category; the server validates that boundary.
+  shoesLayer: playerShoesLayerSchema.optional(),
 }).strict().superRefine(({ images, removeSlots }, ctx) => {
   const used = new Set<string>();
   for (const [i, item] of images.entries()) {
