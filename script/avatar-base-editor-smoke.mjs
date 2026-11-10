@@ -134,6 +134,7 @@ try{
         z:Number(getComputedStyle(el).zIndex)})));
     assert.equal(rendered.length,8,sc.name+": all eight uploads appear in actual compositor");
     assert.equal(rendered[rendered.length-1].part,"head",sc.name+": head sits on top");
+    const renderedCanvas=await page.getByTestId("player-character-renderer").boundingBox();
     const aligned=await page.locator('[data-character-part]').evaluateAll(els=>
       els.map(el=>{
         const r=el.getBoundingClientRect();
@@ -148,8 +149,10 @@ try{
         Math.abs(item.height-aligned[0].height)<1,
         sc.name+": "+item.part+" must share exactly the same image canvas "+
         JSON.stringify({item,reference:aligned[0]}));
-      assert.ok(Math.abs(item.width-originalBox.width)<2,
-        sc.name+": avatar layer fills the full preview square");
+      // The preview's gold border is outside the content box: compare with
+      // the actual square renderer, not the border-box width (2px larger).
+      assert.ok(renderedCanvas && Math.abs(item.width-renderedCanvas.width)<1,
+        sc.name+": avatar layer fills the entire drawable 1000px canvas");
     }
 
     assert.equal(await page.getByTestId("avatar-publish-default").count(),0,
