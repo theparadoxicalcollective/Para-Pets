@@ -20,7 +20,7 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
           'Avatar clothing · head', 'Avatar clothing · hair',
           'Avatar clothing · face', 'Avatar clothing · top',
           'Avatar clothing · bottom', 'Avatar clothing · shoes',
-          'Avatar clothing · back'
+          'Avatar clothing · back', 'Avatar clothing · accessories'
         );
     -- Older designs without an 08A description retain their original
     -- category as a compatibility fallback; never overwrite a saved snapshot.
@@ -38,7 +38,7 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
     );
     CREATE TABLE IF NOT EXISTS player_avatar_equipment (
       user_id varchar NOT NULL REFERENCES player_avatar_profiles(user_id) ON DELETE CASCADE,
-      category text NOT NULL CHECK (category IN ('head','hair','face','top','bottom','shoes','back')),
+      category text NOT NULL CHECK (category IN ('accessories','head','hair','face','top','bottom','shoes','back')),
       inventory_id varchar NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
       equipped_at timestamp NOT NULL DEFAULT now(),
       CONSTRAINT player_avatar_equipment_owner_category_uidx UNIQUE (user_id, category),
@@ -46,5 +46,23 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS player_avatar_equipment_inventory_idx
       ON player_avatar_equipment(inventory_id);
+    -- Existing player accounts retain their outfit/equipment records.
+    -- Widen the original seven-slot CHECK only if the Accessories category
+    -- has not already been added to this database.
+    DO $
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'player_avatar_equipment'::regclass
+          AND conname = 'player_avatar_equipment_category_check'
+          AND pg_get_constraintdef(oid) NOT ILIKE '%accessories%'
+      ) THEN
+        ALTER TABLE player_avatar_equipment
+          DROP CONSTRAINT player_avatar_equipment_category_check;
+        ALTER TABLE player_avatar_equipment
+          ADD CONSTRAINT player_avatar_equipment_category_check
+          CHECK (category IN ('accessories','head','hair','face','top','bottom','shoes','back'));
+      END IF;
+    END $;
   `);
 }
