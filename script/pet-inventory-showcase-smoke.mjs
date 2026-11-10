@@ -223,6 +223,10 @@ try{
       return {border:s.borderColor,background:s.backgroundImage};
     });
     assert.match(style.background,/gradient/,sc.name+": forest spotlight backdrop renders");
+    await page.getByTestId("inventory-pet-action-care").click();
+    await page.waitForFunction(() => window.location.pathname === "/pet-care/pet-extra-8");
+    assert.equal(new URL(page.url()).searchParams.get("from"),"pets",
+      sc.name+": visible Care action still routes by selected inventory ID and returns to Pets");
     assert.equal(errors.length,0,sc.name+": no browser page errors: "+errors.join("; "));
     await ctx.close();
   }
