@@ -269,6 +269,7 @@ export default function PlayerClothingAdminPanel({
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs">Category
             <select className={inputClass} value={newCategory}
+              data-testid="avatar-new-clothing-category"
               onChange={event=>setNewCategory(event.target.value as PlayerClothingCategory)}>
               {PLAYER_CLOTHING_CATEGORIES.map(category=>
                 <option key={category} value={category}>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</option>)}
