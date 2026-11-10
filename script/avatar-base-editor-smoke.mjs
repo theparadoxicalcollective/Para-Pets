@@ -182,13 +182,18 @@ try{
     await page.getByTestId("avatar-save-body").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-save-body").isEnabled(),true,
       sc.name+": old misaligned saved body can be fixed without reupload");
-    const oldHead=await page.locator('[data-character-part="head"]').evaluate(el=>{
-      const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width};
-    });
-    assert.ok(Math.abs(oldHead.x-aligned[0].left)<1 &&
-      Math.abs(oldHead.y-aligned[0].top)<1 &&
-      Math.abs(oldHead.width-aligned[0].width)<1,
-      sc.name+": legacy saved head previews on full canvas before resave");
+    // Compare current boxes after the query refresh. The page may reflow
+    // when Save/Publish controls appear; the PRE-save box is not a stable
+    // screen-coordinate reference. The renderer content is.
+    const oldHead=await page.locator('[data-character-part="head"]').boundingBox();
+    const currentCanvas=await page.getByTestId("player-character-renderer").boundingBox();
+    assert.ok(oldHead && currentCanvas &&
+      Math.abs(oldHead.x-currentCanvas.x)<1 &&
+      Math.abs(oldHead.y-currentCanvas.y)<1 &&
+      Math.abs(oldHead.width-currentCanvas.width)<1 &&
+      Math.abs(oldHead.height-currentCanvas.height)<1,
+      sc.name+": legacy saved head previews on the full current canvas before resave: "+
+      JSON.stringify({oldHead,currentCanvas}));
     const alignResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
     await page.getByTestId("avatar-save-body").click();
     await alignResponse;
