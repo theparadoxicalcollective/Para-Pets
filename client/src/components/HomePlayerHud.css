@@ -295,7 +295,7 @@
 .home-player-hud--avatar-home .home-player-hud__progress {
   position: absolute;
   left: var(--home-avatar-x, 50%);
-  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px);
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 20px);
   transform: translateX(-50%);
   box-sizing: border-box;
   width: min(calc(100vw - 42px), 400px);
@@ -310,14 +310,32 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 7px;
-  min-height: 20px;
+  margin-top: 8px;
+  min-height: 25px;
   font-family: Georgia, serif;
   color: #f5dfa5;
   text-shadow: 0 2px 5px #041009, 0 0 10px #041009;
 }
 .home-player-hud--avatar-home .home-player-hud__level {
   font-size: clamp(13px, 3.5vw, 16px);
+}
+.home-player-hud--avatar-home .home-player-hud__level-pill {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 78px;
+  min-height: 25px;
+  padding: 3px 15px;
+  border: 1px solid rgba(234, 196, 109, .82);
+  border-radius: 999px;
+  background: linear-gradient(155deg, rgba(28, 62, 42, .96), rgba(9, 31, 22, .96));
+  box-shadow: 0 2px 9px rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 227, 152, .13);
+  color: #ffe7ac;
+  font-weight: 700;
+  letter-spacing: .025em;
+  line-height: 1.05;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .home-player-hud--avatar-home .home-player-hud__xp-row {
   position: relative;
@@ -331,7 +349,7 @@
 }
 .home-player-hud--avatar-home .home-player-hud__xp-text {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 14px);
   left: 0;
   min-width: 0;
   font-size: clamp(10px, 2.8vw, 13px);
@@ -342,7 +360,7 @@
 .home-player-hud--avatar-home .home-player-hud__party-panel {
   position: absolute;
   left: 50%;
-  bottom: calc(77px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(63px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   box-sizing: border-box;
   width: min(calc(100vw - 34px), 430px);
@@ -398,10 +416,10 @@
 }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   }
   .home-player-hud--avatar-home .home-player-hud__progress {
-    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 4px);
+    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 16px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot { width: min(100%, 42px); }
 }
