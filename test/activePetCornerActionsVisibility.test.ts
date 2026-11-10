@@ -16,6 +16,8 @@ test("Watcher dock remains available when legacy Pet Menu opens; Support lives i
   assert.match(section, /data-testid="button-open-world-chat"/);
   assert.match(section, /<ViewportHudPortal>/);
   assert.doesNotMatch(section, /data-testid="button-open-support"/);
-  assert.match(nav, /data-testid="nav-item-support"/);
+  assert.match(nav, /"badges", "support"/);
+  assert.match(nav, /testId=\{`nav-item-\$\{id\}`\}/);
+  assert.match(nav, /isSupport \? handleRight\("support"\)/);
   assert.match(nav, /para-pets:open-support/);
 });

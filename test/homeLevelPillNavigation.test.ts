@@ -29,45 +29,46 @@ test("XP, level pill and companion panel sit lower while retaining short-phone c
   assert.match(hudCss, /pointer-events: auto/);
 });
 
-test("Home-only navigation presents a grouped upper-right folio; other routes keep the old anchor", () => {
+test("Home navigation flows down the right edge into left columns; other routes keep old anchor", () => {
   assert.match(nav, /const \[location, navigate\] = useLocation\(\)/);
   assert.match(nav, /const isHome = location === "\/"/);
   assert.match(nav, /top: isHome \? "clamp\(108px/);
   assert.match(nav, /bottom: isHome \? undefined : 16/);
   assert.match(nav, /right: 12/);
   assert.match(nav, /data-testid="home-realm-nav-panel"/);
+  assert.match(nav, /ref=\{homeAnchorRef\}/);
+  assert.match(nav, /homeAnchorRef\.current\?\.getBoundingClientRect\(\)/);
+  assert.match(nav, /gridTemplateColumns: \x60repeat\(\$\{homeColumns\}, \$\{HOME_TILE_WIDTH\}px\)\x60/);
+  assert.match(nav, /homeNavPosition\(index, homeRowCapacity\)/);
+  assert.match(nav, /bottom - anchorBottom - 12 - 34/);
   assert.match(nav, /aria-controls=\{isHome \? "home-realm-nav-panel" : undefined\}/);
   assert.match(nav, /aria-expanded=\{isOpen\}/);
   assert.match(nav, /if \(navHidden\) return null/);
   assert.match(nav, /setMainNavOpen\(isOpen && !navHidden\)/);
 });
 
-test("Main leads the twelve original routes, plus a compact Support shortcut", () => {
-  assert.match(nav, /const HOME_NAV_SECTIONS = \[/);
-  assert.match(nav, /title: "Explore"/);
-  assert.match(nav, /title: "Companions"/);
-  assert.match(nav, /title: "Activities"/);
-  assert.match(nav, /ids: \["home", "map", "pethouse", "keepers"\]/);
-  assert.match(nav, /section\.ids\.map\(id =>/);
-  assert.doesNotMatch(nav, /Realm Paths/);
-  assert.match(nav, /data-testid="nav-item-support"/);
-  assert.match(nav, /aria-label="Contact Support"/);
+test("Main is first and Support is last in the ordered right-to-left Home icon rail", () => {
+  const css = read("client/src/components/FloatingNavHome.css");
+  assert.match(nav, /const HOME_NAV_ORDER = \[/);
+  assert.match(nav, /"home", "inventory", "map", "pethouse", "quest", "keepers"/);
+  assert.match(nav, /"bag", "market", "aquarium", "cards", "pvp", "badges", "support"/);
+  assert.match(nav, /HOME_NAV_ORDER\.map\(\(id, index\) =>/);
+  assert.match(nav, /gridColumn: columns - column/);
+  assert.match(nav, /column === columns - 1 \? rows - count : 0/);
+  assert.match(nav, /showQuestReward=\{id === "quest" && questRewardReady\}/);
+  assert.match(nav, /isSupport \? handleRight\("support"\)/);
   assert.match(nav, /if \(id === "support"\)/);
   assert.match(nav, /para-pets:open-support/);
-  assert.doesNotMatch(nav, /data-testid="nav-item-coins"|<Compass/);
+  assert.match(nav, /aria-label="Realm navigation"/);
+  assert.doesNotMatch(nav, /HOME_NAV_SECTIONS|data-testid="nav-item-coins"|<Compass/);
   assert.match(nav, /src=\{mainNavIcon\}/);
-  assert.match(nav, /handleLeft\(item\.id\) : handleRight\(item\.id\)/);
-  assert.match(nav, /showQuestReward=\{item\.id === "quest" && questRewardReady\}/);
   assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
   assert.match(nav, /!isHome && RIGHT_ITEMS\.map/);
   assert.match(nav, /window\.dispatchEvent\(new Event\("para-pets:main-nav-open"\)\)/);
   assert.match(nav, /window\.addEventListener\("para-pets:pet-menu-open", closeForPetMenu\)/);
-  const ids = [
-    ["home", "map", "pethouse", "keepers"],
-    ["aquarium", "inventory", "bag", "cards"],
-    ["market", "quest", "pvp", "badges"],
-  ];
-  assert.equal(ids[0][0], "home");
-  assert.equal(ids.flat().length, 12);
-  assert.equal(new Set(ids.flat()).size, 12);
+  assert.match(css, /\.home-realm-nav\s*\{/);
+  assert.match(css, /top: calc\(100% \+ 10px\)/);
+  assert.match(css, /pointer-events: none/);
+  assert.match(css, /\.home-realm-nav__icon/);
+  assert.doesNotMatch(css, /home-realm-nav__shortcut-row|home-realm-nav__section|home-realm-nav__grid/);
 });

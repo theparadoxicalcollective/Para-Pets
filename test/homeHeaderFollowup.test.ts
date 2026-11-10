@@ -18,7 +18,9 @@ test("Home name is lower and more legible; small coin shortcut sits below reorde
   assert.match(topBar, /paddingTop: 30/);
   assert.match(topBar, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
   assert.match(topBar, /borderLeft: "2px solid rgba\(245, 205, 118/);
-  assert.match(nav, /data-testid="nav-item-support"/);
+  assert.match(nav, /"badges", "support"/);
+  assert.match(nav, /testId=\{`nav-item-\$\{id\}`\}/);
+  assert.match(nav, /isSupport \? handleRight\("support"\)/);
   assert.doesNotMatch(nav, /data-testid="nav-item-coins"/);
   assert.match(nav, /@assets\/uploads\/NewMainNavButton\.PNG/);
   assert.match(topBar, /marginTop: location === "\/" \? 17 : 0/);

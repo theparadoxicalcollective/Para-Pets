@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, type CSSProperties } from "react";
+import { useState, useCallback, useEffect, useRef, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getNextZ } from "@/lib/layerManager";
@@ -87,13 +87,38 @@ const RIGHT_ITEMS = [
   { id: "home",     label: "Main",    icon: activePetIcon  },
 ];
 
-// Home groups reuse the same route definitions and handlers as the ordinary
-// floating navigation. Only their presentation differs.
-const HOME_NAV_SECTIONS = [
-  { title: "Explore", ids: ["home", "map", "pethouse", "keepers"] },
-  { title: "Companions", ids: ["aquarium", "inventory", "bag", "cards"] },
-  { title: "Activities", ids: ["market", "quest", "pvp", "badges"] },
+// Home is a right-edge navigation rail, ordered by common player destinations.
+// Fill the right column first and flow extra icons into columns to its left.
+// Support is intentionally the final action, at the bottom of the last column.
+const HOME_NAV_ORDER = [
+  "home", "inventory", "map", "pethouse", "quest", "keepers",
+  "bag", "market", "aquarium", "cards", "pvp", "badges", "support",
 ] as const;
+const HOME_TILE_WIDTH = 58;
+const HOME_TILE_HEIGHT = 56;
+const HOME_ROW_GAP = 6;
+const HOME_COLUMN_GAP = 8;
+
+/** Keep columns balanced within the available vertical space and anchor the
+ * last action (Support) to the bottom of the leftmost overflow column. */
+function homeNavPosition(index: number, capacity: number) {
+  const columns = Math.ceil(HOME_NAV_ORDER.length / Math.max(1, capacity));
+  const rows = Math.ceil(HOME_NAV_ORDER.length / columns);
+  const base = Math.floor(HOME_NAV_ORDER.length / columns);
+  const extra = HOME_NAV_ORDER.length % columns;
+  let remaining = index;
+  for (let column = 0; column < columns; column++) {
+    const count = base + (column < extra ? 1 : 0);
+    if (remaining < count) {
+      return {
+        gridColumn: columns - column,
+        gridRow: remaining + 1 + (column === columns - 1 ? rows - count : 0),
+      };
+    }
+    remaining -= count;
+  }
+  return { gridColumn: 1, gridRow: rows };
+}
 
 const ICON_SIZE   = 50;
 const BUTTON_SIZE = 58;
@@ -141,13 +166,14 @@ function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: s
 /** Home-only dense navigation. Labels remain visible, buttons are at least
  * 44px high, and route/badge logic stays owned by FloatingNav. */
 function HomeNavTile({
-  icon, label, onClick, testId, showQuestReward,
+  icon, label, onClick, testId, showQuestReward, position,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   testId: string;
   showQuestReward: boolean;
+  position: { gridColumn: number; gridRow: number };
 }) {
   return (
     <button
@@ -155,9 +181,12 @@ function HomeNavTile({
       data-testid={testId}
       className="home-realm-nav__tile"
       aria-label={label}
+      style={position}
       onClick={onClick}
     >
-      <img src={icon} alt="" draggable={false} aria-hidden="true" />
+      <span className="home-realm-nav__icon">
+        <img src={icon} alt="" draggable={false} aria-hidden="true" />
+      </span>
       <span className="home-realm-nav__tile-label">{label}</span>
       {showQuestReward && <QuestRewardBadge style={{ top: -7, right: -6 }} />}
     </button>
@@ -194,6 +223,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [spacing, setSpacing]   = useState(() => calcSpacing(typeof window !== "undefined" ? window.innerWidth : 390));
+  const homeAnchorRef = useRef<HTMLDivElement>(null);
+  const [homeRowCapacity, setHomeRowCapacity] = useState(6);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -209,6 +240,31 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       window.removeEventListener("resize", measure);
     };
   }, []);
+
+  // The rail measures the real game viewport, not an iPhone-only reference
+  // stage. A conservative bottom margin leaves the home-indicator area free.
+  useEffect(() => {
+    if (!isHome || navHidden) return;
+    const hud = document.getElementById("game-viewport-hud");
+    const measure = () => {
+      const hudRect = hud?.getBoundingClientRect();
+      const anchorRect = homeAnchorRef.current?.getBoundingClientRect();
+      const bottom = hudRect?.bottom ?? window.innerHeight;
+      const anchorBottom = anchorRect?.bottom ?? 180;
+      const freeHeight = Math.max(0, bottom - anchorBottom - 12 - 34);
+      const capacity = Math.max(1,
+        Math.floor((freeHeight + HOME_ROW_GAP) / (HOME_TILE_HEIGHT + HOME_ROW_GAP)));
+      setHomeRowCapacity(capacity);
+    };
+    measure();
+    const observer = hud && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (hud && observer) observer.observe(hud);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isHome, navHidden]);
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -344,6 +400,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   if (navHidden) return null;
 
   const anyPanelOpen = showQuest || showPvpNote || showAquarium;
+  const homeColumns = Math.ceil(HOME_NAV_ORDER.length / homeRowCapacity);
+  const homeRows = Math.ceil(HOME_NAV_ORDER.length / homeColumns);
 
   return (
     <>
@@ -359,10 +417,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
       {/* ── Nav container ─────────────────────────────────────────────────── */}
       <div
+        ref={homeAnchorRef}
         className="absolute"
         style={{
-          // A small upper-right folio leaves the avatar/stars/XP unobstructed.
-          // Every non-Home page retains the original bottom-right anchor.
+          // Home icons flow down the right edge, with overflow to the left.
+          // Other pages retain the original bottom-right fan anchor.
           top: isHome ? "clamp(108px, calc(env(safe-area-inset-top, 0px) + 94px), 128px)" : undefined,
           bottom: isHome ? undefined : 16,
           right: 12,
@@ -372,40 +431,34 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           pointerEvents: "auto",
         }}
       >
-        {/* Home uses one compact flyout with the same route handlers as
-            other pages. Keep all actions clear of the avatar and XP HUD. */}
+        {/* Home uses individual floating buttons, never a boxed panel.
+            Original destinations, badges, and menu handoffs stay intact. */}
         {isHome && isOpen && (
           <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
-            aria-label="Realm navigation" className="home-realm-nav">
-            <div className="home-realm-nav__shortcut-row">
-              <button type="button" data-testid="nav-item-support"
-                className="home-realm-nav__support-link"
-                aria-label="Contact Support" title="Support"
-                onClick={() => handleRight("support")}>
-                <img src={supportIcon} alt="" aria-hidden="true" draggable={false} />
-                <span>Support</span>
-              </button>
-            </div>
-            {HOME_NAV_SECTIONS.map(section => (
-              <section key={section.title} className="home-realm-nav__section"
-                aria-label={section.title}>
-                <div className="home-realm-nav__grid">
-                  {section.ids.map(id => {
-                    const leftItem = LEFT_ITEMS.find(item => item.id === id);
-                    const item = leftItem ?? RIGHT_ITEMS.find(item => item.id === id);
-                    if (!item) return null;
-                    return (
-                      <HomeNavTile key={item.id} icon={item.icon}
-                        label={item.label}
-                        testId={`nav-item-${item.id}`}
-                        showQuestReward={item.id === "quest" && questRewardReady}
-                        onClick={() => leftItem ? handleLeft(item.id) : handleRight(item.id)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+            aria-label="Realm navigation" className="home-realm-nav"
+            style={{
+              gridTemplateColumns: `repeat(${homeColumns}, ${HOME_TILE_WIDTH}px)`,
+              gridTemplateRows: `repeat(${homeRows}, ${HOME_TILE_HEIGHT}px)`,
+              columnGap: HOME_COLUMN_GAP,
+              rowGap: HOME_ROW_GAP,
+            }}>
+            {HOME_NAV_ORDER.map((id, index) => {
+              const leftItem = LEFT_ITEMS.find(item => item.id === id);
+              const item = leftItem ?? RIGHT_ITEMS.find(item => item.id === id);
+              const isSupport = id === "support";
+              if (!item && !isSupport) return null;
+              return (
+                <HomeNavTile key={id}
+                  icon={isSupport ? supportIcon : item!.icon}
+                  label={isSupport ? "Support" : item!.label}
+                  testId={`nav-item-${id}`}
+                  position={homeNavPosition(index, homeRowCapacity)}
+                  showQuestReward={id === "quest" && questRewardReady}
+                  onClick={() => isSupport ? handleRight("support")
+                    : leftItem ? handleLeft(id) : handleRight(id)}
+                />
+              );
+            })}
           </nav>
         )}
 

@@ -7,8 +7,9 @@ test("inventory restores hit testing under noninteractive viewport host", () => 
   assert.match(app, /id="game-viewport-page"/);
   assert.ok(inventory.includes('style={pageMode ? { pointerEvents: "auto", touchAction: "pan-y" }'));
   assert.ok(inventory.includes('data-testid="button-close-inventory"'));
-  assert.ok(inventory.includes("button-pet-menu-"), "hatched pets expose their own menu trigger");
-  assert.ok(inventory.includes("data-pet-menu-trigger"));
+  assert.ok(inventory.includes("<PetActionMenu inline alwaysVisible"), "hatched pets expose four actions without another menu trigger");
+  assert.ok(!inventory.includes("data-pet-menu-trigger"), "removed opener cannot block pet card taps");
+  assert.ok(inventory.includes('data-testid="inventory-pet-collection-scroll"'), "pet/egg list remains independently scrollable");
   assert.ok(inventory.includes("onEggSpeedUp?.(pet.inventoryId)"), "egg speed-up remains available");
 });
 test("inventory respects phone safe areas", () => {

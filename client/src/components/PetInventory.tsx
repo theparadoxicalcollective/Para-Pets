@@ -42,7 +42,6 @@ import ViewportBackdropPortal from "@/components/ViewportBackdropPortal";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import PetActionMenu from "@/components/PetActionMenu";
 import { petInventoryActionHref, type PetAction } from "@/lib/petActionRoutes";
-import petMenuIconImg from "@assets/uploads/NewPetMenuButton.PNG?url";
 import { clientPointInRenderedElement, clientToStage } from "@/lib/stage";
 import "./PetInventoryShowcase.css";
 
@@ -561,7 +560,9 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
             </div>
           )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6"
+          <div className={pageMode && !showBag
+              ? "flex-1 min-h-0 overflow-hidden px-4 pb-2"
+              : "flex-1 min-h-0 overflow-y-auto px-4 pb-6"}
             style={pageMode ? { paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)" } : undefined}>
             {isLoading ? (
               <div className="text-center py-12">
@@ -575,6 +576,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 activePetId={user.activePetId}
                 onEggSpeedUp={(id) => setSpeedUpTargetId(id)}
                 isDragging={!!dragging}
+                pageMode={!!pageMode}
               />
             )}
           </div>
@@ -845,27 +847,25 @@ function PetView({
   onEggSpeedUp,
   isDragging,
   readOnly = false,
+  pageMode = false,
 }: {
   pets: InventoryItem[];
   activePetId: string | null;
   onEggSpeedUp?: (petInvId: string) => void;
   isDragging?: boolean;
   readOnly?: boolean;
+  pageMode?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
-  const spotlightRef = useRef<HTMLElement>(null);
-  const [openPetMenu, setOpenPetMenu] = useState<{
-    inventoryId: string;
-    anchor: HTMLButtonElement;
-  } | null>(null);
+  const [collectionTab, setCollectionTab] = useState<"pets" | "eggs">("pets");
+  const collectionScrollRef = useRef<HTMLDivElement>(null);
   const [hatchingId, setHatchingId] = useState<string | null>(null);
   const [flippedPetId, setFlippedPetId] = useState<string | null>(null);
   const hatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const closePetMenu = useCallback(() => setOpenPetMenu(null), []);
 
   useEffect(() => () => {
     if (hatchTimerRef.current) clearTimeout(hatchTimerRef.current);
@@ -873,8 +873,11 @@ function PetView({
   }, []);
 
   const choosePetAction = (action: PetAction, inventoryId: string) => {
-    closePetMenu();
     navigate(petInventoryActionHref(action, inventoryId));
+  };
+  const switchCollectionTab = (nextTab: "pets" | "eggs") => {
+    setCollectionTab(nextTab);
+    if (collectionScrollRef.current) collectionScrollRef.current.scrollTop = 0;
   };
 
   const hatchCheckMutation = useMutation({
@@ -900,6 +903,14 @@ function PetView({
   });
   const hatchedPets = sortedPets.filter(pet => pet.isHatched);
   const petEggs = sortedPets.filter(pet => !pet.isHatched);
+  // Start on Eggs for an eggs-only account, but allow players to switch
+  // back to Pets to see its empty state. Do not force Eggs on every render.
+  useEffect(() => {
+    if (pageMode && hatchedPets.length === 0 && petEggs.length > 0) {
+      setCollectionTab("eggs");
+    }
+  }, [pageMode, hatchedPets.length, petEggs.length]);
+  const activeCollectionTab = collectionTab;
   const selectedPet = hatchedPets.find(pet => pet.inventoryId === selectedPetId)
     ?? hatchedPets.find(pet => pet.inventoryId === activePetId)
     ?? hatchedPets[0]
@@ -921,7 +932,9 @@ function PetView({
     else onEggSpeedUp?.(pet.inventoryId);
   };
 
-  if (pets.length === 0) {
+  // Full-page view always exposes the Pets/Eggs tabs, even for an empty
+  // account. The legacy overlay keeps its existing empty presentation.
+  if (pets.length === 0 && !pageMode) {
     return (
       <div className="pet-collection__empty" data-testid="inventory-pets-empty">
         <img src={eggMagicIcon} alt="" className="w-16 h-16 object-contain mx-auto mb-3 opacity-50" />
@@ -931,10 +944,11 @@ function PetView({
   }
 
   return (
-    <div className="pet-collection" data-testid="inventory-pet-showcase">
+    <div className={pageMode ? "pet-collection pet-collection--page" : "pet-collection"}
+      data-testid="inventory-pet-showcase">
+      <div className={pageMode ? "pet-collection__fixed-overview" : undefined}>
       {selectedPet && (
         <section
-          ref={spotlightRef}
           className="pet-spotlight"
           data-testid="inventory-featured-pet"
           data-pet-inv-id={selectedPet.inventoryId}
@@ -1003,41 +1017,42 @@ function PetView({
           </div>
             {!readOnly && (
               <div className="pet-spotlight__actions">
-                <button
-                  type="button"
-                  data-pet-menu-trigger
-                  data-testid={`button-pet-menu-${selectedPet.inventoryId}`}
-                  data-inventory-id={selectedPet.inventoryId}
-                  className="pet-spotlight__menu-trigger"
-                  aria-label={`Open Pet Menu for ${selectedPet.petNickname || selectedPet.name}`}
-                  aria-expanded={openPetMenu?.inventoryId === selectedPet.inventoryId}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const anchor = event.currentTarget;
-                    setOpenPetMenu(previous =>
-                      previous?.inventoryId === selectedPet.inventoryId
-                        ? null : { inventoryId: selectedPet.inventoryId, anchor });
-                  }}
-                >
-                  <img src={petMenuIconImg} alt="" aria-hidden="true" draggable={false} />
-                  <span>PET MENU</span>
-                </button>
-                {openPetMenu?.inventoryId === selectedPet.inventoryId && (
-                  <PetActionMenu inline
-                    key={selectedPet.inventoryId}
-                    petInventoryId={selectedPet.inventoryId}
-                    petName={selectedPet.petNickname || selectedPet.name}
-                    anchor={openPetMenu.anchor}
-                    onSelect={choosePetAction}
-                    onClose={closePetMenu}
-                  />
-                )}
+                <PetActionMenu inline alwaysVisible
+                  key={selectedPet.inventoryId}
+                  petInventoryId={selectedPet.inventoryId}
+                  petName={selectedPet.petNickname || selectedPet.name}
+                  onSelect={choosePetAction}
+                  onClose={() => {}}
+                />
               </div>
             )}
         </section>
       )}
+      </div>
 
-      {hatchedPets.length > 0 && (
+      {pageMode && (
+        <>
+          <div className="pet-collection__overview-divider"
+            data-testid="inventory-pets-eggs-divider" role="separator" aria-label="Pet collection" />
+          <div className="pet-collection__tabs" role="tablist" aria-label="Collection type">
+            <button type="button" role="tab" id="inventory-tab-pets"
+              data-testid="inventory-tab-pets"
+              aria-controls="inventory-collection-panel" aria-selected={activeCollectionTab === "pets"}
+              onClick={() => switchCollectionTab("pets")}>Pets</button>
+            <button type="button" role="tab" id="inventory-tab-eggs"
+              data-testid="inventory-tab-eggs"
+              aria-controls="inventory-collection-panel" aria-selected={activeCollectionTab === "eggs"}
+              onClick={() => switchCollectionTab("eggs")}>Eggs</button>
+          </div>
+        </>
+      )}
+
+      <div ref={collectionScrollRef} data-testid="inventory-pet-collection-scroll"
+        id={pageMode ? "inventory-collection-panel" : undefined}
+        role={pageMode ? "tabpanel" : undefined}
+        aria-labelledby={pageMode ? (activeCollectionTab === "pets" ? "inventory-tab-pets" : "inventory-tab-eggs") : undefined}
+        className={pageMode ? "pet-collection__scroll-region" : undefined}>
+      {(!pageMode || activeCollectionTab === "pets") && hatchedPets.length > 0 && (
         <section aria-label="Hatched companions" data-testid="inventory-hatched-pets">
           <div className="pet-collection__tiles">
             {hatchedPets.map(pet => (
@@ -1054,13 +1069,8 @@ function PetView({
                   aria-pressed={selectedPet?.inventoryId === pet.inventoryId}
                   aria-label={`Select ${pet.petNickname || pet.name}, level ${pet.petLevel}`}
                   onClick={() => {
-                    closePetMenu();
                     setFlippedPetId(null);
                     setSelectedPetId(pet.inventoryId);
-                    spotlightRef.current?.scrollIntoView({
-                      block: "start",
-                      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-                    });
                   }}
                 />
                 <div className="pet-collection__tile-art">
@@ -1082,9 +1092,9 @@ function PetView({
         </section>
       )}
 
-      {petEggs.length > 0 && (
+      {(!pageMode || activeCollectionTab === "eggs") && petEggs.length > 0 && (
         <section data-testid="inventory-pet-eggs" aria-label="Unhatched pet eggs">
-          {hatchedPets.length > 0 && (
+          {!pageMode && hatchedPets.length > 0 && (
             <div className="pet-collection__divider" data-testid="inventory-pets-eggs-divider"
               role="separator" aria-label="Unhatched eggs" />
           )}
@@ -1128,6 +1138,13 @@ function PetView({
           </div>
         </section>
       )}
+      {pageMode && activeCollectionTab === "pets" && hatchedPets.length === 0 && (
+        <div className="pet-collection__empty" data-testid="inventory-pets-empty-tab">No hatched pets</div>
+      )}
+      {pageMode && activeCollectionTab === "eggs" && petEggs.length === 0 && (
+        <div className="pet-collection__empty" data-testid="inventory-eggs-empty-tab">No eggs</div>
+      )}
+      </div>
     </div>
   );
 }

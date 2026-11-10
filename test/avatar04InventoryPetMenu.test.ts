@@ -52,14 +52,14 @@ test("near-top pet buttons open downward and the arc stays within a tablet viewp
   assert.ok(position.top + PET_MENU_HEIGHT <= 1180 - 8);
 });
 
-test("only a selected hatched pet opens in-card actions; eggs keep their separate hatch and speed-up flows", () => {
+test("selected hatched pet shows four actions immediately; eggs keep hatch and speed-up flows", () => {
   const inventory = read("client/src/components/PetInventory.tsx");
   assert.match(inventory, /const hatchedPets = sortedPets\.filter\(pet => pet\.isHatched\)/);
   assert.match(inventory, /const petEggs = sortedPets\.filter\(pet => !pet\.isHatched\)/);
   assert.match(inventory, /\{!readOnly && \(/);
-  assert.match(inventory, /data-testid=\{\`button-pet-menu-\$\{selectedPet\.inventoryId\}\`\}/);
+  assert.doesNotMatch(inventory, /data-testid=\{\`button-pet-menu-\$\{selectedPet\.inventoryId\}\`\}/);
   assert.match(inventory, /petInventoryId=\{selectedPet\.inventoryId\}/);
-  assert.match(inventory, /<PetActionMenu inline/);
+  assert.match(inventory, /<PetActionMenu inline alwaysVisible/);
   assert.match(inventory, /navigate\(petInventoryActionHref\(action, inventoryId\)\)/);
   assert.doesNotMatch(inventory, /button-select-pet-/);
   assert.match(inventory, /hatchCheckMutation\.mutate\(pet\.inventoryId\)/);
@@ -67,15 +67,19 @@ test("only a selected hatched pet opens in-card actions; eggs keep their separat
   assert.match(inventory, /\/api\/pet\/\$\{petInvId\}\/use-special/);
 });
 
-test("one selected companion owns one anchored menu; changing portraits dismisses actions", () => {
+test("persistent action bar updates with selected pet; only collection grid scrolls", () => {
   const inventory = read("client/src/components/PetInventory.tsx");
+  const styles = read("client/src/components/PetInventoryShowcase.css");
   assert.match(inventory, /const \[selectedPetId, setSelectedPetId\] = useState/);
-  assert.match(inventory, /const \[openPetMenu, setOpenPetMenu\] = useState/);
-  assert.match(inventory, /previous\?\.inventoryId === selectedPet\.inventoryId/);
-  assert.match(inventory, /anchor: HTMLButtonElement/);
+  assert.match(inventory, /const \[collectionTab, setCollectionTab\] = useState/);
   assert.match(inventory, /hatchedPets\.find\(pet => pet\.inventoryId === selectedPetId\)/);
-  assert.match(inventory, /closePetMenu\(\);\s*setFlippedPetId\(null\);\s*setSelectedPetId\(pet\.inventoryId\)/);
+  assert.match(inventory, /key=\{selectedPet\.inventoryId\}/);
+  assert.match(inventory, /setSelectedPetId\(pet\.inventoryId\)/);
   assert.match(inventory, /data-testid="inventory-pets-eggs-divider"/);
+  assert.match(inventory, /data-testid="inventory-pet-collection-scroll"/);
+  assert.doesNotMatch(inventory, /openPetMenu|spotlightRef/);
+  assert.match(styles, /\.pet-collection--page/);
+  assert.match(styles, /\.pet-collection__scroll-region::-webkit-scrollbar/);
 });
 
 test("menu portal avoids clipping, dismisses on scroll/outside/Escape, and does not block unrelated taps", () => {
