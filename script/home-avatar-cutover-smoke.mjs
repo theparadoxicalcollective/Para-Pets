@@ -19,6 +19,7 @@ const fixture = [
   'import {Toaster} from "@/components/ui/toaster";',
   'import "@/index.css";',
   'queryClient.setDefaultOptions({queries:{...queryClient.getDefaultOptions().queries,retry:false,refetchOnWindowFocus:false}});',
+  'window.__homeAvatarFixtureCache=queryClient;',
   'function Fixture(){',
   ' const [location]=useLocation();',
   ' const layout=useStageViewportLayout(location);',
@@ -176,6 +177,8 @@ try {
         shopIcon: rect('[data-testid="button-coin-bag"]'),
         coins: rect('[data-testid="display-coin-balance"]'),
         essence: rect('[data-testid="display-essence"]'),
+        watcher: rect('[data-testid="button-open-world-chat"]'),
+        watcherDock: rect('[data-testid="viewport-hud-watcher-dock"]'),
         xpText: rect('[data-testid="home-player-total-xp"]'),
         playerLevel: rect('[data-testid="home-player-level"]'),
         levelPill: rect('.home-player-hud__level-pill'),
@@ -217,18 +220,24 @@ try {
     // Profile artwork has its own translateY(14px). Compare the name with
     // its actual layout owner, not the transformed portrait button.
     assert.ok(homeLayout.accountHeader &&
-      homeLayout.headerName.top >= homeLayout.accountHeader.top + 20 &&
-      homeLayout.headerName.top <= homeLayout.accountHeader.top + 32,
+      homeLayout.headerName.top >= homeLayout.accountHeader.top + 28 &&
+      homeLayout.headerName.top <= homeLayout.accountHeader.top + 38,
       sc.name+": player name gets the intended lower spacing in its header: "+
         JSON.stringify({name:homeLayout.headerName,header:homeLayout.accountHeader,profile:homeLayout.profile}));
-    assert.equal(homeLayout.shopIcon, null,
-      sc.name+": coin bundle shortcut no longer clutters the Home header");
-    assert.ok(homeLayout.coins.top >= homeLayout.profile.bottom - 6,
-      sc.name+": coins sit below profile picture "+JSON.stringify({
-        profile:homeLayout.profile, coins:homeLayout.coins, header:homeLayout.headerName, shop:homeLayout.shopIcon,
-      }));
-    assert.ok(homeLayout.essence.top > homeLayout.coins.top,
-      sc.name+": essence sits below coin balance");
+    assert.ok(homeLayout.shopIcon, sc.name+": a compact coin shortcut exists under the resource bars");
+    assert.ok(homeLayout.essence.top >= homeLayout.profile.bottom - 6,
+      sc.name+": resource bars sit under the portrait: "+JSON.stringify(homeLayout));
+    assert.ok(homeLayout.coins.top > homeLayout.essence.top,
+      sc.name+": Coins are beneath Essence");
+    assert.ok(homeLayout.shopIcon.top >= homeLayout.coins.bottom,
+      sc.name+": Coin Bundles shortcut sits beneath Coins");
+    assert.ok(Math.abs(homeLayout.shopIcon.centerX - homeLayout.coins.centerX) < 8 &&
+      homeLayout.shopIcon.width <= 34,
+      sc.name+": small Coin Bundles shortcut is centered: "+JSON.stringify(homeLayout));
+    assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
+      homeLayout.watcher.top >= homeLayout.party.bottom - 2 &&
+      homeLayout.watcher.bottom <= sc.height - 1,
+      sc.name+": Watcher is docked beneath the five-pet panel: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
     assert.ok(homeLayout.xpText.top >= homeLayout.xp.bottom - 3,
@@ -250,8 +259,8 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // Twelve original routes plus a small coin shortcut share the same
-    // Home folio. Other pages keep their old fan and header shop button.
+    // Twelve original routes plus Support share the Home folio.
+    // The Coin Bundles shortcut now lives beneath the Home resource bars.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
@@ -278,8 +287,10 @@ try {
     assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").first()
       .locator('[data-testid^="nav-item-"]').first().getAttribute("data-testid"),"nav-item-home",
       sc.name+": Main is the first menu route");
-    assert.equal(await page.getByTestId("nav-item-coins").getAttribute("aria-label"),"Open coin bundles",
-      sc.name+": the small coin bundle shortcut is in main navigation");
+    assert.equal(await page.getByTestId("nav-item-support").getAttribute("aria-label"),"Contact Support",
+      sc.name+": Support is in the main navigation");
+    assert.equal(await page.getByTestId("nav-item-coins").count(),0,
+      sc.name+": coin shop is no longer a main navigation tile");
     const navigation = await page.evaluate(() => {
       const elements = Array.from(document.querySelectorAll('[data-testid^="nav-item-"]'));
       return elements.map(el => {
@@ -292,7 +303,7 @@ try {
         };
       });
     });
-    assert.equal(navigation.length,13, sc.name+": all twelve routes and the coin shortcut remain");
+    assert.equal(navigation.length,13, sc.name+": all twelve routes and Support remain");
     assert.equal(new Set(navigation.map(item=>item.id)).size,13,
       sc.name+": no duplicated navigation routes");
     for (const item of navigation) {
@@ -310,7 +321,9 @@ try {
           sc.name+": expanded navigation targets do not overlap: "+a.id+" / "+b.id);
       }
     }
-    await mainNav.tap();
+    await page.getByTestId("nav-item-support").tap();
+    await page.getByTestId("button-close-support-modal").waitFor({state:"visible"});
+    await page.getByTestId("button-close-support-modal").tap();
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="button-floating-nav"]')?.getAttribute("aria-expanded") === "false");
     assert.equal(homeLayout.equippedDots,0,
@@ -318,6 +331,59 @@ try {
     await page.getByTestId("display-coin-balance").tap();
     assert.equal(new URL(page.url()).pathname,"/",
       sc.name+": clicking the balance does not open the coin shop");
+
+    // Real Watcher Home UI: initial history is quiet, only bot messages
+    // speak, mute is account-scoped and reversible from the existing chat.
+    await page.waitForFunction(() =>
+      Array.isArray(window.__homeAvatarFixtureCache?.getQueryData(["/api/world-chat"])));
+    await page.waitForTimeout(60);
+    assert.equal(await page.getByTestId("watcher-announcement-bubble").count(),0,
+      sc.name+": historical Watcher posts do not speak on initial render");
+    await page.evaluate(() => window.__homeAvatarFixtureCache.setQueryData(
+      ["/api/world-chat"],[{id:"player-new",isBot:false,message:"hello",username:"player"}]));
+    assert.equal(await page.getByTestId("watcher-announcement-bubble").count(),0,
+      sc.name+": other players never trigger Watcher speech");
+    await page.evaluate(() => window.__homeAvatarFixtureCache.setQueryData(
+      ["/api/world-chat"],[
+        {id:"player-new",isBot:false,message:"hello",username:"player"},
+        {id:"watcher-one",isBot:true,message:"A new realm announcement",username:"Watcher",createdAt:new Date().toISOString()},
+      ]));
+    await page.getByTestId("watcher-announcement-bubble").waitFor({state:"visible"});
+    const watcherBubble=await page.getByTestId("watcher-announcement-bubble").evaluate(el=>{
+      const r=el.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+    });
+    assert.ok(watcherBubble.left >= homeLayout.watcher.right - 1 &&
+      watcherBubble.right <= sc.width - 2 &&
+      watcherBubble.bottom <= sc.height - 1,
+      sc.name+": speech oval is right of Watcher and on-screen: "+JSON.stringify(watcherBubble));
+    await page.getByTestId("button-silence-watcher-announcements").tap();
+    assert.equal(await page.getByTestId("watcher-announcement-bubble").count(),0,
+      sc.name+": silence hides the speech oval");
+    assert.equal(await page.evaluate(() =>
+      window.localStorage.getItem("para-pets:watcher-bubble-muted:home-avatar-fixture")),"true");
+    await page.evaluate(() => window.__homeAvatarFixtureCache.setQueryData(
+      ["/api/world-chat"],[
+        {id:"watcher-one",isBot:true,message:"A new realm announcement",username:"Watcher"},
+        {id:"watcher-two",isBot:true,message:"Muted message",username:"Watcher"},
+      ]));
+    assert.equal(await page.getByTestId("watcher-announcement-bubble").count(),0,
+      sc.name+": muted messages stay silent");
+    await page.getByTestId("button-open-world-chat").tap();
+    await page.getByTestId("panel-world-chat").waitFor({state:"visible"});
+    await page.getByTestId("button-toggle-watcher-announcement-bubbles").tap();
+    await page.getByTestId("button-close-world-chat").tap();
+    assert.equal(await page.evaluate(() =>
+      window.localStorage.getItem("para-pets:watcher-bubble-muted:home-avatar-fixture")),"false");
+    await page.evaluate(() => window.__homeAvatarFixtureCache.setQueryData(
+      ["/api/world-chat"],[
+        {id:"watcher-two",isBot:true,message:"Muted message",username:"Watcher"},
+        {id:"watcher-three",isBot:true,message:"Another realm announcement",username:"Watcher"},
+      ]));
+    await page.getByTestId("watcher-announcement-bubble").waitFor({state:"visible"});
+    await page.getByTestId("button-open-watcher-announcement").tap();
+    await page.getByTestId("panel-world-chat").waitFor({state:"visible"});
+    await page.getByTestId("button-close-world-chat").tap();
 
 
     if(sc.apiError||sc.malformed){
