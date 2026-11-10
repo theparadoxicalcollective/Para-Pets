@@ -7,7 +7,8 @@ import PlayerCharacterPartsPreview from "./PlayerCharacterPartsPreview";
 import {
   DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_LABELS,
-  PLAYER_CHARACTER_PART_TYPES,
+  SIMPLE_AVATAR_BODY_ORDER,
+  SIMPLE_AVATAR_BODY_Z_INDEX,
   completePlayerCharacterParts,
   resolvePlayerCharacterParts,
   type PlayerCharacterPart,
@@ -28,12 +29,6 @@ interface CharacterBase {
 type BodyKind = "Masc" | "Fem";
 type PendingImages = Partial<Record<PlayerCharacterPartType, string>>;
 
-// Upload order is for the artist. Rendering depth remains owned by the
-// shared artwork-relative transforms: legs/feet, torso, arms, HEAD foremost.
-const UPLOAD_PART_ORDER: readonly PlayerCharacterPartType[] = [
-  "head", "top", "left_arm", "right_arm",
-  "left_leg", "right_leg", "left_foot", "right_foot",
-];
 const LIST_KEY = ["/api/admin/player-character/bases"];
 const buttonClass = "min-h-[44px] rounded-lg border border-[#b79b55]/70 bg-[#20412b] px-3 py-2 text-sm font-bold text-[#f2da99] disabled:opacity-45";
 const cardClass = "rounded-xl border border-[#9c854b]/60 bg-[#10291d]/90 p-3";
@@ -68,17 +63,18 @@ export default function PlayerCharacterAdminPanel() {
   const bases = query.data ?? [];
   // Existing Masc and Fem drafts are reused, not silently recreated or deleted.
   const selected = bases.find(base => base.name.trim().toLowerCase() === bodyKind.toLowerCase());
-  const changedTypes = UPLOAD_PART_ORDER.filter(type => !!pendingImages[type]);
+  const changedTypes = SIMPLE_AVATAR_BODY_ORDER.filter(type => !!pendingImages[type]);
   const dirty = changedTypes.length > 0;
   const previewParts = useMemo(() => {
-    let draft = selected ? resolvePlayerCharacterParts(selected.draftParts) : [];
-    for (const type of PLAYER_CHARACTER_PART_TYPES) {
+    let draft = selected ? resolvePlayerCharacterParts(selected.draftParts)
+      .map(part => ({ ...part, zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[part.partType] })) : [];
+    for (const type of SIMPLE_AVATAR_BODY_ORDER) {
       const upload = pendingImages[type];
       if (!upload) continue;
       const saved = draft.find(part => part.partType === type);
       const next: PlayerCharacterPart = {
         ...(saved ?? DEFAULT_PLAYER_CHARACTER_TRANSFORMS[type]),
-        zIndex: DEFAULT_PLAYER_CHARACTER_TRANSFORMS[type].zIndex,
+        zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[type],
         partType: type,
         imageUrl: upload,
       };
@@ -114,7 +110,7 @@ export default function PlayerCharacterAdminPanel() {
       // A new empty base may be created even if the later image save fails.
       // Cache its ID immediately so retry does not create a duplicate body.
       if (!input.base) updateCache(base);
-      const parts = UPLOAD_PART_ORDER
+      const parts = SIMPLE_AVATAR_BODY_ORDER
         .filter(type => !!input.images[type])
         .map(type => ({ partType: type, imageData: input.images[type]! }));
       return requestJson<CharacterBase>(
@@ -223,7 +219,7 @@ export default function PlayerCharacterAdminPanel() {
           <div className={cardClass}>
             <div role="group" aria-label="Body part image uploads"
               className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {UPLOAD_PART_ORDER.map(type => {
+              {SIMPLE_AVATAR_BODY_ORDER.map(type => {
                 const image = pendingImages[type] ?? previewParts.find(part => part.partType === type)?.imageUrl;
                 return (
                   <label key={type}
