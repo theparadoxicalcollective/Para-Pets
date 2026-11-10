@@ -148,6 +148,7 @@
   background: #e2bb64;
   box-shadow: 0 0 6px #e5bd64;
 }
+.player-avatar-page__category--accessories { left: 50%; top: 90%; }
 .player-avatar-page__category--head   { left: 50%; top: 8%; }
 .player-avatar-page__category--hair   { left: 16%; top: 24%; }
 .player-avatar-page__category--face   { left: 84%; top: 24%; }
