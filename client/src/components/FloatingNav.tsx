@@ -6,9 +6,9 @@ import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
 import { setMainNavOpen } from "@/lib/mainNavState";
 import { useToast } from "@/hooks/use-toast";
-import { Lock } from "lucide-react";
+import { Compass, Lock } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.webp";
-import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
+import coinBundleIcon from "@assets/uploads/CoinBundleIcon.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
 import petsIcon from "@assets/generated_images/nav_icon_pets.png";
@@ -89,9 +89,9 @@ const RIGHT_ITEMS = [
 // Home groups reuse the same route definitions and handlers as the ordinary
 // floating navigation. Only their presentation differs.
 const HOME_NAV_SECTIONS = [
-  { title: "Explore", ids: ["map", "pethouse", "keepers", "aquarium"] },
-  { title: "Companions", ids: ["inventory", "bag", "cards", "market"] },
-  { title: "Activities", ids: ["quest", "pvp", "badges", "home"] },
+  { title: "Explore", ids: ["home", "map", "pethouse", "keepers"] },
+  { title: "Companions", ids: ["aquarium", "inventory", "bag", "cards"] },
+  { title: "Activities", ids: ["market", "quest", "pvp", "badges"] },
 ] as const;
 
 const ICON_SIZE   = 50;
@@ -323,6 +323,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   const handleRight = (id: string) => {
     closeAll();
+    if (id === "coins")    { setTimeout(() => navigate("/coins"), NAV_DELAY); return; }
     if (id === "home")     { setTimeout(() => navigate("/"), NAV_DELAY); return; }
     if (id === "pethouse") { setTimeout(() => navigate("/pet-house"), NAV_DELAY); return; }
     if (id === "market")   { setTimeout(() => navigate("/market"), NAV_DELAY); return; }
@@ -366,13 +367,20 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           pointerEvents: "auto",
         }}
       >
-        {/* Home has one compact, grouped flyout to the left of the main
-            button. This prevents 12 independent floating circles from
-            covering the player's avatar or the XP/party layout. */}
+        {/* Home uses one compact flyout with the same route handlers as
+            other pages. Keep all actions clear of the avatar and XP HUD. */}
         {isHome && isOpen && (
           <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
             aria-label="Realm navigation" className="home-realm-nav">
-            <p className="home-realm-nav__title">Realm Paths</p>
+            <div className="home-realm-nav__shortcut-row">
+              <button type="button" data-testid="nav-item-coins"
+                className="home-realm-nav__shop-link"
+                aria-label="Open coin bundles" title="Coin Bundles"
+                onClick={() => handleRight("coins")}>
+                <img src={coinBundleIcon} alt="" aria-hidden="true" draggable={false} />
+                <span>Coins</span>
+              </button>
+            </div>
             {HOME_NAV_SECTIONS.map(section => (
               <section key={section.title} className="home-realm-nav__section"
                 aria-label={section.title}>
@@ -450,16 +458,15 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             cursor: "pointer",
           }}
         >
-          <img
-            src={mainNavIcon}
-            alt="Navigation"
+          <Compass
+            size={36}
+            strokeWidth={1.75}
+            aria-hidden="true"
             style={{
-              width: BUTTON_SIZE - 14,
-              height: BUTTON_SIZE - 14,
-              objectFit: "contain",
+              color: "#f4d68c",
               transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
               transition: "transform 0.3s ease",
-              filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+              filter: "drop-shadow(0 1px 5px rgba(245,203,109,0.55)) drop-shadow(0 2px 5px rgba(0,0,0,0.7))",
             }}
           />
           {/* Quest notification badge — visible on main button when nav is closed */}
