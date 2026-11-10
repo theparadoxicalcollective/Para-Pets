@@ -98,6 +98,7 @@ export default function PlayerClothingAdminPanel({
   const [removedSlots,setRemovedSlots] = useState<PlayerClothingSlot[]>([]);
   const [readingParts,setReadingParts] = useState(0);
   const [metaDirty,setMetaDirty] = useState(false);
+  const [previewClosedEyes,setPreviewClosedEyes] = useState(false);
 
   const basesQuery = useQuery<Base[]>({
     queryKey: BASE_KEY,
@@ -129,6 +130,7 @@ export default function PlayerClothingAdminPanel({
     setDraftName(selected?.name ?? "");
     setDraftCategory(selected?.category ?? "top");
     setMetaDirty(false);
+    setPreviewClosedEyes(false);
   }, [selected?.id,selected?.revision]);
 
   const bodyParts = useMemo(() =>
@@ -321,9 +323,21 @@ export default function PlayerClothingAdminPanel({
             data-testid="avatar-clothing-fit-canvas"
             style={{background:"radial-gradient(circle,#345d40,#0a1b11)"}}>
             <PlayerCharacterRenderer parts={bodyParts} clothingSegments={previewSegments}
-              previewClothingCategory={selected.category} motion="static"
-              ariaLabel="Avatar clothing layered preview"/>
+              previewClothingCategory={selected.category}
+              previewEyesClosed={previewClosedEyes}
+              motion="static" ariaLabel="Avatar clothing layered preview"/>
           </div>
+          {selected.category === "face" && (
+            <div role="group" aria-label="Face expression preview"
+              className="mx-auto mt-2 grid max-w-[360px] grid-cols-2 gap-2">
+              <button type="button" className={buttonClass}
+                aria-pressed={!previewClosedEyes}
+                onClick={() => setPreviewClosedEyes(false)}>Open Eyes</button>
+              <button type="button" className={buttonClass}
+                aria-pressed={previewClosedEyes}
+                onClick={() => setPreviewClosedEyes(true)}>Closed Eyes</button>
+            </div>
+          )}
         </div>
 
         <div className={cardClass+" space-y-3"}>
