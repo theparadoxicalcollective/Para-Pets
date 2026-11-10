@@ -90,12 +90,11 @@ test("simple Masc and Fem editor exposes eight upload tiles, one save and a laye
   assert.match(panel, /SIMPLE_AVATAR_BODY_ORDER.map/);
   // Slots are generated from the shared, separately validated eight-part order.
   assert.equal(SIMPLE_AVATAR_BODY_ORDER.length, 8);
-  assert.match(panel, /SIMPLE_AVATAR_BODY_ORDER.map/);
   assert.match(panel, /data-testid="avatar-body-preview-box"/);
   assert.match(panel, /<PlayerCharacterPartsPreview parts=\{previewParts\} \/>/);
   assert.match(panel, /data-testid="avatar-save-body"/);
   assert.match(panel, /"PUT", "\/api\/admin\/player-character\/bases\/"/);
-  assert.match(panel, /parts,\s*\}/);
+  assert.match(panel, /expectedRevision: base.revision, parts/);
   assert.match(panel, /setPendingImages\(\{\}\)/);
   assert.match(panel, /disabled=\{busy \|\| !dirty\}/);
   assert.match(panel, /data-testid="avatar-publish-default"/);
