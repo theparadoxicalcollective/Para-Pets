@@ -61,7 +61,10 @@ test("Home pet compatibility is not deleted before Murk/quest QA", () => {
   assert.match(home, /!AVATAR_10_HOME_CUTOVER && \(<>/);
   assert.match(home, /encodeURIComponent\(currentUser\.activePetId\)/);
   assert.match(home, /\?from=quest/);
-  assert.match(inventory, /Set Featured Companion/);
+  // The inventory no longer advertises a featured character, while
+  // legacy combat still reads the saved active pet until its migration.
+  assert.doesNotMatch(inventory, /Set Featured Companion|button-feature-main-pet-/);
+  assert.match(inventory, /apiRequest\("PATCH", "\/api\/user\/active-pet"/);
   assert.match(roadmap, /12C\/12/);
   assert.match(roadmap, /Murk Cave/);
   assert.match(roadmap, /physical iOS/);
