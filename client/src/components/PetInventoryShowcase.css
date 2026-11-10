@@ -213,12 +213,12 @@
   touch-action: manipulation;
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
-.pet-collection__tile:has(.pet-collection__tile-press[aria-pressed="true"]) {
+.pet-collection__tile[data-selected="true"] {
   border-color: #f6d58b;
   background: linear-gradient(155deg, rgba(37,76,46,.96), rgba(9,33,22,.96));
   box-shadow: 0 0 17px rgba(236,191,92,.34), inset 0 0 0 1px rgba(233,205,135,.3);
 }
-.pet-collection__tile:has(.pet-collection__tile-press:active) { transform: scale(.97); }
+.pet-collection__tile:active { transform: scale(.97); }
 .pet-collection__tile-press {
   position: absolute;
   z-index: 3;
