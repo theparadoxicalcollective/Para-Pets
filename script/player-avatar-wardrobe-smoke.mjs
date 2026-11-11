@@ -72,7 +72,11 @@ try {
     page.setDefaultTimeout(20000);
     let avatar = {
       created: false, revision: null,
-      base: { id: "base-1", name: "Forest Keeper", publishedAt: new Date().toISOString(), parts: rig },
+      base: { id: "base-1", name: "Fem", publishedAt: new Date().toISOString(), parts: rig },
+      availableBases: [
+        { id: "base-1", name: "Fem", publishedAt: new Date().toISOString(), parts: rig },
+        { id: "base-2", name: "Masc", publishedAt: new Date().toISOString(), parts: rig },
+      ],
       ownedClothing: owned, equipped: [], unavailableEquipmentSlots: [],
     };
     await page.route("**/api/player-avatar**", route => {
@@ -81,9 +85,21 @@ try {
       if (url.pathname === "/api/player-avatar" && method === "GET") return route.fulfill({ json: avatar });
       if (url.pathname === "/api/player-avatar/create" && method === "POST") {
         const body = route.request().postDataJSON();
-        assert.equal(body.baseId, "base-1", name + ": first save uses published base");
+        assert.equal(body.baseId, "base-2", name + ": first save uses chosen Masc body");
         writes.push({ method, kind: "create", body });
-        avatar = { ...avatar, created: true, revision: 0 };
+        avatar = { ...avatar, created: true, revision: 0,
+          base: avatar.availableBases.find(entry => entry.id === body.baseId) };
+        return route.fulfill({ json: avatar });
+      }
+      if (url.pathname === "/api/player-avatar/base" && method === "PATCH") {
+        const body = route.request().postDataJSON();
+        assert.equal(body.expectedRevision, avatar.revision, name + ": body change is revision-checked");
+        writes.push({ method, kind: "change-body", body });
+        avatar = {
+          ...avatar, revision: avatar.revision + 1,
+          base: avatar.availableBases.find(entry => entry.id === body.baseId),
+          equipped: [],
+        };
         return route.fulfill({ json: avatar });
       }
       if (url.pathname.startsWith("/api/player-avatar/equipment/") && method === "PUT") {
@@ -137,6 +153,10 @@ try {
       getComputedStyle(el).fontFamily)).includes("Playfair Display"),
       name + ": title uses game typography");
 
+    assert.equal(await page.getByTestId("avatar-body-selector").count(), 1,
+      name + ": completed Fem/Masc choices visible");
+    await page.getByTestId("avatar-choose-masc").tap();
+    assert.equal(await page.getByTestId("avatar-choose-masc").getAttribute("aria-pressed"), "true");
     await page.getByTestId("avatar-create-button").tap();
     await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
     assert.equal(writes[0].kind, "create", name + ": save is explicit");
@@ -181,6 +201,13 @@ try {
       name + ": listed clothing cannot be equipped");
     await page.getByTestId("avatar-category-shoes").tap();
     await page.getByTestId("avatar-wardrobe-empty").waitFor({ state: "visible" });
+    await page.getByTestId("avatar-choose-fem").tap();
+    await page.getByTestId("avatar-body-change").waitFor({ state: "visible" });
+    assert.equal(avatar.base.id, "base-2", name + ": choosing a body only previews, not saves");
+    await page.getByTestId("avatar-save-body-choice").tap();
+    await page.waitForFunction(() => document.querySelector('[data-testid="avatar-choose-fem"]')?.getAttribute("aria-pressed") === "true");
+    assert.equal(avatar.base.id, "base-1", name + ": saved body changes without losing clothing inventory");
+    assert.equal(avatar.ownedClothing.length, owned.length);
     assert.deepEqual(errors, [], name + ": no runtime page errors");
     console.log("PASS " + name + ": 08C first-save, owned shelf, previews, eight slots, shared head art, pants and remove");
     await context.close();

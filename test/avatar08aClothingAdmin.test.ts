@@ -154,3 +154,14 @@ test("clothing admin uses shared full-canvas renderer and upload tiles, not drag
   assert.doesNotMatch(component, /PetAnimator|activePetId|390\s*[×x]\s*844/);
   assert.doesNotMatch(read("client/src/pages/HomePage.tsx"), /PlayerClothingAdminPanel/);
 });
+
+test("saved complete Masc and Fem bodies unlock the existing clothing upload workflow", () => {
+  const admin = read("client/src/components/PlayerClothingAdminPanel.tsx");
+  const route = read("server/routes/playerClothingAdmin.routes.ts");
+  assert.match(admin, /availablePlayerCharacterBody/);
+  assert.match(admin, /Save all eight parts of a Masc or Fem body/);
+  assert.match(route, /availablePlayerCharacterBody\(base\)/);
+  assert.match(route, /basePublishedAt: available.publishedAt/);
+  assert.doesNotMatch(admin, /Publish a completed avatar body before creating clothing/);
+  assert.match(admin, /avatar-clothing-upload-\$\{slot\}/);
+});

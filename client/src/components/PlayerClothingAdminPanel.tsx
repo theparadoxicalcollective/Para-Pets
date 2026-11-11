@@ -6,7 +6,6 @@ import PlayerCharacterRenderer from "./PlayerCharacterRenderer";
 import {
   canvasAlignedAvatarBodyTransform,
   availablePlayerCharacterBody,
-  resolvePlayerCharacterParts,
   type StoredPlayerCharacterPart,
 } from "@shared/playerCharacter";
 import {
