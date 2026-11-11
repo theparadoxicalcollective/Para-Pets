@@ -400,6 +400,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   if (navHidden) return null;
 
   const anyPanelOpen = showQuest || showPvpNote || showAquarium;
+  // Only Home's launcher shrinks; non-Home nav arcs retain their sizes.
+  const mainButtonSize = isHome ? 52 : BUTTON_SIZE;
   const homeColumns = Math.ceil(HOME_NAV_ORDER.length / homeRowCapacity);
   const homeRows = Math.ceil(HOME_NAV_ORDER.length / homeColumns);
 
@@ -425,8 +427,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           top: isHome ? "clamp(108px, calc(env(safe-area-inset-top, 0px) + 94px), 128px)" : undefined,
           bottom: isHome ? undefined : 16,
           right: 12,
-          width: BUTTON_SIZE,
-          height: BUTTON_SIZE,
+          width: mainButtonSize,
+          height: mainButtonSize,
           zIndex: isOpen ? 9999 : (anyPanelOpen ? panelZ + 1 : 95),
           pointerEvents: "auto",
         }}
@@ -518,8 +520,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         >
           <img src={mainNavIcon} alt="" aria-hidden="true" draggable={false}
             style={{
-              width: BUTTON_SIZE - 9,
-              height: BUTTON_SIZE - 9,
+              width: mainButtonSize - 8,
+              height: mainButtonSize - 8,
               objectFit: "contain",
               transform: isOpen ? "scale(0.94)" : "scale(1)",
               transition: "transform 0.2s ease",
