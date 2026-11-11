@@ -58,6 +58,18 @@ test("zero-cost outfits appear as virtual entitlements and are claimed only on E
   assert.match(migration, /ADD COLUMN IF NOT EXISTS shop_image_url text/);
 });
 
+test("paid clothing purchases require a stocked Pet Park shop and a published outfit", () => {
+  const routes = read("server/routes.ts");
+  assert.match(routes, /if \(shopItem.type === "clothing"\)/);
+  assert.match(routes, /req.params.worldId !== "pet-park"/);
+  assert.match(routes, /shopItem.price <= 0/);
+  assert.match(routes, /shopItem.worldId !== AVATAR_CLOTHING_UNRELEASED_WORLD/);
+  assert.match(routes, /!design\?\.universal/);
+  assert.match(routes, /!playerClothingDefinitionSchema.safeParse/);
+  assert.match(routes, /!building\?\.isShop/);
+  assert.match(routes, /!building.shopItemIds.includes\(itemId\)/);
+});
+
 test("skin tone persists on player profiles, uses original artwork opt-out and Home tap opens customization", () => {
   const schema = read("shared/schema.ts");
   const migration = read("server/startup/migrations/ensurePlayerAvatarEquipmentStorage.ts");
