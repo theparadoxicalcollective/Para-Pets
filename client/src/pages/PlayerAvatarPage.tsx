@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Mars, RefreshCw, Sparkles, Venus } from "lucide-react";
+import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { useToast } from "@/hooks/use-toast";
@@ -233,13 +233,12 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   const option = availableBodies.find(base => base.name.trim().toLowerCase() === kind.toLowerCase());
                   if (!option) return null;
                   const selected = selectedBody?.id === option.id;
-                  const Symbol = kind === "Fem" ? Venus : Mars;
                   return (
                     <button type="button" key={kind} aria-label={`Choose ${kind} body`}
                       data-testid={`avatar-choose-${kind.toLowerCase()}`}
                       aria-pressed={selected} disabled={busy}
                       onClick={() => { setBodyChoiceId(option.id); setPreviewId(null); }}>
-                      <Symbol size={23} aria-hidden="true" />
+                      <span aria-hidden="true" className="player-avatar-page__body-symbol">{kind === "Fem" ? "♀" : "♂"}</span>
                       <span>{kind}</span>
                     </button>
                   );
