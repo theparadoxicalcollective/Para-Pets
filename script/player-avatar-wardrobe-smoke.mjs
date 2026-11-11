@@ -273,7 +273,10 @@ try {
     await page.getByTestId("avatar-clothing-hat").tap();
     await page.getByTestId("avatar-equip-button").tap();
     await page.waitForFunction(() =>
-      document.querySelector('[data-testid="avatar-equip-button"]')?.textContent?.includes("Already Equipped"));
+      !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
+    assert.ok(avatar.equipped.some(entry =>
+      entry.category === "head" && entry.inventoryId === "hat"),
+      name + ": head clothing was genuinely equipped before reset");
     const wornBeforeReset = avatar.equipped.length;
     assert.ok(wornBeforeReset > 0);
     const writesBeforeReset = writes.length;
