@@ -365,6 +365,34 @@
   font: bold 19px Georgia, serif;
   color: #f2d38c;
 }
+.player-avatar-page__tuck-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 8px 10px;
+  color: #f6dba0;
+  font: 600 13px Georgia, serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.player-avatar-page__tuck-toggle input {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #c7a65c;
+  cursor: pointer;
+}
+.player-avatar-page__tuck-toggle:has(input:focus-visible) {
+  outline: 2px solid #f0d698;
+  outline-offset: 2px;
+  border-radius: 9px;
+}
+.player-avatar-page__tuck-toggle:has(input:disabled) {
+  opacity: .55;
+  cursor: default;
+}
 .player-avatar-page__wardrobe-close {
   flex: 0 0 auto;
   display: grid;
