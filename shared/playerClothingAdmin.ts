@@ -16,6 +16,7 @@ import {
   type PlayerClothingCategory,
   type PlayerClothingSegment,
   PLAYER_CLOTHING_BODY_TYPES,
+  isUniversalClothingCategory,
 } from "./playerCharacterClothing";
 
 /** Catalog items are only created when a complete design is explicitly
@@ -145,6 +146,9 @@ export const saveUniversalClothingItemSchema = z.object({
     masc: clothingBodyUploadSchema,
   }).strict().optional(),
 }).strict().superRefine((value, ctx) => {
+  if (value.bodyVariants && isUniversalClothingCategory(value.category))
+    ctx.addIssue({ code: "custom", path: ["bodyVariants"],
+      message: "Hair, Faces, Back Accessories and Accessories use one universal upload set" });
   if (value.bodyVariants) {
     let totalBytes = 0;
     for (const kind of PLAYER_CLOTHING_BODY_TYPES) {

@@ -49,6 +49,11 @@ export type PlayerClothingSlot = typeof PLAYER_CLOTHING_SLOTS[number];
 export const playerClothingSlotSchema = z.enum(PLAYER_CLOTHING_SLOTS);
 export const playerClothingCategorySchema = z.enum(PLAYER_CLOTHING_CATEGORIES);
 
+/** These categories use one shared image set on both body bases. */
+export const UNIVERSAL_ARTWORK_CATEGORIES = ["hair", "back", "accessories", "face"] as const;
+export const isUniversalClothingCategory = (category: PlayerClothingCategory): boolean =>
+  (UNIVERSAL_ARTWORK_CATEGORIES as readonly string[]).includes(category);
+
 /** Artwork choices, not separate catalog items or inventory ownership. */
 export const PLAYER_CLOTHING_BODY_TYPES = ["fem", "masc"] as const;
 export type PlayerClothingBodyType = typeof PLAYER_CLOTHING_BODY_TYPES[number];

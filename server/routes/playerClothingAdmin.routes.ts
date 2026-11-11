@@ -19,7 +19,7 @@ import {
   playerClothingSegmentSchema,
   type PlayerClothingSegment,
   type PlayerClothingBodyVariants,
-  PLAYER_CLOTHING_BODY_TYPES,
+  PLAYER_CLOTHING_BODY_TYPES, isUniversalClothingCategory,
 } from "@shared/playerCharacterClothing";
 import {
   AVATAR_CLOTHING_UNRELEASED_WORLD,
@@ -112,7 +112,8 @@ export function registerPlayerClothingAdminRoutes(
               entry.base.name.trim().toLowerCase() === kind)))
           return { status: 422 as const,
             message: "Save both Fem and Masc body bases before adding two clothing versions." };
-        if (existing?.draftBodyVariants && !input.data.bodyVariants)
+        if (existing?.draftBodyVariants && !input.data.bodyVariants &&
+            !isUniversalClothingCategory(input.data.category))
           return { status: 409 as const,
             message: "This item has Fem/Masc versions. Reload the updated clothing editor." };
 
@@ -164,7 +165,10 @@ export function registerPlayerClothingAdminRoutes(
           bodyVariants = output;
           segments = output.fem;
         } else {
-          const resolved = buildSegments(existing?.draftSegments ?? [],
+          const resolved = buildSegments(
+            isUniversalClothingCategory(input.data.category)
+              ? (existing?.draftBodyVariants?.fem ?? existing?.draftSegments ?? [])
+              : (existing?.draftSegments ?? []),
             input.data.keep, uploads);
           if (!resolved) return { status: 409 as const,
             message: "A saved clothing piece changed. Reload this item before editing." };
