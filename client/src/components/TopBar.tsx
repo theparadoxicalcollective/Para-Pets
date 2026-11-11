@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect, useId, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +27,8 @@ interface TopBarProps {
   onUserUpdate?: (user: any) => void;
   hideProfile?: boolean;
   hideCoins?: boolean;
+  /** Home-only Watcher launcher, kept beside the portrait and above username. */
+  homeWatcher?: ReactNode;
 }
 
 function RewardChestArt({ size }: { size: number }) {
@@ -136,7 +138,7 @@ function RewardCountGem({ count, compact = false }: { count: number; compact?: b
   );
 }
 
-export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins, homeWatcher }: TopBarProps) {
   const globalHudHidden = useNavHidden();
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
@@ -499,16 +501,24 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             <div data-testid="home-account-header"
               className="flex min-w-0 flex-col items-start self-center"
               style={{
-                // Align the name with the vertical centre of the portrait
-                // (the portrait itself is shifted down 14px).
-                transform: "translateY(14px)",
-                maxWidth: "min(205px, calc(100vw - 138px))",
+                // The Watcher sits above the name, to the portrait's right.
+                // Move the smaller name down slightly without moving the photo.
+                transform: "translateY(21px)",
+                width: "min(205px, calc(100vw - 132px))",
+                maxWidth: "min(205px, calc(100vw - 132px))",
               }}>
+              {homeWatcher && <div data-testid="home-header-watcher"
+                style={{ display: "flex", width: "100%", minWidth: 0,
+                  alignItems: "center", justifyContent: "flex-start",
+                  minHeight: 42, pointerEvents: "none" }}>
+                {homeWatcher}
+              </div>}
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
                 style={{
-                  fontSize: "clamp(13px, 3.9vw, 18px)",
-                  padding: "5px 9px 6px",
+                  fontSize: "clamp(11px, 3.1vw, 15px)",
+                  padding: "4px 8px 5px",
+                  marginTop: homeWatcher ? 6 : 0,
                   letterSpacing: ".015em",
                   borderLeft: "2px solid rgba(245, 205, 118, 0.92)",
                   borderRadius: 8,

@@ -818,6 +818,105 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // while the authenticated identity is being synchronized after a switch.
   if (currentUser.id !== user.id) return null;
 
+  // Keep the Watcher anchored to the profile header instead of a separate
+  // screen-bottom dock. Preserve the announcement bubble and mute actions.
+  const homeWatcherControl = !showProfile && !activePetModal && !showWorldChat && !showSupportModal ? (
+          <div
+            data-testid="viewport-hud-watcher-dock"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              width: "100%",
+              minWidth: 0,
+              pointerEvents: "none",
+            }}
+          >
+            <button
+              type="button"
+              data-testid="button-open-world-chat"
+              aria-label="Open the Veridian Watcher announcements"
+              onClick={() => { setShowWorldChat(true); setWatcherAnnouncement(null); }}
+              className="relative transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
+              style={{
+                // Preserve clearance below the team on compact-height
+                // phones while still enlarging the Watcher on normal devices.
+                width: "clamp(40px, 5.3vh, 44px)",
+                height: "clamp(40px, 5.3vh, 44px)",
+                borderRadius: "50%",
+                overflow: "hidden",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+                pointerEvents: "auto",
+                background: "rgba(10,40,34,0.85)",
+                border: chatHasNewMsg
+                  ? "2px solid rgba(234,199,119,0.9)"
+                  : "2px solid rgba(234,199,119,0.55)",
+                boxShadow: chatHasNewMsg
+                  ? "0 0 12px rgba(234,199,119,0.45), 0 3px 9px rgba(0,0,0,0.65)"
+                  : "0 3px 9px rgba(0,0,0,0.65)",
+              }}
+            >
+              <img src={worldChatIconImg} alt="" aria-hidden="true"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              {watcherAnnouncementMuted && (
+                <span aria-hidden="true" style={{
+                  position: "absolute", right: 0, bottom: 0,
+                  display: "grid", placeItems: "center", width: 15, height: 15,
+                  borderRadius: "50%", color: "#ffe3a1", background: "#173725",
+                }}>
+                  <BellOff size={10} />
+                </span>
+              )}
+            </button>
+            {watcherAnnouncement && !watcherAnnouncementMuted && (
+              <div data-testid="watcher-announcement-bubble" role="status" aria-live="polite"
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  flex: 1,
+                  minWidth: 0,
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "5px 6px 5px 10px",
+                  border: "1px solid rgba(234,199,119,0.78)",
+                  borderRadius: 18,
+                  background: "linear-gradient(130deg, rgba(13,50,33,0.98), rgba(5,28,20,0.98))",
+                  color: "#f6e4b7",
+                  boxShadow: "0 3px 10px rgba(0,0,0,0.65)",
+                  pointerEvents: "auto",
+                }}
+              >
+                <button type="button" data-testid="button-open-watcher-announcement"
+                  aria-label="Open Veridian Watcher chat"
+                  onClick={() => { setWatcherAnnouncement(null); setShowWorldChat(true); }}
+                  className="min-w-0 flex-1 text-left"
+                  style={{
+                    border: 0, background: "none", padding: 0, cursor: "pointer",
+                    color: "#f6e4b7", fontSize: 11, lineHeight: 1.3,
+                    overflow: "hidden", display: "-webkit-box",
+                    WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    overflowWrap: "anywhere",
+                  }}>
+                  {watcherAnnouncement.message}
+                </button>
+                <button type="button" data-testid="button-silence-watcher-announcements"
+                  title="Silence Watcher announcement bubbles"
+                  aria-label="Silence Watcher announcement bubbles"
+                  onClick={() => setWatcherBubbleMute(true)}
+                  className="flex shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    width: 28, height: 28, border: "1px solid rgba(234,199,119,0.6)",
+                    background: "rgba(5,32,22,0.9)", color: "#ffe5a1", cursor: "pointer",
+                  }}>
+                  <BellOff size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+  ) : null;
+
   return (
     <div
       data-testid="active-pet-page"
@@ -885,7 +984,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                 The former full-width auto hit box covered Design Character
                 on compact phones after the third resource row was added. */}
             <div style={{ pointerEvents: "none" }}>
-              <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+              <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)}
+                onUserUpdate={(u) => setCurrentUser(u)} homeWatcher={homeWatcherControl} />
             </div>
           </div>
         </ViewportHudPortal>
@@ -1839,113 +1939,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           </span>
         </div>
         </ViewportModalPortal>
-      )}
-
-      {/* The Watcher lives beneath the five-pet party panel, in the same
-          viewport HUD coordinates. It never shifts the team's pet slots. */}
-      {!showProfile && !activePetModal && !showWorldChat && !showSupportModal && (
-        <ViewportHudPortal>
-          <div
-            data-testid="viewport-hud-watcher-dock"
-            style={{
-              position: "absolute",
-              // Move the Watcher down by roughly five 4px spacing steps,
-              // staying inside the viewport on devices without a safe inset.
-              bottom: "max(0px, calc(env(safe-area-inset-bottom, 0px) - 18px))",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: "min(calc(100vw - 34px), 430px)",
-              zIndex: 65,
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              pointerEvents: "none",
-            }}
-          >
-            <button
-              type="button"
-              data-testid="button-open-world-chat"
-              aria-label="Open the Veridian Watcher announcements"
-              onClick={() => { setShowWorldChat(true); setWatcherAnnouncement(null); }}
-              className="relative transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
-              style={{
-                // Preserve clearance below the team on compact-height
-                // phones while still enlarging the Watcher on normal devices.
-                width: "clamp(40px, 5.3vh, 44px)",
-                height: "clamp(40px, 5.3vh, 44px)",
-                borderRadius: "50%",
-                overflow: "hidden",
-                cursor: "pointer",
-                padding: 0,
-                flexShrink: 0,
-                pointerEvents: "auto",
-                background: "rgba(10,40,34,0.85)",
-                border: chatHasNewMsg
-                  ? "2px solid rgba(234,199,119,0.9)"
-                  : "2px solid rgba(234,199,119,0.55)",
-                boxShadow: chatHasNewMsg
-                  ? "0 0 12px rgba(234,199,119,0.45), 0 3px 9px rgba(0,0,0,0.65)"
-                  : "0 3px 9px rgba(0,0,0,0.65)",
-              }}
-            >
-              <img src={worldChatIconImg} alt="" aria-hidden="true"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              {watcherAnnouncementMuted && (
-                <span aria-hidden="true" style={{
-                  position: "absolute", right: 0, bottom: 0,
-                  display: "grid", placeItems: "center", width: 15, height: 15,
-                  borderRadius: "50%", color: "#ffe3a1", background: "#173725",
-                }}>
-                  <BellOff size={10} />
-                </span>
-              )}
-            </button>
-            {watcherAnnouncement && !watcherAnnouncementMuted && (
-              <div data-testid="watcher-announcement-bubble" role="status" aria-live="polite"
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  flex: 1,
-                  minWidth: 0,
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "5px 6px 5px 10px",
-                  border: "1px solid rgba(234,199,119,0.78)",
-                  borderRadius: 18,
-                  background: "linear-gradient(130deg, rgba(13,50,33,0.98), rgba(5,28,20,0.98))",
-                  color: "#f6e4b7",
-                  boxShadow: "0 3px 10px rgba(0,0,0,0.65)",
-                  pointerEvents: "auto",
-                }}
-              >
-                <button type="button" data-testid="button-open-watcher-announcement"
-                  aria-label="Open Veridian Watcher chat"
-                  onClick={() => { setWatcherAnnouncement(null); setShowWorldChat(true); }}
-                  className="min-w-0 flex-1 text-left"
-                  style={{
-                    border: 0, background: "none", padding: 0, cursor: "pointer",
-                    color: "#f6e4b7", fontSize: 11, lineHeight: 1.3,
-                    overflow: "hidden", display: "-webkit-box",
-                    WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                    overflowWrap: "anywhere",
-                  }}>
-                  {watcherAnnouncement.message}
-                </button>
-                <button type="button" data-testid="button-silence-watcher-announcements"
-                  title="Silence Watcher announcement bubbles"
-                  aria-label="Silence Watcher announcement bubbles"
-                  onClick={() => setWatcherBubbleMute(true)}
-                  className="flex shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    width: 28, height: 28, border: "1px solid rgba(234,199,119,0.6)",
-                    background: "rgba(5,32,22,0.9)", color: "#ffe5a1", cursor: "pointer",
-                  }}>
-                  <BellOff size={14} />
-                </button>
-              </div>
-            )}
-          </div>
-        </ViewportHudPortal>
       )}
 
       {/* World Chat Panel — render on the same device HUD as its launcher so
