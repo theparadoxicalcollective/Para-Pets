@@ -49,6 +49,20 @@ export type PlayerClothingSlot = typeof PLAYER_CLOTHING_SLOTS[number];
 export const playerClothingSlotSchema = z.enum(PLAYER_CLOTHING_SLOTS);
 export const playerClothingCategorySchema = z.enum(PLAYER_CLOTHING_CATEGORIES);
 
+/** These categories use one shared image set on both body bases. */
+export const UNIVERSAL_ARTWORK_CATEGORIES = ["hair", "back", "accessories", "face"] as const;
+export const isUniversalClothingCategory = (category: PlayerClothingCategory): boolean =>
+  (UNIVERSAL_ARTWORK_CATEGORIES as readonly string[]).includes(category);
+
+/** Artwork choices, not separate catalog items or inventory ownership. */
+export const PLAYER_CLOTHING_BODY_TYPES = ["fem", "masc"] as const;
+export type PlayerClothingBodyType = typeof PLAYER_CLOTHING_BODY_TYPES[number];
+export const playerClothingBodyTypeSchema = z.enum(PLAYER_CLOTHING_BODY_TYPES);
+export const clothingBodyTypeFromName = (name?: string | null): PlayerClothingBodyType | null => {
+  const normalized = name?.trim().toLowerCase();
+  return normalized === "fem" || normalized === "masc" ? normalized : null;
+};
+
 export function clothingSlotPartType(slot: PlayerClothingSlot): PlayerCharacterPartType {
   return (PLAYER_CLOTHING_SPECIAL_SLOTS as readonly string[]).includes(slot)
     ? "head" : slot as PlayerCharacterPartType;
@@ -95,15 +109,15 @@ export const canvasClothingFit = (): PlayerCharacterTransform => ({
   pivotXPct: 50, pivotYPct: 50, rotationDeg: 0, zIndex: 1,
 });
 
-/** Stable global depth. Shoes can sit UNDER (default) or OVER pants,
- * but both choices remain below Tops; all other category depths are fixed.
- */
-export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string, shoesLayer: PlayerShoesLayer = "under"): number {
+/** Stable global depth. A player's Tuck preference puts Tops behind Bottoms;
+ * default untucked keeps the previous order for all saved characters.
+ * Shoes preserve their independent under/over-pants choice. */
+export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string, shoesLayer: PlayerShoesLayer = "under", topTucked = false): number {
   if (category === "back") return -10;
   if (category === "hair" && slot === "hair_back") return -5;
   if (category === "shoes") return shoesLayer === "over" ? 65 : 35;
   if (category === "bottom") return 55;
-  if (category === "top") return 75;
+  if (category === "top") return topTucked ? 45 : 75;
   if (category === "face") return slot === "face_mouth" ? 102 : 100;
   if (category === "hair") return 110;
   if (category === "head") return 120;
@@ -127,6 +141,23 @@ export const playerClothingSegmentSchema = z.object({
   }
 });
 export type PlayerClothingSegment = z.infer<typeof playerClothingSegmentSchema>;
+
+/** Optional for old clothing: legacy items remain shared across both bodies. */
+export const playerClothingBodyVariantsSchema = z.object({
+  fem: z.array(playerClothingSegmentSchema).min(1).max(13),
+  masc: z.array(playerClothingSegmentSchema).min(1).max(13),
+}).strict();
+export type PlayerClothingBodyVariants = z.infer<typeof playerClothingBodyVariantsSchema>;
+
+/** Never show Fem artwork on Masc when distinct versions have been supplied. */
+export function clothingSegmentsForBody(
+  shared: readonly PlayerClothingSegment[] | null | undefined,
+  variants: PlayerClothingBodyVariants | null | undefined,
+  bodyName?: string | null,
+): readonly PlayerClothingSegment[] {
+  const kind = clothingBodyTypeFromName(bodyName);
+  return variants && kind ? variants[kind] : shared ?? [];
+}
 export const clothingSegmentKey = (segment: Pick<PlayerClothingSegment,"partType"|"slot">) =>
   segment.slot ?? segment.partType;
 

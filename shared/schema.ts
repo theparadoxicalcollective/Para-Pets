@@ -192,7 +192,9 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   name: text("name").notNull(),
   category: text("category").$type<PlayerClothingCategory>().notNull(),
   draftSegments: jsonb("draft_segments").$type<PlayerClothingSegment[]>().notNull().default(sql`'[]'::jsonb`),
+  draftBodyVariants: jsonb("draft_body_variants").$type<import("./playerCharacterClothing").PlayerClothingBodyVariants | null>(),
   publishedSegments: jsonb("published_segments").$type<PlayerClothingSegment[] | null>(),
+  publishedBodyVariants: jsonb("published_body_variants").$type<import("./playerCharacterClothing").PlayerClothingBodyVariants | null>(),
   // Draft category edits stay private until Save Clothing, just like segments.
   publishedCategory: text("published_category").$type<PlayerClothingCategory | null>(),
   universal: boolean("universal").notNull().default(false),
@@ -290,6 +292,7 @@ export const playerAvatarProfiles = pgTable("player_avatar_profiles", {
   // republish never silently changes this player’s character anatomy.
   baseParts: jsonb("base_parts").$type<StoredPlayerCharacterPart[]>().notNull(),
   skinTone: text("skin_tone"),
+  topTucked: boolean("top_tucked").notNull().default(false),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),

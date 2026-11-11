@@ -91,6 +91,7 @@ export default function HomeAvatarStage({
           <PlayerCharacterRenderer
             parts={base.parts}
             skinTone={avatar.data?.skinTone ?? null}
+            topTucked={avatar.data?.topTucked ?? false}
             clothingLayers={layers}
             motion="idle"
             ariaLabel="Your saved player character wearing equipped clothing"

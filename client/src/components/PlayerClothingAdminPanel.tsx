@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +21,10 @@ import {
   isFreeClothingSlot,
   type PlayerClothingCategory,
   type PlayerClothingSegment,
+  type PlayerClothingBodyVariants,
+  type PlayerClothingBodyType,
   type PlayerClothingSlot,
+  isUniversalClothingCategory,
   type PlayerShoesLayer,
 } from "@shared/playerCharacterClothing";
 
@@ -36,6 +39,8 @@ type ClothingDraft = {
   price?: number; shopImageUrl?: string | null;
   draftSegments: PlayerClothingSegment[];
   publishedSegments: PlayerClothingSegment[] | null;
+  draftBodyVariants?: PlayerClothingBodyVariants | null;
+  publishedBodyVariants?: PlayerClothingBodyVariants | null;
   universal?: boolean;
 };
 type ClothingPart = {
@@ -72,8 +77,10 @@ async function requestJson<T>(method: string, url: string, body?: unknown): Prom
 }
 /** Existing art is retained by its original slot on Save, never by a
  * user-submitted media URL. Old named slots are shown in the new piece list. */
-function partsFromDraft(draft: ClothingDraft): ClothingPart[] {
-  const segments = draft.draftSegments.length ? draft.draftSegments : draft.publishedSegments ?? [];
+function partsFromDraft(
+  draft: ClothingDraft, segments = draft.draftSegments.length
+    ? draft.draftSegments : draft.publishedSegments ?? [],
+): ClothingPart[] {
   if (draft.category === "face") {
     return faceParts().map(part => {
       const old = segments.find(s => (s.slot ?? (s.partType === "head" ? "face_open_eyes" : s.partType)) === part.slot);
@@ -111,7 +118,9 @@ export default function PlayerClothingAdminPanel({
   const [price, setPrice] = useState(0);
   const [shopImageData, setShopImageData] = useState<string | null>(null);
   const [category, setCategory] = useState<PlayerClothingCategory>("top");
-  const [parts, setParts] = useState<ClothingPart[]>([]);
+  const [partsByBody, setPartsByBody] = useState<Record<PlayerClothingBodyType, ClothingPart[]>>({
+    fem: [], masc: [],
+  });
   const [previewBodyId, setPreviewBodyId] = useState<string | null>(null);
   const [closedEyes, setClosedEyes] = useState(false);
   const [shoesLayer, setShoesLayer] = useState<PlayerShoesLayer>("under");
@@ -137,6 +146,18 @@ export default function PlayerClothingAdminPanel({
   });
   const chosenBody = savedBodies.find(body => body.id === previewBodyId) ??
     savedBodies.find(body => body.kind === "fem") ?? savedBodies[0];
+  const activeBodyKind: PlayerClothingBodyType = chosenBody?.kind === "masc" ? "masc" : "fem";
+  const universalArtwork = isUniversalClothingCategory(category);
+  // Universal parts stay attached to one shared editor state even when
+  // previewing the other body, so no uploads or selection are lost.
+  const editedBodyKind: PlayerClothingBodyType = universalArtwork ? "fem" : activeBodyKind;
+  const parts = partsByBody[editedBodyKind];
+  const setParts = (update: SetStateAction<ClothingPart[]>) =>
+    setPartsByBody(current => ({
+      ...current,
+      [editedBodyKind]: typeof update === "function"
+        ? update(current[editedBodyKind]) : update,
+    }));
   const bodyParts = useMemo(() => (chosenBody?.parts ?? []).map(part => ({
     ...part, ...canvasAlignedAvatarBodyTransform(part.partType),
   })), [chosenBody?.parts]);
@@ -152,11 +173,17 @@ export default function PlayerClothingAdminPanel({
         ...(category === "shoes" ? { shoesLayer } : {}),
       }] : [];
     }), [parts, category, shoesLayer]);
-  const faceReady = FACE_SLOTS.every(slot =>
-    parts.some(part => part.slot === slot && !!(part.imageData ?? part.imageUrl)));
-  const pieceCount = parts.filter(part => part.imageData || part.imageUrl).length;
-  const canSave = name.trim().length > 0 && (category === "face" ? faceReady : pieceCount > 0)
-    && !!chosenBody && readingParts === 0 && (!editingId || !!activeDraft)
+  const bodyReady = (kind: PlayerClothingBodyType) =>
+    category === "face"
+      ? FACE_SLOTS.every(slot => partsByBody[kind].some(part =>
+          part.slot === slot && !!(part.imageData ?? part.imageUrl)))
+      : partsByBody[kind].some(part => part.imageData || part.imageUrl);
+  const canSave = name.trim().length > 0 &&
+    (universalArtwork ? bodyReady("fem") : bodyReady("fem") && bodyReady("masc"))
+    && (universalArtwork ? savedBodies.length > 0 :
+      savedBodies.some(body => body.kind === "fem") &&
+      savedBodies.some(body => body.kind === "masc"))
+    && readingParts === 0 && (!editingId || !!activeDraft)
     && Number.isInteger(price) && price >= 0 && price <= 1_000_000_000
     && (price === 0 || !!shopImageData || !!activeDraft?.shopImageUrl);
 
@@ -165,21 +192,31 @@ export default function PlayerClothingAdminPanel({
       (current ?? []).some(item => item.id === row.id)
         ? (current ?? []).map(item => item.id === row.id ? row : item)
         : [...(current ?? []), row]);
+  const partUploads = (kind: PlayerClothingBodyType) => ({
+    images: partsByBody[kind].filter(part => !!part.imageData).map(part => ({
+      slot: part.slot, partType: part.partType, imageData: part.imageData,
+      ...(category === "hair" ? {
+        renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part",
+      } : {}),
+    })),
+    keep: partsByBody[kind].filter(part =>
+      !part.imageData && part.imageUrl && part.previousSlot).map(part => ({
+        previousSlot: part.previousSlot!, slot: part.slot, partType: part.partType,
+        ...(category === "hair" ? {
+          renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part",
+        } : {}),
+      })),
+  });
   const saveItem = useMutation({
     mutationFn: () => requestJson<ClothingDraft>("POST", "/api/admin/player-character/clothing/item", {
       ...(editingId ? { id: editingId, expectedRevision: activeDraft!.revision } : {}),
       name: name.trim(), category, price,
       ...(price > 0 && shopImageData ? { shopImageData } : {}),
-      images: parts.filter(part => !!part.imageData).map(part => ({
-        slot: part.slot, partType: part.partType, imageData: part.imageData,
-        ...(category === "hair"
-          ? { renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part" } : {}),
-      })),
-      keep: parts.filter(part => !part.imageData && part.imageUrl && part.previousSlot).map(part => ({
-        previousSlot: part.previousSlot, slot: part.slot, partType: part.partType,
-        ...(category === "hair"
-          ? { renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part" } : {}),
-      })),
+      // Shared categories save just one set, not duplicated Fem/Masc uploads.
+      ...(universalArtwork ? partUploads("fem") : {
+        images: [], keep: [],
+        bodyVariants: { fem: partUploads("fem"), masc: partUploads("masc") },
+      }),
       ...(category === "shoes" ? { shoesLayer } : {}),
     }),
     onSuccess: result => {
@@ -191,7 +228,7 @@ export default function PlayerClothingAdminPanel({
       setPrice(0);
       setShopImageData(null);
       setCategory("top");
-      setParts([]);
+      setPartsByBody({ fem: [], masc: [] });
       setScreen("view");
       toast({ title: "Clothing saved", description: "One universal clothing item was added to the clothing item list." });
     },
@@ -215,7 +252,7 @@ export default function PlayerClothingAdminPanel({
       setConfirmDelete(false);
       setEditingId(null);
       setChanged(false);
-      setParts([]);
+      setPartsByBody({ fem: [], masc: [] });
       setName("");
       setPrice(0);
       setShopImageData(null);
@@ -235,7 +272,7 @@ export default function PlayerClothingAdminPanel({
     if (busy) return;
     setConfirmDelete(false);
     setEditingId(null); setName(""); setPrice(0); setShopImageData(null);
-    setCategory("top"); setParts([]);
+    setCategory("top"); setPartsByBody({ fem: [], masc: [] });
     setShoesLayer("under"); setClosedEyes(false); setChanged(false);
     setScreen("create");
   };
@@ -244,13 +281,22 @@ export default function PlayerClothingAdminPanel({
     setConfirmDelete(false);
     setEditingId(draft.id); setName(draft.name); setPrice(draft.price ?? 0);
     setShopImageData(null); setCategory(draft.category);
-    setParts(partsFromDraft(draft));
+    const variants = draft.draftBodyVariants ?? draft.publishedBodyVariants;
+    const shared = draft.draftSegments.length ? draft.draftSegments : draft.publishedSegments ?? [];
+    setPartsByBody({
+      fem: partsFromDraft(draft, variants?.fem ?? shared),
+      masc: isUniversalClothingCategory(draft.category)
+        ? [] : partsFromDraft(draft, variants?.masc ?? shared),
+    });
     setShoesLayer(draft.draftSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under");
     setClosedEyes(false); setChanged(false); setScreen("create");
   };
   const selectCategory = (next: PlayerClothingCategory) => {
     if (busy || category === next) return;
-    setCategory(next); setParts(next === "face" ? faceParts() : []);
+    setCategory(next); setPartsByBody({
+      fem: next === "face" ? faceParts() : [],
+      masc: [],
+    });
     setClosedEyes(false); setChanged(true);
   };
   const uploadShopImage = async (file?: File) => {
@@ -407,7 +453,7 @@ export default function PlayerClothingAdminPanel({
           <div className={cardClass + " space-y-2"}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-fantasy text-xl text-[#f4d78e]">Preview</h3>
-              <div role="group" aria-label="Preview body" className="flex gap-2" data-testid="avatar-clothing-body-selector">
+              <div role="group" aria-label="Choose clothing artwork body" className="flex gap-2" data-testid="avatar-clothing-body-selector">
                 {(["masc", "fem"] as const).map(kind => {
                   const body = savedBodies.find(item => item.kind === kind);
                   return (
@@ -456,12 +502,35 @@ export default function PlayerClothingAdminPanel({
               </div>
             )}
             <p className="text-center text-xs text-[#c4c3a1]">
-              Clothing is saved once for both bodies; these buttons only change the preview.
+              {universalArtwork
+                ? "One universal artwork set fits both bodies. Switch Fem/Masc to preview the same pieces."
+                : <>Editing <strong>{activeBodyKind === "fem" ? "Fem" : "Masc"}</strong> clothing artwork.
+                    Switch bodies to upload each version; they share one clothing item and price.</>}
             </p>
           </div>
 
           <div className={cardClass + " space-y-3"}>
-            <h3 className="text-center font-fantasy text-xl text-[#f4d78e]">Upload Clothing Parts</h3>
+            <h3 className="text-center font-fantasy text-xl text-[#f4d78e]">
+              {universalArtwork ? "Universal" :
+                activeBodyKind === "fem" ? "Fem" : "Masc"} Clothing Parts
+            </h3>
+            {universalArtwork ? (
+              <div className="text-center text-xs text-[#f4d78e]"
+                data-testid="avatar-clothing-universal-artwork">
+                One set for Fem and Masc · {bodyReady("fem") ? "Complete" : "Needs artwork"}
+              </div>
+            ) : (
+              <div className="flex flex-wrap justify-center gap-2 text-xs" data-testid="avatar-clothing-variant-status">
+                {(["fem", "masc"] as const).map(kind => (
+                  <span key={kind}
+                    className={"rounded-lg border px-3 py-1 " + (bodyReady(kind)
+                      ? "border-[#aec47c] bg-[#244f30]" : "border-[#927a50] bg-[#302b1c]")}
+                    data-testid={"avatar-clothing-variant-" + kind + "-status"}>
+                    {kind === "fem" ? "Fem" : "Masc"}: {bodyReady(kind) ? "Complete" : "Needs artwork"}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
               <div className="space-y-2">
                 {category === "face" ? (
@@ -495,10 +564,12 @@ export default function PlayerClothingAdminPanel({
                   </label>
                 )}
                 <p className="text-xs leading-relaxed text-[#d3c49a]">
-                  PNG or WebP artwork on the same transparent 1000 × 1000 canvas.
+                  PNG or WebP on a transparent 1000 × 1000 canvas.
                   {category === "face"
-                    ? " All three facial images are required."
-                    : " Add several pieces, then choose the body part each follows."}
+                    ? " Open eyes, closed eyes and mouth are required once for both bodies."
+                    : universalArtwork
+                      ? " Upload the pieces once; they will appear on both bodies."
+                      : " Upload each version's pieces and choose their attachment points."}
                 </p>
               </div>
 

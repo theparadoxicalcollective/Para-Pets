@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
-import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
+import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +58,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
   // undefined = untouched, null = restore original art, hex = selected tint.
   const [skinChoice, setSkinChoice] = useState<string | null | undefined>(undefined);
+  // Account-scoped local choice makes the render order change immediately.
+  // A successful save returns to the server-confirmed profile value.
+  const [tuckChoice, setTuckChoice] = useState<{ accountId: string; value: boolean } | null>(null);
   const avatarQuery = useQuery<PlayerAvatarState>({
     queryKey: avatarKey,
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
@@ -68,15 +71,16 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const avatar = avatarQuery.data;
 
   const creation = useMutation({
-    mutationFn: (input: { baseId: string; skinTone: string | null; accountId: string }) =>
+    mutationFn: (input: { baseId: string; skinTone: string | null; topTucked: boolean; accountId: string }) =>
       writePlayerAvatar("POST", "/api/player-avatar/create", {
-        baseId: input.baseId, skinTone: input.skinTone,
+        baseId: input.baseId, skinTone: input.skinTone, topTucked: input.topTucked,
       }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
       setPreviewSelections({});
       setResetPending(false);
+      setTuckChoice(null);
       setBodyChoiceId(null);
       setSkinChoice(undefined);
       setWardrobeOpen(false);
@@ -131,11 +135,12 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const changeBody = useMutation({
     mutationFn: (input: {
       baseId: string; skinTone: string | null; keepSnapshot: boolean;
-      clearClothing: boolean; expectedRevision: number; accountId: string;
+      clearClothing: boolean; topTucked: boolean;
+      expectedRevision: number; accountId: string;
     }) =>
       writePlayerAvatar("PATCH", "/api/player-avatar/base", {
         baseId: input.baseId, skinTone: input.skinTone, keepSnapshot: input.keepSnapshot,
-        clearClothing: input.clearClothing,
+        clearClothing: input.clearClothing, topTucked: input.topTucked,
         expectedRevision: input.expectedRevision,
       }),
     onSuccess: (saved, input) => {
@@ -144,6 +149,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setBodyChoiceId(null);
       setSkinChoice(undefined);
       setResetPending(false);
+      setTuckChoice(null);
       // Keep preview selections for other categories after changing body.
       setWardrobeOpen(false);
       setSkinPickerOpen(false);
@@ -158,7 +164,26 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       }
     },
   });
-  const busy = creation.isPending || equipment.isPending || changeBody.isPending;
+  const tuck = useMutation({
+    mutationFn: (input: { topTucked: boolean; expectedRevision: number; accountId: string }) =>
+      writePlayerAvatar("PATCH", "/api/player-avatar/tuck", {
+        topTucked: input.topTucked, expectedRevision: input.expectedRevision,
+      }),
+    onSuccess: (saved, input) => {
+      cacheSavedAvatar(saved, input.accountId);
+      if (input.accountId === userId) setTuckChoice(null);
+    },
+    onError: (error: Error & { status?: number }, input) => {
+      if (input.accountId === userId) {
+        setTuckChoice(null);
+        toast({ title: "Tuck not saved", description: error.message, variant: "destructive" });
+      }
+      if (error.status === 409 || error.status === 404)
+        void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
+    },
+  });
+  const busy = creation.isPending || equipment.isPending ||
+    changeBody.isPending || tuck.isPending;
   const availableBodies = avatar?.availableBases ?? [];
   const selectedBody = availableBodies.find(base => base.id === bodyChoiceId)
     ?? (avatar?.created ? avatar.base :
@@ -169,6 +194,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     new Date(selectedBody.publishedAt).getTime() !== new Date(avatar.base?.publishedAt ?? 0).getTime()
   );
   const skinTone = skinChoice === undefined ? avatar?.skinTone ?? null : skinChoice;
+  const topTucked = tuckChoice?.accountId === userId
+    ? tuckChoice.value : avatar?.topTucked ?? false;
   const toneChanged = !!avatar?.created && skinTone !== (avatar.skinTone ?? null);
   const appearanceChanged = switchingBody || toneChanged || resetPending;
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
@@ -179,7 +206,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => previewSelections[slot]
     ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
   const clothingLayers = avatar
-    ? wardrobeLayers(avatar, previews, resetPending).filter(layer =>
+    ? wardrobeLayers(avatar, previews, resetPending, selectedBody?.name).filter(layer =>
         !switchingBody || previews.some(item => item.inventoryId === layer.inventoryId) ||
           avatar.ownedClothing.some(item =>
             item.inventoryId === layer.inventoryId && item.universal))
@@ -193,6 +220,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     equipment.mutate({ category, inventoryId, expectedRevision: avatar.revision, accountId: userId });
   };
 
+  const toggleTuck = (checked: boolean) => {
+    if (busy) return;
+    setTuckChoice({ accountId: userId, value: checked });
+    if (avatar?.created && avatar.revision !== null)
+      tuck.mutate({
+        topTucked: checked, expectedRevision: avatar.revision, accountId: userId,
+      });
+  };
   const selectCategory = (next: PlayerClothingCategory) => {
     setWardrobeOpen(open => next === category ? !open : true);
     setCategory(next);
@@ -206,6 +241,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     if (busy) return;
     setPreviewSelections({});
     setSkinChoice(null);
+    setTuckChoice({ accountId: userId, value: false });
     setWardrobeOpen(false);
     setSkinPickerOpen(false);
     setResetPending(!!avatar?.created);
@@ -249,6 +285,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   <PlayerCharacterRenderer
                     parts={selectedBody.parts}
                     skinTone={skinTone}
+                    topTucked={topTucked}
                     clothingLayers={clothingLayers}
                     motion="idle"
                     ariaLabel={avatar.created ? "Your saved player character" : "Preview of your character before saving"}
@@ -350,7 +387,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 <button type="button" data-testid="avatar-save-body-choice" disabled={busy}
                   onClick={() => selectedBody && changeBody.mutate({
                     baseId: selectedBody.id, skinTone, keepSnapshot: !switchingBody,
-                    clearClothing: resetPending,
+                    clearClothing: resetPending, topTucked,
                     expectedRevision: avatar.revision!, accountId: userId,
                   })}>
                   {changeBody.isPending ? "Saving Appearance…" : "Save Appearance"}
@@ -363,6 +400,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                 <div className="player-avatar-page__wardrobe-header">
                   <h2>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</h2>
+                  {category === "top" && (
+                    <label className="player-avatar-page__tuck-toggle">
+                      <input type="checkbox" checked={topTucked}
+                        data-testid="avatar-top-tuck"
+                        disabled={busy} onChange={event => toggleTuck(event.target.checked)} />
+                      <span>Tuck</span>
+                    </label>
+                  )}
                   <button type="button" className="player-avatar-page__wardrobe-close"
                     aria-label={`Close ${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}
                     data-testid="avatar-close-clothing-category"
@@ -380,6 +425,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     role="group" aria-label={`Scroll through ${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                     {owned.map(item => {
                       const eligible = item.compatible && !item.isListed && item.quantity > 0;
+                      const bodyArtwork = clothingSegmentsForBody(
+                        item.segments, item.bodyVariants, selectedBody?.name);
+                      const wardrobeThumbnail = bodyArtwork[0]?.imageUrl ?? item.imageUrl;
                       const worn = avatar.equipped.some(entry =>
                         entry.category === category && entry.inventoryId === item.inventoryId
                       );
@@ -398,7 +446,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                           }))}
                         >
                           <span className="player-avatar-page__item-art">
-                            {item.imageUrl ? <img src={item.imageUrl} alt="" draggable={false} loading="lazy" /> :
+                            {wardrobeThumbnail ? <img src={wardrobeThumbnail} alt="" draggable={false} loading="lazy" /> :
                               <span aria-hidden="true">✦</span>}
                             {worn && <span className="player-avatar-page__item-worn"><Check size={13} aria-hidden="true" /></span>}
                           </span>
@@ -438,7 +486,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
               <section className="player-avatar-page__create" data-testid="avatar-first-save">
                 <button type="button" disabled={!selectedBody || busy}
                   data-testid="avatar-create-button"
-                  onClick={() => selectedBody && creation.mutate({ baseId: selectedBody.id, skinTone, accountId: userId })}>
+                  onClick={() => selectedBody && creation.mutate({
+                    baseId: selectedBody.id, skinTone, topTucked, accountId: userId,
+                  })}>
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
               </section>

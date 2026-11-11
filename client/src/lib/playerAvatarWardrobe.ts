@@ -3,6 +3,8 @@ import {
   PLAYER_CLOTHING_CATEGORIES,
   type PlayerClothingCategory,
   type PlayerClothingSegment,
+  type PlayerClothingBodyVariants,
+  clothingSegmentsForBody,
 } from "@shared/playerCharacterClothing";
 
 export const PLAYER_AVATAR_QUERY_KEY = ["/api/player-avatar"] as const;
@@ -55,6 +57,7 @@ export interface OwnedAvatarClothing {
   free?: boolean;
   universal?: boolean;
   segments: PlayerClothingSegment[];
+  bodyVariants?: PlayerClothingBodyVariants | null;
 }
 
 export interface EquippedAvatarClothing {
@@ -64,6 +67,7 @@ export interface EquippedAvatarClothing {
   name: string;
   imageUrl: string | null;
   segments: PlayerClothingSegment[];
+  bodyVariants?: PlayerClothingBodyVariants | null;
 }
 
 export interface PlayerAvatarState {
@@ -76,6 +80,8 @@ export interface PlayerAvatarState {
   }>;
   created: boolean;
   skinTone?: string | null;
+  /** Saved per player, defaults to untucked for pre-existing avatars. */
+  topTucked?: boolean;
   revision: number | null;
   base: {
     id: string;
@@ -104,11 +110,15 @@ export function wardrobeLayers(
   preview?: { category: PlayerClothingCategory; inventoryId: string } |
     readonly { category: PlayerClothingCategory; inventoryId: string }[] | null,
   clearEquipped = false,
+  selectedBodyName: string | null | undefined = avatar.base?.name,
 ): AvatarClothingLayer[] {
   const unavailable = new Set(avatar.unavailableEquipmentSlots);
   const equipped: AvatarClothingLayer[] = clearEquipped ? [] : avatar.equipped
     .filter(item => !unavailable.has(item.category))
-    .map(({ category, inventoryId, segments }) => ({ category, inventoryId, segments }));
+    .map(({ category, inventoryId, segments, bodyVariants }) => ({
+      category, inventoryId,
+      segments: clothingSegmentsForBody(segments, bodyVariants, selectedBodyName),
+    }));
 
   // Keep one unsaved preview per wardrobe category. A body toggle cannot
   // silently discard the other chosen hair/face/top/etc pieces.
@@ -125,7 +135,8 @@ export function wardrobeLayers(
     equipped.push({
       category: chosen.category,
       inventoryId: chosen.inventoryId,
-      segments: chosen.segments,
+      segments: clothingSegmentsForBody(
+        chosen.segments, chosen.bodyVariants, selectedBodyName),
     });
   }
 

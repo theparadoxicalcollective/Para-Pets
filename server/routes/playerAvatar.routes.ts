@@ -10,12 +10,13 @@ import {
   availablePlayerCharacterBody, resolvePlayerCharacterParts,
 } from "@shared/playerCharacter";
 import {
-  playerClothingDefinitionSchema, type PlayerClothingCategory,
+  playerClothingDefinitionSchema, clothingSegmentsForBody,
+  type PlayerClothingCategory,
 } from "@shared/playerCharacterClothing";
 import {
   changePlayerAvatarBaseSchema, createPlayerAvatarSchema,
   isEligiblePlayerClothingInventory, playerClothingCategorySchema,
-  savePlayerAvatarEquipmentSchema,
+  savePlayerAvatarEquipmentSchema, savePlayerAvatarTuckSchema,
 } from "@shared/playerAvatarEquipment";
 
 type Db = typeof database;
@@ -85,6 +86,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     basePublishedAt: playerClothingDrafts.basePublishedAt,
     universal: playerClothingDrafts.universal,
     segments: playerClothingDrafts.publishedSegments,
+    bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(userInventory)
     .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
     .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
@@ -95,8 +97,10 @@ async function readPlayerAvatar(db: Db, userId: string) {
     ));
 
   const ownedClothing = ownedRows.flatMap(item => {
+    const bodySegments = clothingSegmentsForBody(
+      item.segments, item.bodyVariants, activeBase?.name);
     const parsed = playerClothingDefinitionSchema.safeParse({
-      name: item.name, category: item.category, segments: item.segments,
+      name: item.name, category: item.category, segments: bodySegments,
     });
     if (!parsed.success) return [];
     const compatible = !!activeBase && isEligiblePlayerClothingInventory({
@@ -114,6 +118,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
       compatible, universal: item.universal, free: false, segments: parsed.data.segments,
+      bodyVariants: item.bodyVariants,
     }];
   });
 
@@ -124,6 +129,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
     category: playerClothingDrafts.publishedCategory,
     segments: playerClothingDrafts.publishedSegments,
+    bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(shopItems)
     .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
     .where(and(eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
@@ -134,8 +140,10 @@ async function readPlayerAvatar(db: Db, userId: string) {
     .map(item => item.shopItemId));
   for (const item of freeRows) {
     if (alreadyOwned.has(item.shopItemId)) continue;
+    const bodySegments = clothingSegmentsForBody(
+      item.segments, item.bodyVariants, activeBase?.name);
     const parsed = playerClothingDefinitionSchema.safeParse({
-      name: item.name, category: item.category, segments: item.segments,
+      name: item.name, category: item.category, segments: bodySegments,
     });
     if (!parsed.success) continue;
     ownedClothing.push({
@@ -143,6 +151,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: 1, isListed: false, compatible: true, universal: true,
       free: true, segments: parsed.data.segments,
+      bodyVariants: item.bodyVariants,
     });
   }
 
@@ -158,7 +167,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     return item && item.category === entry.category
       ? [{ category: entry.category, inventoryId: item.inventoryId,
           shopItemId: item.shopItemId, name: item.name, imageUrl: item.imageUrl,
-          segments: item.segments }]
+          segments: item.segments, bodyVariants: item.bodyVariants }]
       : [];
   });
   const validSlots = new Set(equipped.map(item => item.category));
@@ -174,6 +183,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       : null,
     availableBases,
     skinTone: profile?.skinTone ?? null,
+    topTucked: profile?.topTucked ?? false,
     ownedClothing,
     equipped,
     unavailableEquipmentSlots,
@@ -211,6 +221,7 @@ export function registerPlayerAvatarRoutes(
           userId: user.id, baseId: base.id, basePublishedAt: available.publishedAt,
           baseParts: available.parts,
           skinTone: input.data.skinTone ?? null,
+          topTucked: input.data.topTucked ?? false,
         }).onConflictDoNothing().returning();
 
         if (created) return { status: 201 as const };
@@ -252,7 +263,9 @@ export function registerPlayerAvatarRoutes(
           (profile.baseId === base.id &&
             profile.basePublishedAt.getTime() === available.publishedAt.getTime());
         const skinTone = input.data.skinTone === undefined ? profile.skinTone : input.data.skinTone;
-        if (sameBase && profile.skinTone === skinTone && !input.data.clearClothing)
+        const topTucked = input.data.topTucked ?? profile.topTucked;
+        if (sameBase && profile.skinTone === skinTone &&
+            profile.topTucked === topTucked && !input.data.clearClothing)
           return { status: 200 as const };
         // Keep clothes when only changing skin color; no equipment mutation.
         // New universal clothing remains equipped across body changes.
@@ -284,7 +297,7 @@ export function registerPlayerAvatarRoutes(
           baseId: base.id,
           basePublishedAt: sameBase ? profile.basePublishedAt : available.publishedAt,
           baseParts: sameBase ? profile.baseParts : available.parts,
-          skinTone,
+          skinTone, topTucked,
           revision: profile.revision + 1, updatedAt: new Date(),
         }).where(eq(playerAvatarProfiles.userId, user.id));
         return { status: 200 as const };
@@ -295,6 +308,40 @@ export function registerPlayerAvatarRoutes(
     } catch (error) {
       console.error("[player-avatar] base change failed", error);
       return res.status(500).json({ message: "Could not update avatar base" });
+    }
+  });
+
+  // A player may tuck or untuck an equipped (or future) top at any time.
+  // Update only their own profile; protect concurrent appearance/equipment
+  // edits with the same revision contract as all other avatar mutations.
+  app.patch("/api/player-avatar/tuck", isAuthenticated, async (req, res) => {
+    const input = savePlayerAvatarTuckSchema.safeParse(req.body);
+    if (!input.success)
+      return res.status(400).json({ message: "Invalid tuck preference or avatar revision" });
+    const user = req.user as { id: string };
+    try {
+      const outcome = await db.transaction(async tx => {
+        const [profile] = await tx.select().from(playerAvatarProfiles)
+          .where(eq(playerAvatarProfiles.userId, user.id)).for("update");
+        if (!profile)
+          return { status: 404 as const, message: "Create a player avatar first" };
+        if (profile.revision !== input.data.expectedRevision)
+          return { status: 409 as const, message: "Avatar changed elsewhere. Refresh before saving." };
+        if (profile.topTucked !== input.data.topTucked)
+          await tx.update(playerAvatarProfiles).set({
+            topTucked: input.data.topTucked,
+            revision: profile.revision + 1,
+            updatedAt: new Date(),
+          }).where(eq(playerAvatarProfiles.userId, user.id));
+        return { status: 200 as const };
+      });
+      if (outcome.status !== 200)
+        return res.status(outcome.status).json({ message: outcome.message });
+      res.set("Cache-Control", "private, no-store");
+      return res.json(await readPlayerAvatar(db, user.id));
+    } catch (error) {
+      console.error("[player-avatar] tuck failed", error);
+      return res.status(500).json({ message: "Could not update tuck preference" });
     }
   });
 
@@ -329,6 +376,7 @@ export function registerPlayerAvatarRoutes(
               shopItemId: shopItems.id, name: shopItems.name,
               category: playerClothingDrafts.publishedCategory,
               segments: playerClothingDrafts.publishedSegments,
+              bodyVariants: playerClothingDrafts.publishedBodyVariants,
             }).from(shopItems)
               .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
               .where(and(eq(shopItems.id, input.data.inventoryId),
@@ -336,8 +384,12 @@ export function registerPlayerAvatarRoutes(
                 eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
                 eq(playerClothingDrafts.universal, true),
                 isNull(playerClothingDrafts.deletedAt))).limit(1);
+            const [profileBase] = await tx.select({ name: playerCharacterBases.name })
+              .from(playerCharacterBases).where(eq(playerCharacterBases.id, profile.baseId)).limit(1);
             const validated = free ? playerClothingDefinitionSchema.safeParse({
-              name: free.name, category: free.category, segments: free.segments,
+              name: free.name, category: free.category,
+              segments: clothingSegmentsForBody(
+                free.segments, free.bodyVariants, profileBase?.name),
             }) : null;
             if (!validated?.success || validated.data.category !== slot)
               return { status: 404 as const, message: "This free clothing item is no longer available" };
@@ -357,13 +409,18 @@ export function registerPlayerAvatarRoutes(
             basePublishedAt: playerClothingDrafts.basePublishedAt,
             universal: playerClothingDrafts.universal,
             segments: playerClothingDrafts.publishedSegments,
+            bodyVariants: playerClothingDrafts.publishedBodyVariants,
           }).from(shopItems)
             .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
             .where(and(eq(shopItems.id, inventory.shopItemId), eq(shopItems.type, "clothing"),
               isNull(playerClothingDrafts.deletedAt)))
             .limit(1).for("share");
+          const [selectedBase] = await tx.select({ name: playerCharacterBases.name })
+            .from(playerCharacterBases).where(eq(playerCharacterBases.id, profile.baseId)).limit(1);
           const published = item ? playerClothingDefinitionSchema.safeParse({
-            name: item.name, category: item.category, segments: item.segments,
+            name: item.name, category: item.category,
+            segments: clothingSegmentsForBody(
+              item.segments, item.bodyVariants, selectedBase?.name),
           }) : null;
           if (!item || !published?.success || !isEligiblePlayerClothingInventory({
             ownerId: inventory.userId, playerId: user.id, itemType: item.type,
