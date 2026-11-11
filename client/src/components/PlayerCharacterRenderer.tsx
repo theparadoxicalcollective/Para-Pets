@@ -23,6 +23,8 @@ export interface PlayerCharacterRendererProps {
   previewEyesClosed?: boolean;
   /** Optional artist-friendly tint; null retains the original source pixels. */
   skinTone?: string | null;
+  /** Player-owned tuck option: only changes Tops versus Bottoms depth. */
+  topTucked?: boolean;
   motion?: PlayerCharacterMotion;
   selectedPartType?: PlayerCharacterPartType | null;
   ariaLabel?: string;
@@ -35,6 +37,7 @@ export default function PlayerCharacterRenderer({
   previewClothingCategory = "top",
   previewEyesClosed = false,
   skinTone = null,
+  topTucked = false,
   motion = "static",
   selectedPartType = null,
   ariaLabel = "Player character",
@@ -57,9 +60,9 @@ export default function PlayerCharacterRenderer({
   const oldPartLocal = layers.filter(layer => !layer.segment.canvasAligned);
   const fullCanvas = layers.filter(layer => layer.segment.canvasAligned)
     .sort((a,b) => clothingLayerDepth(a.category, a.category === "hair" &&
-        a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer)
+        a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer, topTucked)
       - clothingLayerDepth(b.category, b.category === "hair" &&
-        b.segment.renderPlane === "behind_character" ? "hair_back" : b.segment.slot, b.segment.shoesLayer));
+        b.segment.renderPlane === "behind_character" ? "hair_back" : b.segment.slot, b.segment.shoesLayer, topTucked));
   const planeDepth = {
     behind_character: -1000,
     with_part: 100,
@@ -116,7 +119,9 @@ export default function PlayerCharacterRenderer({
                   transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
                   transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
                   zIndex: planeDepth[layer.segment.renderPlane] +
-                    layer.categoryOrder * 101 + layer.segment.fit.zIndex,
+                    clothingLayerDepth(layer.category, layer.segment.slot,
+                      layer.segment.shoesLayer, topTucked) * 101 +
+                    layer.segment.fit.zIndex,
                 }}/>
             ))}
           </div>
@@ -142,7 +147,7 @@ export default function PlayerCharacterRenderer({
             transformOrigin: attachment ? `${attachment.xPct}% ${attachment.yPct}%` : "50% 50%",
             zIndex: clothingLayerDepth(layer.category,
               layer.category === "hair" && layer.segment.renderPlane === "behind_character"
-                ? "hair_back" : layer.segment.slot, layer.segment.shoesLayer),
+                ? "hair_back" : layer.segment.slot, layer.segment.shoesLayer, topTucked),
           }}>
           <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
             draggable={false}

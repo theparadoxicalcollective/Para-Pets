@@ -292,6 +292,7 @@ export const playerAvatarProfiles = pgTable("player_avatar_profiles", {
   // republish never silently changes this player’s character anatomy.
   baseParts: jsonb("base_parts").$type<StoredPlayerCharacterPart[]>().notNull(),
   skinTone: text("skin_tone"),
+  topTucked: boolean("top_tucked").notNull().default(false),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),

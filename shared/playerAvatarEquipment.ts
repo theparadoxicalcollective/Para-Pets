@@ -10,6 +10,7 @@ import { playerSkinToneSchema } from "./playerSkinTone";
 export const createPlayerAvatarSchema = z.object({
   baseId: z.string().uuid(),
   skinTone: playerSkinToneSchema.optional(),
+  topTucked: z.boolean().optional(),
 }).strict();
 
 export const changePlayerAvatarBaseSchema = z.object({
@@ -19,7 +20,14 @@ export const changePlayerAvatarBaseSchema = z.object({
   keepSnapshot: z.boolean().optional(),
   // Only an explicit Save Appearance may clear all equipped clothing.
   clearClothing: z.boolean().optional(),
+  topTucked: z.boolean().optional(),
   expectedRevision: z.number().int().min(0),
+}).strict();
+
+/** A revision-checked independent tuck toggle, saved without changing clothes. */
+export const savePlayerAvatarTuckSchema = z.object({
+  expectedRevision: z.number().int().min(0),
+  topTucked: z.boolean(),
 }).strict();
 
 export const savePlayerAvatarEquipmentSchema = z.object({

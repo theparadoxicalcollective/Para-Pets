@@ -104,15 +104,15 @@ export const canvasClothingFit = (): PlayerCharacterTransform => ({
   pivotXPct: 50, pivotYPct: 50, rotationDeg: 0, zIndex: 1,
 });
 
-/** Stable global depth. Shoes can sit UNDER (default) or OVER pants,
- * but both choices remain below Tops; all other category depths are fixed.
- */
-export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string, shoesLayer: PlayerShoesLayer = "under"): number {
+/** Stable global depth. A player's Tuck preference puts Tops behind Bottoms;
+ * default untucked keeps the previous order for all saved characters.
+ * Shoes preserve their independent under/over-pants choice. */
+export function clothingLayerDepth(category: PlayerClothingCategory, slot?: string, shoesLayer: PlayerShoesLayer = "under", topTucked = false): number {
   if (category === "back") return -10;
   if (category === "hair" && slot === "hair_back") return -5;
   if (category === "shoes") return shoesLayer === "over" ? 65 : 35;
   if (category === "bottom") return 55;
-  if (category === "top") return 75;
+  if (category === "top") return topTucked ? 45 : 75;
   if (category === "face") return slot === "face_mouth" ? 102 : 100;
   if (category === "hair") return 110;
   if (category === "head") return 120;
