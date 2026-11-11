@@ -438,3 +438,164 @@
   .home-player-hud--avatar-home .home-player-hud__slot-stars img { transition: none !important; }
 }
 
+
+/* Home stage polish: keep these changes scoped to the account-avatar view.
+   Normal compact HUDs on other routes retain their existing layout. */
+.home-player-hud--avatar-home .home-player-hud__stars {
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - var(--home-avatar-visual-size, 220px) - 5px);
+  height: 49px;
+}
+.home-player-hud--avatar-home .home-player-hud__stars img {
+  width: clamp(37px, 10vw, 51px);
+  height: clamp(37px, 10vw, 51px);
+}
+.home-player-hud--avatar-home .home-player-hud__progress {
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 14px);
+  width: min(calc(100vw - 78px), 318px);
+}
+.home-player-hud--avatar-home .home-player-hud__xp-row {
+  height: 38px;
+}
+.home-player-hud--avatar-home .home-player-hud__xp-track {
+  width: 100%;
+  height: 38px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.home-player-hud__xp-arc { display: block; width: 100%; height: 38px; overflow: visible; }
+.home-player-hud__xp-arc path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.home-player-hud__xp-arc-shadow { stroke: rgba(0, 13, 8, .84); stroke-width: 10px; }
+.home-player-hud__xp-arc-track { stroke: #d1ae65; stroke-width: 5px; }
+.home-player-hud__xp-arc-fill {
+  stroke: #639a65;
+  stroke-width: 5.5px;
+  filter: drop-shadow(0 0 2px rgba(172, 221, 132, .4));
+  transition: stroke-dashoffset .3s ease-out;
+}
+.home-player-hud--avatar-home .home-player-hud__xp-text {
+  top: calc(100% + 2px);
+}
+.home-player-hud--avatar-home .home-player-hud__level-below { margin-top: 1px; }
+.home-player-hud--avatar-home .home-player-hud__level-pill {
+  min-width: 72px;
+  min-height: 24px;
+}
+/* Five larger companions sit on small shadow ovals rather than circles.
+   Higher outer positions make a shallow curve around the main avatar. */
+.home-player-hud--avatar-home .home-player-hud__party-panel {
+  width: min(calc(100vw - 10px), 530px);
+  padding-inline: 1px;
+}
+.home-player-hud--avatar-home .home-player-hud__team {
+  max-width: 524px;
+  gap: clamp(2px, 1vw, 7px);
+}
+.home-player-hud--avatar-home .home-player-hud__slot {
+  width: min(100%, clamp(58px, 19.5vw, 100px));
+  aspect-ratio: 1 / 1.04;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  isolation: isolate;
+}
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(1),
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-10px); }
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(2),
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(4) { transform: translateY(-4px); }
+.home-player-hud--avatar-home .home-player-hud__slot::before {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 9%;
+  width: 82%;
+  height: 21%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 8, 5, .94) 0%, rgba(2, 14, 9, .76) 47%, rgba(0, 0, 0, 0) 76%);
+  box-shadow: 0 4px 7px rgba(0, 0, 0, .24);
+  pointer-events: none;
+}
+.home-player-hud--avatar-home .home-player-hud__slot-portrait {
+  inset: -2px 1px 7px;
+  display: block;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  z-index: 1;
+}
+.home-player-hud__fallback-pet,
+.home-player-hud__pet-renderer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(1px 0 0 rgba(244, 216, 148, .9))
+    drop-shadow(-1px 0 0 rgba(244, 216, 148, .78))
+    drop-shadow(0 -1px 0 rgba(244, 216, 148, .7))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .85));
+}
+.home-player-hud__fallback-pet { object-fit: contain; }
+.home-player-hud__slot-portrait:has(.home-player-hud__pet-renderer [data-testid="pet-animator"] img)
+  > .home-player-hud__fallback-pet { opacity: 0; }
+.home-player-hud__mini-companion {
+  position: absolute;
+  right: -4%;
+  bottom: 9%;
+  width: 39%;
+  aspect-ratio: 1;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(1px 0 0 #f0d69f)
+    drop-shadow(-1px 0 0 #f0d69f)
+    drop-shadow(0 -1px 0 #f0d69f)
+    drop-shadow(0 2px 2px #000c);
+}
+.home-player-hud__slot-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  pointer-events: none;
+}
+.home-player-hud__slot-placeholder img {
+  width: 77%;
+  height: 77%;
+  object-fit: contain;
+  filter: grayscale(1) brightness(.7) drop-shadow(0 2px 3px #000b);
+  opacity: .47;
+}
+.home-player-hud__slot-empty-label {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  transform: translate(-50%, -50%);
+  font: 700 clamp(24px, 6.4vw, 32px)/1 Georgia, serif;
+  color: #f0d89e;
+  opacity: 1;
+  text-shadow: 0 2px 4px #001b10, 0 0 8px #001b10;
+}
+.home-player-hud--avatar-home .home-player-hud__slot-stars { top: -9px; }
+.home-player-hud--avatar-home .home-player-hud__slot:disabled { opacity: .58; }
+@media (max-height: 690px) {
+  .home-player-hud--avatar-home .home-player-hud__progress {
+    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 12px);
+  }
+  .home-player-hud--avatar-home .home-player-hud__slot {
+    width: min(100%, clamp(52px, 17.5vw, 78px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-player-hud__xp-arc-fill { transition: none; }
+}
