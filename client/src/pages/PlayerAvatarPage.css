@@ -194,6 +194,13 @@
   box-shadow: 0 3px 12px #0009;
   touch-action: manipulation;
 }
+.player-avatar-page__body-symbol {
+  display: block;
+  font-family: Arial, sans-serif;
+  font-size: 25px;
+  line-height: 1;
+  font-weight: 400;
+}
 .player-avatar-page__body-selector button[aria-pressed="true"] {
   border-color: #ffe09a;
   background: radial-gradient(circle at 35% 25%, #6a793f, #305339 83%);
