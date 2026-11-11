@@ -49,10 +49,12 @@ on:
       - 'script/*smoke.mjs'
       - '.github/workflows/browser-smoke-pilot.yml'
 
-# Only the newest revision of each pull request needs runner time.
-# Do not cancel completed/push builds on the protected main branch.
+# Only the newest revision of each PR needs runner time. Reset this
+# concurrency key once to isolate new checks from the previously stuck
+# queued group for PR #1066 (GitHub reported zero jobs on every old run).
+# Keep normal PR cancellation and main-branch push behavior unchanged.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-queue-reset-20261111
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
