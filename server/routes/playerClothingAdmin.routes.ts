@@ -18,6 +18,8 @@ import {
   playerClothingCategorySchema,
   playerClothingSegmentSchema,
   type PlayerClothingSegment,
+  type PlayerClothingBodyVariants,
+  PLAYER_CLOTHING_BODY_TYPES,
 } from "@shared/playerCharacterClothing";
 import {
   AVATAR_CLOTHING_UNRELEASED_WORLD,
@@ -74,6 +76,14 @@ export function registerPlayerClothingAdminRoutes(
       const uploads = await Promise.all(input.data.images.map(async image => ({
         ...image, imageUrl: await processImage(image.imageData, 1000),
       })));
+      const uploadedVariants = input.data.bodyVariants ? {
+        fem: await Promise.all(input.data.bodyVariants.fem.images.map(async image => ({
+          ...image, imageUrl: await processImage(image.imageData, 1000),
+        }))),
+        masc: await Promise.all(input.data.bodyVariants.masc.images.map(async image => ({
+          ...image, imageUrl: await processImage(image.imageData, 1000),
+        }))),
+      } : null;
       const uploadedShopImage = input.data.price > 0 && input.data.shopImageData
         ? await processImage(input.data.shopImageData, 1000) : null;
       const outcome = await db.transaction(async tx => {
@@ -97,29 +107,71 @@ export function registerPlayerClothingAdminRoutes(
         if (!ready.length) return { status: 422 as const,
           message: "Save a complete Fem or Masc body before adding clothing." };
         const reference = ready[0];
-        const old = new Map((existing?.draftSegments ?? []).map(segment =>
-          [clothingSegmentKey(segment), segment] as const));
-        const segments: PlayerClothingSegment[] = [];
-        for (const item of input.data.keep) {
-          const previous = old.get(item.previousSlot);
-          if (!previous) return { status: 409 as const,
-            message: "An uploaded part has changed. Reload this clothing item before saving." };
-          segments.push(playerClothingSegmentSchema.parse({
-            ...previous, slot: item.slot, partType: item.partType,
+        if (input.data.bodyVariants &&
+            !PLAYER_CLOTHING_BODY_TYPES.every(kind => ready.some(entry =>
+              entry.base.name.trim().toLowerCase() === kind)))
+          return { status: 422 as const,
+            message: "Save both Fem and Masc body bases before adding two clothing versions." };
+        if (existing?.draftBodyVariants && !input.data.bodyVariants)
+          return { status: 409 as const,
+            message: "This item has Fem/Masc versions. Reload the updated clothing editor." };
+
+        // Keep the two variants fully independent and validate old-media reuse
+        // against the matching version. Older shared clothing may seed both
+        // when the admin first converts it to separate artwork.
+        const buildSegments = (
+          existingSegments: readonly PlayerClothingSegment[],
+          keep: typeof input.data.keep,
+          processed: typeof uploads,
+        ): PlayerClothingSegment[] | null => {
+          const old = new Map(existingSegments.map(segment =>
+            [clothingSegmentKey(segment), segment] as const));
+          const segments: PlayerClothingSegment[] = [];
+          for (const item of keep) {
+            const previous = old.get(item.previousSlot);
+            if (!previous) return null;
+            segments.push(playerClothingSegmentSchema.parse({
+              ...previous, slot: item.slot, partType: item.partType,
+              canvasAligned: true, fit: canvasClothingFit(),
+              renderPlane: input.data.category === "hair" ? item.renderPlane ?? "with_part" : "with_part",
+              ...(input.data.category === "shoes"
+                ? { shoesLayer: input.data.shoesLayer ?? "under" } : { shoesLayer: undefined }),
+            }));
+          }
+          for (const image of processed) segments.push(playerClothingSegmentSchema.parse({
+            slot: image.slot, partType: image.partType, imageUrl: image.imageUrl,
             canvasAligned: true, fit: canvasClothingFit(),
-            renderPlane: input.data.category === "hair" ? item.renderPlane ?? "with_part" : "with_part",
-            ...(input.data.category === "shoes"
-              ? { shoesLayer: input.data.shoesLayer ?? "under" } : { shoesLayer: undefined }),
+            renderPlane: input.data.category === "hair" ? image.renderPlane ?? "with_part" : "with_part",
+            ...(input.data.category === "shoes" ? { shoesLayer: input.data.shoesLayer ?? "under" } : {}),
           }));
+          return segments;
+        };
+        let bodyVariants: PlayerClothingBodyVariants | null = null;
+        let segments: PlayerClothingSegment[];
+        if (input.data.bodyVariants && uploadedVariants) {
+          const output = {} as PlayerClothingBodyVariants;
+          for (const kind of PLAYER_CLOTHING_BODY_TYPES) {
+            const source = existing?.draftBodyVariants?.[kind] ?? existing?.draftSegments ?? [];
+            const resolved = buildSegments(source,
+              input.data.bodyVariants[kind].keep, uploadedVariants[kind]);
+            if (!resolved) return { status: 409 as const,
+              message: "A saved clothing piece changed. Reload this item before editing." };
+            if (!validClothingPublication(input.data.name, input.data.category, resolved))
+              return { status: 422 as const,
+                message: `Complete the ${kind === "fem" ? "Fem" : "Masc"} clothing artwork before saving.` };
+            output[kind] = resolved;
+          }
+          bodyVariants = output;
+          segments = output.fem;
+        } else {
+          const resolved = buildSegments(existing?.draftSegments ?? [],
+            input.data.keep, uploads);
+          if (!resolved) return { status: 409 as const,
+            message: "A saved clothing piece changed. Reload this item before editing." };
+          segments = resolved;
+          if (!validClothingPublication(input.data.name, input.data.category, segments))
+            return { status: 422 as const, message: "Clothing pieces or Face expressions are incomplete." };
         }
-        for (const image of uploads) segments.push(playerClothingSegmentSchema.parse({
-          slot: image.slot, partType: image.partType, imageUrl: image.imageUrl,
-          canvasAligned: true, fit: canvasClothingFit(),
-          renderPlane: input.data.category === "hair" ? image.renderPlane ?? "with_part" : "with_part",
-          ...(input.data.category === "shoes" ? { shoesLayer: input.data.shoesLayer ?? "under" } : {}),
-        }));
-        if (!validClothingPublication(input.data.name, input.data.category, segments))
-          return { status: 422 as const, message: "Clothing pieces or Face expressions are incomplete." };
         const thumbnail = segments[0].imageUrl;
         const shopImageUrl = uploadedShopImage ?? existing?.shopImageUrl ?? null;
         if (input.data.price > 0 && !shopImageUrl)
@@ -147,6 +199,7 @@ export function registerPlayerClothingAdminRoutes(
         const fields = {
           name: input.data.name, category: input.data.category,
           draftSegments: segments, publishedSegments: segments,
+          draftBodyVariants: bodyVariants, publishedBodyVariants: bodyVariants,
           publishedCategory: input.data.category, universal: true,
           shopImageUrl,
           shopItemId: itemId, publishedAt: now, updatedAt: now,
