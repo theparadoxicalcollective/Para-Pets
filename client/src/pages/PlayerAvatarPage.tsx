@@ -331,17 +331,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 </button>
               </section>
             )}
-            {!avatar.created ? (
-              <section className="player-avatar-page__create" data-testid="avatar-first-save">
-                <div className="player-avatar-page__create-title"><Sparkles size={17} aria-hidden="true" /> Start your journey</div>
-                <p>Choose the Fem or Masc body you prefer, then save your character to start choosing clothing.</p>
-                <button type="button" disabled={!selectedBody || busy}
-                  data-testid="avatar-create-button"
-                  onClick={() => selectedBody && creation.mutate({ baseId: selectedBody.id, skinTone, accountId: userId })}>
-                  {creation.isPending ? "Saving Character…" : "Create My Character"}
-                </button>
-              </section>
-            ) : null}
             {wardrobeOpen && (
               <section className="player-avatar-page__wardrobe" id="player-avatar-clothing-panel"
                 data-testid="avatar-clothing-category-panel"
@@ -428,6 +417,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 )}
               </section>
             )}
+            {!avatar.created ? (
+              <section className="player-avatar-page__create" data-testid="avatar-first-save">
+                <div className="player-avatar-page__create-title"><Sparkles size={17} aria-hidden="true" /> Start your journey</div>
+                <p>Choose the Fem or Masc body you prefer, then save your character to start choosing clothing.</p>
+                <button type="button" disabled={!selectedBody || busy}
+                  data-testid="avatar-create-button"
+                  onClick={() => selectedBody && creation.mutate({ baseId: selectedBody.id, skinTone, accountId: userId })}>
+                  {creation.isPending ? "Saving Character…" : "Create My Character"}
+                </button>
+              </section>
+            ) : null}
             {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
               Could not refresh your wardrobe. The last confirmed character is still shown.
             </p>}
