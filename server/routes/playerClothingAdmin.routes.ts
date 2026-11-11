@@ -2,8 +2,9 @@ import type { Express, RequestHandler } from "express";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db as database } from "../db";
 import {
-  playerAvatarEquipment, playerAvatarProfiles, playerCharacterBases,
-  playerClothingDrafts, shopItems, userInventory,
+  petParkBuildings, playerAvatarEquipment, playerAvatarProfiles,
+  playerCharacterBases, playerClothingDrafts, shopItems, userInventory,
+  worldScenePlacements,
 } from "@shared/schema";
 import {
   availablePlayerCharacterBody,
@@ -205,6 +206,31 @@ export function registerPlayerClothingAdminRoutes(
               .set({ revision: sql`${playerAvatarProfiles.revision} + 1`,
                 updatedAt: new Date() })
               .where(inArray(playerAvatarProfiles.userId, affectedUsers));
+          }
+          // Remove merchandise from both editor shop models as well as
+          // revoking the catalog listing. Otherwise the deleted item could
+          // still appear as a ghost tile with a broken purchase button.
+          const parkShops = await tx.select({
+            id: petParkBuildings.id,
+            ids: petParkBuildings.shopItemIds,
+            placements: petParkBuildings.shopItemPlacements,
+          }).from(petParkBuildings);
+          for (const shop of parkShops) if (shop.ids.includes(draft.shopItemId)) {
+            await tx.update(petParkBuildings).set({
+              shopItemIds: shop.ids.filter(id => id !== draft.shopItemId),
+              shopItemPlacements: shop.placements.filter(item => item.itemId !== draft.shopItemId),
+            }).where(eq(petParkBuildings.id, shop.id));
+          }
+          const worldShops = await tx.select({
+            id: worldScenePlacements.id,
+            ids: worldScenePlacements.shopItemIds,
+            placements: worldScenePlacements.shopItemPlacements,
+          }).from(worldScenePlacements);
+          for (const shop of worldShops) if (shop.ids.includes(draft.shopItemId)) {
+            await tx.update(worldScenePlacements).set({
+              shopItemIds: shop.ids.filter(id => id !== draft.shopItemId),
+              shopItemPlacements: shop.placements.filter(item => item.itemId !== draft.shopItemId),
+            }).where(eq(worldScenePlacements.id, shop.id));
           }
           // Historical item row remains, but cannot be acquired in any shop.
           await tx.update(shopItems).set({
