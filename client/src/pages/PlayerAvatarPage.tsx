@@ -54,6 +54,16 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
   const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
   const [previewSelections, setPreviewSelections] = useState<Partial<Record<PlayerClothingCategory, string>>>({});
+  // Unsaved color previews belong only to the current authenticated account.
+  const [colorPreview, setColorPreview] = useState<{
+    accountId: string; values: Record<string, string | null>;
+  } | null>(null);
+  const colorOverrides = colorPreview?.accountId === userId ? colorPreview.values : {};
+  const setPreviewTint = (inventoryId: string, tint: string | null) =>
+    setColorPreview(current => ({
+      accountId: userId,
+      values: { ...(current?.accountId === userId ? current.values : {}), [inventoryId]: tint },
+    }));
   const [resetPending, setResetPending] = useState(false);
   const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
   // undefined = untouched, null = restore original art, hex = selected tint.
@@ -79,6 +89,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
       setPreviewSelections({});
+      setColorPreview(null);
       setResetPending(false);
       setTuckChoice(null);
       setBodyChoiceId(null);
@@ -99,12 +110,13 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     mutationFn: (input: {
       category: PlayerClothingCategory;
       inventoryId: string | null;
+      colorTint?: string | null;
       expectedRevision: number;
       accountId: string;
     }) => writePlayerAvatar(
       "PUT",
       `/api/player-avatar/equipment/${input.category}`,
-      { inventoryId: input.inventoryId, expectedRevision: input.expectedRevision },
+      { inventoryId: input.inventoryId, colorTint: input.colorTint, expectedRevision: input.expectedRevision },
     ),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
@@ -114,6 +126,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
         delete next[input.category];
         return next;
       });
+      setColorPreview(null);
       toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
     },
     onError: (error: Error & { status?: number }, input) => {
@@ -148,6 +161,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       if (input.accountId !== userId) return;
       setBodyChoiceId(null);
       setSkinChoice(undefined);
+      setColorPreview(null);
       setResetPending(false);
       setTuckChoice(null);
       // Keep preview selections for other categories after changing body.
@@ -209,15 +223,29 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     ? wardrobeLayers(avatar, previews, resetPending, selectedBody?.name).filter(layer =>
         !switchingBody || previews.some(item => item.inventoryId === layer.inventoryId) ||
           avatar.ownedClothing.some(item =>
-            item.inventoryId === layer.inventoryId && item.universal))
+            item.inventoryId === layer.inventoryId && item.universal)).map(layer => {
+         const item = avatar.ownedClothing.find(owned => owned.inventoryId === layer.inventoryId);
+         return item?.colorPickerEnabled &&
+           Object.prototype.hasOwnProperty.call(colorOverrides, layer.inventoryId)
+             ? { ...layer, colorTint: colorOverrides[layer.inventoryId] } : layer;
+       })
     : [];
   const equippedItem = resetPending ? undefined : avatar?.equipped.find(item => item.category === category);
+  const selectedTint = selected
+    ? (Object.prototype.hasOwnProperty.call(colorOverrides, selected.inventoryId)
+      ? colorOverrides[selected.inventoryId]
+      : equippedItem?.inventoryId === selected.inventoryId ? equippedItem.colorTint ?? null : null)
+    : null;
+  const selectedTintChanged = !!selected && selected.colorPickerEnabled &&
+    equippedItem?.inventoryId === selected.inventoryId &&
+    selectedTint !== (equippedItem.colorTint ?? null);
   const unavailableEquipped = !resetPending &&
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
 
-  const saveEquipment = (inventoryId: string | null) => {
+  const saveEquipment = (inventoryId: string | null, colorTint?: string | null) => {
     if (!avatar?.created || avatar.revision == null || busy) return;
-    equipment.mutate({ category, inventoryId, expectedRevision: avatar.revision, accountId: userId });
+    equipment.mutate({ category, inventoryId, colorTint,
+      expectedRevision: avatar.revision, accountId: userId });
   };
 
   const toggleTuck = (checked: boolean) => {
@@ -240,6 +268,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const resetCharacter = () => {
     if (busy) return;
     setPreviewSelections({});
+    setColorPreview(null);
     setSkinChoice(null);
     setTuckChoice({ accountId: userId, value: false });
     setWardrobeOpen(false);
