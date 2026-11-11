@@ -80,6 +80,8 @@ export interface PlayerAvatarState {
   }>;
   created: boolean;
   skinTone?: string | null;
+  /** Saved per player, defaults to untucked for pre-existing avatars. */
+  topTucked?: boolean;
   revision: number | null;
   base: {
     id: string;
