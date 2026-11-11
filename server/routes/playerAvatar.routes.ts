@@ -10,7 +10,7 @@ import {
   availablePlayerCharacterBody, resolvePlayerCharacterParts,
 } from "@shared/playerCharacter";
 import {
-  playerClothingDefinitionSchema, clothingSegmentsForBody,
+  playerClothingDefinitionSchema, clothingSegmentsForBody, playerClothingCanRecolor,
   type PlayerClothingCategory,
 } from "@shared/playerCharacterClothing";
 import {
@@ -120,7 +120,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
       compatible, universal: item.universal, free: false,
-      colorPickerEnabled: item.colorPickerEnabled, segments: parsed.data.segments,
+      colorPickerEnabled: playerClothingCanRecolor(parsed.data.category, item.colorPickerEnabled), segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     }];
   });
@@ -155,7 +155,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       inventoryId: item.shopItemId, shopItemId: item.shopItemId,
       name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: 1, isListed: false, compatible: true, universal: true,
-      free: true, colorPickerEnabled: item.colorPickerEnabled,
+      free: true, colorPickerEnabled: playerClothingCanRecolor(parsed.data.category, item.colorPickerEnabled),
       segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     });
@@ -174,8 +174,8 @@ async function readPlayerAvatar(db: Db, userId: string) {
       ? [{ category: entry.category, inventoryId: item.inventoryId,
           shopItemId: item.shopItemId, name: item.name, imageUrl: item.imageUrl,
           segments: item.segments, bodyVariants: item.bodyVariants,
-          colorPickerEnabled: item.colorPickerEnabled,
-          colorTint: item.colorPickerEnabled ? entry.colorTint : null }]
+          colorPickerEnabled: playerClothingCanRecolor(item.category, item.colorPickerEnabled),
+          colorTint: playerClothingCanRecolor(item.category, item.colorPickerEnabled) ? entry.colorTint : null }]
       : [];
   });
   const validSlots = new Set(equipped.map(item => item.category));
@@ -287,12 +287,12 @@ export function registerPlayerAvatarRoutes(
             return { status: 422 as const,
               message: "One selected clothing item is unavailable. Choose a valid Top, Bottoms and Face." };
           }
-          if (!item.colorPickerEnabled && selection.colorTint != null)
+          if (!playerClothingCanRecolor(category, item.colorPickerEnabled) && selection.colorTint != null)
             return { status: 422 as const, message: "This clothing does not offer a color picker" };
           outfitToSave.push({
             category, inventoryId: owned?.inventoryId ?? null,
             shopItemId: item.shopItemId,
-            colorTint: item.colorPickerEnabled ? selection.colorTint ?? null : null,
+            colorTint: playerClothingCanRecolor(category, item.colorPickerEnabled) ? selection.colorTint ?? null : null,
           });
         }
 
@@ -540,9 +540,9 @@ export function registerPlayerAvatarRoutes(
             publishedSegmentsCount: published.data.segments.length,
           })) return { status: 422 as const, message: "This clothing cannot be equipped: check its slot, ownership and avatar base" };
 
-          if (!item.colorPickerEnabled && input.data.colorTint)
+          if (!playerClothingCanRecolor(slot, item.colorPickerEnabled) && input.data.colorTint)
             return { status: 422 as const, message: "This clothing does not offer a color picker" };
-          const colorTint = item.colorPickerEnabled
+          const colorTint = playerClothingCanRecolor(slot, item.colorPickerEnabled)
             ? (input.data.colorTint === undefined
               ? (existing?.inventoryId === inventory.id ? existing.colorTint : null)
               : input.data.colorTint)
