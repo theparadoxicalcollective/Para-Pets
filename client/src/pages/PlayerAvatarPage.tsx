@@ -9,7 +9,28 @@ import {
   playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
   type OwnedAvatarClothing, type PlayerAvatarState,
 } from "@/lib/playerAvatarWardrobe";
+import accessoriesIcon from "@assets/uploads/ClothingAccesoryIcon.png";
+import headAccessoriesIcon from "@assets/uploads/HeadAccessoriesIcon.png";
+import hairIcon from "@assets/uploads/HairIcon.png";
+import faceIcon from "@assets/uploads/FaceIcon.png";
+import topIcon from "@assets/uploads/TopIcon.png";
+import bottomsIcon from "@assets/uploads/BottomsIcon.png";
+import shoesIcon from "@assets/uploads/ShoeIcon.png";
+import backAccessoriesIcon from "@assets/uploads/BackAccessoryIcon.png";
 import "./PlayerAvatarPage.css";
+
+/** Art supplied for the eight existing wardrobe categories. Keep the stable
+ * category keys and descriptive button labels for accessibility/navigation. */
+const categoryIcons: Record<PlayerClothingCategory, string> = {
+  accessories: accessoriesIcon,
+  head: headAccessoriesIcon,
+  hair: hairIcon,
+  face: faceIcon,
+  top: topIcon,
+  bottom: bottomsIcon,
+  shoes: shoesIcon,
+  back: backAccessoriesIcon,
+};
 
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
 export default function PlayerAvatarPage({ userId }: { userId: string }) {
@@ -160,7 +181,16 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   aria-pressed={category === slot}
                   onClick={() => selectCategory(slot)}
                 >
-                  <span>{slot === "back" ? "Back" : PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
+                  <img
+                    src={categoryIcons[slot]}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    loading="lazy"
+                    decoding="async"
+                    className="player-avatar-page__category-icon"
+                  />
+                  <span className="sr-only">{PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
                   {avatar.equipped.some(item => item.category === slot) &&
                     <span className="player-avatar-page__equipped-dot" aria-hidden="true" />}
                 </button>
