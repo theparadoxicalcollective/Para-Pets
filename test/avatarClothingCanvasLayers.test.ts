@@ -126,7 +126,7 @@ test("admin and renderer actually use shared canvas images rather than local dra
   assert.match(component,/avatar-publish-clothing/);
   assert.doesNotMatch(component,/pointerToCharacterPartLocal|setPointerCapture|Horizontal fit|Vertical fit|Size \(%\)|Rotation \(°\)|Clothing depth|Save This Fitted Piece/);
   assert.match(renderer,/fullCanvas\.map\(layer =>/);
-  assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot\)/);
+  assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot, layer.segment.shoesLayer\)/);
   assert.match(renderer,/data-clothing-slot/);
   assert.match(renderer,/player-character-renderer__canvas-image/);
   assert.match(css,/player-character-renderer__canvas-motion/);
