@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect, useId, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +27,8 @@ interface TopBarProps {
   onUserUpdate?: (user: any) => void;
   hideProfile?: boolean;
   hideCoins?: boolean;
+  /** Home-only Watcher launcher, kept beside the portrait and above username. */
+  homeWatcher?: ReactNode;
 }
 
 function RewardChestArt({ size }: { size: number }) {
@@ -136,7 +138,7 @@ function RewardCountGem({ count, compact = false }: { count: number; compact?: b
   );
 }
 
-export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins, homeWatcher }: TopBarProps) {
   const globalHudHidden = useNavHidden();
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
@@ -211,25 +213,22 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       aria-label="Open coin bundles"
       title="Coin Bundles"
       onClick={() => navigate("/coins")}
-      className="transition-transform active:scale-90"
+      className="transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
       style={{
         gridColumn: location === "/" ? 1 : 2,
         gridRow: location === "/" ? 3 : "1 / span 2",
-        width: location === "/" ? 32 : 44,
-        height: location === "/" ? 32 : 44,
+        width: location === "/" ? 40 : 46,
+        height: location === "/" ? 40 : 46,
         alignSelf: "center",
         justifySelf: "center",
         display: "grid",
         placeItems: "center",
         position: "relative",
-        background: location === "/" ? "transparent" : "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
-        border: location === "/"
-          ? "1.5px solid rgba(240,192,64,0.86)"
-          : "1.5px solid rgba(240,192,64,0.72)",
-        borderRadius: location === "/" ? "50%" : 13,
-        boxShadow: location === "/"
-          ? "0 0 9px rgba(240,192,64,0.23)"
-          : "0 3px 10px rgba(0,0,0,0.46), 0 0 9px rgba(240,192,64,0.28), inset 0 0 7px rgba(255,223,125,0.10)",
+        // Keep the tap target without drawing a circle around transparent art.
+        background: "transparent",
+        border: "none",
+        borderRadius: 0,
+        boxShadow: "none",
         padding: 0,
         cursor: "pointer",
         flexShrink: 0,
@@ -240,10 +239,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         src={coinBagIconImg}
         alt="Buy Coins"
         style={{
-          width: location === "/" ? 26 : 38,
-          height: location === "/" ? 26 : 38,
+          width: location === "/" ? 36 : 43,
+          height: location === "/" ? 36 : 43,
           objectFit: "contain",
-          filter: "brightness(1.06) drop-shadow(0 0 7px rgba(240,192,64,0.58)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
+          // CSS drop-shadow follows opaque art pixels, not a container shape.
+          filter: "brightness(1.06) drop-shadow(1px 0 0 rgba(238,196,105,0.85)) drop-shadow(-1px 0 0 rgba(238,196,105,0.65)) drop-shadow(0 1px 0 rgba(238,196,105,0.7)) drop-shadow(0 0 5px rgba(240,192,64,0.42)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
         }}
       />
       <span
@@ -499,16 +499,24 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             <div data-testid="home-account-header"
               className="flex min-w-0 flex-col items-start self-center"
               style={{
-                // Align the name with the vertical centre of the portrait
-                // (the portrait itself is shifted down 14px).
-                transform: "translateY(14px)",
-                maxWidth: "min(205px, calc(100vw - 138px))",
+                // The Watcher sits above the name, to the portrait's right.
+                // Move the smaller name down slightly without moving the photo.
+                transform: "translateY(21px)",
+                width: "min(205px, calc(100vw - 190px))",
+                maxWidth: "min(205px, calc(100vw - 190px))",
               }}>
+              {homeWatcher && <div data-testid="home-header-watcher"
+                style={{ display: "flex", width: "100%", minWidth: 0,
+                  alignItems: "center", justifyContent: "flex-start",
+                  minHeight: 42, pointerEvents: "none" }}>
+                {homeWatcher}
+              </div>}
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
                 style={{
-                  fontSize: "clamp(13px, 3.9vw, 18px)",
-                  padding: "5px 9px 6px",
+                  fontSize: "clamp(11px, 3.1vw, 15px)",
+                  padding: "4px 8px 5px",
+                  marginTop: homeWatcher ? 6 : 0,
                   letterSpacing: ".015em",
                   borderLeft: "2px solid rgba(245, 205, 118, 0.92)",
                   borderRadius: 8,
@@ -528,7 +536,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               style={{
                 display: "grid",
                 gridTemplateColumns: location === "/" ? "max-content" : "auto 44px",
-                gridTemplateRows: location === "/" ? "30px 30px 34px" : "30px 30px",
+                gridTemplateRows: location === "/" ? "30px 30px 40px" : "30px 30px",
                 columnGap: 4,
                 rowGap: 2,
                 marginTop: location === "/" ? 17 : 0,

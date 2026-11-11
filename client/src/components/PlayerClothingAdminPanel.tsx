@@ -211,7 +211,7 @@ export default function PlayerClothingAdminPanel({
     mutationFn: () => requestJson<ClothingDraft>("POST", "/api/admin/player-character/clothing/item", {
       ...(editingId ? { id: editingId, expectedRevision: activeDraft!.revision } : {}),
       name: name.trim(), category, price,
-      ...(price > 0 && shopImageData ? { shopImageData } : {}),
+      ...(shopImageData ? { shopImageData } : {}),
       // Shared categories save just one set, not duplicated Fem/Masc uploads.
       ...(universalArtwork ? partUploads("fem") : {
         images: [], keep: [],
@@ -302,7 +302,7 @@ export default function PlayerClothingAdminPanel({
   const uploadShopImage = async (file?: File) => {
     if (!file) return;
     if (!["image/png", "image/webp"].includes(file.type) || file.size > 5_000_000) {
-      toast({ title: "Unsupported shop image", description: "Choose PNG or WebP under 5 MB.",
+      toast({ title: "Unsupported main item image", description: "Choose PNG or WebP under 5 MB.",
         variant: "destructive" });
       return;
     }
@@ -381,8 +381,9 @@ export default function PlayerClothingAdminPanel({
               <button type="button" key={item.id} disabled={busy}
                 onClick={() => openExisting(item)}
                 className="flex min-h-[65px] items-center gap-3 rounded-xl border border-[#a18b52] bg-[#0c2419] p-3 text-left">
-                {item.publishedSegments?.[0]?.imageUrl
-                  ? <img src={item.publishedSegments[0].imageUrl} alt="" className="h-11 w-11 object-contain" />
+                {(item.shopImageUrl || item.publishedSegments?.[0]?.imageUrl)
+                  ? <img src={item.shopImageUrl ?? item.publishedSegments?.[0]?.imageUrl ?? undefined}
+                      alt="" className="h-11 w-11 object-contain" />
                   : <span className="text-2xl text-[#e6cc83]">+</span>}
                 <span className="min-w-0">
                   <strong className="block truncate text-sm text-[#f3d99b]">{item.name}</strong>
@@ -414,30 +415,41 @@ export default function PlayerClothingAdminPanel({
                 Set 0 to make this clothing available to every player automatically.
               </span>
             </label>
-            {price > 0 && (
-              <div className="space-y-2 rounded-xl border border-[#ad915b] bg-[#163928] p-3"
-                data-testid="avatar-clothing-shop-art">
-                <p className="text-sm font-bold text-[#f3da9b]">Shop / Reward Image</p>
-                <p className="text-xs text-[#d2c5a2]">
-                  Upload the item picture shown in shops and reward screens.
-                  Your transparent clothing pieces remain separate.
+            <div className="space-y-2 rounded-xl border border-[#ad915b] bg-[#163928] p-3"
+              data-testid="avatar-clothing-main-image-section">
+              <p className="text-sm font-bold text-[#f3da9b]">Main Item Image</p>
+              <p className="text-xs text-[#d2c5a2]">
+                Upload one thumbnail for this clothing item, used in shops, the market,
+                inventory and rewards. Available for both free and priced clothing.
+                This is separate from wearable Fem/Masc or universal parts.
+              </p>
+              {(shopImageData || activeDraft?.shopImageUrl) && (
+                <img src={shopImageData ?? activeDraft?.shopImageUrl ?? undefined}
+                  className="mx-auto h-24 w-24 object-contain"
+                  alt="Main clothing item image preview" data-testid="avatar-clothing-main-image-preview" />
+              )}
+              <label className={buttonClass + " flex cursor-pointer items-center justify-center"}>
+                {shopImageData || activeDraft?.shopImageUrl
+                  ? "Replace Main Item Image" : "+ Upload Main Item Image"}
+                <input className="sr-only" type="file" accept="image/png,image/webp"
+                  data-testid="avatar-clothing-main-image-upload"
+                  aria-label="Upload clothing main item image" disabled={busy}
+                  onChange={event => {
+                    void uploadShopImage(event.currentTarget.files?.[0]);
+                    event.currentTarget.value = "";
+                  }} />
+              </label>
+              {price > 0 && !shopImageData && !activeDraft?.shopImageUrl && (
+                <p className="text-xs text-[#f1bb83]" role="status">
+                  A main item image is required for priced clothing.
                 </p>
-                {(shopImageData || activeDraft?.shopImageUrl) && (
-                  <img src={shopImageData ?? activeDraft?.shopImageUrl ?? undefined}
-                    className="mx-auto h-24 w-24 object-contain" alt="Shop item artwork preview" />
-                )}
-                <label className={buttonClass + " flex cursor-pointer items-center justify-center"}>
-                  {shopImageData || activeDraft?.shopImageUrl ? "Replace Shop Image" : "+ Upload Shop Image"}
-                  <input className="sr-only" type="file" accept="image/png,image/webp"
-                    data-testid="avatar-clothing-shop-image-upload"
-                    aria-label="Upload clothing shop reward image" disabled={busy}
-                    onChange={event => {
-                      void uploadShopImage(event.currentTarget.files?.[0]);
-                      event.currentTarget.value = "";
-                    }} />
-                </label>
-              </div>
-            )}
+              )}
+              {price === 0 && !shopImageData && !activeDraft?.shopImageUrl && (
+                <p className="text-xs text-[#c9bd9b]">
+                  Optional for free clothing; otherwise a wearable part is used as the thumbnail.
+                </p>
+              )}
+            </div>
             <label className="block space-y-1 text-xs text-[#e6d29c]">Category
               <select className={inputClass} value={category}
                 aria-label="Clothing category" data-testid="avatar-new-clothing-category"

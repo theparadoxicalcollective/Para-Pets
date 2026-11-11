@@ -24,9 +24,10 @@ test("XP, level pill and companion panel sit lower while retaining short-phone c
   assert.match(hudCss, /home-avatar-standing-y[^\n]*\+ 32px/);
   assert.match(hudCss, /home-avatar-standing-y[^\n]*\+ 28px/);
   assert.match(hudCss, /bottom: calc\(44px \+ env\(safe-area-inset-bottom/);
-  assert.match(hudCss, /bottom: calc\(40px \+ env\(safe-area-inset-bottom/);
+  assert.match(hudCss, /bottom: calc\(30px \+ env\(safe-area-inset-bottom/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
-  assert.match(hudCss, /pointer-events: auto/);
+  assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel\s*\{[^}]*pointer-events: none/s);
+  assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__slot\s*\{[^}]*pointer-events: auto/s);
 });
 
 test("Home navigation flows down the right edge into left columns; other routes keep old anchor", () => {

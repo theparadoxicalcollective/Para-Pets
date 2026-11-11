@@ -4,12 +4,15 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Watcher docks below the pet team in real viewport HUD coordinates", () => {
+test("Watcher is anchored beside the portrait above the account name", () => {
   const home = read("client/src/pages/HomePage.tsx");
   assert.match(home, /<ViewportHudPortal>/);
   assert.match(home, /data-testid="viewport-hud-watcher-dock"/);
-  assert.match(home, /bottom: "max\(0px, calc\(env\(safe-area-inset-bottom, 0px\) - 18px\)\)"/);
-  assert.match(home, /width: "min\(calc\(100vw - 34px\), 430px\)"/);
+  assert.match(home, /const homeWatcherControl =/);
+  assert.match(home, /homeWatcher=\{homeWatcherControl\}/);
+  const topBar = read("client/src/components/TopBar.tsx");
+  assert.match(topBar, /data-testid="home-header-watcher"/);
+  assert.match(topBar, /\{homeWatcher\}/);
   assert.match(home, /data-testid="button-open-world-chat"/);
   assert.match(home, /width: "clamp\(40px, 5\.3vh, 44px\)"/);
   assert.match(home, /height: "clamp\(40px, 5\.3vh, 44px\)"/);
@@ -47,7 +50,7 @@ test("coin and essence balances share a compact coordinated resource cluster", (
   // their original coin/essence + bundle-button grid.
   assert.match(topBar, /gridTemplateColumns: location === "\/" \? "max-content" : "auto 44px"/);
   assert.match(topBar, /flexBasis: location === "\/" \? "100%" : undefined/);
-  assert.match(topBar, /gridTemplateRows: location === "\/" \? "30px 30px 34px" : "30px 30px"/);
+  assert.match(topBar, /gridTemplateRows: location === "\/" \? "30px 30px 40px" : "30px 30px"/);
   assert.match(topBar, /data-testid="display-coin-balance"/);
   assert.doesNotMatch(topBar, /data-testid="button-coin-shop"/);
   assert.match(topBar, /gridColumn: 1/);
@@ -67,17 +70,16 @@ test("coin-bundle control is more visible without changing the coin shop destina
   assert.match(block, /title="Coin Bundles"/);
   assert.match(block, /navigate\("\/coins"\)/);
   assert.match(block, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
-  assert.match(block, /width: location === "\/" \? 32 : 44/);
-  assert.match(block, /height: location === "\/" \? 32 : 44/);
-  assert.match(block, /border: location === "\/"/);
-  assert.match(block, /"1\.5px solid rgba\(240,192,64,0\.86\)"/);
-  assert.match(block, /"1\.5px solid rgba\(240,192,64,0\.72\)"/);
-  assert.match(block, /background: location === "\/" \? "transparent"/);
-  assert.match(block, /borderRadius: location === "\/" \? "50%" : 13/);
-  assert.match(block, /boxShadow: location === "\/"/);
+  assert.match(block, /width: location === "\/" \? 40 : 46/);
+  assert.match(block, /height: location === "\/" \? 40 : 46/);
+  assert.match(block, /background: "transparent"/);
+  assert.match(block, /border: "none"/);
+  assert.match(block, /borderRadius: 0/);
+  assert.match(block, /boxShadow: "none"/);
+  assert.match(block, /drop-shadow\(1px 0 0 rgba\(238,196,105,0\.85\)\)/);
   assert.match(block, /linear-gradient\(145deg, #4f9258, #165130\)/);
-  assert.match(block, /width: location === "\/" \? 26 : 38/);
-  assert.match(block, /height: location === "\/" \? 26 : 38/);
+  assert.match(block, /width: location === "\/" \? 36 : 43/);
+  assert.match(block, /height: location === "\/" \? 36 : 43/);
   assert.match(block, /brightness\(1\.06\)/);
   assert.match(block, />\s*\+\s*<\/span>/);
 });

@@ -84,7 +84,8 @@ export function registerPlayerClothingAdminRoutes(
           ...image, imageUrl: await processImage(image.imageData, 1000),
         }))),
       } : null;
-      const uploadedShopImage = input.data.price > 0 && input.data.shopImageData
+      // Keep a standalone catalog image even when an item is free.
+      const uploadedShopImage = input.data.shopImageData
         ? await processImage(input.data.shopImageData, 1000) : null;
       const outcome = await db.transaction(async tx => {
         const existing = input.data.id
@@ -185,7 +186,8 @@ export function registerPlayerClothingAdminRoutes(
           name: input.data.name, type: "clothing" as const,
           worldId: AVATAR_CLOTHING_UNRELEASED_WORLD, price: input.data.price,
           description: `Avatar clothing · ${input.data.category}`,
-          imageUrl: input.data.price > 0 ? shopImageUrl : thumbnail,
+          // Inventory, market, shops and rewards share shop_items.image_url.
+          imageUrl: shopImageUrl ?? thumbnail,
         };
         let itemId = existing?.shopItemId ?? null;
         if (itemId) {

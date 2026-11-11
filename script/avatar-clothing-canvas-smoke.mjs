@@ -199,9 +199,18 @@ try {
     await showBody("fem");
     assert.equal(await page.getByTestId("avatar-clothing-uploaded-parts")
       .locator('[data-testid^="clothing-part-"]').count(), 3);
+    assert.equal(await page.getByTestId("avatar-clothing-main-image-section").count(), 1,
+      size.name + ": free items have an independent main-image upload");
+    await page.getByTestId("avatar-clothing-main-image-upload").setInputFiles({
+      name: "blouse-main.png", mimeType: "image/png", buffer: png,
+    });
+    await page.getByTestId("avatar-clothing-main-image-preview").waitFor({ state: "visible" });
     await saveItem();
     assert.equal(rows.at(-1).universal, true);
     assert.equal(rows.at(-1).price, 0, size.name + ": free item auto-available");
+    assert.ok(rows.at(-1).shopImageUrl, size.name + ": free items also retain main art");
+    assert.notEqual(rows.at(-1).shopImageUrl, rows.at(-1).draftSegments[0].imageUrl,
+      size.name + ": main art is separate from worn clothing");
     assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["top", "left_arm", "right_arm"]);
 
     await newItem("Expressive Face", "face");
@@ -235,7 +244,12 @@ try {
     await newItem("Two Hair Pieces", "hair");
     await addPart("head"); await addPart("head");
     await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
-    assert.equal(await page.locator('[data-clothing-slot="piece_2"]').evaluate(el => getComputedStyle(el).zIndex), "-5");
+    const hairBackDepth = Number(await page.locator('[data-clothing-slot="piece_2"]')
+      .evaluate(el => getComputedStyle(el).zIndex));
+    const hairBodyDepth = Number(await page.locator('[data-character-part="head"]').first()
+      .evaluate(el => getComputedStyle(el).zIndex));
+    assert.ok(hairBackDepth < hairBodyDepth,
+      size.name + ": back hair must be behind the character, regardless of the numeric depth");
     await showBody("masc");
     assert.equal(await page.getByTestId("clothing-part-piece_2").count(), 1,
       size.name + ": Masc preview shares Hair pieces");
@@ -264,10 +278,10 @@ try {
     await page.getByTestId("avatar-clothing-price").fill("350");
     assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true,
       size.name + ": paid item requires shop artwork");
-    await page.getByTestId("avatar-clothing-shop-image-upload").setInputFiles({
+    await page.getByTestId("avatar-clothing-main-image-upload").setInputFiles({
       name: "cape-shop.png", mimeType: "image/png", buffer: png,
     });
-    await page.getByRole("img", { name: "Shop item artwork preview" }).waitFor({ state: "visible" });
+    await page.getByTestId("avatar-clothing-main-image-preview").waitFor({ state: "visible" });
     await saveItem();
     assert.equal(rows.at(-1).price, 350);
     assert.ok(rows.at(-1).shopImageUrl);
@@ -286,6 +300,8 @@ try {
 
     // Editing preserves media through previousSlot and cannot create duplicates.
     await page.getByTestId("avatar-clothing-view").getByRole("button", { name: /Three Part Blouse/ }).click();
+    assert.equal(await page.getByTestId("avatar-clothing-main-image-preview").count(), 1,
+      size.name + ": main item image remains visible when editing");
     await page.getByTestId("avatar-new-clothing-name").fill("Blouse Updated");
     await saveItem();
     assert.equal(writes.at(-1).bodyVariants.fem.keep.length, 3);

@@ -500,32 +500,33 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           );
         })}
 
-        {/* ── Main circular button ─────────────────────────────────────── */}
+        {/* Main artwork button: transparent target, silhouette-only outline. */}
         <button
           data-testid="button-floating-nav"
           aria-expanded={isOpen}
           aria-controls={isHome ? "home-realm-nav-panel" : undefined}
           aria-label="Main navigation"
           onClick={() => { if (!isOpen) window.dispatchEvent(new Event("para-pets:main-nav-open")); setIsOpen(v => !v); }}
-          className="absolute inset-0 rounded-full transition-transform duration-200 active:scale-90 flex items-center justify-center"
+          className="absolute inset-0 transition-transform duration-200 active:scale-90 flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
           style={{
             zIndex: 99,
-            background: "radial-gradient(circle at 38% 35%, rgba(80,180,100,0.25) 0%, rgba(20,40,20,0.85) 70%)",
-            border: "2px solid rgba(212,160,23,0.7)",
-            boxShadow: isOpen
-              ? "0 0 0 4px rgba(212,160,23,0.2), 0 0 20px rgba(212,160,23,0.4), 0 4px 16px rgba(0,0,0,0.7)"
-              : "0 0 0 2px rgba(212,160,23,0.15), 0 0 14px rgba(212,160,23,0.25), 0 4px 16px rgba(0,0,0,0.7)",
+            background: "transparent",
+            border: "none",
+            boxShadow: "none",
             cursor: "pointer",
           }}
         >
           <img src={mainNavIcon} alt="" aria-hidden="true" draggable={false}
             style={{
-              width: mainButtonSize - 8,
-              height: mainButtonSize - 8,
+              width: mainButtonSize,
+              height: mainButtonSize,
               objectFit: "contain",
               transform: isOpen ? "scale(0.94)" : "scale(1)",
               transition: "transform 0.2s ease",
-              filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.65))",
+              // An alpha-mask outline follows only the artwork, not the hitbox.
+              filter: isOpen
+                ? "drop-shadow(1px 0 0 #e5c47c) drop-shadow(-1px 0 0 #e5c47c) drop-shadow(0 1px 0 #e5c47c) drop-shadow(0 0 6px rgba(234,198,115,0.75)) drop-shadow(0 2px 5px rgba(0,0,0,0.65))"
+                : "drop-shadow(1px 0 0 rgba(231,194,112,0.88)) drop-shadow(-1px 0 0 rgba(231,194,112,0.8)) drop-shadow(0 1px 0 rgba(231,194,112,0.88)) drop-shadow(0 0 4px rgba(234,198,115,0.45)) drop-shadow(0 2px 5px rgba(0,0,0,0.65))",
             }}
           />
           {/* Quest notification badge — visible on main button when nav is closed */}

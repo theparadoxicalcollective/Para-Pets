@@ -75,7 +75,7 @@ test("fixed character preview with only details-area scrolling", () => {
 
 test("full-canvas face follows the head's world pivot, not canvas center", () => {
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
-  assert.match(renderer, /const attachment = parts\.find\(part => part\.partType === layer\.segment\.partType\)/);
+  assert.match(renderer, /const attachment = partByType.get\(layer.segment.partType\)/);
   assert.match(renderer, /transformOrigin: attachment \? `\$\{attachment\.xPct\}% \$\{attachment\.yPct\}%`/);
   assert.match(renderer, /data-character-motion-part=\{layer\.segment\.partType\}/);
 });
