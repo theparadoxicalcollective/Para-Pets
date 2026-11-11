@@ -157,15 +157,20 @@ export default function HomePlayerHud({
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpFillPct === null ? undefined : Math.round(xpFillPct)}
             title={xpProgressLabel}>
             {avatarHome ? (
-              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 94"
+              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 66"
                 preserveAspectRatio="none" aria-hidden="true">
+                {/* An empty, recessed channel stays visible at 0 XP. The gold
+                    rim is an outline, never a filled progression indicator. */}
                 <path className="home-player-hud__xp-arc-shadow"
-                  d="M 26 8 Q 160 162 294 8" />
+                  d="M 22 8 Q 160 112 298 8" />
+                <path className="home-player-hud__xp-arc-rim"
+                  d="M 22 8 Q 160 112 298 8" />
                 <path className="home-player-hud__xp-arc-track"
-                  d="M 26 8 Q 160 162 294 8" />
-                {xpFillPct !== null && (
+                  d="M 22 8 Q 160 112 298 8" />
+                {xpFillPct !== null && xpFillPct > 0 && (
                   <path className="home-player-hud__xp-arc-fill"
-                    d="M 26 8 Q 160 162 294 8"
+                    data-testid="home-player-xp-fill"
+                    d="M 22 8 Q 160 112 298 8"
                     pathLength={100}
                     strokeDasharray="100 100"
                     strokeDashoffset={100 - xpFillPct} />
@@ -175,7 +180,11 @@ export default function HomePlayerHud({
           </div>
           <span data-testid="home-player-total-xp" className="home-player-hud__xp-text"
             title={player ? `${player.totalXp.toLocaleString()} lifetime player XP` : undefined}>
-            {player ? `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP` : progression.isError ? "XP unavailable" : "Loading XP"}
+            {player
+              ? avatarHome && xpNeededThisLevel !== null
+                ? `${xpEarnedThisLevel.toLocaleString()} / ${xpNeededThisLevel.toLocaleString()} XP`
+                : `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP`
+              : progression.isError ? "XP unavailable" : "Loading XP"}
           </span>
         </div>
         {avatarHome && (
