@@ -16,7 +16,7 @@ import {
 import {
   changePlayerAvatarBaseSchema, createPlayerAvatarSchema,
   isEligiblePlayerClothingInventory, playerClothingCategorySchema,
-  savePlayerAvatarEquipmentSchema,
+  savePlayerAvatarEquipmentSchema, savePlayerAvatarTuckSchema,
 } from "@shared/playerAvatarEquipment";
 
 type Db = typeof database;
@@ -183,6 +183,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       : null,
     availableBases,
     skinTone: profile?.skinTone ?? null,
+    topTucked: profile?.topTucked ?? false,
     ownedClothing,
     equipped,
     unavailableEquipmentSlots,
@@ -220,6 +221,7 @@ export function registerPlayerAvatarRoutes(
           userId: user.id, baseId: base.id, basePublishedAt: available.publishedAt,
           baseParts: available.parts,
           skinTone: input.data.skinTone ?? null,
+          topTucked: input.data.topTucked ?? false,
         }).onConflictDoNothing().returning();
 
         if (created) return { status: 201 as const };
@@ -261,7 +263,9 @@ export function registerPlayerAvatarRoutes(
           (profile.baseId === base.id &&
             profile.basePublishedAt.getTime() === available.publishedAt.getTime());
         const skinTone = input.data.skinTone === undefined ? profile.skinTone : input.data.skinTone;
-        if (sameBase && profile.skinTone === skinTone && !input.data.clearClothing)
+        const topTucked = input.data.topTucked ?? profile.topTucked;
+        if (sameBase && profile.skinTone === skinTone &&
+            profile.topTucked === topTucked && !input.data.clearClothing)
           return { status: 200 as const };
         // Keep clothes when only changing skin color; no equipment mutation.
         // New universal clothing remains equipped across body changes.
@@ -293,7 +297,7 @@ export function registerPlayerAvatarRoutes(
           baseId: base.id,
           basePublishedAt: sameBase ? profile.basePublishedAt : available.publishedAt,
           baseParts: sameBase ? profile.baseParts : available.parts,
-          skinTone,
+          skinTone, topTucked,
           revision: profile.revision + 1, updatedAt: new Date(),
         }).where(eq(playerAvatarProfiles.userId, user.id));
         return { status: 200 as const };
@@ -304,6 +308,40 @@ export function registerPlayerAvatarRoutes(
     } catch (error) {
       console.error("[player-avatar] base change failed", error);
       return res.status(500).json({ message: "Could not update avatar base" });
+    }
+  });
+
+  // A player may tuck or untuck an equipped (or future) top at any time.
+  // Update only their own profile; protect concurrent appearance/equipment
+  // edits with the same revision contract as all other avatar mutations.
+  app.patch("/api/player-avatar/tuck", isAuthenticated, async (req, res) => {
+    const input = savePlayerAvatarTuckSchema.safeParse(req.body);
+    if (!input.success)
+      return res.status(400).json({ message: "Invalid tuck preference or avatar revision" });
+    const user = req.user as { id: string };
+    try {
+      const outcome = await db.transaction(async tx => {
+        const [profile] = await tx.select().from(playerAvatarProfiles)
+          .where(eq(playerAvatarProfiles.userId, user.id)).for("update");
+        if (!profile)
+          return { status: 404 as const, message: "Create a player avatar first" };
+        if (profile.revision !== input.data.expectedRevision)
+          return { status: 409 as const, message: "Avatar changed elsewhere. Refresh before saving." };
+        if (profile.topTucked !== input.data.topTucked)
+          await tx.update(playerAvatarProfiles).set({
+            topTucked: input.data.topTucked,
+            revision: profile.revision + 1,
+            updatedAt: new Date(),
+          }).where(eq(playerAvatarProfiles.userId, user.id));
+        return { status: 200 as const };
+      });
+      if (outcome.status !== 200)
+        return res.status(outcome.status).json({ message: outcome.message });
+      res.set("Cache-Control", "private, no-store");
+      return res.json(await readPlayerAvatar(db, user.id));
+    } catch (error) {
+      console.error("[player-avatar] tuck failed", error);
+      return res.status(500).json({ message: "Could not update tuck preference" });
     }
   });
 
