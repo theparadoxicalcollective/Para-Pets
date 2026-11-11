@@ -128,6 +128,25 @@ export function resolvePlayerCharacterParts(
     PLAYER_CHARACTER_PART_TYPES.indexOf(a.partType) - PLAYER_CHARACTER_PART_TYPES.indexOf(b.partType));
 }
 
+/** Completed saved Masc/Fem bodies work without an extra Publish action.
+ * Preserve existing publication snapshots for previously fitted clothing. */
+export function availablePlayerCharacterBody(base: {
+  name: string;
+  draftParts: readonly StoredPlayerCharacterPart[];
+  publishedParts: readonly StoredPlayerCharacterPart[] | null;
+  publishedAt: Date | null;
+  updatedAt: Date;
+}): { parts: PlayerCharacterPart[]; publishedAt: Date } | null {
+  if (base.publishedAt && base.publishedParts && completePlayerCharacterParts(base.publishedParts)) {
+    return { parts: resolvePlayerCharacterParts(base.publishedParts), publishedAt: base.publishedAt };
+  }
+  const kind = base.name.trim().toLowerCase();
+  if ((kind === "masc" || kind === "fem") && completePlayerCharacterParts(base.draftParts)) {
+    return { parts: resolvePlayerCharacterParts(base.draftParts), publishedAt: base.updatedAt };
+  }
+  return null;
+}
+
 export const playerCharacterNameSchema = z.object({
   name: z.string().trim().min(1).max(80),
 }).strict();
