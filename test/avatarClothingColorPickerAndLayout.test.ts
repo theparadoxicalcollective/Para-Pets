@@ -49,7 +49,7 @@ test("admin publication and avatar saves store color metadata without altering c
   assert.match(adminMigration, /ADD COLUMN IF NOT EXISTS color_picker_enabled/);
   assert.match(avatarMigration, /ADD COLUMN IF NOT EXISTS color_tint text/);
   assert.match(adminServer, /colorPickerEnabled: input\.data\.colorPickerEnabled \?\? existing\?\.colorPickerEnabled \?\? false/);
-  assert.match(playerServer, /if \(!item\.colorPickerEnabled && input\.data\.colorTint\)/);
+  assert.match(playerServer, /if \(!playerClothingCanRecolor\(slot, item\.colorPickerEnabled\) && input\.data\.colorTint\)/);
   assert.match(playerServer, /if \(existing\?\.inventoryId === inventory\.id\)/);
   assert.match(playerServer, /if \(existing\.colorTint === colorTint\)/);
   assert.match(playerServer, /set: \{ inventoryId: inventory\.id, colorTint, equippedAt:/);
