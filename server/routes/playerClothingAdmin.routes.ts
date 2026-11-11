@@ -207,6 +207,7 @@ export function registerPlayerClothingAdminRoutes(
           draftSegments: segments, publishedSegments: segments,
           draftBodyVariants: bodyVariants, publishedBodyVariants: bodyVariants,
           publishedCategory: input.data.category, universal: true,
+          colorPickerEnabled: input.data.colorPickerEnabled ?? existing?.colorPickerEnabled ?? false,
           shopImageUrl,
           shopItemId: itemId, publishedAt: now, updatedAt: now,
         };
