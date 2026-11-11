@@ -267,6 +267,13 @@ try {
     await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
     await page.getByTestId("avatar-save-confirmation-close").tap();
     assert.equal(avatar.ownedClothing.length, owned.length);
+    // Switching bodies may legitimately unequip old non-universal garments.
+    // Explicitly equip a compatible item so reset must clear real equipment.
+    await page.getByTestId("avatar-category-head").tap();
+    await page.getByTestId("avatar-clothing-hat").tap();
+    await page.getByTestId("avatar-equip-button").tap();
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="avatar-equip-button"]')?.textContent?.includes("Already Equipped"));
     const wornBeforeReset = avatar.equipped.length;
     assert.ok(wornBeforeReset > 0);
     const writesBeforeReset = writes.length;
