@@ -11,8 +11,11 @@ const clothing = { name: "Scarf", category: "accessories", images: [{
   slot: "piece_1", partType: "head", imageData: png,
 }], keep: [] };
 
-test("clothing prices are integer coins; paid items accept separate shop art", () => {
+test("clothing prices are integer coins; free and paid items accept main item art", () => {
   assert.equal(saveUniversalClothingItemSchema.safeParse({ ...clothing, price: 0 }).success, true);
+  assert.equal(saveUniversalClothingItemSchema.safeParse({
+    ...clothing, price: 0, shopImageData: png,
+  }).success, true);
   assert.equal(saveUniversalClothingItemSchema.safeParse({
     ...clothing, price: 225, shopImageData: png,
   }).success, true);
@@ -52,9 +55,13 @@ test("zero-cost outfits appear as virtual entitlements and are claimed only on E
   assert.match(server, /eq\(playerClothingDrafts.universal, true\)/);
   assert.match(shop, /price: input.data.price/);
   assert.match(shop, /price > 0 && !shopImageUrl/);
-  assert.match(shop, /price > 0 \? shopImageUrl : thumbnail/);
+  assert.match(shop, /imageUrl: shopImageUrl \?\? thumbnail/);
+  assert.match(shop, /const uploadedShopImage = input\.data\.shopImageData/);
   assert.match(ui, /avatar-clothing-price/);
-  assert.match(ui, /avatar-clothing-shop-image-upload/);
+  assert.match(ui, /data-testid="avatar-clothing-main-image-section"/);
+  assert.match(ui, /data-testid="avatar-clothing-main-image-upload"/);
+  assert.match(ui, /Main Item Image/);
+  assert.match(ui, /shopImageData \? \{ shopImageData \} : \{\}/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS shop_image_url text/);
 });
 
