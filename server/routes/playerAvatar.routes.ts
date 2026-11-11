@@ -250,13 +250,18 @@ export function registerPlayerAvatarRoutes(
           (profile.baseId === base.id &&
             profile.basePublishedAt.getTime() === available.publishedAt.getTime());
         const skinTone = input.data.skinTone === undefined ? profile.skinTone : input.data.skinTone;
-        if (sameBase && profile.skinTone === skinTone)
+        if (sameBase && profile.skinTone === skinTone && !input.data.clearClothing)
           return { status: 200 as const };
         // Keep clothes when only changing skin color; no equipment mutation.
         // New universal clothing remains equipped across body changes.
         // Remove only older, anatomy-locked outfit links and any dangling
         // entries. Inventory ownership is never changed.
-        if (!sameBase) {
+        if (input.data.clearClothing) {
+          // Reset appearance keeps every owned garment in inventory.
+          // Clear equipment atomically with the saved base/tone revision.
+          await tx.delete(playerAvatarEquipment)
+            .where(eq(playerAvatarEquipment.userId, user.id));
+        } else if (!sameBase) {
         const worn = await tx.select({
           category: playerAvatarEquipment.category,
           universal: playerClothingDrafts.universal,

@@ -17,6 +17,8 @@ export const changePlayerAvatarBaseSchema = z.object({
   skinTone: playerSkinToneSchema.optional(),
   // Skin-only edits retain the player's pinned base-art snapshot.
   keepSnapshot: z.boolean().optional(),
+  // Only an explicit Save Appearance may clear all equipped clothing.
+  clearClothing: z.boolean().optional(),
   expectedRevision: z.number().int().min(0),
 }).strict();
 
