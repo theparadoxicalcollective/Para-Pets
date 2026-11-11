@@ -11,8 +11,8 @@ test("Watcher docks below the pet team in real viewport HUD coordinates", () => 
   assert.match(home, /bottom: "max\(0px, calc\(env\(safe-area-inset-bottom, 0px\) - 18px\)\)"/);
   assert.match(home, /width: "min\(calc\(100vw - 34px\), 430px\)"/);
   assert.match(home, /data-testid="button-open-world-chat"/);
-  assert.match(home, /width: 44/);
-  assert.match(home, /height: 44/);
+  assert.match(home, /width: "clamp\(40px, 5\.3vh, 44px\)"/);
+  assert.match(home, /height: "clamp\(40px, 5\.3vh, 44px\)"/);
   assert.doesNotMatch(home, /data-testid="viewport-hud-corner-actions"|data-testid="button-open-support"/);
 });
 
