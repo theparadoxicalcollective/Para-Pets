@@ -90,6 +90,8 @@ test("deleting clothing retires rather than destroying ownership", () => {
   assert.match(admin, /draft\.revision !== revision/);
   assert.match(admin, /deletedAt: new Date\(\)/);
   assert.match(admin, /tx\.delete\(playerAvatarEquipment\)/);
+  assert.match(admin, /shopItemIds: shop\.ids\.filter\(id => id !== draft\.shopItemId\)/);
+  assert.match(admin, /shopItemPlacements: shop\.placements\.filter\(item => item\.itemId !== draft\.shopItemId\)/);
   assert.doesNotMatch(admin, /tx\.delete\(userInventory\)/);
   assert.match(player, /isNull\(playerClothingDrafts\.deletedAt\)/);
   assert.match(shop, /isNull\(playerClothingDrafts\.deletedAt\)/);
