@@ -235,7 +235,12 @@ try {
     await newItem("Two Hair Pieces", "hair");
     await addPart("head"); await addPart("head");
     await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
-    assert.equal(await page.locator('[data-clothing-slot="piece_2"]').evaluate(el => getComputedStyle(el).zIndex), "-5");
+    const hairBackDepth = Number(await page.locator('[data-clothing-slot="piece_2"]')
+      .evaluate(el => getComputedStyle(el).zIndex));
+    const hairBodyDepth = Number(await page.locator('[data-character-part="head"]').first()
+      .evaluate(el => getComputedStyle(el).zIndex));
+    assert.ok(hairBackDepth < hairBodyDepth,
+      size.name + ": back hair must be behind the character, regardless of the numeric depth");
     await showBody("masc");
     assert.equal(await page.getByTestId("clothing-part-piece_2").count(), 1,
       size.name + ": Masc preview shares Hair pieces");

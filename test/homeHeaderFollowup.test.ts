@@ -17,8 +17,10 @@ test("Home name is lower and more legible; small coin shortcut sits below reorde
   assert.match(topBar, /\{coinBundleShopButton\}/);
   assert.match(topBar, /data-testid="home-account-header"/);
   assert.match(topBar, /self-center/);
-  assert.match(topBar, /transform: "translateY\(14px\)"/);
-  assert.match(topBar, /borderRadius: location === "\/" \? "50%" : 13/);
+  assert.match(topBar, /transform: "translateY\(21px\)"/);
+  assert.match(topBar, /fontSize: "clamp\(11px, 3\.1vw, 15px\)"/);
+  assert.match(topBar, /data-testid="home-header-watcher"/);
+  assert.match(topBar, /borderRadius: 0/);
   assert.match(topBar, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
   assert.match(topBar, /borderLeft: "2px solid rgba\(245, 205, 118/);
   assert.match(nav, /"badges", "support"/);

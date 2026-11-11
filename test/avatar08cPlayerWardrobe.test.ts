@@ -124,7 +124,10 @@ test("hat, hair and face can all use the same head attachment without overwritin
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
   assert.match(renderer, /clothingSegmentKey\(segment\)/);
   assert.match(renderer, /key=\{layer.key\}/);
-  assert.match(renderer, /planeDepth\[layer.segment.renderPlane\]/);
+  assert.match(renderer, /const isBackArtwork =/);
+  assert.match(renderer, /layer.category === "back"/);
+  assert.match(renderer, /layer.category === "hair" && layer.segment.renderPlane === "behind_character"/);
+  assert.match(renderer, /zIndex: garmentDepth\(layer\)/);
   assert.match(renderer, /player-character-renderer__motion/);
 });
 

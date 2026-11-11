@@ -148,7 +148,9 @@ test("clothing admin uses shared full-canvas renderer and upload tiles, not drag
   assert.match(component, /avatar-clothing-attach-/);
   assert.doesNotMatch(component, /setPointerCapture|pointerToCharacterPartLocal|Horizontal fit|Vertical fit|Rotation \(°\)|onPointerDown|onPointerMove|touchAction: "none"/);
   assert.match(renderer, /fullCanvas\.map\(layer =>/);
-  assert.match(renderer, /oldPartLocal\.filter\(layer => layer.segment.partType === part.partType\)/);
+  assert.match(renderer, /oldPartLocal\.map\(layer =>/);
+  assert.match(renderer, /data-legacy-clothing-overlay="true"/);
+  assert.match(renderer, /zIndex: garmentDepth\(layer\)/);
   assert.match(renderer, /data-clothing-slot=\{layer.segment.slot \?\? layer.segment.partType\}/);
   assert.match(styles, /player-character-renderer__canvas-image/);
   assert.doesNotMatch(component, /PetAnimator|activePetId|390\s*[×x]\s*844/);
