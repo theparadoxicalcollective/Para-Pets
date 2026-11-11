@@ -53,7 +53,16 @@ const owned = [
   item("head", "hat3", ["head"]),
   item("head", "hat4", ["head"]),
   item("head", "hat5", ["head"]),
-  item("hair", "hair", ["head"]),
+  item("hair", "hair", ["head"], {
+    // Legacy hairstyle: two independent pieces, without the admin color flag.
+    colorPickerEnabled: false,
+    segments: [
+      { slot: "hair_front", partType: "head", imageUrl: art, fit,
+        renderPlane: "with_part", canvasAligned: true },
+      { slot: "hair_back", partType: "head", imageUrl: art, fit,
+        renderPlane: "behind_character", canvasAligned: true },
+    ],
+  }),
   item("face", "face", ["head"]),
   item("bottom", "pants", ["left_leg", "right_leg"]),
   item("top", "listed-top", ["top"], { isListed: true, compatible: false }),
@@ -150,6 +159,7 @@ try {
             ...(replacement ? [{
               category, inventoryId: replacement.inventoryId, shopItemId: replacement.shopItemId,
               name: replacement.name, imageUrl: replacement.imageUrl, segments: replacement.segments,
+              colorTint: body.colorTint ?? null,
             }] : []),
           ],
         };
@@ -266,35 +276,65 @@ try {
     const initialOutfitCount = avatar.equipped.length;
     assert.equal(initialOutfitCount, 4, name + ": required and optional first-save outfit persisted");
     await page.getByTestId("avatar-clothing-hat").tap();
-    assert.equal(avatar.equipped.length, initialOutfitCount, name + ": preview does not save outfit");
-    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 2,
-      name + ": saved Face and unsaved Hat preview both render");
-    await page.getByTestId("avatar-equip-button").tap();
     await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
-    assert.equal(avatar.equipped.length, initialOutfitCount + 1, name + ": head item saved");
+    assert.equal(avatar.equipped.length, initialOutfitCount + 1,
+      name + ": one tap equips the Hat without a separate confirmation");
+    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 2,
+      name + ": saved Face and automatically equipped Hat both render");
+    assert.equal(await page.getByTestId("avatar-equip-button").count(), 0,
+      name + ": wardrobe no longer renders an Equip button");
+    assert.equal(await page.getByText("Wardrobe saved").count(), 0,
+      name + ": equipping does not display a success toast");
     assert.equal(writes.at(-1).body.inventoryId, "hat");
 
     await page.getByTestId("avatar-category-hair").tap();
     await page.getByTestId("avatar-clothing-hair").tap();
-    await page.getByTestId("avatar-equip-button").tap();
     await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--hair .player-avatar-page__equipped-dot"));
+    assert.equal(writes.at(-1).body.inventoryId, "hair",
+      name + ": hair equips on first tap without a message");
+    await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
+    await page.getByTestId("avatar-clothing-custom-color").evaluate(el => {
+      // Native setter triggers React's controlled color-input change handling.
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(el, "#7744bb");
+      el.dispatchEvent(new Event("input", {bubbles: true}));
+      el.dispatchEvent(new Event("change", {bubbles: true}));
+    });
+    await page.waitForFunction(() =>
+      document.querySelectorAll('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').length === 2);
+    assert.equal(await page.locator('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').count(), 2,
+      name + ": both front and back hair parts receive the same preview color");
+    await page.getByTestId("avatar-save-color-button").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--hair .player-avatar-page__equipped-dot"));
+    assert.equal(writes.at(-1).body.colorTint, "#7744bb",
+      name + ": automatically colorable legacy hairstyle saves chosen tint");
+    assert.equal(avatar.equipped.find(entry => entry.category === "hair")?.colorTint, "#7744bb",
+      name + ": the saved tint is specific to the player's equipped hair");
+    await page.getByTestId("avatar-clothing-reset-color").tap();
+    assert.equal(await page.getByTestId("avatar-save-color-button").textContent(), "Save Color",
+      name + ": original-color reset remains an explicit save");
+    await page.getByTestId("avatar-save-color-button").tap();
+    await page.waitForFunction(() =>
+      document.querySelectorAll('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').length === 0);
+    assert.equal(avatar.equipped.find(entry => entry.category === "hair")?.colorTint, null,
+      name + ": resetting restores the original hair artwork");
     await page.getByTestId("avatar-category-face").tap();
+    const writesBeforeFaceRetap = writes.length;
     await page.getByTestId("avatar-clothing-face").tap();
-    assert.equal(await page.getByTestId("avatar-equip-button").isDisabled(), true,
-      name + ": saved Face is already equipped without a duplicate write");
+    assert.equal(writes.length, writesBeforeFaceRetap,
+      name + ": tapping an already equipped Face does not duplicate a save");
     await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--face .player-avatar-page__equipped-dot"));
-    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 3,
-      name + ": head, hair and face use one head anchor without clobbering");
+    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 4,
+      name + ": hat, face and both hair pieces share the head anchor without clobbering");
     const keys = await page.locator('[data-clothing-part="head"]').evaluateAll(nodes =>
       nodes.map(node => node.getAttribute("data-clothing-key")));
-    assert.equal(new Set(keys).size, 3, name + ": layered garments have stable unique IDs");
+    assert.equal(new Set(keys).size, 4, name + ": layered garments have stable unique IDs");
 
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-pants").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
     assert.equal(await page.locator('[data-clothing-part="left_leg"]').count(), 1);
     assert.equal(await page.locator('[data-clothing-part="right_leg"]').count(), 1);
-    await page.getByTestId("avatar-equip-button").tap();
-    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
     await page.getByTestId("avatar-unequip-button").tap();
     await page.waitForFunction(() => !document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
     assert.equal(avatar.equipped.some(entry => entry.category === "bottom"), false,
@@ -306,6 +346,7 @@ try {
     await page.getByTestId("avatar-clothing-plain-top").tap();
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
+    await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--bottom .player-avatar-page__equipped-dot"));
     const canvasDepths = () => page.locator(
       '.player-character-renderer__canvas-motion[data-clothing-key^="top:"]'
     ).first().evaluate(el => Number(getComputedStyle(el).zIndex));
@@ -365,7 +406,6 @@ try {
     // Explicitly equip a compatible item so reset must clear real equipment.
     await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-clothing-hat").tap();
-    await page.getByTestId("avatar-equip-button").tap();
     await page.waitForFunction(() =>
       !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
     assert.ok(avatar.equipped.some(entry =>

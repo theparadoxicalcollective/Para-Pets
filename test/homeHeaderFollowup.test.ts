@@ -17,9 +17,11 @@ test("Home name is lower and more legible; small coin shortcut sits below reorde
   assert.match(topBar, /\{coinBundleShopButton\}/);
   assert.match(topBar, /data-testid="home-account-header"/);
   assert.match(topBar, /self-center/);
-  assert.match(topBar, /transform: "translateY\(21px\)"/);
+  assert.match(topBar, /transform: "translateY\(17px\)"/);
   assert.match(topBar, /fontSize: "clamp\(11px, 3\.1vw, 15px\)"/);
   assert.match(topBar, /data-testid="home-header-watcher"/);
+  assert.ok(topBar.indexOf('data-testid="home-header-player-name"') < topBar.indexOf('data-testid="home-header-watcher"'),
+    "the player name precedes the smaller Watcher on Home");
   assert.match(topBar, /borderRadius: 0/);
   assert.match(topBar, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
   assert.match(topBar, /borderLeft: "2px solid rgba\(245, 205, 118/);
@@ -57,8 +59,8 @@ test("Home moves XP beneath bar and places level centered with XP to its left", 
 });
 
 test("player avatar stars are larger; party portraits keep rarity stars but no dots", () => {
-  assert.match(hudCss, /width: clamp\(32px, 9vw, 44px\)/);
-  assert.match(hudCss, /height: clamp\(32px, 9vw, 44px\)/);
+  assert.match(hudCss, /width: clamp\(37px, 10vw, 51px\)/);
+  assert.match(hudCss, /height: clamp\(37px, 10vw, 51px\)/);
   assert.match(hudCss, /opacity: \.42/);
   assert.match(hud, /home-player-hud__slot-stars/);
   assert.doesNotMatch(hud, /home-player-hud__slot-dot/);

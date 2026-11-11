@@ -89,6 +89,8 @@ try {
         assert.ok(!old || old.revision === body.expectedRevision,
           size.name + ": optimistic save revision");
         const universal = ["hair", "face", "back", "accessories"].includes(body.category);
+        if (body.category === "hair") assert.equal(body.colorPickerEnabled, true,
+          size.name + ": all saved hair items are recolorable by default");
         assert.equal(!!body.bodyVariants, !universal,
           size.name + ": only fitted clothing needs two upload sets");
         const fromParts = (partSet, source) => {
@@ -126,6 +128,7 @@ try {
         const saved = {
           id: old?.id ?? "00000000-0000-4000-8000-" + String(nextId++).padStart(12, "0"),
           name: body.name, category: body.category, price: body.price,
+          colorPickerEnabled: body.colorPickerEnabled ?? false,
           shopImageUrl: body.shopImageData ? mediaId(nextMedia++) : old?.shopImageUrl ?? null,
           revision: old ? old.revision + 1 : 0,
           shopItemId: old?.shopItemId ?? mediaId(nextMedia++),
@@ -242,6 +245,10 @@ try {
     await saveItem();
 
     await newItem("Two Hair Pieces", "hair");
+    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").isChecked(), true,
+      size.name + ": the hair color picker is automatically enabled");
+    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").isDisabled(), true,
+      size.name + ": hair color cannot accidentally be disabled by admin");
     await addPart("head"); await addPart("head");
     await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
     const hairBackDepth = Number(await page.locator('[data-clothing-slot="piece_2"]')
@@ -259,6 +266,8 @@ try {
       size.name + ": hair is saved as a single universal image set");
     assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["head", "head"]);
     assert.equal(rows.at(-1).draftSegments[1].renderPlane, "behind_character");
+    assert.equal(rows.at(-1).colorPickerEnabled, true,
+      size.name + ": the saved multi-piece hairstyle includes hair recoloring");
 
     await newItem("Boots", "shoes");
     await addPart("left_foot"); await addPart("right_foot");

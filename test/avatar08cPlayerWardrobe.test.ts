@@ -158,7 +158,7 @@ test("a listed or incompatible item cannot alter the character preview", () => {
   assert.deepEqual(wardrobeLayers(avatar), []);
 });
 
-test("the player page uses the authenticated 08B API and does not save a preview until confirmed", () => {
+test("the player page uses authenticated avatar APIs and saves worn items on tap", () => {
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
   const model = read("client/src/lib/playerAvatarWardrobe.ts");
   assert.match(model, /fetch\("\/api\/player-avatar", \{/);
@@ -178,7 +178,9 @@ test("the player page uses the authenticated 08B API and does not save a preview
   assert.match(page, /clearClothing: resetPending/);
   assert.match(page, /error.status === 409/);
   assert.match(page, /data-testid="avatar-create-button"/);
-  assert.match(page, /data-testid="avatar-equip-button"/);
+  assert.match(page, /onClick=\{\(\) => chooseClothing\(item\)\}/);
+  assert.match(page, /saveEquipment\(item\.inventoryId\)/);
+  assert.doesNotMatch(page, /data-testid="avatar-equip-button"/);
   assert.match(page, /data-testid="avatar-unequip-button"/);
   assert.match(page, /data-testid="avatar-owned-inventory"/);
   assert.match(page, /data-testid="avatar-wardrobe-empty"/);

@@ -163,8 +163,8 @@ function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: s
   );
 }
 
-/** Home-only dense navigation. Labels remain visible, buttons are at least
- * 44px high, and route/badge logic stays owned by FloatingNav. */
+/** Home-only dense navigation. Icons are alpha-outlined (no circle);
+ * labels, >=44px touch targets and route/badge logic stay in FloatingNav. */
 function HomeNavTile({
   icon, label, onClick, testId, showQuestReward, position,
 }: {
@@ -251,7 +251,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       const anchorRect = homeAnchorRef.current?.getBoundingClientRect();
       const bottom = hudRect?.bottom ?? window.innerHeight;
       const anchorBottom = anchorRect?.bottom ?? 180;
-      const freeHeight = Math.max(0, bottom - anchorBottom - 12 - 34);
+      const freeHeight = Math.max(0, bottom - anchorBottom - 12 - 34 - 18);
       const capacity = Math.max(1,
         Math.floor((freeHeight + HOME_ROW_GAP) / (HOME_TILE_HEIGHT + HOME_ROW_GAP)));
       setHomeRowCapacity(capacity);
@@ -433,8 +433,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           pointerEvents: "auto",
         }}
       >
-        {/* Home uses individual floating buttons, never a boxed panel.
-            Original destinations, badges, and menu handoffs stay intact. */}
+        {/* Home navigation uses a compact translucent forest-green panel;
+            preserve destinations, badge positions, and menu handoffs. */}
         {isHome && isOpen && (
           <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
             aria-label="Realm navigation" className="home-realm-nav"

@@ -6,6 +6,9 @@ import { usePlayerPetTeam } from "@/hooks/usePlayerPetTeam";
 import { cleanPetTeam, eligiblePetIds, PLAYER_PET_TEAM_MAX } from "@/lib/playerPetTeam";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import emptyPetIcon from "@assets/generated_images/nav_icon_pets.png";
+import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import type { ArtworkPoint, BackdropRect } from "@/lib/artworkCoverGeometry";
 import { homeAvatarPosition } from "@/lib/homeAvatarLayout";
@@ -19,6 +22,8 @@ export interface HomeHudPet {
   isHatched: boolean;
   rarity?: number | null;
   isListed?: boolean;
+  petTemplateId?: string | null;
+  isEvolved?: boolean;
   imageUrl: string | null;
   hatchedImageUrl: string | null;
 }
@@ -133,7 +138,7 @@ export default function HomePlayerHud({
         {Array.from({ length: 5 }, (_, i) => (
           <img key={i} src={cardStarImg} alt="" draggable={false}
             className={i < (player?.stars ?? 0) ? "home-player-hud__star--earned" : undefined}
-            style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * (avatarHome ? 22 : 14)}px) rotate(${(i - 2) * 9}deg)` }} />
+            style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * (avatarHome ? 31 : 14)}px) rotate(${(i - 2) * 9}deg)` }} />
         ))}
       </div>
       <div className="home-player-hud__progress" aria-label="Player level and experience">
@@ -151,7 +156,22 @@ export default function HomePlayerHud({
             role="progressbar" aria-label={xpProgressLabel}
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpFillPct === null ? undefined : Math.round(xpFillPct)}
             title={xpProgressLabel}>
-            <span aria-hidden="true" style={xpFillPct === null ? undefined : { width: `${xpFillPct}%` }} />
+            {avatarHome ? (
+              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 40"
+                preserveAspectRatio="none" aria-hidden="true">
+                <path className="home-player-hud__xp-arc-shadow"
+                  d="M 10 7 Q 160 46 310 7" />
+                <path className="home-player-hud__xp-arc-track"
+                  d="M 10 7 Q 160 46 310 7" />
+                {xpFillPct !== null && (
+                  <path className="home-player-hud__xp-arc-fill"
+                    d="M 10 7 Q 160 46 310 7"
+                    pathLength={100}
+                    strokeDasharray="100 100"
+                    strokeDashoffset={100 - xpFillPct} />
+                )}
+              </svg>
+            ) : <span aria-hidden="true" style={xpFillPct === null ? undefined : { width: `${xpFillPct}%` }} />}
           </div>
           <span data-testid="home-player-total-xp" className="home-player-hud__xp-text"
             title={player ? `${player.totalXp.toLocaleString()} lifetime player XP` : undefined}>
@@ -180,17 +200,35 @@ export default function HomePlayerHud({
           return (
             <button key={index} type="button"
               data-testid={`home-player-team-slot-${index + 1}`}
-              className="home-player-hud__slot"
+              className={`home-player-hud__slot ${pet ? "home-player-hud__slot--occupied" : "home-player-hud__slot--vacant"}`}
               disabled={!isReady || isSaving || inventoryLoading || !inventoryReady}
               aria-label={`Team slot ${index + 1}: ${name}. Edit companion`}
               title={name}
               onClick={() => setPickerSlot(index)}>
               {id && pet ? (
-                <span className="home-player-hud__slot-portrait">
-                  <img src={image || petPawIcon} alt="" draggable={false} />
+                <span className="home-player-hud__slot-portrait" data-testid={`home-player-team-art-${index + 1}`}>
+                  <img className="home-player-hud__fallback-pet"
+                    src={image || petPawIcon} alt="" draggable={false} />
+                  {pet.petTemplateId && (
+                    <span className="home-player-hud__pet-renderer"
+                      data-testid={`home-player-team-composite-${index + 1}`}>
+                      <PetAnimator petTemplateId={pet.petTemplateId}
+                        petInventoryId={pet.inventoryId}
+                        artworkForm={pet.isEvolved ? "evolution" : undefined}
+                        mode="static" performanceStatic lowMemory
+                        fillContainer view="front" />
+                    </span>
+                  )}
+                  <span className="home-player-hud__mini-companion"
+                    data-testid={`home-player-team-mini-${index + 1}`}>
+                    <MiniPetRenderer petInventoryId={pet.inventoryId} animated={false} />
+                  </span>
                 </span>
               ) : (
-                <span className="home-player-hud__slot-empty-label" aria-hidden="true">{id ? "!" : "+"}</span>
+                <span className="home-player-hud__slot-placeholder" aria-hidden="true">
+                  <img src={emptyPetIcon} alt="" draggable={false} />
+                  <span className="home-player-hud__slot-empty-label">{id ? "!" : "+"}</span>
+                </span>
               )}
               {rarity > 0 && (
                 <span className="home-player-hud__slot-stars"

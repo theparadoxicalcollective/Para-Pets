@@ -74,7 +74,9 @@ test("Home mounts the account HUD on the existing viewport portal without replac
   assert.match(home, /data-testid="active-pet-name-level-anchor"/);
   assert.match(home, /data-testid="button-open-pet-menu"/);
   assert.match(home, /data-testid="display-pet-rarity-stars"/);
-  assert.doesNotMatch(hud, /PlayerCharacterRenderer|PetAnimator|\/api\/player-avatar/);
+  assert.doesNotMatch(hud, /PlayerCharacterRenderer|\/api\/player-avatar/);
+  assert.match(hud, /<PetAnimator petTemplateId=\{pet\.petTemplateId\}/);
+  assert.match(hud, /mode="static" performanceStatic lowMemory/);
 });
 
 test("viewport UI supports small phones, long usernames, tablets, and error/loading states", () => {
