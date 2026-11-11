@@ -58,6 +58,22 @@ export default function PlayerCharacterRenderer({
     }))),
   ];
   const oldPartLocal = layers.filter(layer => !layer.segment.canvasAligned);
+  const partByType = new Map(parts.map(part => [part.partType, part]));
+  // Base parts have their own z-indices (the torso can reach 70).
+  // Never compare a clothing category depth directly with those part values:
+  // that incorrectly puts Bottoms (55) behind the torso. Give clothing its
+  // own foreground/background bands while preserving category ordering.
+  const bodyMaxDepth = Math.max(0, ...parts.map(part => part.zIndex));
+  const bodyMinDepth = Math.min(0, ...parts.map(part => part.zIndex));
+  const isBackArtwork = (layer: (typeof layers)[number]) =>
+    layer.category === "back" ||
+    (layer.category === "hair" && layer.segment.renderPlane === "behind_character");
+  const garmentDepth = (layer: (typeof layers)[number]) => {
+    const slot = layer.category === "hair" && isBackArtwork(layer)
+      ? "hair_back" : layer.segment.slot;
+    return (isBackArtwork(layer) ? bodyMinDepth - 140 : bodyMaxDepth + 140)
+      + clothingLayerDepth(layer.category, slot, layer.segment.shoesLayer, topTucked);
+  };
   const fullCanvas = layers.filter(layer => layer.segment.canvasAligned)
     .sort((a,b) => clothingLayerDepth(a.category, a.category === "hair" &&
         a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer, topTucked)
@@ -105,28 +121,46 @@ export default function PlayerCharacterRenderer({
                   WebkitMaskImage: `url("${part.imageUrl}")`,
                 }} />
             )}
-            {/* Legacy artwork only: keep its existing part-local placement. */}
-            {oldPartLocal.filter(layer => layer.segment.partType === part.partType).map(layer => (
-              <img key={layer.key} src={layer.segment.imageUrl} alt="" aria-hidden="true"
-                draggable={false} data-clothing-part={layer.segment.partType}
-                data-clothing-plane={layer.segment.renderPlane}
-                data-clothing-key={layer.key}
-                className="player-character-renderer__clothing"
+          </div>
+        </div>
+      ))}
+      {/* Legacy part-local garments are independent siblings of body anchors,
+          so a sleeve or pant leg cannot be obscured by a higher-z torso.
+          They keep the exact same part pivot, resize and motion as before. */}
+      {oldPartLocal.map(layer => {
+        const part = partByType.get(layer.segment.partType);
+        if (!part) return null;
+        return (
+          <div key={layer.key} data-clothing-part={layer.segment.partType}
+            data-clothing-slot={layer.segment.slot ?? layer.segment.partType}
+            data-clothing-plane={layer.segment.renderPlane}
+            data-clothing-key={layer.key}
+            data-legacy-clothing-overlay="true"
+            className="player-character-renderer__anchor"
+            style={{
+              left: `${part.xPct}%`, top: `${part.yPct}%`,
+              width: `${part.widthPct}%`,
+              zIndex: garmentDepth(layer),
+              transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%`,
+              transform: `translate(-${part.pivotXPct}%, -${part.pivotYPct}%) rotate(${part.rotationDeg}deg)`,
+            }}>
+            <div data-character-motion-part={layer.segment.partType}
+              className={`player-character-renderer__motion player-character-renderer__motion--${motion}`}
+              style={{ transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%` }}>
+              <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
+                draggable={false} className="player-character-renderer__clothing"
                 style={{
                   left: `${layer.segment.fit.xPct}%`,
                   top: `${layer.segment.fit.yPct}%`,
                   width: `${layer.segment.fit.widthPct}%`,
                   transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
                   transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
-                  zIndex: planeDepth[layer.segment.renderPlane] +
-                    clothingLayerDepth(layer.category, layer.segment.slot,
-                      layer.segment.shoesLayer, topTucked) * 101 +
-                    layer.segment.fit.zIndex,
+                  zIndex: 1,
                 }}/>
-            ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {/* New full-canvas artwork never inherits an individual part's resized
           anchor. Separate layers make Hair Back/Face/Accessories ordering
           possible even when multiple images attach to the same head. */}
@@ -134,7 +168,7 @@ export default function PlayerCharacterRenderer({
         // Full-canvas parts already use the same head/limb motion keyframes as
         // the base. Match their world-space pivot too: rotating about the
         // overall 1000x1000 canvas center sends face parts the wrong way.
-        const attachment = parts.find(part => part.partType === layer.segment.partType);
+        const attachment = partByType.get(layer.segment.partType);
         return (
         <div key={layer.key}
           data-character-motion-part={layer.segment.partType}
@@ -145,9 +179,7 @@ export default function PlayerCharacterRenderer({
           className={`player-character-renderer__canvas-motion player-character-renderer__motion--${motion}`}
           style={{
             transformOrigin: attachment ? `${attachment.xPct}% ${attachment.yPct}%` : "50% 50%",
-            zIndex: clothingLayerDepth(layer.category,
-              layer.category === "hair" && layer.segment.renderPlane === "behind_character"
-                ? "hair_back" : layer.segment.slot, layer.segment.shoesLayer, topTucked),
+            zIndex: garmentDepth(layer),
           }}>
           <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
             draggable={false}
