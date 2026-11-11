@@ -10,7 +10,7 @@ import { saveUniversalClothingItemSchema } from "../shared/playerClothingAdmin";
 
 const png = "data:image/png;base64,aGVsbG8=";
 const image = (slot: string, partType: string) => ({ slot, partType, imageData: png });
-const create = (category: string, images: unknown[], keep: unknown[] = []) => ({
+const create = (category: string, images: ReturnType<typeof image>[], keep: unknown[] = []) => ({
   name: "Example", category, images, keep,
 });
 const read = (path: string) => readFileSync(path, "utf8");
