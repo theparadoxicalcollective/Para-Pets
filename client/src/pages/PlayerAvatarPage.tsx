@@ -262,7 +262,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
               ))}
             </div>
 
-            {availableBodies.length > 0 && (
+            {selectedBody && (
               <div className="player-avatar-page__body-controls">
                 <button type="button" className="player-avatar-page__skin-toggle"
                   aria-label="Choose skin color" aria-expanded={skinPickerOpen}
@@ -272,6 +272,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   <span aria-hidden="true" className="player-avatar-page__skin-toggle-color"
                     style={{ backgroundColor: skinTone ?? "#e0b492" }} />
                 </button>
+                {availableBodies.length > 0 && (
                 <div className="player-avatar-page__body-selector" role="group" aria-label="Choose character body"
                   data-testid="avatar-body-selector">
                 {(["Fem", "Masc"] as const).map(kind => {
@@ -289,6 +290,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   );
                 })}
                 </div>
+                )}
               </div>
             )}
             {skinPickerOpen && (
