@@ -5,6 +5,7 @@ import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
+import { REQUIRED_AVATAR_CREATION_CATEGORIES, type AvatarCreationOutfit } from "@shared/playerAvatarEquipment";
 import { useToast } from "@/hooks/use-toast";
 import {
   playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
@@ -81,9 +82,11 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const avatar = avatarQuery.data;
 
   const creation = useMutation({
-    mutationFn: (input: { baseId: string; skinTone: string | null; topTucked: boolean; accountId: string }) =>
+    mutationFn: (input: { baseId: string; skinTone: string | null; topTucked: boolean;
+      outfit: AvatarCreationOutfit; accountId: string }) =>
       writePlayerAvatar("POST", "/api/player-avatar/create", {
         baseId: input.baseId, skinTone: input.skinTone, topTucked: input.topTucked,
+        outfit: input.outfit,
       }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
@@ -219,6 +222,22 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   );
   const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => previewSelections[slot]
     ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
+  // During initial creation every visible preview is saved together. Filter
+  // stale/listed choices before enabling the first-save action.
+  const firstOutfit = PLAYER_CLOTHING_CATEGORIES.reduce((choices, slot) => {
+    const inventoryId = previewSelections[slot];
+    const garment = avatar?.ownedClothing.find(item =>
+      item.category === slot && item.inventoryId === inventoryId &&
+      item.compatible && !item.isListed && item.quantity > 0);
+    if (garment) choices[slot] = {
+      inventoryId: garment.inventoryId,
+      ...(garment.colorPickerEnabled &&
+        Object.prototype.hasOwnProperty.call(colorOverrides, garment.inventoryId)
+          ? { colorTint: colorOverrides[garment.inventoryId] } : {}),
+    };
+    return choices;
+  }, {} as Partial<AvatarCreationOutfit>);
+  const missingFirstOutfit = REQUIRED_AVATAR_CREATION_CATEGORIES.filter(slot => !firstOutfit[slot]);
   const clothingLayers = avatar
     ? wardrobeLayers(avatar, previews, resetPending, selectedBody?.name).filter(layer =>
         !switchingBody || previews.some(item => item.inventoryId === layer.inventoryId) ||
@@ -331,7 +350,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   type="button"
                   className={`player-avatar-page__category player-avatar-page__category--${slot}`}
                   data-testid={`avatar-category-${slot}`}
-                  aria-label={PLAYER_CLOTHING_CATEGORY_LABELS[slot]}
+                  aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[slot]}${!avatar.created && REQUIRED_AVATAR_CREATION_CATEGORIES.some(required => required === slot) ? ", required" : ""}`}
                   aria-pressed={wardrobeOpen && category === slot}
                   aria-expanded={wardrobeOpen && category === slot}
                   aria-controls="player-avatar-clothing-panel"
@@ -349,6 +368,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   <span className="sr-only">{PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
                   {avatar.equipped.some(item => item.category === slot) &&
                     <span className="player-avatar-page__equipped-dot" aria-hidden="true" />}
+                  {!avatar.created && REQUIRED_AVATAR_CREATION_CATEGORIES.some(required => required === slot) &&
+                    !firstOutfit[slot] && <span className="player-avatar-page__required-dot" aria-hidden="true">!</span>}
                 </button>
               ))}
             </div>
@@ -526,10 +547,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
             )}
             {!avatar.created ? (
               <section className="player-avatar-page__create" data-testid="avatar-first-save">
-                <button type="button" disabled={!selectedBody || busy}
+                <p className="player-avatar-page__required-hint" role="status"
+                  data-testid="avatar-required-clothing-status">
+                  {missingFirstOutfit.length
+                    ? `Choose ${missingFirstOutfit.map(slot => PLAYER_CLOTHING_CATEGORY_LABELS[slot]).join(", ")} before saving.`
+                    : "Top, Bottoms and Face selected. All other clothing is optional."}
+                </p>
+                <button type="button" disabled={!selectedBody || busy || missingFirstOutfit.length > 0}
                   data-testid="avatar-create-button"
-                  onClick={() => selectedBody && creation.mutate({
-                    baseId: selectedBody.id, skinTone, topTucked, accountId: userId,
+                  onClick={() => selectedBody && missingFirstOutfit.length === 0 && creation.mutate({
+                    baseId: selectedBody.id, skinTone, topTucked,
+                    outfit: firstOutfit as AvatarCreationOutfit, accountId: userId,
                   })}>
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
