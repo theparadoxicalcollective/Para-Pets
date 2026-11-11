@@ -50,7 +50,16 @@ test("the eight wardrobe buttons are independent of the eight animation parts", 
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
   assert.match(page, /PLAYER_CLOTHING_CATEGORIES\.map\(slot =>/);
   assert.match(page, /data-testid=\{\`avatar-category-\$\{slot\}\`\}/);
-  assert.match(page, /aria-pressed=\{category === slot\}/);
+  assert.match(page, /aria-pressed=\{wardrobeOpen && category === slot\}/);
+  assert.match(page, /aria-expanded=\{wardrobeOpen && category === slot\}/);
+  assert.match(page, /setWardrobeOpen\(open => next === category \? !open : true\)/);
+  assert.match(page, /data-testid="avatar-clothing-category-panel"/);
+  assert.match(page, /data-testid="avatar-skin-picker-toggle"/);
+  assert.match(page, /\{skinPickerOpen && \(/);
+  assert.match(page, /data-testid="avatar-save-confirmation"/);
+  assert.match(page, /setSaveConfirmationOpen\(true\)/);
+  assert.match(page, /setSkinPickerOpen\(false\)/);
+  assert.match(page, /setWardrobeOpen\(false\)/);
   assert.match(page, /PlayerCharacterRenderer/);
   assert.doesNotMatch(page, /PetAnimator|clientToStage|390|844|localStorage/);
 });
