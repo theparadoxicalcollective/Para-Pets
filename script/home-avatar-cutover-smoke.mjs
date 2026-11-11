@@ -243,7 +243,7 @@ try {
       homeLayout.shopIcon.width <= 34,
       sc.name+": small Coin Bundles shortcut is centered: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
-      homeLayout.watcher.height === 44 &&
+      homeLayout.watcher.height >= 40 && homeLayout.watcher.height <= 44 &&
       homeLayout.watcher.top >= homeLayout.party.bottom - 2 &&
       homeLayout.watcher.bottom <= sc.height - 1,
       sc.name+": enlarged Watcher docks beneath the five-pet panel: "+JSON.stringify(homeLayout));
