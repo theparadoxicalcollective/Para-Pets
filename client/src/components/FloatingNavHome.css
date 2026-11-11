@@ -8,6 +8,13 @@
   width: max-content;
   height: max-content;
   box-sizing: border-box;
+  padding: 8px 9px;
+  border: 1px solid rgba(218, 180, 97, .55);
+  border-radius: 17px;
+  background: linear-gradient(155deg, rgba(21, 63, 40, .87), rgba(8, 36, 25, .87));
+  box-shadow: 0 9px 24px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(244, 217, 151, .1);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   pointer-events: none;
   z-index: 98;
   animation: home-realm-rail-open 160ms ease-out both;
@@ -37,28 +44,31 @@
   display: grid;
   flex: 0 0 40px;
   place-items: center;
-  box-sizing: border-box;
-  width: 40px;
+  width: 42px;
   height: 40px;
-  border: 1.5px solid rgba(225,187,104,.82);
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 28%, rgba(47,105,69,.94), rgba(6,36,25,.96) 72%);
-  box-shadow: 0 3px 10px rgba(0,0,0,.68), inset 0 1px 0 rgba(255,239,180,.2);
+  /* Transparent icon art, not a circular button/background. */
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .home-realm-nav__tile:active .home-realm-nav__icon {
-  background: radial-gradient(circle at 36% 28%, rgba(72,135,83,.98), rgba(14,54,35,.96) 72%);
-  box-shadow: 0 1px 6px rgba(0,0,0,.5), 0 0 12px rgba(230,198,115,.27);
+  transform: scale(.93);
 }
 .home-realm-nav__tile:focus-visible {
   outline: 2px solid #ffe9ab;
   outline-offset: 2px;
 }
 .home-realm-nav__icon img {
-  width: 36px;
-  height: 36px;
+  width: 39px;
+  height: 39px;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.75));
+  /* Each drop-shadow follows the non-transparent image pixels. */
+  filter: drop-shadow(1px 0 0 rgba(232,197,123,.9))
+    drop-shadow(-1px 0 0 rgba(232,197,123,.75))
+    drop-shadow(0 1px 0 rgba(232,197,123,.75))
+    drop-shadow(0 -1px 0 rgba(232,197,123,.65))
+    drop-shadow(0 2px 3px rgba(0,0,0,.75));
 }
 .home-realm-nav__tile-label {
   display: block;
