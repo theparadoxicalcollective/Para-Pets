@@ -63,7 +63,8 @@ test("Home keeps username above smaller Watcher without changing its tap target 
   assert.match(home, /width: 44,\s*height: 44/);
   assert.match(home, /clamp\(32px, 4\.3vh, 36px\)/);
   assert.match(home, /data-testid="watcher-announcement-bubble"/);
-  assert.match(topBar, /location === "\/" \? 34 : 46/);
+  assert.match(topBar, /location === "\/" \? 44 : 46/);
+  assert.match(topBar, /location === "\/" \? 30 : 43/);
   assert.match(topBar, /onClick=\{\(\) => navigate\("\/coins"\)\}/);
 });
 
