@@ -21,7 +21,7 @@ export async function getPlayerProgression(userId: string): Promise<PlayerProgre
     stars: playerProgression.stars,
     cycleStartXp: playerProgression.cycleStartXp,
   }).from(playerProgression).where(eq(playerProgression.userId, userId)).limit(1);
-  return row ?? null;
+  return row ? { ...row, stars: Math.max(1, row.stars ?? 1) } : null;
 }
 
 /**
