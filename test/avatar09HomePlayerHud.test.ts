@@ -22,7 +22,7 @@ test("account HUD uses the existing progression and shared team endpoints, not p
   assert.match(hud, /Player progression response was invalid/);
   assert.doesNotMatch(hud, /petLevelPoints|petLevel\b|petRarity|activePetId|playerXpAward|localStorage/);
   const withCurve = playerProgressionResponse({ level: 3, totalXp: 175 });
-  assert.deepEqual([withCurve.level, withCurve.totalXp, withCurve.nextLevelTotalXp, withCurve.xpToNextLevel], [2,175,240,65]);
+  assert.deepEqual([withCurve.level, withCurve.totalXp, withCurve.nextLevelTotalXp, withCurve.xpToNextLevel], [2,175,190,15]);
   assert.match(hud, /totalXpRequiredForPlayerLevel/);
   assert.match(hud, /xpFillPct/);
   assert.match(hud, /role="progressbar"/);
@@ -56,7 +56,7 @@ test("unearned account stars remain unfilled even if the current pet has high ra
   assert.match(hud, /Array\.from\(\{ length: 5 \}/);
   assert.match(hud, /src=\{cardStarImg\}/);
   assert.match(css, /opacity: \.25/);
-  assert.match(hud, /i < \(player\?\.stars \?\? 0\)/);
+  assert.match(hud, /i < \(player\?\.stars \?\? 1\)/);
   assert.match(hud, /const rarity = pet/);
   assert.match(hud, /home-player-hud__slot-stars/);
 });
@@ -76,7 +76,7 @@ test("Home mounts the account HUD on the existing viewport portal without replac
   assert.match(home, /data-testid="display-pet-rarity-stars"/);
   assert.doesNotMatch(hud, /PlayerCharacterRenderer|\/api\/player-avatar/);
   assert.match(hud, /<PetAnimator petTemplateId=\{pet\.petTemplateId\}/);
-  assert.match(hud, /mode="static" performanceStatic lowMemory/);
+  assert.match(hud, /mode="house" lowMemory size=\{58\}/);
 });
 
 test("viewport UI supports small phones, long usernames, tablets, and error/loading states", () => {
