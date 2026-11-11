@@ -201,10 +201,10 @@ try{
       return {open:getComputedStyle(open).opacity,closed:getComputedStyle(closed).opacity};
     });
     assert.deepEqual(await eyes(),{open:"1",closed:"0"});
-    await page.getByRole("button",{name:"Closed Eyes"}).click();
+    await page.getByRole("group",{name:"Face expression preview"}).getByRole("button",{name:"Closed Eyes",exact:true}).click();
     assert.deepEqual(await eyes(),{open:"0",closed:"1"},
       sc.name+": closed eyes preview replaces, not overlays, open eyes");
-    await page.getByRole("button",{name:"Open Eyes"}).click();
+    await page.getByRole("group",{name:"Face expression preview"}).getByRole("button",{name:"Open Eyes",exact:true}).click();
     await save(3);
     assert.equal(drafts.at(-1).draftSegments.length,3);
 
