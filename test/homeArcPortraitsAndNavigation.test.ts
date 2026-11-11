@@ -12,7 +12,7 @@ const home = read("client/src/pages/HomePage.tsx");
 
 test("Home enlarges and raises the avatar's five Elevation stars, not the pet rarities", () => {
   assert.match(homeCss, /width: clamp\(37px, 10vw, 51px\)/);
-  assert.match(homeCss, /home-avatar-visual-size, 220px\) - 5px/);
+  assert.match(homeCss, /home-avatar-visual-size, 220px\) - 24px/);
   assert.match(homeHud, /avatarHome \? 31 : 14/);
   assert.match(homeHud, /i < \(player\?\.stars \?\? 0\)/);
   assert.match(homeHud, /data-testid=\{\`home-player-team-stars-\$\{index \+ 1\}\`\}/);
