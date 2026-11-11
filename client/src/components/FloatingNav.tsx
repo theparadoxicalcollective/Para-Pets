@@ -95,7 +95,6 @@ const HOME_NAV_ORDER = [
 ] as const;
 const HOME_NAV_COLUMNS = 5;
 const HOME_NAV_ROWS = 3;
-const HOME_NAV_TILES = HOME_NAV_COLUMNS * HOME_NAV_ROWS;
 
 /** Reading order is left-to-right, then down; Support remains the final
  * destination in the lower-right position of the menu. */
