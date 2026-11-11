@@ -27,7 +27,7 @@ interface TopBarProps {
   onUserUpdate?: (user: any) => void;
   hideProfile?: boolean;
   hideCoins?: boolean;
-  /** Home-only Watcher launcher, kept beside the portrait and above username. */
+  /** Home-only Watcher launcher, below the player name beside the portrait. */
   homeWatcher?: ReactNode;
 }
 
@@ -217,8 +217,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       style={{
         gridColumn: location === "/" ? 1 : 2,
         gridRow: location === "/" ? 3 : "1 / span 2",
-        width: location === "/" ? 40 : 46,
-        height: location === "/" ? 40 : 46,
+        width: location === "/" ? 34 : 46,
+        height: location === "/" ? 34 : 46,
         alignSelf: "center",
         justifySelf: "center",
         display: "grid",
@@ -239,8 +239,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         src={coinBagIconImg}
         alt="Buy Coins"
         style={{
-          width: location === "/" ? 36 : 43,
-          height: location === "/" ? 36 : 43,
+          width: location === "/" ? 30 : 43,
+          height: location === "/" ? 30 : 43,
           objectFit: "contain",
           // CSS drop-shadow follows opaque art pixels, not a container shape.
           filter: "brightness(1.06) drop-shadow(1px 0 0 rgba(238,196,105,0.85)) drop-shadow(-1px 0 0 rgba(238,196,105,0.65)) drop-shadow(0 1px 0 rgba(238,196,105,0.7)) drop-shadow(0 0 5px rgba(240,192,64,0.42)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
@@ -251,10 +251,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         className="font-fantasy"
         style={{
           position: "absolute",
-          top: -3,
-          right: -3,
-          width: location === "/" ? 13 : 15,
-          height: location === "/" ? 13 : 15,
+          top: -2,
+          right: -1,
+          width: location === "/" ? 12 : 15,
+          height: location === "/" ? 12 : 15,
           display: "grid",
           placeItems: "center",
           borderRadius: 999,
@@ -499,24 +499,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             <div data-testid="home-account-header"
               className="flex min-w-0 flex-col items-start self-center"
               style={{
-                // The Watcher sits above the name, to the portrait's right.
-                // Move the smaller name down slightly without moving the photo.
-                transform: "translateY(21px)",
+                // The player name sits above the compact Watcher, to the portrait's right.
+                transform: "translateY(17px)",
                 width: "min(205px, calc(100vw - 190px))",
                 maxWidth: "min(205px, calc(100vw - 190px))",
               }}>
-              {homeWatcher && <div data-testid="home-header-watcher"
-                style={{ display: "flex", width: "100%", minWidth: 0,
-                  alignItems: "center", justifyContent: "flex-start",
-                  minHeight: 42, pointerEvents: "none" }}>
-                {homeWatcher}
-              </div>}
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
                 style={{
                   fontSize: "clamp(11px, 3.1vw, 15px)",
                   padding: "4px 8px 5px",
-                  marginTop: homeWatcher ? 6 : 0,
+                  marginTop: 0,
                   letterSpacing: ".015em",
                   borderLeft: "2px solid rgba(245, 205, 118, 0.92)",
                   borderRadius: 8,
@@ -526,6 +519,12 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 }}>
                 {user.username}
               </span>
+              {homeWatcher && <div data-testid="home-header-watcher"
+                style={{ display: "flex", width: "100%", minWidth: 0,
+                  alignItems: "center", justifyContent: "flex-start",
+                  minHeight: 42, pointerEvents: "none" }}>
+                {homeWatcher}
+              </div>}
             </div>
           )}
 
