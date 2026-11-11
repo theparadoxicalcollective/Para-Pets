@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
+import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
 import { useToast } from "@/hooks/use-toast";
 import {
   playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
@@ -50,6 +51,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
+  // undefined = untouched, null = restore original art, hex = selected tint.
+  const [skinChoice, setSkinChoice] = useState<string | null | undefined>(undefined);
   const avatarQuery = useQuery<PlayerAvatarState>({
     queryKey: avatarKey,
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
@@ -60,13 +63,16 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const avatar = avatarQuery.data;
 
   const creation = useMutation({
-    mutationFn: (input: { baseId: string; accountId: string }) =>
-      writePlayerAvatar("POST", "/api/player-avatar/create", { baseId: input.baseId }),
+    mutationFn: (input: { baseId: string; skinTone: string | null; accountId: string }) =>
+      writePlayerAvatar("POST", "/api/player-avatar/create", {
+        baseId: input.baseId, skinTone: input.skinTone,
+      }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
       setPreviewId(null);
       setBodyChoiceId(null);
+      setSkinChoice(undefined);
       toast({ title: "Character created", description: "Your character is saved to your account." });
     },
     onError: (error: Error, input) => {
@@ -107,16 +113,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   });
 
   const changeBody = useMutation({
-    mutationFn: (input: { baseId: string; expectedRevision: number; accountId: string }) =>
+    mutationFn: (input: { baseId: string; skinTone: string | null; expectedRevision: number; accountId: string }) =>
       writePlayerAvatar("PATCH", "/api/player-avatar/base", {
-        baseId: input.baseId, expectedRevision: input.expectedRevision,
+        baseId: input.baseId, skinTone: input.skinTone, expectedRevision: input.expectedRevision,
       }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
       setBodyChoiceId(null);
+      setSkinChoice(undefined);
       setPreviewId(null);
-      toast({ title: "Character body updated", description: "Your outfit items remain in your inventory." });
+      toast({ title: "Character appearance updated", description: "Your outfit items remain in your inventory." });
     },
     onError: (error: Error & { status?: number }, input) => {
       if (input.accountId === userId) {
@@ -137,6 +144,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     selectedBody.id !== avatar.base?.id ||
     new Date(selectedBody.publishedAt).getTime() !== new Date(avatar.base?.publishedAt ?? 0).getTime()
   );
+  const skinTone = skinChoice === undefined ? avatar?.skinTone ?? null : skinChoice;
+  const toneChanged = !!avatar?.created && skinTone !== (avatar.skinTone ?? null);
+  const appearanceChanged = switchingBody || toneChanged;
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
     item.inventoryId === previewId && item.compatible && !item.isListed && item.quantity > 0
@@ -197,6 +207,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 {selectedBody ? (
                   <PlayerCharacterRenderer
                     parts={selectedBody.parts}
+                    skinTone={skinTone}
                     clothingLayers={clothingLayers}
                     motion="idle"
                     ariaLabel={avatar.created ? "Your saved player character" : "Preview of your character before saving"}
@@ -252,14 +263,40 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 })}
               </div>
             )}
-            {switchingBody && avatar.revision !== null && (
+            <section className="player-avatar-page__skin-picker" role="group"
+              aria-label="Choose skin color" data-testid="avatar-skin-tone-picker">
+              <h2>Skin Color</h2>
+              <div className="player-avatar-page__skin-swatches">
+                <button type="button" disabled={busy} aria-label="Original body color"
+                  aria-pressed={skinTone === null} className="player-avatar-page__skin-original"
+                  onClick={() => setSkinChoice(null)}>Original</button>
+                {PLAYER_SKIN_TONE_SWATCHES.map(swatch => (
+                  <button type="button" key={swatch.value} disabled={busy}
+                    aria-label={swatch.label + " skin color"}
+                    data-testid={"avatar-skin-" + swatch.label.toLowerCase()}
+                    aria-pressed={skinTone === swatch.value}
+                    style={{ backgroundColor: swatch.value }}
+                    onClick={() => setSkinChoice(swatch.value)} />
+                ))}
+                <label className="player-avatar-page__custom-skin">
+                  Custom
+                  <input type="color" value={skinTone ?? "#d39a71"} disabled={busy}
+                    aria-label="Custom skin color" data-testid="avatar-custom-skin"
+                    onChange={event => setSkinChoice(event.target.value)} />
+                </label>
+              </div>
+            </section>
+            {appearanceChanged && avatar.revision !== null && (
               <section className="player-avatar-page__change-body" data-testid="avatar-body-change">
-                <p>Universal clothing remains equipped when you change bodies. Older body-specific items will be unequipped but stay in your inventory.</p>
+                <p>{switchingBody
+                  ? "Universal clothing remains equipped when changing bodies. Older body-specific items stay owned."
+                  : "Save your chosen skin color to update your character everywhere."}</p>
                 <button type="button" data-testid="avatar-save-body-choice" disabled={busy}
                   onClick={() => selectedBody && changeBody.mutate({
-                    baseId: selectedBody.id, expectedRevision: avatar.revision!, accountId: userId,
+                    baseId: selectedBody.id, skinTone,
+                    expectedRevision: avatar.revision!, accountId: userId,
                   })}>
-                  {changeBody.isPending ? "Saving Body…" : "Use This Body"}
+                  {changeBody.isPending ? "Saving Appearance…" : "Save Appearance"}
                 </button>
               </section>
             )}
@@ -269,18 +306,18 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 <p>Choose the Fem or Masc body you prefer, then save your character to start choosing clothing.</p>
                 <button type="button" disabled={!selectedBody || busy}
                   data-testid="avatar-create-button"
-                  onClick={() => selectedBody && creation.mutate({ baseId: selectedBody.id, accountId: userId })}>
+                  onClick={() => selectedBody && creation.mutate({ baseId: selectedBody.id, skinTone, accountId: userId })}>
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
               </section>
-            ) : !switchingBody ? (
+            ) : !appearanceChanged ? (
               <section className="player-avatar-page__wardrobe" aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                 <div className="player-avatar-page__wardrobe-header">
                   <div>
                     <h2>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</h2>
-                    <p>Tap an owned item to preview it before equipping.</p>
+                    <p>Tap an available item to preview it before equipping.</p>
                   </div>
-                  <span>{owned.length} owned</span>
+                  <span>{owned.length} available</span>
                 </div>
 
                 {unavailableEquipped && (
@@ -315,7 +352,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                           <span className="player-avatar-page__item-name">{item.name}</span>
                           <span className="player-avatar-page__item-status">
                             {item.isListed ? "Listed" : !eligible ? "Incompatible" : worn ? "Equipped" :
-                              previewId === item.inventoryId ? "Previewing" : "Tap to preview"}
+                              previewId === item.inventoryId ? "Previewing" : item.free ? "Free" : "Tap to preview"}
                           </span>
                         </button>
                       );
@@ -323,7 +360,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   </div>
                 ) : (
                   <div className="player-avatar-page__empty" data-testid="avatar-wardrobe-empty">
-                    You don't own any {PLAYER_CLOTHING_CATEGORY_LABELS[category].toLowerCase()} clothing yet.
+                    No {PLAYER_CLOTHING_CATEGORY_LABELS[category].toLowerCase()} clothing is available yet.
                   </div>
                 )}
 
