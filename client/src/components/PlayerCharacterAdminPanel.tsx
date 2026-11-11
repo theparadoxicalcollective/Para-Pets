@@ -136,7 +136,12 @@ export default function PlayerCharacterAdminPanel() {
       updateCache(base);
       setPendingImages({});
       void qc.invalidateQueries({ queryKey: ["/api/admin/player-character/clothing"] });
-      toast({ title: bodyKind + " body saved", description: "A complete body is available to players automatically." });
+      toast({
+        title: bodyKind + " body saved",
+        description: completePlayerCharacterParts(base.draftParts)
+          ? "Players can choose this body now."
+          : "Save the remaining body parts before players can select it or create clothing.",
+      });
     },
     onError: reportError,
   });
