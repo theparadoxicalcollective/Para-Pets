@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
-import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
+import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
 import { useToast } from "@/hooks/use-toast";
@@ -380,6 +380,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     role="group" aria-label={`Scroll through ${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                     {owned.map(item => {
                       const eligible = item.compatible && !item.isListed && item.quantity > 0;
+                      const bodyArtwork = clothingSegmentsForBody(
+                        item.segments, item.bodyVariants, selectedBody?.name);
+                      const wardrobeThumbnail = bodyArtwork[0]?.imageUrl ?? item.imageUrl;
                       const worn = avatar.equipped.some(entry =>
                         entry.category === category && entry.inventoryId === item.inventoryId
                       );
@@ -398,7 +401,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                           }))}
                         >
                           <span className="player-avatar-page__item-art">
-                            {item.imageUrl ? <img src={item.imageUrl} alt="" draggable={false} loading="lazy" /> :
+                            {wardrobeThumbnail ? <img src={wardrobeThumbnail} alt="" draggable={false} loading="lazy" /> :
                               <span aria-hidden="true">✦</span>}
                             {worn && <span className="player-avatar-page__item-worn"><Check size={13} aria-hidden="true" /></span>}
                           </span>
