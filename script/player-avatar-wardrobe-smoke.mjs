@@ -226,12 +226,12 @@ try {
     await page.getByTestId("avatar-category-top").tap();
     assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), false,
       name + ": untucked is the default");
-    assert.equal(await page.getByTestId("avatar-top-tuck").locator("+ .player-avatar-page__tuck-check svg").count(), 0,
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 0,
       name + ": untucked toggle is visibly empty");
     await page.getByTestId("avatar-top-tuck").check();
     assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), true,
       name + ": new character can choose tuck before first save");
-    assert.equal(await page.getByTestId("avatar-top-tuck").locator("+ .player-avatar-page__tuck-check svg").count(), 1,
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 1,
       name + ": a gold checked mark is visible when tucked");
     await page.getByTestId("avatar-category-head").tap();
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
@@ -369,7 +369,7 @@ try {
     await page.getByTestId("avatar-top-tuck").uncheck();
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="avatar-top-tuck"]')?.checked === false);
-    assert.equal(await page.getByTestId("avatar-top-tuck").locator("+ .player-avatar-page__tuck-check svg").count(), 0,
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 0,
       name + ": untucking visibly clears the checkmark");
     assert.equal(avatar.topTucked, false,
       name + ": untucked preference persisted on the account");
