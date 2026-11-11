@@ -180,8 +180,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
   const clothingLayers = avatar
     ? wardrobeLayers(avatar, previews, resetPending).filter(layer =>
-        !switchingBody || avatar.ownedClothing.some(item =>
-          item.inventoryId === layer.inventoryId && item.universal))
+        !switchingBody || previews.some(item => item.inventoryId === layer.inventoryId) ||
+          avatar.ownedClothing.some(item =>
+            item.inventoryId === layer.inventoryId && item.universal))
     : [];
   const equippedItem = resetPending ? undefined : avatar?.equipped.find(item => item.category === category);
   const unavailableEquipped = !resetPending &&
