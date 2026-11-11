@@ -80,6 +80,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     quantity: userInventory.quantity,
     isListed: userInventory.isListed,
     imageUrl: shopItems.imageUrl,
+    mainImageUrl: playerClothingDrafts.shopImageUrl,
     name: shopItems.name,
     category: playerClothingDrafts.publishedCategory,
     baseId: playerClothingDrafts.baseId,
@@ -116,7 +117,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     });
     return [{
       inventoryId: item.inventoryId, shopItemId: item.shopItemId,
-      name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
+      name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
       compatible, universal: item.universal, free: false,
       colorPickerEnabled: item.colorPickerEnabled, segments: parsed.data.segments,
@@ -129,6 +130,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
   // and no side effects on GET; the first Equip materializes ownership safely.
   const freeRows = await db.select({
     shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
+    mainImageUrl: playerClothingDrafts.shopImageUrl,
     category: playerClothingDrafts.publishedCategory,
     colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
     segments: playerClothingDrafts.publishedSegments,
@@ -151,7 +153,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     if (!parsed.success) continue;
     ownedClothing.push({
       inventoryId: item.shopItemId, shopItemId: item.shopItemId,
-      name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
+      name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: 1, isListed: false, compatible: true, universal: true,
       free: true, colorPickerEnabled: item.colorPickerEnabled,
       segments: parsed.data.segments,
