@@ -49,7 +49,7 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
     -- Existing player accounts retain their outfit/equipment records.
     -- Widen the original seven-slot CHECK only if the Accessories category
     -- has not already been added to this database.
-    DO $
+    DO $$
     BEGIN
       IF EXISTS (
         SELECT 1 FROM pg_constraint
@@ -63,6 +63,6 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
           ADD CONSTRAINT player_avatar_equipment_category_check
           CHECK (category IN ('accessories','head','hair','face','top','bottom','shoes','back'));
       END IF;
-    END $;
+    END $$;
   `);
 }

@@ -23,7 +23,7 @@ export async function ensurePlayerClothingStorage(): Promise<void> {
     -- Existing databases already have the seven-category CHECK from 08A.
     -- Widen it only once: keep existing rows, their IDs, and published items.
     -- Do not rebuild the table or repeat an ACCESS EXCLUSIVE ALTER on every boot.
-    DO $
+    DO $$
     BEGIN
       IF EXISTS (
         SELECT 1 FROM pg_constraint
@@ -37,6 +37,6 @@ export async function ensurePlayerClothingStorage(): Promise<void> {
           ADD CONSTRAINT player_clothing_drafts_category_check
           CHECK (category IN ('accessories','head','hair','face','top','bottom','shoes','back'));
       END IF;
-    END $;
+    END $$;
   `);
 }
