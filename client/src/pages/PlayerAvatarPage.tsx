@@ -477,6 +477,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                       <input type="checkbox" checked={topTucked}
                         data-testid="avatar-top-tuck"
                         disabled={busy} onChange={event => toggleTuck(event.target.checked)} />
+                      <span className="player-avatar-page__tuck-check" aria-hidden="true">
+                        {topTucked && <Check size={15} strokeWidth={3.2} />}
+                      </span>
                       <span>Tuck</span>
                     </label>
                   )}
