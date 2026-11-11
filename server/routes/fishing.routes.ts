@@ -2,8 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { FishingAttemptError, abandonFishingAttempt, completeFishingAttempt, startFishingAttempt } from "../fishingAttempt";
 import { getAquariumUnlockErrorReason, purchaseAquariumUnlock } from "../aquariumUnlock";
-import { awardPlayerXp } from "../playerProgressionStorage";
-import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
+import { awardPlayerFishingCatchXp } from "../playerProgressionStorage";
 import { playerXpDayKey } from "../playerXpDayKey";
 
 const FISH_CATCH_REWARD_COINS = 10;
@@ -402,13 +401,14 @@ export function registerFishingRoutes(app: Express, deps: FishingRouteDependenci
       if (result.caught && !result.replayed) {
         maybeAwardFisherBadges(user.id, result.totalFishCaught ?? 0).catch(() => {});
         if (result.worldId) maybeAwardFishBookBadge(user.id, result.worldId).catch(() => {});
-        // A trusted, one-time completed fishing attempt counts toward just
-        // one small fishing XP award per Central day (no catch farming).
+        // A verified, non-replayed catch earns rarity XP. The locked player
+        // progression row and per-attempt receipts enforce a 50 XP daily cap.
         try {
-          await awardPlayerXp(user.id, {
-            source: "fishing_catch", eventId: playerXpDayKey(),
-            amount: PLAYER_XP_REWARDS.fishingDailyCatch,
-          });
+          const rarity = Number((result.item as any)?.starRarity ?? 1);
+          const earnedXp = await awardPlayerFishingCatchXp(
+            user.id, String(req.params.attemptId), rarity, playerXpDayKey(),
+          );
+          return res.json({ ...result, playerXpEarned: earnedXp });
         } catch (xpError) {
           console.warn("Fishing player XP award failed:", xpError);
         }
