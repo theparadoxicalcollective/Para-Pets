@@ -88,12 +88,16 @@ try{
         const body=route.request().postDataJSON();
         calls.push({method,path,body});
         assert.equal(body.expectedRevision,item.revision,sc.name+": revision match");
-        const bySlot=new Map(item.draftSegments.map(x=>[x.slot??x.partType,x]));
+        const bySlot=new Map(item.draftSegments.map(x=>[
+          x.slot??x.partType,
+          item.category==="shoes" ? {...x,shoesLayer:body.shoesLayer??x.shoesLayer??"under"} : x,
+        ]));
         for(const slot of body.removeSlots??[])bySlot.delete(slot);
         for(const img of body.images){
           assert.ok(img.imageData.startsWith("data:image/png;base64,"));
           bySlot.set(img.slot,{slot:img.slot,partType:slotTarget(img.slot),
             canvasAligned:true,fit:{...fit},renderPlane:"with_part",
+            ...(item.category==="shoes"?{shoesLayer:body.shoesLayer??"under"}:{}),
             imageUrl:mediaId(nextMedia++)});
         }
         const row={...item,draftSegments:[...bySlot.values()],revision:item.revision+1};
@@ -212,6 +216,32 @@ try{
       sc.name+": hair back renders behind hair front");
     await save(2);
     assert.equal(drafts.at(-1).draftSegments.length,2);
+
+    await create("Riding Boots","shoes");
+    assert.equal(await page.getByTestId("avatar-shoes-under-pants").getAttribute("aria-pressed"),"true",
+      sc.name+": footwear defaults to Under Pants");
+    for(const slot of ["left_foot","right_foot"])await upload(slot);
+    let shoes=await checkCanvas(["left_foot","right_foot"],"shoes");
+    assert.ok(shoes.every(layer=>Number(layer.z)===35),sc.name+": default shoes below pants");
+    await page.getByTestId("avatar-shoes-over-pants").click();
+    shoes=await checkCanvas(["left_foot","right_foot"],"shoes");
+    assert.ok(shoes.every(layer=>Number(layer.z)===65),sc.name+": selected shoes render above pants");
+    await save(2);
+    assert.equal(calls.filter(x=>x.method==="PUT").at(-1).body.shoesLayer,"over");
+    assert.ok(drafts.at(-1).draftSegments.every(x=>x.shoesLayer==="over"));
+    await page.getByTestId("avatar-shoes-under-pants").click();
+    shoes=await checkCanvas(["left_foot","right_foot"],"shoes");
+    assert.ok(shoes.every(layer=>Number(layer.z)===35),sc.name+": back under pants without moving images");
+    await save(0);
+    const lastShoeRequest=calls.filter(x=>x.method==="PUT").at(-1);
+    assert.equal(lastShoeRequest.body.shoesLayer,"under");
+    assert.ok(drafts.at(-1).draftSegments.every(x=>x.shoesLayer==="under"));
+    const shoePublish=page.waitForResponse(r=>r.url().endsWith("/save") && r.status()===200);
+    await page.getByTestId("avatar-publish-clothing").click();
+    await shoePublish;
+    assert.ok(drafts.at(-1).publishedSegments.every(x=>x.shoesLayer==="under"),
+      sc.name+": player's saved footwear keeps chosen ordering");
+
     assert.equal(errors.length,0,sc.name+": browser errors: "+errors.join("; "));
     await ctx.close();
     console.log("PASS "+sc.name+": three-piece top, face expressions and hair layers align on one canvas");
