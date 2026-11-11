@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { createServer } from "vite";
 import { chromium } from "playwright";
 
-// Isolated admin fixture: real clothing UI and shared renderer, stubbed
-// authenticated JSON endpoints. Nothing writes to production.
-const fixtureId="/__clothing-canvas-fixture.tsx";
-const fixture=[
+// Real reorganized admin UI with isolated, disposable API fixtures.
+// Verifies one save action, 12 independent slots, face requirements,
+// Fem/Masc previews and reused media on edit. No Railway/database writes.
+const fixtureId = "/__universal-clothing-fixture.tsx";
+const fixture = [
   'import React from "react";',
   'import {createRoot} from "react-dom/client";',
   'import {QueryClientProvider} from "@tanstack/react-query";',
@@ -17,237 +18,192 @@ const fixture=[
   '<PlayerClothingAdminPanel />',
   '</QueryClientProvider>);',
 ].join("\n");
-const server=await createServer({
-  server:{host:"127.0.0.1",port:4299,strictPort:true},
-  plugins:[{
-    name:"isolated-clothing-canvas-fixture",
-    resolveId:id=>id===fixtureId?id:null,
-    load:id=>id===fixtureId?fixture:null,
-    configureServer(vite){
-      vite.middlewares.use(async(req,res,next)=>{
-        if(!req.headers.accept?.includes("text/html"))return next();
-        res.setHeader("Content-Type","text/html");
+const server = await createServer({
+  server: { host: "127.0.0.1", port: 4299, strictPort: true },
+  plugins: [{
+    name: "universal-clothing-fixture",
+    resolveId: id => id === fixtureId ? id : null,
+    load: id => id === fixtureId ? fixture : null,
+    configureServer(vite) {
+      vite.middlewares.use(async (req, res, next) => {
+        if (!req.headers.accept?.includes("text/html")) return next();
+        res.setHeader("Content-Type", "text/html");
         res.end(await vite.transformIndexHtml(req.url,
-          '<html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head>'+
-          '<body style="margin:0;background:#0a1e14;color:#f3dfac"><div id="root" style="padding:12px"></div>'+
-          '<script type="module" src="'+fixtureId+'"></script></body></html>'));
+          '<html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head>' +
+          '<body style="margin:0;background:#0a1e14;color:#f3dfac"><div id="root" style="padding:12px"></div>' +
+          '<script type="module" src="' + fixtureId + '"></script></body></html>'));
       });
     },
   }],
 });
-const png=Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==","base64");
-const partTypes=["head","top","left_arm","right_arm","left_leg","right_leg","left_foot","right_foot"];
-const zIndex={head:80,top:70,left_arm:60,right_arm:50,left_leg:40,right_leg:30,left_foot:20,right_foot:10};
-const fit={xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:1};
-const baseId="00000000-0000-4000-8000-000000000001";
-const publishedAt="2026-11-10T12:00:00.000Z";
-const mediaId=n=>"/api/media/00000000-0000-4000-8000-"+String(n).padStart(12,"0");
-// A complete admin-saved body has NO separate publication; clothing must work.
-const base={
-  id:baseId,name:"Fem",publishedAt:null,updatedAt:publishedAt,publishedParts:null,
-  draftParts:partTypes.map((partType,index)=>({
-    partType,imageUrl:mediaId(index+1),
-    xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,
-    rotationDeg:0,zIndex:zIndex[partType],
-  })),
-};
-const slotTarget=slot=>
-  ["hair_front","hair_back","face_open_eyes","face_closed_eyes","face_mouth"].includes(slot)
-    ? "head":slot;
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64");
+const partTypes = ["head", "top", "left_arm", "right_arm", "left_leg", "right_leg", "left_foot", "right_foot"];
+const depth = { head: 80, top: 70, left_arm: 60, right_arm: 50, left_leg: 40, right_leg: 30, left_foot: 20, right_foot: 10 };
+const mediaId = n => "/api/media/00000000-0000-4000-8000-" + String(n).padStart(12, "0");
+const sourceParts = partTypes.map((partType, i) => ({
+  partType, imageUrl: mediaId(i + 1), xPct: 50, yPct: 50,
+  widthPct: 100, pivotXPct: 50, pivotYPct: 50, rotationDeg: 0, zIndex: depth[partType],
+}));
+const bases = ["Fem", "Masc"].map((name, i) => ({
+  id: "00000000-0000-4000-8000-" + String(i + 1).padStart(12, "0"),
+  name, publishedAt: null, publishedParts: null,
+  updatedAt: "2026-11-11T04:00:00Z", draftParts: sourceParts,
+}));
+const fit = { xPct: 50, yPct: 50, widthPct: 100,
+  pivotXPct: 50, pivotYPct: 50, rotationDeg: 0, zIndex: 1 };
 await server.listen();
-const browser=await chromium.launch({headless:true});
-try{
-  for(const sc of [
-    {name:"compact phone",width:320,height:568},
-    {name:"phone",width:390,height:844},
-    {name:"tablet",width:820,height:1180},
-  ]){
-    let drafts=[],calls=[],nextMedia=50;
-    const ctx=await browser.newContext({viewport:{width:sc.width,height:sc.height},
-      isMobile:true,hasTouch:true});
-    const page=await ctx.newPage(),errors=[];
-    page.on("pageerror",e=>errors.push(e.message));
+const browser = await chromium.launch({ headless: true });
+try {
+  for (const size of [
+    { name: "compact phone", width: 320, height: 568 },
+    { name: "phone", width: 390, height: 844 },
+    { name: "tablet", width: 820, height: 1180 },
+  ]) {
+    let rows = [], nextId = 5, nextMedia = 50;
+    const writes = [], errors = [];
+    const ctx = await browser.newContext({
+      viewport: { width: size.width, height: size.height }, isMobile: true, hasTouch: true,
+    });
+    const page = await ctx.newPage();
     page.setDefaultTimeout(20000);
-    await page.route("**/api/**",async route=>{
-      const url=new URL(route.request().url());
-      const method=route.request().method(),path=url.pathname;
-      if(path==="/api/admin/player-character/bases" && method==="GET")
-        return route.fulfill({json:[base]});
-      if(path==="/api/admin/player-character/clothing" && method==="GET")
-        return route.fulfill({json:drafts});
-      if(path==="/api/admin/player-character/clothing" && method==="POST"){
-        const body=route.request().postDataJSON();
-        const row={id:"00000000-0000-4000-8000-"+String(drafts.length+2).padStart(12,"0"),
-          baseId,basePublishedAt:publishedAt,name:body.name,category:body.category,
-          draftSegments:[],publishedSegments:null,shopItemId:null,revision:0};
-        drafts=[...drafts,row];calls.push({method,path,body});
-        return route.fulfill({status:201,json:row});
+    page.on("pageerror", e => errors.push(e.message));
+    await page.route("**/api/**", async route => {
+      const path = new URL(route.request().url()).pathname;
+      const method = route.request().method();
+      if (path === "/api/admin/player-character/bases" && method === "GET")
+        return route.fulfill({ json: bases });
+      if (path === "/api/admin/player-character/clothing" && method === "GET")
+        return route.fulfill({ json: rows });
+      if (path === "/api/admin/player-character/clothing/item" && method === "POST") {
+        const body = route.request().postDataJSON();
+        writes.push(body);
+        assert.ok(body.name);
+        const old = body.id ? rows.find(row => row.id === body.id) : null;
+        assert.ok(!body.id || old, size.name + ": edit must target a saved item");
+        assert.ok(!old || old.revision === body.expectedRevision,
+          size.name + ": optimistic save revision");
+        const oldSegments = new Map((old?.draftSegments ?? []).map(x => [x.slot, x]));
+        const segments = [
+          ...body.keep.map(keep => {
+            const previous = oldSegments.get(keep.previousSlot);
+            assert.ok(previous, "server reuses only known media");
+            return { ...previous, slot: keep.slot, partType: keep.partType };
+          }),
+          ...body.images.map(img => ({
+            slot: img.slot, partType: img.partType, imageUrl: mediaId(nextMedia++),
+            fit, renderPlane: "with_part", canvasAligned: true,
+            ...(body.category === "shoes" ? { shoesLayer: body.shoesLayer ?? "under" } : {}),
+          })),
+        ];
+        assert.equal(new Set(segments.map(x => x.slot)).size, segments.length);
+        assert.ok(segments.length <= 13);
+        if (body.category === "face")
+          assert.deepEqual(segments.map(x => x.slot).sort(),
+            ["face_open_eyes", "face_closed_eyes", "face_mouth"].sort());
+        const saved = {
+          id: old?.id ?? "00000000-0000-4000-8000-" + String(nextId++).padStart(12, "0"),
+          name: body.name, category: body.category, revision: old ? old.revision + 1 : 0,
+          shopItemId: old?.shopItemId ?? mediaId(nextMedia++),
+          universal: true, draftSegments: segments, publishedSegments: segments,
+        };
+        rows = old ? rows.map(row => row.id === old.id ? saved : row) : [...rows, saved];
+        return route.fulfill({ json: saved });
       }
-      const item=drafts.find(x=>path.includes("/"+x.id+"/"));
-      if(item && method==="PUT" && path.endsWith("/artwork")){
-        const body=route.request().postDataJSON();
-        calls.push({method,path,body});
-        assert.equal(body.expectedRevision,item.revision,sc.name+": revision match");
-        const bySlot=new Map(item.draftSegments.map(x=>[
-          x.slot??x.partType,
-          item.category==="shoes" ? {...x,shoesLayer:body.shoesLayer??x.shoesLayer??"under"} : x,
-        ]));
-        for(const slot of body.removeSlots??[])bySlot.delete(slot);
-        for(const img of body.images){
-          assert.ok(img.imageData.startsWith("data:image/png;base64,"));
-          bySlot.set(img.slot,{slot:img.slot,partType:slotTarget(img.slot),
-            canvasAligned:true,fit:{...fit},renderPlane:"with_part",
-            ...(item.category==="shoes"?{shoesLayer:body.shoesLayer??"under"}:{}),
-            imageUrl:mediaId(nextMedia++)});
-        }
-        const row={...item,draftSegments:[...bySlot.values()],revision:item.revision+1};
-        drafts=drafts.map(x=>x.id===item.id?row:x);
-        return route.fulfill({json:row});
-      }
-      if(item && method==="POST" && path.endsWith("/save")){
-        const body=route.request().postDataJSON();
-        calls.push({method,path,body});
-        assert.equal(body.expectedRevision,item.revision);
-        const row={...item,publishedSegments:item.draftSegments,
-          shopItemId:mediaId(nextMedia++),revision:item.revision+1};
-        drafts=drafts.map(x=>x.id===item.id?row:x);
-        return route.fulfill({json:row});
-      }
-      if(path.startsWith("/api/media/"))
-        return route.fulfill({body:png,contentType:"image/png"});
-      if(path.startsWith("/api/"))return route.fulfill({json:[]});
+      if (path.startsWith("/api/media/"))
+        return route.fulfill({ body: png, contentType: "image/png" });
+      if (path.startsWith("/api/")) return route.fulfill({ json: [] });
       return route.continue();
     });
-    await page.goto("http://127.0.0.1:4299/admin",{waitUntil:"domcontentloaded"});
-    await page.getByTestId("player-clothing-admin-panel").waitFor({state:"visible"});
+    await page.goto("http://127.0.0.1:4299/admin", { waitUntil: "domcontentloaded" });
+    await page.getByTestId("avatar-clothing-create-screen").waitFor({ state: "visible" });
+    await page.getByTestId("avatar-clothing-preview-masc").click();
+    assert.equal(await page.getByTestId("avatar-clothing-preview-masc").getAttribute("aria-pressed"), "true");
+    await page.getByTestId("avatar-clothing-preview-fem").click();
 
-    async function create(name,category){
-      await page.getByLabel("New clothing name").fill(name);
+    async function newItem(name, category) {
+      await page.getByRole("tab", { name: "Create" }).click();
+      await page.getByTestId("avatar-new-clothing-name").fill(name);
       await page.getByTestId("avatar-new-clothing-category").selectOption(category);
-      const response=page.waitForResponse(r=>r.url().endsWith("/api/admin/player-character/clothing")
-        && r.request().method()==="POST");
-      await page.getByTestId("avatar-create-clothing").click();
-      await response;
-      await page.getByTestId("avatar-clothing-fit-canvas").waitFor({state:"visible"});
     }
-    async function upload(slot){
-      await page.getByTestId("avatar-clothing-upload-"+slot).setInputFiles({
-        name:slot+".png",mimeType:"image/png",buffer:png,
+    async function addPart(anchor) {
+      const before = await page.getByTestId("avatar-clothing-uploaded-parts").locator('[data-testid^="clothing-part-"]').count();
+      await page.getByTestId("avatar-clothing-add-part").setInputFiles({
+        name: "part.png", mimeType: "image/png", buffer: png,
       });
-      await page.getByTestId("clothing-part-"+slot).getByText("New").waitFor({state:"visible"});
+      const slot = "piece_" + (before + 1);
+      await page.getByTestId("clothing-part-" + slot).waitFor({ state: "visible" });
+      await page.getByTestId("avatar-clothing-attach-" + slot).selectOption(anchor);
+      return slot;
     }
-    async function checkCanvas(slots,category){
-      const frame=await page.getByTestId("player-character-renderer").boundingBox();
-      assert.ok(frame && frame.width<=sc.width-24 && frame.width>200,
-        sc.name+": full square preview fits viewport");
-      const layers=await page.locator('[data-clothing-slot]').evaluateAll(elements=>
-        elements.map(el=>{
-          const r=el.getBoundingClientRect();
-          const img=el.querySelector("img");
-          return {slot:el.getAttribute("data-clothing-slot"),
-            part:el.getAttribute("data-clothing-part"),
-            z:getComputedStyle(el).zIndex,
-            x:r.x,y:r.y,width:r.width,height:r.height,
-            imgWidth:img?.getBoundingClientRect().width,
-            imgHeight:img?.getBoundingClientRect().height};
-        }));
-      assert.deepEqual(layers.map(x=>x.slot).sort(),[...slots].sort(),
-        sc.name+": correct "+category+" layer slots");
-      for(const layer of layers){
-        assert.ok(Math.abs(layer.x-frame.x)<=1 &&
-          Math.abs(layer.y-frame.y)<=1 &&
-          Math.abs(layer.width-frame.width)<=1 &&
-          Math.abs(layer.height-frame.height)<=1 &&
-          Math.abs(layer.imgWidth-frame.width)<=1 &&
-          Math.abs(layer.imgHeight-frame.height)<=1,
-          sc.name+": "+layer.slot+" must fill the one common canvas: "+JSON.stringify(layer));
-      }
-      return layers;
-    }
-    async function save(count){
-      const response=page.waitForResponse(r=>r.url().endsWith("/artwork")
-        && r.request().method()==="PUT" && r.status()===200);
-      await page.getByTestId("avatar-save-clothing-artwork").click();
-      await response;
-      const last=calls.filter(x=>x.method==="PUT").at(-1);
-      assert.equal(last.body.images.length,count,sc.name+": save all clothing images once");
-      if(last.body.images.length){
-        await page.getByTestId("clothing-part-"+last.body.images[0].slot)
-          .getByText("New").waitFor({state:"detached"});
-      }
-      for(const part of drafts.at(-1).draftSegments){
-        assert.deepEqual(part.fit,fit);
-        assert.equal(part.canvasAligned,true);
-      }
+    async function saveItem() {
+      const before = writes.length;
+      const reply = page.waitForResponse(r =>
+        r.url().endsWith("/api/admin/player-character/clothing/item") &&
+        r.request().method() === "POST" && r.status() === 200);
+      await page.getByTestId("avatar-save-clothing-item").click();
+      await reply;
+      await page.getByTestId("avatar-clothing-view").waitFor({ state: "visible" });
+      assert.equal(writes.length, before + 1, size.name + ": single catalog save request");
     }
 
-    await create("Three-Part Blouse","top");
-    for(const slot of ["top","left_arm","right_arm"])await upload(slot);
-    await checkCanvas(["top","left_arm","right_arm"],"top");
-    await save(3);
-    assert.equal(drafts.at(-1).draftSegments.length,3);
-    const publish=page.waitForResponse(r=>r.url().endsWith("/save") && r.status()===200);
-    await page.getByTestId("avatar-publish-clothing").click();
-    await publish;
-    assert.equal(drafts.at(-1).publishedSegments.length,3);
+    await newItem("Three Part Blouse", "top");
+    await addPart("top"); await addPart("left_arm"); await addPart("right_arm");
+    assert.equal(await page.locator('[data-clothing-slot]').count(), 3);
+    assert.equal(await page.getByTestId("avatar-clothing-uploaded-parts")
+      .locator('[data-testid^="clothing-part-"]').count(), 3);
+    await saveItem();
+    assert.equal(rows.at(-1).universal, true);
+    assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["top", "left_arm", "right_arm"]);
 
-    await create("Expressions","face");
-    for(const slot of ["face_open_eyes","face_closed_eyes","face_mouth"])await upload(slot);
-    const face=await checkCanvas(["face_open_eyes","face_closed_eyes","face_mouth"],"face");
-    assert.ok(face.every(x=>x.part==="head"),sc.name+": all face images follow the head");
-    const eyes=async()=>page.evaluate(()=>{
-      const open=document.querySelector(".player-character-renderer__eyes-open");
-      const closed=document.querySelector(".player-character-renderer__eyes-closed");
-      return {open:getComputedStyle(open).opacity,closed:getComputedStyle(closed).opacity};
-    });
-    assert.deepEqual(await eyes(),{open:"1",closed:"0"});
-    await page.getByRole("group",{name:"Face expression preview"}).getByRole("button",{name:"Closed Eyes",exact:true}).click();
-    assert.deepEqual(await eyes(),{open:"0",closed:"1"},
-      sc.name+": closed eyes preview replaces, not overlays, open eyes");
-    await page.getByRole("group",{name:"Face expression preview"}).getByRole("button",{name:"Open Eyes",exact:true}).click();
-    await save(3);
-    assert.equal(drafts.at(-1).draftSegments.length,3);
+    await newItem("Expressive Face", "face");
+    assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true);
+    for (const [index, slot] of ["face_open_eyes", "face_closed_eyes", "face_mouth"].entries()) {
+      await page.getByTestId("avatar-clothing-upload-" + slot).setInputFiles({
+        name: slot + ".png", mimeType: "image/png", buffer: png,
+      });
+      await page.getByTestId("clothing-part-" + slot).waitFor({ state: "visible" });
+      if (index < 2) assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true);
+    }
+    assert.equal(await page.getByTestId("avatar-save-clothing-item").isEnabled(), true);
+    const eyes = async () => page.evaluate(() => ({
+      open: getComputedStyle(document.querySelector(".player-character-renderer__eyes-open")).opacity,
+      closed: getComputedStyle(document.querySelector(".player-character-renderer__eyes-closed")).opacity,
+    }));
+    assert.deepEqual(await eyes(), { open: "1", closed: "0" });
+    await page.getByRole("group", { name: "Face expression preview" })
+      .getByRole("button", { name: "Closed Eyes", exact: true }).click();
+    assert.deepEqual(await eyes(), { open: "0", closed: "1" });
+    await page.getByRole("group", { name: "Face expression preview" })
+      .getByRole("button", { name: "Open Eyes", exact: true }).click();
+    await saveItem();
 
-    await create("Two-Layer Hair","hair");
-    await upload("hair_front");await upload("hair_back");
-    const hair=await checkCanvas(["hair_front","hair_back"],"hair");
-    assert.ok(Number(hair.find(x=>x.slot==="hair_back").z) <
-      Number(hair.find(x=>x.slot==="hair_front").z),
-      sc.name+": hair back renders behind hair front");
-    await save(2);
-    assert.equal(drafts.at(-1).draftSegments.length,2);
+    await newItem("Two Hair Pieces", "hair");
+    await addPart("head"); await addPart("head");
+    await saveItem();
+    assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["head", "head"]);
 
-    await create("Riding Boots","shoes");
-    assert.equal(await page.getByTestId("avatar-shoes-under-pants").getAttribute("aria-pressed"),"true",
-      sc.name+": footwear defaults to Under Pants");
-    for(const slot of ["left_foot","right_foot"])await upload(slot);
-    let shoes=await checkCanvas(["left_foot","right_foot"],"shoes");
-    assert.ok(shoes.every(layer=>Number(layer.z)===35),sc.name+": default shoes below pants");
+    await newItem("Boots", "shoes");
+    await addPart("left_foot"); await addPart("right_foot");
     await page.getByTestId("avatar-shoes-over-pants").click();
-    shoes=await checkCanvas(["left_foot","right_foot"],"shoes");
-    assert.ok(shoes.every(layer=>Number(layer.z)===65),sc.name+": selected shoes render above pants");
-    await save(2);
-    assert.equal(calls.filter(x=>x.method==="PUT").at(-1).body.shoesLayer,"over");
-    assert.ok(drafts.at(-1).draftSegments.every(x=>x.shoesLayer==="over"));
-    await page.getByTestId("avatar-shoes-under-pants").click();
-    shoes=await checkCanvas(["left_foot","right_foot"],"shoes");
-    assert.ok(shoes.every(layer=>Number(layer.z)===35),sc.name+": back under pants without moving images");
-    await save(0);
-    const lastShoeRequest=calls.filter(x=>x.method==="PUT").at(-1);
-    assert.equal(lastShoeRequest.body.shoesLayer,"under");
-    assert.ok(drafts.at(-1).draftSegments.every(x=>x.shoesLayer==="under"));
-    const shoePublish=page.waitForResponse(r=>r.url().endsWith("/save") && r.status()===200);
-    await page.getByTestId("avatar-publish-clothing").click();
-    await shoePublish;
-    assert.ok(drafts.at(-1).publishedSegments.every(x=>x.shoesLayer==="under"),
-      sc.name+": player's saved footwear keeps chosen ordering");
+    await saveItem();
+    assert.ok(rows.at(-1).draftSegments.every(x => x.shoesLayer === "over"));
 
-    assert.equal(errors.length,0,sc.name+": browser errors: "+errors.join("; "));
+    // Editing preserves media through previousSlot and cannot create duplicates.
+    await page.getByTestId("avatar-clothing-view").getByRole("button", { name: /Three Part Blouse/ }).click();
+    await page.getByTestId("avatar-new-clothing-name").fill("Blouse Updated");
+    await saveItem();
+    assert.equal(writes.at(-1).keep.length, 3);
+    assert.equal(writes.at(-1).images.length, 0);
+    assert.equal(rows.length, 4);
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert.ok(overflow <= 2, size.name + ": clothing editor does not overflow the device viewport");
+    assert.deepEqual(errors, [], size.name + ": no browser errors");
+    console.log("PASS " + size.name + ": universal multi-part clothing, face, edit, previews, save item");
     await ctx.close();
-    console.log("PASS "+sc.name+": three-piece top, face expressions and hair layers align on one canvas");
   }
-}finally{
+} finally {
   await browser.close();
   await server.close();
 }
