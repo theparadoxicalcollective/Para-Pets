@@ -267,7 +267,8 @@ try {
     assert.equal(initialOutfitCount, 4, name + ": required and optional first-save outfit persisted");
     await page.getByTestId("avatar-clothing-hat").tap();
     assert.equal(avatar.equipped.length, initialOutfitCount, name + ": preview does not save outfit");
-    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 1);
+    assert.equal(await page.locator('[data-clothing-part="head"]').count(), 2,
+      name + ": saved Face and unsaved Hat preview both render");
     await page.getByTestId("avatar-equip-button").tap();
     await page.waitForFunction(() => !!document.querySelector(".player-avatar-page__category--head .player-avatar-page__equipped-dot"));
     assert.equal(avatar.equipped.length, initialOutfitCount + 1, name + ": head item saved");
