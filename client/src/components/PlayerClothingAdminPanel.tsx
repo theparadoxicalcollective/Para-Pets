@@ -41,6 +41,7 @@ type ClothingPart = {
   slot: PlayerClothingSlot;
   previousSlot?: PlayerClothingSlot;
   partType: PlayerCharacterPartType;
+  hairLayer?: "front" | "back";
   imageUrl?: string;
   imageData?: string;
 };
@@ -79,13 +80,20 @@ function partsFromDraft(draft: ClothingDraft): ClothingPart[] {
         imageUrl: old.imageUrl } : part;
     });
   }
-  return segments.slice(0, PLAYER_CLOTHING_FREE_SLOTS.length).map((segment, index) => ({
-    slot: isFreeClothingSlot(segment.slot ?? "")
-      ? segment.slot! : PLAYER_CLOTHING_FREE_SLOTS[index],
-    previousSlot: clothingSegmentKey(segment) as PlayerClothingSlot,
-    partType: segment.partType,
-    imageUrl: segment.imageUrl,
-  }));
+  const used = new Set<string>();
+  return segments.slice(0, PLAYER_CLOTHING_FREE_SLOTS.length).map(segment => {
+    const original = segment.slot ?? segment.partType;
+    const slot = isFreeClothingSlot(original) && !used.has(original)
+      ? original as PlayerClothingSlot
+      : PLAYER_CLOTHING_FREE_SLOTS.find(value => !used.has(value))!;
+    used.add(slot);
+    return {
+      slot, previousSlot: clothingSegmentKey(segment) as PlayerClothingSlot,
+      partType: segment.partType, imageUrl: segment.imageUrl,
+      hairLayer: segment.slot === "hair_back" || segment.renderPlane === "behind_character"
+        ? "back" as const : "front" as const,
+    };
+  });
 }
 
 /** One universal clothing item has many independent, part-attached images.
@@ -135,7 +143,8 @@ export default function PlayerClothingAdminPanel({
       return imageUrl ? [{
         slot: part.slot, partType: part.partType, imageUrl,
         fit: canvasClothingFit(), canvasAligned: true as const,
-        renderPlane: "with_part" as const,
+        renderPlane: category === "hair" && part.hairLayer === "back"
+          ? "behind_character" as const : "with_part" as const,
         ...(category === "shoes" ? { shoesLayer } : {}),
       }] : [];
     }), [parts, category, shoesLayer]);
@@ -156,9 +165,13 @@ export default function PlayerClothingAdminPanel({
       name: name.trim(), category,
       images: parts.filter(part => !!part.imageData).map(part => ({
         slot: part.slot, partType: part.partType, imageData: part.imageData,
+        ...(category === "hair"
+          ? { renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part" } : {}),
       })),
       keep: parts.filter(part => !part.imageData && part.imageUrl && part.previousSlot).map(part => ({
         previousSlot: part.previousSlot, slot: part.slot, partType: part.partType,
+        ...(category === "hair"
+          ? { renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part" } : {}),
       })),
       ...(category === "shoes" ? { shoesLayer } : {}),
     }),
@@ -222,6 +235,7 @@ export default function PlayerClothingAdminPanel({
         return [...current, {
           slot, imageData: data,
           partType: PLAYER_CLOTHING_DEFAULT_ATTACHMENTS[category][0],
+          ...(category === "hair" ? { hairLayer: "front" as const } : {}),
         }];
       });
       setChanged(true);
@@ -426,6 +440,21 @@ export default function PlayerClothingAdminPanel({
                           {PLAYER_CHARACTER_PART_TYPES.map(type => (
                             <option key={type} value={type}>{PLAYER_CHARACTER_PART_LABELS[type]}</option>
                           ))}
+                        </select>
+                      )}
+                      {category === "hair" && (
+                        <select className={inputClass + " !min-h-[38px] !py-1 !text-xs"}
+                          aria-label={"Hair layering for " + part.slot}
+                          data-testid={"avatar-hair-layer-" + part.slot}
+                          value={part.hairLayer ?? "front"} disabled={busy}
+                          onChange={event => {
+                            const next = event.target.value as "front" | "back";
+                            setParts(current => current.map(item => item.slot === part.slot
+                              ? { ...item, hairLayer: next } : item));
+                            setChanged(true);
+                          }}>
+                          <option value="front">In Front</option>
+                          <option value="back">Behind Head</option>
                         </select>
                       )}
                     </div>
