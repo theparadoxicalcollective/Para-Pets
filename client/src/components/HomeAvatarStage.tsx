@@ -85,11 +85,12 @@ export default function HomeAvatarStage({
       ) : completeSavedCharacter && base ? (
         <button type="button"
           className="home-avatar-stage__character"
-          aria-label="Open your player character and clothing wardrobe"
+          aria-label="Customize your character's body, skin tone and clothing"
           data-testid="home-avatar-character"
           onClick={onOpen}>
           <PlayerCharacterRenderer
             parts={base.parts}
+            skinTone={avatar.data?.skinTone ?? null}
             clothingLayers={layers}
             motion="idle"
             ariaLabel="Your saved player character wearing equipped clothing"

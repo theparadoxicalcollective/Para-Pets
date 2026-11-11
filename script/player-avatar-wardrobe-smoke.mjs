@@ -71,7 +71,7 @@ try {
     page.on("pageerror", error => errors.push(error.message));
     page.setDefaultTimeout(20000);
     let avatar = {
-      created: false, revision: null,
+      created: false, revision: null, skinTone: null,
       base: { id: "base-1", name: "Fem", publishedAt: new Date().toISOString(), parts: rig },
       availableBases: [
         { id: "base-1", name: "Fem", publishedAt: new Date().toISOString(), parts: rig },
@@ -86,8 +86,9 @@ try {
       if (url.pathname === "/api/player-avatar/create" && method === "POST") {
         const body = route.request().postDataJSON();
         assert.equal(body.baseId, "base-2", name + ": first save uses chosen Masc body");
+        assert.equal(body.skinTone, "#d39a71", name + ": first save includes selected skin color");
         writes.push({ method, kind: "create", body });
-        avatar = { ...avatar, created: true, revision: 0,
+        avatar = { ...avatar, created: true, revision: 0, skinTone: body.skinTone,
           base: avatar.availableBases.find(entry => entry.id === body.baseId) };
         return route.fulfill({ json: avatar });
       }
@@ -96,9 +97,9 @@ try {
         assert.equal(body.expectedRevision, avatar.revision, name + ": body change is revision-checked");
         writes.push({ method, kind: "change-body", body });
         avatar = {
-          ...avatar, revision: avatar.revision + 1,
+          ...avatar, revision: avatar.revision + 1, skinTone: body.skinTone,
           base: avatar.availableBases.find(entry => entry.id === body.baseId),
-          equipped: [],
+          equipped: body.baseId !== avatar.base.id ? [] : avatar.equipped,
         };
         return route.fulfill({ json: avatar });
       }
@@ -157,6 +158,9 @@ try {
       name + ": completed Fem/Masc choices visible");
     await page.getByTestId("avatar-choose-masc").tap();
     assert.equal(await page.getByTestId("avatar-choose-masc").getAttribute("aria-pressed"), "true");
+    await page.getByTestId("avatar-skin-warm").tap();
+    assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
+      name + ": color preview tints the eight body layers");
     await page.getByTestId("avatar-create-button").tap();
     await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
     assert.equal(writes[0].kind, "create", name + ": save is explicit");
@@ -201,6 +205,13 @@ try {
       name + ": listed clothing cannot be equipped");
     await page.getByTestId("avatar-category-shoes").tap();
     await page.getByTestId("avatar-wardrobe-empty").waitFor({ state: "visible" });
+    const equippedBeforeColor = avatar.equipped.map(entry => entry.inventoryId).sort();
+    await page.getByTestId("avatar-skin-rich").tap();
+    await page.getByTestId("avatar-save-body-choice").tap();
+    await page.waitForFunction(() => document.querySelector('[data-testid="avatar-skin-rich"]')?.getAttribute("aria-pressed") === "true");
+    assert.equal(avatar.skinTone, "#42291f", name + ": skin color persisted");
+    assert.deepEqual(avatar.equipped.map(entry => entry.inventoryId).sort(), equippedBeforeColor,
+      name + ": skin-only save never unequips clothing");
     await page.getByTestId("avatar-choose-fem").tap();
     await page.getByTestId("avatar-body-change").waitFor({ state: "visible" });
     assert.equal(avatar.base.id, "base-2", name + ": choosing a body only previews, not saves");

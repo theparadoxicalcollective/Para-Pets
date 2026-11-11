@@ -206,6 +206,69 @@
   background: radial-gradient(circle at 35% 25%, #6a793f, #305339 83%);
   box-shadow: 0 0 0 2px #d8ba6c66, 0 0 15px #dfbc7060;
 }
+.player-avatar-page__skin-picker {
+  width: min(100%, 620px);
+  margin: 2px auto 13px;
+  padding: 10px 11px 12px;
+  border: 1px solid #ac925a;
+  border-radius: 17px;
+  background: linear-gradient(170deg, #173c29, #10291d);
+  box-sizing: border-box;
+  text-align: center;
+}
+.player-avatar-page__skin-picker h2 {
+  margin: 0 0 9px;
+  font: 600 15px Georgia, serif;
+  color: #f0d99f;
+}
+.player-avatar-page__skin-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+}
+.player-avatar-page__skin-swatches > button {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  border: 2px solid #a88a54;
+  box-shadow: inset 0 0 0 1px #0004, 0 2px 6px #0005;
+  touch-action: manipulation;
+}
+.player-avatar-page__skin-swatches > button[aria-pressed="true"] {
+  border-color: #ffe9a0;
+  outline: 2px solid #c7a258;
+  outline-offset: 2px;
+}
+.player-avatar-page__skin-swatches > .player-avatar-page__skin-original {
+  width: 55px;
+  height: 38px;
+  border-radius: 15px;
+  font: 600 10px Georgia, serif;
+  color: #f8e5b6;
+  background: #244c33;
+}
+.player-avatar-page__custom-skin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  font: 12px Georgia, serif;
+  color: #e1d0a9;
+}
+.player-avatar-page__custom-skin input {
+  display: block;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #b89d65;
+  border-radius: 9px;
+  padding: 2px;
+  background: #1f432e;
+  touch-action: manipulation;
+}
 .player-avatar-page__change-body {
   width: min(100%, 620px);
   margin: 8px auto 14px;

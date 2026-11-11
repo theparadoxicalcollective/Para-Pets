@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { playerClothingCategorySchema } from "./playerCharacterClothing";
+import { playerSkinToneSchema } from "./playerSkinTone";
 
 /**
  * A published admin base is NOT a created player avatar. Only an explicit
@@ -8,10 +9,14 @@ import { playerClothingCategorySchema } from "./playerCharacterClothing";
  */
 export const createPlayerAvatarSchema = z.object({
   baseId: z.string().uuid(),
+  skinTone: playerSkinToneSchema.optional(),
 }).strict();
 
 export const changePlayerAvatarBaseSchema = z.object({
   baseId: z.string().uuid(),
+  skinTone: playerSkinToneSchema.optional(),
+  // Skin-only edits retain the player's pinned base-art snapshot.
+  keepSnapshot: z.boolean().optional(),
   expectedRevision: z.number().int().min(0),
 }).strict();
 

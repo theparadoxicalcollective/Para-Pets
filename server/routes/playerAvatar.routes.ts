@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, gt, notInArray } from "drizzle-orm";
+import { AVATAR_CLOTHING_UNRELEASED_WORLD } from "@shared/playerClothingAdmin";
 import type { db as database } from "../db";
 import {
   playerAvatarProfiles, playerAvatarEquipment, playerCharacterBases,
@@ -111,9 +112,37 @@ async function readPlayerAvatar(db: Db, userId: string) {
       inventoryId: item.inventoryId, shopItemId: item.shopItemId,
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
-      compatible, universal: item.universal, segments: parsed.data.segments,
+      compatible, universal: item.universal, free: false, segments: parsed.data.segments,
     }];
   });
+
+  // Free universal clothing is a live catalog entitlement for EVERY player,
+  // including newly registered accounts. No bulk insertion into user_inventory
+  // and no side effects on GET; the first Equip materializes ownership safely.
+  const freeRows = await db.select({
+    shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
+    category: playerClothingDrafts.publishedCategory,
+    segments: playerClothingDrafts.publishedSegments,
+  }).from(shopItems)
+    .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
+    .where(and(eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
+      eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
+      eq(playerClothingDrafts.universal, true)));
+  const alreadyOwned = new Set(ownedRows.filter(item => !item.isListed && item.quantity > 0)
+    .map(item => item.shopItemId));
+  for (const item of freeRows) {
+    if (alreadyOwned.has(item.shopItemId)) continue;
+    const parsed = playerClothingDefinitionSchema.safeParse({
+      name: item.name, category: item.category, segments: item.segments,
+    });
+    if (!parsed.success) continue;
+    ownedClothing.push({
+      inventoryId: item.shopItemId, shopItemId: item.shopItemId,
+      name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
+      quantity: 1, isListed: false, compatible: true, universal: true,
+      free: true, segments: parsed.data.segments,
+    });
+  }
 
   const savedEquipment = profile
     ? await db.select().from(playerAvatarEquipment)
@@ -142,6 +171,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
           publishedAt: activeBase.publishedAt }
       : null,
     availableBases,
+    skinTone: profile?.skinTone ?? null,
     ownedClothing,
     equipped,
     unavailableEquipmentSlots,
@@ -178,6 +208,7 @@ export function registerPlayerAvatarRoutes(
         const [created] = await tx.insert(playerAvatarProfiles).values({
           userId: user.id, baseId: base.id, basePublishedAt: available.publishedAt,
           baseParts: available.parts,
+          skinTone: input.data.skinTone ?? null,
         }).onConflictDoNothing().returning();
 
         if (created) return { status: 201 as const };
@@ -215,12 +246,17 @@ export function registerPlayerAvatarRoutes(
         if (!base || !available)
           return { status: 422 as const, message: "Save all eight body parts before selecting this character" };
 
-        if (profile.baseId === base.id &&
-            profile.basePublishedAt.getTime() === available.publishedAt.getTime())
+        const sameBase = (input.data.keepSnapshot === true && profile.baseId === base.id) ||
+          (profile.baseId === base.id &&
+            profile.basePublishedAt.getTime() === available.publishedAt.getTime());
+        const skinTone = input.data.skinTone === undefined ? profile.skinTone : input.data.skinTone;
+        if (sameBase && profile.skinTone === skinTone)
           return { status: 200 as const };
+        // Keep clothes when only changing skin color; no equipment mutation.
         // New universal clothing remains equipped across body changes.
         // Remove only older, anatomy-locked outfit links and any dangling
         // entries. Inventory ownership is never changed.
+        if (!sameBase) {
         const worn = await tx.select({
           category: playerAvatarEquipment.category,
           universal: playerClothingDrafts.universal,
@@ -236,9 +272,12 @@ export function registerPlayerAvatarRoutes(
                 notInArray(playerAvatarEquipment.category, keepCategories))
             : eq(playerAvatarEquipment.userId, user.id),
         );
+        }
         await tx.update(playerAvatarProfiles).set({
-          baseId: base.id, basePublishedAt: available.publishedAt,
-          baseParts: available.parts,
+          baseId: base.id,
+          basePublishedAt: sameBase ? profile.basePublishedAt : available.publishedAt,
+          baseParts: sameBase ? profile.baseParts : available.parts,
+          skinTone,
           revision: profile.revision + 1, updatedAt: new Date(),
         }).where(eq(playerAvatarProfiles.userId, user.id));
         return { status: 200 as const };
@@ -271,10 +310,38 @@ export function registerPlayerAvatarRoutes(
         )).limit(1);
 
         if (input.data.inventoryId) {
-          const [inventory] = await tx.select().from(userInventory).where(and(
+          let [inventory] = await tx.select().from(userInventory).where(and(
             eq(userInventory.id, input.data.inventoryId),
             eq(userInventory.userId, user.id),
           )).for("share");
+          if (!inventory) {
+            // The free catalog item ID doubles as a virtual inventory ID.
+            // Validate its current zero price, published art and universal flag
+            // before minting the real per-account inventory row on Equip.
+            const [free] = await tx.select({
+              shopItemId: shopItems.id, name: shopItems.name,
+              category: playerClothingDrafts.publishedCategory,
+              segments: playerClothingDrafts.publishedSegments,
+            }).from(shopItems)
+              .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
+              .where(and(eq(shopItems.id, input.data.inventoryId),
+                eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
+                eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
+                eq(playerClothingDrafts.universal, true))).limit(1);
+            const validated = free ? playerClothingDefinitionSchema.safeParse({
+              name: free.name, category: free.category, segments: free.segments,
+            }) : null;
+            if (!validated?.success || validated.data.category !== slot)
+              return { status: 404 as const, message: "This free clothing item is no longer available" };
+            const [existingFree] = await tx.select().from(userInventory).where(and(
+              eq(userInventory.userId, user.id), eq(userInventory.shopItemId, free!.shopItemId),
+              eq(userInventory.isListed, false), gt(userInventory.quantity, 0),
+            )).limit(1);
+            if (existingFree) inventory = existingFree;
+            else [inventory] = await tx.insert(userInventory).values({
+              userId: user.id, shopItemId: free!.shopItemId, quantity: 1,
+            }).returning();
+          }
           if (!inventory) return { status: 404 as const, message: "This clothing item is not in your inventory" };
           const [item] = await tx.select({
             id: shopItems.id, type: shopItems.type, name: shopItems.name,

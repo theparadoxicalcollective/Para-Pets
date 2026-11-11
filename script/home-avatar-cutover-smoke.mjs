@@ -103,6 +103,7 @@ try {
       coins:1200,isAdmin:true,isModerator:true,emailVerified:true,profileImage:null,
       activePetId:"pet-owned"};
     let avatar={created:sc.created,revision:sc.created?1:null,base,
+      skinTone:sc.created?"#855238":null,
       ownedClothing:[],equipped:sc.created?[hat]:[],unavailableEquipmentSlots:[]};
     const fulfill=(route,json,status=200)=>route.fulfill({status,json});
     await page.route("**/api/**",async route=>{
@@ -123,7 +124,7 @@ try {
         const body=route.request().postDataJSON();
         assert.equal(body.baseId,"published-base");
         writes.push(body);
-        avatar={...avatar,created:true,revision:0};
+        avatar={...avatar,created:true,revision:0,skinTone:body.skinTone??null};
         return fulfill(route,avatar);
       }
       if(path.startsWith("/api/tutorial/"))return fulfill(route,{message:"retired"},410);
@@ -405,15 +406,21 @@ try {
       await page.getByTestId("player-avatar-page").waitFor({state:"visible"});
       const firstSave = page.waitForResponse(r =>
         r.url().endsWith("/api/player-avatar/create") && r.request().method()==="POST");
+      await page.getByTestId("avatar-skin-warm").tap();
       await page.getByTestId("avatar-create-button").tap();
       await firstSave;
+      assert.equal(avatar.skinTone,"#d39a71",sc.name+": first save stores player-selected skin");
       assert.equal(writes.length,1,sc.name+": only the explicit wardrobe Save creates");
       await page.getByRole("button",{name:"Back to Home"}).tap();
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
+      assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),8,
+        sc.name+": saved skin color renders on the Home avatar");
       assert.equal(await page.getByTestId("home-design-character").count(),0,
         sc.name+": confirmed save replaces gold prompt");
     }else{
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
+      assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),8,
+        sc.name+": existing saved color displays on Home");
       assert.equal(await page.locator('[data-clothing-part="head"]').count(),1,
         sc.name+": equipped clothing displays over the shared rig");
       await page.getByTestId("home-avatar-character").tap();
