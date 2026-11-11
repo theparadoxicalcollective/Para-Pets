@@ -12,7 +12,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, gameSettings, petAnimationProfileSchema, petParkBuildings, petParkSettings, shopItems, playerClothingDrafts } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { parseHomeRewards } from "./rewardHomeRewards";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
@@ -44,6 +44,8 @@ import { registerAvatarRoutes } from "./routes/avatar.routes";
 import { registerPlayerCharacterRoutes } from "./routes/playerCharacter.routes";
 import { registerPlayerClothingAdminRoutes } from "./routes/playerClothingAdmin.routes";
 import { registerPlayerAvatarRoutes } from "./routes/playerAvatar.routes";
+import { playerClothingDefinitionSchema } from "@shared/playerCharacterClothing";
+import { AVATAR_CLOTHING_UNRELEASED_WORLD } from "@shared/playerClothingAdmin";
 import { registerPrivacyPolicyRoutes } from "./routes/privacyPolicy.routes";
 import { registerPublicPetShowcaseRoute } from "./routes/publicPetShowcase.routes";
 import { registerEmblemRoutes } from "./routes/emblem.routes";
@@ -1323,11 +1325,24 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Item not found" });
       }
 
-      // Avatar clothing catalog SKUs are admin-only until ownership and
-      // purchase policy lands in Avatar 08B. A forged worldId/itemId cannot
-      // grant an unreleased outfit for free.
+      // Only truly stocked, positive-price, published clothing can be bought.
+      // Pet Park shop building stock was authenticated above; world-scoped
+      // purchases remain blocked until those shops can prove their inventory.
       if (shopItem.type === "clothing") {
-        return res.status(403).json({ message: "Avatar clothing is not yet available in shops" });
+        if (req.params.worldId !== "pet-park" || quantity !== 1 ||
+            shopItem.price <= 0 || !shopItem.imageUrl ||
+            shopItem.worldId !== AVATAR_CLOTHING_UNRELEASED_WORLD)
+          return res.status(403).json({ message: "This clothing is not available for purchase" });
+        const [design] = await db.select({
+          universal: playerClothingDrafts.universal,
+          category: playerClothingDrafts.publishedCategory,
+          segments: playerClothingDrafts.publishedSegments,
+        }).from(playerClothingDrafts)
+          .where(eq(playerClothingDrafts.shopItemId, itemId)).limit(1);
+        if (!design?.universal || !playerClothingDefinitionSchema.safeParse({
+          name: shopItem.name, category: design.category, segments: design.segments,
+        }).success)
+          return res.status(403).json({ message: "This clothing has not been published" });
       }
       // Garden fruit must be earned from harvesting or bought from another
       // player's marketplace listing. Never allow direct shop-ID purchases,
