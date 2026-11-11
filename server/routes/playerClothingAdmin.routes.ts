@@ -70,6 +70,8 @@ export function registerPlayerClothingAdminRoutes(
       const uploads = await Promise.all(input.data.images.map(async image => ({
         ...image, imageUrl: await processImage(image.imageData, 1000),
       })));
+      const uploadedShopImage = input.data.price > 0 && input.data.shopImageData
+        ? await processImage(input.data.shopImageData, 1000) : null;
       const outcome = await db.transaction(async tx => {
         const existing = input.data.id
           ? (await tx.select().from(playerClothingDrafts)
@@ -114,10 +116,15 @@ export function registerPlayerClothingAdminRoutes(
         if (!validClothingPublication(input.data.name, input.data.category, segments))
           return { status: 422 as const, message: "Clothing pieces or Face expressions are incomplete." };
         const thumbnail = segments[0].imageUrl;
+        const shopImageUrl = uploadedShopImage ?? existing?.shopImageUrl ?? null;
+        if (input.data.price > 0 && !shopImageUrl)
+          return { status: 422 as const,
+            message: "Upload a shop/reward image for clothing that costs coins." };
         const catalogData = {
           name: input.data.name, type: "clothing" as const,
-          worldId: AVATAR_CLOTHING_UNRELEASED_WORLD, price: 0,
-          description: `Avatar clothing · ${input.data.category}`, imageUrl: thumbnail,
+          worldId: AVATAR_CLOTHING_UNRELEASED_WORLD, price: input.data.price,
+          description: `Avatar clothing · ${input.data.category}`,
+          imageUrl: input.data.price > 0 ? shopImageUrl : thumbnail,
         };
         let itemId = existing?.shopItemId ?? null;
         if (itemId) {
@@ -136,6 +143,7 @@ export function registerPlayerClothingAdminRoutes(
           name: input.data.name, category: input.data.category,
           draftSegments: segments, publishedSegments: segments,
           publishedCategory: input.data.category, universal: true,
+          shopImageUrl,
           shopItemId: itemId, publishedAt: now, updatedAt: now,
         };
         const [saved] = existing
@@ -158,9 +166,12 @@ export function registerPlayerClothingAdminRoutes(
 
   app.get("/api/admin/player-character/clothing", isAdmin, async (_req, res) => {
     try {
-      const rows = await db.select().from(playerClothingDrafts);
+      const rows = await db.select({
+        draft: playerClothingDrafts, price: shopItems.price,
+      }).from(playerClothingDrafts)
+        .leftJoin(shopItems, eq(playerClothingDrafts.shopItemId, shopItems.id));
       res.set("Cache-Control", "private, no-store");
-      return res.json(rows);
+      return res.json(rows.map(row => ({ ...row.draft, price: row.price ?? 0 })));
     } catch (error) {
       console.error("[player-clothing] list failed", error);
       return res.status(500).json({ message: "Could not load clothing drafts" });
