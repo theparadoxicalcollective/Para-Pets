@@ -79,5 +79,6 @@ test("only Home navigation uses a translucent forest panel with outlined icon si
   assert.match(navCss, /border: 0;\s*border-radius: 0;\s*background: transparent/);
   assert.match(navCss, /filter: drop-shadow\(1px 0 0/);
   assert.match(navCss, /\.home-realm-nav__tile:focus-visible/);
-  assert.match(nav, /const HOME_NAV_ROWS = 3/);\n  assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
+  assert.match(nav, /const HOME_NAV_ROWS = 3/);
+  assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
 });
