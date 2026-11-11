@@ -213,25 +213,22 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       aria-label="Open coin bundles"
       title="Coin Bundles"
       onClick={() => navigate("/coins")}
-      className="transition-transform active:scale-90"
+      className="transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
       style={{
         gridColumn: location === "/" ? 1 : 2,
         gridRow: location === "/" ? 3 : "1 / span 2",
-        width: location === "/" ? 32 : 44,
-        height: location === "/" ? 32 : 44,
+        width: location === "/" ? 40 : 46,
+        height: location === "/" ? 40 : 46,
         alignSelf: "center",
         justifySelf: "center",
         display: "grid",
         placeItems: "center",
         position: "relative",
-        background: location === "/" ? "transparent" : "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
-        border: location === "/"
-          ? "1.5px solid rgba(240,192,64,0.86)"
-          : "1.5px solid rgba(240,192,64,0.72)",
-        borderRadius: location === "/" ? "50%" : 13,
-        boxShadow: location === "/"
-          ? "0 0 9px rgba(240,192,64,0.23)"
-          : "0 3px 10px rgba(0,0,0,0.46), 0 0 9px rgba(240,192,64,0.28), inset 0 0 7px rgba(255,223,125,0.10)",
+        // Keep the tap target without drawing a circle around transparent art.
+        background: "transparent",
+        border: "none",
+        borderRadius: 0,
+        boxShadow: "none",
         padding: 0,
         cursor: "pointer",
         flexShrink: 0,
@@ -242,10 +239,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         src={coinBagIconImg}
         alt="Buy Coins"
         style={{
-          width: location === "/" ? 26 : 38,
-          height: location === "/" ? 26 : 38,
+          width: location === "/" ? 36 : 43,
+          height: location === "/" ? 36 : 43,
           objectFit: "contain",
-          filter: "brightness(1.06) drop-shadow(0 0 7px rgba(240,192,64,0.58)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
+          // CSS drop-shadow follows opaque art pixels, not a container shape.
+          filter: "brightness(1.06) drop-shadow(1px 0 0 rgba(238,196,105,0.85)) drop-shadow(-1px 0 0 rgba(238,196,105,0.65)) drop-shadow(0 1px 0 rgba(238,196,105,0.7)) drop-shadow(0 0 5px rgba(240,192,64,0.42)) drop-shadow(0 2px 4px rgba(0,0,0,0.62))",
         }}
       />
       <span
@@ -538,7 +536,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               style={{
                 display: "grid",
                 gridTemplateColumns: location === "/" ? "max-content" : "auto 44px",
-                gridTemplateRows: location === "/" ? "30px 30px 34px" : "30px 30px",
+                gridTemplateRows: location === "/" ? "30px 30px 40px" : "30px 30px",
                 columnGap: 4,
                 rowGap: 2,
                 marginTop: location === "/" ? 17 : 0,
