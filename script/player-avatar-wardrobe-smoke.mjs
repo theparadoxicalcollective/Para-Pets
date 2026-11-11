@@ -238,7 +238,7 @@ try {
     await page.getByTestId("avatar-skin-picker-toggle").tap();
     await page.getByTestId("avatar-skin-rich").tap();
     await page.getByTestId("avatar-save-body-choice").tap();
-    await page.waitForFunction(() => document.querySelector('[data-testid="avatar-skin-rich"]')?.getAttribute("aria-pressed") === "true");
+    // Saving closes the color palette; assert the confirmed server state instead.
     assert.equal(avatar.skinTone, "#42291f", name + ": skin color persisted");
     await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
