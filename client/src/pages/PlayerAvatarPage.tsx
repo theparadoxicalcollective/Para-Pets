@@ -513,7 +513,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                  {selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) && (
                    <div className="player-avatar-page__clothing-colors" role="group"
                      data-testid="avatar-clothing-color-controls" aria-label={`Change color of ${selected.name}`}>
-                     <label htmlFor="avatar-clothing-color">Clothing Color
+                     <label htmlFor="avatar-clothing-color">{selected.category === "hair" ? "Hair Color" : "Clothing Color"}
                        <input id="avatar-clothing-color" type="color"
                          data-testid="avatar-clothing-custom-color"
                          value={selectedTint ?? "#d39a71"} disabled={busy}
