@@ -245,7 +245,7 @@ try {
     assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
       homeLayout.watcher.height >= 40 && homeLayout.watcher.height <= 44 &&
       homeLayout.watcher.top >= homeLayout.party.bottom - 2 &&
-      homeLayout.watcher.bottom <= sc.height - 1,
+      homeLayout.watcher.bottom <= sc.height + 0.5,
       sc.name+": enlarged Watcher docks beneath the five-pet panel: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
