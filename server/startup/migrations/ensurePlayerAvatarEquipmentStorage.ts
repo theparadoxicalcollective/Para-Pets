@@ -32,10 +32,13 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
       base_id varchar NOT NULL REFERENCES player_character_bases(id),
       base_published_at timestamp NOT NULL,
       base_parts jsonb NOT NULL,
+      skin_tone text,
       revision integer NOT NULL DEFAULT 0 CHECK (revision >= 0),
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now()
     );
+    ALTER TABLE player_avatar_profiles ADD COLUMN IF NOT EXISTS skin_tone text;
+
     CREATE TABLE IF NOT EXISTS player_avatar_equipment (
       user_id varchar NOT NULL REFERENCES player_avatar_profiles(user_id) ON DELETE CASCADE,
       category text NOT NULL CHECK (category IN ('accessories','head','hair','face','top','bottom','shoes','back')),
