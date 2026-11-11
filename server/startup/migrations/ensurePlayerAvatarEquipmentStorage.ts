@@ -49,6 +49,7 @@ export async function ensurePlayerAvatarEquipmentStorage(): Promise<void> {
       CONSTRAINT player_avatar_equipment_owner_category_uidx UNIQUE (user_id, category),
       CONSTRAINT player_avatar_equipment_owner_inventory_uidx UNIQUE (user_id, inventory_id)
     );
+    ALTER TABLE player_avatar_equipment ADD COLUMN IF NOT EXISTS color_tint text;
     CREATE INDEX IF NOT EXISTS player_avatar_equipment_inventory_idx
       ON player_avatar_equipment(inventory_id);
     -- Existing player accounts retain their outfit/equipment records.
