@@ -171,6 +171,50 @@
 .player-avatar-page__category--shoes  { left: 22%; top: 80%; }
 .player-avatar-page__category--back   { left: 78%; top: 80%; }
 
+.player-avatar-page__body-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 24px auto 14px;
+}
+.player-avatar-page__body-selector button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1px;
+  width: 53px;
+  height: 53px;
+  border: 1.5px solid #ae9557;
+  border-radius: 50%;
+  color: #f4d690;
+  background: radial-gradient(circle at 34% 24%, #385f42, #152d1d 80%);
+  font: 600 10px Georgia, serif;
+  box-shadow: 0 3px 12px #0009;
+  touch-action: manipulation;
+}
+.player-avatar-page__body-selector button[aria-pressed="true"] {
+  border-color: #ffe09a;
+  background: radial-gradient(circle at 35% 25%, #6a793f, #305339 83%);
+  box-shadow: 0 0 0 2px #d8ba6c66, 0 0 15px #dfbc7060;
+}
+.player-avatar-page__change-body {
+  width: min(100%, 620px);
+  margin: 8px auto 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #efddae;
+}
+.player-avatar-page__change-body button {
+  min-height: 44px;
+  padding: 9px 20px;
+  color: #fff2c5;
+  border: 1px solid #e0bf73;
+  border-radius: 22px;
+  background: #2d5134;
+  touch-action: manipulation;
+}
 .player-avatar-page__create,
 .player-avatar-page__wardrobe {
   margin: 0 auto;

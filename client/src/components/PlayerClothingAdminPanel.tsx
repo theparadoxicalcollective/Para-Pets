@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import PlayerCharacterRenderer from "./PlayerCharacterRenderer";
 import {
   canvasAlignedAvatarBodyTransform,
-  completePlayerCharacterParts,
+  availablePlayerCharacterBody,
   resolvePlayerCharacterParts,
   type StoredPlayerCharacterPart,
 } from "@shared/playerCharacter";
@@ -24,8 +24,10 @@ import { validClothingPublication } from "@shared/playerClothingAdmin";
 
 type Base = {
   id: string; name: string;
+  draftParts: StoredPlayerCharacterPart[];
   publishedParts: StoredPlayerCharacterPart[] | null;
   publishedAt: string | null;
+  updatedAt: string;
 };
 type ClothingDraft = {
   id: string; baseId: string; basePublishedAt: string;
@@ -110,14 +112,18 @@ export default function PlayerClothingAdminPanel({
     queryKey: CLOTHING_KEY,
     queryFn: () => requestJson<ClothingDraft[]>("GET","/api/admin/player-character/clothing"),
   });
-  const bases = (basesQuery.data ?? []).filter(base =>
-    base.publishedParts && completePlayerCharacterParts(base.publishedParts));
+  const savedBody = (base: Base) => availablePlayerCharacterBody({
+    ...base,
+    publishedAt: base.publishedAt ? new Date(base.publishedAt) : null,
+    updatedAt: new Date(base.updatedAt),
+  });
+  const bases = (basesQuery.data ?? []).filter(base => !!savedBody(base));
   const drafts = draftsQuery.data ?? [];
   const selected = drafts.find(item => item.id === selectedId) ??
     (selectedId === null ? drafts[0] : undefined);
   const base = bases.find(item => item.id === selected?.baseId);
-  const baseUnchanged = !!base?.publishedAt && !!selected &&
-    new Date(base.publishedAt).getTime() === new Date(selected.basePublishedAt).getTime();
+  const baseUnchanged = !!base && !!selected && !!savedBody(base) &&
+    savedBody(base)!.publishedAt.getTime() === new Date(selected.basePublishedAt).getTime();
 
   const savedSegments = selected?.draftSegments ?? [];
   const savedShoesLayer: PlayerShoesLayer = selected?.category === "shoes"
@@ -143,11 +149,9 @@ export default function PlayerClothingAdminPanel({
   }, [selected?.id,selected?.revision]);
 
   const bodyParts = useMemo(() =>
-    base?.publishedParts
-      ? resolvePlayerCharacterParts(base.publishedParts).map(part => ({
-          ...part, ...canvasAlignedAvatarBodyTransform(part.partType),
-        }))
-      : [], [base?.publishedParts]);
+    base ? (savedBody(base)?.parts ?? []).map(part => ({
+      ...part, ...canvasAlignedAvatarBodyTransform(part.partType),
+    })) : [], [base?.draftParts, base?.publishedParts, base?.publishedAt, base?.updatedAt]);
 
   const previewSegments = useMemo<PlayerClothingSegment[]>(() => {
     if (!selected) return [];
@@ -296,10 +300,10 @@ export default function PlayerClothingAdminPanel({
           </label>
         </div>
         {!bases.length && <p role="alert" className="text-xs text-[#f4d48a]">
-          Publish a completed avatar body before creating clothing.
+          Save all eight parts of a Masc or Fem body to unlock clothing creation.
         </p>}
         <button type="button" className={buttonClass+" w-full"}
-          data-testid="avatar-create-clothing" disabled={busy||anyDirty||!newName.trim()||!newBaseId}
+          data-testid="avatar-create-clothing" disabled={busy||anyDirty||!newName.trim()||!bases.some(base=>base.id===newBaseId)}
           onClick={()=>create.mutate()}>Add Clothing</button>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Saved clothing drafts">
           {drafts.map(item=><button key={item.id} type="button" className={buttonClass}
@@ -312,7 +316,7 @@ export default function PlayerClothingAdminPanel({
 
       {selected && <div className="space-y-3">
         {!baseUnchanged && <p role="alert" className={cardClass+" text-xs"}>
-          This avatar base was republished. Create clothing for the updated body.
+          This body was updated since you began this design. Create clothing for the updated body.
         </p>}
         <div className={cardClass+" space-y-2"}>
           <input className={inputClass} aria-label="Edit clothing name"

@@ -135,24 +135,13 @@ export default function PlayerCharacterAdminPanel() {
     onSuccess: base => {
       updateCache(base);
       setPendingImages({});
-      toast({ title: bodyKind + " body saved" });
+      void qc.invalidateQueries({ queryKey: ["/api/admin/player-character/clothing"] });
+      toast({ title: bodyKind + " body saved", description: "A complete body is available to players automatically." });
     },
     onError: reportError,
   });
 
-  const publish = useMutation({
-    mutationFn: () => requestJson<CharacterBase>(
-      "POST", "/api/admin/player-character/bases/" + selected!.id + "/publish",
-      { expectedRevision: selected!.revision },
-    ),
-    onSuccess: base => {
-      updateCache(base);
-      void qc.invalidateQueries({ queryKey: LIST_KEY });
-      toast({ title: "Default avatar published" });
-    },
-    onError: reportError,
-  });
-  const busy = saveBody.isPending || publish.isPending || readingParts > 0;
+  const busy = saveBody.isPending || readingParts > 0;
 
   const openImage = async (partType: PlayerCharacterPartType, file: File | undefined) => {
     if (!file) return;
@@ -184,8 +173,7 @@ export default function PlayerCharacterAdminPanel() {
     if (busy || dirty) return;
     setBodyKind(kind);
   };
-  const canPublish = !!selected && completePlayerCharacterParts(selected.draftParts) && !dirty && !busy;
-
+ 
   return (
     <section data-testid="player-character-admin-panel" className="space-y-3 text-[#f3dfac]">
       <div role="tablist" aria-label="Avatar administration" className="grid grid-cols-2 gap-2">
@@ -275,16 +263,9 @@ export default function PlayerCharacterAdminPanel() {
           </div>
 
           {selected && completePlayerCharacterParts(selected.draftParts) && (
-            <div className={cardClass}>
-              <button type="button" data-testid="avatar-publish-default"
-                className={buttonClass + " w-full"}
-                disabled={!canPublish} onClick={() => publish.mutate()}>
-                {publish.isPending ? "Publishing…" : selected.isDefault ? "Republish Default" : "Publish as Default"}
-              </button>
-              <p className="mt-2 text-center text-[11px] text-[#cbbb91]">
-                Only one default body is published at a time.
-              </p>
-            </div>
+            <p role="status" className="text-center text-xs text-[#decb99]">
+              Complete body saved. Players can choose this body; no publishing step needed.
+            </p>
           )}
           {query.isLoading && <p role="status" className="text-center text-xs">Loading bodies…</p>}
           {query.isError && (
