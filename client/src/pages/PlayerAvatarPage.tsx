@@ -179,7 +179,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => previewSelections[slot]
     ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
   const clothingLayers = avatar
-    ? wardrobeLayers(avatar, previews, resetPending).filter(layer =>
+    ? wardrobeLayers(avatar, previews, resetPending, selectedBody?.name).filter(layer =>
         !switchingBody || avatar.ownedClothing.some(item =>
           item.inventoryId === layer.inventoryId && item.universal))
     : [];
