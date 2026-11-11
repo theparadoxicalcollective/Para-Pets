@@ -233,6 +233,8 @@ try {
     assert.equal(homeLayout.petRarityStars,4,sc.name+": selected four-star pet displays four rarity stars");
     assert.equal(homeLayout.teamSlots,5,sc.name+": still five editable pet slots");
     await page.getByTestId("home-player-team-composite-1").waitFor({state:"visible"});
+    await page.getByTestId("home-player-team-composite-1")
+      .locator('[data-testid="pet-animator"] img').first().waitFor({state:"visible"});
     await page.getByTestId("equipped-mini-pet").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("home-player-team-composite-1")
       .locator('[data-testid="pet-animator"] img').count(),1,
