@@ -145,11 +145,8 @@ export const playerClothingDefinitionSchema = z.object({
     ctx.addIssue({ code: "custom", path: ["segments"],
       message: "Pants layering applies only to shoes" });
   }
-  if (category === "face" &&
-      !PLAYER_CLOTHING_UPLOAD_SLOTS.face.every(slot => segments.some(segment => segment.slot === slot))) {
-    ctx.addIssue({ code: "custom", path: ["segments"],
-      message: "Face requires Open Eyes, Closed Eyes and Mouth" });
-  }
+  // Legacy published faces may contain only one expression. Keep them
+  // readable; the new one-action Save Clothing API requires all three.
   segments.forEach((segment, index) => {
     const key = clothingSegmentKey(segment);
     if (used.has(key)) {
