@@ -11,6 +11,7 @@ import {
   playerClothingSegmentSchema,
   playerClothingSlotSchema,
   playerShoesLayerSchema,
+  isFreeClothingSlot,
   clothingSegmentKey,
   type PlayerClothingCategory,
   type PlayerClothingSegment,
@@ -72,6 +73,49 @@ export const clothingCanvasWriteSchema = z.object({
   if (images.reduce((n, image) => n + image.imageData.length, 0) > 40_000_000) {
     ctx.addIssue({ code: "custom", path: ["images"], message: "Combined clothing artwork is too large" });
   }
+});
+
+/** One Save Clothing request creates or updates a catalog item atomically.
+ * Existing artwork is addressed by its previous slot, never a client URL. */
+export const saveUniversalClothingItemSchema = z.object({
+  id: z.string().uuid().optional(),
+  expectedRevision: z.number().int().min(0).optional(),
+  name: z.string().trim().min(1).max(80),
+  category: playerClothingCategorySchema,
+  images: z.array(z.object({
+    slot: playerClothingSlotSchema,
+    partType: playerCharacterPartTypeSchema,
+    imageData: uploadData,
+  }).strict()).max(13),
+  keep: z.array(z.object({
+    previousSlot: playerClothingSlotSchema,
+    slot: playerClothingSlotSchema,
+    partType: playerCharacterPartTypeSchema,
+  }).strict()).max(13),
+  shoesLayer: playerShoesLayerSchema.optional(),
+}).strict().superRefine((value, ctx) => {
+  if (!!value.id !== (value.expectedRevision !== undefined))
+    ctx.addIssue({ code: "custom", message: "Editing requires an item and revision" });
+  const seen = new Set<string>();
+  for (const [i, entry] of [...value.images, ...value.keep].entries()) {
+    if (seen.has(entry.slot)) ctx.addIssue({ code: "custom", path: [i < value.images.length ? "images" : "keep"],
+      message: "Each part needs a unique upload slot" });
+    seen.add(entry.slot);
+    const isFace = value.category === "face";
+    if (isFace ? !["face_open_eyes", "face_closed_eyes", "face_mouth"].includes(entry.slot)
+      || entry.partType !== "head" : !isFreeClothingSlot(entry.slot))
+      ctx.addIssue({ code: "custom", message: "Use Face expression slots or a numbered clothing piece" });
+  }
+  if (value.category === "face" &&
+      !["face_open_eyes", "face_closed_eyes", "face_mouth"].every(slot => seen.has(slot))) {
+    ctx.addIssue({ code: "custom", path: ["images"], message: "Face needs open eyes, closed eyes and mouth" });
+  }
+  if (value.category !== "shoes" && value.shoesLayer)
+    ctx.addIssue({ code: "custom", message: "Only shoes can choose pants layering" });
+  if (value.images.length + value.keep.length < (value.category === "face" ? 3 : 1))
+    ctx.addIssue({ code: "custom", message: "Upload all required clothing artwork" });
+  if (value.images.reduce((n, entry) => n + entry.imageData.length, 0) > 40_000_000)
+    ctx.addIssue({ code: "custom", message: "Clothing images together exceed 40 MB" });
 });
 
 export const clothingRevisionSchema = z.object({

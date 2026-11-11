@@ -37,13 +37,16 @@ export function isEligiblePlayerClothingInventory(input: {
   designBasePublishedAt: Date;
   selectedBasePublishedAt: Date;
   publishedSegmentsCount: number;
+  universal?: boolean;
 }): boolean {
   return input.ownerId === input.playerId &&
     input.itemType === "clothing" &&
     Number.isInteger(input.quantity) && input.quantity > 0 &&
     !input.isListed &&
     input.itemCategory === input.requestedCategory &&
-    input.designBaseId === input.selectedBaseId &&
-    input.designBasePublishedAt.getTime() === input.selectedBasePublishedAt.getTime() &&
+    (input.universal === true || (
+      input.designBaseId === input.selectedBaseId &&
+      input.designBasePublishedAt.getTime() === input.selectedBasePublishedAt.getTime()
+    )) &&
     input.publishedSegmentsCount > 0;
 }
