@@ -450,39 +450,46 @@
   height: clamp(37px, 10vw, 51px);
 }
 .home-player-hud--avatar-home .home-player-hud__progress {
-  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 14px);
-  width: min(calc(100vw - 78px), 318px);
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 3px);
+  width: min(calc(100vw - 108px), 285px);
 }
 .home-player-hud--avatar-home .home-player-hud__xp-row {
-  height: 38px;
+  height: 94px;
 }
 .home-player-hud--avatar-home .home-player-hud__xp-track {
   width: 100%;
-  height: 38px;
+  height: 94px;
   overflow: visible;
   border: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
 }
-.home-player-hud__xp-arc { display: block; width: 100%; height: 38px; overflow: visible; }
+.home-player-hud__xp-arc { display: block; width: 100%; height: 94px; overflow: visible; }
 .home-player-hud__xp-arc path {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.home-player-hud__xp-arc-shadow { stroke: rgba(0, 13, 8, .84); stroke-width: 10px; }
-.home-player-hud__xp-arc-track { stroke: #d1ae65; stroke-width: 5px; }
+.home-player-hud__xp-arc-shadow { stroke: rgba(0, 13, 8, .84); stroke-width: 13px; }
+.home-player-hud__xp-arc-track { stroke: rgba(210, 176, 104, .92); stroke-width: 8px; }
 .home-player-hud__xp-arc-fill {
   stroke: #639a65;
-  stroke-width: 5.5px;
+  stroke-width: 8px;
   filter: drop-shadow(0 0 2px rgba(172, 221, 132, .4));
   transition: stroke-dashoffset .3s ease-out;
 }
 .home-player-hud--avatar-home .home-player-hud__xp-text {
-  top: calc(100% + 2px);
+  top: calc(100% + 1px);
 }
-.home-player-hud--avatar-home .home-player-hud__level-below { margin-top: 1px; }
+.home-player-hud--avatar-home .home-player-hud__level-below {
+  position: absolute;
+  left: 0;
+  top: 48px;
+  width: 100%;
+  margin: 0;
+  pointer-events: none;
+}
 .home-player-hud--avatar-home .home-player-hud__level-pill {
   min-width: 78px;
   min-height: 24px;
@@ -490,16 +497,16 @@
 /* Five larger companions sit on small shadow ovals rather than circles.
    Higher outer positions make a shallow curve around the main avatar. */
 .home-player-hud--avatar-home .home-player-hud__party-panel {
-  width: min(calc(100vw - 10px), 530px);
+  width: min(calc(100vw - 24px), 480px);
   padding-inline: 1px;
 }
 .home-player-hud--avatar-home .home-player-hud__team {
-  max-width: 524px;
-  gap: clamp(2px, 1vw, 7px);
+  max-width: 476px;
+  gap: clamp(6px, 2vw, 13px);
 }
 .home-player-hud--avatar-home .home-player-hud__slot {
-  width: min(100%, clamp(58px, 19.5vw, 100px));
-  aspect-ratio: 1 / 1.04;
+  width: min(100%, clamp(48px, 16.5vw, 77px));
+  aspect-ratio: 1 / 1.05;
   padding: 0;
   overflow: visible;
   border: 0;
@@ -509,9 +516,9 @@
   isolation: isolate;
 }
 .home-player-hud--avatar-home .home-player-hud__slot:nth-child(1),
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-10px); }
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-12px); }
 .home-player-hud--avatar-home .home-player-hud__slot:nth-child(2),
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(4) { transform: translateY(-4px); }
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(4) { transform: translateY(-5px); }
 .home-player-hud--avatar-home .home-player-hud__slot::before {
   content: "";
   position: absolute;
@@ -525,7 +532,7 @@
   pointer-events: none;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-portrait {
-  inset: -2px 1px 7px;
+  inset: 0 0 7px;
   display: block;
   overflow: visible;
   border: 0;
@@ -550,9 +557,9 @@
   > .home-player-hud__fallback-pet { opacity: 0; }
 .home-player-hud__mini-companion {
   position: absolute;
-  right: -4%;
-  bottom: 9%;
-  width: 39%;
+  right: -1%;
+  bottom: 7%;
+  width: 32%;
   aspect-ratio: 1;
   z-index: 3;
   pointer-events: none;
@@ -590,12 +597,36 @@
 .home-player-hud--avatar-home .home-player-hud__slot:disabled { opacity: .58; }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__progress {
-    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 12px);
+    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 6px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot {
-    width: min(100%, clamp(52px, 17.5vw, 78px));
+    width: min(100%, clamp(44px, 15vw, 65px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud__xp-arc-fill { transition: none; }
+}
+
+/* The renderer's logical canvas is 58px, NOT the old default 200px.
+   Center it within a real pet slot to prevent oversized silhouettes and
+   visual overlap while retaining individual adornments and eye blinks. */
+.home-player-hud--avatar-home .home-player-hud__pet-renderer {
+  display: grid;
+  place-items: center;
+}
+.home-player-hud--avatar-home .home-player-hud__pet-renderer > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+.home-player-hud--avatar-home .home-player-hud__slot:nth-child(3) {
+  transform: translateY(5px);
+}
+.home-player-hud--avatar-home .home-player-hud__slot-placeholder img {
+  width: 65%;
+  height: 65%;
+}
+@media (max-height: 690px) {
+  .home-player-hud--avatar-home .home-player-hud__party-panel {
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
 }
