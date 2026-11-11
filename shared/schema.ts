@@ -198,6 +198,7 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   // Draft category edits stay private until Save Clothing, just like segments.
   publishedCategory: text("published_category").$type<PlayerClothingCategory | null>(),
   universal: boolean("universal").notNull().default(false),
+  colorPickerEnabled: boolean("color_picker_enabled").notNull().default(false),
   // Optional item catalog artwork independent of transparent character layers.
   shopImageUrl: text("shop_image_url"),
   shopItemId: varchar("shop_item_id").unique().references(() => shopItems.id, { onDelete: "set null" }),
@@ -308,6 +309,7 @@ export const playerAvatarEquipment = pgTable("player_avatar_equipment", {
   inventoryId: varchar("inventory_id").notNull()
     .references(() => userInventory.id, { onDelete: "cascade" }),
   equippedAt: timestamp("equipped_at").notNull().default(sql`now()`),
+  colorTint: text("color_tint"),
 }, table => [
   uniqueIndex("player_avatar_equipment_owner_category_uidx").on(table.userId, table.category),
   uniqueIndex("player_avatar_equipment_owner_inventory_uidx").on(table.userId, table.inventoryId),
