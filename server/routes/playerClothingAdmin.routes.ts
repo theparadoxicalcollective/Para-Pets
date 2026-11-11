@@ -207,7 +207,9 @@ export function registerPlayerClothingAdminRoutes(
           draftSegments: segments, publishedSegments: segments,
           draftBodyVariants: bodyVariants, publishedBodyVariants: bodyVariants,
           publishedCategory: input.data.category, universal: true,
-          colorPickerEnabled: input.data.colorPickerEnabled ?? existing?.colorPickerEnabled ?? false,
+          // Legacy checkbox data is accepted for compatibility but no longer
+          // determines player recoloring. Only hair uses a color picker.
+          colorPickerEnabled: input.data.category === "hair",
           shopImageUrl,
           shopItemId: itemId, publishedAt: now, updatedAt: now,
         };
