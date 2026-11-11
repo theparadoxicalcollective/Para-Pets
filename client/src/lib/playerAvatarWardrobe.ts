@@ -52,6 +52,7 @@ export interface OwnedAvatarClothing {
   quantity: number;
   isListed: boolean;
   compatible: boolean;
+  universal?: boolean;
   segments: PlayerClothingSegment[];
 }
 

@@ -142,7 +142,11 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     item.inventoryId === previewId && item.compatible && !item.isListed && item.quantity > 0
   );
   const preview = selected ? { category, inventoryId: selected.inventoryId } : null;
-  const clothingLayers = avatar && !switchingBody ? wardrobeLayers(avatar, preview) : [];
+  const clothingLayers = avatar
+    ? wardrobeLayers(avatar, switchingBody ? null : preview).filter(layer =>
+        !switchingBody || avatar.ownedClothing.some(item =>
+          item.inventoryId === layer.inventoryId && item.universal))
+    : [];
   const equippedItem = avatar?.equipped.find(item => item.category === category);
   const unavailableEquipped = avatar?.unavailableEquipmentSlots.includes(category) ?? false;
 
@@ -250,7 +254,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
             )}
             {switchingBody && avatar.revision !== null && (
               <section className="player-avatar-page__change-body" data-testid="avatar-body-change">
-                <p>Changing your body will unequip your outfit. All clothing stays in your inventory.</p>
+                <p>Universal clothing remains equipped when you change bodies. Older body-specific items will be unequipped but stay in your inventory.</p>
                 <button type="button" data-testid="avatar-save-body-choice" disabled={busy}
                   onClick={() => selectedBody && changeBody.mutate({
                     baseId: selectedBody.id, expectedRevision: avatar.revision!, accountId: userId,

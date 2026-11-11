@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, notInArray } from "drizzle-orm";
 import type { db as database } from "../db";
 import {
   playerAvatarProfiles, playerAvatarEquipment, playerCharacterBases,
@@ -82,6 +82,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     category: playerClothingDrafts.publishedCategory,
     baseId: playerClothingDrafts.baseId,
     basePublishedAt: playerClothingDrafts.basePublishedAt,
+    universal: playerClothingDrafts.universal,
     segments: playerClothingDrafts.publishedSegments,
   }).from(userInventory)
     .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
@@ -103,13 +104,14 @@ async function readPlayerAvatar(db: Db, userId: string) {
       designBaseId: item.baseId, selectedBaseId: activeBase.id,
       designBasePublishedAt: item.basePublishedAt,
       selectedBasePublishedAt: activeBase.publishedAt,
+      universal: item.universal,
       publishedSegmentsCount: parsed.data.segments.length,
     });
     return [{
       inventoryId: item.inventoryId, shopItemId: item.shopItemId,
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
-      compatible, segments: parsed.data.segments,
+      compatible, universal: item.universal, segments: parsed.data.segments,
     }];
   });
 
@@ -216,10 +218,24 @@ export function registerPlayerAvatarRoutes(
         if (profile.baseId === base.id &&
             profile.basePublishedAt.getTime() === available.publishedAt.getTime())
           return { status: 200 as const };
-        // Different base anatomy invalidates old fitted clothing. Preserve
-        // the inventory items; remove only equipment links atomically.
-        await tx.delete(playerAvatarEquipment)
+        // New universal clothing remains equipped across body changes.
+        // Remove only older, anatomy-locked outfit links and any dangling
+        // entries. Inventory ownership is never changed.
+        const worn = await tx.select({
+          category: playerAvatarEquipment.category,
+          universal: playerClothingDrafts.universal,
+        }).from(playerAvatarEquipment)
+          .innerJoin(userInventory, eq(userInventory.id, playerAvatarEquipment.inventoryId))
+          .innerJoin(playerClothingDrafts,
+            eq(playerClothingDrafts.shopItemId, userInventory.shopItemId))
           .where(eq(playerAvatarEquipment.userId, user.id));
+        const keepCategories = worn.filter(entry => entry.universal).map(entry => entry.category);
+        await tx.delete(playerAvatarEquipment).where(
+          keepCategories.length
+            ? and(eq(playerAvatarEquipment.userId, user.id),
+                notInArray(playerAvatarEquipment.category, keepCategories))
+            : eq(playerAvatarEquipment.userId, user.id),
+        );
         await tx.update(playerAvatarProfiles).set({
           baseId: base.id, basePublishedAt: available.publishedAt,
           baseParts: available.parts,
@@ -264,6 +280,7 @@ export function registerPlayerAvatarRoutes(
             id: shopItems.id, type: shopItems.type, name: shopItems.name,
             category: playerClothingDrafts.publishedCategory, baseId: playerClothingDrafts.baseId,
             basePublishedAt: playerClothingDrafts.basePublishedAt,
+            universal: playerClothingDrafts.universal,
             segments: playerClothingDrafts.publishedSegments,
           }).from(shopItems)
             .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
@@ -279,6 +296,7 @@ export function registerPlayerAvatarRoutes(
             designBaseId: item.baseId, selectedBaseId: profile.baseId,
             designBasePublishedAt: item.basePublishedAt,
             selectedBasePublishedAt: profile.basePublishedAt,
+            universal: item.universal,
             publishedSegmentsCount: published.data.segments.length,
           })) return { status: 422 as const, message: "This clothing cannot be equipped: check its slot, ownership and avatar base" };
 
