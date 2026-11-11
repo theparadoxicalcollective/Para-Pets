@@ -384,16 +384,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 )}
               </div>
             )}
-            <div className="player-avatar-page__details" data-testid="avatar-scrollable-details">
+            <div className="player-avatar-page__body-divider" aria-hidden="true" />
+             <div className="player-avatar-page__details" data-testid="avatar-scrollable-details">
             {skinPickerOpen && (
             <section className="player-avatar-page__skin-picker" role="group"
               id="avatar-skin-tone-picker"
               aria-label="Choose skin color" data-testid="avatar-skin-tone-picker">
               <h2>Skin Color</h2>
               <div className="player-avatar-page__skin-swatches">
-                <button type="button" disabled={busy} aria-label="Original body color"
-                  aria-pressed={skinTone === null} className="player-avatar-page__skin-original"
-                  onClick={() => setSkinChoice(null)}>Original</button>
                 {PLAYER_SKIN_TONE_SWATCHES.map(swatch => (
                   <button type="button" key={swatch.value} disabled={busy}
                     aria-label={swatch.label + " skin color"}
@@ -489,12 +487,27 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     No {PLAYER_CLOTHING_CATEGORY_LABELS[category].toLowerCase()} clothing is available yet.
                   </div>
                 )}
+                 {selected?.colorPickerEnabled && (
+                   <div className="player-avatar-page__clothing-colors" role="group"
+                     data-testid="avatar-clothing-color-controls" aria-label={`Change color of ${selected.name}`}>
+                     <label htmlFor="avatar-clothing-color">Clothing Color
+                       <input id="avatar-clothing-color" type="color"
+                         data-testid="avatar-clothing-custom-color"
+                         value={selectedTint ?? "#d39a71"} disabled={busy}
+                         onChange={event => setPreviewTint(selected.inventoryId, event.target.value)} />
+                     </label>
+                     <button type="button" disabled={busy || selectedTint === null}
+                       data-testid="avatar-clothing-reset-color"
+                       onClick={() => setPreviewTint(selected.inventoryId, null)}>Original Color</button>
+                   </div>
+                 )}
+
 
                  {avatar.created && !appearanceChanged ? (
                 <div className="player-avatar-page__actions">
-                  <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || selected.inventoryId === equippedItem?.inventoryId}
-                    onClick={() => selected && saveEquipment(selected.inventoryId)}>
-                    {equipment.isPending ? "Saving…" : selected?.inventoryId === equippedItem?.inventoryId ? "Already Equipped" : "Equip Clothing"}
+                  <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || (selected.inventoryId === equippedItem?.inventoryId && !selectedTintChanged)}
+                    onClick={() => selected && saveEquipment(selected.inventoryId, selected.colorPickerEnabled ? selectedTint : null)}>
+                    {equipment.isPending ? "Saving…" : selectedTintChanged ? "Save Color" : selected?.inventoryId === equippedItem?.inventoryId ? "Already Equipped" : "Equip Clothing"}
                   </button>
                   <button type="button" data-testid="avatar-unequip-button" className="player-avatar-page__remove"
                     disabled={busy || (!equippedItem && !unavailableEquipped)}
