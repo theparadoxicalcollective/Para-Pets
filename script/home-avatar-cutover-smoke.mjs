@@ -406,11 +406,14 @@ try {
       await page.getByTestId("player-avatar-page").waitFor({state:"visible"});
       const firstSave = page.waitForResponse(r =>
         r.url().endsWith("/api/player-avatar/create") && r.request().method()==="POST");
+      await page.getByTestId("avatar-skin-picker-toggle").tap();
       await page.getByTestId("avatar-skin-warm").tap();
       await page.getByTestId("avatar-create-button").tap();
       await firstSave;
       assert.equal(avatar.skinTone,"#d39a71",sc.name+": first save stores player-selected skin");
       assert.equal(writes.length,1,sc.name+": only the explicit wardrobe Save creates");
+      await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
+      await page.getByTestId("avatar-save-confirmation-close").tap();
       await page.getByRole("button",{name:"Back to Home"}).tap();
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
       assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),8,
@@ -425,6 +428,8 @@ try {
         sc.name+": equipped clothing displays over the shared rig");
       await page.getByTestId("home-avatar-character").tap();
       await page.getByRole("button",{name:"Back to Home"}).waitFor({state:"visible"});
+      assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(),0,
+        sc.name+": existing character opens with compact color selector");
       await page.getByRole("button",{name:"Back to Home"}).tap();
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
     }

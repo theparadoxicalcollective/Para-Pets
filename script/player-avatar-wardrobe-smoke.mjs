@@ -57,6 +57,7 @@ const owned = [
   item("face", "face", ["head"]),
   item("bottom", "pants", ["left_leg", "right_leg"]),
   item("top", "listed-top", ["top"], { isListed: true, compatible: false }),
+  item("back", "free-back", ["top"], { free: true, universal: true }),
 ];
 await server.listen();
 const browser = await chromium.launch({ headless: true });
@@ -158,12 +159,40 @@ try {
       name + ": completed Fem/Masc choices visible");
     await page.getByTestId("avatar-choose-masc").tap();
     assert.equal(await page.getByTestId("avatar-choose-masc").getAttribute("aria-pressed"), "true");
+    assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
+      name + ": skin picker starts closed");
+    assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
+      name + ": clothing categories start closed");
+    await page.getByTestId("avatar-category-back").tap();
+    await page.getByTestId("avatar-clothing-category-panel").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("avatar-clothing-free-back").count(), 1,
+      name + ": universally free back clothing is available before creation");
+    await page.getByTestId("avatar-clothing-free-back").tap();
+    assert.equal(await page.locator('[data-clothing-part="top"]').count(), 1,
+      name + ": a free piece previews on an unsaved character");
+    await page.getByTestId("avatar-category-back").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
+      name + ": tapping the active clothing category closes it");
+    await page.getByTestId("avatar-skin-picker-toggle").tap();
+    await page.getByTestId("avatar-skin-tone-picker").waitFor({ state: "visible" });
     await page.getByTestId("avatar-skin-warm").tap();
     assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
       name + ": color preview tints the eight body layers");
+    await page.getByTestId("avatar-category-head").tap();
+    assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
+      name + ": opening clothing hides skin colors");
     await page.getByTestId("avatar-create-button").tap();
-    await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
+    await page.getByTestId("avatar-save-confirmation").waitFor({ state: "visible" });
+    assert.equal(await page.getByRole("dialog", { name: "Character Saved" }).count(), 1,
+      name + ": themed save popup is accessible");
+    assert.equal(await page.getByTestId("avatar-clothing-category-panel").count(), 0,
+      name + ": saving closes clothing");
+    assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
+      name + ": saving closes skin picker");
+    await page.getByTestId("avatar-save-confirmation-close").tap();
     assert.equal(writes[0].kind, "create", name + ": save is explicit");
+    await page.getByTestId("avatar-category-head").tap();
+    await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
     const overflow = await page.getByTestId("avatar-owned-inventory").evaluate(el => el.scrollWidth > el.clientWidth);
     assert.equal(overflow, true, name + ": owned clothing tray scrolls horizontally");
 
@@ -206,10 +235,15 @@ try {
     await page.getByTestId("avatar-category-shoes").tap();
     await page.getByTestId("avatar-wardrobe-empty").waitFor({ state: "visible" });
     const equippedBeforeColor = avatar.equipped.map(entry => entry.inventoryId).sort();
+    await page.getByTestId("avatar-skin-picker-toggle").tap();
     await page.getByTestId("avatar-skin-rich").tap();
     await page.getByTestId("avatar-save-body-choice").tap();
     await page.waitForFunction(() => document.querySelector('[data-testid="avatar-skin-rich"]')?.getAttribute("aria-pressed") === "true");
     assert.equal(avatar.skinTone, "#42291f", name + ": skin color persisted");
+    await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
+      name + ": appearance save closes the picker");
+    await page.getByTestId("avatar-save-confirmation-close").tap();
     assert.deepEqual(avatar.equipped.map(entry => entry.inventoryId).sort(), equippedBeforeColor,
       name + ": skin-only save never unequips clothing");
     await page.getByTestId("avatar-choose-fem").tap();
@@ -218,6 +252,8 @@ try {
     await page.getByTestId("avatar-save-body-choice").tap();
     await page.waitForFunction(() => document.querySelector('[data-testid="avatar-choose-fem"]')?.getAttribute("aria-pressed") === "true");
     assert.equal(avatar.base.id, "base-1", name + ": saved body changes without losing clothing inventory");
+    await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
+    await page.getByTestId("avatar-save-confirmation-close").tap();
     assert.equal(avatar.ownedClothing.length, owned.length);
     assert.deepEqual(errors, [], name + ": no runtime page errors");
     console.log("PASS " + name + ": 08C first-save, owned shelf, previews, eight slots, shared head art, pants and remove");
