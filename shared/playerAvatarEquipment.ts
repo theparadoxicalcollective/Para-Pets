@@ -33,6 +33,8 @@ export const savePlayerAvatarTuckSchema = z.object({
 export const savePlayerAvatarEquipmentSchema = z.object({
   expectedRevision: z.number().int().min(0),
   inventoryId: z.string().uuid().nullable(),
+  // Optional for compatibility with older players and equipment requests.
+  colorTint: playerSkinToneSchema.optional(),
 }).strict();
 
 export { playerClothingCategorySchema };
