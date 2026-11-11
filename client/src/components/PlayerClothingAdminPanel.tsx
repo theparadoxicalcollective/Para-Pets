@@ -24,7 +24,7 @@ import {
   type PlayerClothingBodyVariants,
   type PlayerClothingBodyType,
   type PlayerClothingSlot,
-  isUniversalClothingCategory, playerClothingCanRecolor,
+  isUniversalClothingCategory,
   type PlayerShoesLayer,
 } from "@shared/playerCharacterClothing";
 
@@ -117,7 +117,6 @@ export default function PlayerClothingAdminPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState(0);
-  const [colorPickerEnabled, setColorPickerEnabled] = useState(false);
   const [shopImageData, setShopImageData] = useState<string | null>(null);
   const [category, setCategory] = useState<PlayerClothingCategory>("top");
   const [partsByBody, setPartsByBody] = useState<Record<PlayerClothingBodyType, ClothingPart[]>>({
@@ -213,7 +212,8 @@ export default function PlayerClothingAdminPanel({
     mutationFn: () => requestJson<ClothingDraft>("POST", "/api/admin/player-character/clothing/item", {
       ...(editingId ? { id: editingId, expectedRevision: activeDraft!.revision } : {}),
       name: name.trim(), category, price,
-      colorPickerEnabled: playerClothingCanRecolor(category, colorPickerEnabled),
+      // Only hair supports recoloring; other clothing uses uploaded colors.
+      colorPickerEnabled: category === "hair",
       ...(shopImageData ? { shopImageData } : {}),
       // Shared categories save just one set, not duplicated Fem/Masc uploads.
       ...(universalArtwork ? partUploads("fem") : {
@@ -229,7 +229,6 @@ export default function PlayerClothingAdminPanel({
       setEditingId(null);
       setName("");
       setPrice(0);
-      setColorPickerEnabled(false);
       setShopImageData(null);
       setCategory("top");
       setPartsByBody({ fem: [], masc: [] });
@@ -259,7 +258,6 @@ export default function PlayerClothingAdminPanel({
       setPartsByBody({ fem: [], masc: [] });
       setName("");
       setPrice(0);
-      setColorPickerEnabled(false);
       setShopImageData(null);
       setScreen("view");
       toast({ title: "Clothing deleted", description: "Removed from wardrobes and future shop availability." });
@@ -276,7 +274,7 @@ export default function PlayerClothingAdminPanel({
   const startNew = () => {
     if (busy) return;
     setConfirmDelete(false);
-    setEditingId(null); setName(""); setPrice(0); setColorPickerEnabled(false); setShopImageData(null);
+    setEditingId(null); setName(""); setPrice(0); setShopImageData(null);
     setCategory("top"); setPartsByBody({ fem: [], masc: [] });
     setShoesLayer("under"); setClosedEyes(false); setChanged(false);
     setScreen("create");
@@ -286,7 +284,6 @@ export default function PlayerClothingAdminPanel({
     setConfirmDelete(false);
     setEditingId(draft.id); setName(draft.name); setPrice(draft.price ?? 0);
     setShopImageData(null); setCategory(draft.category);
-    setColorPickerEnabled(draft.colorPickerEnabled === true);
     const variants = draft.draftBodyVariants ?? draft.publishedBodyVariants;
     const shared = draft.draftSegments.length ? draft.draftSegments : draft.publishedSegments ?? [];
     setPartsByBody({
@@ -465,15 +462,6 @@ export default function PlayerClothingAdminPanel({
                   <option key={value} value={value}>{PLAYER_CLOTHING_CATEGORY_LABELS[value]}</option>
                 ))}
               </select>
-            </label>
-            <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-[#a68e57] bg-[#163928] p-3 text-sm text-[#f1d89f]">
-              <input type="checkbox" className="h-5 w-5 shrink-0 accent-[#c4a363]"
-                data-testid="avatar-clothing-color-picker-enabled"
-                checked={playerClothingCanRecolor(category, colorPickerEnabled)} disabled={busy || category === "hair"}
-                onChange={event => { setColorPickerEnabled(event.target.checked); setChanged(true); }} />
-              <span><strong>Color Picker</strong>
-                <span className="block text-xs text-[#c9bd9b]">{category === "hair" ? "Every hairstyle, including front and back pieces, can be recolored automatically." : "Let players recolor this clothing item in the character creator."}</span>
-              </span>
             </label>
           </div>
 
