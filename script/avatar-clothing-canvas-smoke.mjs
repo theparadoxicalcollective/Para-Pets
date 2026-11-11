@@ -81,10 +81,10 @@ try {
         assert.ok(body.name);
         assert.ok(Number.isInteger(body.price) && body.price >= 0,
           size.name + ": all clothing has a whole-coin price");
+        const old = body.id ? rows.find(row => row.id === body.id) : null;
         if (body.price > 0)
           assert.ok(body.shopImageData?.startsWith("data:image/png;base64,") || old?.shopImageUrl,
             size.name + ": priced item has independent shop art");
-        const old = body.id ? rows.find(row => row.id === body.id) : null;
         assert.ok(!body.id || old, size.name + ": edit must target a saved item");
         assert.ok(!old || old.revision === body.expectedRevision,
           size.name + ": optimistic save revision");
@@ -117,6 +117,15 @@ try {
         };
         rows = old ? rows.map(row => row.id === old.id ? saved : row) : [...rows, saved];
         return route.fulfill({ json: saved });
+      }
+      if (path.startsWith("/api/admin/player-character/clothing/item/") &&
+          method === "DELETE") {
+        const targetId = path.split("/").at(-1);
+        const row = rows.find(item => item.id === targetId);
+        assert.ok(row, "delete must target a saved design");
+        assert.equal(route.request().postDataJSON().expectedRevision, row.revision);
+        rows = rows.filter(item => item.id !== targetId);
+        return route.fulfill({ json: { id: targetId, deleted: true } });
       }
       if (path.startsWith("/api/media/"))
         return route.fulfill({ body: png, contentType: "image/png" });
@@ -223,6 +232,17 @@ try {
     assert.equal(writes.at(-1).keep.length, 3);
     assert.equal(writes.at(-1).images.length, 0);
     assert.equal(rows.length, 5);
+    await page.getByTestId("avatar-clothing-view")
+      .getByRole("button", { name: /Blouse Updated/ }).click();
+    await page.getByTestId("avatar-delete-clothing-item").click();
+    await page.getByTestId("avatar-delete-clothing-confirm-overlay").waitFor({ state: "visible" });
+    await page.getByTestId("avatar-cancel-delete-clothing").click();
+    assert.equal(rows.length, 5, size.name + ": cancel deletion leaves catalog unchanged");
+    await page.getByTestId("avatar-delete-clothing-item").click();
+    await page.getByTestId("avatar-confirm-delete-clothing").click();
+    await page.getByTestId("avatar-clothing-view").waitFor({ state: "visible" });
+    assert.equal(rows.length, 4, size.name + ": delete retires the selected item");
+    assert.equal(await page.getByRole("button", { name: /Blouse Updated/ }).count(), 0);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 2, size.name + ": clothing editor does not overflow the device viewport");
