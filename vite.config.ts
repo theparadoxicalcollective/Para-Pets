@@ -3,6 +3,33 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { execFileSync } from "node:child_process";
+import sharp from "sharp";
+
+/** Keep the uploaded masters untouched, but inline a small WebP thumbnail
+ * when the avatar page imports a category icon. The eight PNG masters are
+ * ~23 MB together and should never be shipped to phones at button size. */
+const wardrobeIconNames = new Set([
+  "ClothingAccesoryIcon.png", "HeadAccessoriesIcon.png",
+  "HairIcon.png", "FaceIcon.png", "TopIcon.png", "BottomsIcon.png",
+  "ShoeIcon.png", "BackAccessoryIcon.png",
+]);
+function wardrobeIconThumbnailPlugin(): Plugin {
+  return {
+    name: "avatar-category-icon-thumbnails",
+    enforce: "pre",
+    async load(id) {
+      const file = id.split("?")[0].replace(/\\/g, "/");
+      if (!file.includes("/attached_assets/uploads/") ||
+          !wardrobeIconNames.has(path.basename(file))) return null;
+      const thumb = await sharp(file)
+        .resize(192, 192, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 84, alphaQuality: 95, effort: 4 })
+        .toBuffer();
+      return `export default ${JSON.stringify("data:image/webp;base64," + thumb.toString("base64"))};`;
+    },
+  };
+}
+
 
 const buildId = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || (() => {
   try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); }
@@ -73,6 +100,7 @@ function fixedWorldMapCanvasPlugin(): Plugin {
 export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(buildId) },
   plugins: [
+    wardrobeIconThumbnailPlugin(),
     fixedWorldMapCanvasPlugin(),
     react(),
     runtimeErrorOverlay(),
