@@ -18,6 +18,7 @@ import {
   type PlayerClothingCategory,
   type PlayerClothingSegment,
   type PlayerClothingSlot,
+  type PlayerShoesLayer,
 } from "@shared/playerCharacterClothing";
 import { validClothingPublication } from "@shared/playerClothingAdmin";
 
@@ -99,6 +100,7 @@ export default function PlayerClothingAdminPanel({
   const [readingParts,setReadingParts] = useState(0);
   const [metaDirty,setMetaDirty] = useState(false);
   const [previewClosedEyes,setPreviewClosedEyes] = useState(false);
+  const [shoesLayer,setShoesLayer] = useState<PlayerShoesLayer>("under");
 
   const basesQuery = useQuery<Base[]>({
     queryKey: BASE_KEY,
@@ -118,10 +120,14 @@ export default function PlayerClothingAdminPanel({
     new Date(base.publishedAt).getTime() === new Date(selected.basePublishedAt).getTime();
 
   const savedSegments = selected?.draftSegments ?? [];
+  const savedShoesLayer: PlayerShoesLayer = selected?.category === "shoes"
+    ? savedSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under"
+    : "under";
+  const shoesLayerDirty = selected?.category === "shoes" && shoesLayer !== savedShoesLayer;
   const needsAlignment = !!selected && savedSegments.some(segment =>
     !isAligned(segment,selected.category));
   const artworkDirty = Object.keys(pendingImages).length > 0 || removedSlots.length > 0;
-  const anyDirty = artworkDirty || metaDirty;
+  const anyDirty = artworkDirty || metaDirty || shoesLayerDirty;
   useEffect(() => { onDirtyChange?.(anyDirty); }, [anyDirty,onDirtyChange]);
   useEffect(() => {
     if (bases.length && !bases.some(base => base.id === newBaseId)) setNewBaseId(bases[0].id);
@@ -131,6 +137,9 @@ export default function PlayerClothingAdminPanel({
     setDraftCategory(selected?.category ?? "top");
     setMetaDirty(false);
     setPreviewClosedEyes(false);
+    setShoesLayer(selected?.category === "shoes"
+      ? selected.draftSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under"
+      : "under");
   }, [selected?.id,selected?.revision]);
 
   const bodyParts = useMemo(() =>
@@ -147,6 +156,7 @@ export default function PlayerClothingAdminPanel({
       const slot = segmentSlot(segment,selected.category);
       if (!removedSlots.includes(slot)) merged.set(slot,{
         ...segment, slot, canvasAligned: true,
+        ...(selected.category === "shoes" ? { shoesLayer } : {}),
         fit: canvasClothingFit(), renderPlane: "with_part",
       });
     }
@@ -156,10 +166,11 @@ export default function PlayerClothingAdminPanel({
       merged.set(part,{
         slot: part, partType: clothingSlotPartType(part), imageUrl,
         canvasAligned: true, fit: canvasClothingFit(), renderPlane: "with_part",
+        ...(selected.category === "shoes" ? { shoesLayer } : {}),
       });
     }
     return [...merged.values()];
-  },[selected?.id,selected?.category,savedSegments,pendingImages,removedSlots]);
+  },[selected?.id,selected?.category,savedSegments,pendingImages,removedSlots,shoesLayer]);
   const slots = selected ? PLAYER_CLOTHING_UPLOAD_SLOTS[selected.category] : [];
 
   const updateDraft = (row: ClothingDraft) =>
@@ -184,7 +195,7 @@ export default function PlayerClothingAdminPanel({
     onError:errorMessage,
   });
   const saveArtwork = useMutation({
-    mutationFn: (input: { draft:ClothingDraft;images:PendingImages;removed:PlayerClothingSlot[] }) =>
+    mutationFn: (input: { draft:ClothingDraft;images:PendingImages;removed:PlayerClothingSlot[];shoesLayer?:PlayerShoesLayer }) =>
       requestJson<ClothingDraft>("PUT",
         `/api/admin/player-character/clothing/${input.draft.id}/artwork`,{
           expectedRevision:input.draft.revision,
@@ -192,6 +203,7 @@ export default function PlayerClothingAdminPanel({
             .filter((pair):pair is [string,string] => !!pair[1])
             .map(([slot,imageData])=>({slot,imageData})),
           removeSlots:input.removed,
+          ...(input.shoesLayer ? { shoesLayer: input.shoesLayer } : {}),
         }),
     onSuccess: row => {
       updateDraft(row);setPendingImages({});setRemovedSlots([]);
@@ -257,6 +269,7 @@ export default function PlayerClothingAdminPanel({
   const discard = () => {
     setPendingImages({});setRemovedSlots([]);setMetaDirty(false);
     setDraftName(selected?.name ?? "");setDraftCategory(selected?.category ?? "top");
+    setShoesLayer(savedShoesLayer);
   };
 
   return (
@@ -312,7 +325,7 @@ export default function PlayerClothingAdminPanel({
               <option key={category} value={category}>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</option>)}
           </select>
           <button type="button" className={buttonClass+" w-full"}
-            disabled={busy||artworkDirty||!metaDirty||!draftName.trim()}
+            disabled={busy||artworkDirty||shoesLayerDirty||!metaDirty||!draftName.trim()}
             onClick={()=>saveDetails.mutate()}>Save Details</button>
         </div>
 
@@ -328,6 +341,21 @@ export default function PlayerClothingAdminPanel({
               previewEyesClosed={previewClosedEyes}
               motion="static" ariaLabel="Avatar clothing layered preview"/>
           </div>
+          {selected.category === "shoes" && (
+            <div role="group" aria-label="Shoes layering with pants"
+              className="mx-auto mt-3 grid max-w-[360px] grid-cols-2 gap-2"
+              data-testid="avatar-shoes-layer-control">
+              {(["under", "over"] as const).map(layer => (
+                <button key={layer} type="button" className={buttonClass}
+                  data-testid={"avatar-shoes-"+layer+"-pants"}
+                  aria-pressed={shoesLayer === layer} disabled={busy || metaDirty}
+                  style={{ borderColor: shoesLayer === layer ? "#f1d18c" : "#816f43" }}
+                  onClick={() => setShoesLayer(layer)}>
+                  {layer === "over" ? "Over Pants" : "Under Pants"}
+                </button>
+              ))}
+            </div>
+          )}
           {selected.category === "face" && (
             <div role="group" aria-label="Face expression preview"
               className="mx-auto mt-2 grid max-w-[360px] grid-cols-2 gap-2">
@@ -373,9 +401,10 @@ export default function PlayerClothingAdminPanel({
           </div>
           <button type="button" className={buttonClass+" w-full"}
             data-testid="avatar-save-clothing-artwork"
-            disabled={busy||metaDirty||!baseUnchanged||(!artworkDirty&&!needsAlignment)}
+            disabled={busy||metaDirty||!baseUnchanged||(!artworkDirty&&!needsAlignment&&!shoesLayerDirty)}
             onClick={()=>saveArtwork.mutate({
               draft:selected,images:{...pendingImages},removed:[...removedSlots],
+              ...(selected.category === "shoes" ? { shoesLayer } : {}),
             })}>
             {saveArtwork.isPending?"Saving Artwork…":"Save Artwork"}
           </button>
