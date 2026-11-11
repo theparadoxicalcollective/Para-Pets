@@ -53,7 +53,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
   const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewSelections, setPreviewSelections] = useState<Partial<Record<PlayerClothingCategory, string>>>({});
+  const [resetPending, setResetPending] = useState(false);
   const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
   // undefined = untouched, null = restore original art, hex = selected tint.
   const [skinChoice, setSkinChoice] = useState<string | null | undefined>(undefined);
@@ -74,7 +75,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
-      setPreviewId(null);
+      setPreviewSelections({});
+      setResetPending(false);
       setBodyChoiceId(null);
       setSkinChoice(undefined);
       setWardrobeOpen(false);
@@ -103,7 +105,11 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
-      setPreviewId(null);
+      setPreviewSelections(current => {
+        const next = { ...current };
+        delete next[input.category];
+        return next;
+      });
       toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
     },
     onError: (error: Error & { status?: number }, input) => {
@@ -112,16 +118,24 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       }
       if (error.status === 409 || error.status === 404 || error.status === 422) {
         // Trust the server over a stale item, base publication or second device.
-        if (input.accountId === userId) setPreviewId(null);
+        if (input.accountId === userId) setPreviewSelections(current => {
+          const next = { ...current };
+          delete next[input.category];
+          return next;
+        });
         void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
       }
     },
   });
 
   const changeBody = useMutation({
-    mutationFn: (input: { baseId: string; skinTone: string | null; keepSnapshot: boolean; expectedRevision: number; accountId: string }) =>
+    mutationFn: (input: {
+      baseId: string; skinTone: string | null; keepSnapshot: boolean;
+      clearClothing: boolean; expectedRevision: number; accountId: string;
+    }) =>
       writePlayerAvatar("PATCH", "/api/player-avatar/base", {
         baseId: input.baseId, skinTone: input.skinTone, keepSnapshot: input.keepSnapshot,
+        clearClothing: input.clearClothing,
         expectedRevision: input.expectedRevision,
       }),
     onSuccess: (saved, input) => {
@@ -129,7 +143,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       if (input.accountId !== userId) return;
       setBodyChoiceId(null);
       setSkinChoice(undefined);
-      setPreviewId(null);
+      setResetPending(false);
+      // Keep preview selections for other categories after changing body.
       setWardrobeOpen(false);
       setSkinPickerOpen(false);
       setSaveConfirmationOpen(true);
@@ -155,19 +170,22 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   );
   const skinTone = skinChoice === undefined ? avatar?.skinTone ?? null : skinChoice;
   const toneChanged = !!avatar?.created && skinTone !== (avatar.skinTone ?? null);
-  const appearanceChanged = switchingBody || toneChanged;
+  const appearanceChanged = switchingBody || toneChanged || resetPending;
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
+  const activePreviewId = previewSelections[category] ?? null;
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
-    item.inventoryId === previewId && item.compatible && !item.isListed && item.quantity > 0
+    item.inventoryId === activePreviewId && item.compatible && !item.isListed && item.quantity > 0
   );
-  const preview = selected ? { category, inventoryId: selected.inventoryId } : null;
+  const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => previewSelections[slot]
+    ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
   const clothingLayers = avatar
-    ? wardrobeLayers(avatar, switchingBody ? null : preview).filter(layer =>
+    ? wardrobeLayers(avatar, previews, resetPending).filter(layer =>
         !switchingBody || avatar.ownedClothing.some(item =>
           item.inventoryId === layer.inventoryId && item.universal))
     : [];
-  const equippedItem = avatar?.equipped.find(item => item.category === category);
-  const unavailableEquipped = avatar?.unavailableEquipmentSlots.includes(category) ?? false;
+  const equippedItem = resetPending ? undefined : avatar?.equipped.find(item => item.category === category);
+  const unavailableEquipped = !resetPending &&
+    (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
 
   const saveEquipment = (inventoryId: string | null) => {
     if (!avatar?.created || avatar.revision == null || busy) return;
@@ -177,13 +195,20 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const selectCategory = (next: PlayerClothingCategory) => {
     setWardrobeOpen(open => next === category ? !open : true);
     setCategory(next);
-    setPreviewId(null);
     setSkinPickerOpen(false);
   };
   const toggleSkinPicker = () => {
     setSkinPickerOpen(open => !open);
     setWardrobeOpen(false);
-    setPreviewId(null);
+  };
+  const resetCharacter = () => {
+    if (busy) return;
+    setPreviewSelections({});
+    setSkinChoice(null);
+    setWardrobeOpen(false);
+    setSkinPickerOpen(false);
+    setResetPending(!!avatar?.created);
+    // Preserve the chosen Fem/Masc base while resetting all appearance parts.
   };
 
   return (
