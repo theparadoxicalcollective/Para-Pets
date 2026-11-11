@@ -125,7 +125,12 @@ export default function PlayerCharacterRenderer({
       {/* New full-canvas artwork never inherits an individual part's resized
           anchor. Separate layers make Hair Back/Face/Accessories ordering
           possible even when multiple images attach to the same head. */}
-      {fullCanvas.map(layer => (
+      {fullCanvas.map(layer => {
+        // Full-canvas parts already use the same head/limb motion keyframes as
+        // the base. Match their world-space pivot too: rotating about the
+        // overall 1000x1000 canvas center sends face parts the wrong way.
+        const attachment = parts.find(part => part.partType === layer.segment.partType);
+        return (
         <div key={layer.key}
           data-character-motion-part={layer.segment.partType}
           data-clothing-part={layer.segment.partType}
@@ -133,14 +138,18 @@ export default function PlayerCharacterRenderer({
           data-clothing-plane={layer.segment.renderPlane}
           data-clothing-key={layer.key}
           className={`player-character-renderer__canvas-motion player-character-renderer__motion--${motion}`}
-          style={{ zIndex: clothingLayerDepth(layer.category,
-            layer.category === "hair" && layer.segment.renderPlane === "behind_character"
-              ? "hair_back" : layer.segment.slot, layer.segment.shoesLayer) }}>
+          style={{
+            transformOrigin: attachment ? `${attachment.xPct}% ${attachment.yPct}%` : "50% 50%",
+            zIndex: clothingLayerDepth(layer.category,
+              layer.category === "hair" && layer.segment.renderPlane === "behind_character"
+                ? "hair_back" : layer.segment.slot, layer.segment.shoesLayer),
+          }}>
           <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
             draggable={false}
             className={`player-character-renderer__canvas-image${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}/>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
