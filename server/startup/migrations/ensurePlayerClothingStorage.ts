@@ -22,6 +22,7 @@ export async function ensurePlayerClothingStorage(): Promise<void> {
     );
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS universal boolean NOT NULL DEFAULT false;
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS shop_image_url text;
+    ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS deleted_at timestamp;
     CREATE INDEX IF NOT EXISTS player_clothing_drafts_base_idx ON player_clothing_drafts(base_id);
     -- Existing databases already have the seven-category CHECK from 08A.
     -- Widen it only once: keep existing rows, their IDs, and published items.

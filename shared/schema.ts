@@ -203,6 +203,8 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
   publishedAt: timestamp("published_at"),
+  // Never hard-delete an issued SKU: user inventory and reward history may refer to it.
+  deletedAt: timestamp("deleted_at"),
 });
 
 // Optional expression images for catalog NPCs. The base NPC image stays in

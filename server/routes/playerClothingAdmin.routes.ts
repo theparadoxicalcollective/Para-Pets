@@ -1,7 +1,10 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db as database } from "../db";
-import { playerCharacterBases, playerClothingDrafts, shopItems } from "@shared/schema";
+import {
+  playerAvatarEquipment, playerAvatarProfiles, playerCharacterBases,
+  playerClothingDrafts, shopItems, userInventory,
+} from "@shared/schema";
 import {
   availablePlayerCharacterBody,
 } from "@shared/playerCharacter";
@@ -75,7 +78,8 @@ export function registerPlayerClothingAdminRoutes(
       const outcome = await db.transaction(async tx => {
         const existing = input.data.id
           ? (await tx.select().from(playerClothingDrafts)
-              .where(eq(playerClothingDrafts.id, input.data.id)).for("update"))[0]
+              .where(and(eq(playerClothingDrafts.id, input.data.id),
+                isNull(playerClothingDrafts.deletedAt))).for("update"))[0]
           : null;
         if (input.data.id && !existing) return { status: 404 as const, message: notFound.message };
         if (existing && existing.revision !== input.data.expectedRevision)
@@ -165,12 +169,72 @@ export function registerPlayerClothingAdminRoutes(
     }
   });
 
+  /** Retire a saved item without destroying a player's historical SKU.
+   * Deleted clothing disappears from free entitlements, purchases, equipment
+   * and editor listings. Removing an item requires a matching revision, so a
+   * second admin cannot silently erase newly edited work.
+   */
+  app.delete("/api/admin/player-character/clothing/item/:id", isAdmin, async (req, res) => {
+    const id = String(req.params.id ?? "");
+    const revision = Number(req.body?.expectedRevision);
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id) ||
+        !Number.isInteger(revision) || revision < 0)
+      return res.status(400).json({ message: "Invalid clothing item or revision" });
+    try {
+      const result = await db.transaction(async tx => {
+        const [draft] = await tx.select().from(playerClothingDrafts)
+          .where(and(eq(playerClothingDrafts.id, id),
+            isNull(playerClothingDrafts.deletedAt))).for("update");
+        if (!draft) return { status: 404 as const, message: notFound.message };
+        if (draft.revision !== revision)
+          return { status: 409 as const, message: conflict.message };
+
+        // Existing inventory rows remain for accounting and grant history;
+        // clothing equipment links are removed and their account revisions
+        // invalidated together with retirement.
+        if (draft.shopItemId) {
+          const inventoryRows = await tx.select({ id: userInventory.id })
+            .from(userInventory).where(eq(userInventory.shopItemId, draft.shopItemId));
+          if (inventoryRows.length) {
+            const removed = await tx.delete(playerAvatarEquipment)
+              .where(inArray(playerAvatarEquipment.inventoryId,
+                inventoryRows.map(row => row.id)))
+              .returning({ userId: playerAvatarEquipment.userId });
+            const affectedUsers = [...new Set(removed.map(row => row.userId))];
+            if (affectedUsers.length) await tx.update(playerAvatarProfiles)
+              .set({ revision: sql`${playerAvatarProfiles.revision} + 1`,
+                updatedAt: new Date() })
+              .where(inArray(playerAvatarProfiles.userId, affectedUsers));
+          }
+          // Historical item row remains, but cannot be acquired in any shop.
+          await tx.update(shopItems).set({
+            worldId: "__retired_avatar_clothing__",
+            description: "Retired avatar clothing",
+          }).where(and(eq(shopItems.id, draft.shopItemId),
+            eq(shopItems.type, "clothing"),
+            eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD)));
+        }
+        await tx.update(playerClothingDrafts).set({
+          deletedAt: new Date(), updatedAt: new Date(), revision: draft.revision + 1,
+          publishedAt: null, publishedSegments: null, publishedCategory: null,
+        }).where(eq(playerClothingDrafts.id, id));
+        return { status: 200 as const };
+      });
+      if (result.status !== 200) return res.status(result.status).json({ message: result.message });
+      return res.json({ id, deleted: true });
+    } catch (error) {
+      console.error("[player-clothing] delete failed", error);
+      return res.status(500).json({ message: "Could not delete clothing item" });
+    }
+  });
+
   app.get("/api/admin/player-character/clothing", isAdmin, async (_req, res) => {
     try {
       const rows = await db.select({
         draft: playerClothingDrafts, price: shopItems.price,
       }).from(playerClothingDrafts)
-        .leftJoin(shopItems, eq(playerClothingDrafts.shopItemId, shopItems.id));
+        .leftJoin(shopItems, eq(playerClothingDrafts.shopItemId, shopItems.id))
+        .where(isNull(playerClothingDrafts.deletedAt));
       res.set("Cache-Control", "private, no-store");
       return res.json(rows.map(row => ({ ...row.draft, price: row.price ?? 0 })));
     } catch (error) {
