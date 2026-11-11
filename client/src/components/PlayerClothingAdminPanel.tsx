@@ -33,6 +33,7 @@ type Base = {
 type ClothingDraft = {
   id: string; revision: number; name: string;
   category: PlayerClothingCategory; shopItemId: string | null;
+  price?: number; shopImageUrl?: string | null;
   draftSegments: PlayerClothingSegment[];
   publishedSegments: PlayerClothingSegment[] | null;
   universal?: boolean;
@@ -106,6 +107,8 @@ export default function PlayerClothingAdminPanel({
   const [screen, setScreen] = useState<"create" | "view">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [price, setPrice] = useState(0);
+  const [shopImageData, setShopImageData] = useState<string | null>(null);
   const [category, setCategory] = useState<PlayerClothingCategory>("top");
   const [parts, setParts] = useState<ClothingPart[]>([]);
   const [previewBodyId, setPreviewBodyId] = useState<string | null>(null);
@@ -152,7 +155,9 @@ export default function PlayerClothingAdminPanel({
     parts.some(part => part.slot === slot && !!(part.imageData ?? part.imageUrl)));
   const pieceCount = parts.filter(part => part.imageData || part.imageUrl).length;
   const canSave = name.trim().length > 0 && (category === "face" ? faceReady : pieceCount > 0)
-    && !!chosenBody && readingParts === 0 && (!editingId || !!activeDraft);
+    && !!chosenBody && readingParts === 0 && (!editingId || !!activeDraft)
+    && Number.isInteger(price) && price >= 0 && price <= 1_000_000_000
+    && (price === 0 || !!shopImageData || !!activeDraft?.shopImageUrl);
 
   const updateDraft = (row: ClothingDraft) =>
     qc.setQueryData<ClothingDraft[]>(CLOTHING_KEY, current =>
@@ -162,7 +167,8 @@ export default function PlayerClothingAdminPanel({
   const saveItem = useMutation({
     mutationFn: () => requestJson<ClothingDraft>("POST", "/api/admin/player-character/clothing/item", {
       ...(editingId ? { id: editingId, expectedRevision: activeDraft!.revision } : {}),
-      name: name.trim(), category,
+      name: name.trim(), category, price,
+      ...(price > 0 && shopImageData ? { shopImageData } : {}),
       images: parts.filter(part => !!part.imageData).map(part => ({
         slot: part.slot, partType: part.partType, imageData: part.imageData,
         ...(category === "hair"
@@ -181,6 +187,8 @@ export default function PlayerClothingAdminPanel({
       setChanged(false);
       setEditingId(null);
       setName("");
+      setPrice(0);
+      setShopImageData(null);
       setCategory("top");
       setParts([]);
       setScreen("view");
@@ -195,13 +203,15 @@ export default function PlayerClothingAdminPanel({
 
   const startNew = () => {
     if (busy) return;
-    setEditingId(null); setName(""); setCategory("top"); setParts([]);
+    setEditingId(null); setName(""); setPrice(0); setShopImageData(null);
+    setCategory("top"); setParts([]);
     setShoesLayer("under"); setClosedEyes(false); setChanged(false);
     setScreen("create");
   };
   const openExisting = (draft: ClothingDraft) => {
     if (busy) return;
-    setEditingId(draft.id); setName(draft.name); setCategory(draft.category);
+    setEditingId(draft.id); setName(draft.name); setPrice(draft.price ?? 0);
+    setShopImageData(null); setCategory(draft.category);
     setParts(partsFromDraft(draft));
     setShoesLayer(draft.draftSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under");
     setClosedEyes(false); setChanged(false); setScreen("create");
@@ -210,6 +220,23 @@ export default function PlayerClothingAdminPanel({
     if (busy || category === next) return;
     setCategory(next); setParts(next === "face" ? faceParts() : []);
     setClosedEyes(false); setChanged(true);
+  };
+  const uploadShopImage = async (file?: File) => {
+    if (!file) return;
+    if (!["image/png", "image/webp"].includes(file.type) || file.size > 5_000_000) {
+      toast({ title: "Unsupported shop image", description: "Choose PNG or WebP under 5 MB.",
+        variant: "destructive" });
+      return;
+    }
+    setReadingParts(count => count + 1);
+    try {
+      setShopImageData(await readImage(file));
+      setChanged(true);
+    } catch (error) {
+      toast({ title: "Could not read shop image",
+        description: error instanceof Error ? error.message : "Try again",
+        variant: "destructive" });
+    } finally { setReadingParts(count => count - 1); }
   };
   const upload = async (slot: PlayerClothingSlot, file?: File, replace = false) => {
     if (!file) return;
@@ -281,7 +308,7 @@ export default function PlayerClothingAdminPanel({
                   : <span className="text-2xl text-[#e6cc83]">+</span>}
                 <span className="min-w-0">
                   <strong className="block truncate text-sm text-[#f3d99b]">{item.name}</strong>
-                  <small className="text-[#c9c09d]">{PLAYER_CLOTHING_CATEGORY_LABELS[item.category]} · {item.shopItemId ? "Saved item" : "Draft"}</small>
+                  <small className="text-[#c9c09d]">{PLAYER_CLOTHING_CATEGORY_LABELS[item.category]} · {item.price ? `${item.price.toLocaleString()} coins` : "Free"} · {item.shopItemId ? "Saved item" : "Draft"}</small>
                 </span>
               </button>
             ))}
@@ -297,6 +324,42 @@ export default function PlayerClothingAdminPanel({
               aria-label="Clothing name" data-testid="avatar-new-clothing-name"
               placeholder="Clothing name" disabled={busy}
               onChange={event => { setName(event.target.value); setChanged(true); }} />
+            <label className="block space-y-1 text-xs text-[#e6d29c]">Price (coins)
+              <input type="number" min={0} max={1000000000} step={1}
+                inputMode="numeric" className={inputClass} value={price}
+                data-testid="avatar-clothing-price" aria-label="Clothing price in coins"
+                disabled={busy} onChange={event => {
+                  setPrice(event.target.value === "" ? 0 : Number(event.target.value));
+                  setChanged(true);
+                }} />
+              <span className="block text-[11px] text-[#c9bd9b]">
+                Set 0 to make this clothing available to every player automatically.
+              </span>
+            </label>
+            {price > 0 && (
+              <div className="space-y-2 rounded-xl border border-[#ad915b] bg-[#163928] p-3"
+                data-testid="avatar-clothing-shop-art">
+                <p className="text-sm font-bold text-[#f3da9b]">Shop / Reward Image</p>
+                <p className="text-xs text-[#d2c5a2]">
+                  Upload the item picture shown in shops and reward screens.
+                  Your transparent clothing pieces remain separate.
+                </p>
+                {(shopImageData || activeDraft?.shopImageUrl) && (
+                  <img src={shopImageData ?? activeDraft?.shopImageUrl ?? undefined}
+                    className="mx-auto h-24 w-24 object-contain" alt="Shop item artwork preview" />
+                )}
+                <label className={buttonClass + " flex cursor-pointer items-center justify-center"}>
+                  {shopImageData || activeDraft?.shopImageUrl ? "Replace Shop Image" : "+ Upload Shop Image"}
+                  <input className="sr-only" type="file" accept="image/png,image/webp"
+                    data-testid="avatar-clothing-shop-image-upload"
+                    aria-label="Upload clothing shop reward image" disabled={busy}
+                    onChange={event => {
+                      void uploadShopImage(event.currentTarget.files?.[0]);
+                      event.currentTarget.value = "";
+                    }} />
+                </label>
+              </div>
+            )}
             <label className="block space-y-1 text-xs text-[#e6d29c]">Category
               <select className={inputClass} value={category}
                 aria-label="Clothing category" data-testid="avatar-new-clothing-category"
