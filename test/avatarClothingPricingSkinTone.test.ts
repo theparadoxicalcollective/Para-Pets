@@ -31,7 +31,12 @@ test("player skin tones require validated hex or original artwork", () => {
   assert.equal(PLAYER_SKIN_TONE_SWATCHES.length, 8);
   for (const swatch of PLAYER_SKIN_TONE_SWATCHES) {
     assert.equal(playerSkinToneSchema.safeParse(swatch.value).success, true);
-    assert.equal(createPlayerAvatarSchema.safeParse({ baseId, skinTone: swatch.value }).success, true);
+    assert.equal(createPlayerAvatarSchema.safeParse({
+      baseId, skinTone: swatch.value, outfit: {
+        top: { inventoryId: baseId }, bottom: { inventoryId: baseId },
+        face: { inventoryId: baseId },
+      },
+    }).success, true);
     assert.equal(changePlayerAvatarBaseSchema.safeParse({
       baseId, skinTone: swatch.value, expectedRevision: 2,
     }).success, true);

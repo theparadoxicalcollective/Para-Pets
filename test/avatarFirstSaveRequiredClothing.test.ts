@@ -1,0 +1,63 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import {
+  createPlayerAvatarSchema, REQUIRED_AVATAR_CREATION_CATEGORIES,
+} from "../shared/playerAvatarEquipment";
+
+const baseId = "00000000-0000-4000-8000-000000000001";
+const inventoryId = "00000000-0000-4000-8000-000000000002";
+const garment = { inventoryId };
+const required = { top: garment, bottom: garment, face: garment };
+
+test("Top, Bottoms and Face must be selected before first character creation", () => {
+  assert.deepEqual(REQUIRED_AVATAR_CREATION_CATEGORIES, ["top", "bottom", "face"]);
+  assert.equal(createPlayerAvatarSchema.safeParse({ baseId }).success, false);
+  for (const missing of REQUIRED_AVATAR_CREATION_CATEGORIES) {
+    const incomplete = { ...required };
+    delete (incomplete as Partial<typeof required>)[missing];
+    assert.equal(createPlayerAvatarSchema.safeParse({ baseId, outfit: incomplete }).success, false,
+      missing + " must be present");
+  }
+  assert.equal(createPlayerAvatarSchema.safeParse({ baseId, outfit: required }).success, true);
+  assert.equal(createPlayerAvatarSchema.safeParse({
+    baseId, outfit: { ...required, shoes: garment, hair: garment },
+  }).success, true, "other accessories remain optional");
+  assert.equal(createPlayerAvatarSchema.safeParse({
+    baseId, outfit: { ...required, top: { inventoryId: "not-uuid" } },
+  }).success, false);
+  assert.equal(createPlayerAvatarSchema.safeParse({
+    baseId, outfit: { ...required, invented: garment },
+  }).success, false, "unknown outfit categories rejected");
+  assert.equal(createPlayerAvatarSchema.safeParse({
+    baseId, outfit: { ...required, top: { inventoryId, colorTint: "red" } },
+  }).success, false, "unsafe colors rejected");
+});
+
+test("first-save validates all selected clothing inside one atomic transaction", () => {
+  const server = readFileSync("server/routes/playerAvatar.routes.ts", "utf8");
+  const firstSave = server.split('app.post("/api/player-avatar/create"')[1]
+    .split('app.patch("/api/player-avatar/base"')[0];
+  const validationAt = firstSave.indexOf("const outfitToSave");
+  const creationAt = firstSave.indexOf("tx.insert(playerAvatarProfiles)");
+  const equipmentAt = firstSave.indexOf("tx.insert(playerAvatarEquipment)");
+  assert.ok(validationAt >= 0 && validationAt < creationAt && creationAt < equipmentAt);
+  assert.match(firstSave, /isEligiblePlayerClothingInventory/);
+  assert.match(firstSave, /item.colorPickerEnabled/);
+  assert.match(firstSave, /onConflictDoNothing\(\)/);
+  assert.match(firstSave, /Retried POST never rewrites/);
+  const creator = readFileSync("client/src/pages/PlayerAvatarPage.tsx", "utf8");
+  assert.match(creator, /missingFirstOutfit\.length > 0/);
+  assert.match(creator, /data-testid="avatar-required-clothing-status"/);
+  assert.match(creator, /outfit: firstOutfit as AvatarCreationOutfit/);
+});
+
+test("creator prefers saved main clothing art while retaining missing-image fallback", () => {
+  const creator = readFileSync("client/src/pages/PlayerAvatarPage.tsx", "utf8");
+  const read = readFileSync("server/routes/playerAvatar.routes.ts", "utf8");
+  const admin = readFileSync("server/routes/playerClothingAdmin.routes.ts", "utf8");
+  assert.match(creator, /wardrobeThumbnail = item.imageUrl \|\| bodyArtwork\[0\]\?\.imageUrl/);
+  assert.match(read, /mainImageUrl: playerClothingDrafts\.shopImageUrl/);
+  assert.match(read, /imageUrl: item.mainImageUrl \|\| item.imageUrl/);
+  assert.match(admin, /imageUrl: draft.shopImageUrl \|\| thumbnail/);
+});

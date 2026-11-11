@@ -48,12 +48,14 @@ export default function PlayerCharacterRenderer({
       segment,
       key: `draft:${clothingSegmentKey(segment)}`,
       category: previewClothingCategory,
+      colorTint: null,
       categoryOrder: 0,
     })),
     ...clothingLayers.flatMap(outfit => outfit.segments.map(segment => ({
       segment,
       key: `${outfit.category}:${outfit.inventoryId}:${clothingSegmentKey(segment)}`,
       category: outfit.category,
+       colorTint: outfit.colorTint ?? null,
       categoryOrder: PLAYER_CLOTHING_CATEGORIES.indexOf(outfit.category),
     }))),
   ];
@@ -148,16 +150,23 @@ export default function PlayerCharacterRenderer({
               <img src={part.imageUrl} alt="" aria-hidden="true" draggable={false}
                 className="player-character-renderer__image"
                 style={{ visibility: "hidden" }}/>
-              <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
-                draggable={false} className="player-character-renderer__clothing"
-                style={{
+              <div className="player-character-renderer__clothing"
+                 style={{
                   left: `${layer.segment.fit.xPct}%`,
                   top: `${layer.segment.fit.yPct}%`,
                   width: `${layer.segment.fit.widthPct}%`,
                   transformOrigin: `${layer.segment.fit.pivotXPct}% ${layer.segment.fit.pivotYPct}%`,
                   transform: `translate(-${layer.segment.fit.pivotXPct}%, -${layer.segment.fit.pivotYPct}%) rotate(${layer.segment.fit.rotationDeg}deg)`,
                   zIndex: 1,
-                }}/>
+                }}>
+                <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
+                  draggable={false} className="player-character-renderer__legacy-image" />
+                {layer.colorTint && <span aria-hidden="true" data-testid="avatar-clothing-tint"
+                  className="player-character-renderer__legacy-tint"
+                  style={{ backgroundColor: layer.colorTint,
+                    maskImage: `url("${layer.segment.imageUrl}")`,
+                    WebkitMaskImage: `url("${layer.segment.imageUrl}")` }} />}
+              </div>
             </div>
           </div>
         );
@@ -185,6 +194,11 @@ export default function PlayerCharacterRenderer({
           <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
             draggable={false}
             className={`player-character-renderer__canvas-image${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}/>
+           {layer.colorTint && <span aria-hidden="true" data-testid="avatar-clothing-tint"
+             className={`player-character-renderer__canvas-tint${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}
+             style={{ backgroundColor: layer.colorTint,
+               maskImage: `url("${layer.segment.imageUrl}")`,
+               WebkitMaskImage: `url("${layer.segment.imageUrl}")` }} />}
         </div>
         );
       })}

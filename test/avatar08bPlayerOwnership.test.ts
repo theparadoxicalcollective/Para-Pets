@@ -14,11 +14,18 @@ const read = (path: string) => readFileSync(path, "utf8");
 const baseId = "00000000-0000-4000-8000-000000000001";
 const otherBaseId = "00000000-0000-4000-8000-000000000002";
 const inventoryId = "00000000-0000-4000-8000-000000000003";
+const requiredOutfit = {
+  top: { inventoryId }, bottom: { inventoryId }, face: { inventoryId },
+};
 
 test("first avatar creation is an explicit per-user server action, never inferred from a published admin base", () => {
-  assert.equal(createPlayerAvatarSchema.safeParse({ baseId }).success, true);
-  assert.equal(createPlayerAvatarSchema.safeParse({ baseId: "any" }).success, false);
-  assert.equal(createPlayerAvatarSchema.safeParse({ baseId, userId: "different-user" }).success, false);
+  assert.equal(createPlayerAvatarSchema.safeParse({ baseId }).success, false,
+    "a bare body can no longer be saved without required clothing");
+  assert.equal(createPlayerAvatarSchema.safeParse({ baseId, outfit: requiredOutfit }).success, true);
+  assert.equal(createPlayerAvatarSchema.safeParse({ baseId: "any", outfit: requiredOutfit }).success, false);
+  assert.equal(createPlayerAvatarSchema.safeParse({
+    baseId, outfit: requiredOutfit, userId: "different-user",
+  }).success, false);
   assert.equal(changePlayerAvatarBaseSchema.safeParse({ baseId, expectedRevision: 0 }).success, true);
   assert.equal(changePlayerAvatarBaseSchema.safeParse({ baseId, expectedRevision: -1 }).success, false);
   const route = read("server/routes/playerAvatar.routes.ts");

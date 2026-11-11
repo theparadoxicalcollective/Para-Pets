@@ -5,6 +5,7 @@ import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
+import { REQUIRED_AVATAR_CREATION_CATEGORIES, type AvatarCreationOutfit } from "@shared/playerAvatarEquipment";
 import { useToast } from "@/hooks/use-toast";
 import {
   playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
@@ -54,6 +55,16 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
   const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
   const [previewSelections, setPreviewSelections] = useState<Partial<Record<PlayerClothingCategory, string>>>({});
+  // Unsaved color previews belong only to the current authenticated account.
+  const [colorPreview, setColorPreview] = useState<{
+    accountId: string; values: Record<string, string | null>;
+  } | null>(null);
+  const colorOverrides: Record<string, string | null> = colorPreview?.accountId === userId ? colorPreview.values : {};
+  const setPreviewTint = (inventoryId: string, tint: string | null) =>
+    setColorPreview(current => ({
+      accountId: userId,
+      values: { ...(current?.accountId === userId ? current.values : {}), [inventoryId]: tint },
+    }));
   const [resetPending, setResetPending] = useState(false);
   const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
   // undefined = untouched, null = restore original art, hex = selected tint.
@@ -71,14 +82,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const avatar = avatarQuery.data;
 
   const creation = useMutation({
-    mutationFn: (input: { baseId: string; skinTone: string | null; topTucked: boolean; accountId: string }) =>
+    mutationFn: (input: { baseId: string; skinTone: string | null; topTucked: boolean;
+      outfit: AvatarCreationOutfit; accountId: string }) =>
       writePlayerAvatar("POST", "/api/player-avatar/create", {
         baseId: input.baseId, skinTone: input.skinTone, topTucked: input.topTucked,
+        outfit: input.outfit,
       }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
       setPreviewSelections({});
+      setColorPreview(null);
       setResetPending(false);
       setTuckChoice(null);
       setBodyChoiceId(null);
@@ -99,12 +113,13 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     mutationFn: (input: {
       category: PlayerClothingCategory;
       inventoryId: string | null;
+      colorTint?: string | null;
       expectedRevision: number;
       accountId: string;
     }) => writePlayerAvatar(
       "PUT",
       `/api/player-avatar/equipment/${input.category}`,
-      { inventoryId: input.inventoryId, expectedRevision: input.expectedRevision },
+      { inventoryId: input.inventoryId, colorTint: input.colorTint, expectedRevision: input.expectedRevision },
     ),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
@@ -114,6 +129,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
         delete next[input.category];
         return next;
       });
+      setColorPreview(null);
       toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
     },
     onError: (error: Error & { status?: number }, input) => {
@@ -148,6 +164,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       if (input.accountId !== userId) return;
       setBodyChoiceId(null);
       setSkinChoice(undefined);
+      setColorPreview(null);
       setResetPending(false);
       setTuckChoice(null);
       // Keep preview selections for other categories after changing body.
@@ -205,19 +222,49 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   );
   const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => previewSelections[slot]
     ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
+  // During initial creation every visible preview is saved together. Filter
+  // stale/listed choices before enabling the first-save action.
+  const firstOutfit = PLAYER_CLOTHING_CATEGORIES.reduce((choices, slot) => {
+    const inventoryId = previewSelections[slot];
+    const garment = avatar?.ownedClothing.find(item =>
+      item.category === slot && item.inventoryId === inventoryId &&
+      item.compatible && !item.isListed && item.quantity > 0);
+    if (garment) choices[slot] = {
+      inventoryId: garment.inventoryId,
+      ...(garment.colorPickerEnabled &&
+        Object.prototype.hasOwnProperty.call(colorOverrides, garment.inventoryId)
+          ? { colorTint: colorOverrides[garment.inventoryId] } : {}),
+    };
+    return choices;
+  }, {} as Partial<AvatarCreationOutfit>);
+  const missingFirstOutfit = REQUIRED_AVATAR_CREATION_CATEGORIES.filter(slot => !firstOutfit[slot]);
   const clothingLayers = avatar
     ? wardrobeLayers(avatar, previews, resetPending, selectedBody?.name).filter(layer =>
         !switchingBody || previews.some(item => item.inventoryId === layer.inventoryId) ||
           avatar.ownedClothing.some(item =>
-            item.inventoryId === layer.inventoryId && item.universal))
+            item.inventoryId === layer.inventoryId && item.universal)).map(layer => {
+         const item = avatar.ownedClothing.find(owned => owned.inventoryId === layer.inventoryId);
+         return item?.colorPickerEnabled &&
+           Object.prototype.hasOwnProperty.call(colorOverrides, layer.inventoryId)
+             ? { ...layer, colorTint: colorOverrides[layer.inventoryId] } : layer;
+       })
     : [];
   const equippedItem = resetPending ? undefined : avatar?.equipped.find(item => item.category === category);
+  const selectedTint = selected
+    ? (Object.prototype.hasOwnProperty.call(colorOverrides, selected.inventoryId)
+      ? colorOverrides[selected.inventoryId]
+      : equippedItem?.inventoryId === selected.inventoryId ? equippedItem.colorTint ?? null : null)
+    : null;
+  const selectedTintChanged = !!selected && selected.colorPickerEnabled &&
+    equippedItem?.inventoryId === selected.inventoryId &&
+    selectedTint !== (equippedItem?.colorTint ?? null);
   const unavailableEquipped = !resetPending &&
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
 
-  const saveEquipment = (inventoryId: string | null) => {
+  const saveEquipment = (inventoryId: string | null, colorTint?: string | null) => {
     if (!avatar?.created || avatar.revision == null || busy) return;
-    equipment.mutate({ category, inventoryId, expectedRevision: avatar.revision, accountId: userId });
+    equipment.mutate({ category, inventoryId, colorTint,
+      expectedRevision: avatar.revision, accountId: userId });
   };
 
   const toggleTuck = (checked: boolean) => {
@@ -240,6 +287,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const resetCharacter = () => {
     if (busy) return;
     setPreviewSelections({});
+    setColorPreview(null);
     setSkinChoice(null);
     setTuckChoice({ accountId: userId, value: false });
     setWardrobeOpen(false);
@@ -320,6 +368,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   <span className="sr-only">{PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
                   {avatar.equipped.some(item => item.category === slot) &&
                     <span className="player-avatar-page__equipped-dot" aria-hidden="true" />}
+                  {!avatar.created && REQUIRED_AVATAR_CREATION_CATEGORIES.some(required => required === slot) &&
+                    !firstOutfit[slot] && <span className="player-avatar-page__required-dot" aria-hidden="true">!</span>}
                 </button>
               ))}
             </div>
@@ -355,16 +405,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 )}
               </div>
             )}
-            <div className="player-avatar-page__details" data-testid="avatar-scrollable-details">
+            <div className="player-avatar-page__body-divider" aria-hidden="true" />
+             <div className="player-avatar-page__details" data-testid="avatar-scrollable-details">
             {skinPickerOpen && (
             <section className="player-avatar-page__skin-picker" role="group"
               id="avatar-skin-tone-picker"
               aria-label="Choose skin color" data-testid="avatar-skin-tone-picker">
               <h2>Skin Color</h2>
               <div className="player-avatar-page__skin-swatches">
-                <button type="button" disabled={busy} aria-label="Original body color"
-                  aria-pressed={skinTone === null} className="player-avatar-page__skin-original"
-                  onClick={() => setSkinChoice(null)}>Original</button>
                 {PLAYER_SKIN_TONE_SWATCHES.map(swatch => (
                   <button type="button" key={swatch.value} disabled={busy}
                     aria-label={swatch.label + " skin color"}
@@ -427,7 +475,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                       const eligible = item.compatible && !item.isListed && item.quantity > 0;
                       const bodyArtwork = clothingSegmentsForBody(
                         item.segments, item.bodyVariants, selectedBody?.name);
-                      const wardrobeThumbnail = bodyArtwork[0]?.imageUrl ?? item.imageUrl;
+                      // Prefer the item's main catalog artwork, including older saved items.
+                      // Part artwork is only a fallback for legacy items without a main image.
+                      const wardrobeThumbnail = item.imageUrl || bodyArtwork[0]?.imageUrl;
                       const worn = avatar.equipped.some(entry =>
                         entry.category === category && entry.inventoryId === item.inventoryId
                       );
@@ -460,12 +510,27 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     No {PLAYER_CLOTHING_CATEGORY_LABELS[category].toLowerCase()} clothing is available yet.
                   </div>
                 )}
+                 {selected?.colorPickerEnabled && (
+                   <div className="player-avatar-page__clothing-colors" role="group"
+                     data-testid="avatar-clothing-color-controls" aria-label={`Change color of ${selected.name}`}>
+                     <label htmlFor="avatar-clothing-color">Clothing Color
+                       <input id="avatar-clothing-color" type="color"
+                         data-testid="avatar-clothing-custom-color"
+                         value={selectedTint ?? "#d39a71"} disabled={busy}
+                         onChange={event => setPreviewTint(selected.inventoryId, event.target.value)} />
+                     </label>
+                     <button type="button" disabled={busy || selectedTint === null}
+                       data-testid="avatar-clothing-reset-color"
+                       onClick={() => setPreviewTint(selected.inventoryId, null)}>Original Color</button>
+                   </div>
+                 )}
+
 
                  {avatar.created && !appearanceChanged ? (
                 <div className="player-avatar-page__actions">
-                  <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || selected.inventoryId === equippedItem?.inventoryId}
-                    onClick={() => selected && saveEquipment(selected.inventoryId)}>
-                    {equipment.isPending ? "Saving…" : selected?.inventoryId === equippedItem?.inventoryId ? "Already Equipped" : "Equip Clothing"}
+                  <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || (selected.inventoryId === equippedItem?.inventoryId && !selectedTintChanged)}
+                    onClick={() => selected && saveEquipment(selected.inventoryId, selected.colorPickerEnabled ? selectedTint : null)}>
+                    {equipment.isPending ? "Saving…" : selectedTintChanged ? "Save Color" : selected?.inventoryId === equippedItem?.inventoryId ? "Already Equipped" : "Equip Clothing"}
                   </button>
                   <button type="button" data-testid="avatar-unequip-button" className="player-avatar-page__remove"
                     disabled={busy || (!equippedItem && !unavailableEquipped)}
@@ -484,10 +549,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
             )}
             {!avatar.created ? (
               <section className="player-avatar-page__create" data-testid="avatar-first-save">
-                <button type="button" disabled={!selectedBody || busy}
+                <p className="player-avatar-page__required-hint" role="status"
+                  data-testid="avatar-required-clothing-status">
+                  {missingFirstOutfit.length
+                    ? `Choose ${missingFirstOutfit.map(slot => PLAYER_CLOTHING_CATEGORY_LABELS[slot]).join(", ")} before saving.`
+                    : "Top, Bottoms and Face selected. All other clothing is optional."}
+                </p>
+                <button type="button" disabled={!selectedBody || busy || missingFirstOutfit.length > 0}
                   data-testid="avatar-create-button"
-                  onClick={() => selectedBody && creation.mutate({
-                    baseId: selectedBody.id, skinTone, topTucked, accountId: userId,
+                  onClick={() => selectedBody && missingFirstOutfit.length === 0 && creation.mutate({
+                    baseId: selectedBody.id, skinTone, topTucked,
+                    outfit: firstOutfit as AvatarCreationOutfit, accountId: userId,
                   })}>
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>

@@ -72,6 +72,16 @@ const hat = {category:"head",inventoryId:"hat-owned",shopItemId:"hat-item",
   name:"Golden Hat",imageUrl:art,segments:[{partType:"head",imageUrl:art,
   fit:{xPct:50,yPct:50,widthPct:85,pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:1},
   renderPlane:"in_front_of_character"}]};
+const requiredClothing = ["top","bottom","face"].map(category=>({
+  category,inventoryId:"required-"+category,shopItemId:"catalog-"+category,
+  name:"Starter "+category,imageUrl:art,quantity:1,isListed:false,compatible:true,
+  universal:true,segments:[{
+    partType:category==="bottom"?"left_leg":category==="face"?"head":"top",
+    imageUrl:art,fit:{xPct:50,yPct:50,widthPct:85,
+      pivotXPct:50,pivotYPct:50,rotationDeg:0,zIndex:1},
+    renderPlane:"with_part",
+  }],
+}));
 const base = {id:"published-base",name:"Forest Character",
   publishedAt:"2026-11-09T00:00:00.000Z",parts};
 const playerPet = {inventoryId:"pet-owned",id:"pet-owned",shopItemId:"pet-template",
@@ -104,7 +114,8 @@ try {
       activePetId:"pet-owned"};
     let avatar={created:sc.created,revision:sc.created?1:null,base,
       skinTone:sc.created?"#855238":null,
-      ownedClothing:[],equipped:sc.created?[hat]:[],unavailableEquipmentSlots:[]};
+      ownedClothing:sc.created?[]:requiredClothing,
+       equipped:sc.created?[hat]:[],unavailableEquipmentSlots:[]};
     const fulfill=(route,json,status=200)=>route.fulfill({status,json});
     await page.route("**/api/**",async route=>{
       const path=new URL(route.request().url()).pathname;
@@ -123,8 +134,14 @@ try {
       if(path==="/api/player-avatar/create" && method==="POST"){
         const body=route.request().postDataJSON();
         assert.equal(body.baseId,"published-base");
+        assert.deepEqual(Object.keys(body.outfit).sort(),["bottom","face","top"],
+          sc.name+": required first-save outfit is present");
         writes.push(body);
-        avatar={...avatar,created:true,revision:0,skinTone:body.skinTone??null};
+        avatar={...avatar,created:true,revision:0,skinTone:body.skinTone??null,
+          equipped:Object.entries(body.outfit).map(([category,selected])=>{
+            const item=requiredClothing.find(x=>x.inventoryId===selected.inventoryId);
+            return {...item,category};
+          })};
         return fulfill(route,avatar);
       }
       if(path.startsWith("/api/tutorial/"))return fulfill(route,{message:"retired"},410);
@@ -430,6 +447,14 @@ try {
         r.url().endsWith("/api/player-avatar/create") && r.request().method()==="POST");
       await page.getByTestId("avatar-skin-picker-toggle").tap();
       await page.getByTestId("avatar-skin-warm").tap();
+      assert.equal(await page.getByTestId("avatar-create-button").isDisabled(),true,
+        sc.name+": first save requires the three clothing categories");
+      for(const category of ["top","bottom","face"]){
+        await page.getByTestId("avatar-category-"+category).tap();
+        await page.getByTestId("avatar-clothing-required-"+category).tap();
+      }
+      assert.equal(await page.getByTestId("avatar-create-button").isEnabled(),true,
+        sc.name+": selections unlock the initial save");
       await page.getByTestId("avatar-create-button").tap();
       await firstSave;
       assert.equal(avatar.skinTone,"#d39a71",sc.name+": first save stores player-selected skin");

@@ -7,10 +7,31 @@ import { playerSkinToneSchema } from "./playerSkinTone";
  * authenticated first save creates the per-account record. Rendering Home's
  * "Design Character" prompt can therefore check created === false.
  */
+/** Only the first Create Character save requires these wardrobe categories.
+ * Optional selections are included in the same transaction so nothing
+ * previewed before creation is silently lost. */
+export const REQUIRED_AVATAR_CREATION_CATEGORIES = ["top", "bottom", "face"] as const;
+export const avatarCreationItemSchema = z.object({
+  inventoryId: z.string().uuid(),
+  colorTint: playerSkinToneSchema.optional(),
+}).strict();
+export const avatarCreationOutfitSchema = z.object({
+  top: avatarCreationItemSchema,
+  bottom: avatarCreationItemSchema,
+  face: avatarCreationItemSchema,
+  head: avatarCreationItemSchema.optional(),
+  hair: avatarCreationItemSchema.optional(),
+  shoes: avatarCreationItemSchema.optional(),
+  back: avatarCreationItemSchema.optional(),
+  accessories: avatarCreationItemSchema.optional(),
+}).strict();
+export type AvatarCreationOutfit = z.infer<typeof avatarCreationOutfitSchema>;
+
 export const createPlayerAvatarSchema = z.object({
   baseId: z.string().uuid(),
   skinTone: playerSkinToneSchema.optional(),
   topTucked: z.boolean().optional(),
+  outfit: avatarCreationOutfitSchema,
 }).strict();
 
 export const changePlayerAvatarBaseSchema = z.object({
@@ -33,6 +54,8 @@ export const savePlayerAvatarTuckSchema = z.object({
 export const savePlayerAvatarEquipmentSchema = z.object({
   expectedRevision: z.number().int().min(0),
   inventoryId: z.string().uuid().nullable(),
+  // Optional for compatibility with older players and equipment requests.
+  colorTint: playerSkinToneSchema.optional(),
 }).strict();
 
 export { playerClothingCategorySchema };

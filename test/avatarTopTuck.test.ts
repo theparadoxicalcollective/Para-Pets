@@ -27,7 +27,14 @@ test("tuck updates are boolean-only, revision-checked, and accepted on first sav
   assert.equal(savePlayerAvatarTuckSchema.safeParse({ topTucked: false, expectedRevision: 0 }).success, true);
   assert.equal(savePlayerAvatarTuckSchema.safeParse({ topTucked: "yes", expectedRevision: 0 }).success, false);
   assert.equal(savePlayerAvatarTuckSchema.safeParse({ topTucked: true, expectedRevision: -1 }).success, false);
-  assert.equal(createPlayerAvatarSchema.safeParse({ baseId, topTucked: true }).success, true);
+  assert.equal(createPlayerAvatarSchema.safeParse({
+    baseId, topTucked: true,
+    outfit: {
+      top: { inventoryId: baseId },
+      bottom: { inventoryId: baseId },
+      face: { inventoryId: baseId },
+    },
+  }).success, true);
   assert.equal(changePlayerAvatarBaseSchema.safeParse({
     baseId, topTucked: false, expectedRevision: 2,
   }).success, true);

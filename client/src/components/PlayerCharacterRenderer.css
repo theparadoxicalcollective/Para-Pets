@@ -53,6 +53,36 @@
   pointer-events: none;
 }
 
+
+/* Clothing tints reuse the skin recoloring approach. Per-item isolation keeps
+   multiply blending off the character, scene, and neighboring garments. */
+.player-character-renderer__clothing,
+.player-character-renderer__canvas-motion {
+  isolation: isolate;
+}
+.player-character-renderer__legacy-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+.player-character-renderer__legacy-tint,
+.player-character-renderer__canvas-tint {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  -webkit-mask-position: center;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+
 /* Each garment segment is part-local, never screen-relative. The base
    image and garment share the SAME animated parent for exact limb tracking. */
 .player-character-renderer__clothing {

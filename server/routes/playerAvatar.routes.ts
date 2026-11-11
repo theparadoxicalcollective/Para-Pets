@@ -80,11 +80,13 @@ async function readPlayerAvatar(db: Db, userId: string) {
     quantity: userInventory.quantity,
     isListed: userInventory.isListed,
     imageUrl: shopItems.imageUrl,
+    mainImageUrl: playerClothingDrafts.shopImageUrl,
     name: shopItems.name,
     category: playerClothingDrafts.publishedCategory,
     baseId: playerClothingDrafts.baseId,
     basePublishedAt: playerClothingDrafts.basePublishedAt,
     universal: playerClothingDrafts.universal,
+    colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
     segments: playerClothingDrafts.publishedSegments,
     bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(userInventory)
@@ -115,9 +117,10 @@ async function readPlayerAvatar(db: Db, userId: string) {
     });
     return [{
       inventoryId: item.inventoryId, shopItemId: item.shopItemId,
-      name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
+      name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
-      compatible, universal: item.universal, free: false, segments: parsed.data.segments,
+      compatible, universal: item.universal, free: false,
+      colorPickerEnabled: item.colorPickerEnabled, segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     }];
   });
@@ -127,7 +130,9 @@ async function readPlayerAvatar(db: Db, userId: string) {
   // and no side effects on GET; the first Equip materializes ownership safely.
   const freeRows = await db.select({
     shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
+    mainImageUrl: playerClothingDrafts.shopImageUrl,
     category: playerClothingDrafts.publishedCategory,
+    colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
     segments: playerClothingDrafts.publishedSegments,
     bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(shopItems)
@@ -148,9 +153,10 @@ async function readPlayerAvatar(db: Db, userId: string) {
     if (!parsed.success) continue;
     ownedClothing.push({
       inventoryId: item.shopItemId, shopItemId: item.shopItemId,
-      name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
+      name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: 1, isListed: false, compatible: true, universal: true,
-      free: true, segments: parsed.data.segments,
+      free: true, colorPickerEnabled: item.colorPickerEnabled,
+      segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     });
   }
@@ -167,7 +173,9 @@ async function readPlayerAvatar(db: Db, userId: string) {
     return item && item.category === entry.category
       ? [{ category: entry.category, inventoryId: item.inventoryId,
           shopItemId: item.shopItemId, name: item.name, imageUrl: item.imageUrl,
-          segments: item.segments, bodyVariants: item.bodyVariants }]
+          segments: item.segments, bodyVariants: item.bodyVariants,
+          colorPickerEnabled: item.colorPickerEnabled,
+          colorTint: item.colorPickerEnabled ? entry.colorTint : null }]
       : [];
   });
   const validSlots = new Set(equipped.map(item => item.category));
@@ -217,6 +225,77 @@ export function registerPlayerAvatarRoutes(
         if (!base || !available)
           return { status: 422 as const, message: "Save all eight body parts before selecting this character" };
 
+        // Validate every selected garment before creating a profile or stock.
+        // Required Top, Bottoms and Face plus any optional previewed pieces are
+        // committed atomically. An invalid/stale item leaves no partial avatar.
+        const outfitToSave: Array<{
+          category: PlayerClothingCategory;
+          inventoryId: string | null; shopItemId: string; colorTint: string | null;
+        }> = [];
+        for (const [category, selection] of Object.entries(input.data.outfit) as Array<
+          [PlayerClothingCategory, { inventoryId: string; colorTint?: string | null }]
+        >) {
+          const [owned] = await tx.select({
+            inventoryId: userInventory.id, ownerId: userInventory.userId,
+            quantity: userInventory.quantity, isListed: userInventory.isListed,
+            shopItemId: shopItems.id, name: shopItems.name, itemType: shopItems.type,
+            category: playerClothingDrafts.publishedCategory,
+            baseId: playerClothingDrafts.baseId, basePublishedAt: playerClothingDrafts.basePublishedAt,
+            universal: playerClothingDrafts.universal,
+            colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
+            segments: playerClothingDrafts.publishedSegments,
+            bodyVariants: playerClothingDrafts.publishedBodyVariants,
+          }).from(userInventory)
+            .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
+            .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
+            .where(and(eq(userInventory.id, selection.inventoryId),
+              eq(userInventory.userId, user.id),
+              eq(shopItems.type, "clothing"), isNull(playerClothingDrafts.deletedAt)))
+            .limit(1);
+          // Free items are virtual entitlements until the first explicit Save.
+          const [free] = owned ? [] : await tx.select({
+            shopItemId: shopItems.id, name: shopItems.name, itemType: shopItems.type,
+            category: playerClothingDrafts.publishedCategory,
+            baseId: playerClothingDrafts.baseId, basePublishedAt: playerClothingDrafts.basePublishedAt,
+            universal: playerClothingDrafts.universal,
+            colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
+            segments: playerClothingDrafts.publishedSegments,
+            bodyVariants: playerClothingDrafts.publishedBodyVariants,
+          }).from(shopItems)
+            .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
+            .where(and(eq(shopItems.id, selection.inventoryId),
+              eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
+              eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
+              eq(playerClothingDrafts.universal, true),
+              isNull(playerClothingDrafts.deletedAt))).limit(1);
+          const item = owned ?? free;
+          const parsed = item ? playerClothingDefinitionSchema.safeParse({
+            name: item.name, category: item.category,
+            segments: clothingSegmentsForBody(item.segments, item.bodyVariants, base.name),
+          }) : null;
+          if (!item || !parsed?.success || parsed.data.category !== category ||
+              !isEligiblePlayerClothingInventory({
+                ownerId: owned?.ownerId ?? user.id, playerId: user.id,
+                itemType: item.itemType, quantity: owned?.quantity ?? 1,
+                isListed: owned?.isListed ?? false,
+                itemCategory: parsed.data.category, requestedCategory: category,
+                designBaseId: item.baseId, selectedBaseId: base.id,
+                designBasePublishedAt: item.basePublishedAt,
+                selectedBasePublishedAt: available.publishedAt,
+                universal: item.universal, publishedSegmentsCount: parsed.data.segments.length,
+              })) {
+            return { status: 422 as const,
+              message: "One selected clothing item is unavailable. Choose a valid Top, Bottoms and Face." };
+          }
+          if (!item.colorPickerEnabled && selection.colorTint != null)
+            return { status: 422 as const, message: "This clothing does not offer a color picker" };
+          outfitToSave.push({
+            category, inventoryId: owned?.inventoryId ?? null,
+            shopItemId: item.shopItemId,
+            colorTint: item.colorPickerEnabled ? selection.colorTint ?? null : null,
+          });
+        }
+
         const [created] = await tx.insert(playerAvatarProfiles).values({
           userId: user.id, baseId: base.id, basePublishedAt: available.publishedAt,
           baseParts: available.parts,
@@ -224,13 +303,39 @@ export function registerPlayerAvatarRoutes(
           topTucked: input.data.topTucked ?? false,
         }).onConflictDoNothing().returning();
 
-        if (created) return { status: 201 as const };
-        const [already] = await tx.select({ baseId: playerAvatarProfiles.baseId })
-          .from(playerAvatarProfiles).where(eq(playerAvatarProfiles.userId, user.id)).limit(1);
-        if (already?.baseId !== base.id)
-          return { status: 409 as const, message: "You already created a different avatar. Use Change Base." };
-        // Retried POST for the same avatar should not duplicate/reset progress.
-        return { status: 200 as const };
+        if (!created) {
+          const [already] = await tx.select({ baseId: playerAvatarProfiles.baseId })
+            .from(playerAvatarProfiles).where(eq(playerAvatarProfiles.userId, user.id)).limit(1);
+          if (already?.baseId !== base.id)
+            return { status: 409 as const, message: "You already created a different avatar. Use Change Base." };
+          // Retried POST never rewrites a player's existing wardrobe.
+          return { status: 200 as const };
+        }
+
+        for (const choice of outfitToSave) {
+          let inventoryId = choice.inventoryId;
+          if (!inventoryId) {
+            // Reuse available free stock if it exists; never duplicate it.
+            const [existingFree] = await tx.select({ id: userInventory.id })
+              .from(userInventory)
+              .where(and(eq(userInventory.userId, user.id),
+                eq(userInventory.shopItemId, choice.shopItemId),
+                eq(userInventory.isListed, false), gt(userInventory.quantity, 0)))
+              .limit(1);
+            if (existingFree) inventoryId = existingFree.id;
+            else {
+              const [granted] = await tx.insert(userInventory).values({
+                userId: user.id, shopItemId: choice.shopItemId, quantity: 1,
+              }).returning({ id: userInventory.id });
+              inventoryId = granted.id;
+            }
+          }
+          await tx.insert(playerAvatarEquipment).values({
+            userId: user.id, category: choice.category, inventoryId,
+            colorTint: choice.colorTint,
+          });
+        }
+        return { status: 201 as const };
       });
       if (outcome.status === 422 || outcome.status === 409)
         return res.status(outcome.status).json({ message: outcome.message });
@@ -377,6 +482,7 @@ export function registerPlayerAvatarRoutes(
               category: playerClothingDrafts.publishedCategory,
               segments: playerClothingDrafts.publishedSegments,
               bodyVariants: playerClothingDrafts.publishedBodyVariants,
+              colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
             }).from(shopItems)
               .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
               .where(and(eq(shopItems.id, input.data.inventoryId),
@@ -410,6 +516,7 @@ export function registerPlayerAvatarRoutes(
             universal: playerClothingDrafts.universal,
             segments: playerClothingDrafts.publishedSegments,
             bodyVariants: playerClothingDrafts.publishedBodyVariants,
+            colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
           }).from(shopItems)
             .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
             .where(and(eq(shopItems.id, inventory.shopItemId), eq(shopItems.type, "clothing"),
@@ -433,7 +540,18 @@ export function registerPlayerAvatarRoutes(
             publishedSegmentsCount: published.data.segments.length,
           })) return { status: 422 as const, message: "This clothing cannot be equipped: check its slot, ownership and avatar base" };
 
-          if (existing?.inventoryId === inventory.id) return { status: 200 as const };
+          if (!item.colorPickerEnabled && input.data.colorTint)
+            return { status: 422 as const, message: "This clothing does not offer a color picker" };
+          const colorTint = item.colorPickerEnabled
+            ? (input.data.colorTint === undefined
+              ? (existing?.inventoryId === inventory.id ? existing.colorTint : null)
+              : input.data.colorTint)
+            : null;
+          if (existing?.inventoryId === inventory.id) {
+            // Keep the original no-op equip behavior, but allow updating only
+            // this player's selected tint on an already equipped garment.
+            if (existing.colorTint === colorTint) return { status: 200 as const };
+          }
           // A previously equipped garment may have been republished in a new
           // wardrobe category. Clear its obsolete slot before the category
           // upsert so the unique (user_id, inventory_id) constraint cannot
@@ -444,10 +562,10 @@ export function registerPlayerAvatarRoutes(
             eq(playerAvatarEquipment.inventoryId, inventory.id),
           ));
           await tx.insert(playerAvatarEquipment).values({
-            userId: user.id, category: slot, inventoryId: inventory.id,
+            userId: user.id, category: slot, inventoryId: inventory.id, colorTint,
           }).onConflictDoUpdate({
             target: [playerAvatarEquipment.userId, playerAvatarEquipment.category],
-            set: { inventoryId: inventory.id, equippedAt: new Date() },
+            set: { inventoryId: inventory.id, colorTint, equippedAt: new Date() },
           });
         } else {
           if (!existing) return { status: 200 as const };

@@ -21,6 +21,7 @@ export async function ensurePlayerClothingStorage(): Promise<void> {
       published_at timestamp
     );
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS universal boolean NOT NULL DEFAULT false;
+    ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS color_picker_enabled boolean NOT NULL DEFAULT false;
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS shop_image_url text;
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS deleted_at timestamp;
     ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS draft_body_variants jsonb;
