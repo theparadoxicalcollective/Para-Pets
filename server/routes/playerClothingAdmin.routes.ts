@@ -99,14 +99,16 @@ export function registerPlayerClothingAdminRoutes(
             message: "An uploaded part has changed. Reload this clothing item before saving." };
           segments.push(playerClothingSegmentSchema.parse({
             ...previous, slot: item.slot, partType: item.partType,
-            canvasAligned: true, fit: canvasClothingFit(), renderPlane: "with_part",
+            canvasAligned: true, fit: canvasClothingFit(),
+            renderPlane: input.data.category === "hair" ? item.renderPlane ?? "with_part" : "with_part",
             ...(input.data.category === "shoes"
               ? { shoesLayer: input.data.shoesLayer ?? "under" } : { shoesLayer: undefined }),
           }));
         }
         for (const image of uploads) segments.push(playerClothingSegmentSchema.parse({
           slot: image.slot, partType: image.partType, imageUrl: image.imageUrl,
-          canvasAligned: true, fit: canvasClothingFit(), renderPlane: "with_part",
+          canvasAligned: true, fit: canvasClothingFit(),
+          renderPlane: input.data.category === "hair" ? image.renderPlane ?? "with_part" : "with_part",
           ...(input.data.category === "shoes" ? { shoesLayer: input.data.shoesLayer ?? "under" } : {}),
         }));
         if (!validClothingPublication(input.data.name, input.data.category, segments))

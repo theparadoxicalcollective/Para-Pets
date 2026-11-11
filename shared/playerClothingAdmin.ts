@@ -85,12 +85,14 @@ export const saveUniversalClothingItemSchema = z.object({
   images: z.array(z.object({
     slot: playerClothingSlotSchema,
     partType: playerCharacterPartTypeSchema,
+    renderPlane: playerClothingRenderPlaneSchema.optional(),
     imageData: uploadData,
   }).strict()).max(13),
   keep: z.array(z.object({
     previousSlot: playerClothingSlotSchema,
     slot: playerClothingSlotSchema,
     partType: playerCharacterPartTypeSchema,
+    renderPlane: playerClothingRenderPlaneSchema.optional(),
   }).strict()).max(13),
   shoesLayer: playerShoesLayerSchema.optional(),
 }).strict().superRefine((value, ctx) => {
@@ -110,6 +112,11 @@ export const saveUniversalClothingItemSchema = z.object({
       !["face_open_eyes", "face_closed_eyes", "face_mouth"].every(slot => seen.has(slot))) {
     ctx.addIssue({ code: "custom", path: ["images"], message: "Face needs open eyes, closed eyes and mouth" });
   }
+  if (value.category !== "hair" && [...value.images, ...value.keep]
+      .some(entry => entry.renderPlane === "behind_character"))
+    ctx.addIssue({ code: "custom", message: "Only hair pieces can be layered behind the body" });
+  if (value.images.length + value.keep.length > 13)
+    ctx.addIssue({ code: "custom", message: "A clothing item supports up to 13 pieces" });
   if (value.category !== "shoes" && value.shoesLayer)
     ctx.addIssue({ code: "custom", message: "Only shoes can choose pants layering" });
   if (value.images.length + value.keep.length < (value.category === "face" ? 3 : 1))
