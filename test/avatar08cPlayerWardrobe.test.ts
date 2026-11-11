@@ -64,7 +64,7 @@ test("the eight wardrobe buttons are independent of the eight animation parts", 
   assert.doesNotMatch(page, /PetAnimator|clientToStage|390|844|localStorage/);
 });
 
-test("the eight wardrobe categories use their uploaded artwork and a legible game title", () => {
+test("the eight wardrobe categories use their uploaded artwork without extra page copy", () => {
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
   const css = read("client/src/pages/PlayerAvatarPage.css");
   const vite = read("vite.config.ts");
@@ -93,8 +93,10 @@ test("the eight wardrobe categories use their uploaded artwork and a legible gam
   assert.match(page, /aria-label=\{PLAYER_CLOTHING_CATEGORY_LABELS\[slot\]\}/);
   assert.match(css, /\.player-avatar-page__category-icon\s*\{/);
   assert.match(css, /object-fit: contain/);
-  assert.match(css, /font-family: "Playfair Display", Georgia, serif/);
-  assert.match(css, /font-style: italic/);
+  assert.doesNotMatch(page, /Design Your Character|Your personal look for Veridia|Start your journey/);
+  assert.match(page, /aria-label="Reset character to empty base"/);
+  assert.match(css, /\.player-avatar-page__details/);
+  assert.match(css, /overflow-y: auto/);
   assert.match(html, /family=Great\+Vibes.*Playfair\+Display/);
   assert.match(vite, /wardrobeIconThumbnailPlugin\(\)/);
   assert.match(vite, /resize\(192, 192/);
@@ -168,7 +170,9 @@ test("the player page uses the authenticated 08B API and does not save a preview
   assert.match(page, /cacheSavedAvatar\(saved, input\.accountId\)/);
   assert.match(page, /qc\.invalidateQueries\(\{ queryKey: playerAvatarQueryKey\(input\.accountId\) \}\)/);
   assert.doesNotMatch(page, /qc\.setQueryData\(PLAYER_AVATAR_QUERY_KEY, saved\)/);
-  assert.match(page, /setPreviewId\(null\)/);
+  assert.match(page, /setPreviewSelections\(\{\}\)/);
+  assert.match(page, /setResetPending\(!!avatar\?\.created\)/);
+  assert.match(page, /clearClothing: resetPending/);
   assert.match(page, /error.status === 409/);
   assert.match(page, /data-testid="avatar-create-button"/);
   assert.match(page, /data-testid="avatar-equip-button"/);

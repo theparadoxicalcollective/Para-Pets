@@ -101,19 +101,25 @@ export interface AvatarClothingLayer {
 
 export function wardrobeLayers(
   avatar: PlayerAvatarState,
-  preview?: { category: PlayerClothingCategory; inventoryId: string } | null,
+  preview?: { category: PlayerClothingCategory; inventoryId: string } |
+    readonly { category: PlayerClothingCategory; inventoryId: string }[] | null,
+  clearEquipped = false,
 ): AvatarClothingLayer[] {
   const unavailable = new Set(avatar.unavailableEquipmentSlots);
-  const equipped: AvatarClothingLayer[] = avatar.equipped
+  const equipped: AvatarClothingLayer[] = clearEquipped ? [] : avatar.equipped
     .filter(item => !unavailable.has(item.category))
     .map(({ category, inventoryId, segments }) => ({ category, inventoryId, segments }));
 
-  const chosen = preview && avatar.ownedClothing.find(item =>
-    item.inventoryId === preview.inventoryId &&
-    item.category === preview.category &&
-    item.compatible && !item.isListed && item.quantity > 0
-  );
-  if (chosen) {
+  // Keep one unsaved preview per wardrobe category. A body toggle cannot
+  // silently discard the other chosen hair/face/top/etc pieces.
+  const previews = preview ? Array.isArray(preview) ? preview : [preview] : [];
+  for (const candidate of previews) {
+    const chosen = avatar.ownedClothing.find(item =>
+      item.inventoryId === candidate.inventoryId &&
+      item.category === candidate.category &&
+      item.compatible && !item.isListed && item.quantity > 0
+    );
+    if (!chosen) continue;
     const index = equipped.findIndex(item => item.category === chosen.category);
     if (index >= 0) equipped.splice(index, 1);
     equipped.push({

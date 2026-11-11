@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { and, eq, gt, notInArray } from "drizzle-orm";
+import { and, eq, gt, isNull, notInArray } from "drizzle-orm";
 import { AVATAR_CLOTHING_UNRELEASED_WORLD } from "@shared/playerClothingAdmin";
 import type { db as database } from "../db";
 import {
@@ -90,6 +90,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
     .where(and(
       eq(userInventory.userId, userId), eq(shopItems.type, "clothing"),
+      isNull(playerClothingDrafts.deletedAt),
       gt(userInventory.quantity, 0),
     ));
 
@@ -127,7 +128,8 @@ async function readPlayerAvatar(db: Db, userId: string) {
     .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
     .where(and(eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
       eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
-      eq(playerClothingDrafts.universal, true)));
+      eq(playerClothingDrafts.universal, true),
+      isNull(playerClothingDrafts.deletedAt)));
   const alreadyOwned = new Set(ownedRows.filter(item => !item.isListed && item.quantity > 0)
     .map(item => item.shopItemId));
   for (const item of freeRows) {
@@ -250,13 +252,18 @@ export function registerPlayerAvatarRoutes(
           (profile.baseId === base.id &&
             profile.basePublishedAt.getTime() === available.publishedAt.getTime());
         const skinTone = input.data.skinTone === undefined ? profile.skinTone : input.data.skinTone;
-        if (sameBase && profile.skinTone === skinTone)
+        if (sameBase && profile.skinTone === skinTone && !input.data.clearClothing)
           return { status: 200 as const };
         // Keep clothes when only changing skin color; no equipment mutation.
         // New universal clothing remains equipped across body changes.
         // Remove only older, anatomy-locked outfit links and any dangling
         // entries. Inventory ownership is never changed.
-        if (!sameBase) {
+        if (input.data.clearClothing) {
+          // Reset appearance keeps every owned garment in inventory.
+          // Clear equipment atomically with the saved base/tone revision.
+          await tx.delete(playerAvatarEquipment)
+            .where(eq(playerAvatarEquipment.userId, user.id));
+        } else if (!sameBase) {
         const worn = await tx.select({
           category: playerAvatarEquipment.category,
           universal: playerClothingDrafts.universal,
@@ -327,7 +334,8 @@ export function registerPlayerAvatarRoutes(
               .where(and(eq(shopItems.id, input.data.inventoryId),
                 eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
                 eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
-                eq(playerClothingDrafts.universal, true))).limit(1);
+                eq(playerClothingDrafts.universal, true),
+                isNull(playerClothingDrafts.deletedAt))).limit(1);
             const validated = free ? playerClothingDefinitionSchema.safeParse({
               name: free.name, category: free.category, segments: free.segments,
             }) : null;
@@ -351,8 +359,9 @@ export function registerPlayerAvatarRoutes(
             segments: playerClothingDrafts.publishedSegments,
           }).from(shopItems)
             .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
-            .where(and(eq(shopItems.id, inventory.shopItemId), eq(shopItems.type, "clothing")))
-            .limit(1);
+            .where(and(eq(shopItems.id, inventory.shopItemId), eq(shopItems.type, "clothing"),
+              isNull(playerClothingDrafts.deletedAt)))
+            .limit(1).for("share");
           const published = item ? playerClothingDefinitionSchema.safeParse({
             name: item.name, category: item.category, segments: item.segments,
           }) : null;

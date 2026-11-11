@@ -7,10 +7,8 @@
   /* The shared viewport portal intentionally ignores clicks; the active
      page must explicitly own pointer events for buttons and touch swipes. */
   pointer-events: auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  /* The preview and body controls never leave the screen. */
+  overflow: hidden;
   /* Do not restrict the parent to pan-y: that would cancel the child wardrobe's
      horizontal pan-x gesture on Mobile Safari. */
   touch-action: auto;
@@ -30,33 +28,39 @@
 }
 .player-avatar-page__content {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 750px);
+  height: 100%;
+  min-height: 0;
   margin: 0 auto;
-  padding: max(16px, env(safe-area-inset-top, 0px)) 14px
-    calc(32px + env(safe-area-inset-bottom, 0px));
+  padding: max(10px, env(safe-area-inset-top, 0px)) 14px
+    max(10px, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
+  overflow: hidden;
+}
+.player-avatar-page__details {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 3px 2px 10px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Let horizontal swipes reach the clothing shelf on iOS Safari. */
+  touch-action: auto;
 }
 .player-avatar-page__header {
   display: grid;
   grid-template-columns: 45px 1fr 45px;
   align-items: center;
   gap: 10px;
-  margin-bottom: 5px;
+  flex: 0 0 auto;
+  margin-bottom: 0;
   text-align: center;
 }
-.player-avatar-page__header h1 {
-  margin: 0;
-  font-family: "Playfair Display", Georgia, serif;
-  font-size: clamp(29px, 7vw, 41px);
-  font-style: italic;
-  font-weight: 600;
-  line-height: 1.13;
-  letter-spacing: -.015em;
-  color: #f5dca2;
-  text-wrap: balance;
-  text-shadow: 0 2px 3px rgba(0,0,0,.85), 0 4px 15px rgba(0,0,0,.65);
-}
-.player-avatar-page__header p { margin: 3px 0 0; color: #c4c9a6; font-size: 12px; }
 .player-avatar-page__back, .player-avatar-page__refresh {
   display: grid;
   place-items: center;
@@ -76,11 +80,13 @@
 }
 .player-avatar-page button:disabled { cursor: not-allowed; opacity: .5; }
 .player-avatar-page__showcase {
+  flex: 0 0 auto;
   width: min(100%, 590px);
-  height: clamp(335px, 91vw, 440px);
-  margin: 5px auto 10px;
+  height: clamp(235px, min(86vw, 48dvh), 420px);
+  margin: 0 auto 2px;
   position: relative;
   isolation: isolate;
+  touch-action: manipulation;
 }
 .player-avatar-page__halo {
   position: absolute;
@@ -176,7 +182,8 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin: 24px auto 14px;
+  flex: 0 0 auto;
+  margin: 8px auto 9px;
 }
 .player-avatar-page__body-selector {
   display: flex;
@@ -328,16 +335,11 @@
   background: linear-gradient(160deg,rgba(30,59,39,.97),rgba(12,35,25,.98));
   box-shadow: 0 10px 30px #0006, inset 0 1px 0 #ffffff0a;
 }
-.player-avatar-page__create { text-align: center; }
-.player-avatar-page__create-title {
-  display: flex;
-  gap: 7px;
-  justify-content: center;
-  align-items: center;
-  font: bold 18px Georgia, serif;
-  color: #f2d586;
+.player-avatar-page__create {
+  margin-top: 8px;
+  padding: 12px;
+  text-align: center;
 }
-.player-avatar-page__create p { font-size: 13px; color: #ded8b6; line-height: 1.5; }
 .player-avatar-page__create button,
 .player-avatar-page__actions button,
 .player-avatar-page__message button {
@@ -354,17 +356,15 @@
 .player-avatar-page__wardrobe-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .player-avatar-page__wardrobe-header h2 {
   margin: 0 0 4px;
   font: bold 19px Georgia, serif;
   color: #f2d38c;
 }
-.player-avatar-page__wardrobe-header p { margin: 0; font-size: 11px; line-height: 1.35; color: #c9c7aa; }
-.player-avatar-page__wardrobe-header > span { color: #e0bf77; font-size: 12px; white-space: nowrap; }
 .player-avatar-page__wardrobe-close {
   flex: 0 0 auto;
   display: grid;
@@ -393,13 +393,12 @@
   touch-action: pan-x;
 }
 .player-avatar-page__item {
-  flex: 0 0 clamp(103px, 29vw, 128px);
-  width: clamp(103px, 29vw, 128px);
+  flex: 0 0 clamp(92px, 27vw, 120px);
+  width: clamp(92px, 27vw, 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 7px 9px;
-  gap: 5px;
+  padding: 7px;
   border: 1px solid #736b43;
   border-radius: 15px;
   background: rgba(13,35,25,.96);
@@ -432,8 +431,6 @@
   color: #142517;
   background: #f0d17a;
 }
-.player-avatar-page__item-name { width: 100%; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
-.player-avatar-page__item-status { font-size: 10px; color: #cab77b; }
 .player-avatar-page__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 10px; }
 .player-avatar-page__actions .player-avatar-page__remove {
   border-color: #8d7951;
@@ -463,11 +460,16 @@
   font-size: 12px;
 }
 @media (min-width: 600px) {
-  .player-avatar-page__showcase { height: 445px; }
+  .player-avatar-page__showcase { height: min(420px, 48dvh); }
   .player-avatar-page__category { --ring-size: 67px; }
 }
 @media (max-height: 680px) {
-  .player-avatar-page__showcase { height: clamp(300px,80vw,365px); }
+  .player-avatar-page__showcase { height: clamp(205px, min(73vw, 43dvh), 315px); }
+  .player-avatar-page__body-controls { margin-top: 4px; margin-bottom: 6px; }
+}
+@media (max-height: 490px) {
+  .player-avatar-page__showcase { height: min(185px, 39dvh); }
+  .player-avatar-page__category { --ring-size: 43px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .player-avatar-page__category { transition: none; }

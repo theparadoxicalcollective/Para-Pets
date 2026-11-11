@@ -106,6 +106,7 @@ export default function PlayerClothingAdminPanel({
   const { toast } = useToast();
   const [screen, setScreen] = useState<"create" | "view">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState(0);
   const [shopImageData, setShopImageData] = useState<string | null>(null);
@@ -198,11 +199,41 @@ export default function PlayerClothingAdminPanel({
       title: "Clothing not saved", description: error.message, variant: "destructive",
     }),
   });
-  const busy = saveItem.isPending || readingParts > 0;
+  const deleteItem = useMutation({
+    mutationFn: () => {
+      if (!editingId || !activeDraft) throw new Error("Select saved clothing to delete");
+      return requestJson<{ id: string; deleted: boolean }>(
+        "DELETE", `/api/admin/player-character/clothing/item/${editingId}`,
+        { expectedRevision: activeDraft.revision },
+      );
+    },
+    onSuccess: result => {
+      qc.setQueryData<ClothingDraft[]>(CLOTHING_KEY, current =>
+        (current ?? []).filter(item => item.id !== result.id));
+      void qc.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+      void qc.invalidateQueries({ queryKey: ["/api/player-avatar"] });
+      setConfirmDelete(false);
+      setEditingId(null);
+      setChanged(false);
+      setParts([]);
+      setName("");
+      setPrice(0);
+      setShopImageData(null);
+      setScreen("view");
+      toast({ title: "Clothing deleted", description: "Removed from wardrobes and future shop availability." });
+    },
+    onError: (error: Error) => {
+      setConfirmDelete(false);
+      void qc.invalidateQueries({ queryKey: CLOTHING_KEY });
+      toast({ title: "Could not delete clothing", description: error.message, variant: "destructive" });
+    },
+  });
+  const busy = saveItem.isPending || deleteItem.isPending || readingParts > 0;
   useEffect(() => { onDirtyChange?.(changed || busy); }, [onDirtyChange, changed, busy]);
 
   const startNew = () => {
     if (busy) return;
+    setConfirmDelete(false);
     setEditingId(null); setName(""); setPrice(0); setShopImageData(null);
     setCategory("top"); setParts([]);
     setShoesLayer("under"); setClosedEyes(false); setChanged(false);
@@ -210,6 +241,7 @@ export default function PlayerClothingAdminPanel({
   };
   const openExisting = (draft: ClothingDraft) => {
     if (busy) return;
+    setConfirmDelete(false);
     setEditingId(draft.id); setName(draft.name); setPrice(draft.price ?? 0);
     setShopImageData(null); setCategory(draft.category);
     setParts(partsFromDraft(draft));
@@ -536,10 +568,44 @@ export default function PlayerClothingAdminPanel({
             onClick={() => saveItem.mutate()}>
             {saveItem.isPending ? "Saving Clothing…" : "Save Clothing"}
           </button>
-          {editingId && <button type="button" className={buttonClass + " w-full"}
-            disabled={busy} onClick={startNew}>Create New Item</button>}
+          {editingId && (
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className={buttonClass + " w-full"}
+                disabled={busy} onClick={startNew}>Create New Item</button>
+              <button type="button" className={buttonClass + " w-full !border-[#bf745d] !bg-[#563025]"}
+                data-testid="avatar-delete-clothing-item" disabled={busy}
+                onClick={() => setConfirmDelete(true)}>Delete Clothing</button>
+            </div>
+          )}
           {draftsQuery.isError && <button type="button" className={buttonClass + " w-full"}
             onClick={() => void draftsQuery.refetch()}>Retry loading clothing items</button>}
+          {confirmDelete && editingId && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 p-4"
+              data-testid="avatar-delete-clothing-confirm-overlay">
+              <div role="alertdialog" aria-modal="true"
+                aria-labelledby="avatar-delete-clothing-heading"
+                className={cardClass + " w-full max-w-[380px] space-y-3 text-center !border-[#e0bd7a]"}>
+                <h3 id="avatar-delete-clothing-heading" className="font-fantasy text-xl text-[#f8d999]">
+                  Delete Clothing?
+                </h3>
+                <p className="text-sm leading-relaxed text-[#edddb9]">
+                  Remove <strong>{activeDraft?.name}</strong> from wardrobes and shops?
+                  Existing player inventory history will remain intact.
+                  Unsaved changes to this item will be lost.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" className={buttonClass}
+                    data-testid="avatar-cancel-delete-clothing" disabled={deleteItem.isPending}
+                    onClick={() => setConfirmDelete(false)}>Cancel</button>
+                  <button type="button" className={buttonClass + " !border-[#cb826c] !bg-[#653427]"}
+                    data-testid="avatar-confirm-delete-clothing" disabled={deleteItem.isPending}
+                    onClick={() => deleteItem.mutate()}>
+                    {deleteItem.isPending ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
