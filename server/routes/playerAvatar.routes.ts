@@ -10,7 +10,8 @@ import {
   availablePlayerCharacterBody, resolvePlayerCharacterParts,
 } from "@shared/playerCharacter";
 import {
-  playerClothingDefinitionSchema, type PlayerClothingCategory,
+  playerClothingDefinitionSchema, clothingSegmentsForBody,
+  type PlayerClothingCategory,
 } from "@shared/playerCharacterClothing";
 import {
   changePlayerAvatarBaseSchema, createPlayerAvatarSchema,
@@ -85,6 +86,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     basePublishedAt: playerClothingDrafts.basePublishedAt,
     universal: playerClothingDrafts.universal,
     segments: playerClothingDrafts.publishedSegments,
+    bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(userInventory)
     .innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
     .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
@@ -95,8 +97,10 @@ async function readPlayerAvatar(db: Db, userId: string) {
     ));
 
   const ownedClothing = ownedRows.flatMap(item => {
+    const bodySegments = clothingSegmentsForBody(
+      item.segments, item.bodyVariants, activeBase?.name);
     const parsed = playerClothingDefinitionSchema.safeParse({
-      name: item.name, category: item.category, segments: item.segments,
+      name: item.name, category: item.category, segments: bodySegments,
     });
     if (!parsed.success) return [];
     const compatible = !!activeBase && isEligiblePlayerClothingInventory({
@@ -114,6 +118,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
       compatible, universal: item.universal, free: false, segments: parsed.data.segments,
+      bodyVariants: item.bodyVariants,
     }];
   });
 
@@ -124,6 +129,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
     category: playerClothingDrafts.publishedCategory,
     segments: playerClothingDrafts.publishedSegments,
+    bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(shopItems)
     .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
     .where(and(eq(shopItems.type, "clothing"), eq(shopItems.price, 0),
@@ -134,8 +140,10 @@ async function readPlayerAvatar(db: Db, userId: string) {
     .map(item => item.shopItemId));
   for (const item of freeRows) {
     if (alreadyOwned.has(item.shopItemId)) continue;
+    const bodySegments = clothingSegmentsForBody(
+      item.segments, item.bodyVariants, activeBase?.name);
     const parsed = playerClothingDefinitionSchema.safeParse({
-      name: item.name, category: item.category, segments: item.segments,
+      name: item.name, category: item.category, segments: bodySegments,
     });
     if (!parsed.success) continue;
     ownedClothing.push({
@@ -143,6 +151,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: 1, isListed: false, compatible: true, universal: true,
       free: true, segments: parsed.data.segments,
+      bodyVariants: item.bodyVariants,
     });
   }
 
@@ -158,7 +167,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     return item && item.category === entry.category
       ? [{ category: entry.category, inventoryId: item.inventoryId,
           shopItemId: item.shopItemId, name: item.name, imageUrl: item.imageUrl,
-          segments: item.segments }]
+          segments: item.segments, bodyVariants: item.bodyVariants }]
       : [];
   });
   const validSlots = new Set(equipped.map(item => item.category));
@@ -329,6 +338,7 @@ export function registerPlayerAvatarRoutes(
               shopItemId: shopItems.id, name: shopItems.name,
               category: playerClothingDrafts.publishedCategory,
               segments: playerClothingDrafts.publishedSegments,
+              bodyVariants: playerClothingDrafts.publishedBodyVariants,
             }).from(shopItems)
               .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
               .where(and(eq(shopItems.id, input.data.inventoryId),
@@ -336,8 +346,12 @@ export function registerPlayerAvatarRoutes(
                 eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
                 eq(playerClothingDrafts.universal, true),
                 isNull(playerClothingDrafts.deletedAt))).limit(1);
+            const [profileBase] = await tx.select({ name: playerCharacterBases.name })
+              .from(playerCharacterBases).where(eq(playerCharacterBases.id, profile.baseId)).limit(1);
             const validated = free ? playerClothingDefinitionSchema.safeParse({
-              name: free.name, category: free.category, segments: free.segments,
+              name: free.name, category: free.category,
+              segments: clothingSegmentsForBody(
+                free.segments, free.bodyVariants, profileBase?.name),
             }) : null;
             if (!validated?.success || validated.data.category !== slot)
               return { status: 404 as const, message: "This free clothing item is no longer available" };
@@ -357,13 +371,18 @@ export function registerPlayerAvatarRoutes(
             basePublishedAt: playerClothingDrafts.basePublishedAt,
             universal: playerClothingDrafts.universal,
             segments: playerClothingDrafts.publishedSegments,
+            bodyVariants: playerClothingDrafts.publishedBodyVariants,
           }).from(shopItems)
             .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
             .where(and(eq(shopItems.id, inventory.shopItemId), eq(shopItems.type, "clothing"),
               isNull(playerClothingDrafts.deletedAt)))
             .limit(1).for("share");
+          const [selectedBase] = await tx.select({ name: playerCharacterBases.name })
+            .from(playerCharacterBases).where(eq(playerCharacterBases.id, profile.baseId)).limit(1);
           const published = item ? playerClothingDefinitionSchema.safeParse({
-            name: item.name, category: item.category, segments: item.segments,
+            name: item.name, category: item.category,
+            segments: clothingSegmentsForBody(
+              item.segments, item.bodyVariants, selectedBase?.name),
           }) : null;
           if (!item || !published?.success || !isEligiblePlayerClothingInventory({
             ownerId: inventory.userId, playerId: user.id, itemType: item.type,
