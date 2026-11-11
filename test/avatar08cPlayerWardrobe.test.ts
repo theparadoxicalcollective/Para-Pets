@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 import {
   PLAYER_CLOTHING_CATEGORIES,
@@ -53,6 +53,45 @@ test("the eight wardrobe buttons are independent of the eight animation parts", 
   assert.match(page, /aria-pressed=\{category === slot\}/);
   assert.match(page, /PlayerCharacterRenderer/);
   assert.doesNotMatch(page, /PetAnimator|clientToStage|390|844|localStorage/);
+});
+
+test("the eight wardrobe categories use their uploaded artwork and a legible game title", () => {
+  const page = read("client/src/pages/PlayerAvatarPage.tsx");
+  const css = read("client/src/pages/PlayerAvatarPage.css");
+  const vite = read("vite.config.ts");
+  const html = read("client/index.html");
+  const assets = {
+    accessories: "ClothingAccesoryIcon.png",
+    head: "HeadAccessoriesIcon.png",
+    hair: "HairIcon.png",
+    face: "FaceIcon.png",
+    top: "TopIcon.png",
+    bottom: "BottomsIcon.png",
+    shoes: "ShoeIcon.png",
+    back: "BackAccessoryIcon.png",
+  };
+  assert.deepEqual(Object.keys(assets), [...PLAYER_CLOTHING_CATEGORIES]);
+  for (const [category, filename] of Object.entries(assets)) {
+    assert.ok(statSync("attached_assets/uploads/" + filename).size > 0,
+      "Missing uploaded " + category + " artwork");
+    assert.ok(page.includes('uploads/' + filename + '"'),
+      "Player page must import the uploaded icon for " + category);
+    assert.match(page, new RegExp(category + ": [a-zA-Z]+Icon,"));
+  }
+  assert.match(page, /src=\{categoryIcons\[slot\]\}/);
+  assert.match(page, /className="player-avatar-page__category-icon"/);
+  assert.match(page, /className="sr-only"\>\{PLAYER_CLOTHING_CATEGORY_LABELS\[slot\]\}/);
+  assert.match(page, /aria-label=\{PLAYER_CLOTHING_CATEGORY_LABELS\[slot\]\}/);
+  assert.match(css, /\.player-avatar-page__category-icon\s*\{/);
+  assert.match(css, /object-fit: contain/);
+  assert.match(css, /font-family: "Playfair Display", Georgia, serif/);
+  assert.match(css, /font-style: italic/);
+  assert.match(html, /family=Great\+Vibes.*Playfair\+Display/);
+  assert.match(vite, /wardrobeIconThumbnailPlugin\(\)/);
+  assert.match(vite, /resize\(192, 192/);
+  assert.match(vite, /\.webp\(\{ quality: 84/);
+  assert.doesNotMatch(page, /\{slot === "back" \? "Back" : PLAYER_CLOTHING_CATEGORY_LABELS\[slot\]\}/,
+    "Visible category buttons must not fall back to placeholder text");
 });
 
 test("one garment retains independent left and right leg attachments", () => {
