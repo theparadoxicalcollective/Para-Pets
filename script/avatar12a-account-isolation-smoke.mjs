@@ -103,6 +103,8 @@ try{
       return route.fulfill({status:404,json:{message:"Unsupported QA fixture route"}});
     });
     await page.goto("http://127.0.0.1:4202/avatar12a-fixture",{waitUntil:"domcontentloaded"});
+    // Wardrobes now start closed until a clothing category is tapped.
+    await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-clothing-hat-account-A").waitFor({state:"visible"});
     await page.getByTestId("avatar-clothing-hat-account-A").tap();
     const save=page.waitForResponse(r=>r.request().method()==="PUT"&&r.url().includes("/equipment/head"));
