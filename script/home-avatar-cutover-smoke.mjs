@@ -217,14 +217,22 @@ try {
       sc.name+": top profile/resources and level labels all render");
     assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
       sc.name+": player name is to the right of the profile");
-    // Profile artwork has its own translateY(14px). Compare the name with
-    // its actual layout owner, not the transformed portrait button.
-    assert.ok(homeLayout.accountHeader &&
-      homeLayout.headerName.top >= homeLayout.accountHeader.top + 28 &&
-      homeLayout.headerName.top <= homeLayout.accountHeader.top + 38,
-      sc.name+": player name gets the intended lower spacing in its header: "+
+    // Both portrait and name use the same +14px artwork offset.
+    // Measure actual rendered centers after layout, rather than an obsolete
+    // padding-top constant; keep long names truncated beside the portrait.
+    assert.ok(homeLayout.accountHeader && homeLayout.headerName &&
+      Math.abs((homeLayout.headerName.top + homeLayout.headerName.height / 2) -
+        (homeLayout.profile.top + homeLayout.profile.height / 2)) < 12,
+      sc.name+": player name vertically centered with profile picture: "+
         JSON.stringify({name:homeLayout.headerName,header:homeLayout.accountHeader,profile:homeLayout.profile}));
     assert.ok(homeLayout.shopIcon, sc.name+": a compact coin shortcut exists under the resource bars");
+    const coinStyle = await page.getByTestId("button-coin-bag").evaluate(el => ({
+      radius: getComputedStyle(el).borderRadius,
+      background: getComputedStyle(el).backgroundColor,
+      plusBackground: getComputedStyle(el.querySelector('[aria-hidden="true"]')).backgroundColor,
+    }));
+    assert.ok(coinStyle.radius.includes("50%"),
+      sc.name+": the coin bundle shortcut is round instead of square");
     assert.ok(homeLayout.essence.top >= homeLayout.profile.bottom - 6,
       sc.name+": resource bars sit under the portrait: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.coins.top > homeLayout.essence.top,
@@ -235,9 +243,10 @@ try {
       homeLayout.shopIcon.width <= 34,
       sc.name+": small Coin Bundles shortcut is centered: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
+      homeLayout.watcher.height === 44 &&
       homeLayout.watcher.top >= homeLayout.party.bottom - 2 &&
       homeLayout.watcher.bottom <= sc.height - 1,
-      sc.name+": Watcher is docked beneath the five-pet panel: "+JSON.stringify(homeLayout));
+      sc.name+": enlarged Watcher docks beneath the five-pet panel: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
     assert.ok(homeLayout.xpText.top >= homeLayout.xp.bottom - 3,
@@ -251,7 +260,8 @@ try {
       sc.name+": centered player level is readable inside a compact pill "+JSON.stringify(homeLayout.levelPill));
     assert.ok(homeLayout.levelPill.bottom <= homeLayout.party.top + 8,
       sc.name+": lowered XP and level pill do not block pet selection");
-    assert.ok(homeLayout.navButton, sc.name+": main nav button is present");
+    assert.ok(homeLayout.navButton && homeLayout.navButton.width === 52,
+      sc.name+": Home navigation launcher is slightly smaller");
     assert.ok(homeLayout.navButton.top >= homeLayout.headerName.bottom + 6 &&
       homeLayout.navButton.top < homeLayout.actor.top - 14,
       sc.name+": main nav sits above the avatar at the right edge, not on top of its stars");
