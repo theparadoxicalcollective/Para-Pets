@@ -47,6 +47,7 @@ test("avatar startup SQL runs on PostgreSQL for both existing and fresh database
           CREATE TABLE player_clothing_drafts (
             id varchar PRIMARY KEY,
             base_id varchar NOT NULL,
+            base_published_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
             name text NOT NULL,
             category text NOT NULL CHECK (category IN ('head','hair','face','top','bottom','shoes','back')),
             published_segments jsonb,
@@ -70,16 +71,19 @@ test("avatar startup SQL runs on PostgreSQL for both existing and fresh database
       // checking for particular string patterns.
       await client.query(clothing);
       await client.query(equipment);
+      await client.query("INSERT INTO player_character_bases (id) VALUES ('base1')");
+      await client.query("INSERT INTO users (id) VALUES ('new-player')");
+      await client.query("INSERT INTO user_inventory (id) VALUES ('new-accessory-inventory')");
+      if(!existing) {
+        await client.query(`
+          INSERT INTO player_avatar_profiles (user_id,base_id,base_published_at,base_parts)
+          VALUES ('new-player','base1',CURRENT_TIMESTAMP,'[]'::jsonb)
+        `);
+      }
       await client.query(`
         INSERT INTO player_clothing_drafts (id,base_id,base_published_at,name,category)
         VALUES ('new-accessory','base1',CURRENT_TIMESTAMP,'New Accessory','accessories')
-      `).catch(async err=>{
-        // Legacy fixture predates base_published_at; keep both paths realistic.
-        if(existing && err.code==="42703"){
-          await client.query(`INSERT INTO player_clothing_drafts (id,base_id,name,category)
-                              VALUES ('new-accessory','base1','New Accessory','accessories')`);
-        }else throw err;
-      });
+      `);
       await client.query(`
         INSERT INTO player_avatar_equipment (user_id,category,inventory_id)
         VALUES ('new-player','accessories','new-accessory-inventory')
