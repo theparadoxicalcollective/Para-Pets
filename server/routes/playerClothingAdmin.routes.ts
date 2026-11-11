@@ -568,7 +568,9 @@ export function registerPlayerClothingAdminRoutes(
           worldId: AVATAR_CLOTHING_UNRELEASED_WORLD,
           price: 0,
           description: `Avatar clothing · ${draft.category}`,
-          imageUrl: thumbnail,
+          // Preserve main catalog artwork on legacy Save Clothing as well.
+          // Previously this path silently replaced it with a fitted part image.
+          imageUrl: draft.shopImageUrl || thumbnail,
         };
         let shopItemId = draft.shopItemId;
         if (shopItemId) {
