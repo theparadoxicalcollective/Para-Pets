@@ -57,6 +57,12 @@ const owned = [
   item("face", "face", ["head"]),
   item("bottom", "pants", ["left_leg", "right_leg"]),
   item("top", "listed-top", ["top"], { isListed: true, compatible: false }),
+  item("top", "plain-top", ["top"], { universal: true,
+    segments: [{ partType: "top", slot: "piece_1", canvasAligned: true,
+      imageUrl: art, fit, renderPlane: "with_part" }] }),
+  item("bottom", "canvas-pants", ["top"], { universal: true,
+    segments: [{ partType: "top", slot: "piece_1", canvasAligned: true,
+      imageUrl: art, fit, renderPlane: "with_part" }] }),
   item("back", "free-back", ["top"], { free: true, universal: true }),
 ];
 await server.listen();
@@ -72,7 +78,7 @@ try {
     page.on("pageerror", error => errors.push(error.message));
     page.setDefaultTimeout(20000);
     let avatar = {
-      created: false, revision: null, skinTone: null,
+      created: false, revision: null, skinTone: null, topTucked: false,
       base: { id: "base-1", name: "Fem", publishedAt: new Date().toISOString(), parts: rig },
       availableBases: [
         { id: "base-1", name: "Fem", publishedAt: new Date().toISOString(), parts: rig },
@@ -90,7 +96,16 @@ try {
         assert.equal(body.skinTone, "#d39a71", name + ": first save includes selected skin color");
         writes.push({ method, kind: "create", body });
         avatar = { ...avatar, created: true, revision: 0, skinTone: body.skinTone,
+          topTucked: body.topTucked,
           base: avatar.availableBases.find(entry => entry.id === body.baseId) };
+        return route.fulfill({ json: avatar });
+      }
+      if (url.pathname === "/api/player-avatar/tuck" && method === "PATCH") {
+        const body = route.request().postDataJSON();
+        assert.equal(body.expectedRevision, avatar.revision,
+          name + ": tuck change checks latest player revision");
+        writes.push({ method, kind: "tuck", body });
+        avatar = { ...avatar, topTucked: body.topTucked, revision: avatar.revision + 1 };
         return route.fulfill({ json: avatar });
       }
       if (url.pathname === "/api/player-avatar/base" && method === "PATCH") {
@@ -99,6 +114,7 @@ try {
         writes.push({ method, kind: "change-body", body });
         avatar = {
           ...avatar, revision: avatar.revision + 1, skinTone: body.skinTone,
+          topTucked: body.topTucked,
           base: avatar.availableBases.find(entry => entry.id === body.baseId),
           equipped: body.clearClothing
             ? [] : body.baseId !== avatar.base.id
@@ -185,6 +201,12 @@ try {
     await page.getByTestId("avatar-skin-warm").tap();
     assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
       name + ": color preview tints the eight body layers");
+    await page.getByTestId("avatar-category-top").tap();
+    assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), false,
+      name + ": untucked is the default");
+    await page.getByTestId("avatar-top-tuck").check();
+    assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), true,
+      name + ": new character can choose tuck before first save");
     await page.getByTestId("avatar-category-head").tap();
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
       name + ": opening clothing hides skin colors");
@@ -198,6 +220,8 @@ try {
       name + ": saving closes skin picker");
     await page.getByTestId("avatar-save-confirmation-close").tap();
     assert.equal(writes[0].kind, "create", name + ": save is explicit");
+    assert.equal(writes[0].body.topTucked, true,
+      name + ": first-save tuck preference persisted");
     await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
     const overflow = await page.getByTestId("avatar-owned-inventory").evaluate(el => el.scrollWidth > el.clientWidth);
@@ -239,6 +263,31 @@ try {
     await page.getByTestId("avatar-category-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-listed-top").isDisabled(), true,
       name + ": listed clothing cannot be equipped");
+    await page.getByTestId("avatar-clothing-plain-top").tap();
+    await page.getByTestId("avatar-category-bottom").tap();
+    await page.getByTestId("avatar-clothing-canvas-pants").tap();
+    const canvasDepths = () => page.locator(
+      '.player-character-renderer__canvas-motion[data-clothing-key^="top:"]'
+    ).first().evaluate(el => Number(getComputedStyle(el).zIndex));
+    const bottomDepth = await page.locator(
+      '.player-character-renderer__canvas-motion[data-clothing-key^="bottom:"]'
+    ).first().evaluate(el => Number(getComputedStyle(el).zIndex));
+    assert.ok((await canvasDepths()) < bottomDepth,
+      name + ": checked Tuck draws Tops behind Bottoms");
+    await page.getByTestId("avatar-category-top").tap();
+    await page.getByTestId("avatar-top-tuck").uncheck();
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="avatar-top-tuck"]')?.checked === false);
+    assert.equal(avatar.topTucked, false,
+      name + ": untucked preference persisted on the account");
+    assert.ok((await canvasDepths()) > bottomDepth,
+      name + ": unchecked Tuck draws Tops in front of Bottoms");
+    await page.getByTestId("avatar-top-tuck").check();
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="avatar-top-tuck"]')?.checked === true);
+    assert.equal(avatar.topTucked, true, name + ": tuck persists after another change");
+    assert.ok((await canvasDepths()) < bottomDepth,
+      name + ": switching back to tuck restores layering");
     await page.getByTestId("avatar-category-shoes").tap();
     await page.getByTestId("avatar-wardrobe-empty").waitFor({ state: "visible" });
     const equippedBeforeColor = avatar.equipped.map(entry => entry.inventoryId).sort();
