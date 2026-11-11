@@ -424,7 +424,7 @@
 }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(30px + env(safe-area-inset-bottom, 0px));
   }
   .home-player-hud--avatar-home .home-player-hud__progress {
     top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 28px);

@@ -218,22 +218,24 @@ try {
       sc.name+": top profile/resources and level labels all render");
     assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
       sc.name+": player name is to the right of the profile");
-    // Both portrait and name use the same +14px artwork offset.
-    // Measure actual rendered centers after layout, rather than an obsolete
-    // padding-top constant; keep long names truncated beside the portrait.
+    // Name is deliberately a little lower and smaller than before; the
+    // Watcher occupies the row directly above it, beside the portrait.
     assert.ok(homeLayout.accountHeader && homeLayout.headerName &&
-      Math.abs((homeLayout.headerName.top + homeLayout.headerName.height / 2) -
-        (homeLayout.profile.top + homeLayout.profile.height / 2)) < 12,
-      sc.name+": player name vertically centered with profile picture: "+
+      homeLayout.headerName.top > homeLayout.profile.top + 10 &&
+      homeLayout.headerName.top < homeLayout.profile.bottom + 36,
+      sc.name+": player name is lowered beside the portrait: "+
         JSON.stringify({name:homeLayout.headerName,header:homeLayout.accountHeader,profile:homeLayout.profile}));
     assert.ok(homeLayout.shopIcon, sc.name+": a compact coin shortcut exists under the resource bars");
     const coinStyle = await page.getByTestId("button-coin-bag").evaluate(el => ({
       radius: getComputedStyle(el).borderRadius,
+      border: getComputedStyle(el).borderStyle,
       background: getComputedStyle(el).backgroundColor,
-      plusBackground: getComputedStyle(el.querySelector('[aria-hidden="true"]')).backgroundColor,
+      outline: getComputedStyle(el.querySelector("img")).filter,
     }));
-    assert.ok(coinStyle.radius.includes("50%"),
-      sc.name+": the coin bundle shortcut is round instead of square");
+    assert.equal(coinStyle.border, "none",
+      sc.name+": no enclosing circle around coin-bundle artwork");
+    assert.ok(coinStyle.outline.includes("drop-shadow("),
+      sc.name+": coin artwork itself receives the gold silhouette outline");
     assert.ok(homeLayout.essence.top >= homeLayout.profile.bottom - 6,
       sc.name+": resource bars sit under the portrait: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.coins.top > homeLayout.essence.top,
@@ -241,13 +243,25 @@ try {
     assert.ok(homeLayout.shopIcon.top >= homeLayout.coins.bottom,
       sc.name+": Coin Bundles shortcut sits beneath Coins");
     assert.ok(Math.abs(homeLayout.shopIcon.centerX - homeLayout.coins.centerX) < 8 &&
-      homeLayout.shopIcon.width <= 34,
+      homeLayout.shopIcon.width <= 42,
       sc.name+": small Coin Bundles shortcut is centered: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
       homeLayout.watcher.height >= 40 && homeLayout.watcher.height <= 44 &&
-      homeLayout.watcher.top >= homeLayout.party.bottom - 2 &&
-      homeLayout.watcher.bottom <= sc.height + 0.5,
-      sc.name+": enlarged Watcher docks beneath the five-pet panel: "+JSON.stringify(homeLayout));
+      homeLayout.watcher.left >= homeLayout.profile.right - 5 &&
+      homeLayout.watcher.bottom <= homeLayout.headerName.top + 4,
+      sc.name+": Watcher is above the player name and right of the portrait: "+JSON.stringify(homeLayout));
+    const partyChrome = await page.locator(".home-player-hud__party-panel").evaluate(el => ({
+      border: getComputedStyle(el).borderStyle,
+      background: getComputedStyle(el).backgroundColor,
+      pointerEvents: getComputedStyle(el).pointerEvents,
+    }));
+    assert.equal(partyChrome.border, "none",
+      sc.name+": companion portraits no longer live in a rectangle");
+    assert.equal(partyChrome.pointerEvents, "none",
+      sc.name+": empty space between pets does not block scene taps");
+    const teamSlot = await page.getByTestId("home-player-team-slot-1").boundingBox();
+    assert.ok(teamSlot && teamSlot.width >= (sc.height <= 690 ? 48 : 56),
+      sc.name+": pet portraits enlarged without losing the five slots");
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
     assert.ok(homeLayout.xpText.top >= homeLayout.xp.bottom - 3,
@@ -262,7 +276,15 @@ try {
     assert.ok(homeLayout.levelPill.bottom <= homeLayout.party.top + 8,
       sc.name+": lowered XP and level pill do not block pet selection");
     assert.ok(homeLayout.navButton && homeLayout.navButton.width === 52,
-      sc.name+": Home navigation launcher is slightly smaller");
+      sc.name+": Home navigation launcher maintains its tap area");
+    const navStyle = await page.getByTestId("button-floating-nav").evaluate(el => ({
+      border: getComputedStyle(el).borderStyle,
+      filter: getComputedStyle(el.querySelector("img")).filter,
+    }));
+    assert.equal(navStyle.border, "none",
+      sc.name+": navigation no longer has an outer circular frame");
+    assert.ok(navStyle.filter.includes("drop-shadow("),
+      sc.name+": contour accent follows the nontransparent nav icon");
     assert.ok((homeLayout.navButton.left >= homeLayout.headerName.right + 6 ||
         homeLayout.navButton.top >= homeLayout.headerName.bottom + 6) &&
       homeLayout.navButton.top < homeLayout.actor.top - 14,

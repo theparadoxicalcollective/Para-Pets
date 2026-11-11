@@ -272,6 +272,10 @@ try {
     const bottomDepth = await page.locator(
       '.player-character-renderer__canvas-motion[data-clothing-key^="bottom:"]'
     ).first().evaluate(el => Number(getComputedStyle(el).zIndex));
+    const bodyTopDepth = await page.locator('[data-character-part="top"]').first()
+      .evaluate(el => Number(getComputedStyle(el).zIndex));
+    assert.ok(bottomDepth > bodyTopDepth && (await canvasDepths()) > bodyTopDepth,
+      name + ": all standard clothing renders above the full body stack");
     assert.ok((await canvasDepths()) < bottomDepth,
       name + ": checked Tuck draws Tops behind Bottoms");
     await page.getByTestId("avatar-category-top").tap();
