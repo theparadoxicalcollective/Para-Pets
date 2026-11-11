@@ -839,30 +839,38 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               onClick={() => { setShowWorldChat(true); setWatcherAnnouncement(null); }}
               className="relative transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
               style={{
-                // Preserve clearance below the team on compact-height
-                // phones while still enlarging the Watcher on normal devices.
-                width: "clamp(40px, 5.3vh, 44px)",
-                height: "clamp(40px, 5.3vh, 44px)",
+                // Keep a 44px touch target while the visible Watcher artwork
+                // becomes smaller and sits below the player's name.
+                width: 44,
+                height: 44,
+                display: "grid",
+                placeItems: "center",
                 borderRadius: "50%",
-                overflow: "hidden",
                 cursor: "pointer",
                 padding: 0,
                 flexShrink: 0,
                 pointerEvents: "auto",
-                background: "rgba(10,40,34,0.85)",
-                border: chatHasNewMsg
-                  ? "2px solid rgba(234,199,119,0.9)"
-                  : "2px solid rgba(234,199,119,0.55)",
-                boxShadow: chatHasNewMsg
-                  ? "0 0 12px rgba(234,199,119,0.45), 0 3px 9px rgba(0,0,0,0.65)"
-                  : "0 3px 9px rgba(0,0,0,0.65)",
+                background: "transparent",
+                border: 0,
               }}
             >
               <img src={worldChatIconImg} alt="" aria-hidden="true"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                data-testid="home-watcher-art"
+                style={{
+                  width: "clamp(32px, 4.3vh, 36px)",
+                  height: "clamp(32px, 4.3vh, 36px)",
+                  objectFit: "cover", display: "block",
+                  borderRadius: "50%",
+                  border: chatHasNewMsg
+                    ? "2px solid rgba(234,199,119,0.9)"
+                    : "2px solid rgba(234,199,119,0.55)",
+                  boxShadow: chatHasNewMsg
+                    ? "0 0 12px rgba(234,199,119,0.45), 0 3px 9px rgba(0,0,0,0.65)"
+                    : "0 3px 9px rgba(0,0,0,0.65)",
+                }} />
               {watcherAnnouncementMuted && (
                 <span aria-hidden="true" style={{
-                  position: "absolute", right: 0, bottom: 0,
+                  position: "absolute", right: 1, bottom: 1,
                   display: "grid", placeItems: "center", width: 15, height: 15,
                   borderRadius: "50%", color: "#ffe3a1", background: "#173725",
                 }}>
