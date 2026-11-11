@@ -298,9 +298,10 @@ try {
     await page.getByTestId("avatar-skin-picker-toggle").tap();
     await page.getByTestId("avatar-skin-rich").tap();
     await page.getByTestId("avatar-save-body-choice").tap();
-    // Saving closes the color palette; assert the confirmed server state instead.
-    assert.equal(avatar.skinTone, "#42291f", name + ": skin color persisted");
+    // A tap triggers an asynchronous revisioned save. Wait for the actual
+    // success confirmation before asserting the server's persisted state.
     await page.getByTestId("avatar-save-confirmation").waitFor({state:"visible"});
+    assert.equal(avatar.skinTone, "#42291f", name + ": skin color persisted");
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
       name + ": appearance save closes the picker");
     await page.getByTestId("avatar-save-confirmation-close").tap();
