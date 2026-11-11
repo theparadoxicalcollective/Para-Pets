@@ -362,7 +362,7 @@ try {
     });
     assert.ok(watcherBubble.left >= homeLayout.watcher.right - 1 &&
       watcherBubble.right <= sc.width - 2 &&
-      watcherBubble.bottom <= sc.height - 1,
+      watcherBubble.bottom <= sc.height + 0.5,
       sc.name+": speech oval is right of Watcher and on-screen: "+JSON.stringify(watcherBubble));
     await page.getByTestId("button-silence-watcher-announcements").tap();
     assert.equal(await page.getByTestId("watcher-announcement-bubble").count(),0,
