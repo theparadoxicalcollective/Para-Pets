@@ -85,6 +85,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
     baseId: playerClothingDrafts.baseId,
     basePublishedAt: playerClothingDrafts.basePublishedAt,
     universal: playerClothingDrafts.universal,
+    colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
     segments: playerClothingDrafts.publishedSegments,
     bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(userInventory)
@@ -117,7 +118,8 @@ async function readPlayerAvatar(db: Db, userId: string) {
       inventoryId: item.inventoryId, shopItemId: item.shopItemId,
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
-      compatible, universal: item.universal, free: false, segments: parsed.data.segments,
+      compatible, universal: item.universal, free: false,
+      colorPickerEnabled: item.colorPickerEnabled, segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     }];
   });
@@ -128,6 +130,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
   const freeRows = await db.select({
     shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
     category: playerClothingDrafts.publishedCategory,
+    colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
     segments: playerClothingDrafts.publishedSegments,
     bodyVariants: playerClothingDrafts.publishedBodyVariants,
   }).from(shopItems)
@@ -150,7 +153,8 @@ async function readPlayerAvatar(db: Db, userId: string) {
       inventoryId: item.shopItemId, shopItemId: item.shopItemId,
       name: item.name, imageUrl: item.imageUrl, category: parsed.data.category,
       quantity: 1, isListed: false, compatible: true, universal: true,
-      free: true, segments: parsed.data.segments,
+      free: true, colorPickerEnabled: item.colorPickerEnabled,
+      segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     });
   }
@@ -167,7 +171,9 @@ async function readPlayerAvatar(db: Db, userId: string) {
     return item && item.category === entry.category
       ? [{ category: entry.category, inventoryId: item.inventoryId,
           shopItemId: item.shopItemId, name: item.name, imageUrl: item.imageUrl,
-          segments: item.segments, bodyVariants: item.bodyVariants }]
+          segments: item.segments, bodyVariants: item.bodyVariants,
+          colorPickerEnabled: item.colorPickerEnabled,
+          colorTint: item.colorPickerEnabled ? entry.colorTint : null }]
       : [];
   });
   const validSlots = new Set(equipped.map(item => item.category));
@@ -377,6 +383,7 @@ export function registerPlayerAvatarRoutes(
               category: playerClothingDrafts.publishedCategory,
               segments: playerClothingDrafts.publishedSegments,
               bodyVariants: playerClothingDrafts.publishedBodyVariants,
+              colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
             }).from(shopItems)
               .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
               .where(and(eq(shopItems.id, input.data.inventoryId),
@@ -410,6 +417,7 @@ export function registerPlayerAvatarRoutes(
             universal: playerClothingDrafts.universal,
             segments: playerClothingDrafts.publishedSegments,
             bodyVariants: playerClothingDrafts.publishedBodyVariants,
+            colorPickerEnabled: playerClothingDrafts.colorPickerEnabled,
           }).from(shopItems)
             .innerJoin(playerClothingDrafts, eq(playerClothingDrafts.shopItemId, shopItems.id))
             .where(and(eq(shopItems.id, inventory.shopItemId), eq(shopItems.type, "clothing"),
@@ -433,7 +441,15 @@ export function registerPlayerAvatarRoutes(
             publishedSegmentsCount: published.data.segments.length,
           })) return { status: 422 as const, message: "This clothing cannot be equipped: check its slot, ownership and avatar base" };
 
-          if (existing?.inventoryId === inventory.id) return { status: 200 as const };
+          if (!item.colorPickerEnabled && input.data.colorTint)
+            return { status: 422 as const, message: "This clothing does not offer a color picker" };
+          const colorTint = item.colorPickerEnabled
+            ? (input.data.colorTint === undefined
+              ? (existing?.inventoryId === inventory.id ? existing.colorTint : null)
+              : input.data.colorTint)
+            : null;
+          if (existing?.inventoryId === inventory.id && existing.colorTint === colorTint)
+            return { status: 200 as const };
           // A previously equipped garment may have been republished in a new
           // wardrobe category. Clear its obsolete slot before the category
           // upsert so the unique (user_id, inventory_id) constraint cannot
@@ -444,10 +460,10 @@ export function registerPlayerAvatarRoutes(
             eq(playerAvatarEquipment.inventoryId, inventory.id),
           ));
           await tx.insert(playerAvatarEquipment).values({
-            userId: user.id, category: slot, inventoryId: inventory.id,
+            userId: user.id, category: slot, inventoryId: inventory.id, colorTint,
           }).onConflictDoUpdate({
             target: [playerAvatarEquipment.userId, playerAvatarEquipment.category],
-            set: { inventoryId: inventory.id, equippedAt: new Date() },
+            set: { inventoryId: inventory.id, colorTint, equippedAt: new Date() },
           });
         } else {
           if (!existing) return { status: 200 as const };
