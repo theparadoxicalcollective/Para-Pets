@@ -165,3 +165,46 @@ test("existing clothing storage CHECK is migrated additively for eighth Accessor
   assert.match(equipment,/pg_get_constraintdef\(oid\) NOT ILIKE '%accessories%'/);
   assert.doesNotMatch(equipment,/DROP TABLE|DELETE FROM player_avatar_equipment/);
 });
+
+test("Shoes offer an independent Over/Under Pants draw-order choice without resizing images",()=>{
+  const below = clothingLayerDepth("shoes","left_foot","under");
+  const above = clothingLayerDepth("shoes","left_foot","over");
+  const pants = clothingLayerDepth("bottom","left_leg");
+  const top = clothingLayerDepth("top","top");
+  assert.ok(below < pants && pants < above && above < top);
+  assert.equal(clothingLayerDepth("shoes"),below,"Existing shoes remain under pants");
+  const under = [
+    image("left_foot","left_foot",10),
+    image("right_foot","right_foot",11),
+  ];
+  const over = under.map(part=>({...part,shoesLayer:"over" as const}));
+  assert.equal(playerClothingDefinitionSchema.safeParse({
+    name:"Tall Boots",category:"shoes",segments:over,
+  }).success,true);
+  assert.equal(playerClothingDefinitionSchema.safeParse({
+    name:"Low Shoes",category:"shoes",segments:under,
+  }).success,true);
+  assert.equal(playerClothingDefinitionSchema.safeParse({
+    name:"Mixed Settings",category:"shoes",segments:[under[0],over[1]],
+  }).success,false,"All images in one pair of shoes must share one order");
+  assert.equal(playerClothingDefinitionSchema.safeParse({
+    name:"Not Shoes",category:"bottom",segments:[{
+      ...image("left_leg","left_leg",12),shoesLayer:"over",
+    }],
+  }).success,false);
+  assert.deepEqual(over.map(part=>part.fit),under.map(part=>part.fit),
+    "Layering does not alter the source canvas transforms");
+
+  const admin = read("client/src/components/PlayerClothingAdminPanel.tsx");
+  const server = read("server/routes/playerClothingAdmin.routes.ts");
+  const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
+  assert.match(admin,/avatar-shoes-layer-control/);
+  assert.match(admin,/avatar-shoes-.*-pants/);
+  assert.match(admin,/shoesLayerDirty/);
+  assert.match(admin,/selected.category === "shoes" \? \{ shoesLayer \}/);
+  assert.match(server,/draft.category === "shoes"/);
+  assert.match(server,/parsed.data.shoesLayer/);
+  assert.match(server,/shoesLayer \}/);
+  assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot, layer.segment.shoesLayer\)/);
+  assert.doesNotMatch(admin,/Shoes Width|Shoes X Position|Shoes Y Position/);
+});
