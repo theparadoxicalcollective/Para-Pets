@@ -335,7 +335,7 @@ export default function PlayerClothingAdminPanel({
               </div>
             )}
             {category === "shoes" && (
-              <div className="mx-auto grid max-w-[360px] grid-cols-2 gap-2" role="group" aria-label="Shoes layering with pants">
+              <div className="mx-auto grid max-w-[360px] grid-cols-2 gap-2" role="group" aria-label="Shoes layering with pants" data-testid="avatar-shoes-layer-control">
                 {(["under", "over"] as const).map(layer => (
                   <button type="button" key={layer} className={buttonClass}
                     data-testid={"avatar-shoes-" + layer + "-pants"}
