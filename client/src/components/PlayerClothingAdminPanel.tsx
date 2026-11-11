@@ -229,7 +229,7 @@ export default function PlayerClothingAdminPanel({
       setName("");
       setPrice(0);
       setColorPickerEnabled(false);
-       setShopImageData(null);
+      setShopImageData(null);
       setCategory("top");
       setPartsByBody({ fem: [], masc: [] });
       setScreen("view");
@@ -259,7 +259,7 @@ export default function PlayerClothingAdminPanel({
       setName("");
       setPrice(0);
       setColorPickerEnabled(false);
-       setShopImageData(null);
+      setShopImageData(null);
       setScreen("view");
       toast({ title: "Clothing deleted", description: "Removed from wardrobes and future shop availability." });
     },
