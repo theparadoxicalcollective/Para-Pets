@@ -106,9 +106,9 @@ try{
     // Wardrobes now start closed until a clothing category is tapped.
     await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-clothing-hat-account-A").waitFor({state:"visible"});
-    await page.getByTestId("avatar-clothing-hat-account-A").tap();
     const save=page.waitForResponse(r=>r.request().method()==="PUT"&&r.url().includes("/equipment/head"));
-    await page.getByTestId("avatar-equip-button").tap();
+    await page.getByTestId("avatar-clothing-hat-account-A").tap();
+    // Selecting an item now begins the revisioned save immediately.
     await aSaveStarted;
     // Force a live account change while account A's server mutation is still
     // in flight. Completing A's response must NEVER populate B's cache.
