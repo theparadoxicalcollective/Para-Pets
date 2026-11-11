@@ -121,6 +121,12 @@ export function registerPlayerClothingAdminRoutes(
       if (parsed.data.shoesLayer && draft.category !== "shoes") {
         return res.status(400).json({ message: "Pants layering is only available for Shoes" });
       }
+      // Without saved or uploaded shoe images there is no place to persist the
+      // per-item setting. Avoid claiming a setting-only save succeeded.
+      if (parsed.data.shoesLayer && draft.draftSegments.length === 0 &&
+          parsed.data.images.length === 0) {
+        return res.status(400).json({ message: "Upload shoe artwork before saving its layering" });
+      }
       const shoesLayer = draft.category === "shoes"
         ? parsed.data.shoesLayer ?? draft.draftSegments.find(part => part.shoesLayer)?.shoesLayer ?? "under"
         : undefined;
