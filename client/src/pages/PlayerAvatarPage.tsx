@@ -58,7 +58,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [colorPreview, setColorPreview] = useState<{
     accountId: string; values: Record<string, string | null>;
   } | null>(null);
-  const colorOverrides = colorPreview?.accountId === userId ? colorPreview.values : {};
+  const colorOverrides: Record<string, string | null> = colorPreview?.accountId === userId ? colorPreview.values : {};
   const setPreviewTint = (inventoryId: string, tint: string | null) =>
     setColorPreview(current => ({
       accountId: userId,
@@ -238,7 +238,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     : null;
   const selectedTintChanged = !!selected && selected.colorPickerEnabled &&
     equippedItem?.inventoryId === selected.inventoryId &&
-    selectedTint !== (equippedItem.colorTint ?? null);
+    selectedTint !== (equippedItem?.colorTint ?? null);
   const unavailableEquipped = !resetPending &&
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
 
