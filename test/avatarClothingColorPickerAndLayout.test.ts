@@ -55,7 +55,9 @@ test("admin publication and avatar saves store color metadata without altering c
   assert.match(playerServer, /set: \{ inventoryId: inventory\.id, colorTint, equippedAt:/);
   assert.match(editor, /data-testid="avatar-clothing-color-picker-enabled"/);
   assert.match(wardrobe, /data-testid="avatar-clothing-custom-color"/);
-  assert.match(wardrobe, /selectedTintChanged \? "Save Color"/);
+  assert.match(wardrobe, /data-testid="avatar-save-color-button"/);
+  assert.match(wardrobe, /saveEquipment\(item\.inventoryId\)/);
+  assert.doesNotMatch(wardrobe, /toast\(\{ title: "Wardrobe saved"/);
   assert.match(renderer, /player-character-renderer__legacy-tint/);
   assert.match(renderer, /player-character-renderer__canvas-tint/);
   assert.match(renderer, /clothingLayerDepth\(/);
