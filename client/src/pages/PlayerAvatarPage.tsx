@@ -49,6 +49,10 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     qc.setQueryData(playerAvatarQueryKey(accountId), saved);
   };
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
+  // No wardrobe is expanded until a player taps its category icon.
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [skinPickerOpen, setSkinPickerOpen] = useState(false);
+  const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
   // undefined = untouched, null = restore original art, hex = selected tint.
@@ -73,7 +77,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setPreviewId(null);
       setBodyChoiceId(null);
       setSkinChoice(undefined);
-      toast({ title: "Character created", description: "Your character is saved to your account." });
+      setWardrobeOpen(false);
+      setSkinPickerOpen(false);
+      setSaveConfirmationOpen(true);
     },
     onError: (error: Error, input) => {
       if (input.accountId === userId) {
@@ -124,7 +130,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setBodyChoiceId(null);
       setSkinChoice(undefined);
       setPreviewId(null);
-      toast({ title: "Character appearance updated", description: "Your outfit items remain in your inventory." });
+      setWardrobeOpen(false);
+      setSkinPickerOpen(false);
+      setSaveConfirmationOpen(true);
     },
     onError: (error: Error & { status?: number }, input) => {
       if (input.accountId === userId) {
@@ -167,7 +175,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   };
 
   const selectCategory = (next: PlayerClothingCategory) => {
+    setWardrobeOpen(open => next === category ? !open : true);
     setCategory(next);
+    setPreviewId(null);
+    setSkinPickerOpen(false);
+  };
+  const toggleSkinPicker = () => {
+    setSkinPickerOpen(open => !open);
+    setWardrobeOpen(false);
     setPreviewId(null);
   };
 
@@ -226,7 +241,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   className={`player-avatar-page__category player-avatar-page__category--${slot}`}
                   data-testid={`avatar-category-${slot}`}
                   aria-label={PLAYER_CLOTHING_CATEGORY_LABELS[slot]}
-                  aria-pressed={category === slot}
+                  aria-pressed={wardrobeOpen && category === slot}
+                  aria-expanded={wardrobeOpen && category === slot}
+                  aria-controls="player-avatar-clothing-panel"
                   onClick={() => selectCategory(slot)}
                 >
                   <img
@@ -246,8 +263,17 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
             </div>
 
             {availableBodies.length > 0 && (
-              <div className="player-avatar-page__body-selector" role="group" aria-label="Choose character body"
-                data-testid="avatar-body-selector">
+              <div className="player-avatar-page__body-controls">
+                <button type="button" className="player-avatar-page__skin-toggle"
+                  aria-label="Choose skin color" aria-expanded={skinPickerOpen}
+                  aria-controls="avatar-skin-tone-picker"
+                  data-testid="avatar-skin-picker-toggle"
+                  disabled={busy} onClick={toggleSkinPicker}>
+                  <span aria-hidden="true" className="player-avatar-page__skin-toggle-color"
+                    style={{ backgroundColor: skinTone ?? "#e0b492" }} />
+                </button>
+                <div className="player-avatar-page__body-selector" role="group" aria-label="Choose character body"
+                  data-testid="avatar-body-selector">
                 {(["Fem", "Masc"] as const).map(kind => {
                   const option = availableBodies.find(base => base.name.trim().toLowerCase() === kind.toLowerCase());
                   if (!option) return null;
@@ -262,9 +288,12 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     </button>
                   );
                 })}
+                </div>
               </div>
             )}
+            {skinPickerOpen && (
             <section className="player-avatar-page__skin-picker" role="group"
+              id="avatar-skin-tone-picker"
               aria-label="Choose skin color" data-testid="avatar-skin-tone-picker">
               <h2>Skin Color</h2>
               <div className="player-avatar-page__skin-swatches">
@@ -287,6 +316,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 </label>
               </div>
             </section>
+            )}
             {appearanceChanged && avatar.revision !== null && (
               <section className="player-avatar-page__change-body" data-testid="avatar-body-change">
                 <p>{switchingBody
@@ -311,14 +341,21 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
               </section>
-            ) : !appearanceChanged ? (
-              <section className="player-avatar-page__wardrobe" aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
+            ) : null}
+            {wardrobeOpen && (
+              <section className="player-avatar-page__wardrobe" id="player-avatar-clothing-panel"
+                data-testid="avatar-clothing-category-panel"
+                aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                 <div className="player-avatar-page__wardrobe-header">
                   <div>
                     <h2>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</h2>
                     <p>Tap an available item to preview it before equipping.</p>
                   </div>
                   <span>{owned.length} available</span>
+                  <button type="button" className="player-avatar-page__wardrobe-close"
+                    aria-label={`Close ${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}
+                    data-testid="avatar-close-clothing-category"
+                    onClick={() => { setWardrobeOpen(false); setPreviewId(null); }}>×</button>
                 </div>
 
                 {unavailableEquipped && (
@@ -368,6 +405,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                 {selected && <p className="player-avatar-page__preview" role="status">
                   Previewing {selected.name}. Your saved outfit hasn't changed.
                 </p>}
+                {avatar.created && !appearanceChanged ? (
                 <div className="player-avatar-page__actions">
                   <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || selected.inventoryId === equippedItem?.inventoryId}
                     onClick={() => selected && saveEquipment(selected.inventoryId)}>
@@ -381,14 +419,37 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   {selected && <button type="button" className="player-avatar-page__cancel-preview"
                     onClick={() => setPreviewId(null)} disabled={busy}>Cancel Preview</button>}
                 </div>
+                ) : (
+                  <p className="player-avatar-page__preview" role="status">
+                    {avatar.created
+                      ? "Save your appearance before changing equipped clothing."
+                      : "Create your character to equip clothing. Free items are available to everyone."}
+                  </p>
+                )}
               </section>
-            ) : null}
+            )}
             {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
               Could not refresh your wardrobe. The last confirmed character is still shown.
             </p>}
           </>
         ) : null}
       </div>
+      {saveConfirmationOpen && (
+        <div className="player-avatar-page__saved-overlay"
+          data-testid="avatar-save-confirmation-overlay">
+          <section role="dialog" aria-modal="true"
+            aria-labelledby="avatar-save-confirmation-title"
+            data-testid="avatar-save-confirmation"
+            className="player-avatar-page__saved-dialog">
+            <Sparkles size={35} aria-hidden="true" className="player-avatar-page__saved-sparkle" />
+            <h2 id="avatar-save-confirmation-title">Character Saved</h2>
+            <p>Your character's appearance has been saved. Tap your character on Home whenever you want to customize it again.</p>
+            <button type="button" autoFocus
+              data-testid="avatar-save-confirmation-close"
+              onClick={() => setSaveConfirmationOpen(false)}>Continue</button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

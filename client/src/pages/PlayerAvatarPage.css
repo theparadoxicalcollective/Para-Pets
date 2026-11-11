@@ -171,12 +171,44 @@
 .player-avatar-page__category--shoes  { left: 22%; top: 80%; }
 .player-avatar-page__category--back   { left: 78%; top: 80%; }
 
+.player-avatar-page__body-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 24px auto 14px;
+}
 .player-avatar-page__body-selector {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 12px;
-  margin: 24px auto 14px;
+  margin: 0;
+}
+.player-avatar-page__skin-toggle {
+  display: grid;
+  place-items: center;
+  width: 53px;
+  height: 53px;
+  padding: 5px;
+  border: 1.5px solid #bca16a;
+  border-radius: 13px;
+  background: linear-gradient(155deg,#335a3d,#142d20);
+  box-shadow: 0 3px 12px #0009;
+  touch-action: manipulation;
+}
+.player-avatar-page__skin-toggle[aria-expanded="true"] {
+  border-color: #ffe6a1;
+  box-shadow: 0 0 0 2px #e3c1715c, 0 0 16px #e8bf6c55;
+}
+.player-avatar-page__skin-toggle-color {
+  display: block;
+  width: 29px;
+  height: 29px;
+  border: 1px solid #f6deaa;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px #492f2055, 0 1px 6px #0006;
+  pointer-events: none;
 }
 .player-avatar-page__body-selector button {
   display: flex;
@@ -333,6 +365,20 @@
 }
 .player-avatar-page__wardrobe-header p { margin: 0; font-size: 11px; line-height: 1.35; color: #c9c7aa; }
 .player-avatar-page__wardrobe-header > span { color: #e0bf77; font-size: 12px; white-space: nowrap; }
+.player-avatar-page__wardrobe-close {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #a78d58;
+  border-radius: 50%;
+  color: #f5dca8;
+  background: #1a3c2a;
+  font-size: 25px;
+  line-height: 1;
+  touch-action: manipulation;
+}
 .player-avatar-page__inventory {
   display: flex;
   gap: 11px;
@@ -425,4 +471,51 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .player-avatar-page__category { transition: none; }
+}
+
+/* The save confirmation is deliberately local to the avatar viewport,
+   independent of home HUD overlays or an old reference phone plane. */
+.player-avatar-page__saved-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 18px
+    calc(18px + env(safe-area-inset-bottom, 0px));
+  background: rgba(3, 15, 9, .76);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.player-avatar-page__saved-dialog {
+  box-sizing: border-box;
+  width: min(100%, 390px);
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 24px 20px 21px;
+  border: 2px solid #d5b671;
+  border-radius: 25px;
+  background: radial-gradient(ellipse at 50% 0%, #355b3d, #143223 75%);
+  box-shadow: inset 0 0 22px #e9d4901c, 0 18px 70px #000b;
+  color: #f5e2b4;
+  text-align: center;
+}
+.player-avatar-page__saved-sparkle { color: #f3d58f; margin: 0 auto 7px; }
+.player-avatar-page__saved-dialog h2 {
+  margin: 0 0 11px;
+  font: 700 25px Georgia, serif;
+  color: #ffe6a5;
+  text-shadow: 0 2px 5px #0008;
+}
+.player-avatar-page__saved-dialog p { margin: 0 auto 19px; max-width: 300px; font: 13px/1.6 Georgia, serif; }
+.player-avatar-page__saved-dialog button {
+  min-width: 145px;
+  min-height: 46px;
+  padding: 9px 22px;
+  border: 1px solid #ebd28e;
+  border-radius: 24px;
+  color: #fff1c6;
+  background: linear-gradient(170deg,#688246,#294e30);
+  font: 700 15px Georgia, serif;
+  touch-action: manipulation;
 }
