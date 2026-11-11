@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
-import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
+import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, playerClothingCanRecolor, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
 import { REQUIRED_AVATAR_CREATION_CATEGORIES, type AvatarCreationOutfit } from "@shared/playerAvatarEquipment";
@@ -231,7 +231,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       item.compatible && !item.isListed && item.quantity > 0);
     if (garment) choices[slot] = {
       inventoryId: garment.inventoryId,
-      ...(garment.colorPickerEnabled &&
+      ...(playerClothingCanRecolor(garment.category, garment.colorPickerEnabled) &&
         Object.prototype.hasOwnProperty.call(colorOverrides, garment.inventoryId)
           ? { colorTint: colorOverrides[garment.inventoryId] } : {}),
     };
@@ -244,7 +244,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
           avatar.ownedClothing.some(item =>
             item.inventoryId === layer.inventoryId && item.universal)).map(layer => {
          const item = avatar.ownedClothing.find(owned => owned.inventoryId === layer.inventoryId);
-         return item?.colorPickerEnabled &&
+         return item && playerClothingCanRecolor(item.category, item.colorPickerEnabled) &&
            Object.prototype.hasOwnProperty.call(colorOverrides, layer.inventoryId)
              ? { ...layer, colorTint: colorOverrides[layer.inventoryId] } : layer;
        })
@@ -255,7 +255,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       ? colorOverrides[selected.inventoryId]
       : equippedItem?.inventoryId === selected.inventoryId ? equippedItem.colorTint ?? null : null)
     : null;
-  const selectedTintChanged = !!selected && selected.colorPickerEnabled &&
+  const selectedTintChanged = !!selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) &&
     equippedItem?.inventoryId === selected.inventoryId &&
     selectedTint !== (equippedItem?.colorTint ?? null);
   const unavailableEquipped = !resetPending &&
@@ -510,7 +510,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     No {PLAYER_CLOTHING_CATEGORY_LABELS[category].toLowerCase()} clothing is available yet.
                   </div>
                 )}
-                 {selected?.colorPickerEnabled && (
+                 {selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) && (
                    <div className="player-avatar-page__clothing-colors" role="group"
                      data-testid="avatar-clothing-color-controls" aria-label={`Change color of ${selected.name}`}>
                      <label htmlFor="avatar-clothing-color">Clothing Color
@@ -529,7 +529,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                  {avatar.created && !appearanceChanged ? (
                 <div className="player-avatar-page__actions">
                   <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || (selected.inventoryId === equippedItem?.inventoryId && !selectedTintChanged)}
-                    onClick={() => selected && saveEquipment(selected.inventoryId, selected.colorPickerEnabled ? selectedTint : null)}>
+                    onClick={() => selected && saveEquipment(selected.inventoryId, playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) ? selectedTint : null)}>
                     {equipment.isPending ? "Saving…" : selectedTintChanged ? "Save Color" : selected?.inventoryId === equippedItem?.inventoryId ? "Already Equipped" : "Equip Clothing"}
                   </button>
                   <button type="button" data-testid="avatar-unequip-button" className="player-avatar-page__remove"
