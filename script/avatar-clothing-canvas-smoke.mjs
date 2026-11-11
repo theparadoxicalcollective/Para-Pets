@@ -88,16 +88,15 @@ try {
         assert.ok(!body.id || old, size.name + ": edit must target a saved item");
         assert.ok(!old || old.revision === body.expectedRevision,
           size.name + ": optimistic save revision");
-        assert.ok(body.bodyVariants, size.name + ": one item must contain both body versions");
-        const segmentsByBody = {};
-        for (const kind of ["fem", "masc"]) {
-          const partSet = body.bodyVariants[kind];
-          const source = old?.draftBodyVariants?.[kind] ?? old?.draftSegments ?? [];
-          const oldSegments = new Map(source.map(x => [x.slot, x]));
+        const universal = ["hair", "face", "back", "accessories"].includes(body.category);
+        assert.equal(!!body.bodyVariants, !universal,
+          size.name + ": only fitted clothing needs two upload sets");
+        const fromParts = (partSet, source) => {
+          const oldSegments = new Map(source.map(item => [item.slot, item]));
           const segments = [
             ...partSet.keep.map(keep => {
               const previous = oldSegments.get(keep.previousSlot);
-              assert.ok(previous, "reuse original media only within matching body version");
+              assert.ok(previous, "retained media must exist for this art set");
               return { ...previous, slot: keep.slot, partType: keep.partType,
                 renderPlane: keep.renderPlane ?? "with_part" };
             }),
@@ -107,17 +106,23 @@ try {
               ...(body.category === "shoes" ? { shoesLayer: body.shoesLayer ?? "under" } : {}),
             })),
           ];
-          assert.equal(new Set(segments.map(x => x.slot)).size, segments.length);
-          assert.ok(segments.length <= 13);
+          assert.equal(new Set(segments.map(item => item.slot)).size, segments.length);
+          assert.ok(segments.length > 0 && segments.length <= 13);
           if (body.category === "face")
-            assert.deepEqual(segments.map(x => x.slot).sort(),
+            assert.deepEqual(segments.map(item => item.slot).sort(),
               ["face_open_eyes", "face_closed_eyes", "face_mouth"].sort());
-          assert.ok(segments.length > 0, kind + " has artwork");
-          segmentsByBody[kind] = segments;
-        }
-        assert.notEqual(segmentsByBody.fem[0].imageUrl, segmentsByBody.masc[0].imageUrl,
-          size.name + ": the two body versions retain independent artwork");
-        const segments = segmentsByBody.fem;
+          return segments;
+        };
+        const variants = body.bodyVariants ? {
+          fem: fromParts(body.bodyVariants.fem,
+            old?.draftBodyVariants?.fem ?? old?.draftSegments ?? []),
+          masc: fromParts(body.bodyVariants.masc,
+            old?.draftBodyVariants?.masc ?? old?.draftSegments ?? []),
+        } : null;
+        if (variants) assert.notEqual(variants.fem[0].imageUrl, variants.masc[0].imageUrl,
+          size.name + ": body-specific versions use distinct media");
+        const segments = variants?.fem ?? fromParts(body,
+          old?.draftBodyVariants?.fem ?? old?.draftSegments ?? []);
         const saved = {
           id: old?.id ?? "00000000-0000-4000-8000-" + String(nextId++).padStart(12, "0"),
           name: body.name, category: body.category, price: body.price,
@@ -125,7 +130,7 @@ try {
           revision: old ? old.revision + 1 : 0,
           shopItemId: old?.shopItemId ?? mediaId(nextMedia++),
           universal: true, draftSegments: segments, publishedSegments: segments,
-          draftBodyVariants: segmentsByBody, publishedBodyVariants: segmentsByBody,
+          draftBodyVariants: variants, publishedBodyVariants: variants,
         };
         rows = old ? rows.map(row => row.id === old.id ? saved : row) : [...rows, saved];
         return route.fulfill({ json: saved });
@@ -208,17 +213,13 @@ try {
       await page.getByTestId("clothing-part-" + slot).waitFor({ state: "visible" });
       if (index < 2) assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true);
     }
-    assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true,
-      size.name + ": face also requires Masc expressions");
+    assert.equal(await page.getByTestId("avatar-save-clothing-item").isEnabled(), true,
+      size.name + ": one complete Face expression set is enough");
+    assert.equal(await page.getByTestId("avatar-clothing-universal-artwork").count(), 1);
     await showBody("masc");
-    for (const slot of ["face_open_eyes", "face_closed_eyes", "face_mouth"]) {
-      await page.getByTestId("avatar-clothing-upload-" + slot).setInputFiles({
-        name: "masc-" + slot + ".png", mimeType: "image/png", buffer: png,
-      });
-      await page.getByTestId("clothing-part-" + slot).waitFor({ state: "visible" });
-    }
+    assert.equal(await page.getByTestId("clothing-part-face_open_eyes").count(), 1,
+      size.name + ": Masc preview uses universal Face image");
     await showBody("fem");
-    assert.equal(await page.getByTestId("avatar-save-clothing-item").isEnabled(), true);
     const eyes = async () => page.evaluate(() => ({
       open: getComputedStyle(document.querySelector(".player-character-renderer__eyes-open")).opacity,
       closed: getComputedStyle(document.querySelector(".player-character-renderer__eyes-closed")).opacity,
@@ -236,10 +237,12 @@ try {
     await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
     assert.equal(await page.locator('[data-clothing-slot="piece_2"]').evaluate(el => getComputedStyle(el).zIndex), "-5");
     await showBody("masc");
-    await addPart("head"); await addPart("head");
-    await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
+    assert.equal(await page.getByTestId("clothing-part-piece_2").count(), 1,
+      size.name + ": Masc preview shares Hair pieces");
     await showBody("fem");
     await saveItem();
+    assert.equal(rows.at(-1).draftBodyVariants, null,
+      size.name + ": hair is saved as a single universal image set");
     assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["head", "head"]);
     assert.equal(rows.at(-1).draftSegments[1].renderPlane, "behind_character");
 
@@ -255,7 +258,8 @@ try {
     await newItem("Royal Cape", "back");
     await addPart("top");
     await showBody("masc");
-    await addPart("top");
+    assert.equal(await page.getByTestId("clothing-part-piece_1").count(), 1,
+      size.name + ": Back accessory stays visible for Masc");
     await showBody("fem");
     await page.getByTestId("avatar-clothing-price").fill("350");
     assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true,
@@ -269,6 +273,16 @@ try {
     assert.ok(rows.at(-1).shopImageUrl);
     assert.notEqual(rows.at(-1).shopImageUrl, rows.at(-1).draftSegments[0].imageUrl,
       size.name + ": catalog image stays separate from equippable sprite");
+    assert.equal(rows.at(-1).draftBodyVariants, null,
+      size.name + ": back accessory uses one art set");
+    await newItem("Pendant", "accessories");
+    await addPart("top");
+    assert.equal(await page.getByTestId("avatar-save-clothing-item").isEnabled(), true);
+    await showBody("masc");
+    assert.equal(await page.getByTestId("clothing-part-piece_1").count(), 1);
+    await saveItem();
+    assert.equal(rows.at(-1).draftBodyVariants, null,
+      size.name + ": accessories use one art set");
 
     // Editing preserves media through previousSlot and cannot create duplicates.
     await page.getByTestId("avatar-clothing-view").getByRole("button", { name: /Three Part Blouse/ }).click();
@@ -278,17 +292,17 @@ try {
     assert.equal(writes.at(-1).bodyVariants.masc.keep.length, 3);
     assert.equal(writes.at(-1).bodyVariants.fem.images.length, 0);
     assert.equal(writes.at(-1).bodyVariants.masc.images.length, 0);
-    assert.equal(rows.length, 5);
+    assert.equal(rows.length, 6);
     await page.getByTestId("avatar-clothing-view")
       .getByRole("button", { name: /Blouse Updated/ }).click();
     await page.getByTestId("avatar-delete-clothing-item").click();
     await page.getByTestId("avatar-delete-clothing-confirm-overlay").waitFor({ state: "visible" });
     await page.getByTestId("avatar-cancel-delete-clothing").click();
-    assert.equal(rows.length, 5, size.name + ": cancel deletion leaves catalog unchanged");
+    assert.equal(rows.length, 6, size.name + ": cancel deletion leaves catalog unchanged");
     await page.getByTestId("avatar-delete-clothing-item").click();
     await page.getByTestId("avatar-confirm-delete-clothing").click();
     await page.getByTestId("avatar-clothing-view").waitFor({ state: "visible" });
-    assert.equal(rows.length, 4, size.name + ": delete retires the selected item");
+    assert.equal(rows.length, 5, size.name + ": delete retires the selected item");
     assert.equal(await page.getByRole("button", { name: /Blouse Updated/ }).count(), 0);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
