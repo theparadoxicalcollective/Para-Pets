@@ -201,8 +201,8 @@ test("Shoes offer an independent Over/Under Pants draw-order choice without resi
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
   assert.match(admin,/avatar-shoes-layer-control/);
   assert.match(admin,/avatar-shoes-.*-pants/);
-  assert.match(admin,/shoesLayerDirty/);
-  assert.match(admin,/selected.category === "shoes" \? \{ shoesLayer \}/);
+  assert.match(admin,/setShoesLayer\(layer\)/);
+  assert.match(admin,/category === "shoes" \? \{ shoesLayer \}/);
   assert.match(server,/draft.category === "shoes"/);
   assert.match(server,/parsed.data.shoesLayer/);
   assert.match(server,/draft.draftSegments.length === 0/);
