@@ -88,11 +88,12 @@ try {
           ...body.keep.map(keep => {
             const previous = oldSegments.get(keep.previousSlot);
             assert.ok(previous, "server reuses only known media");
-            return { ...previous, slot: keep.slot, partType: keep.partType };
+            return { ...previous, slot: keep.slot, partType: keep.partType,
+              renderPlane: keep.renderPlane ?? "with_part" };
           }),
           ...body.images.map(img => ({
             slot: img.slot, partType: img.partType, imageUrl: mediaId(nextMedia++),
-            fit, renderPlane: "with_part", canvasAligned: true,
+            fit, renderPlane: img.renderPlane ?? "with_part", canvasAligned: true,
             ...(body.category === "shoes" ? { shoesLayer: body.shoesLayer ?? "under" } : {}),
           })),
         ];
@@ -180,8 +181,11 @@ try {
 
     await newItem("Two Hair Pieces", "hair");
     await addPart("head"); await addPart("head");
+    await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
+    assert.equal(await page.locator('[data-clothing-slot="piece_2"]').evaluate(el => getComputedStyle(el).zIndex), "-5");
     await saveItem();
     assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["head", "head"]);
+    assert.equal(rows.at(-1).draftSegments[1].renderPlane, "behind_character");
 
     await newItem("Boots", "shoes");
     await addPart("left_foot"); await addPart("right_foot");

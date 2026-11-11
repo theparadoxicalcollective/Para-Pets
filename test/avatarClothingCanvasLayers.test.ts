@@ -126,7 +126,8 @@ test("admin and renderer actually use shared canvas images rather than local dra
   assert.match(component,/avatar-save-clothing-item/);
   assert.doesNotMatch(component,/pointerToCharacterPartLocal|setPointerCapture|Horizontal fit|Vertical fit|Size \(%\)|Rotation \(°\)|Clothing depth|Save This Fitted Piece/);
   assert.match(renderer,/fullCanvas\.map\(layer =>/);
-  assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot, layer.segment.shoesLayer\)/);
+  assert.match(renderer,/clothingLayerDepth\(layer.category,/);
+  assert.match(renderer,/layer.segment.renderPlane === "behind_character"/);
   assert.match(renderer,/data-clothing-slot/);
   assert.match(renderer,/player-character-renderer__canvas-image/);
   assert.match(css,/player-character-renderer__canvas-motion/);
@@ -207,6 +208,7 @@ test("Shoes offer an independent Over/Under Pants draw-order choice without resi
   assert.match(server,/draft.draftSegments.length === 0/);
   assert.match(admin,/!savedSegments.length&&!artworkDirty/);
   assert.match(server,/shoesLayer \}/);
-  assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot, layer.segment.shoesLayer\)/);
+  assert.match(renderer,/clothingLayerDepth\(layer.category,/);
+  assert.match(renderer,/layer.segment.renderPlane === "behind_character"/);
   assert.doesNotMatch(admin,/Shoes Width|Shoes X Position|Shoes Y Position/);
 });

@@ -34,6 +34,10 @@ test("one universal item may contain multiple images attached to the same animat
   }).success, false);
   assert.equal(saveUniversalClothingItemSchema.safeParse(create("top",
     [image("face_open_eyes", "head")])).success, false);
+  assert.equal(saveUniversalClothingItemSchema.safeParse({
+    ...create("hair", [image("piece_1", "head")]),
+    images: [{ ...image("piece_1", "head"), renderPlane: "behind_character" }],
+  }).success, true);
 });
 
 test("face requires Open Eyes, Closed Eyes and Mouth following the head", () => {
