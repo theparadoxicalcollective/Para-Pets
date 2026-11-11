@@ -43,6 +43,28 @@ test("front and back hair pieces use one per-player color without merging their 
   assert.deepEqual(layers[0].segments.map(s => s.renderPlane), ["with_part", "behind_character"]);
 });
 
+test("previously saved garment tints are suppressed while hair and skin tones remain", () => {
+  const avatar = {
+    created: true, revision: 1, base: null, ownedClothing: [],
+    unavailableEquipmentSlots: [], equipped: [
+      { category: "hair", inventoryId: "hair", colorTint: "#775599",
+        segments: [{ partType: "head", imageUrl: "/hair.png", fit }] },
+      { category: "top", inventoryId: "shirt", colorTint: "#ff0000",
+        segments: [{ partType: "top", imageUrl: "/shirt.png", fit }] },
+    ],
+  };
+  const layers = wardrobeLayers(avatar as any);
+  assert.equal(layers.find(x => x.category === "hair")?.colorTint, "#775599");
+  assert.equal(layers.find(x => x.category === "top")?.colorTint, null);
+  const renderer = source("client/src/components/PlayerCharacterRenderer.tsx");
+  assert.match(renderer, /outfit.category === "hair" \? outfit.colorTint \?\? null : null/);
+  const creator = source("client/src/pages/PlayerAvatarPage.tsx");
+  assert.match(creator, /data-testid="avatar-skin-tone-picker"/);
+  assert.match(creator, /data-testid="avatar-custom-skin"/);
+  assert.match(creator, /<label htmlFor="avatar-clothing-color">Hair Color/);
+  assert.doesNotMatch(creator, /"Clothing Color"/);
+});
+
 test("creator always exposes hair color input and save/reset, also on first avatar creation", () => {
   const creator = source("client/src/pages/PlayerAvatarPage.tsx");
   const server = source("server/routes/playerAvatar.routes.ts");
