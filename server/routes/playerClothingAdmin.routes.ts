@@ -157,7 +157,8 @@ export function registerPlayerClothingAdminRoutes(
         return { status: 200 as const, saved };
       });
       if (outcome.status !== 200) return res.status(outcome.status).json({ message: outcome.message });
-      return res.json(outcome.saved);
+      // Match the joined GET shape for an immediate edit after Save.
+      return res.json({ ...outcome.saved, price: input.data.price });
     } catch (error) {
       console.error("[player-clothing] universal item save failed", error);
       return res.status(500).json({ message: "Could not save clothing item" });
