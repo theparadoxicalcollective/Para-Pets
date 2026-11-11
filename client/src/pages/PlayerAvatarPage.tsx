@@ -475,7 +475,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                       const eligible = item.compatible && !item.isListed && item.quantity > 0;
                       const bodyArtwork = clothingSegmentsForBody(
                         item.segments, item.bodyVariants, selectedBody?.name);
-                      const wardrobeThumbnail = bodyArtwork[0]?.imageUrl ?? item.imageUrl;
+                      // Prefer the item's main catalog artwork, including older saved items.
+                      // Part artwork is only a fallback for legacy items without a main image.
+                      const wardrobeThumbnail = item.imageUrl || bodyArtwork[0]?.imageUrl;
                       const worn = avatar.equipped.some(entry =>
                         entry.category === category && entry.inventoryId === item.inventoryId
                       );
