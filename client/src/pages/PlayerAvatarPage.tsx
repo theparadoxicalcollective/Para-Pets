@@ -477,6 +477,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                       <input type="checkbox" checked={topTucked}
                         data-testid="avatar-top-tuck"
                         disabled={busy} onChange={event => toggleTuck(event.target.checked)} />
+                      <span className="player-avatar-page__tuck-check" aria-hidden="true">
+                        {topTucked && <Check size={15} strokeWidth={3.2} />}
+                      </span>
                       <span>Tuck</span>
                     </label>
                   )}
@@ -540,7 +543,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                  {selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) && (
                    <div className="player-avatar-page__clothing-colors" role="group"
                      data-testid="avatar-clothing-color-controls" aria-label={`Change color of ${selected.name}`}>
-                     <label htmlFor="avatar-clothing-color">{selected.category === "hair" ? "Hair Color" : "Clothing Color"}
+                     <label htmlFor="avatar-clothing-color">Hair Color
                        <input id="avatar-clothing-color" type="color"
                          data-testid="avatar-clothing-custom-color"
                          value={selectedTint ?? "#d39a71"} disabled={busy}

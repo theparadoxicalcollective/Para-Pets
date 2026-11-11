@@ -358,9 +358,11 @@
   color: #f2d38c;
 }
 .player-avatar-page__tuck-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  min-height: 44px;
   margin-left: auto;
   padding: 8px 10px;
   color: #f6dba0;
@@ -369,12 +371,29 @@
   touch-action: manipulation;
 }
 .player-avatar-page__tuck-toggle input {
-  width: 19px;
-  height: 19px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
-  flex: 0 0 auto;
-  accent-color: #c7a65c;
+  opacity: 0;
   cursor: pointer;
+}
+.player-avatar-page__tuck-check {
+  display: grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #e4c57b;
+  border-radius: 5px;
+  background: #153524;
+  color: #153524;
+  pointer-events: none;
+}
+.player-avatar-page__tuck-toggle input:checked + .player-avatar-page__tuck-check {
+  background: #efcf82;
+  box-shadow: 0 0 7px rgba(239, 207, 130, .4);
 }
 .player-avatar-page__tuck-toggle:has(input:focus-visible) {
   outline: 2px solid #f0d698;

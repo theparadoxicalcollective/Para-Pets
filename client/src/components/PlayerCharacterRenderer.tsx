@@ -55,7 +55,8 @@ export default function PlayerCharacterRenderer({
       segment,
       key: `${outfit.category}:${outfit.inventoryId}:${clothingSegmentKey(segment)}`,
       category: outfit.category,
-       colorTint: outfit.colorTint ?? null,
+      // Legacy saved colors on non-hair garments must never tint artwork.
+      colorTint: outfit.category === "hair" ? outfit.colorTint ?? null : null,
       categoryOrder: PLAYER_CLOTHING_CATEGORIES.indexOf(outfit.category),
     }))),
   ];

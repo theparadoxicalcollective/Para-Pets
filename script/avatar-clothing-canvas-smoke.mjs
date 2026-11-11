@@ -89,8 +89,8 @@ try {
         assert.ok(!old || old.revision === body.expectedRevision,
           size.name + ": optimistic save revision");
         const universal = ["hair", "face", "back", "accessories"].includes(body.category);
-        if (body.category === "hair") assert.equal(body.colorPickerEnabled, true,
-          size.name + ": all saved hair items are recolorable by default");
+        assert.equal(body.colorPickerEnabled, body.category === "hair",
+          size.name + ": only hairstyles are saved with color capability");
         assert.equal(!!body.bodyVariants, !universal,
           size.name + ": only fitted clothing needs two upload sets");
         const fromParts = (partSet, source) => {
@@ -245,10 +245,8 @@ try {
     await saveItem();
 
     await newItem("Two Hair Pieces", "hair");
-    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").isChecked(), true,
-      size.name + ": the hair color picker is automatically enabled");
-    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").isDisabled(), true,
-      size.name + ": hair color cannot accidentally be disabled by admin");
+    assert.equal(await page.getByTestId("avatar-clothing-color-picker-enabled").count(), 0,
+      size.name + ": admin no longer needs a recolor checkbox for clothing or hair");
     await addPart("head"); await addPart("head");
     await page.getByTestId("avatar-hair-layer-piece_2").selectOption("back");
     const hairBackDepth = Number(await page.locator('[data-clothing-slot="piece_2"]')

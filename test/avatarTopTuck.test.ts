@@ -59,5 +59,10 @@ test("player profile persistence, Home rendering and Tops checkbox use the same 
   assert.match(home, /topTucked=\{avatar\.data\?\.topTucked \?\? false\}/);
   assert.match(wardrobe, /data-testid="avatar-top-tuck"/);
   assert.match(wardrobe, /checked=\{topTucked\}/);
+  assert.match(wardrobe, /player-avatar-page__tuck-check/);
+  assert.match(wardrobe, /topTucked && <Check size=\{15\} strokeWidth=\{3\.2\} \/>/);
+  const css = file("client/src/pages/PlayerAvatarPage.css");
+  assert.match(css, /player-avatar-page__tuck-toggle input:checked \+ \.player-avatar-page__tuck-check/);
+  assert.match(css, /min-height: 44px/);
   assert.match(wardrobe, /category === "top"/);
 });

@@ -66,7 +66,7 @@ const owned = [
   item("face", "face", ["head"]),
   item("bottom", "pants", ["left_leg", "right_leg"]),
   item("top", "listed-top", ["top"], { isListed: true, compatible: false }),
-  item("top", "plain-top", ["top"], { universal: true,
+  item("top", "plain-top", ["top"], { universal: true, colorPickerEnabled: true,
     segments: [{ partType: "top", slot: "piece_1", canvasAligned: true,
       imageUrl: art, fit, renderPlane: "with_part" }] }),
   item("bottom", "canvas-pants", ["top"], { universal: true,
@@ -226,9 +226,13 @@ try {
     await page.getByTestId("avatar-category-top").tap();
     assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), false,
       name + ": untucked is the default");
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 0,
+      name + ": untucked toggle is visibly empty");
     await page.getByTestId("avatar-top-tuck").check();
     assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), true,
       name + ": new character can choose tuck before first save");
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 1,
+      name + ": a gold checked mark is visible when tucked");
     await page.getByTestId("avatar-category-head").tap();
     assert.equal(await page.getByTestId("avatar-skin-tone-picker").count(), 0,
       name + ": opening clothing hides skin colors");
@@ -236,6 +240,8 @@ try {
       name + ": first save blocked until Top, Bottoms and Face are selected");
     await page.getByTestId("avatar-category-top").tap();
     await page.getByTestId("avatar-clothing-plain-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-color-controls").count(), 0,
+      name + ": ordinary Tops do not offer a clothing color picker");
     assert.equal(await page.getByTestId("avatar-create-button").isDisabled(), true,
       name + ": only selecting Top is not enough");
     await page.getByTestId("avatar-category-bottom").tap();
@@ -363,6 +369,8 @@ try {
     await page.getByTestId("avatar-top-tuck").uncheck();
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="avatar-top-tuck"]')?.checked === false);
+    assert.equal(await page.locator(".player-avatar-page__tuck-check svg").count(), 0,
+      name + ": untucking visibly clears the checkmark");
     assert.equal(avatar.topTucked, false,
       name + ": untucked preference persisted on the account");
     assert.ok((await canvasDepths()) > bottomDepth,

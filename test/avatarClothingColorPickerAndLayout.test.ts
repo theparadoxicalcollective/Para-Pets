@@ -13,7 +13,7 @@ const clothing = {
 };
 const inventoryId = "00000000-0000-4000-8000-000000000001";
 
-test("admin color picker is an opt-in clothing capability and old saves stay valid", () => {
+test("legacy clothing saves accept historical color flags but player controls remain hair-only", () => {
   for (const enabled of [true, false]) {
     const parsed = saveUniversalClothingItemSchema.safeParse({ ...clothing, colorPickerEnabled: enabled });
     assert.equal(parsed.success, true);
@@ -48,12 +48,13 @@ test("admin publication and avatar saves store color metadata without altering c
   assert.match(schema, /colorTint: text\("color_tint"\)/);
   assert.match(adminMigration, /ADD COLUMN IF NOT EXISTS color_picker_enabled/);
   assert.match(avatarMigration, /ADD COLUMN IF NOT EXISTS color_tint text/);
-  assert.match(adminServer, /colorPickerEnabled: input\.data\.colorPickerEnabled \?\? existing\?\.colorPickerEnabled \?\? false/);
+  assert.match(adminServer, /colorPickerEnabled: input\.data\.category === "hair"/);
   assert.match(playerServer, /if \(!playerClothingCanRecolor\(slot, item\.colorPickerEnabled\) && input\.data\.colorTint\)/);
   assert.match(playerServer, /if \(existing\?\.inventoryId === inventory\.id\)/);
   assert.match(playerServer, /if \(existing\.colorTint === colorTint\)/);
   assert.match(playerServer, /set: \{ inventoryId: inventory\.id, colorTint, equippedAt:/);
-  assert.match(editor, /data-testid="avatar-clothing-color-picker-enabled"/);
+  assert.doesNotMatch(editor, /data-testid="avatar-clothing-color-picker-enabled"/);
+  assert.match(editor, /colorPickerEnabled: category === "hair"/);
   assert.match(wardrobe, /data-testid="avatar-clothing-custom-color"/);
   assert.match(wardrobe, /data-testid="avatar-save-color-button"/);
   assert.match(wardrobe, /saveEquipment\(item\.inventoryId\)/);
