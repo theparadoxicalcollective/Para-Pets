@@ -22,6 +22,24 @@
 
 .player-character-renderer__motion {
   position: relative;
+  /* Blend skin hue with each source sprite, not the scene behind it. */
+  isolation: isolate;
+}
+.player-character-renderer__skin-tint {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: color;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-position: center;
+  -webkit-mask-position: center;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
 }
 
 .player-character-renderer__motion,

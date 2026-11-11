@@ -52,6 +52,7 @@ export interface OwnedAvatarClothing {
   quantity: number;
   isListed: boolean;
   compatible: boolean;
+  free?: boolean;
   universal?: boolean;
   segments: PlayerClothingSegment[];
 }
@@ -74,6 +75,7 @@ export interface PlayerAvatarState {
     parts: PlayerCharacterPart[];
   }>;
   created: boolean;
+  skinTone?: string | null;
   revision: number | null;
   base: {
     id: string;

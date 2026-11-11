@@ -21,6 +21,8 @@ export interface PlayerCharacterRendererProps {
   clothingLayers?: readonly AvatarClothingLayer[];
   previewClothingCategory?: PlayerClothingCategory;
   previewEyesClosed?: boolean;
+  /** Optional artist-friendly tint; null retains the original source pixels. */
+  skinTone?: string | null;
   motion?: PlayerCharacterMotion;
   selectedPartType?: PlayerCharacterPartType | null;
   ariaLabel?: string;
@@ -32,6 +34,7 @@ export default function PlayerCharacterRenderer({
   clothingLayers = [],
   previewClothingCategory = "top",
   previewEyesClosed = false,
+  skinTone = null,
   motion = "static",
   selectedPartType = null,
   ariaLabel = "Player character",
@@ -88,6 +91,17 @@ export default function PlayerCharacterRenderer({
                 filter: part.partType === selectedPartType ? "drop-shadow(0 0 4px #f3d08e)" : undefined,
                 opacity: part.partType === selectedPartType ? 0.96 : 1,
               }}/>
+            {skinTone && (
+              <span aria-hidden="true" className="player-character-renderer__skin-tint"
+                data-testid="avatar-skin-tint"
+                style={{
+                  backgroundColor: skinTone,
+                  // The source PNG is its own alpha mask. Preserve original
+                  // line work, highlights and soft painted shadow values.
+                  maskImage: `url("${part.imageUrl}")`,
+                  WebkitMaskImage: `url("${part.imageUrl}")`,
+                }} />
+            )}
             {/* Legacy artwork only: keep its existing part-local placement. */}
             {oldPartLocal.filter(layer => layer.segment.partType === part.partType).map(layer => (
               <img key={layer.key} src={layer.segment.imageUrl} alt="" aria-hidden="true"
