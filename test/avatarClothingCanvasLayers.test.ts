@@ -127,7 +127,11 @@ test("admin and renderer actually use shared canvas images rather than local dra
   assert.doesNotMatch(component,/pointerToCharacterPartLocal|setPointerCapture|Horizontal fit|Vertical fit|Size \(%\)|Rotation \(°\)|Clothing depth|Save This Fitted Piece/);
   assert.match(renderer,/fullCanvas\.map\(layer =>/);
   assert.match(renderer,/transformOrigin: attachment \?/);
-  assert.match(renderer,/const attachment = parts.find\(part => part.partType === layer.segment.partType\)/);
+  assert.match(renderer,/const attachment = partByType.get\(layer.segment.partType\)/);
+  assert.match(renderer,/const bodyMaxDepth = Math.max\(0, \.\.\.parts.map\(part => part.zIndex\)\)/);
+  assert.match(renderer,/isBackArtwork\(layer\) \? bodyMinDepth - 140 : bodyMaxDepth \+ 140/);
+  assert.match(renderer,/data-legacy-clothing-overlay="true"/);
+  assert.match(renderer,/style=\{\{ visibility: "hidden" \}\}/);
   assert.match(renderer,/clothingLayerDepth\(layer.category,/);
   assert.match(renderer,/layer.segment.renderPlane === "behind_character"/);
   assert.match(renderer,/data-clothing-slot/);

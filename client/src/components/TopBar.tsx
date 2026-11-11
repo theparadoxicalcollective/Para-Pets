@@ -502,8 +502,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 // The Watcher sits above the name, to the portrait's right.
                 // Move the smaller name down slightly without moving the photo.
                 transform: "translateY(21px)",
-                width: "min(205px, calc(100vw - 132px))",
-                maxWidth: "min(205px, calc(100vw - 132px))",
+                width: "min(205px, calc(100vw - 190px))",
+                maxWidth: "min(205px, calc(100vw - 190px))",
               }}>
               {homeWatcher && <div data-testid="home-header-watcher"
                 style={{ display: "flex", width: "100%", minWidth: 0,

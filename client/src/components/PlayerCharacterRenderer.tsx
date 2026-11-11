@@ -79,11 +79,6 @@ export default function PlayerCharacterRenderer({
         a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer, topTucked)
       - clothingLayerDepth(b.category, b.category === "hair" &&
         b.segment.renderPlane === "behind_character" ? "hair_back" : b.segment.slot, b.segment.shoesLayer, topTucked));
-  const planeDepth = {
-    behind_character: -1000,
-    with_part: 100,
-    in_front_of_character: 1000,
-  };
   return (
     <div data-testid="player-character-renderer"
       data-coordinate-space="character-relative"
@@ -147,6 +142,12 @@ export default function PlayerCharacterRenderer({
             <div data-character-motion-part={layer.segment.partType}
               className={`player-character-renderer__motion player-character-renderer__motion--${motion}`}
               style={{ transformOrigin: `${part.pivotXPct}% ${part.pivotYPct}%` }}>
+              {/* Keep the original part's intrinsic height so legacy % fit
+                  coordinates remain unchanged even though this is a sibling
+                  overlay rather than a child of the body image. */}
+              <img src={part.imageUrl} alt="" aria-hidden="true" draggable={false}
+                className="player-character-renderer__image"
+                style={{ visibility: "hidden" }}/>
               <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
                 draggable={false} className="player-character-renderer__clothing"
                 style={{
