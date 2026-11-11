@@ -33,7 +33,7 @@ test("new rig is eight distinct parts and does not confuse clothing inventory ca
     ["left_leg", "right_leg", "left_foot", "right_foot", "top", "left_arm", "right_arm", "head"]);
   assert.deepEqual(LEGACY_PLAYER_CHARACTER_PART_TYPES, ["body", "eyes"]);
   assert.deepEqual(PLAYER_CLOTHING_CATEGORIES,
-    ["head", "hair", "face", "top", "bottom", "shoes", "back"]);
+    ["accessories", "head", "hair", "face", "top", "bottom", "shoes", "back"]);
   assert.equal(PLAYER_CLOTHING_ITEM_TYPE, "clothing");
   assert.deepEqual(PLAYER_CLOTHING_SEGMENT_TYPES, PLAYER_CHARACTER_PART_TYPES);
   assert.equal(PLAYER_CLOTHING_CATEGORIES.includes("back"), true);

@@ -6,6 +6,7 @@ import {
   PLAYER_CHARACTER_PART_TYPES,
   SIMPLE_AVATAR_BODY_ORDER,
   SIMPLE_AVATAR_BODY_Z_INDEX,
+  canvasAlignedAvatarBodyTransform,
   playerCharacterBodyWriteSchema,
   resolvePlayerCharacterParts,
   type PlayerCharacterPart,
@@ -26,7 +27,8 @@ test("one Save Body request validates all eight unique bounded PNG/WebP uploads"
     ...body(["head"]), parts: [{ partType: "head", imageData: webp }],
   }).success, true);
   assert.equal(playerCharacterBodyWriteSchema.safeParse(body(["head", "head"])).success, false);
-  assert.equal(playerCharacterBodyWriteSchema.safeParse(body([])).success, false);
+  assert.equal(playerCharacterBodyWriteSchema.safeParse(body([])).success, true,
+    "Empty upload list may realign already saved body artwork");
   assert.equal(playerCharacterBodyWriteSchema.safeParse({
     ...full, parts: [...full.parts, full.parts[0]],
   }).success, false);
@@ -44,7 +46,7 @@ test("one Save Body request validates all eight unique bounded PNG/WebP uploads"
   assert.match(read("client/src/components/PlayerCharacterAdminPanel.tsx"), /pendingBytes > 40_000_000/);
 });
 
-test("new Masc/Fem uploads layer in the requested front-to-back order, Head foremost", () => {
+test("all Masc/Fem layers share the full 1000px transparent canvas, Head foremost", () => {
   assert.deepEqual(SIMPLE_AVATAR_BODY_ORDER, [
     "head", "top", "left_arm", "right_arm",
     "left_leg", "right_leg", "left_foot", "right_foot",
@@ -52,6 +54,13 @@ test("new Masc/Fem uploads layer in the requested front-to-back order, Head fore
   for (let i=0; i<SIMPLE_AVATAR_BODY_ORDER.length-1; i++) {
     assert.ok(SIMPLE_AVATAR_BODY_Z_INDEX[SIMPLE_AVATAR_BODY_ORDER[i]] >
       SIMPLE_AVATAR_BODY_Z_INDEX[SIMPLE_AVATAR_BODY_ORDER[i+1]]);
+  }
+  for (const type of SIMPLE_AVATAR_BODY_ORDER) {
+    assert.deepEqual(canvasAlignedAvatarBodyTransform(type), {
+      xPct: 50, yPct: 50, widthPct: 100,
+      pivotXPct: 50, pivotYPct: 50,
+      rotationDeg: 0, zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[type],
+    }, "No sprite-scale or per-part offsets for " + type);
   }
   const old: PlayerCharacterPart[] = PLAYER_CHARACTER_PART_TYPES.map((partType, index) => ({
     partType,
@@ -75,7 +84,9 @@ test("one authenticated admin batch saves a revision-checked private body draft 
   assert.match(bodyWrite, /for \(const part of payload.data.parts\)/);
   assert.match(bodyWrite, /await processImage\(part.imageData, 1000\)/);
   assert.match(bodyWrite, /upsertPlayerCharacterPart\(draftParts/);
-  assert.match(bodyWrite, /zIndex: SIMPLE_AVATAR_BODY_Z_INDEX/);
+  assert.match(bodyWrite, /canvasAlignedAvatarBodyTransform\(part.partType\)/);
+  assert.match(bodyWrite, /draftParts.map\(part =>/);
+  assert.match(bodyWrite, /!payload.data.parts.length/);
   assert.match(bodyWrite, /draftParts: orderedDraft/);
   assert.match(bodyWrite, /eq\(playerCharacterBases.revision, current.revision\)/);
   assert.equal((bodyWrite.match(/db.update\(playerCharacterBases\)/g) ?? []).length, 1);
@@ -96,7 +107,9 @@ test("simple Masc and Fem editor exposes eight upload tiles, one save and a laye
   assert.match(panel, /"PUT", "\/api\/admin\/player-character\/bases\/"/);
   assert.match(panel, /expectedRevision: base.revision, parts/);
   assert.match(panel, /setPendingImages\(\{\}\)/);
-  assert.match(panel, /disabled=\{busy \|\| !dirty\}/);
+  assert.match(panel, /disabled=\{busy \|\| \(!dirty && !needsAlignment\)\}/);
+  assert.match(panel, /canvasAlignedAvatarBodyTransform\(part.partType\)/);
+  assert.match(panel, /max-w-\[360px\]/);
   assert.match(panel, /data-testid="avatar-publish-default"/);
   assert.match(panel, /avatar-open-create-clothing/);
   assert.doesNotMatch(panel, /Save Selected Part|Horizontal position|Vertical position|Width \(% of avatar\)|Rotation \(°\)|Layer order|onMovePart|transformFields/);

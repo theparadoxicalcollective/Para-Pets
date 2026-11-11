@@ -30,9 +30,9 @@ test("first avatar creation is an explicit per-user server action, never inferre
   assert.doesNotMatch(read("server/routes/account.routes.ts"), /playerAvatarProfiles|player_avatar_profiles/);
 });
 
-test("all seven clothing slots share one persisted account equipment model", () => {
+test("all eight clothing slots share one persisted account equipment model", () => {
   assert.deepEqual(playerClothingCategorySchema.options, [
-    "head", "hair", "face", "top", "bottom", "shoes", "back",
+    "accessories", "head", "hair", "face", "top", "bottom", "shoes", "back",
   ]);
   assert.equal(savePlayerAvatarEquipmentSchema.safeParse({
     expectedRevision: 2, inventoryId,

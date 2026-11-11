@@ -7,13 +7,19 @@ import {
 } from "@shared/playerCharacter";
 import {
   PLAYER_CLOTHING_DEFAULT_ATTACHMENTS,
+  PLAYER_CLOTHING_UPLOAD_SLOTS,
+  clothingSlotPartType,
+  canvasClothingFit,
+  clothingSegmentKey,
   playerClothingCategorySchema,
   playerClothingSegmentSchema,
+  type PlayerClothingSegment,
 } from "@shared/playerCharacterClothing";
 import {
   AVATAR_CLOTHING_UNRELEASED_WORLD,
   clothingRevisionSchema,
   clothingSegmentWriteSchema,
+  clothingCanvasWriteSchema,
   createClothingDraftSchema,
   updateClothingDraftSchema,
   upsertClothingSegment,
@@ -95,6 +101,89 @@ export function registerPlayerClothingAdminRoutes(
     }
   });
 
+  // Full-canvas artwork is already aligned on transparent 1000×1000 images.
+  // A top may upload torso and both sleeves; hair and face may upload multiple
+  // images attached to the SAME head. One optimistic update saves all images.
+  // Existing published snapshots and player wardrobe are never auto-changed.
+  app.put("/api/admin/player-character/clothing/:id/artwork", isAdmin, async (req, res) => {
+    const parsed = clothingCanvasWriteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Choose valid PNG/WebP clothing artwork" });
+    try {
+      const [draft] = await db.select().from(playerClothingDrafts)
+        .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
+      if (!draft) return res.status(404).json(notFound);
+      if (draft.revision !== parsed.data.expectedRevision) return res.status(409).json(conflict);
+      const [base] = await db.select({ publishedAt: playerCharacterBases.publishedAt })
+        .from(playerCharacterBases).where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
+      if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
+        return res.status(409).json(baseChanged);
+
+      if (parsed.data.shoesLayer && draft.category !== "shoes") {
+        return res.status(400).json({ message: "Pants layering is only available for Shoes" });
+      }
+      // Without saved or uploaded shoe images there is no place to persist the
+      // per-item setting. Avoid claiming a setting-only save succeeded.
+      if (parsed.data.shoesLayer && draft.draftSegments.length === 0 &&
+          parsed.data.images.length === 0) {
+        return res.status(400).json({ message: "Upload shoe artwork before saving its layering" });
+      }
+      const shoesLayer = draft.category === "shoes"
+        ? parsed.data.shoesLayer ?? draft.draftSegments.find(part => part.shoesLayer)?.shoesLayer ?? "under"
+        : undefined;
+      const validSlots = PLAYER_CLOTHING_UPLOAD_SLOTS[draft.category];
+      if ([...parsed.data.images.map(x => x.slot), ...(parsed.data.removeSlots ?? [])]
+        .some(slot => !(validSlots as readonly string[]).includes(slot))) {
+        return res.status(400).json({ message: "This artwork slot is unavailable for the selected category" });
+      }
+
+      // Normalize previous private drafts as well. No image reupload is
+      // necessary to correct old offsets/pivots in saved 1000px artwork.
+      const existing: PlayerClothingSegment[] = draft.draftSegments.map(segment => {
+        const slot = segment.slot ??
+          (draft.category === "hair" && segment.partType === "head" ? "hair_front"
+          : draft.category === "face" && segment.partType === "head" ? "face_open_eyes"
+          : segment.partType);
+        return {
+          ...segment, slot, canvasAligned: true,
+          ...(draft.category === "shoes" ? { shoesLayer } : {}),
+          fit: canvasClothingFit(), renderPlane: "with_part" as const,
+        };
+      });
+      const bySlot = new Map<string, PlayerClothingSegment>(
+        existing.map(segment => [clothingSegmentKey(segment), segment]),
+      );
+      for (const slot of parsed.data.removeSlots ?? []) bySlot.delete(slot);
+      for (const image of parsed.data.images) {
+        const imageUrl = await processImage(image.imageData, 1000);
+        bySlot.set(image.slot, playerClothingSegmentSchema.parse({
+          slot: image.slot,
+          partType: clothingSlotPartType(image.slot),
+          imageUrl,
+          canvasAligned: true,
+          ...(draft.category === "shoes" ? { shoesLayer } : {}),
+          fit: canvasClothingFit(),
+          renderPlane: "with_part",
+        }));
+      }
+      const draftSegments = [...bySlot.values()];
+      // The same schema protects the player-facing catalog against malformed
+      // slots and invalid multi-image garment combinations.
+      if (draftSegments.length && !validClothingPublication(draft.name, draft.category, draftSegments))
+        return res.status(422).json({ message: "The clothing layers do not match this category" });
+      const [updated] = await db.update(playerClothingDrafts).set({
+        draftSegments,
+        revision: draft.revision + 1,
+        updatedAt: new Date(),
+      }).where(and(eq(playerClothingDrafts.id, draft.id),
+        eq(playerClothingDrafts.revision, draft.revision))).returning();
+      if (!updated) return res.status(409).json(conflict);
+      return res.json(updated);
+    } catch (error) {
+      console.error("[player-clothing] full-canvas save failed", error);
+      return res.status(500).json({ message: "Could not save clothing artwork" });
+    }
+  });
+
   app.put("/api/admin/player-character/clothing/:id/segments/:partType", isAdmin, async (req, res) => {
     const partType = playerCharacterPartTypeSchema.safeParse(req.params.partType);
     const body = clothingSegmentWriteSchema.safeParse(req.body);
@@ -105,6 +194,14 @@ export function registerPlayerClothingAdminRoutes(
         .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== body.data.expectedRevision) return res.status(409).json(conflict);
+      // Compatibility endpoint for OLD editor sessions only. Once an item
+      // uses named full-canvas slots, reject legacy per-part edits that could
+      // resize a new garment or delete several same-head images at once.
+      if (draft.draftSegments.some(segment => segment.canvasAligned || segment.slot)) {
+        return res.status(410).json({
+          message: "Refresh the clothing editor and use Save Artwork for this design",
+        });
+      }
       const [base] = await db.select({ publishedAt: playerCharacterBases.publishedAt })
         .from(playerCharacterBases).where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
       if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
@@ -150,6 +247,14 @@ export function registerPlayerClothingAdminRoutes(
         .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== body.data.expectedRevision) return res.status(409).json(conflict);
+      // Compatibility endpoint for OLD editor sessions only. Once an item
+      // uses named full-canvas slots, reject legacy per-part edits that could
+      // resize a new garment or delete several same-head images at once.
+      if (draft.draftSegments.some(segment => segment.canvasAligned || segment.slot)) {
+        return res.status(410).json({
+          message: "Refresh the clothing editor and use Save Artwork for this design",
+        });
+      }
       const [updated] = await db.update(playerClothingDrafts).set({
         draftSegments: draft.draftSegments.filter(item => item.partType !== type.data),
         revision: draft.revision + 1, updatedAt: new Date(),

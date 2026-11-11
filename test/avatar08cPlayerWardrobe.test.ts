@@ -45,8 +45,8 @@ const makeState = (items: OwnedAvatarClothing[]): PlayerAvatarState => ({
   unavailableEquipmentSlots: [],
 });
 
-test("the seven wardrobe buttons are not the eight animation parts", () => {
-  assert.deepEqual(PLAYER_CLOTHING_CATEGORIES, ["head", "hair", "face", "top", "bottom", "shoes", "back"]);
+test("the eight wardrobe buttons are independent of the eight animation parts", () => {
+  assert.deepEqual(PLAYER_CLOTHING_CATEGORIES, ["accessories", "head", "hair", "face", "top", "bottom", "shoes", "back"]);
   const page = read("client/src/pages/PlayerAvatarPage.tsx");
   assert.match(page, /PLAYER_CLOTHING_CATEGORIES\.map\(slot =>/);
   assert.match(page, /data-testid=\{\`avatar-category-\$\{slot\}\`\}/);
@@ -72,7 +72,7 @@ test("hat, hair and face can all use the same head attachment without overwritin
   assert.deepEqual(layers.map(layer => layer.category), ["head", "hair", "face"]);
   assert.equal(layers.flatMap(layer => layer.segments).filter(segment => segment.partType === "head").length, 3);
   const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
-  assert.match(renderer, /key: \`\$\{outfit.category\}:\$\{outfit.inventoryId\}:\$\{segment.partType\}\`/);
+  assert.match(renderer, /clothingSegmentKey\(segment\)/);
   assert.match(renderer, /key=\{layer.key\}/);
   assert.match(renderer, /planeDepth\[layer.segment.renderPlane\]/);
   assert.match(renderer, /player-character-renderer__motion/);

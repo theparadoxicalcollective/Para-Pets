@@ -23,6 +23,13 @@ on:
       - 'client/src/components/FloatingNav.tsx'
       - 'client/src/components/PetInventory.tsx'
       - 'client/src/components/PlayerCharacterAdminPanel.tsx'
+      - 'client/src/components/PlayerClothingAdminPanel.tsx'
+      - 'client/src/components/PlayerCharacterRenderer.tsx'
+      - 'client/src/components/PlayerCharacterRenderer.css'
+      - 'shared/playerCharacterClothing.ts'
+      - 'shared/playerClothingAdmin.ts'
+      - 'server/routes/playerClothingAdmin.routes.ts'
+      - 'script/avatar-clothing-canvas-smoke.mjs'
       - 'client/src/components/PlayerCharacterPartsPreview.tsx'
       - 'shared/playerCharacter.ts'
       - 'server/routes/playerCharacter.routes.ts'
@@ -115,6 +122,7 @@ jobs:
           node script/player-avatar-wardrobe-smoke.mjs
           # Real admin Masc/Fem body upload, preview, one-click save and conflict retry.
           node script/avatar-base-editor-smoke.mjs
+          node script/avatar-clothing-canvas-smoke.mjs
           # Stage 09 Home account HUD on small phones/tablets, using isolated player fixtures.
           node script/home-player-hud-smoke.mjs
 

@@ -5,10 +5,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerCharacterPartsPreview from "./PlayerCharacterPartsPreview";
 import {
-  DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
   PLAYER_CHARACTER_PART_LABELS,
   SIMPLE_AVATAR_BODY_ORDER,
-  SIMPLE_AVATAR_BODY_Z_INDEX,
+  canvasAlignedAvatarBodyTransform,
   completePlayerCharacterParts,
   resolvePlayerCharacterParts,
   type PlayerCharacterPart,
@@ -65,23 +64,38 @@ export default function PlayerCharacterAdminPanel() {
   const selected = bases.find(base => base.name.trim().toLowerCase() === bodyKind.toLowerCase());
   const changedTypes = SIMPLE_AVATAR_BODY_ORDER.filter(type => !!pendingImages[type]);
   const dirty = changedTypes.length > 0;
+  // Older saves used anatomy-specific offsets and widths. Show the correct
+  // common-canvas composition immediately, even before those drafts are saved
+  // again. The existing published snapshot stays completely untouched.
+  const savedParts = useMemo(
+    () => selected ? resolvePlayerCharacterParts(selected.draftParts) : [],
+    [selected],
+  );
+  const needsAlignment = savedParts.some(part => {
+    const aligned = canvasAlignedAvatarBodyTransform(part.partType);
+    return part.xPct !== aligned.xPct || part.yPct !== aligned.yPct
+      || part.widthPct !== aligned.widthPct
+      || part.pivotXPct !== aligned.pivotXPct
+      || part.pivotYPct !== aligned.pivotYPct
+      || part.rotationDeg !== aligned.rotationDeg
+      || part.zIndex !== aligned.zIndex;
+  });
   const previewParts = useMemo(() => {
-    let draft = selected ? resolvePlayerCharacterParts(selected.draftParts)
-      .map(part => ({ ...part, zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[part.partType] })) : [];
+    let draft: PlayerCharacterPart[] = savedParts.map(part => ({
+      ...part, ...canvasAlignedAvatarBodyTransform(part.partType),
+    }));
     for (const type of SIMPLE_AVATAR_BODY_ORDER) {
       const upload = pendingImages[type];
       if (!upload) continue;
-      const saved = draft.find(part => part.partType === type);
       const next: PlayerCharacterPart = {
-        ...(saved ?? DEFAULT_PLAYER_CHARACTER_TRANSFORMS[type]),
-        zIndex: SIMPLE_AVATAR_BODY_Z_INDEX[type],
+        ...canvasAlignedAvatarBodyTransform(type),
         partType: type,
         imageUrl: upload,
       };
       draft = [...draft.filter(part => part.partType !== type), next];
     }
     return draft.sort((a, b) => a.zIndex - b.zIndex);
-  }, [selected, pendingImages]);
+  }, [savedParts, pendingImages]);
 
   const updateCache = (base: CharacterBase) => {
     qc.setQueryData<CharacterBase[]>(LIST_KEY, old => {
@@ -211,7 +225,7 @@ export default function PlayerCharacterAdminPanel() {
 
           <div className={cardClass}>
             <h2 className="mb-2 text-center font-fantasy text-lg font-bold text-[#f6da92]">{bodyKind} Body</h2>
-            <div className="mx-auto w-full max-w-[248px]" data-testid="avatar-body-preview-box">
+            <div className="mx-auto w-full max-w-[360px]" data-testid="avatar-body-preview-box">
               <PlayerCharacterPartsPreview parts={previewParts} />
             </div>
           </div>
@@ -248,7 +262,7 @@ export default function PlayerCharacterAdminPanel() {
             </p>
             <button type="button" data-testid="avatar-save-body"
               className={buttonClass + " mt-3 w-full"}
-              disabled={busy || !dirty}
+              disabled={busy || (!dirty && !needsAlignment)}
               onClick={() => saveBody.mutate({ kind: bodyKind, base: selected, images: { ...pendingImages } })}>
               {saveBody.isPending ? "Saving Body…" : "Save Body"}
             </button>

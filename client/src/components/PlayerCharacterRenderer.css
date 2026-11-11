@@ -8,6 +8,9 @@
   user-select: none;
   -webkit-user-select: none;
   overflow: visible;
+  /* Keep negative-depth Back and Back Hair inside this renderer's stacking
+     context, above the scene/background instead of disappearing behind it. */
+  isolation: isolate;
 }
 
 .player-character-renderer__anchor {
@@ -138,4 +141,59 @@
     animation: none !important;
     transform: none !important;
   }
+}
+
+/* New 1000 × 1000 clothing canvases use one origin and dimensions.
+   These overlays are siblings of body anchors, not nested inside resized
+   anatomy wrappers. Only layer depth and inherited rig motion vary. */
+.player-character-renderer__canvas-motion {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+}
+.player-character-renderer__canvas-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+}
+.player-character-renderer__eyes-closed { opacity: 0; }
+[data-preview-eyes-closed="true"] .player-character-renderer__eyes-open { opacity: 0; }
+[data-preview-eyes-closed="true"] .player-character-renderer__eyes-closed { opacity: 1; }
+/* Static admin previews show open eyes. During idle/walk, closed eyes replace
+   open eyes briefly rather than stacking both images visibly. */
+[data-character-motion="idle"] .player-character-renderer__eyes-open,
+[data-character-motion="walk"] .player-character-renderer__eyes-open {
+  animation: pc-eyes-open 5s steps(1, end) infinite;
+}
+[data-character-motion="idle"] .player-character-renderer__eyes-closed,
+[data-character-motion="walk"] .player-character-renderer__eyes-closed {
+  animation: pc-eyes-closed 5s steps(1, end) infinite;
+}
+@keyframes pc-eyes-open {
+  0%, 93%, 97%, 100% { opacity: 1; }
+  94%, 96% { opacity: 0; }
+}
+@keyframes pc-eyes-closed {
+  0%, 93%, 97%, 100% { opacity: 0; }
+  94%, 96% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-character-renderer__eyes-open,
+  .player-character-renderer__eyes-closed { animation: none !important; }
+  .player-character-renderer__eyes-open { opacity: 1; }
+  .player-character-renderer__eyes-closed { opacity: 0; }
+}
+
+/* Expression inspection must still work for reduced-motion users. */
+[data-character-motion="static"][data-preview-eyes-closed="true"] .player-character-renderer__eyes-open {
+  opacity: 0 !important;
+}
+[data-character-motion="static"][data-preview-eyes-closed="true"] .player-character-renderer__eyes-closed {
+  opacity: 1 !important;
 }
