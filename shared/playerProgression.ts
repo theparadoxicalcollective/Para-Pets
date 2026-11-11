@@ -27,6 +27,17 @@ export const PLAYER_XP_REWARDS = Object.freeze({
   minigameBest: 4,
 });
 
+/** Reward each verified, successful fish catch without making fishing the
+ * dominant leveling path. The per-player daily cap is enforced in the DB. */
+export const FISHING_CATCH_XP_BY_RARITY: Readonly<Record<number, number>> =
+  Object.freeze({ 1: 2, 2: 3, 3: 5, 4: 10, 5: 25 });
+export const FISHING_XP_DAILY_CAP = 50;
+
+export function fishingCatchXpForRarity(rarity: number): number {
+  const star = Number.isFinite(rarity) ? Math.max(1, Math.min(5, Math.trunc(rarity))) : 1;
+  return FISHING_CATCH_XP_BY_RARITY[star] ?? 2;
+}
+
 /** Total XP required to begin a level within ONE 1–100 Elevation cycle. */
 export function totalXpRequiredForPlayerLevel(level: number): number {
   const n = Math.max(0, Math.min(PLAYER_MAX_LEVEL - 1, Math.floor(level) - 1));
