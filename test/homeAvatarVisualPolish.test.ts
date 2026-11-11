@@ -31,7 +31,7 @@ test("avatar Elevation stars and name\/XP are separate from the party panel and 
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
   assert.match(avatarCss, /--home-avatar-visual-size/);
   assert.match(hud, /data-testid="home-player-empty-stars"/);
-  assert.match(hud, /i < \(player\?\.stars \?\? 0\)/);
+  assert.match(hud, /i < \(player\?\.stars \?\? 1\)/);
   assert.match(hud, /data-testid="home-player-total-xp"/);
   assert.doesNotMatch(hud, /petLevelPoints/);
 });

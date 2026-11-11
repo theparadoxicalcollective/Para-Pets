@@ -9,7 +9,7 @@ export interface PlayerProgression {
   cycleStartXp?: number;
 }
 export const INITIAL_PLAYER_PROGRESSION: Readonly<Required<PlayerProgression>> =
-  Object.freeze({ level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 });
+  Object.freeze({ level: 1, totalXp: 0, stars: 1, cycleStartXp: 0 });
 export const MAX_PLAYER_TOTAL_XP = 2_147_483_647;
 export const MAX_PLAYER_XP_AWARD = 1_000_000;
 export const PLAYER_MAX_LEVEL = 100;
@@ -23,14 +23,26 @@ export const PLAYER_XP_REWARDS = Object.freeze({
   clearingBoss: 10,
   pvpWin: 2,
   newBadge: 8,
-  fishingDailyCatch: 2,
+  fishingDailyCatch: 2, // Legacy receipt compatibility; new catches use rarity-based XP.
   minigameBest: 4,
 });
+
+/** Reward each verified, successful fish catch without making fishing the
+ * dominant leveling path. The per-player daily cap is enforced in the DB. */
+export const FISHING_CATCH_XP_BY_RARITY: Readonly<Record<number, number>> =
+  Object.freeze({ 1: 2, 2: 3, 3: 5, 4: 10, 5: 25 });
+export const FISHING_XP_DAILY_CAP = 50;
+
+export function fishingCatchXpForRarity(rarity: number): number {
+  const star = Number.isFinite(rarity) ? Math.max(1, Math.min(5, Math.trunc(rarity))) : 1;
+  return FISHING_CATCH_XP_BY_RARITY[star] ?? 2;
+}
 
 /** Total XP required to begin a level within ONE 1–100 Elevation cycle. */
 export function totalXpRequiredForPlayerLevel(level: number): number {
   const n = Math.max(0, Math.min(PLAYER_MAX_LEVEL - 1, Math.floor(level) - 1));
-  return 80 * n + 20 * n * n;
+  // 80 XP for level 2, then +30 XP for each successive level.
+  return 80 * n + 15 * n * (n - 1);
 }
 
 /** Per-cycle player level; no automatic Elevation beyond 100. */
@@ -56,7 +68,7 @@ export function playerCycleXp(progress: PlayerProgression | null | undefined): n
 
 export function canPlayerElevate(progress: PlayerProgression | null | undefined): boolean {
   if (!progress) return false;
-  return (progress.stars ?? 0) < PLAYER_MAX_STARS &&
+  return Math.max(1, progress.stars ?? 1) < PLAYER_MAX_STARS &&
     levelForPlayerTotalXp(playerCycleXp(progress)) === PLAYER_MAX_LEVEL;
 }
 
@@ -69,7 +81,7 @@ export function planSeerElevation(progress: PlayerProgression): Required<PlayerP
   if (!canPlayerElevate(progress)) return null;
   return {
     level: 1,
-    stars: (progress.stars ?? 0) + 1,
+    stars: Math.max(1, progress.stars ?? 1) + 1,
     totalXp: progress.totalXp,
     cycleStartXp: progress.totalXp,
   };
@@ -89,7 +101,8 @@ export interface PlayerProgressionResponse {
 export function playerProgressionResponse(saved: PlayerProgression | null | undefined): PlayerProgressionResponse {
   const totalXp = saved?.totalXp ?? 0;
   const cycleXp = playerCycleXp(saved);
-  const stars = saved?.stars ?? 0;
+  // Legacy zero-star accounts receive the starting star without XP or pet changes.
+  const stars = Math.max(1, saved?.stars ?? 1);
   // Always derive level from the current cycle, not lifetime XP or old pet XP.
   const level = levelForPlayerTotalXp(cycleXp);
   const nextLevelTotalXp = level < PLAYER_MAX_LEVEL ? totalXpRequiredForPlayerLevel(level + 1) : null;

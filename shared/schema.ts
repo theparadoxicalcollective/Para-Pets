@@ -83,7 +83,7 @@ export const playerProgression = pgTable("player_progression", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   level: integer("level").notNull().default(1),
   totalXp: integer("total_xp").notNull().default(0),
-  stars: integer("stars").notNull().default(0),
+  stars: integer("stars").notNull().default(1),
   cycleStartXp: integer("cycle_start_xp").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });

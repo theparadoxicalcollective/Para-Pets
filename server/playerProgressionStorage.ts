@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import {
   playerProgression,
   playerXpReceipts,
 } from "@shared/schema";
-import { levelForPlayerTotalXp, type PlayerProgression } from "@shared/playerProgression";
+import { FISHING_XP_DAILY_CAP, fishingCatchXpForRarity, levelForPlayerTotalXp, type PlayerProgression } from "@shared/playerProgression";
 import { db } from "./db";
 import {
   executePlayerXpAward,
@@ -21,7 +21,7 @@ export async function getPlayerProgression(userId: string): Promise<PlayerProgre
     stars: playerProgression.stars,
     cycleStartXp: playerProgression.cycleStartXp,
   }).from(playerProgression).where(eq(playerProgression.userId, userId)).limit(1);
-  return row ?? null;
+  return row ? { ...row, stars: Math.max(1, row.stars ?? 1) } : null;
 }
 
 /**
@@ -88,4 +88,50 @@ export async function awardPlayerXpInTransaction(
 /** Standalone path for verified events without a separate reward transaction. */
 export async function awardPlayerXp(userId: string, award: PlayerXpAward): Promise<PlayerXpAwardResult> {
   return db.transaction(async (tx) => awardPlayerXpInTransaction(tx, userId, award));
+}
+
+/** Called only after a server-verified successful catch. The progression row
+ * lock serializes concurrent catches, then an aggregate of this day's receipts
+ * enforces the shared cap. The receipt uses the trusted attempt ID, so
+ * reconnects and retries cannot multiply XP. A fish catch remains committed
+ * even if an XP write fails, matching the established reward semantics.
+ */
+export async function awardPlayerFishingCatchXp(
+  userId: string,
+  attemptId: string,
+  rarity: number,
+  dayKey: string,
+): Promise<number> {
+  const desired = fishingCatchXpForRarity(rarity);
+  const eventId = `${dayKey}:${attemptId}`;
+  return db.transaction(async tx => {
+    await tx.insert(playerProgression).values({ userId }).onConflictDoNothing();
+    await tx.select({ userId: playerProgression.userId })
+      .from(playerProgression).where(eq(playerProgression.userId, userId)).for("update");
+
+    // Legacy first-catch receipts use the bare day key; include them so a
+    // deployment in the middle of a day never double-credits the allowance.
+    const [existing] = await tx.select({ amount: playerXpReceipts.amount })
+      .from(playerXpReceipts).where(and(
+        eq(playerXpReceipts.userId, userId),
+        eq(playerXpReceipts.source, "fishing_catch"),
+        eq(playerXpReceipts.eventId, eventId),
+      )).limit(1);
+    if (existing) return 0;
+
+    const [daily] = await tx.select({
+      amount: sql<number>`COALESCE(SUM(${playerXpReceipts.amount}), 0)`,
+    }).from(playerXpReceipts).where(and(
+      eq(playerXpReceipts.userId, userId),
+      eq(playerXpReceipts.source, "fishing_catch"),
+      like(playerXpReceipts.eventId, `${dayKey}%`),
+    ));
+    const remaining = Math.max(0, FISHING_XP_DAILY_CAP - Number(daily?.amount ?? 0));
+    if (!remaining) return 0;
+    const amount = Math.min(desired, remaining);
+    const result = await awardPlayerXpInTransaction(tx, userId, {
+      source: "fishing_catch", eventId, amount,
+    });
+    return result.status === "applied" ? amount : 0;
+  });
 }

@@ -14,20 +14,20 @@ test("Home enlarges and raises the avatar's five Elevation stars, not the pet ra
   assert.match(homeCss, /width: clamp\(37px, 10vw, 51px\)/);
   assert.match(homeCss, /home-avatar-visual-size, 220px\) - 24px/);
   assert.match(homeHud, /avatarHome \? 31 : 14/);
-  assert.match(homeHud, /i < \(player\?\.stars \?\? 0\)/);
+  assert.match(homeHud, /i < \(player\?\.stars \?\? 1\)/);
   assert.match(homeHud, /data-testid=\{\`home-player-team-stars-\$\{index \+ 1\}\`\}/);
 });
 
-test("Home's XP has a shallower, narrower arc, but the account progressbar and normal HUD survive", () => {
+test("Home XP forms a more semicircular arc with accessible proportional progress", () => {
   assert.match(homeHud, /className="home-player-hud__xp-arc"/);
-  assert.match(homeHud, /d="M 10 7 Q 160 46 310 7"/);
+  assert.match(homeHud, /d="M 26 8 Q 160 162 294 8"/);
   assert.match(homeHud, /strokeDashoffset=\{100 - xpFillPct\}/);
   assert.match(homeHud, /pathLength=\{100\}/);
   assert.match(homeHud, /role="progressbar"/);
   assert.match(homeHud, /aria-valuenow=\{xpFillPct === null/);
   assert.match(homeHud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(homeHud, /: <span aria-hidden="true" style=\{xpFillPct === null/);
-  assert.match(homeCss, /width: min\(calc\(100vw - 78px\), 318px\)/);
+  assert.match(homeCss, /width: min\(calc\(100vw - 108px\), 285px\)/);
 });
 
 test("pet team keeps five editable hit targets but no circular frames or helper copy", () => {
@@ -43,10 +43,10 @@ test("pet team keeps five editable hit targets but no circular frames or helper 
   assert.match(homeHud, /avatarHome \? null : "Tap a portrait to edit your team"/);
 });
 
-test("static rich pet thumbnails include existing equipped adornments and mini pets, with image fallback", () => {
+test("compact blinking pet thumbnails retain equipped adornments and mini pets", () => {
   assert.match(homeHud, /<PetAnimator petTemplateId=\{pet\.petTemplateId\}/);
   assert.match(homeHud, /petInventoryId=\{pet\.inventoryId\}/);
-  assert.match(homeHud, /mode="static" performanceStatic lowMemory/);
+  assert.match(homeHud, /mode="house" lowMemory size=\{58\}/);
   assert.match(homeHud, /<MiniPetRenderer petInventoryId=\{pet\.inventoryId\} animated=\{false\}/);
   assert.match(homeHud, /home-player-hud__fallback-pet/);
   assert.match(homeCss, /home-player-hud__pet-renderer/);
@@ -73,11 +73,12 @@ test("only Home navigation uses a translucent forest panel with outlined icon si
   assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
   assert.match(nav, /!isHome && RIGHT_ITEMS\.map/);
   assert.match(nav, /data-testid="home-realm-nav-panel"/);
-  assert.match(nav, /homeNavPosition\(index, homeRowCapacity\)/);
-  assert.match(navCss, /background: linear-gradient\(155deg, rgba\(21, 63, 40, \.87\)/);
+  assert.match(nav, /homeNavPosition\(index\)/);
+  assert.match(navCss, /background: linear-gradient\(155deg, rgba\(21, 63, 40, \.52\)/);
   assert.match(navCss, /\.home-realm-nav__icon \{/);
   assert.match(navCss, /border: 0;\s*border-radius: 0;\s*background: transparent/);
   assert.match(navCss, /filter: drop-shadow\(1px 0 0/);
   assert.match(navCss, /\.home-realm-nav__tile:focus-visible/);
-  assert.match(nav, /HOME_ROW_GAP/);
+  assert.match(nav, /const HOME_NAV_ROWS = 3/);
+  assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
 });

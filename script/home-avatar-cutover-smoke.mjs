@@ -124,17 +124,23 @@ try {
       if(path==="/api/auth/me")return fulfill(route,user);
       if(path==="/api/inventory")return fulfill(route,[playerPet]);
       if(path==="/api/player/progression")
-        return fulfill(route,{level:4,totalXp:240,nextLevelTotalXp:null,xpToNextLevel:null});
+        return fulfill(route,{level:3,totalXp:240,cycleXp:240,stars:1,nextLevelTotalXp:330,xpToNextLevel:90});
       if(path==="/api/player/pet-team")
         return fulfill(route,{petInventoryIds:["pet-owned"],attackPower:100});
       if(path==="/api/pet-template-parts/pet-template" && method==="GET")
         return fulfill(route,{
           facing:"front",canFly:false,
-          parts:[{
-            id:"fixture-body",templateId:"pet-template",partType:"body",
-            view:"front",imageUrl:art,posX:340,posY:340,
-            width:320,height:320,zIndex:30,pivotX:50,pivotY:50,rotation:0,
-          }],
+          parts:[
+            {id:"fixture-body",templateId:"pet-template",partType:"body",
+              view:"front",imageUrl:art,posX:340,posY:340,
+              width:320,height:320,zIndex:30,pivotX:50,pivotY:50,rotation:0},
+            {id:"fixture-eyes",templateId:"pet-template",partType:"eyes",
+              view:"front",imageUrl:art,posX:400,posY:410,
+              width:100,height:32,zIndex:40,pivotX:50,pivotY:50,rotation:0},
+            {id:"fixture-closed-eyes",templateId:"pet-template",partType:"eyes_closed",
+              view:"front",imageUrl:art,posX:400,posY:410,
+              width:100,height:32,zIndex:41,pivotX:50,pivotY:50,rotation:0},
+          ],
         });
       if(path==="/api/pet/pet-owned/costumes" && method==="GET")
         return fulfill(route,{equipped:[],extraSlots:0,isEvolved:false});
@@ -236,9 +242,13 @@ try {
     await page.getByTestId("home-player-team-composite-1")
       .locator('[data-testid="pet-animator"] img').first().waitFor({state:"visible"});
     await page.getByTestId("equipped-mini-pet").waitFor({state:"visible"});
-    assert.equal(await page.getByTestId("home-player-team-composite-1")
-      .locator('[data-testid="pet-animator"] img').count(),1,
-      sc.name+": static team pet loads the shared layered renderer");
+    const composite=page.getByTestId("home-player-team-composite-1");
+    assert.ok(await composite.locator('[data-testid="pet-animator"] img').count()>=3,
+      sc.name+": compact companion uses layered body and blinking eye art");
+    const animBounds=await composite.locator('[data-testid="pet-animator"]').first().boundingBox();
+    const slotBounds=await page.getByTestId("home-player-team-slot-1").boundingBox();
+    assert.ok(animBounds && slotBounds && animBounds.width<=slotBounds.width+8,
+      sc.name+": pet renderer does not overgrow its slot: "+JSON.stringify({animBounds,slotBounds}));
     assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"static",
       sc.name+": equipped Mini Pet is visible without introducing animations");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
@@ -252,10 +262,11 @@ try {
       sc.name+": player stars arc frames the avatar top");
     assert.ok(Math.abs(homeLayout.progress.centerX-homeLayout.actor.centerX)<6,
       sc.name+": player XP centered below actor");
-    assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-3,
-      sc.name+": player name and XP below avatar");
-    assert.ok(homeLayout.xp.height>=32 && homeLayout.xp.width<=320,
-      sc.name+": curved XP bar is compact and readable");
+    assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-24,
+      sc.name+": semicircular XP stays near the avatar's feet");
+    assert.ok(homeLayout.xp.height>=60 && homeLayout.xp.height<=95 &&
+      homeLayout.xp.width<=290,
+      sc.name+": semicircular XP arc fits the mobile viewport");
     const xpArc=await page.getByTestId("home-player-xp-track").evaluate(el=>({
       paths:el.querySelectorAll("svg path").length,
       curve:el.querySelector("svg path")?.getAttribute("d"),
@@ -357,8 +368,7 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // Main opens alpha-outlined icons in one translucent forest-green box.
-    // Excess destinations still flow into columns on the left.
+    // Main opens five alpha-outlined icons across each of three translucent rows.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
@@ -371,8 +381,8 @@ try {
     assert.ok(panelGeometry.left >= -1 && panelGeometry.right <= sc.width + 1 &&
       panelGeometry.top >= homeLayout.navButton.bottom + 6 && panelGeometry.bottom <= sc.height - 8,
       sc.name+": icon rail fits below main nav and within viewport: "+JSON.stringify(panelGeometry));
-    assert.ok(panelGeometry.background.includes("linear-gradient"),
-      sc.name+": Home navigation has a semi-transparent forest-green background");
+    assert.ok(panelGeometry.background.includes("rgba(21, 63, 40, 0.52)"),
+      sc.name+": Home navigation is genuinely translucent over the forest");
     const iconChrome = await page.getByTestId("nav-item-home").locator(".home-realm-nav__icon").evaluate(el=>({
       border:getComputedStyle(el).borderStyle,
       radius:getComputedStyle(el).borderRadius,
@@ -401,11 +411,12 @@ try {
     assert.equal(navigation[0].id,"nav-item-home",sc.name+": Main is first priority");
     assert.equal(navigation[navigation.length-1].id,"nav-item-support",
       sc.name+": Support is always the last navigation action");
-    const columns=[...new Set(navigation.map(item=>Math.round(item.left)))].sort((x,y)=>y-x);
-    assert.ok(columns.length >= (sc.height<=844 ? 2 : 1) && columns.length <= 4,
-      sc.name+": compact screens flow excess icons left: "+JSON.stringify(columns));
-    assert.ok(Math.abs(navigation[0].right - homeLayout.navButton.right)<=13,
-      sc.name+": first icons align just inside the panel's right padding");
+    const columns=[...new Set(navigation.map(item=>Math.round(item.left)))].sort((x,y)=>x-y);
+    const rows=[...new Set(navigation.map(item=>Math.round(item.top)))].sort((x,y)=>x-y);
+    assert.equal(columns.length,5,sc.name+": five horizontal icon columns");
+    assert.equal(rows.length,3,sc.name+": three compact rows");
+    assert.ok(Math.abs(navigation[0].left - panelGeometry.left)<=19,
+      sc.name+": first navigation icon starts on the left");
     for(const item of navigation){
       assert.ok(item.left>=-1 && item.right<=sc.width+1 &&
         item.top>=homeLayout.navButton.bottom+5 && item.bottom<=sc.height-8,
@@ -421,8 +432,8 @@ try {
     const support=navigation[navigation.length-1];
     assert.ok(Math.abs(support.bottom - Math.max(...navigation.map(item=>item.bottom))) <= 2,
       sc.name+": Support is at the bottom of the navigation rail");
-    assert.ok(Math.abs(support.left - Math.min(...navigation.map(item=>item.left)))<=2,
-      sc.name+": overflow columns grow toward the left with Support last");
+    assert.ok(Math.abs(support.right - Math.max(...navigation.map(item=>item.right)))<=2,
+      sc.name+": Support remains last at the lower-right of the new grid");
     await page.getByTestId("nav-item-support").tap();
     await page.getByTestId("button-close-support-modal").waitFor({state:"visible"});
     await page.getByTestId("button-close-support-modal").tap();
