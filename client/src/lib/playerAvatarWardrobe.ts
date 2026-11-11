@@ -120,7 +120,7 @@ export function wardrobeLayers(
   const equipped: AvatarClothingLayer[] = clearEquipped ? [] : avatar.equipped
     .filter(item => !unavailable.has(item.category))
     .map(({ category, inventoryId, segments, bodyVariants, colorTint }) => ({
-      category, inventoryId, colorTint,
+      category, inventoryId, colorTint: category === "hair" ? colorTint : null,
       segments: clothingSegmentsForBody(segments, bodyVariants, selectedBodyName),
     }));
 
@@ -139,7 +139,9 @@ export function wardrobeLayers(
     equipped.push({
       category: chosen.category,
       inventoryId: chosen.inventoryId,
-      colorTint: avatar.equipped.find(e => e.inventoryId === chosen.inventoryId)?.colorTint ?? null,
+      colorTint: chosen.category === "hair"
+        ? avatar.equipped.find(e => e.inventoryId === chosen.inventoryId)?.colorTint ?? null
+        : null,
       segments: clothingSegmentsForBody(
         chosen.segments, chosen.bodyVariants, selectedBodyName),
     });
