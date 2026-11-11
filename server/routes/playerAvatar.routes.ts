@@ -246,8 +246,9 @@ export function registerPlayerAvatarRoutes(
         if (!base || !available)
           return { status: 422 as const, message: "Save all eight body parts before selecting this character" };
 
-        const sameBase = profile.baseId === base.id &&
-          profile.basePublishedAt.getTime() === available.publishedAt.getTime();
+        const sameBase = (input.data.keepSnapshot === true && profile.baseId === base.id) ||
+          (profile.baseId === base.id &&
+            profile.basePublishedAt.getTime() === available.publishedAt.getTime());
         const skinTone = input.data.skinTone === undefined ? profile.skinTone : input.data.skinTone;
         if (sameBase && profile.skinTone === skinTone)
           return { status: 200 as const };
@@ -273,7 +274,8 @@ export function registerPlayerAvatarRoutes(
         );
         }
         await tx.update(playerAvatarProfiles).set({
-          baseId: base.id, basePublishedAt: available.publishedAt,
+          baseId: base.id,
+          basePublishedAt: sameBase ? profile.basePublishedAt : available.publishedAt,
           baseParts: sameBase ? profile.baseParts : available.parts,
           skinTone,
           revision: profile.revision + 1, updatedAt: new Date(),

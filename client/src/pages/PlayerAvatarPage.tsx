@@ -113,9 +113,10 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   });
 
   const changeBody = useMutation({
-    mutationFn: (input: { baseId: string; skinTone: string | null; expectedRevision: number; accountId: string }) =>
+    mutationFn: (input: { baseId: string; skinTone: string | null; keepSnapshot: boolean; expectedRevision: number; accountId: string }) =>
       writePlayerAvatar("PATCH", "/api/player-avatar/base", {
-        baseId: input.baseId, skinTone: input.skinTone, expectedRevision: input.expectedRevision,
+        baseId: input.baseId, skinTone: input.skinTone, keepSnapshot: input.keepSnapshot,
+        expectedRevision: input.expectedRevision,
       }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
@@ -293,7 +294,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   : "Save your chosen skin color to update your character everywhere."}</p>
                 <button type="button" data-testid="avatar-save-body-choice" disabled={busy}
                   onClick={() => selectedBody && changeBody.mutate({
-                    baseId: selectedBody.id, skinTone,
+                    baseId: selectedBody.id, skinTone, keepSnapshot: !switchingBody,
                     expectedRevision: avatar.revision!, accountId: userId,
                   })}>
                   {changeBody.isPending ? "Saving Appearance…" : "Save Appearance"}
