@@ -69,7 +69,9 @@ test("coin-bundle control is more visible without changing the coin shop destina
   assert.match(block, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
   assert.match(block, /width: location === "\/" \? 32 : 44/);
   assert.match(block, /height: location === "\/" \? 32 : 44/);
-  assert.match(block, /border: "1\.5px solid rgba\(240,192,64,0\.86\)"/);
+  assert.match(block, /border: location === "\/"/);
+  assert.match(block, /"1\.5px solid rgba\(240,192,64,0\.86\)"/);
+  assert.match(block, /"1\.5px solid rgba\(240,192,64,0\.72\)"/);
   assert.match(block, /background: location === "\/" \? "transparent"/);
   assert.match(block, /borderRadius: location === "\/" \? "50%" : 13/);
   assert.match(block, /boxShadow: location === "\/"/);
