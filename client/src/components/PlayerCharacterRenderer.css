@@ -33,7 +33,9 @@
   height: 100%;
   z-index: 2;
   pointer-events: none;
-  mix-blend-mode: color;
+  /* Multiply retains line art and source shading while allowing genuine
+     light-to-deep tonal differences (color blend would keep lightness fixed). */
+  mix-blend-mode: multiply;
   mask-size: 100% 100%;
   -webkit-mask-size: 100% 100%;
   mask-position: center;
