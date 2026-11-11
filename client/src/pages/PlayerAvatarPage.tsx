@@ -350,7 +350,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   type="button"
                   className={`player-avatar-page__category player-avatar-page__category--${slot}`}
                   data-testid={`avatar-category-${slot}`}
-                  aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[slot]}${!avatar.created && REQUIRED_AVATAR_CREATION_CATEGORIES.some(required => required === slot) ? ", required" : ""}`}
+                  aria-label={PLAYER_CLOTHING_CATEGORY_LABELS[slot]}
                   aria-pressed={wardrobeOpen && category === slot}
                   aria-expanded={wardrobeOpen && category === slot}
                   aria-controls="player-avatar-clothing-panel"
