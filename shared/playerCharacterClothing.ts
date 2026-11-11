@@ -49,6 +49,15 @@ export type PlayerClothingSlot = typeof PLAYER_CLOTHING_SLOTS[number];
 export const playerClothingSlotSchema = z.enum(PLAYER_CLOTHING_SLOTS);
 export const playerClothingCategorySchema = z.enum(PLAYER_CLOTHING_CATEGORIES);
 
+/** Artwork choices, not separate catalog items or inventory ownership. */
+export const PLAYER_CLOTHING_BODY_TYPES = ["fem", "masc"] as const;
+export type PlayerClothingBodyType = typeof PLAYER_CLOTHING_BODY_TYPES[number];
+export const playerClothingBodyTypeSchema = z.enum(PLAYER_CLOTHING_BODY_TYPES);
+export const clothingBodyTypeFromName = (name?: string | null): PlayerClothingBodyType | null => {
+  const normalized = name?.trim().toLowerCase();
+  return normalized === "fem" || normalized === "masc" ? normalized : null;
+};
+
 export function clothingSlotPartType(slot: PlayerClothingSlot): PlayerCharacterPartType {
   return (PLAYER_CLOTHING_SPECIAL_SLOTS as readonly string[]).includes(slot)
     ? "head" : slot as PlayerCharacterPartType;
@@ -127,6 +136,23 @@ export const playerClothingSegmentSchema = z.object({
   }
 });
 export type PlayerClothingSegment = z.infer<typeof playerClothingSegmentSchema>;
+
+/** Optional for old clothing: legacy items remain shared across both bodies. */
+export const playerClothingBodyVariantsSchema = z.object({
+  fem: z.array(playerClothingSegmentSchema).min(1).max(13),
+  masc: z.array(playerClothingSegmentSchema).min(1).max(13),
+}).strict();
+export type PlayerClothingBodyVariants = z.infer<typeof playerClothingBodyVariantsSchema>;
+
+/** Never show Fem artwork on Masc when distinct versions have been supplied. */
+export function clothingSegmentsForBody(
+  shared: readonly PlayerClothingSegment[] | null | undefined,
+  variants: PlayerClothingBodyVariants | null | undefined,
+  bodyName?: string | null,
+): readonly PlayerClothingSegment[] {
+  const kind = clothingBodyTypeFromName(bodyName);
+  return variants && kind ? variants[kind] : shared ?? [];
+}
 export const clothingSegmentKey = (segment: Pick<PlayerClothingSegment,"partType"|"slot">) =>
   segment.slot ?? segment.partType;
 

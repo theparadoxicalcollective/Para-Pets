@@ -192,7 +192,9 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   name: text("name").notNull(),
   category: text("category").$type<PlayerClothingCategory>().notNull(),
   draftSegments: jsonb("draft_segments").$type<PlayerClothingSegment[]>().notNull().default(sql`'[]'::jsonb`),
+  draftBodyVariants: jsonb("draft_body_variants").$type<import("./playerCharacterClothing").PlayerClothingBodyVariants | null>(),
   publishedSegments: jsonb("published_segments").$type<PlayerClothingSegment[] | null>(),
+  publishedBodyVariants: jsonb("published_body_variants").$type<import("./playerCharacterClothing").PlayerClothingBodyVariants | null>(),
   // Draft category edits stay private until Save Clothing, just like segments.
   publishedCategory: text("published_category").$type<PlayerClothingCategory | null>(),
   universal: boolean("universal").notNull().default(false),
