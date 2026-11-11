@@ -484,7 +484,7 @@
 }
 .home-player-hud--avatar-home .home-player-hud__level-below { margin-top: 1px; }
 .home-player-hud--avatar-home .home-player-hud__level-pill {
-  min-width: 72px;
+  min-width: 78px;
   min-height: 24px;
 }
 /* Five larger companions sit on small shadow ovals rather than circles.
