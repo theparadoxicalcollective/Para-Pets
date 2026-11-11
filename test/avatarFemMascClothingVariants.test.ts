@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { saveUniversalClothingItemSchema } from "../shared/playerClothingAdmin";
 import {
   clothingSegmentsForBody, playerClothingBodyVariantsSchema,
+  isUniversalClothingCategory,
   playerClothingDefinitionSchema, type PlayerClothingSegment,
 } from "../shared/playerCharacterClothing";
 
@@ -40,29 +41,32 @@ test("one clothing SKU holds two complete independent body artworks", () => {
     "Old shared items remain usable on both bases");
 });
 
-test("both body versions are required, with independent face expressions", () => {
+test("fitted clothing needs both body versions; Hair, Face, Back, Accessories are universal", () => {
   assert.equal(saveUniversalClothingItemSchema.safeParse({
     ...request, bodyVariants: { ...request.bodyVariants,
       masc: { images: [], keep: [] } },
   }).success, false);
-  assert.equal(saveUniversalClothingItemSchema.safeParse({
-    ...request, bodyVariants: { ...request.bodyVariants,
-      masc: { images: [{ slot: "piece_1", partType: "top", imageData },
-        { slot: "piece_1", partType: "left_arm", imageData }], keep: [] } },
-  }).success, false);
   const faceParts = ["face_open_eyes", "face_closed_eyes", "face_mouth"]
     .map(slot => ({ slot, partType: "head", imageData }));
-  const face = { ...request, category: "face",
-    bodyVariants: {
-      fem: { images: faceParts, keep: [] },
-      masc: { images: faceParts, keep: [] },
-    },
-  };
+  const face = { ...request, category: "face", bodyVariants: undefined,
+    images: faceParts, keep: [] };
+  assert.equal(isUniversalClothingCategory("face"), true);
   assert.equal(saveUniversalClothingItemSchema.safeParse(face).success, true);
   assert.equal(saveUniversalClothingItemSchema.safeParse({
-    ...face, bodyVariants: { ...face.bodyVariants,
-      masc: { images: faceParts.slice(0, 2), keep: [] } },
+    ...face, images: faceParts.slice(0, 2),
   }).success, false);
+  for (const category of ["hair", "back", "accessories"] as const) {
+    assert.equal(isUniversalClothingCategory(category), true);
+    assert.equal(saveUniversalClothingItemSchema.safeParse({
+      ...request, category, bodyVariants: undefined,
+      images: [{ slot: "piece_1", partType: "top", imageData }],
+    }).success, true);
+    assert.equal(saveUniversalClothingItemSchema.safeParse({
+      ...request, category,
+    }).success, false, "Universal categories reject separate body artwork");
+  }
+  for (const category of ["top", "bottom", "shoes"] as const)
+    assert.equal(isUniversalClothingCategory(category), false);
 });
 
 test("admin and client preserve one ownership item, switch only artwork", () => {
@@ -71,6 +75,7 @@ test("admin and client preserve one ownership item, switch only artwork", () => 
   const wardrobe = readFileSync("client/src/lib/playerAvatarWardrobe.ts", "utf8");
   const migration = readFileSync("server/startup/migrations/ensurePlayerClothingStorage.ts", "utf8");
   assert.match(admin, /data-testid="avatar-clothing-variant-status"/);
+  assert.match(admin, /data-testid="avatar-clothing-universal-artwork"/);
   assert.match(admin, /bodyVariants: Object.fromEntries/);
   assert.match(api, /bodyVariants: playerClothingDrafts.publishedBodyVariants/);
   assert.match(wardrobe, /clothingSegmentsForBody/);
