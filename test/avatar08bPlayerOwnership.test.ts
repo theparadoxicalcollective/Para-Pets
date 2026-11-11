@@ -93,7 +93,9 @@ test("saved player anatomy is snapshotted and will not silently change after adm
   assert.match(migration, /CREATE TABLE IF NOT EXISTS player_avatar_equipment/);
   assert.match(migration, /UNIQUE \(user_id, category\)/);
   assert.match(migration, /REFERENCES user_inventory\(id\) ON DELETE CASCADE/);
-  assert.match(routes, /baseParts: resolvePlayerCharacterParts\(base\.publishedParts\)/);
+  assert.match(routes, /baseParts: available.parts/);
+  assert.match(routes, /availablePlayerCharacterBody\(base\)/);
+  assert.match(routes, /availableBases,/);
   assert.match(routes, /parts: resolvePlayerCharacterParts\(profile\.baseParts\)/);
   assert.match(routes, /\.for\("share"\)/);
   assert.match(routes, /\.for\("update"\)/);

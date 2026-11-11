@@ -121,9 +121,8 @@ export function registerPlayerCharacterRoutes(
     }
   });
 
-  // Single Save Body request for Masc/Fem artwork. Process and validate all
-  // selected images before the one optimistic-revision draft update. Published
-  // snapshots remain unchanged until explicit Publish as Default.
+  // Complete Masc/Fem body saves become player-ready immediately.
+  // Incomplete drafts never replace an existing complete snapshot.
   app.put("/api/admin/player-character/bases/:id/body", isAdmin, async (req, res) => {
     const payload = playerCharacterBodyWriteSchema.safeParse(req.body);
     if (!payload.success)
@@ -162,10 +161,17 @@ export function registerPlayerCharacterRoutes(
             }
           : part
       );
+      const now = new Date();
+      const isSelectableBody = ["masc", "fem"].includes(current.name.trim().toLowerCase());
+      const completeBody = isSelectableBody && completePlayerCharacterParts(orderedDraft);
       const [updated] = await db.update(playerCharacterBases).set({
         draftParts: orderedDraft,
+        ...(completeBody ? {
+          publishedParts: resolvePlayerCharacterParts(orderedDraft).map(part => ({ ...part })),
+          publishedAt: now,
+        } : {}),
         revision: current.revision + 1,
-        updatedAt: new Date(),
+        updatedAt: now,
       }).where(and(eq(playerCharacterBases.id, id),
         eq(playerCharacterBases.revision, current.revision))).returning();
       if (!updated)

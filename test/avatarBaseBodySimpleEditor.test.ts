@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
   DEFAULT_PLAYER_CHARACTER_TRANSFORMS,
+  availablePlayerCharacterBody,
   PLAYER_CHARACTER_PART_TYPES,
   SIMPLE_AVATAR_BODY_ORDER,
   SIMPLE_AVATAR_BODY_Z_INDEX,
@@ -73,7 +74,7 @@ test("all Masc/Fem layers share the full 1000px transparent canvas, Head foremos
   assert.equal(JSON.stringify(old), imageSnapshot);
 });
 
-test("one authenticated admin batch saves a revision-checked private body draft without publishing", () => {
+test("one authenticated admin save makes complete Masc/Fem bodies usable without an extra publish", () => {
   const route = read("server/routes/playerCharacter.routes.ts");
   const start = route.indexOf('app.put("/api/admin/player-character/bases/:id/body", isAdmin');
   const end = route.indexOf('app.delete("/api/admin/player-character/bases/:id/parts/:partType"', start);
@@ -90,7 +91,10 @@ test("one authenticated admin batch saves a revision-checked private body draft 
   assert.match(bodyWrite, /draftParts: orderedDraft/);
   assert.match(bodyWrite, /eq\(playerCharacterBases.revision, current.revision\)/);
   assert.equal((bodyWrite.match(/db.update\(playerCharacterBases\)/g) ?? []).length, 1);
-  assert.doesNotMatch(bodyWrite, /publishedParts:|isDefault: true/);
+  assert.match(bodyWrite, /completePlayerCharacterParts\(orderedDraft\)/);
+  assert.match(bodyWrite, /publishedParts: resolvePlayerCharacterParts\(orderedDraft\)/);
+  assert.match(bodyWrite, /publishedAt: now/);
+  assert.doesNotMatch(bodyWrite, /isDefault: true/);
 });
 
 test("simple Masc and Fem editor exposes eight upload tiles, one save and a layered preview", () => {
@@ -110,9 +114,26 @@ test("simple Masc and Fem editor exposes eight upload tiles, one save and a laye
   assert.match(panel, /disabled=\{busy \|\| \(!dirty && !needsAlignment\)\}/);
   assert.match(panel, /canvasAlignedAvatarBodyTransform\(part.partType\)/);
   assert.match(panel, /max-w-\[360px\]/);
-  assert.match(panel, /data-testid="avatar-publish-default"/);
+  assert.doesNotMatch(panel, /data-testid="avatar-publish-default"/);
+  assert.match(panel, /no publishing step needed/);
   assert.match(panel, /avatar-open-create-clothing/);
   assert.doesNotMatch(panel, /Save Selected Part|Horizontal position|Vertical position|Width \(% of avatar\)|Rotation \(°\)|Layer order|onMovePart|transformFields/);
   assert.match(preview, /<PlayerCharacterRenderer/);
   assert.doesNotMatch(panel, /390\s*[x×]\s*844|390px|844px|PetAnimator|activePetId/);
+});
+
+test("only complete saved Masc/Fem drafts are player-selectable, preserving published snapshots", () => {
+  const parts: PlayerCharacterPart[] = PLAYER_CHARACTER_PART_TYPES.map((partType, index) => ({
+    partType,
+    imageUrl: "/api/media/00000000-0000-4000-8000-" + String(index).padStart(12, "0"),
+    ...canvasAlignedAvatarBodyTransform(partType),
+  }));
+  const t1 = new Date("2026-11-10T10:00:00.000Z");
+  const t2 = new Date("2026-11-10T12:00:00.000Z");
+  const fem = { name: "Fem", draftParts: parts, publishedParts: null, publishedAt: null, updatedAt: t1 };
+  assert.deepEqual(availablePlayerCharacterBody(fem), { parts: resolvePlayerCharacterParts(parts), publishedAt: t1 });
+  assert.equal(availablePlayerCharacterBody({ ...fem, name: "Custom" }), null);
+  assert.equal(availablePlayerCharacterBody({ ...fem, draftParts: parts.slice(1) }), null);
+  assert.deepEqual(availablePlayerCharacterBody({ ...fem, name: "Masc", publishedParts: parts, publishedAt: t2 }),
+    { parts: resolvePlayerCharacterParts(parts), publishedAt: t2 });
 });

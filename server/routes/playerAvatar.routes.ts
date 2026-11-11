@@ -6,7 +6,7 @@ import {
   playerClothingDrafts, shopItems, userInventory,
 } from "@shared/schema";
 import {
-  completePlayerCharacterParts, resolvePlayerCharacterParts,
+  availablePlayerCharacterBody, resolvePlayerCharacterParts,
 } from "@shared/playerCharacter";
 import {
   playerClothingDefinitionSchema, type PlayerClothingCategory,
@@ -34,12 +34,9 @@ async function loadPublishedBase(
 ) {
   const [base] = await db.select().from(playerCharacterBases)
     .where(eq(playerCharacterBases.id, baseId)).limit(1);
-  if (!base?.publishedAt || !base.publishedParts ||
-      !completePlayerCharacterParts(base.publishedParts)) return null;
-  return {
-    id: base.id, name: base.name, parts: resolvePlayerCharacterParts(base.publishedParts),
-    publishedAt: base.publishedAt,
-  };
+  const available = base ? availablePlayerCharacterBody(base) : null;
+  if (!base || !available) return null;
+  return { id: base.id, name: base.name, ...available };
 }
 
 async function readPlayerAvatar(db: Db, userId: string) {
@@ -52,8 +49,20 @@ async function readPlayerAvatar(db: Db, userId: string) {
     : await db.select().from(playerCharacterBases)
         .where(eq(playerCharacterBases.isDefault, true)).limit(1);
 
-  const previewBase = !profile && baseRow
-    ? await loadPublishedBase(db, baseRow.id)
+  // Complete saved Masc/Fem bodies are the player-facing choices.
+  const bodyRows = await db.select().from(playerCharacterBases);
+  const availableBases = bodyRows.flatMap(row => {
+    const kind = row.name.trim().toLowerCase();
+    if (kind !== "masc" && kind !== "fem") return [];
+    const snapshot = availablePlayerCharacterBody(row);
+    return snapshot ? [{ id: row.id, name: row.name, ...snapshot }] : [];
+  }).sort((a, b) =>
+    (a.name.trim().toLowerCase() === "fem" ? 0 : 1) -
+    (b.name.trim().toLowerCase() === "fem" ? 0 : 1));
+  const previewBase = !profile
+    ? availableBases.find(base => base.id === baseRow?.id)
+      ?? availableBases[0]
+      ?? (baseRow ? await loadPublishedBase(db, baseRow.id) : null)
     : null;
   const activeBase = profile
     ? { id: profile.baseId, name: baseRow?.name ?? "Player Avatar",
@@ -130,6 +139,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       ? { id: activeBase.id, name: activeBase.name, parts: activeBase.parts,
           publishedAt: activeBase.publishedAt }
       : null,
+    availableBases,
     ownedClothing,
     equipped,
     unavailableEquipmentSlots,
@@ -159,13 +169,13 @@ export function registerPlayerAvatarRoutes(
         // Serialize saves and admin publishes on this particular base.
         const [base] = await tx.select().from(playerCharacterBases)
           .where(eq(playerCharacterBases.id, input.data.baseId)).for("share");
-        if (!base?.publishedAt || !base.publishedParts ||
-            !completePlayerCharacterParts(base.publishedParts))
-          return { status: 422 as const, message: "This avatar base is not published or complete" };
+        const available = base ? availablePlayerCharacterBody(base) : null;
+        if (!base || !available)
+          return { status: 422 as const, message: "Save all eight body parts before selecting this character" };
 
         const [created] = await tx.insert(playerAvatarProfiles).values({
-          userId: user.id, baseId: base.id, basePublishedAt: base.publishedAt,
-          baseParts: resolvePlayerCharacterParts(base.publishedParts),
+          userId: user.id, baseId: base.id, basePublishedAt: available.publishedAt,
+          baseParts: available.parts,
         }).onConflictDoNothing().returning();
 
         if (created) return { status: 201 as const };
@@ -199,20 +209,20 @@ export function registerPlayerAvatarRoutes(
 
         const [base] = await tx.select().from(playerCharacterBases)
           .where(eq(playerCharacterBases.id, input.data.baseId)).for("share");
-        if (!base?.publishedAt || !base.publishedParts ||
-            !completePlayerCharacterParts(base.publishedParts))
-          return { status: 422 as const, message: "This avatar base is not published or complete" };
+        const available = base ? availablePlayerCharacterBody(base) : null;
+        if (!base || !available)
+          return { status: 422 as const, message: "Save all eight body parts before selecting this character" };
 
         if (profile.baseId === base.id &&
-            profile.basePublishedAt.getTime() === base.publishedAt.getTime())
+            profile.basePublishedAt.getTime() === available.publishedAt.getTime())
           return { status: 200 as const };
         // Different base anatomy invalidates old fitted clothing. Preserve
         // the inventory items; remove only equipment links atomically.
         await tx.delete(playerAvatarEquipment)
           .where(eq(playerAvatarEquipment.userId, user.id));
         await tx.update(playerAvatarProfiles).set({
-          baseId: base.id, basePublishedAt: base.publishedAt,
-          baseParts: resolvePlayerCharacterParts(base.publishedParts),
+          baseId: base.id, basePublishedAt: available.publishedAt,
+          baseParts: available.parts,
           revision: profile.revision + 1, updatedAt: new Date(),
         }).where(eq(playerAvatarProfiles.userId, user.id));
         return { status: 200 as const };

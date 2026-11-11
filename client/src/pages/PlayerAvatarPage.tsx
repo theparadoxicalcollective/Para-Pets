@@ -9,7 +9,28 @@ import {
   playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
   type OwnedAvatarClothing, type PlayerAvatarState,
 } from "@/lib/playerAvatarWardrobe";
+import accessoriesIcon from "@assets/uploads/ClothingAccesoryIcon.png";
+import headAccessoriesIcon from "@assets/uploads/HeadAccessoriesIcon.png";
+import hairIcon from "@assets/uploads/HairIcon.png";
+import faceIcon from "@assets/uploads/FaceIcon.png";
+import topIcon from "@assets/uploads/TopIcon.png";
+import bottomsIcon from "@assets/uploads/BottomsIcon.png";
+import shoesIcon from "@assets/uploads/ShoeIcon.png";
+import backAccessoriesIcon from "@assets/uploads/BackAccessoryIcon.png";
 import "./PlayerAvatarPage.css";
+
+/** Art supplied for the eight existing wardrobe categories. Keep the stable
+ * category keys and descriptive button labels for accessibility/navigation. */
+const categoryIcons: Record<PlayerClothingCategory, string> = {
+  accessories: accessoriesIcon,
+  head: headAccessoriesIcon,
+  hair: hairIcon,
+  face: faceIcon,
+  top: topIcon,
+  bottom: bottomsIcon,
+  shoes: shoesIcon,
+  back: backAccessoriesIcon,
+};
 
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
 export default function PlayerAvatarPage({ userId }: { userId: string }) {
@@ -28,6 +49,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   };
   const [category, setCategory] = useState<PlayerClothingCategory>("head");
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [bodyChoiceId, setBodyChoiceId] = useState<string | null>(null);
   const avatarQuery = useQuery<PlayerAvatarState>({
     queryKey: avatarKey,
     queryFn: ({ signal }) => fetchPlayerAvatar(signal),
@@ -44,6 +66,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
       setPreviewId(null);
+      setBodyChoiceId(null);
       toast({ title: "Character created", description: "Your character is saved to your account." });
     },
     onError: (error: Error, input) => {
@@ -83,13 +106,43 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     },
   });
 
-  const busy = creation.isPending || equipment.isPending;
+  const changeBody = useMutation({
+    mutationFn: (input: { baseId: string; expectedRevision: number; accountId: string }) =>
+      writePlayerAvatar("PATCH", "/api/player-avatar/base", {
+        baseId: input.baseId, expectedRevision: input.expectedRevision,
+      }),
+    onSuccess: (saved, input) => {
+      cacheSavedAvatar(saved, input.accountId);
+      if (input.accountId !== userId) return;
+      setBodyChoiceId(null);
+      setPreviewId(null);
+      toast({ title: "Character body updated", description: "Your outfit items remain in your inventory." });
+    },
+    onError: (error: Error & { status?: number }, input) => {
+      if (input.accountId === userId) {
+        toast({ title: "Could not change body", description: error.message, variant: "destructive" });
+      }
+      if (error.status === 409 || error.status === 404 || error.status === 422) {
+        void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
+      }
+    },
+  });
+  const busy = creation.isPending || equipment.isPending || changeBody.isPending;
+  const availableBodies = avatar?.availableBases ?? [];
+  const selectedBody = availableBodies.find(base => base.id === bodyChoiceId)
+    ?? (avatar?.created ? avatar.base :
+      availableBodies.find(base => base.id === avatar?.base?.id)
+      ?? availableBodies[0] ?? avatar?.base);
+  const switchingBody = !!avatar?.created && !!selectedBody && (
+    selectedBody.id !== avatar.base?.id ||
+    new Date(selectedBody.publishedAt).getTime() !== new Date(avatar.base?.publishedAt ?? 0).getTime()
+  );
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
     item.inventoryId === previewId && item.compatible && !item.isListed && item.quantity > 0
   );
   const preview = selected ? { category, inventoryId: selected.inventoryId } : null;
-  const clothingLayers = avatar ? wardrobeLayers(avatar, preview) : [];
+  const clothingLayers = avatar && !switchingBody ? wardrobeLayers(avatar, preview) : [];
   const equippedItem = avatar?.equipped.find(item => item.category === category);
   const unavailableEquipped = avatar?.unavailableEquipmentSlots.includes(category) ?? false;
 
@@ -137,16 +190,16 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
             <div className="player-avatar-page__showcase" aria-label="Character viewer and wardrobe categories">
               <div className="player-avatar-page__halo" aria-hidden="true" />
               <div className="player-avatar-page__viewer" data-testid="avatar-character-viewer">
-                {avatar.base ? (
+                {selectedBody ? (
                   <PlayerCharacterRenderer
-                    parts={avatar.base.parts}
+                    parts={selectedBody.parts}
                     clothingLayers={clothingLayers}
                     motion="idle"
                     ariaLabel={avatar.created ? "Your saved player character" : "Preview of your character before saving"}
                   />
                 ) : (
                   <div className="player-avatar-page__no-base" role="status">
-                    No published character is available yet.
+                    Save all eight parts of a Masc or Fem body in Admin to make it available.
                   </div>
                 )}
               </div>
@@ -160,24 +213,63 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   aria-pressed={category === slot}
                   onClick={() => selectCategory(slot)}
                 >
-                  <span>{slot === "back" ? "Back" : PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
+                  <img
+                    src={categoryIcons[slot]}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    loading="lazy"
+                    decoding="async"
+                    className="player-avatar-page__category-icon"
+                  />
+                  <span className="sr-only">{PLAYER_CLOTHING_CATEGORY_LABELS[slot]}</span>
                   {avatar.equipped.some(item => item.category === slot) &&
                     <span className="player-avatar-page__equipped-dot" aria-hidden="true" />}
                 </button>
               ))}
             </div>
 
+            {availableBodies.length > 0 && (
+              <div className="player-avatar-page__body-selector" role="group" aria-label="Choose character body"
+                data-testid="avatar-body-selector">
+                {(["Fem", "Masc"] as const).map(kind => {
+                  const option = availableBodies.find(base => base.name.trim().toLowerCase() === kind.toLowerCase());
+                  if (!option) return null;
+                  const selected = selectedBody?.id === option.id;
+                  return (
+                    <button type="button" key={kind} aria-label={`Choose ${kind} body`}
+                      data-testid={`avatar-choose-${kind.toLowerCase()}`}
+                      aria-pressed={selected} disabled={busy}
+                      onClick={() => { setBodyChoiceId(option.id); setPreviewId(null); }}>
+                      <span aria-hidden="true" className="player-avatar-page__body-symbol">{kind === "Fem" ? "♀" : "♂"}</span>
+                      <span>{kind}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {switchingBody && avatar.revision !== null && (
+              <section className="player-avatar-page__change-body" data-testid="avatar-body-change">
+                <p>Changing your body will unequip your outfit. All clothing stays in your inventory.</p>
+                <button type="button" data-testid="avatar-save-body-choice" disabled={busy}
+                  onClick={() => selectedBody && changeBody.mutate({
+                    baseId: selectedBody.id, expectedRevision: avatar.revision!, accountId: userId,
+                  })}>
+                  {changeBody.isPending ? "Saving Body…" : "Use This Body"}
+                </button>
+              </section>
+            )}
             {!avatar.created ? (
               <section className="player-avatar-page__create" data-testid="avatar-first-save">
                 <div className="player-avatar-page__create-title"><Sparkles size={17} aria-hidden="true" /> Start your journey</div>
-                <p>Preview the character above, then save it to begin choosing your clothing. Your character isn't created until you save.</p>
-                <button type="button" disabled={!avatar.base || busy}
+                <p>Choose the Fem or Masc body you prefer, then save your character to start choosing clothing.</p>
+                <button type="button" disabled={!selectedBody || busy}
                   data-testid="avatar-create-button"
-                  onClick={() => avatar.base && creation.mutate({ baseId: avatar.base.id, accountId: userId })}>
+                  onClick={() => selectedBody && creation.mutate({ baseId: selectedBody.id, accountId: userId })}>
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
               </section>
-            ) : (
+            ) : !switchingBody ? (
               <section className="player-avatar-page__wardrobe" aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                 <div className="player-avatar-page__wardrobe-header">
                   <div>
@@ -248,7 +340,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     onClick={() => setPreviewId(null)} disabled={busy}>Cancel Preview</button>}
                 </div>
               </section>
-            )}
+            ) : null}
             {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
               Could not refresh your wardrobe. The last confirmed character is still shown.
             </p>}

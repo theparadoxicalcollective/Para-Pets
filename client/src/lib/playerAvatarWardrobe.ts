@@ -31,6 +31,7 @@ export async function fetchPlayerAvatar(signal?: AbortSignal): Promise<PlayerAva
       !("equipped" in data) || !Array.isArray(data.equipped) ||
       !("ownedClothing" in data) || !Array.isArray(data.ownedClothing) ||
       !("unavailableEquipmentSlots" in data) || !Array.isArray(data.unavailableEquipmentSlots) ||
+      ("availableBases" in data && !Array.isArray(data.availableBases)) ||
       !("base" in data) ||
       (data.base !== null && (
         !data.base || typeof data.base !== "object" ||
@@ -64,6 +65,13 @@ export interface EquippedAvatarClothing {
 }
 
 export interface PlayerAvatarState {
+  /** Two completed admin-saved body choices. Optional for old cached fixtures. */
+  availableBases?: Array<{
+    id: string;
+    name: string;
+    publishedAt: string;
+    parts: PlayerCharacterPart[];
+  }>;
   created: boolean;
   revision: number | null;
   base: {
@@ -118,7 +126,7 @@ export function wardrobeLayers(
 }
 
 export async function writePlayerAvatar(
-  method: "POST" | "PUT",
+  method: "POST" | "PUT" | "PATCH",
   path: string,
   body: unknown,
 ): Promise<PlayerAvatarState> {

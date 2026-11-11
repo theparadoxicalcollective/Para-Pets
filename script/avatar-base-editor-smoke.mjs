@@ -156,7 +156,7 @@ try{
     }
 
     assert.equal(await page.getByTestId("avatar-publish-default").count(),0,
-      sc.name+": incomplete unsaved body cannot publish");
+      sc.name+": the obsolete manual publish button is absent");
     const firstSaveResponse=page.waitForResponse(r=>r.url().endsWith("/body") && r.status()===200);
     await page.getByTestId("avatar-save-body").click();
     await firstSaveResponse;
@@ -166,7 +166,7 @@ try{
     assert.equal(saves.length,1,sc.name+": eight images saved in one body request");
     assert.equal(saves[0].body.parts.length,8);
     assert.equal(bases.find(b=>b.name==="Fem")?.revision,1);
-    await page.getByTestId("avatar-publish-default").waitFor({state:"visible"});
+    await page.getByText("Complete body saved. Players can choose this body; no publishing step needed.").waitFor({state:"visible"});
 
     // Simulate an existing Fem draft saved with old anatomy sprite offsets.
     // Reopening it should show aligned artwork immediately, and Save Body
@@ -183,7 +183,7 @@ try{
     assert.equal(await page.getByTestId("avatar-save-body").isEnabled(),true,
       sc.name+": old misaligned saved body can be fixed without reupload");
     // Compare current boxes after the query refresh. The page may reflow
-    // when Save/Publish controls appear; the PRE-save box is not a stable
+    // when the save status appears; the PRE-save box is not a stable
     // screen-coordinate reference. The renderer content is.
     const oldHead=await page.locator('[data-character-part="head"]').boundingBox();
     const currentCanvas=await page.getByTestId("player-character-renderer").boundingBox();

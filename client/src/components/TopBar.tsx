@@ -222,10 +222,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         display: "grid",
         placeItems: "center",
         position: "relative",
-        background: "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
-        border: "1.5px solid rgba(240,192,64,0.72)",
-        borderRadius: 13,
-        boxShadow: "0 3px 10px rgba(0,0,0,0.46), 0 0 9px rgba(240,192,64,0.28), inset 0 0 7px rgba(255,223,125,0.10)",
+        background: location === "/" ? "transparent" : "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
+        border: location === "/"
+          ? "1.5px solid rgba(240,192,64,0.86)"
+          : "1.5px solid rgba(240,192,64,0.72)",
+        borderRadius: location === "/" ? "50%" : 13,
+        boxShadow: location === "/"
+          ? "0 0 9px rgba(240,192,64,0.23)"
+          : "0 3px 10px rgba(0,0,0,0.46), 0 0 9px rgba(240,192,64,0.28), inset 0 0 7px rgba(255,223,125,0.10)",
         padding: 0,
         cursor: "pointer",
         flexShrink: 0,
@@ -254,13 +258,17 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           display: "grid",
           placeItems: "center",
           borderRadius: 999,
-          background: "linear-gradient(145deg, #ffe9a8 0%, #d4a017 58%, #8b5d0b 100%)",
+          background: location === "/"
+            ? "linear-gradient(145deg, #4f9258, #165130)"
+            : "linear-gradient(145deg, #ffe9a8 0%, #d4a017 58%, #8b5d0b 100%)",
           border: "1px solid rgba(255,245,190,0.9)",
-          color: "#201204",
+          color: location === "/" ? "#fff4c8" : "#201204",
           fontSize: 11,
           fontWeight: 900,
           lineHeight: 1,
-          boxShadow: "0 0 8px rgba(240,192,64,0.7)",
+          boxShadow: location === "/"
+            ? "0 0 6px rgba(50,165,86,0.55)"
+            : "0 0 8px rgba(240,192,64,0.7)",
         }}
       >
         +
@@ -489,8 +497,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           </div>}
           {location === "/" && !hideProfile && (
             <div data-testid="home-account-header"
-              className="flex min-w-0 flex-col items-start self-start"
-              style={{ paddingTop: 30, maxWidth: "min(205px, calc(100vw - 138px))" }}>
+              className="flex min-w-0 flex-col items-start self-center"
+              style={{
+                // Align the name with the vertical centre of the portrait
+                // (the portrait itself is shifted down 14px).
+                transform: "translateY(14px)",
+                maxWidth: "min(205px, calc(100vw - 138px))",
+              }}>
               <span data-testid="home-header-player-name" title={user.username}
                 className="block w-full truncate font-fantasy text-[#ffe6ae] font-bold"
                 style={{

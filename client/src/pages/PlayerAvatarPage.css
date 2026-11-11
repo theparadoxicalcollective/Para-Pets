@@ -46,12 +46,15 @@
 }
 .player-avatar-page__header h1 {
   margin: 0;
-  font-family: fantasy, Georgia, serif;
-  font-size: clamp(18px, 5vw, 27px);
-  font-weight: 700;
-  letter-spacing: .03em;
-  color: #f3d891;
-  text-shadow: 0 2px 9px #000;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(29px, 7vw, 41px);
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.13;
+  letter-spacing: -.015em;
+  color: #f5dca2;
+  text-wrap: balance;
+  text-shadow: 0 2px 3px rgba(0,0,0,.85), 0 4px 15px rgba(0,0,0,.65);
 }
 .player-avatar-page__header p { margin: 3px 0 0; color: #c4c9a6; font-size: 12px; }
 .player-avatar-page__back, .player-avatar-page__refresh {
@@ -132,6 +135,17 @@
   transform: translate(-50%,-50%);
   transition: background .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
+.player-avatar-page__category-icon {
+  display: block;
+  width: 87%;
+  height: 87%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.38));
+}
+
 .player-avatar-page__category[aria-pressed="true"] {
   border-color: #ffdc82;
   color: #fff5c8;
@@ -157,6 +171,57 @@
 .player-avatar-page__category--shoes  { left: 22%; top: 80%; }
 .player-avatar-page__category--back   { left: 78%; top: 80%; }
 
+.player-avatar-page__body-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 24px auto 14px;
+}
+.player-avatar-page__body-selector button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1px;
+  width: 53px;
+  height: 53px;
+  border: 1.5px solid #ae9557;
+  border-radius: 50%;
+  color: #f4d690;
+  background: radial-gradient(circle at 34% 24%, #385f42, #152d1d 80%);
+  font: 600 10px Georgia, serif;
+  box-shadow: 0 3px 12px #0009;
+  touch-action: manipulation;
+}
+.player-avatar-page__body-symbol {
+  display: block;
+  font-family: Arial, sans-serif;
+  font-size: 25px;
+  line-height: 1;
+  font-weight: 400;
+}
+.player-avatar-page__body-selector button[aria-pressed="true"] {
+  border-color: #ffe09a;
+  background: radial-gradient(circle at 35% 25%, #6a793f, #305339 83%);
+  box-shadow: 0 0 0 2px #d8ba6c66, 0 0 15px #dfbc7060;
+}
+.player-avatar-page__change-body {
+  width: min(100%, 620px);
+  margin: 8px auto 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #efddae;
+}
+.player-avatar-page__change-body button {
+  min-height: 44px;
+  padding: 9px 20px;
+  color: #fff2c5;
+  border: 1px solid #e0bf73;
+  border-radius: 22px;
+  background: #2d5134;
+  touch-action: manipulation;
+}
 .player-avatar-page__create,
 .player-avatar-page__wardrobe {
   margin: 0 auto;

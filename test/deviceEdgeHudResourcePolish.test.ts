@@ -8,11 +8,11 @@ test("Watcher docks below the pet team in real viewport HUD coordinates", () => 
   const home = read("client/src/pages/HomePage.tsx");
   assert.match(home, /<ViewportHudPortal>/);
   assert.match(home, /data-testid="viewport-hud-watcher-dock"/);
-  assert.match(home, /bottom: "calc\(2px \+ env\(safe-area-inset-bottom, 0px\)\)"/);
+  assert.match(home, /bottom: "max\(0px, calc\(env\(safe-area-inset-bottom, 0px\) - 18px\)\)"/);
   assert.match(home, /width: "min\(calc\(100vw - 34px\), 430px\)"/);
   assert.match(home, /data-testid="button-open-world-chat"/);
-  assert.match(home, /width: 36/);
-  assert.match(home, /height: 36/);
+  assert.match(home, /width: "clamp\(40px, 5\.3vh, 44px\)"/);
+  assert.match(home, /height: "clamp\(40px, 5\.3vh, 44px\)"/);
   assert.doesNotMatch(home, /data-testid="viewport-hud-corner-actions"|data-testid="button-open-support"/);
 });
 
@@ -61,7 +61,7 @@ test("coin-bundle control is more visible without changing the coin shop destina
 
   const start = topBar.indexOf('data-testid="button-coin-bag"');
   assert.ok(start >= 0);
-  const block = topBar.slice(start, start + 2600);
+  const block = topBar.slice(start, start + 4700);
 
   assert.match(block, /aria-label="Open coin bundles"/);
   assert.match(block, /title="Coin Bundles"/);
@@ -69,8 +69,13 @@ test("coin-bundle control is more visible without changing the coin shop destina
   assert.match(block, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
   assert.match(block, /width: location === "\/" \? 32 : 44/);
   assert.match(block, /height: location === "\/" \? 32 : 44/);
-  assert.match(block, /border: "1\.5px solid rgba\(240,192,64,0\.72\)"/);
-  assert.match(block, /boxShadow: "0 3px 10px/);
+  assert.match(block, /border: location === "\/"/);
+  assert.match(block, /"1\.5px solid rgba\(240,192,64,0\.86\)"/);
+  assert.match(block, /"1\.5px solid rgba\(240,192,64,0\.72\)"/);
+  assert.match(block, /background: location === "\/" \? "transparent"/);
+  assert.match(block, /borderRadius: location === "\/" \? "50%" : 13/);
+  assert.match(block, /boxShadow: location === "\/"/);
+  assert.match(block, /linear-gradient\(145deg, #4f9258, #165130\)/);
   assert.match(block, /width: location === "\/" \? 26 : 38/);
   assert.match(block, /height: location === "\/" \? 26 : 38/);
   assert.match(block, /brightness\(1\.06\)/);

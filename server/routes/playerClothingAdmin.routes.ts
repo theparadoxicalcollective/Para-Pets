@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { db as database } from "../db";
 import { playerCharacterBases, playerClothingDrafts, shopItems } from "@shared/schema";
 import {
-  completePlayerCharacterParts,
+  availablePlayerCharacterBody,
 } from "@shared/playerCharacter";
 import {
   PLAYER_CLOTHING_DEFAULT_ATTACHMENTS,
@@ -37,7 +37,7 @@ export interface PlayerClothingAdminDependencies {
 
 const notFound = { message: "Avatar clothing design not found" };
 const conflict = { message: "This clothing design changed in another editor. Reload before saving." };
-const baseChanged = { message: "The avatar base was republished. Create a new clothing design for the updated base so fittings remain accurate." };
+const baseChanged = { message: "This avatar body has changed. Create clothing for its updated fit." };
 
 function matchingPublication(current: Date, expected: Date | null): boolean {
   return expected instanceof Date && current.getTime() === expected.getTime();
@@ -65,15 +65,16 @@ export function registerPlayerClothingAdminRoutes(
 
   app.post("/api/admin/player-character/clothing", isAdmin, async (req, res) => {
     const body = createClothingDraftSchema.safeParse(req.body);
-    if (!body.success) return res.status(400).json({ message: "Choose a published avatar base, clothing name and category." });
+    if (!body.success) return res.status(400).json({ message: "Choose a saved, complete avatar body, clothing name and category." });
     try {
       const [base] = await db.select().from(playerCharacterBases)
         .where(eq(playerCharacterBases.id, body.data.baseId)).limit(1);
-      if (!base?.publishedAt || !base.publishedParts || !completePlayerCharacterParts(base.publishedParts))
-        return res.status(422).json({ message: "Publish an eight-part avatar base before fitting clothing." });
+      const available = base ? availablePlayerCharacterBody(base) : null;
+      if (!base || !available)
+        return res.status(422).json({ message: "Save all eight parts of the Masc or Fem body before fitting clothing." });
       const [draft] = await db.insert(playerClothingDrafts).values({
         baseId: base.id,
-        basePublishedAt: base.publishedAt,
+        basePublishedAt: available.publishedAt,
         name: body.data.name,
         category: body.data.category,
       }).returning();
@@ -113,9 +114,9 @@ export function registerPlayerClothingAdminRoutes(
         .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== parsed.data.expectedRevision) return res.status(409).json(conflict);
-      const [base] = await db.select({ publishedAt: playerCharacterBases.publishedAt })
-        .from(playerCharacterBases).where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
-      if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
+      const [base] = await db.select().from(playerCharacterBases)
+        .where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
+      if (!matchingPublication(draft.basePublishedAt, base ? availablePlayerCharacterBody(base)?.publishedAt ?? null : null))
         return res.status(409).json(baseChanged);
 
       if (parsed.data.shoesLayer && draft.category !== "shoes") {
@@ -202,9 +203,9 @@ export function registerPlayerClothingAdminRoutes(
           message: "Refresh the clothing editor and use Save Artwork for this design",
         });
       }
-      const [base] = await db.select({ publishedAt: playerCharacterBases.publishedAt })
-        .from(playerCharacterBases).where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
-      if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
+      const [base] = await db.select().from(playerCharacterBases)
+        .where(eq(playerCharacterBases.id, draft.baseId)).limit(1);
+      if (!matchingPublication(draft.basePublishedAt, base ? availablePlayerCharacterBody(base)?.publishedAt ?? null : null))
         return res.status(409).json(baseChanged);
 
       const existing = draft.draftSegments.find(segment => segment.partType === partType.data);
@@ -285,7 +286,7 @@ export function registerPlayerClothingAdminRoutes(
         // silently fitting the wrong version of a character.
         const [base] = await tx.select().from(playerCharacterBases)
           .where(eq(playerCharacterBases.id, draft.baseId)).for("share");
-        if (!matchingPublication(draft.basePublishedAt, base?.publishedAt ?? null))
+        if (!matchingPublication(draft.basePublishedAt, base ? availablePlayerCharacterBody(base)?.publishedAt ?? null : null))
           return { status: 409 as const, message: baseChanged.message };
 
         const preferredPart = PLAYER_CLOTHING_DEFAULT_ATTACHMENTS[draft.category][0];

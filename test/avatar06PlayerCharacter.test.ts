@@ -104,7 +104,8 @@ test("admin editor is isolated, lazy loaded and uses the same relative preview a
   assert.match(admin, /<PlayerCharacterAdminPanel \/>/);
   assert.match(loader, /lazyWithRetry\(\(\) => import\("@\/components\/PlayerCharacterAdminPanel"\)\)/);
   assert.match(panel, /completePlayerCharacterParts\(selected\.draftParts\)/);
-  assert.match(panel, /expectedRevision: selected!\.revision/);
+  assert.match(panel, /expectedRevision: base.revision, parts/);
+  assert.doesNotMatch(panel, /data-testid="avatar-publish-default"/);
   assert.match(panel, /<PlayerCharacterPartsPreview/);
   assert.match(panel, /image\/png,image\/webp/);
   assert.match(preview, /data-coordinate-space="character-relative"/);

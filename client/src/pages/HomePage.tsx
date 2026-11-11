@@ -1849,7 +1849,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             data-testid="viewport-hud-watcher-dock"
             style={{
               position: "absolute",
-              bottom: "calc(2px + env(safe-area-inset-bottom, 0px))",
+              // Move the Watcher down by roughly five 4px spacing steps,
+              // staying inside the viewport on devices without a safe inset.
+              bottom: "max(0px, calc(env(safe-area-inset-bottom, 0px) - 18px))",
               left: "50%",
               transform: "translateX(-50%)",
               width: "min(calc(100vw - 34px), 430px)",
@@ -1867,8 +1869,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               onClick={() => { setShowWorldChat(true); setWatcherAnnouncement(null); }}
               className="relative transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe5a1]"
               style={{
-                width: 36,
-                height: 36,
+                // Preserve clearance below the team on compact-height
+                // phones while still enlarging the Watcher on normal devices.
+                width: "clamp(40px, 5.3vh, 44px)",
+                height: "clamp(40px, 5.3vh, 44px)",
                 borderRadius: "50%",
                 overflow: "hidden",
                 cursor: "pointer",
