@@ -130,21 +130,19 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
         return next;
       });
       setColorPreview(null);
-      toast({ title: "Wardrobe saved", description: "Your character's clothing has been updated." });
+      // Tapping clothing is the confirmation: no success toast or dialog.
     },
     onError: (error: Error & { status?: number }, input) => {
       if (input.accountId === userId) {
         toast({ title: "Wardrobe not saved", description: error.message, variant: "destructive" });
       }
-      if (error.status === 409 || error.status === 404 || error.status === 422) {
-        // Trust the server over a stale item, base publication or second device.
-        if (input.accountId === userId) setPreviewSelections(current => {
-          const next = { ...current };
-          delete next[input.category];
-          return next;
-        });
-        void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
-      }
+      // Never leave an unsaved preview looking equipped after a failed write.
+      if (input.accountId === userId) setPreviewSelections(current => {
+        const next = { ...current };
+        delete next[input.category];
+        return next;
+      });
+      void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
     },
   });
 
@@ -216,7 +214,12 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const toneChanged = !!avatar?.created && skinTone !== (avatar.skinTone ?? null);
   const appearanceChanged = switchingBody || toneChanged || resetPending;
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
-  const activePreviewId = previewSelections[category] ?? null;
+  // Reopening a wardrobe shows the saved item as selected. The user does not
+  // need to select it a second time just to adjust its color.
+  const activePreviewId = previewSelections[category] ??
+    (avatar?.created && !resetPending
+      ? avatar.equipped.find(item => item.category === category)?.inventoryId
+      : null) ?? null;
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
     item.inventoryId === activePreviewId && item.compatible && !item.isListed && item.quantity > 0
   );
@@ -262,9 +265,28 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
 
   const saveEquipment = (inventoryId: string | null, colorTint?: string | null) => {
-    if (!avatar?.created || avatar.revision == null || busy) return;
+    if (!avatar?.created || avatar.revision == null || busy || appearanceChanged) return;
     equipment.mutate({ category, inventoryId, colorTint,
       expectedRevision: avatar.revision, accountId: userId });
+  };
+  const chooseClothing = (item: OwnedAvatarClothing) => {
+    if (busy || !item.compatible || item.isListed || item.quantity <= 0) return;
+    if (avatar?.created && appearanceChanged) return; // Save Appearance first.
+    // During first creation, select the preview; the required outfit is
+    // committed atomically by Create My Character.
+    if (!avatar?.created) {
+      setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
+      return;
+    }
+    // On existing characters one tap equips immediately. A tap on an already
+    // worn item is only a selection and must not increment the revision.
+    const saved = avatar.equipped.find(entry => entry.category === category);
+    if (saved?.inventoryId === item.inventoryId) {
+      setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
+      return;
+    }
+    setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
+    saveEquipment(item.inventoryId);
   };
 
   const toggleTuck = (checked: boolean) => {
@@ -490,10 +512,8 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                           aria-pressed={activePreviewId === item.inventoryId}
                           aria-label={`${item.name}${worn ? ", equipped" : ""}${item.free ? ", free" : ""}${!eligible ? ", unavailable" : ""}`}
                           title={item.name}
-                          disabled={busy || !eligible}
-                          onClick={() => setPreviewSelections(current => ({
-                            ...current, [category]: item.inventoryId,
-                          }))}
+                          disabled={busy || !eligible || (avatar.created && appearanceChanged)}
+                          onClick={() => chooseClothing(item)}
                         >
                           <span className="player-avatar-page__item-art">
                             {wardrobeThumbnail ? <img src={wardrobeThumbnail} alt="" draggable={false} loading="lazy" /> :
@@ -528,21 +548,18 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
 
                  {avatar.created && !appearanceChanged ? (
                 <div className="player-avatar-page__actions">
-                  <button type="button" data-testid="avatar-equip-button" disabled={!selected || busy || (selected.inventoryId === equippedItem?.inventoryId && !selectedTintChanged)}
-                    onClick={() => selected && saveEquipment(selected.inventoryId, playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) ? selectedTint : null)}>
-                    {equipment.isPending ? "Saving…" : selectedTintChanged ? "Save Color" : selected?.inventoryId === equippedItem?.inventoryId ? "Already Equipped" : "Equip Clothing"}
-                  </button>
+                  {selectedTintChanged && selected && (
+                    <button type="button" data-testid="avatar-save-color-button"
+                      disabled={busy}
+                      onClick={() => saveEquipment(selected.inventoryId, selectedTint)}>
+                      {equipment.isPending ? "Saving…" : "Save Color"}
+                    </button>
+                  )}
                   <button type="button" data-testid="avatar-unequip-button" className="player-avatar-page__remove"
                     disabled={busy || (!equippedItem && !unavailableEquipped)}
                     onClick={() => saveEquipment(null)}>
                     Remove
                   </button>
-                  {selected && <button type="button" className="player-avatar-page__cancel-preview"
-                    onClick={() => setPreviewSelections(current => {
-                      const next = { ...current };
-                      delete next[category];
-                      return next;
-                    })} disabled={busy}>Cancel Preview</button>}
                 </div>
                 ) : null}
               </section>
