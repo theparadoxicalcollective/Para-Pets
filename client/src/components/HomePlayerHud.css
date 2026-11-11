@@ -627,6 +627,16 @@
 }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
+  /* Compress the visual arc on short phones, without shortening XP math
+     or taking touch area from the five pets. */
+  .home-player-hud--avatar-home .home-player-hud__progress {
+    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 18px);
+    width: min(calc(100vw - 90px), 240px);
+  }
+  .home-player-hud--avatar-home .home-player-hud__xp-row,
+  .home-player-hud--avatar-home .home-player-hud__xp-track,
+  .home-player-hud--avatar-home .home-player-hud__xp-arc { height: 68px; }
+  .home-player-hud--avatar-home .home-player-hud__level-below { top: 30px; }
 }
