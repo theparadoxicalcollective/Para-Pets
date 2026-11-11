@@ -442,7 +442,7 @@
 /* Home stage polish: keep these changes scoped to the account-avatar view.
    Normal compact HUDs on other routes retain their existing layout. */
 .home-player-hud--avatar-home .home-player-hud__stars {
-  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - var(--home-avatar-visual-size, 220px) - 5px);
+  top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - var(--home-avatar-visual-size, 220px) - 24px);
   height: 49px;
 }
 .home-player-hud--avatar-home .home-player-hud__stars img {
