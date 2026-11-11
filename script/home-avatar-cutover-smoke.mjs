@@ -196,6 +196,7 @@ try {
         coins: rect('[data-testid="display-coin-balance"]'),
         essence: rect('[data-testid="display-essence"]'),
         watcher: rect('[data-testid="button-open-world-chat"]'),
+        watcherArt: rect('[data-testid="home-watcher-art"]'),
         watcherDock: rect('[data-testid="viewport-hud-watcher-dock"]'),
         xpText: rect('[data-testid="home-player-total-xp"]'),
         playerLevel: rect('[data-testid="home-player-level"]'),
@@ -226,8 +227,14 @@ try {
       sc.name+": player XP centered below actor");
     assert.ok(homeLayout.progress.top >= homeLayout.actor.bottom-3,
       sc.name+": player name and XP below avatar");
-    assert.ok(homeLayout.xp.height>=12,
-      sc.name+": XP bar enlarged");
+    assert.ok(homeLayout.xp.height>=32 && homeLayout.xp.width<=320,
+      sc.name+": curved XP bar is compact and readable");
+    const xpArc=await page.getByTestId("home-player-xp-track").evaluate(el=>({
+      paths:el.querySelectorAll("svg path").length,
+      curve:el.querySelector("svg path")?.getAttribute("d"),
+    }));
+    assert.ok(xpArc.paths>=2 && xpArc.curve?.includes(" Q "),
+      sc.name+": XP follows an SVG arc below the avatar");
     assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
       sc.name+": team panel not overlapping player XP");
     assert.ok(homeLayout.profile && homeLayout.headerName &&
@@ -235,8 +242,7 @@ try {
       sc.name+": top profile/resources and level labels all render");
     assert.ok(homeLayout.headerName.left >= homeLayout.profile.right - 5,
       sc.name+": player name is to the right of the profile");
-    // Name is deliberately a little lower and smaller than before; the
-    // Watcher occupies the row directly above it, beside the portrait.
+    // Player name precedes the smaller Watcher below it beside the portrait.
     assert.ok(homeLayout.accountHeader && homeLayout.headerName &&
       homeLayout.headerName.top > homeLayout.profile.top + 10 &&
       homeLayout.headerName.top < homeLayout.profile.bottom + 36,
@@ -265,8 +271,9 @@ try {
     assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
       homeLayout.watcher.height >= 40 && homeLayout.watcher.height <= 44 &&
       homeLayout.watcher.left >= homeLayout.profile.right - 5 &&
-      homeLayout.watcher.bottom <= homeLayout.headerName.top + 4,
-      sc.name+": Watcher is above the player name and right of the portrait: "+JSON.stringify(homeLayout));
+      homeLayout.watcher.top >= homeLayout.headerName.bottom - 5 &&
+      homeLayout.watcherArt && homeLayout.watcherArt.width <= 37,
+      sc.name+": smaller Watcher is below the player name with a full touch target: "+JSON.stringify(homeLayout));
     const partyChrome = await page.locator(".home-player-hud__party-panel").evaluate(el => ({
       border: getComputedStyle(el).borderStyle,
       background: getComputedStyle(el).backgroundColor,
@@ -277,8 +284,21 @@ try {
     assert.equal(partyChrome.pointerEvents, "none",
       sc.name+": empty space between pets does not block scene taps");
     const teamSlot = await page.getByTestId("home-player-team-slot-1").boundingBox();
-    assert.ok(teamSlot && teamSlot.width >= (sc.height <= 690 ? 48 : 56),
+    const centerSlot = await page.getByTestId("home-player-team-slot-3").boundingBox();
+    assert.ok(teamSlot && centerSlot && teamSlot.width >= (sc.height <= 690 ? 48 : 56),
       sc.name+": pet portraits enlarged without losing the five slots");
+    assert.ok(teamSlot.y < centerSlot.y - 3,
+      sc.name+": pet shadows follow a shallow curve below the character");
+    const slotChrome = await page.getByTestId("home-player-team-slot-1").evaluate(el=>({
+      border:getComputedStyle(el).borderStyle,
+      oval:getComputedStyle(el,"::before").borderRadius,
+    }));
+    assert.equal(slotChrome.border,"none",sc.name+": pet art has no circular frame");
+    assert.equal(slotChrome.oval,"50%",sc.name+": small shadow oval anchors each pet");
+    assert.ok(await page.getByTestId("home-player-team-slot-4").locator(".home-player-hud__slot-placeholder img").count(),
+      sc.name+": empty slot contains a greyed-out pet image");
+    assert.equal((await page.getByTestId("home-player-team-slot-4").textContent()).trim(),"+",
+      sc.name+": empty slot only shows a plus");
     assert.ok(homeLayout.avatarStarSize >= 32,
       sc.name+": player stars enlarged over the avatar");
     assert.ok(homeLayout.xpText.top >= homeLayout.xp.bottom - 3,
@@ -310,8 +330,8 @@ try {
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
 
-    // Main opens independent right-edge icons. Once the vertical space is
-    // filled, remaining items wrap into columns to the left, never a folio box.
+    // Main opens alpha-outlined icons in one translucent forest-green box.
+    // Excess destinations still flow into columns on the left.
     const mainNav = page.getByTestId("button-floating-nav");
     await mainNav.tap();
     await page.getByTestId("home-realm-nav-panel").waitFor({state:"visible"});
@@ -324,9 +344,17 @@ try {
     assert.ok(panelGeometry.left >= -1 && panelGeometry.right <= sc.width + 1 &&
       panelGeometry.top >= homeLayout.navButton.bottom + 6 && panelGeometry.bottom <= sc.height - 8,
       sc.name+": icon rail fits below main nav and within viewport: "+JSON.stringify(panelGeometry));
-    assert.equal(panelGeometry.background,"none",sc.name+": no boxed navigation background");
-    assert.ok(panelGeometry.color==="rgba(0, 0, 0, 0)" || panelGeometry.color==="transparent",
-      sc.name+": floating icons have no panel fill");
+    assert.ok(panelGeometry.background.includes("linear-gradient"),
+      sc.name+": Home navigation has a semi-transparent forest-green background");
+    const iconChrome = await page.getByTestId("nav-item-home").locator(".home-realm-nav__icon").evaluate(el=>({
+      border:getComputedStyle(el).borderStyle,
+      radius:getComputedStyle(el).borderRadius,
+      filter:getComputedStyle(el.querySelector("img")).filter,
+    }));
+    assert.equal(iconChrome.border,"none",
+      sc.name+": nav icons have no individual circular frames");
+    assert.ok(iconChrome.radius==="0px" && iconChrome.filter.includes("drop-shadow("),
+      sc.name+": nav gold outline follows the image's opaque artwork");
     assert.equal(await page.getByTestId("home-realm-nav-panel").locator("section").count(),0,
       sc.name+": obsolete boxed category sections are removed");
     assert.equal(await page.getByTestId("nav-item-coins").count(),0,
@@ -349,8 +377,8 @@ try {
     const columns=[...new Set(navigation.map(item=>Math.round(item.left)))].sort((x,y)=>y-x);
     assert.ok(columns.length >= (sc.height<=844 ? 2 : 1) && columns.length <= 4,
       sc.name+": compact screens flow excess icons left: "+JSON.stringify(columns));
-    assert.ok(Math.abs(navigation[0].right - homeLayout.navButton.right)<=2,
-      sc.name+": first icons align with the right edge of the main nav button");
+    assert.ok(Math.abs(navigation[0].right - homeLayout.navButton.right)<=13,
+      sc.name+": first icons align just inside the panel's right padding");
     for(const item of navigation){
       assert.ok(item.left>=-1 && item.right<=sc.width+1 &&
         item.top>=homeLayout.navButton.bottom+5 && item.bottom<=sc.height-8,
