@@ -208,7 +208,8 @@ test("Shoes offer an independent Over/Under Pants draw-order choice without resi
   assert.match(server,/draft.category === "shoes"/);
   assert.match(server,/parsed.data.shoesLayer/);
   assert.match(server,/draft.draftSegments.length === 0/);
-  assert.match(admin,/pieceCount > 0/);
+  assert.match(admin,/bodyReady\("fem"\)/);
+  assert.match(admin,/isUniversalClothingCategory\(category\)/);
   assert.match(admin,/avatar-save-clothing-item/);
   assert.match(server,/shoesLayer \}/);
   assert.match(renderer,/clothingLayerDepth\(layer.category,/);

@@ -76,7 +76,8 @@ test("admin and client preserve one ownership item, switch only artwork", () => 
   const migration = readFileSync("server/startup/migrations/ensurePlayerClothingStorage.ts", "utf8");
   assert.match(admin, /data-testid="avatar-clothing-variant-status"/);
   assert.match(admin, /data-testid="avatar-clothing-universal-artwork"/);
-  assert.match(admin, /bodyVariants: Object.fromEntries/);
+  assert.match(admin, /bodyVariants: \{ fem: partUploads\("fem"\), masc: partUploads\("masc"\) \}/);
+  assert.match(admin, /universalArtwork \? partUploads\("fem"\)/);
   assert.match(api, /bodyVariants: playerClothingDrafts.publishedBodyVariants/);
   assert.match(wardrobe, /clothingSegmentsForBody/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS published_body_variants jsonb/);
