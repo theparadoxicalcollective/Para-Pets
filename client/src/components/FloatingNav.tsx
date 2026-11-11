@@ -87,37 +87,26 @@ const RIGHT_ITEMS = [
   { id: "home",     label: "Main",    icon: activePetIcon  },
 ];
 
-// Home is a right-edge navigation rail, ordered by common player destinations.
-// Fill the right column first and flow extra icons into columns to its left.
-// Support is intentionally the final action, at the bottom of the last column.
+// Home expands into a compact, horizontal three-row menu on the real
+// viewport. Leave every route, badge, and Support handoff unchanged.
 const HOME_NAV_ORDER = [
   "home", "inventory", "map", "pethouse", "quest", "keepers",
   "bag", "market", "aquarium", "cards", "pvp", "badges", "support",
 ] as const;
-const HOME_TILE_WIDTH = 58;
-const HOME_TILE_HEIGHT = 56;
-const HOME_ROW_GAP = 6;
-const HOME_COLUMN_GAP = 8;
+const HOME_NAV_COLUMNS = 5;
+const HOME_NAV_ROWS = 3;
+const HOME_NAV_TILES = HOME_NAV_COLUMNS * HOME_NAV_ROWS;
 
-/** Keep columns balanced within the available vertical space and anchor the
- * last action (Support) to the bottom of the leftmost overflow column. */
-function homeNavPosition(index: number, capacity: number) {
-  const columns = Math.ceil(HOME_NAV_ORDER.length / Math.max(1, capacity));
-  const rows = Math.ceil(HOME_NAV_ORDER.length / columns);
-  const base = Math.floor(HOME_NAV_ORDER.length / columns);
-  const extra = HOME_NAV_ORDER.length % columns;
-  let remaining = index;
-  for (let column = 0; column < columns; column++) {
-    const count = base + (column < extra ? 1 : 0);
-    if (remaining < count) {
-      return {
-        gridColumn: columns - column,
-        gridRow: remaining + 1 + (column === columns - 1 ? rows - count : 0),
-      };
-    }
-    remaining -= count;
+/** Reading order is left-to-right, then down; Support remains the final
+ * destination in the lower-right position of the menu. */
+function homeNavPosition(index: number) {
+  if (index === HOME_NAV_ORDER.length - 1) {
+    return { gridColumn: HOME_NAV_COLUMNS, gridRow: HOME_NAV_ROWS };
   }
-  return { gridColumn: 1, gridRow: rows };
+  return {
+    gridColumn: index % HOME_NAV_COLUMNS + 1,
+    gridRow: Math.floor(index / HOME_NAV_COLUMNS) + 1,
+  };
 }
 
 const ICON_SIZE   = 50;
@@ -224,7 +213,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [spacing, setSpacing]   = useState(() => calcSpacing(typeof window !== "undefined" ? window.innerWidth : 390));
   const homeAnchorRef = useRef<HTMLDivElement>(null);
-  const [homeRowCapacity, setHomeRowCapacity] = useState(6);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -240,31 +228,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       window.removeEventListener("resize", measure);
     };
   }, []);
-
-  // The rail measures the real game viewport, not an iPhone-only reference
-  // stage. A conservative bottom margin leaves the home-indicator area free.
-  useEffect(() => {
-    if (!isHome || navHidden) return;
-    const hud = document.getElementById("game-viewport-hud");
-    const measure = () => {
-      const hudRect = hud?.getBoundingClientRect();
-      const anchorRect = homeAnchorRef.current?.getBoundingClientRect();
-      const bottom = hudRect?.bottom ?? window.innerHeight;
-      const anchorBottom = anchorRect?.bottom ?? 180;
-      const freeHeight = Math.max(0, bottom - anchorBottom - 12 - 34 - 18);
-      const capacity = Math.max(1,
-        Math.floor((freeHeight + HOME_ROW_GAP) / (HOME_TILE_HEIGHT + HOME_ROW_GAP)));
-      setHomeRowCapacity(capacity);
-    };
-    measure();
-    const observer = hud && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
-    if (hud && observer) observer.observe(hud);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [isHome, navHidden]);
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -402,9 +365,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const anyPanelOpen = showQuest || showPvpNote || showAquarium;
   // Only Home's launcher shrinks; non-Home nav arcs retain their sizes.
   const mainButtonSize = isHome ? 52 : BUTTON_SIZE;
-  const homeColumns = Math.ceil(HOME_NAV_ORDER.length / homeRowCapacity);
-  const homeRows = Math.ceil(HOME_NAV_ORDER.length / homeColumns);
-
   return (
     <>
       <ViewportHudPortal>
@@ -422,7 +382,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         ref={homeAnchorRef}
         className="absolute"
         style={{
-          // Home icons flow down the right edge, with overflow to the left.
+          // Home menu grows across the upper viewport in three rows.
           // Other pages retain the original bottom-right fan anchor.
           top: isHome ? "clamp(108px, calc(env(safe-area-inset-top, 0px) + 94px), 128px)" : undefined,
           bottom: isHome ? undefined : 16,
@@ -439,10 +399,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           <nav id="home-realm-nav-panel" data-testid="home-realm-nav-panel"
             aria-label="Realm navigation" className="home-realm-nav"
             style={{
-              gridTemplateColumns: `repeat(${homeColumns}, ${HOME_TILE_WIDTH}px)`,
-              gridTemplateRows: `repeat(${homeRows}, ${HOME_TILE_HEIGHT}px)`,
-              columnGap: HOME_COLUMN_GAP,
-              rowGap: HOME_ROW_GAP,
+              gridTemplateColumns: `repeat(${HOME_NAV_COLUMNS}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${HOME_NAV_ROWS}, minmax(0, 1fr))`,
             }}>
             {HOME_NAV_ORDER.map((id, index) => {
               const leftItem = LEFT_ITEMS.find(item => item.id === id);
@@ -454,7 +412,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                   icon={isSupport ? supportIcon : item!.icon}
                   label={isSupport ? "Support" : item!.label}
                   testId={`nav-item-${id}`}
-                  position={homeNavPosition(index, homeRowCapacity)}
+                  position={homeNavPosition(index)}
                   showQuestReward={id === "quest" && questRewardReady}
                   onClick={() => isSupport ? handleRight("support")
                     : leftItem ? handleLeft(id) : handleRight(id)}
