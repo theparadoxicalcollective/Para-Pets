@@ -133,7 +133,10 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     ?? (avatar?.created ? avatar.base :
       availableBodies.find(base => base.id === avatar?.base?.id)
       ?? availableBodies[0] ?? avatar?.base);
-  const switchingBody = !!avatar?.created && !!selectedBody && selectedBody.id !== avatar.base?.id;
+  const switchingBody = !!avatar?.created && !!selectedBody && (
+    selectedBody.id !== avatar.base?.id ||
+    new Date(selectedBody.publishedAt).getTime() !== new Date(avatar.base?.publishedAt ?? 0).getTime()
+  );
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
     item.inventoryId === previewId && item.compatible && !item.isListed && item.quantity > 0
@@ -266,7 +269,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                   {creation.isPending ? "Saving Character…" : "Create My Character"}
                 </button>
               </section>
-            ) : (
+            ) : !switchingBody ? (
               <section className="player-avatar-page__wardrobe" aria-label={`${PLAYER_CLOTHING_CATEGORY_LABELS[category]} clothing`}>
                 <div className="player-avatar-page__wardrobe-header">
                   <div>
@@ -337,7 +340,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     onClick={() => setPreviewId(null)} disabled={busy}>Cancel Preview</button>}
                 </div>
               </section>
-            )}
+            ) : null}
             {avatarQuery.isError && <p className="player-avatar-page__warning" role="alert">
               Could not refresh your wardrobe. The last confirmed character is still shown.
             </p>}
