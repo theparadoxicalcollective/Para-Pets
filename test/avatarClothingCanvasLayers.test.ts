@@ -118,12 +118,12 @@ test("admin and renderer actually use shared canvas images rather than local dra
   const renderer=read("client/src/components/PlayerCharacterRenderer.tsx");
   const css=read("client/src/components/PlayerCharacterRenderer.css");
   const route=read("server/routes/playerClothingAdmin.routes.ts");
-  assert.match(component,/PLAYER_CLOTHING_UPLOAD_SLOTS\[selected.category\]/);
-  assert.match(component,/onImageSelected\(slot,event.currentTarget.files\?\.\[0\]\)/);
+  assert.match(component,/PLAYER_CLOTHING_FREE_SLOTS/);
+  assert.match(component,/void upload\(nextSlot, event.currentTarget.files\?\.\[0\]\)/);
   assert.match(component,/canvasClothingFit\(\)/);
-  assert.match(component,/previewEyesClosed=\{previewClosedEyes\}/);
-  assert.match(component,/avatar-save-clothing-artwork/);
-  assert.match(component,/avatar-publish-clothing/);
+  assert.match(component,/previewEyesClosed=\{closedEyes\}/);
+  assert.match(component,/avatar-clothing-add-part/);
+  assert.match(component,/avatar-save-clothing-item/);
   assert.doesNotMatch(component,/pointerToCharacterPartLocal|setPointerCapture|Horizontal fit|Vertical fit|Size \(%\)|Rotation \(°\)|Clothing depth|Save This Fitted Piece/);
   assert.match(renderer,/fullCanvas\.map\(layer =>/);
   assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot, layer.segment.shoesLayer\)/);

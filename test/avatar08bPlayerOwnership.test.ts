@@ -61,8 +61,12 @@ const valid = {
   publishedSegmentsCount: 2,
 };
 
-test("clothing equipment eligibility enforces actual ownership, listing, stock, slot and fitting version", () => {
+test("clothing equipment checks ownership and only base-binds legacy items", () => {
   assert.equal(isEligiblePlayerClothingInventory(valid), true);
+  assert.equal(isEligiblePlayerClothingInventory({
+    ...valid, universal: true, selectedBaseId: otherBaseId,
+    selectedBasePublishedAt: new Date("2026-11-10T12:00:00.000Z"),
+  }), true, "universal outfits fit either saved body");
   for (const changes of [
     { ownerId: "player-b" },
     { itemType: "costume" },
