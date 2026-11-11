@@ -204,6 +204,8 @@ test("Shoes offer an independent Over/Under Pants draw-order choice without resi
   assert.match(admin,/selected.category === "shoes" \? \{ shoesLayer \}/);
   assert.match(server,/draft.category === "shoes"/);
   assert.match(server,/parsed.data.shoesLayer/);
+  assert.match(server,/draft.draftSegments.length === 0/);
+  assert.match(admin,/!savedSegments.length&&!artworkDirty/);
   assert.match(server,/shoesLayer \}/);
   assert.match(renderer,/clothingLayerDepth\(layer.category, layer.segment.slot, layer.segment.shoesLayer\)/);
   assert.doesNotMatch(admin,/Shoes Width|Shoes X Position|Shoes Y Position/);
