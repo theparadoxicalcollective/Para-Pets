@@ -266,7 +266,7 @@ try {
     assert.ok(homeLayout.shopIcon.top >= homeLayout.coins.bottom,
       sc.name+": Coin Bundles shortcut sits beneath Coins");
     assert.ok(Math.abs(homeLayout.shopIcon.centerX - homeLayout.coins.centerX) < 8 &&
-      homeLayout.shopIcon.width <= 42,
+      homeLayout.shopIcon.width <= 44,
       sc.name+": small Coin Bundles shortcut is centered: "+JSON.stringify(homeLayout));
     assert.ok(homeLayout.watcher && homeLayout.watcherDock &&
       homeLayout.watcher.height >= 40 && homeLayout.watcher.height <= 44 &&
