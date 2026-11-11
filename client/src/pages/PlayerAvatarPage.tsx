@@ -165,7 +165,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       setColorPreview(null);
       setResetPending(false);
       setTuckChoice(null);
-      // Keep preview selections for other categories after changing body.
+      // Body changes can invalidate fitted clothing. Never leave unsaved
+      // previews looking equipped in the now-confirmed appearance.
+      setPreviewSelections({});
       setWardrobeOpen(false);
       setSkinPickerOpen(false);
       setSaveConfirmationOpen(true);
@@ -484,6 +486,11 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     onClick={() => setWardrobeOpen(false)}>×</button>
                 </div>
 
+                {avatar.created && appearanceChanged && (
+                  <p className="player-avatar-page__warning" role="status">
+                    Save Appearance before changing your outfit.
+                  </p>
+                )}
                 {unavailableEquipped && (
                   <p className="player-avatar-page__warning" role="status">
                     Your previously equipped item is no longer available. Choose another or remove it.
