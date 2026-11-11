@@ -82,6 +82,9 @@ export const saveUniversalClothingItemSchema = z.object({
   expectedRevision: z.number().int().min(0).optional(),
   name: z.string().trim().min(1).max(80),
   category: playerClothingCategorySchema,
+  // Shop prices use the game's existing whole-coin currency.
+  price: z.number().int().min(0).max(1_000_000_000).default(0),
+  shopImageData: uploadData.optional(),
   images: z.array(z.object({
     slot: playerClothingSlotSchema,
     partType: playerCharacterPartTypeSchema,

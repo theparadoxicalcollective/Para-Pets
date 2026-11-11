@@ -196,6 +196,8 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   // Draft category edits stay private until Save Clothing, just like segments.
   publishedCategory: text("published_category").$type<PlayerClothingCategory | null>(),
   universal: boolean("universal").notNull().default(false),
+  // Optional item catalog artwork independent of transparent character layers.
+  shopImageUrl: text("shop_image_url"),
   shopItemId: varchar("shop_item_id").unique().references(() => shopItems.id, { onDelete: "set null" }),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
@@ -285,6 +287,7 @@ export const playerAvatarProfiles = pgTable("player_avatar_profiles", {
   // Immutable artwork snapshot at explicit player save; a later admin
   // republish never silently changes this player’s character anatomy.
   baseParts: jsonb("base_parts").$type<StoredPlayerCharacterPart[]>().notNull(),
+  skinTone: text("skin_tone"),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
