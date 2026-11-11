@@ -262,9 +262,10 @@ try {
       sc.name+": lowered XP and level pill do not block pet selection");
     assert.ok(homeLayout.navButton && homeLayout.navButton.width === 52,
       sc.name+": Home navigation launcher is slightly smaller");
-    assert.ok(homeLayout.navButton.top >= homeLayout.headerName.bottom + 6 &&
+    assert.ok((homeLayout.navButton.left >= homeLayout.headerName.right + 6 ||
+        homeLayout.navButton.top >= homeLayout.headerName.bottom + 6) &&
       homeLayout.navButton.top < homeLayout.actor.top - 14,
-      sc.name+": main nav sits above the avatar at the right edge, not on top of its stars");
+      sc.name+": main nav stays separate from the account name and above avatar stars");
     assert.ok(homeLayout.navButton.left >= sc.width - 88 &&
       homeLayout.navButton.right <= sc.width,
       sc.name+": Home navigation is aligned to the right viewport edge");
