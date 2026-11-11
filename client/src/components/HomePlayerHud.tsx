@@ -134,10 +134,10 @@ export default function HomePlayerHud({
     <div className={avatarHome ? "home-player-hud home-player-hud--avatar-home" : "home-player-hud"}
       style={avatarLayoutStyle} data-testid="home-player-hud" data-coordinate-owner="viewport">
       <div className="home-player-hud__stars" data-testid="home-player-empty-stars"
-        aria-label={`${player?.stars ?? 0} of 5 player Elevation stars earned`} role="img">
+        aria-label={`${player?.stars ?? 1} of 5 player stars earned`} role="img">
         {Array.from({ length: 5 }, (_, i) => (
           <img key={i} src={cardStarImg} alt="" draggable={false}
-            className={i < (player?.stars ?? 0) ? "home-player-hud__star--earned" : undefined}
+            className={i < (player?.stars ?? 1) ? "home-player-hud__star--earned" : undefined}
             style={{ transform: `translateY(${-(1 - Math.pow((i - 2) / 2, 2)) * (avatarHome ? 31 : 14)}px) rotate(${(i - 2) * 9}deg)` }} />
         ))}
       </div>
@@ -157,15 +157,15 @@ export default function HomePlayerHud({
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpFillPct === null ? undefined : Math.round(xpFillPct)}
             title={xpProgressLabel}>
             {avatarHome ? (
-              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 40"
+              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 94"
                 preserveAspectRatio="none" aria-hidden="true">
                 <path className="home-player-hud__xp-arc-shadow"
-                  d="M 10 7 Q 160 46 310 7" />
+                  d="M 26 8 Q 160 162 294 8" />
                 <path className="home-player-hud__xp-arc-track"
-                  d="M 10 7 Q 160 46 310 7" />
+                  d="M 26 8 Q 160 162 294 8" />
                 {xpFillPct !== null && (
                   <path className="home-player-hud__xp-arc-fill"
-                    d="M 10 7 Q 160 46 310 7"
+                    d="M 26 8 Q 160 162 294 8"
                     pathLength={100}
                     strokeDasharray="100 100"
                     strokeDashoffset={100 - xpFillPct} />
@@ -215,7 +215,7 @@ export default function HomePlayerHud({
                       <PetAnimator petTemplateId={pet.petTemplateId}
                         petInventoryId={pet.inventoryId}
                         artworkForm={pet.isEvolved ? "evolution" : undefined}
-                        mode="static" performanceStatic lowMemory
+                        mode="house" lowMemory size={58}
                         fillContainer view="front" />
                     </span>
                   )}
