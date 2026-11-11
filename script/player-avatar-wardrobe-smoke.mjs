@@ -66,7 +66,7 @@ const owned = [
   item("face", "face", ["head"]),
   item("bottom", "pants", ["left_leg", "right_leg"]),
   item("top", "listed-top", ["top"], { isListed: true, compatible: false }),
-  item("top", "plain-top", ["top"], { universal: true,
+  item("top", "plain-top", ["top"], { universal: true, colorPickerEnabled: true,
     segments: [{ partType: "top", slot: "piece_1", canvasAligned: true,
       imageUrl: art, fit, renderPlane: "with_part" }] }),
   item("bottom", "canvas-pants", ["top"], { universal: true,
