@@ -79,6 +79,11 @@ try {
         const body = route.request().postDataJSON();
         writes.push(body);
         assert.ok(body.name);
+        assert.ok(Number.isInteger(body.price) && body.price >= 0,
+          size.name + ": all clothing has a whole-coin price");
+        if (body.price > 0)
+          assert.ok(body.shopImageData?.startsWith("data:image/png;base64,") || old?.shopImageUrl,
+            size.name + ": priced item has independent shop art");
         const old = body.id ? rows.find(row => row.id === body.id) : null;
         assert.ok(!body.id || old, size.name + ": edit must target a saved item");
         assert.ok(!old || old.revision === body.expectedRevision,
@@ -104,7 +109,9 @@ try {
             ["face_open_eyes", "face_closed_eyes", "face_mouth"].sort());
         const saved = {
           id: old?.id ?? "00000000-0000-4000-8000-" + String(nextId++).padStart(12, "0"),
-          name: body.name, category: body.category, revision: old ? old.revision + 1 : 0,
+          name: body.name, category: body.category, price: body.price,
+          shopImageUrl: body.shopImageData ? mediaId(nextMedia++) : old?.shopImageUrl ?? null,
+          revision: old ? old.revision + 1 : 0,
           shopItemId: old?.shopItemId ?? mediaId(nextMedia++),
           universal: true, draftSegments: segments, publishedSegments: segments,
         };
@@ -155,6 +162,7 @@ try {
       .locator('[data-testid^="clothing-part-"]').count(), 3);
     await saveItem();
     assert.equal(rows.at(-1).universal, true);
+    assert.equal(rows.at(-1).price, 0, size.name + ": free item auto-available");
     assert.deepEqual(rows.at(-1).draftSegments.map(x => x.partType), ["top", "left_arm", "right_arm"]);
 
     await newItem("Expressive Face", "face");
@@ -193,13 +201,28 @@ try {
     await saveItem();
     assert.ok(rows.at(-1).draftSegments.every(x => x.shoesLayer === "over"));
 
+    await newItem("Royal Cape", "back");
+    await addPart("top");
+    await page.getByTestId("avatar-clothing-price").fill("350");
+    assert.equal(await page.getByTestId("avatar-save-clothing-item").isDisabled(), true,
+      size.name + ": paid item requires shop artwork");
+    await page.getByTestId("avatar-clothing-shop-image-upload").setInputFiles({
+      name: "cape-shop.png", mimeType: "image/png", buffer: png,
+    });
+    await page.getByRole("img", { name: "Shop item artwork preview" }).waitFor({ state: "visible" });
+    await saveItem();
+    assert.equal(rows.at(-1).price, 350);
+    assert.ok(rows.at(-1).shopImageUrl);
+    assert.notEqual(rows.at(-1).shopImageUrl, rows.at(-1).draftSegments[0].imageUrl,
+      size.name + ": catalog image stays separate from equippable sprite");
+
     // Editing preserves media through previousSlot and cannot create duplicates.
     await page.getByTestId("avatar-clothing-view").getByRole("button", { name: /Three Part Blouse/ }).click();
     await page.getByTestId("avatar-new-clothing-name").fill("Blouse Updated");
     await saveItem();
     assert.equal(writes.at(-1).keep.length, 3);
     assert.equal(writes.at(-1).images.length, 0);
-    assert.equal(rows.length, 4);
+    assert.equal(rows.length, 5);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 2, size.name + ": clothing editor does not overflow the device viewport");
