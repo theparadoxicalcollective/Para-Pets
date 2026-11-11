@@ -20,42 +20,41 @@ test("Home player level gets its own forest-and-gold pill without changing XP ma
   assert.match(hud, /data-testid="home-player-total-xp"/);
 });
 
-test("XP, level pill and companion panel sit lower while retaining short-phone clearance", () => {
-  assert.match(hudCss, /home-avatar-standing-y[^\n]*\+ 32px/);
-  assert.match(hudCss, /home-avatar-standing-y[^\n]*\+ 28px/);
-  assert.match(hudCss, /bottom: calc\(44px \+ env\(safe-area-inset-bottom/);
-  assert.match(hudCss, /bottom: calc\(30px \+ env\(safe-area-inset-bottom/);
+test("semicircular XP, level pill and curved pets retain short-phone clearance", () => {
+  assert.match(hudCss, /height: 94px/);
+  assert.match(hudCss, /height: 68px/);
+  assert.match(hudCss, /\.home-player-hud__xp-arc-track/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
+  assert.match(hudCss, /bottom: calc\(20px \+ env\(safe-area-inset-bottom/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel\s*\{[^}]*pointer-events: none/s);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__slot\s*\{[^}]*pointer-events: auto/s);
 });
 
-test("Home navigation flows down the right edge into left columns; other routes keep old anchor", () => {
+test("Home navigation spans five left-to-right columns and three rows without changing non-Home anchors", () => {
   assert.match(nav, /const \[location, navigate\] = useLocation\(\)/);
   assert.match(nav, /const isHome = location === "\/"/);
   assert.match(nav, /top: isHome \? "clamp\(108px/);
   assert.match(nav, /bottom: isHome \? undefined : 16/);
   assert.match(nav, /right: 12/);
   assert.match(nav, /data-testid="home-realm-nav-panel"/);
-  assert.match(nav, /ref=\{homeAnchorRef\}/);
-  assert.match(nav, /homeAnchorRef\.current\?\.getBoundingClientRect\(\)/);
-  assert.match(nav, /gridTemplateColumns: \x60repeat\(\$\{homeColumns\}, \$\{HOME_TILE_WIDTH\}px\)\x60/);
-  assert.match(nav, /homeNavPosition\(index, homeRowCapacity\)/);
-  assert.match(nav, /bottom - anchorBottom - 12 - 34/);
+  assert.match(nav, /const HOME_NAV_COLUMNS = 5/);
+  assert.match(nav, /const HOME_NAV_ROWS = 3/);
+  assert.match(nav, /gridTemplateColumns: \x60repeat\(\$\{HOME_NAV_COLUMNS\}, minmax\(0, 1fr\)\)\x60/);
+  assert.match(nav, /homeNavPosition\(index\)/);
   assert.match(nav, /aria-controls=\{isHome \? "home-realm-nav-panel" : undefined\}/);
   assert.match(nav, /aria-expanded=\{isOpen\}/);
   assert.match(nav, /if \(navHidden\) return null/);
   assert.match(nav, /setMainNavOpen\(isOpen && !navHidden\)/);
 });
 
-test("Main is first and Support is last in the ordered right-to-left Home icon rail", () => {
+test("Main is first and Support stays last in the horizontal Home menu", () => {
   const css = read("client/src/components/FloatingNavHome.css");
   assert.match(nav, /const HOME_NAV_ORDER = \[/);
   assert.match(nav, /"home", "inventory", "map", "pethouse", "quest", "keepers"/);
   assert.match(nav, /"bag", "market", "aquarium", "cards", "pvp", "badges", "support"/);
   assert.match(nav, /HOME_NAV_ORDER\.map\(\(id, index\) =>/);
-  assert.match(nav, /gridColumn: columns - column/);
-  assert.match(nav, /column === columns - 1 \? rows - count : 0/);
+  assert.match(nav, /gridColumn: HOME_NAV_COLUMNS, gridRow: HOME_NAV_ROWS/);
+  assert.match(nav, /gridColumn: index % HOME_NAV_COLUMNS \+ 1/);
   assert.match(nav, /showQuestReward=\{id === "quest" && questRewardReady\}/);
   assert.match(nav, /isSupport \? handleRight\("support"\)/);
   assert.match(nav, /if \(id === "support"\)/);
