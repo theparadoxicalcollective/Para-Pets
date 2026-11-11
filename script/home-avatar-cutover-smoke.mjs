@@ -87,7 +87,8 @@ const base = {id:"published-base",name:"Forest Character",
 const playerPet = {inventoryId:"pet-owned",id:"pet-owned",shopItemId:"pet-template",
   name:"Original Companion",type:"pet",rarity:4,starRarity:4,isHatched:true,
   isListed:false,petTemplateId:null,hatchTime:3,hatchStartedAt:null,
-  eggImageUrl:art,hatchedImageUrl:art,imageUrl:art,petNickname:"Flora",
+  eggImageUrl:art,hatchedImageUrl:art,imageUrl:art,petTemplateId:"pet-template",
+  petNickname:"Flora",
   petLevel:11,petLevelPoints:270,petHp:12,petAtk:5,petDef:3,quantity:1,
   itemsUsedThisLevel:0,petHealth:12,petAtk:5,petDef:3};
 await server.listen();
@@ -126,6 +127,23 @@ try {
         return fulfill(route,{level:4,totalXp:240,nextLevelTotalXp:null,xpToNextLevel:null});
       if(path==="/api/player/pet-team")
         return fulfill(route,{petInventoryIds:["pet-owned"],attackPower:100});
+      if(path==="/api/pet-template-parts/pet-template" && method==="GET")
+        return fulfill(route,{
+          facing:"front",canFly:false,
+          parts:[{
+            id:"fixture-body",templateId:"pet-template",partType:"body",
+            view:"front",imageUrl:art,posX:340,posY:340,
+            width:320,height:320,zIndex:30,pivotX:50,pivotY:50,rotation:0,
+          }],
+        });
+      if(path==="/api/pet/pet-owned/costumes" && method==="GET")
+        return fulfill(route,{equipped:[],extraSlots:0,isEvolved:false});
+      if(path==="/api/pet/pet-owned/mini-pet" && method==="GET")
+        return fulfill(route,{equipped:{
+          inventoryId:"mini-fixture",shopItemId:"mini-shop",name:"Tiny companion",
+          imageUrl:art,rarity:2,atkBoost:0,healthBoost:0,defBoost:0,
+          animationStyle:"float",parts:[],
+        }});
       if(path==="/api/player-avatar" && method==="GET") {
         if(sc.apiError)return fulfill(route,{message:"Service unavailable"},503);
         if(sc.malformed)return fulfill(route,[]);
@@ -214,6 +232,13 @@ try {
     assert.equal(homeLayout.partyHint,"",sc.name+": no party helper caption");
     assert.equal(homeLayout.petRarityStars,4,sc.name+": selected four-star pet displays four rarity stars");
     assert.equal(homeLayout.teamSlots,5,sc.name+": still five editable pet slots");
+    await page.getByTestId("home-player-team-composite-1").waitFor({state:"visible"});
+    await page.getByTestId("equipped-mini-pet").waitFor({state:"visible"});
+    assert.equal(await page.getByTestId("home-player-team-composite-1")
+      .locator('[data-testid="pet-animator"] img').count(),1,
+      sc.name+": static team pet loads the shared layered renderer");
+    assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"static",
+      sc.name+": equipped Mini Pet is visible without introducing animations");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
       sc.name+": avatar, player progress and party surfaces all render");
     assert.ok(Math.abs(homeLayout.stars.centerX-homeLayout.actor.centerX)<6,
