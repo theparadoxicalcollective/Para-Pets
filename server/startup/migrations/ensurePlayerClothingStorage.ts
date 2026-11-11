@@ -13,12 +13,14 @@ export async function ensurePlayerClothingStorage(): Promise<void> {
       category text NOT NULL CHECK (category IN ('accessories','head','hair','face','top','bottom','shoes','back')),
       draft_segments jsonb NOT NULL DEFAULT '[]'::jsonb,
       published_segments jsonb,
+      universal boolean NOT NULL DEFAULT false,
       shop_item_id varchar UNIQUE REFERENCES shop_items(id) ON DELETE SET NULL,
       revision integer NOT NULL DEFAULT 0 CHECK (revision >= 0),
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now(),
       published_at timestamp
     );
+    ALTER TABLE player_clothing_drafts ADD COLUMN IF NOT EXISTS universal boolean NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS player_clothing_drafts_base_idx ON player_clothing_drafts(base_id);
     -- Existing databases already have the seven-category CHECK from 08A.
     -- Widen it only once: keep existing rows, their IDs, and published items.

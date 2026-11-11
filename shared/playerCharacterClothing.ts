@@ -34,8 +34,16 @@ export const PLAYER_CLOTHING_SPECIAL_SLOTS = [
   "hair_front", "hair_back",
   "face_open_eyes", "face_closed_eyes", "face_mouth",
 ] as const;
+/** Stable per-image IDs allow more than one artwork piece on the same bone. */
+export const PLAYER_CLOTHING_FREE_SLOTS = [
+  "piece_1", "piece_2", "piece_3", "piece_4", "piece_5", "piece_6",
+  "piece_7", "piece_8", "piece_9", "piece_10", "piece_11", "piece_12",
+] as const;
+export const isFreeClothingSlot = (slot: string): boolean =>
+  (PLAYER_CLOTHING_FREE_SLOTS as readonly string[]).includes(slot);
 export const PLAYER_CLOTHING_SLOTS = [
   ...PLAYER_CHARACTER_PART_TYPES, ...PLAYER_CLOTHING_SPECIAL_SLOTS,
+  ...PLAYER_CLOTHING_FREE_SLOTS,
 ] as const;
 export type PlayerClothingSlot = typeof PLAYER_CLOTHING_SLOTS[number];
 export const playerClothingSlotSchema = z.enum(PLAYER_CLOTHING_SLOTS);
@@ -113,7 +121,8 @@ export const playerClothingSegmentSchema = z.object({
   fit: playerCharacterTransformSchema,
   renderPlane: playerClothingRenderPlaneSchema.default("with_part"),
 }).strict().superRefine((segment, ctx) => {
-  if (segment.slot && clothingSlotPartType(segment.slot) !== segment.partType) {
+  if (segment.slot && !isFreeClothingSlot(segment.slot) &&
+      clothingSlotPartType(segment.slot) !== segment.partType) {
     ctx.addIssue({ code: "custom", message: "Clothing slot must match its animated attachment", path: ["partType"] });
   }
 });
@@ -136,6 +145,8 @@ export const playerClothingDefinitionSchema = z.object({
     ctx.addIssue({ code: "custom", path: ["segments"],
       message: "Pants layering applies only to shoes" });
   }
+  // Legacy published faces may contain only one expression. Keep them
+  // readable; the new one-action Save Clothing API requires all three.
   segments.forEach((segment, index) => {
     const key = clothingSegmentKey(segment);
     if (used.has(key)) {
@@ -144,6 +155,7 @@ export const playerClothingDefinitionSchema = z.object({
     }
     used.add(key);
     if (segment.canvasAligned && segment.slot &&
+        !(category !== "face" && isFreeClothingSlot(segment.slot)) &&
         !(PLAYER_CLOTHING_UPLOAD_SLOTS[category] as readonly string[]).includes(segment.slot)) {
       ctx.addIssue({ code: "custom", path: ["segments", index, "slot"],
         message: "This image slot is not part of this clothing category" });

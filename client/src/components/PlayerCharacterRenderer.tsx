@@ -53,8 +53,10 @@ export default function PlayerCharacterRenderer({
   ];
   const oldPartLocal = layers.filter(layer => !layer.segment.canvasAligned);
   const fullCanvas = layers.filter(layer => layer.segment.canvasAligned)
-    .sort((a,b) => clothingLayerDepth(a.category, a.segment.slot, a.segment.shoesLayer)
-      - clothingLayerDepth(b.category, b.segment.slot, b.segment.shoesLayer));
+    .sort((a,b) => clothingLayerDepth(a.category, a.category === "hair" &&
+        a.segment.renderPlane === "behind_character" ? "hair_back" : a.segment.slot, a.segment.shoesLayer)
+      - clothingLayerDepth(b.category, b.category === "hair" &&
+        b.segment.renderPlane === "behind_character" ? "hair_back" : b.segment.slot, b.segment.shoesLayer));
   const planeDepth = {
     behind_character: -1000,
     with_part: 100,
@@ -117,7 +119,9 @@ export default function PlayerCharacterRenderer({
           data-clothing-plane={layer.segment.renderPlane}
           data-clothing-key={layer.key}
           className={`player-character-renderer__canvas-motion player-character-renderer__motion--${motion}`}
-          style={{ zIndex: clothingLayerDepth(layer.category, layer.segment.slot, layer.segment.shoesLayer) }}>
+          style={{ zIndex: clothingLayerDepth(layer.category,
+            layer.category === "hair" && layer.segment.renderPlane === "behind_character"
+              ? "hair_back" : layer.segment.slot, layer.segment.shoesLayer) }}>
           <img src={layer.segment.imageUrl} alt="" aria-hidden="true"
             draggable={false}
             className={`player-character-renderer__canvas-image${layer.segment.slot === "face_open_eyes" ? " player-character-renderer__eyes-open" : ""}${layer.segment.slot === "face_closed_eyes" ? " player-character-renderer__eyes-closed" : ""}`}/>

@@ -141,11 +141,11 @@ test("clothing admin uses shared full-canvas renderer and upload tiles, not drag
   assert.match(base, /avatar-open-create-clothing/);
   assert.match(base, /lazyWithRetry\(\(\) => import\("\.\/PlayerClothingAdminPanel"\)\)/);
   assert.match(component, /<PlayerCharacterRenderer parts=\{bodyParts\} clothingSegments=\{previewSegments\}/);
-  assert.match(component, /previewClothingCategory=\{selected.category\}/);
+  assert.match(component, /previewClothingCategory=\{category\}/);
   assert.match(component, /avatar-clothing-fit-canvas/);
-  assert.match(component, /PLAYER_CLOTHING_UPLOAD_SLOTS\[selected.category\]/);
-  assert.match(component, /avatar-save-clothing-artwork/);
-  assert.match(component, /avatar-publish-clothing/);
+  assert.match(component, /avatar-clothing-add-part/);
+  assert.match(component, /avatar-save-clothing-item/);
+  assert.match(component, /avatar-clothing-attach-/);
   assert.doesNotMatch(component, /setPointerCapture|pointerToCharacterPartLocal|Horizontal fit|Vertical fit|Rotation \(°\)|onPointerDown|onPointerMove|touchAction: "none"/);
   assert.match(renderer, /fullCanvas\.map\(layer =>/);
   assert.match(renderer, /oldPartLocal\.filter\(layer => layer.segment.partType === part.partType\)/);
@@ -159,9 +159,9 @@ test("saved complete Masc and Fem bodies unlock the existing clothing upload wor
   const admin = read("client/src/components/PlayerClothingAdminPanel.tsx");
   const route = read("server/routes/playerClothingAdmin.routes.ts");
   assert.match(admin, /availablePlayerCharacterBody/);
-  assert.match(admin, /Save all eight parts of a Masc or Fem body/);
+  assert.match(admin, /Save a complete Fem or Masc body to preview clothing/);
   assert.match(route, /availablePlayerCharacterBody\(base\)/);
   assert.match(route, /basePublishedAt: available.publishedAt/);
   assert.doesNotMatch(admin, /Publish a completed avatar body before creating clothing/);
-  assert.match(admin, /avatar-clothing-upload-\$\{slot\}/);
+  assert.match(admin, /avatar-clothing-upload-/);
 });

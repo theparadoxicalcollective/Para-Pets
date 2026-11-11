@@ -18,6 +18,7 @@ import {
 import {
   AVATAR_CLOTHING_UNRELEASED_WORLD,
   clothingRevisionSchema,
+  saveUniversalClothingItemSchema,
   clothingSegmentWriteSchema,
   clothingCanvasWriteSchema,
   createClothingDraftSchema,
@@ -52,6 +53,109 @@ export function registerPlayerClothingAdminRoutes(
   app: Express,
   { db, isAdmin, processImage }: PlayerClothingAdminDependencies,
 ): void {
+  /**
+   * Organized clothing creator: all parts are saved with one user action.
+   * The reference base is only a legacy FK; new items are universal on the
+   * shared 1000x1000 canvas and can follow either completed body rig.
+   * Existing artwork is reused by slot ID; no client-supplied media URLs.
+   */
+  app.post("/api/admin/player-character/clothing/item", isAdmin, async (req, res) => {
+    const input = saveUniversalClothingItemSchema.safeParse(req.body);
+    if (!input.success) return res.status(400).json({
+      message: input.error.issues[0]?.message ?? "Complete the clothing name and artwork",
+    });
+    try {
+      // Process uploads before opening a transaction; it holds only SQL locks.
+      // Image processor is already responsible for bounding transparent media.
+      const uploads = await Promise.all(input.data.images.map(async image => ({
+        ...image, imageUrl: await processImage(image.imageData, 1000),
+      })));
+      const outcome = await db.transaction(async tx => {
+        const existing = input.data.id
+          ? (await tx.select().from(playerClothingDrafts)
+              .where(eq(playerClothingDrafts.id, input.data.id)).for("update"))[0]
+          : null;
+        if (input.data.id && !existing) return { status: 404 as const, message: notFound.message };
+        if (existing && existing.revision !== input.data.expectedRevision)
+          return { status: 409 as const, message: conflict.message };
+
+        // The stored base is not a compatibility restriction for new items.
+        // One saved body is enough to anchor the legacy non-null FK.
+        const rows = await tx.select().from(playerCharacterBases).for("share");
+        const ready = rows.map(base => ({ base, available: availablePlayerCharacterBody(base) }))
+          .filter((entry): entry is { base: typeof rows[number]; available: NonNullable<typeof entry.available> } =>
+            !!entry.available && ["fem", "masc"].includes(entry.base.name.trim().toLowerCase()))
+          .sort((a, b) => Number(a.base.name.trim().toLowerCase() !== "fem") -
+            Number(b.base.name.trim().toLowerCase() !== "fem"));
+        if (!ready.length) return { status: 422 as const,
+          message: "Save a complete Fem or Masc body before adding clothing." };
+        const reference = ready[0];
+        const old = new Map((existing?.draftSegments ?? []).map(segment =>
+          [clothingSegmentKey(segment), segment] as const));
+        const segments: PlayerClothingSegment[] = [];
+        for (const item of input.data.keep) {
+          const previous = old.get(item.previousSlot);
+          if (!previous) return { status: 409 as const,
+            message: "An uploaded part has changed. Reload this clothing item before saving." };
+          segments.push(playerClothingSegmentSchema.parse({
+            ...previous, slot: item.slot, partType: item.partType,
+            canvasAligned: true, fit: canvasClothingFit(),
+            renderPlane: input.data.category === "hair" ? item.renderPlane ?? "with_part" : "with_part",
+            ...(input.data.category === "shoes"
+              ? { shoesLayer: input.data.shoesLayer ?? "under" } : { shoesLayer: undefined }),
+          }));
+        }
+        for (const image of uploads) segments.push(playerClothingSegmentSchema.parse({
+          slot: image.slot, partType: image.partType, imageUrl: image.imageUrl,
+          canvasAligned: true, fit: canvasClothingFit(),
+          renderPlane: input.data.category === "hair" ? image.renderPlane ?? "with_part" : "with_part",
+          ...(input.data.category === "shoes" ? { shoesLayer: input.data.shoesLayer ?? "under" } : {}),
+        }));
+        if (!validClothingPublication(input.data.name, input.data.category, segments))
+          return { status: 422 as const, message: "Clothing pieces or Face expressions are incomplete." };
+        const thumbnail = segments[0].imageUrl;
+        const catalogData = {
+          name: input.data.name, type: "clothing" as const,
+          worldId: AVATAR_CLOTHING_UNRELEASED_WORLD, price: 0,
+          description: `Avatar clothing · ${input.data.category}`, imageUrl: thumbnail,
+        };
+        let itemId = existing?.shopItemId ?? null;
+        if (itemId) {
+          const [updated] = await tx.update(shopItems).set(catalogData).where(and(
+            eq(shopItems.id, itemId), eq(shopItems.type, "clothing"),
+            eq(shopItems.worldId, AVATAR_CLOTHING_UNRELEASED_WORLD),
+          )).returning({ id: shopItems.id });
+          if (!updated) return { status: 409 as const,
+            message: "This clothing catalog entry was changed. Refresh and retry." };
+        } else {
+          const [created] = await tx.insert(shopItems).values(catalogData).returning({ id: shopItems.id });
+          itemId = created.id;
+        }
+        const now = new Date();
+        const fields = {
+          name: input.data.name, category: input.data.category,
+          draftSegments: segments, publishedSegments: segments,
+          publishedCategory: input.data.category, universal: true,
+          shopItemId: itemId, publishedAt: now, updatedAt: now,
+        };
+        const [saved] = existing
+          ? await tx.update(playerClothingDrafts).set({
+              ...fields, revision: existing.revision + 1,
+            }).where(eq(playerClothingDrafts.id, existing.id)).returning()
+          : await tx.insert(playerClothingDrafts).values({
+              ...fields, baseId: reference.base.id,
+              basePublishedAt: reference.available.publishedAt,
+            }).returning();
+        return { status: 200 as const, saved };
+      });
+      if (outcome.status !== 200) return res.status(outcome.status).json({ message: outcome.message });
+      return res.json(outcome.saved);
+    } catch (error) {
+      console.error("[player-clothing] universal item save failed", error);
+      return res.status(500).json({ message: "Could not save clothing item" });
+    }
+  });
+
   app.get("/api/admin/player-character/clothing", isAdmin, async (_req, res) => {
     try {
       const rows = await db.select().from(playerClothingDrafts);

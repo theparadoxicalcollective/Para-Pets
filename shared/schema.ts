@@ -195,6 +195,7 @@ export const playerClothingDrafts = pgTable("player_clothing_drafts", {
   publishedSegments: jsonb("published_segments").$type<PlayerClothingSegment[] | null>(),
   // Draft category edits stay private until Save Clothing, just like segments.
   publishedCategory: text("published_category").$type<PlayerClothingCategory | null>(),
+  universal: boolean("universal").notNull().default(false),
   shopItemId: varchar("shop_item_id").unique().references(() => shopItems.id, { onDelete: "set null" }),
   revision: integer("revision").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

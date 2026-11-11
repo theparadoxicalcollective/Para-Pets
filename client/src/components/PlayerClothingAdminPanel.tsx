@@ -4,424 +4,481 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerCharacterRenderer from "./PlayerCharacterRenderer";
 import {
-  canvasAlignedAvatarBodyTransform,
+  PLAYER_CHARACTER_PART_LABELS,
+  PLAYER_CHARACTER_PART_TYPES,
   availablePlayerCharacterBody,
+  canvasAlignedAvatarBodyTransform,
+  type PlayerCharacterPartType,
   type StoredPlayerCharacterPart,
 } from "@shared/playerCharacter";
 import {
   PLAYER_CLOTHING_CATEGORIES,
   PLAYER_CLOTHING_CATEGORY_LABELS,
-  PLAYER_CLOTHING_UPLOAD_SLOTS,
+  PLAYER_CLOTHING_DEFAULT_ATTACHMENTS,
+  PLAYER_CLOTHING_FREE_SLOTS,
   canvasClothingFit,
-  clothingSlotPartType,
+  clothingSegmentKey,
+  isFreeClothingSlot,
   type PlayerClothingCategory,
   type PlayerClothingSegment,
   type PlayerClothingSlot,
   type PlayerShoesLayer,
 } from "@shared/playerCharacterClothing";
-import { validClothingPublication } from "@shared/playerClothingAdmin";
 
 type Base = {
-  id: string; name: string;
-  draftParts: StoredPlayerCharacterPart[];
+  id: string; name: string; draftParts: StoredPlayerCharacterPart[];
   publishedParts: StoredPlayerCharacterPart[] | null;
-  publishedAt: string | null;
-  updatedAt: string;
+  publishedAt: string | null; updatedAt: string;
 };
 type ClothingDraft = {
-  id: string; baseId: string; basePublishedAt: string;
-  name: string; category: PlayerClothingCategory;
+  id: string; revision: number; name: string;
+  category: PlayerClothingCategory; shopItemId: string | null;
   draftSegments: PlayerClothingSegment[];
   publishedSegments: PlayerClothingSegment[] | null;
-  shopItemId: string | null; revision: number;
+  universal?: boolean;
 };
-type PendingImages = Partial<Record<PlayerClothingSlot,string>>;
+type ClothingPart = {
+  slot: PlayerClothingSlot;
+  previousSlot?: PlayerClothingSlot;
+  partType: PlayerCharacterPartType;
+  hairLayer?: "front" | "back";
+  imageUrl?: string;
+  imageData?: string;
+};
+const FACE_SLOTS = ["face_open_eyes", "face_closed_eyes", "face_mouth"] as const;
+const FACE_LABELS: Record<typeof FACE_SLOTS[number], string> = {
+  face_open_eyes: "Open Eyes", face_closed_eyes: "Closed Eyes", face_mouth: "Mouth",
+};
 const BASE_KEY = ["/api/admin/player-character/bases"];
 const CLOTHING_KEY = ["/api/admin/player-character/clothing"];
-const buttonClass = "min-h-[44px] rounded-lg border border-[#b99b56]/65 bg-[#20412b] px-3 py-2 font-fantasy text-sm text-[#f3dca0] disabled:opacity-40";
-const inputClass = "min-h-[44px] w-full rounded-lg border border-[#a18a50]/65 bg-[#0c2117] px-3 py-2 text-sm text-[#f7e8c0] focus:outline-none focus:ring-2 focus:ring-[#d2b76e]";
-const cardClass = "rounded-xl border border-[#9c854b]/60 bg-[#10291d]/90 p-3";
-const slotLabels: Record<PlayerClothingSlot,string> = {
-  head: "Head",
-  top: "Torso",
-  left_arm: "Left Arm",
-  right_arm: "Right Arm",
-  left_leg: "Left Leg",
-  right_leg: "Right Leg",
-  left_foot: "Left Foot",
-  right_foot: "Right Foot",
-  hair_front: "Front Hair",
-  hair_back: "Back Hair",
-  face_open_eyes: "Open Eyes",
-  face_closed_eyes: "Closed Eyes",
-  face_mouth: "Mouth",
-};
-
+const buttonClass = "min-h-[44px] rounded-xl border border-[#c1a566]/75 bg-[#244c33] px-3 py-2 font-fantasy text-sm text-[#ffe8ab] disabled:opacity-45 touch-manipulation";
+const inputClass = "min-h-[44px] w-full rounded-xl border border-[#a68e57] bg-[#0c2117] px-3 py-2 text-sm text-[#f7e8c0] focus:outline-none focus:ring-2 focus:ring-[#dbbd72]";
+const cardClass = "rounded-2xl border border-[#a7905a]/70 bg-[#112b1f]/95 p-3 sm:p-4";
+function faceParts(): ClothingPart[] {
+  return FACE_SLOTS.map(slot => ({ slot, partType: "head" }));
+}
 function readImage(file: File): Promise<string> {
-  return new Promise((resolve,reject) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => typeof reader.result === "string"
-      ? resolve(reader.result) : reject(new Error("Could not read clothing artwork"));
-    reader.onerror = () => reject(new Error("Could not read clothing artwork"));
+      ? resolve(reader.result) : reject(new Error("Could not read clothing art"));
+    reader.onerror = () => reject(new Error("Could not read clothing art"));
     reader.readAsDataURL(file);
   });
 }
 async function requestJson<T>(method: string, url: string, body?: unknown): Promise<T> {
-  return (await apiRequest(method,url,body)).json() as Promise<T>;
+  return (await apiRequest(method, url, body)).json() as Promise<T>;
 }
-function segmentSlot(segment: PlayerClothingSegment, category: PlayerClothingCategory): PlayerClothingSlot {
-  if (segment.slot) return segment.slot;
-  if (category === "hair" && segment.partType === "head") return "hair_front";
-  if (category === "face" && segment.partType === "head") return "face_open_eyes";
-  return segment.partType;
-}
-function isAligned(segment: PlayerClothingSegment, category: PlayerClothingCategory) {
-  const normal = canvasClothingFit();
-  return segment.canvasAligned === true && !!segment.slot &&
-    segment.slot === segmentSlot(segment, category) &&
-    Object.keys(normal).every(key =>
-      segment.fit[key as keyof typeof normal] === normal[key as keyof typeof normal]);
+/** Existing art is retained by its original slot on Save, never by a
+ * user-submitted media URL. Old named slots are shown in the new piece list. */
+function partsFromDraft(draft: ClothingDraft): ClothingPart[] {
+  const segments = draft.draftSegments.length ? draft.draftSegments : draft.publishedSegments ?? [];
+  if (draft.category === "face") {
+    return faceParts().map(part => {
+      const old = segments.find(s => (s.slot ?? (s.partType === "head" ? "face_open_eyes" : s.partType)) === part.slot);
+      return old ? { ...part, previousSlot: clothingSegmentKey(old) as PlayerClothingSlot,
+        imageUrl: old.imageUrl } : part;
+    });
+  }
+  const used = new Set<string>();
+  return segments.slice(0, PLAYER_CLOTHING_FREE_SLOTS.length).map(segment => {
+    const original = segment.slot ?? segment.partType;
+    const slot = isFreeClothingSlot(original) && !used.has(original)
+      ? original as PlayerClothingSlot
+      : PLAYER_CLOTHING_FREE_SLOTS.find(value => !used.has(value))!;
+    used.add(slot);
+    return {
+      slot, previousSlot: clothingSegmentKey(segment) as PlayerClothingSlot,
+      partType: segment.partType, imageUrl: segment.imageUrl,
+      hairLayer: segment.slot === "hair_back" || segment.renderPlane === "behind_character"
+        ? "back" as const : "front" as const,
+    };
+  });
 }
 
-/** One saved clothing item can upload several already-positioned square images.
- * Rendering and storage use the same full-canvas contract as Masc/Fem bodies. */
+/** One universal clothing item has many independent, part-attached images.
+ * Preview-body buttons do not determine compatibility or split catalog SKUs. */
 export default function PlayerClothingAdminPanel({
   onDirtyChange,
 }: { onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [selectedId,setSelectedId] = useState<string|null>(null);
-  const [newName,setNewName] = useState("");
-  const [newCategory,setNewCategory] = useState<PlayerClothingCategory>("top");
-  const [newBaseId,setNewBaseId] = useState("");
-  const [draftName,setDraftName] = useState("");
-  const [draftCategory,setDraftCategory] = useState<PlayerClothingCategory>("top");
-  const [pendingImages,setPendingImages] = useState<PendingImages>({});
-  const [removedSlots,setRemovedSlots] = useState<PlayerClothingSlot[]>([]);
-  const [readingParts,setReadingParts] = useState(0);
-  const [metaDirty,setMetaDirty] = useState(false);
-  const [previewClosedEyes,setPreviewClosedEyes] = useState(false);
-  const [shoesLayer,setShoesLayer] = useState<PlayerShoesLayer>("under");
+  const [screen, setScreen] = useState<"create" | "view">("create");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<PlayerClothingCategory>("top");
+  const [parts, setParts] = useState<ClothingPart[]>([]);
+  const [previewBodyId, setPreviewBodyId] = useState<string | null>(null);
+  const [closedEyes, setClosedEyes] = useState(false);
+  const [shoesLayer, setShoesLayer] = useState<PlayerShoesLayer>("under");
+  const [readingParts, setReadingParts] = useState(0);
+  const [changed, setChanged] = useState(false);
 
   const basesQuery = useQuery<Base[]>({
     queryKey: BASE_KEY,
-    queryFn: () => requestJson<Base[]>("GET","/api/admin/player-character/bases"),
+    queryFn: () => requestJson<Base[]>("GET", "/api/admin/player-character/bases"),
   });
   const draftsQuery = useQuery<ClothingDraft[]>({
     queryKey: CLOTHING_KEY,
-    queryFn: () => requestJson<ClothingDraft[]>("GET","/api/admin/player-character/clothing"),
+    queryFn: () => requestJson<ClothingDraft[]>("GET", "/api/admin/player-character/clothing"),
   });
-  const savedBody = (base: Base) => availablePlayerCharacterBody({
-    ...base,
-    publishedAt: base.publishedAt ? new Date(base.publishedAt) : null,
-    updatedAt: new Date(base.updatedAt),
+  const savedBodies = (basesQuery.data ?? []).flatMap(base => {
+    const kind = base.name.trim().toLowerCase();
+    if (kind !== "fem" && kind !== "masc") return [];
+    const snapshot = availablePlayerCharacterBody({
+      ...base, publishedAt: base.publishedAt ? new Date(base.publishedAt) : null,
+      updatedAt: new Date(base.updatedAt),
+    });
+    return snapshot ? [{ id: base.id, kind, parts: snapshot.parts }] : [];
   });
-  const bases = (basesQuery.data ?? []).filter(base => !!savedBody(base));
-  const drafts = draftsQuery.data ?? [];
-  const selected = drafts.find(item => item.id === selectedId) ??
-    (selectedId === null ? drafts[0] : undefined);
-  const base = bases.find(item => item.id === selected?.baseId);
-  const baseUnchanged = !!base && !!selected && !!savedBody(base) &&
-    savedBody(base)!.publishedAt.getTime() === new Date(selected.basePublishedAt).getTime();
-
-  const savedSegments = selected?.draftSegments ?? [];
-  const savedShoesLayer: PlayerShoesLayer = selected?.category === "shoes"
-    ? savedSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under"
-    : "under";
-  const shoesLayerDirty = selected?.category === "shoes" && shoesLayer !== savedShoesLayer;
-  const needsAlignment = !!selected && savedSegments.some(segment =>
-    !isAligned(segment,selected.category));
-  const artworkDirty = Object.keys(pendingImages).length > 0 || removedSlots.length > 0;
-  const anyDirty = artworkDirty || metaDirty || shoesLayerDirty;
-  useEffect(() => { onDirtyChange?.(anyDirty); }, [anyDirty,onDirtyChange]);
-  useEffect(() => {
-    if (bases.length && !bases.some(base => base.id === newBaseId)) setNewBaseId(bases[0].id);
-  }, [basesQuery.data,newBaseId]);
-  useEffect(() => {
-    setDraftName(selected?.name ?? "");
-    setDraftCategory(selected?.category ?? "top");
-    setMetaDirty(false);
-    setPreviewClosedEyes(false);
-    setShoesLayer(selected?.category === "shoes"
-      ? selected.draftSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under"
-      : "under");
-  }, [selected?.id,selected?.revision]);
-
-  const bodyParts = useMemo(() =>
-    base ? (savedBody(base)?.parts ?? []).map(part => ({
-      ...part, ...canvasAlignedAvatarBodyTransform(part.partType),
-    })) : [], [base?.draftParts, base?.publishedParts, base?.publishedAt, base?.updatedAt]);
-
-  const previewSegments = useMemo<PlayerClothingSegment[]>(() => {
-    if (!selected) return [];
-    const merged = new Map<PlayerClothingSlot,PlayerClothingSegment>();
-    for (const segment of savedSegments) {
-      const slot = segmentSlot(segment,selected.category);
-      if (!removedSlots.includes(slot)) merged.set(slot,{
-        ...segment, slot, canvasAligned: true,
-        ...(selected.category === "shoes" ? { shoesLayer } : {}),
-        fit: canvasClothingFit(), renderPlane: "with_part",
-      });
-    }
-    for (const [slot,imageUrl] of Object.entries(pendingImages)) {
-      if (!imageUrl) continue;
-      const part = slot as PlayerClothingSlot;
-      merged.set(part,{
-        slot: part, partType: clothingSlotPartType(part), imageUrl,
-        canvasAligned: true, fit: canvasClothingFit(), renderPlane: "with_part",
-        ...(selected.category === "shoes" ? { shoesLayer } : {}),
-      });
-    }
-    return [...merged.values()];
-  },[selected?.id,selected?.category,savedSegments,pendingImages,removedSlots,shoesLayer]);
-  const slots = selected ? PLAYER_CLOTHING_UPLOAD_SLOTS[selected.category] : [];
+  const chosenBody = savedBodies.find(body => body.id === previewBodyId) ??
+    savedBodies.find(body => body.kind === "fem") ?? savedBodies[0];
+  const bodyParts = useMemo(() => (chosenBody?.parts ?? []).map(part => ({
+    ...part, ...canvasAlignedAvatarBodyTransform(part.partType),
+  })), [chosenBody?.parts]);
+  const activeDraft = (draftsQuery.data ?? []).find(item => item.id === editingId);
+  const previewSegments = useMemo<PlayerClothingSegment[]>(() =>
+    parts.flatMap(part => {
+      const imageUrl = part.imageData ?? part.imageUrl;
+      return imageUrl ? [{
+        slot: part.slot, partType: part.partType, imageUrl,
+        fit: canvasClothingFit(), canvasAligned: true as const,
+        renderPlane: category === "hair" && part.hairLayer === "back"
+          ? "behind_character" as const : "with_part" as const,
+        ...(category === "shoes" ? { shoesLayer } : {}),
+      }] : [];
+    }), [parts, category, shoesLayer]);
+  const faceReady = FACE_SLOTS.every(slot =>
+    parts.some(part => part.slot === slot && !!(part.imageData ?? part.imageUrl)));
+  const pieceCount = parts.filter(part => part.imageData || part.imageUrl).length;
+  const canSave = name.trim().length > 0 && (category === "face" ? faceReady : pieceCount > 0)
+    && !!chosenBody && readingParts === 0 && (!editingId || !!activeDraft);
 
   const updateDraft = (row: ClothingDraft) =>
-    qc.setQueryData<ClothingDraft[]>(CLOTHING_KEY,old =>
-      (old ?? []).some(item => item.id === row.id)
-        ? (old ?? []).map(item => item.id === row.id ? row : item)
-        : [...(old ?? []),row]);
-  const errorMessage = (error: unknown) => toast({
-    title: "Clothing not saved",
-    description: error instanceof Error ? error.message : "Please retry.",
-    variant: "destructive",
-  });
-
-  const create = useMutation({
-    mutationFn: () => requestJson<ClothingDraft>("POST","/api/admin/player-character/clothing",{
-      name: newName.trim(),category:newCategory,baseId:newBaseId,
+    qc.setQueryData<ClothingDraft[]>(CLOTHING_KEY, current =>
+      (current ?? []).some(item => item.id === row.id)
+        ? (current ?? []).map(item => item.id === row.id ? row : item)
+        : [...(current ?? []), row]);
+  const saveItem = useMutation({
+    mutationFn: () => requestJson<ClothingDraft>("POST", "/api/admin/player-character/clothing/item", {
+      ...(editingId ? { id: editingId, expectedRevision: activeDraft!.revision } : {}),
+      name: name.trim(), category,
+      images: parts.filter(part => !!part.imageData).map(part => ({
+        slot: part.slot, partType: part.partType, imageData: part.imageData,
+        ...(category === "hair"
+          ? { renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part" } : {}),
+      })),
+      keep: parts.filter(part => !part.imageData && part.imageUrl && part.previousSlot).map(part => ({
+        previousSlot: part.previousSlot, slot: part.slot, partType: part.partType,
+        ...(category === "hair"
+          ? { renderPlane: part.hairLayer === "back" ? "behind_character" : "with_part" } : {}),
+      })),
+      ...(category === "shoes" ? { shoesLayer } : {}),
     }),
-    onSuccess: row => {
-      updateDraft(row);setSelectedId(row.id);
-      toast({title:"Clothing draft created"});
+    onSuccess: result => {
+      updateDraft(result);
+      void qc.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+      setChanged(false);
+      setEditingId(null);
+      setName("");
+      setCategory("top");
+      setParts([]);
+      setScreen("view");
+      toast({ title: "Clothing saved", description: "One universal clothing item was added to the clothing item list." });
     },
-    onError:errorMessage,
+    onError: (error: Error) => toast({
+      title: "Clothing not saved", description: error.message, variant: "destructive",
+    }),
   });
-  const saveArtwork = useMutation({
-    mutationFn: (input: { draft:ClothingDraft;images:PendingImages;removed:PlayerClothingSlot[];shoesLayer?:PlayerShoesLayer }) =>
-      requestJson<ClothingDraft>("PUT",
-        `/api/admin/player-character/clothing/${input.draft.id}/artwork`,{
-          expectedRevision:input.draft.revision,
-          images:Object.entries(input.images)
-            .filter((pair):pair is [string,string] => !!pair[1])
-            .map(([slot,imageData])=>({slot,imageData})),
-          removeSlots:input.removed,
-          ...(input.shoesLayer ? { shoesLayer: input.shoesLayer } : {}),
-        }),
-    onSuccess: row => {
-      updateDraft(row);setPendingImages({});setRemovedSlots([]);
-      toast({title:"Clothing artwork saved"});
-    },
-    onError:errorMessage,
-  });
-  const saveDetails = useMutation({
-    mutationFn: () => requestJson<ClothingDraft>("PATCH",
-      `/api/admin/player-character/clothing/${selected!.id}`,{
-        name:draftName.trim(),category:draftCategory,expectedRevision:selected!.revision,
-      }),
-    onSuccess: row => updateDraft(row),
-    onError:errorMessage,
-  });
-  const saveClothing = useMutation({
-    mutationFn: () => requestJson<ClothingDraft>("POST",
-      `/api/admin/player-character/clothing/${selected!.id}/save`,{
-        expectedRevision:selected!.revision,
-      }),
-    onSuccess: row => {
-      updateDraft(row);
-      void qc.invalidateQueries({queryKey:["/api/admin/shop-items-all"]});
-      toast({title:"Clothing item saved"});
-    },
-    onError:errorMessage,
-  });
-  const busy = create.isPending || saveArtwork.isPending || saveDetails.isPending
-    || saveClothing.isPending || readingParts > 0;
-  const canSaveClothing = !!selected && baseUnchanged && !anyDirty &&
-    !needsAlignment && !busy &&
-    validClothingPublication(selected.name,selected.category,selected.draftSegments);
+  const busy = saveItem.isPending || readingParts > 0;
+  useEffect(() => { onDirtyChange?.(changed || busy); }, [onDirtyChange, changed, busy]);
 
-  const onImageSelected = async (slot:PlayerClothingSlot,file?:File) => {
+  const startNew = () => {
+    if (busy) return;
+    setEditingId(null); setName(""); setCategory("top"); setParts([]);
+    setShoesLayer("under"); setClosedEyes(false); setChanged(false);
+    setScreen("create");
+  };
+  const openExisting = (draft: ClothingDraft) => {
+    if (busy) return;
+    setEditingId(draft.id); setName(draft.name); setCategory(draft.category);
+    setParts(partsFromDraft(draft));
+    setShoesLayer(draft.draftSegments.find(segment => segment.shoesLayer)?.shoesLayer ?? "under");
+    setClosedEyes(false); setChanged(false); setScreen("create");
+  };
+  const selectCategory = (next: PlayerClothingCategory) => {
+    if (busy || category === next) return;
+    setCategory(next); setParts(next === "face" ? faceParts() : []);
+    setClosedEyes(false); setChanged(true);
+  };
+  const upload = async (slot: PlayerClothingSlot, file?: File, replace = false) => {
     if (!file) return;
-    if (!["image/png","image/webp"].includes(file.type) || file.size > 5_000_000) {
-      toast({title:"Unsupported image",description:"Choose a PNG or WebP under 5 MB.",
-        variant:"destructive"});
+    if (!["image/png", "image/webp"].includes(file.type) || file.size > 5_000_000) {
+      toast({ title: "Unsupported image", description: "Use a PNG or WebP smaller than 5 MB.",
+        variant: "destructive" });
       return;
     }
-    setReadingParts(n=>n+1);
+    setReadingParts(count => count + 1);
     try {
-      const imageData = await readImage(file);
-      const byteCount = Object.entries({...pendingImages,[slot]:imageData})
-        .reduce((n,[,value])=>n+(value?.length ?? 0),0);
-      if (byteCount > 40_000_000) {
-        toast({title:"Clothing images are too large together",
-          description:"Use smaller files.",variant:"destructive"});
+      const data = await readImage(file);
+      const total = parts.reduce((n, part) => n + (part.imageData?.length ?? 0), 0)
+        + data.length;
+      if (total > 40_000_000) {
+        toast({ title: "Clothing artwork is too large", description: "Use smaller images.",
+          variant: "destructive" });
         return;
       }
-      setPendingImages(current=>({...current,[slot]:imageData}));
-      setRemovedSlots(current=>current.filter(item=>item!==slot));
-    } catch(error) { errorMessage(error); }
-    finally {setReadingParts(n=>n-1);}
+      setParts(current => {
+        if (replace) return current.map(part => part.slot === slot
+          ? { ...part, imageData: data, imageUrl: undefined } : part);
+        if (current.some(part => part.slot === slot)) return current;
+        return [...current, {
+          slot, imageData: data,
+          partType: PLAYER_CLOTHING_DEFAULT_ATTACHMENTS[category][0],
+          ...(category === "hair" ? { hairLayer: "front" as const } : {}),
+        }];
+      });
+      setChanged(true);
+    } catch (error) {
+      toast({ title: "Could not upload image",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive" });
+    } finally { setReadingParts(count => count - 1); }
   };
-  const removeImage = (slot:PlayerClothingSlot) => {
-    const next={...pendingImages};
-    delete next[slot];
-    setPendingImages(next);
-    if (savedSegments.some(item=>segmentSlot(item,selected!.category)===slot))
-      setRemovedSlots(old=>old.includes(slot)?old:[...old,slot]);
+  const remove = (slot: PlayerClothingSlot) => {
+    if (category === "face") {
+      setParts(current => current.map(part => part.slot === slot
+        ? { slot, partType: "head" } : part));
+    } else {
+      setParts(current => current.filter(part => part.slot !== slot));
+    }
+    setChanged(true);
   };
-  const discard = () => {
-    setPendingImages({});setRemovedSlots([]);setMetaDirty(false);
-    setDraftName(selected?.name ?? "");setDraftCategory(selected?.category ?? "top");
-    setShoesLayer(savedShoesLayer);
-  };
+  const nextSlot = PLAYER_CLOTHING_FREE_SLOTS.find(slot => !parts.some(part => part.slot === slot));
+  const itemList = draftsQuery.data ?? [];
 
   return (
     <section data-testid="player-clothing-admin-panel" className="space-y-3 text-[#f3dfad]">
-      <div className={cardClass+" space-y-2"}>
-        <h2 className="font-fantasy text-lg font-bold text-[#f4d88f]">Create Clothing</h2>
-        <input className={inputClass} value={newName} maxLength={80}
-          aria-label="New clothing name" placeholder="Clothing name"
-          onChange={event=>setNewName(event.target.value)}/>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs">Category
-            <select className={inputClass} value={newCategory}
-              data-testid="avatar-new-clothing-category"
-              onChange={event=>setNewCategory(event.target.value as PlayerClothingCategory)}>
-              {PLAYER_CLOTHING_CATEGORIES.map(category=>
-                <option key={category} value={category}>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</option>)}
-            </select>
-          </label>
-          <label className="text-xs">Avatar body
-            <select className={inputClass} value={newBaseId}
-              onChange={event=>setNewBaseId(event.target.value)}>
-              {bases.map(base=><option key={base.id} value={base.id}>{base.name}</option>)}
-            </select>
-          </label>
-        </div>
-        {!bases.length && <p role="alert" className="text-xs text-[#f4d48a]">
-          Save all eight parts of a Masc or Fem body to unlock clothing creation.
-        </p>}
-        <button type="button" className={buttonClass+" w-full"}
-          data-testid="avatar-create-clothing" disabled={busy||anyDirty||!newName.trim()||!bases.some(base=>base.id===newBaseId)}
-          onClick={()=>create.mutate()}>Add Clothing</button>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Saved clothing drafts">
-          {drafts.map(item=><button key={item.id} type="button" className={buttonClass}
-            aria-pressed={item.id===selected?.id} disabled={busy||anyDirty}
-            onClick={()=>setSelectedId(item.id)}>{item.name}</button>)}
-        </div>
-        {draftsQuery.isError && <button type="button" className={buttonClass}
-          onClick={()=>void draftsQuery.refetch()}>Retry loading clothing</button>}
+      <div role="tablist" aria-label="Clothing editor" className="grid grid-cols-2 gap-2">
+        <button type="button" role="tab" aria-selected={screen === "view"}
+          className={buttonClass} disabled={busy}
+          onClick={() => setScreen("view")}>View Clothes</button>
+        <button type="button" role="tab" aria-selected={screen === "create"}
+          className={buttonClass} disabled={busy} onClick={startNew}>Create</button>
       </div>
 
-      {selected && <div className="space-y-3">
-        {!baseUnchanged && <p role="alert" className={cardClass+" text-xs"}>
-          This body was updated since you began this design. Create clothing for the updated body.
-        </p>}
-        <div className={cardClass+" space-y-2"}>
-          <input className={inputClass} aria-label="Edit clothing name"
-            maxLength={80} disabled={busy} value={draftName}
-            onChange={event=>{setDraftName(event.target.value);setMetaDirty(true);}}/>
-          <select className={inputClass} aria-label="Edit clothing category"
-            disabled={busy} value={draftCategory}
-            onChange={event=>{setDraftCategory(event.target.value as PlayerClothingCategory);setMetaDirty(true);}}>
-            {PLAYER_CLOTHING_CATEGORIES.map(category=>
-              <option key={category} value={category}>{PLAYER_CLOTHING_CATEGORY_LABELS[category]}</option>)}
-          </select>
-          <button type="button" className={buttonClass+" w-full"}
-            disabled={busy||artworkDirty||shoesLayerDirty||!metaDirty||!draftName.trim()}
-            onClick={()=>saveDetails.mutate()}>Save Details</button>
-        </div>
-
-        <div className={cardClass}>
-          <h3 className="mb-2 text-center font-fantasy text-lg text-[#f4d88f]">
-            {selected.name} · Preview
-          </h3>
-          <div className="relative mx-auto aspect-square w-full max-w-[360px] overflow-hidden rounded-xl border border-[#ba9956]/55"
-            data-testid="avatar-clothing-fit-canvas"
-            style={{background:"radial-gradient(circle,#345d40,#0a1b11)"}}>
-            <PlayerCharacterRenderer parts={bodyParts} clothingSegments={previewSegments}
-              previewClothingCategory={selected.category}
-              previewEyesClosed={previewClosedEyes}
-              motion="static" ariaLabel="Avatar clothing layered preview"/>
+      {screen === "view" ? (
+        <div className={cardClass + " space-y-3"} data-testid="avatar-clothing-view">
+          <h2 className="font-fantasy text-xl text-[#f1d58e]">Clothing Items</h2>
+          {!itemList.length && <p className="text-sm text-[#d1be92]">No clothing items saved yet.</p>}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {itemList.map(item => (
+              <button type="button" key={item.id} disabled={busy}
+                onClick={() => openExisting(item)}
+                className="flex min-h-[65px] items-center gap-3 rounded-xl border border-[#a18b52] bg-[#0c2419] p-3 text-left">
+                {item.publishedSegments?.[0]?.imageUrl
+                  ? <img src={item.publishedSegments[0].imageUrl} alt="" className="h-11 w-11 object-contain" />
+                  : <span className="text-2xl text-[#e6cc83]">+</span>}
+                <span className="min-w-0">
+                  <strong className="block truncate text-sm text-[#f3d99b]">{item.name}</strong>
+                  <small className="text-[#c9c09d]">{PLAYER_CLOTHING_CATEGORY_LABELS[item.category]} · {item.shopItemId ? "Saved item" : "Draft"}</small>
+                </span>
+              </button>
+            ))}
           </div>
-          {selected.category === "shoes" && (
-            <div role="group" aria-label="Shoes layering with pants"
-              className="mx-auto mt-3 grid max-w-[360px] grid-cols-2 gap-2"
-              data-testid="avatar-shoes-layer-control">
-              {(["under", "over"] as const).map(layer => (
-                <button key={layer} type="button" className={buttonClass}
-                  data-testid={"avatar-shoes-"+layer+"-pants"}
-                  aria-pressed={shoesLayer === layer} disabled={busy || metaDirty}
-                  style={{ borderColor: shoesLayer === layer ? "#f1d18c" : "#816f43" }}
-                  onClick={() => setShoesLayer(layer)}>
-                  {layer === "over" ? "Over Pants" : "Under Pants"}
-                </button>
-              ))}
-            </div>
-          )}
-          {selected.category === "face" && (
-            <div role="group" aria-label="Face expression preview"
-              className="mx-auto mt-2 grid max-w-[360px] grid-cols-2 gap-2">
-              <button type="button" className={buttonClass}
-                aria-pressed={!previewClosedEyes}
-                onClick={() => setPreviewClosedEyes(false)}>Open Eyes</button>
-              <button type="button" className={buttonClass}
-                aria-pressed={previewClosedEyes}
-                onClick={() => setPreviewClosedEyes(true)}>Closed Eyes</button>
-            </div>
-          )}
         </div>
+      ) : (
+        <div className="space-y-3" data-testid="avatar-clothing-create-screen">
+          <div className={cardClass + " space-y-3"}>
+            <h2 className="text-center font-fantasy text-xl font-bold text-[#f4d78e]">
+              {editingId ? "Editing Clothing Item" : "Creating Clothing Item"}
+            </h2>
+            <input className={inputClass} value={name} maxLength={80}
+              aria-label="Clothing name" data-testid="avatar-new-clothing-name"
+              placeholder="Clothing name" disabled={busy}
+              onChange={event => { setName(event.target.value); setChanged(true); }} />
+            <label className="block space-y-1 text-xs text-[#e6d29c]">Category
+              <select className={inputClass} value={category}
+                aria-label="Clothing category" data-testid="avatar-new-clothing-category"
+                disabled={busy}
+                onChange={event => selectCategory(event.target.value as PlayerClothingCategory)}>
+                {PLAYER_CLOTHING_CATEGORIES.map(value => (
+                  <option key={value} value={value}>{PLAYER_CLOTHING_CATEGORY_LABELS[value]}</option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-        <div className={cardClass+" space-y-3"}>
-          <div role="group" aria-label="Clothing piece upload boxes"
-            className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {slots.map(slot=>{
-              const image=previewSegments.find(segment=>segment.slot===slot)?.imageUrl;
-              return (
-                <div key={slot} data-testid={`clothing-part-${slot}`}
-                  className="relative flex min-h-[92px] flex-col items-center justify-center rounded-lg border border-[#b99b56]/65 bg-[#123425] px-2 py-2 text-center text-xs">
-                  <label className="flex w-full cursor-pointer flex-col items-center gap-1">
-                    {image?<img src={image} alt="" draggable={false} className="h-10 w-12 object-contain"/>
-                      :<span aria-hidden="true" className="text-2xl">+</span>}
-                    <span>{slotLabels[slot]}</span>
-                    {pendingImages[slot] && <span className="text-[#ffe4a1]">New</span>}
-                    <input type="file" accept="image/png,image/webp"
-                      className="sr-only" disabled={busy||!baseUnchanged}
-                      aria-label={`Upload ${slotLabels[slot]}`}
-                      data-testid={`avatar-clothing-upload-${slot}`}
-                      onChange={event=>{
-                        void onImageSelected(slot,event.currentTarget.files?.[0]);
-                        event.currentTarget.value="";
-                      }}/>
+          <div className={cardClass + " space-y-2"}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-fantasy text-xl text-[#f4d78e]">Preview</h3>
+              <div role="group" aria-label="Preview body" className="flex gap-2" data-testid="avatar-clothing-body-selector">
+                {(["masc", "fem"] as const).map(kind => {
+                  const body = savedBodies.find(item => item.kind === kind);
+                  return (
+                    <button type="button" key={kind} className={buttonClass + " !h-[46px] !min-h-0 !w-[49px] !rounded-full !p-0"}
+                      aria-label={kind === "fem" ? "Preview Fem body" : "Preview Masc body"}
+                      aria-pressed={chosenBody?.id === body?.id}
+                      data-testid={"avatar-clothing-preview-" + kind}
+                      disabled={!body || busy} onClick={() => setPreviewBodyId(body!.id)}
+                      style={{ borderColor: chosenBody?.id === body?.id ? "#ffdc88" : "#816f43",
+                        background: chosenBody?.id === body?.id ? "#45653a" : "#183326" }}>
+                      <span aria-hidden="true" className="text-2xl">{kind === "fem" ? "♀" : "♂"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="relative mx-auto aspect-square w-full max-w-[360px] overflow-hidden rounded-xl border border-[#b49a62]/70"
+              data-testid="avatar-clothing-fit-canvas"
+              style={{ background: "radial-gradient(circle,#35573c,#091910)" }}>
+              {chosenBody ? (
+                <PlayerCharacterRenderer parts={bodyParts} clothingSegments={previewSegments}
+                  previewClothingCategory={category} previewEyesClosed={closedEyes}
+                  motion="static" ariaLabel="Universal clothing layered over chosen preview body" />
+              ) : (
+                <p className="p-5 text-center text-sm">Save a complete Fem or Masc body to preview clothing.</p>
+              )}
+            </div>
+            {category === "face" && (
+              <div className="mx-auto grid max-w-[360px] grid-cols-2 gap-2" role="group" aria-label="Face expression preview">
+                <button type="button" className={buttonClass} aria-pressed={!closedEyes}
+                  onClick={() => setClosedEyes(false)}>Open Eyes</button>
+                <button type="button" className={buttonClass} aria-pressed={closedEyes}
+                  onClick={() => setClosedEyes(true)}>Closed Eyes</button>
+              </div>
+            )}
+            {category === "shoes" && (
+              <div className="mx-auto grid max-w-[360px] grid-cols-2 gap-2" role="group" aria-label="Shoes layering with pants" data-testid="avatar-shoes-layer-control">
+                {(["under", "over"] as const).map(layer => (
+                  <button type="button" key={layer} className={buttonClass}
+                    data-testid={"avatar-shoes-" + layer + "-pants"}
+                    disabled={busy} aria-pressed={shoesLayer === layer}
+                    onClick={() => { setShoesLayer(layer); setChanged(true); }}>
+                    {layer === "under" ? "Under Pants" : "Over Pants"}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-center text-xs text-[#c4c3a1]">
+              Clothing is saved once for both bodies; these buttons only change the preview.
+            </p>
+          </div>
+
+          <div className={cardClass + " space-y-3"}>
+            <h3 className="text-center font-fantasy text-xl text-[#f4d78e]">Upload Clothing Parts</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+              <div className="space-y-2">
+                {category === "face" ? (
+                  FACE_SLOTS.map(slot => {
+                    const part = parts.find(item => item.slot === slot);
+                    return (
+                      <label key={slot} className="flex min-h-[50px] cursor-pointer items-center justify-between rounded-xl border border-[#bba365]/75 bg-[#1c4030] px-3 text-sm">
+                        <span>{FACE_LABELS[slot]} <span className="text-[#c4af6c]">*</span></span>
+                        <span>{part?.imageData || part?.imageUrl ? "Replace" : "+ Upload"}</span>
+                        <input type="file" accept="image/png,image/webp" className="sr-only"
+                          aria-label={"Upload " + FACE_LABELS[slot]}
+                          data-testid={"avatar-clothing-upload-" + slot}
+                          disabled={busy} onChange={event => {
+                            void upload(slot, event.currentTarget.files?.[0], true);
+                            event.currentTarget.value = "";
+                          }} />
+                      </label>
+                    );
+                  })
+                ) : (
+                  <label className={buttonClass + " flex cursor-pointer items-center justify-center gap-2 text-center"}
+                    aria-label="Add clothing part">
+                    <span aria-hidden="true" className="text-xl">+</span> Add Part
+                    <input type="file" accept="image/png,image/webp" className="sr-only"
+                      aria-label="Add clothing part image" data-testid="avatar-clothing-add-part"
+                      disabled={!nextSlot || busy}
+                      onChange={event => {
+                        if (nextSlot) void upload(nextSlot, event.currentTarget.files?.[0]);
+                        event.currentTarget.value = "";
+                      }} />
                   </label>
-                  {image && <button type="button" disabled={busy}
-                    className="mt-1 text-xs text-[#ffe0a0] underline"
-                    aria-label={`Remove ${slotLabels[slot]}`}
-                    onClick={()=>removeImage(slot)}>Remove</button>}
-                </div>
-              );
-            })}
-          </div>
-          <button type="button" className={buttonClass+" w-full"}
-            data-testid="avatar-save-clothing-artwork"
-            disabled={busy||metaDirty||!baseUnchanged||(!artworkDirty&&!needsAlignment&&!shoesLayerDirty)
-              ||(!savedSegments.length&&!artworkDirty)}
-            onClick={()=>saveArtwork.mutate({
-              draft:selected,images:{...pendingImages},removed:[...removedSlots],
-              ...(selected.category === "shoes" ? { shoesLayer } : {}),
-            })}>
-            {saveArtwork.isPending?"Saving Artwork…":"Save Artwork"}
-          </button>
-          {anyDirty && <button type="button" className={buttonClass+" w-full"}
-            disabled={busy} onClick={discard}>Discard Unsaved Changes</button>}
-        </div>
+                )}
+                <p className="text-xs leading-relaxed text-[#d3c49a]">
+                  PNG or WebP artwork on the same transparent 1000 × 1000 canvas.
+                  {category === "face"
+                    ? " All three facial images are required."
+                    : " Add several pieces, then choose the body part each follows."}
+                </p>
+              </div>
 
-        <button type="button" data-testid="avatar-publish-clothing"
-          className={buttonClass+" w-full"}
-          disabled={!canSaveClothing} onClick={()=>saveClothing.mutate()}>
-          {saveClothing.isPending?"Saving Clothing…":"Save Clothing Item"}
-        </button>
-      </div>}
+              <div className="min-w-0 space-y-2" data-testid="avatar-clothing-uploaded-parts">
+                <h4 className="text-center font-fantasy text-base text-[#e9d29a]">Uploaded Parts</h4>
+                {parts.filter(part => part.imageData || part.imageUrl).length === 0 &&
+                  <p className="rounded-xl border border-dashed border-[#93835a] p-3 text-center text-xs text-[#beaf8c]">
+                    Your uploaded pieces will appear here.
+                  </p>}
+                {parts.filter(part => part.imageData || part.imageUrl).map(part => (
+                  <div key={part.slot} data-testid={"clothing-part-" + part.slot}
+                    className="flex min-w-0 items-center gap-2 rounded-xl border border-[#a9945c] bg-[#0c241a] p-2">
+                    <img src={part.imageData ?? part.imageUrl} alt="" draggable={false}
+                      className="h-11 w-11 shrink-0 rounded-lg bg-[#234831] object-contain" />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="truncate text-xs font-bold text-[#f2dca5]">
+                        {category === "face" && FACE_SLOTS.includes(part.slot as typeof FACE_SLOTS[number])
+                          ? FACE_LABELS[part.slot as typeof FACE_SLOTS[number]]
+                          : "Clothing Piece " + (parts.indexOf(part) + 1)}
+                      </p>
+                      {category === "face" ? (
+                        <span className="text-xs text-[#bfc6a9]">Attached to Head</span>
+                      ) : (
+                        <select className={inputClass + " !min-h-[38px] !py-1 !text-xs"}
+                          aria-label={"Attach " + part.slot + " to body part"}
+                          data-testid={"avatar-clothing-attach-" + part.slot}
+                          disabled={busy} value={part.partType}
+                          onChange={event => {
+                            const next = event.target.value as PlayerCharacterPartType;
+                            setParts(current => current.map(item => item.slot === part.slot
+                              ? { ...item, partType: next } : item));
+                            setChanged(true);
+                          }}>
+                          {PLAYER_CHARACTER_PART_TYPES.map(type => (
+                            <option key={type} value={type}>{PLAYER_CHARACTER_PART_LABELS[type]}</option>
+                          ))}
+                        </select>
+                      )}
+                      {category === "hair" && (
+                        <select className={inputClass + " !min-h-[38px] !py-1 !text-xs"}
+                          aria-label={"Hair layering for " + part.slot}
+                          data-testid={"avatar-hair-layer-" + part.slot}
+                          value={part.hairLayer ?? "front"} disabled={busy}
+                          onChange={event => {
+                            const next = event.target.value as "front" | "back";
+                            setParts(current => current.map(item => item.slot === part.slot
+                              ? { ...item, hairLayer: next } : item));
+                            setChanged(true);
+                          }}>
+                          <option value="front">In Front</option>
+                          <option value="back">Behind Head</option>
+                        </select>
+                      )}
+                    </div>
+                    <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#8e7a50] text-xl text-[#f2d9a1]"
+                      aria-label={"Remove " + (category === "face"
+                        ? FACE_LABELS[part.slot as typeof FACE_SLOTS[number]] : "clothing piece")}
+                      disabled={busy} onClick={() => remove(part.slot)}>×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button type="button" className={buttonClass + " w-full !min-h-[48px]"}
+            data-testid="avatar-save-clothing-item" disabled={!canSave || busy}
+            onClick={() => saveItem.mutate()}>
+            {saveItem.isPending ? "Saving Clothing…" : "Save Clothing"}
+          </button>
+          {editingId && <button type="button" className={buttonClass + " w-full"}
+            disabled={busy} onClick={startNew}>Create New Item</button>}
+          {draftsQuery.isError && <button type="button" className={buttonClass + " w-full"}
+            onClick={() => void draftsQuery.refetch()}>Retry loading clothing items</button>}
+        </div>
+      )}
     </section>
   );
 }
