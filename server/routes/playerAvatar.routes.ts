@@ -448,8 +448,11 @@ export function registerPlayerAvatarRoutes(
               ? (existing?.inventoryId === inventory.id ? existing.colorTint : null)
               : input.data.colorTint)
             : null;
-          if (existing?.inventoryId === inventory.id && existing.colorTint === colorTint)
-            return { status: 200 as const };
+          if (existing?.inventoryId === inventory.id) {
+            // Keep the original no-op equip behavior, but allow updating only
+            // this player's selected tint on an already equipped garment.
+            if (existing.colorTint === colorTint) return { status: 200 as const };
+          }
           // A previously equipped garment may have been republished in a new
           // wardrobe category. Clear its obsolete slot before the category
           // upsert so the unique (user_id, inventory_id) constraint cannot
