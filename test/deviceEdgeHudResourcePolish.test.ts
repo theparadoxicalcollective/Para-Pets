@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-test("Watcher is anchored beside the portrait above the account name", () => {
+test("Watcher stays below the account name with a smaller image and accessible target", () => {
   const home = read("client/src/pages/HomePage.tsx");
   assert.match(home, /<ViewportHudPortal>/);
   assert.match(home, /data-testid="viewport-hud-watcher-dock"/);
@@ -14,8 +14,12 @@ test("Watcher is anchored beside the portrait above the account name", () => {
   assert.match(topBar, /data-testid="home-header-watcher"/);
   assert.match(topBar, /\{homeWatcher\}/);
   assert.match(home, /data-testid="button-open-world-chat"/);
-  assert.match(home, /width: "clamp\(40px, 5\.3vh, 44px\)"/);
-  assert.match(home, /height: "clamp\(40px, 5\.3vh, 44px\)"/);
+  assert.ok(topBar.indexOf('data-testid="home-header-player-name"') <
+    topBar.indexOf('data-testid="home-header-watcher"'),
+    "name comes before the compact Watcher");
+  assert.match(home, /width: 44,\s*height: 44/);
+  assert.match(home, /data-testid="home-watcher-art"/);
+  assert.match(home, /width: "clamp\(32px, 4\.3vh, 36px\)"/);
   assert.doesNotMatch(home, /data-testid="viewport-hud-corner-actions"|data-testid="button-open-support"/);
 });
 
@@ -50,7 +54,7 @@ test("coin and essence balances share a compact coordinated resource cluster", (
   // their original coin/essence + bundle-button grid.
   assert.match(topBar, /gridTemplateColumns: location === "\/" \? "max-content" : "auto 44px"/);
   assert.match(topBar, /flexBasis: location === "\/" \? "100%" : undefined/);
-  assert.match(topBar, /gridTemplateRows: location === "\/" \? "30px 30px 40px" : "30px 30px"/);
+  assert.match(topBar, /gridTemplateRows: location === "\/" \? "30px 30px 44px" : "30px 30px"/);
   assert.match(topBar, /data-testid="display-coin-balance"/);
   assert.doesNotMatch(topBar, /data-testid="button-coin-shop"/);
   assert.match(topBar, /gridColumn: 1/);
@@ -70,16 +74,16 @@ test("coin-bundle control is more visible without changing the coin shop destina
   assert.match(block, /title="Coin Bundles"/);
   assert.match(block, /navigate\("\/coins"\)/);
   assert.match(block, /gridRow: location === "\/" \? 3 : "1 \/ span 2"/);
-  assert.match(block, /width: location === "\/" \? 40 : 46/);
-  assert.match(block, /height: location === "\/" \? 40 : 46/);
+  assert.match(block, /width: location === "\/" \? 44 : 46/);
+  assert.match(block, /height: location === "\/" \? 44 : 46/);
   assert.match(block, /background: "transparent"/);
   assert.match(block, /border: "none"/);
   assert.match(block, /borderRadius: 0/);
   assert.match(block, /boxShadow: "none"/);
   assert.match(block, /drop-shadow\(1px 0 0 rgba\(238,196,105,0\.85\)\)/);
   assert.match(block, /linear-gradient\(145deg, #4f9258, #165130\)/);
-  assert.match(block, /width: location === "\/" \? 36 : 43/);
-  assert.match(block, /height: location === "\/" \? 36 : 43/);
+  assert.match(block, /width: location === "\/" \? 30 : 43/);
+  assert.match(block, /height: location === "\/" \? 30 : 43/);
   assert.match(block, /brightness\(1\.06\)/);
   assert.match(block, />\s*\+\s*<\/span>/);
 });
