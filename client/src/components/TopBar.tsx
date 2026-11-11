@@ -223,7 +223,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         placeItems: "center",
         position: "relative",
         background: location === "/" ? "transparent" : "radial-gradient(circle at 42% 35%, rgba(255,241,174,0.26) 0%, rgba(154,103,22,0.2) 48%, rgba(54,31,7,0.66) 100%)",
-        border: "1.5px solid rgba(240,192,64,0.86)",
+        border: location === "/"
+          ? "1.5px solid rgba(240,192,64,0.86)"
+          : "1.5px solid rgba(240,192,64,0.72)",
         borderRadius: location === "/" ? "50%" : 13,
         boxShadow: location === "/"
           ? "0 0 9px rgba(240,192,64,0.23)"
