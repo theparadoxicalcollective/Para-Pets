@@ -401,7 +401,8 @@ export default function PlayerClothingAdminPanel({
           </div>
           <button type="button" className={buttonClass+" w-full"}
             data-testid="avatar-save-clothing-artwork"
-            disabled={busy||metaDirty||!baseUnchanged||(!artworkDirty&&!needsAlignment&&!shoesLayerDirty)}
+            disabled={busy||metaDirty||!baseUnchanged||(!artworkDirty&&!needsAlignment&&!shoesLayerDirty)
+              ||(!savedSegments.length&&!artworkDirty)}
             onClick={()=>saveArtwork.mutate({
               draft:selected,images:{...pendingImages},removed:[...removedSlots],
               ...(selected.category === "shoes" ? { shoesLayer } : {}),
