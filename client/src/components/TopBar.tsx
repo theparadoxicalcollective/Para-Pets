@@ -217,8 +217,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
       style={{
         gridColumn: location === "/" ? 1 : 2,
         gridRow: location === "/" ? 3 : "1 / span 2",
-        width: location === "/" ? 34 : 46,
-        height: location === "/" ? 34 : 46,
+        width: location === "/" ? 44 : 46,
+        height: location === "/" ? 44 : 46,
         alignSelf: "center",
         justifySelf: "center",
         display: "grid",
@@ -535,7 +535,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               style={{
                 display: "grid",
                 gridTemplateColumns: location === "/" ? "max-content" : "auto 44px",
-                gridTemplateRows: location === "/" ? "30px 30px 40px" : "30px 30px",
+                gridTemplateRows: location === "/" ? "30px 30px 44px" : "30px 30px",
                 columnGap: 4,
                 rowGap: 2,
                 marginTop: location === "/" ? 17 : 0,
