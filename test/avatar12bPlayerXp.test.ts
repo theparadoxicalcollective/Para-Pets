@@ -32,16 +32,16 @@ test("player XP is primarily quest-based, account-owned, and monotonically level
     assert.equal(levelForPlayerTotalXp(threshold), level);
   }
   assert.deepEqual(playerProgressionResponse({ level: 1, totalXp: 120 }), {
-    level: 2, totalXp: 120, cycleXp: 120, stars: 0, canElevate: false,
-    nextLevelTotalXp: 240, xpToNextLevel: 120,
+    level: 2, totalXp: 120, cycleXp: 120, stars: 1, canElevate: false,
+    nextLevelTotalXp: 190, xpToNextLevel: 70,
   });
 });
 
-test("five intentional Seer Elevations reset only cycle XP, never lifetime XP or earned stars", () => {
+test("four future Seer Elevations advance a starting star to five without resetting lifetime XP", () => {
   assert.equal(planSeerElevation({ level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 }), null);
-  let current = { level: 1, totalXp: 0, stars: 0, cycleStartXp: 0 };
+  let current = { level: 1, totalXp: 0, stars: 1, cycleStartXp: 0 };
   const threshold = totalXpRequiredForPlayerLevel(PLAYER_MAX_LEVEL);
-  for (let star = 1; star <= PLAYER_MAX_STARS; star++) {
+  for (let star = 2; star <= PLAYER_MAX_STARS; star++) {
     assert.equal(canPlayerElevate(current), false);
     current = { ...current, totalXp: current.cycleStartXp + threshold, level: PLAYER_MAX_LEVEL };
     assert.equal(canPlayerElevate(current), true);
@@ -61,7 +61,7 @@ test("five intentional Seer Elevations reset only cycle XP, never lifetime XP or
   assert.equal(planSeerElevation(current), null);
   assert.equal(playerProgressionResponse(current).level, 100);
   // Any excess lifetime XP accrued at Level 100 must not skip the next journey.
-  const excess = { level: 100, totalXp: threshold + 500, stars: 0, cycleStartXp: 0 };
+  const excess = { level: 100, totalXp: threshold + 500, stars: 1, cycleStartXp: 0 };
   const elevated = planSeerElevation(excess);
   assert.ok(elevated);
   assert.equal(playerProgressionResponse(elevated).level, 1);
@@ -74,9 +74,10 @@ test("elevation state is additive and saved independently from pet progression",
   const migration = read("server/startup/migrations/ensurePlayerProgressionStorage.ts");
   const schema = read("shared/schema.ts");
   const storage = read("server/playerProgressionStorage.ts");
-  assert.match(migration, /ADD COLUMN IF NOT EXISTS stars integer NOT NULL DEFAULT 0/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS stars integer NOT NULL DEFAULT 1/);
+  assert.match(migration, /UPDATE player_progression SET stars = 1 WHERE stars = 0/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS cycle_start_xp integer NOT NULL DEFAULT 0/);
-  assert.match(schema, /stars: integer\("stars"\)\.notNull\(\)\.default\(0\)/);
+  assert.match(schema, /stars: integer\("stars"\)\.notNull\(\)\.default\(1\)/);
   assert.match(schema, /cycleStartXp: integer\("cycle_start_xp"\)\.notNull\(\)\.default\(0\)/);
   assert.match(storage, /stars: playerProgression\.stars/);
   assert.match(storage, /cycleStartXp: playerProgression\.cycleStartXp/);
@@ -127,7 +128,11 @@ test("small PvP, badge, fishing, and mini-game XP only attaches to saved events"
   assert.match(badges, /source: "gameplay_badge"/);
   const fishing = read("server/routes/fishing.routes.ts");
   assert.match(fishing, /result\.caught && !result\.replayed/);
-  assert.match(fishing, /source: "fishing_catch", eventId: playerXpDayKey\(\)/);
+  assert.match(fishing, /awardPlayerFishingCatchXp\(/);
+  assert.match(fishing, /\(result\.item as any\)\?\.starRarity/);
+  const progressionStorage = read("server/playerProgressionStorage.ts");
+  assert.match(progressionStorage, /source: "fishing_catch", eventId, amount/);
+  assert.match(progressionStorage, /FISHING_XP_DAILY_CAP/);
   for (const path of ["server/routes/lavaCrawl.routes.ts", "server/routes/moltenBlocks.routes.ts"]) {
     const source = read(path);
     assert.match(source, /source: "minigame_best"/);
