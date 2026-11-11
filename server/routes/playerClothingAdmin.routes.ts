@@ -291,7 +291,8 @@ export function registerPlayerClothingAdminRoutes(
     if (!parsed.success) return res.status(400).json({ message: "Choose valid PNG/WebP clothing artwork" });
     try {
       const [draft] = await db.select().from(playerClothingDrafts)
-        .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
+        .where(and(eq(playerClothingDrafts.id, String(req.params.id)),
+          isNull(playerClothingDrafts.deletedAt))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== parsed.data.expectedRevision) return res.status(409).json(conflict);
       const [base] = await db.select().from(playerCharacterBases)
@@ -372,7 +373,8 @@ export function registerPlayerClothingAdminRoutes(
       return res.status(400).json({ message: "Invalid clothing part, fitted position, or PNG/WebP upload" });
     try {
       const [draft] = await db.select().from(playerClothingDrafts)
-        .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
+        .where(and(eq(playerClothingDrafts.id, String(req.params.id)),
+          isNull(playerClothingDrafts.deletedAt))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== body.data.expectedRevision) return res.status(409).json(conflict);
       // Compatibility endpoint for OLD editor sessions only. Once an item
@@ -425,7 +427,8 @@ export function registerPlayerClothingAdminRoutes(
     if (!type.success || !body.success) return res.status(400).json({ message: "Invalid clothing part or revision" });
     try {
       const [draft] = await db.select().from(playerClothingDrafts)
-        .where(eq(playerClothingDrafts.id, String(req.params.id))).limit(1);
+        .where(and(eq(playerClothingDrafts.id, String(req.params.id)),
+          isNull(playerClothingDrafts.deletedAt))).limit(1);
       if (!draft) return res.status(404).json(notFound);
       if (draft.revision !== body.data.expectedRevision) return res.status(409).json(conflict);
       // Compatibility endpoint for OLD editor sessions only. Once an item
@@ -455,7 +458,8 @@ export function registerPlayerClothingAdminRoutes(
     try {
       const outcome = await db.transaction(async tx => {
         const [draft] = await tx.select().from(playerClothingDrafts)
-          .where(eq(playerClothingDrafts.id, String(req.params.id))).for("update");
+          .where(and(eq(playerClothingDrafts.id, String(req.params.id)),
+            isNull(playerClothingDrafts.deletedAt))).for("update");
         if (!draft) return { status: 404 as const, message: notFound.message };
         if (draft.revision !== body.data.expectedRevision)
           return { status: 409 as const, message: conflict.message };

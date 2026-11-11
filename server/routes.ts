@@ -22,7 +22,7 @@ import { PLAYER_XP_REWARDS } from "@shared/playerProgression";
 import { executeFishCatchRewardClaim } from "./fishCatchRewardClaim";
 import { FishSaleError, sellFish } from "./fishSale";
 import { db } from "./db";
-import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { encodeSceneBackground } from "./sceneBackgroundImage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
@@ -1338,7 +1338,8 @@ export async function registerRoutes(
           category: playerClothingDrafts.publishedCategory,
           segments: playerClothingDrafts.publishedSegments,
         }).from(playerClothingDrafts)
-          .where(eq(playerClothingDrafts.shopItemId, itemId)).limit(1);
+          .where(and(eq(playerClothingDrafts.shopItemId, itemId),
+            isNull(playerClothingDrafts.deletedAt))).limit(1);
         if (!design?.universal || !playerClothingDefinitionSchema.safeParse({
           name: shopItem.name, category: design.category, segments: design.segments,
         }).success)
