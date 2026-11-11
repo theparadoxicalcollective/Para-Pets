@@ -118,6 +118,24 @@ try {
         return r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= 0 && r.width >= 44;
       }));
     assert.ok(categoriesFit, name + ": all category buttons are on screen and touchable");
+    assert.equal(await page.locator('[data-testid^="avatar-category-"] img').count(), 8,
+      name + ": every wardrobe button displays uploaded icon art");
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('[data-testid^="avatar-category-"] img')]
+        .every(image => image.complete && image.naturalWidth > 0));
+    const iconFit = await page.locator('[data-testid^="avatar-category-"]').evaluateAll(buttons =>
+      buttons.every(button => {
+        const icon = button.querySelector("img");
+        if (!icon || !icon.getAttribute("src")?.startsWith("data:image/webp;base64,")) return false;
+        const circle = button.getBoundingClientRect(), art = icon.getBoundingClientRect();
+        return art.width > 30 && art.width <= circle.width
+          && art.height <= circle.height
+          && !!button.getAttribute("aria-label");
+      }));
+    assert.ok(iconFit, name + ": optimized transparent artwork fits all eight circles");
+    assert.ok((await page.locator(".player-avatar-page__header h1").evaluate(el =>
+      getComputedStyle(el).fontFamily)).includes("Playfair Display"),
+      name + ": title uses game typography");
 
     await page.getByTestId("avatar-create-button").tap();
     await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
