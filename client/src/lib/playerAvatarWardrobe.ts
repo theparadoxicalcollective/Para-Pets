@@ -56,6 +56,7 @@ export interface OwnedAvatarClothing {
   compatible: boolean;
   free?: boolean;
   universal?: boolean;
+  colorPickerEnabled?: boolean;
   segments: PlayerClothingSegment[];
   bodyVariants?: PlayerClothingBodyVariants | null;
 }
@@ -66,6 +67,8 @@ export interface EquippedAvatarClothing {
   shopItemId: string;
   name: string;
   imageUrl: string | null;
+  colorPickerEnabled?: boolean;
+  colorTint?: string | null;
   segments: PlayerClothingSegment[];
   bodyVariants?: PlayerClothingBodyVariants | null;
 }
@@ -102,6 +105,7 @@ export interface PlayerAvatarState {
 export interface AvatarClothingLayer {
   category: PlayerClothingCategory;
   inventoryId: string;
+  colorTint?: string | null;
   segments: readonly PlayerClothingSegment[];
 }
 
@@ -115,8 +119,8 @@ export function wardrobeLayers(
   const unavailable = new Set(avatar.unavailableEquipmentSlots);
   const equipped: AvatarClothingLayer[] = clearEquipped ? [] : avatar.equipped
     .filter(item => !unavailable.has(item.category))
-    .map(({ category, inventoryId, segments, bodyVariants }) => ({
-      category, inventoryId,
+    .map(({ category, inventoryId, segments, bodyVariants, colorTint }) => ({
+      category, inventoryId, colorTint,
       segments: clothingSegmentsForBody(segments, bodyVariants, selectedBodyName),
     }));
 
@@ -135,6 +139,7 @@ export function wardrobeLayers(
     equipped.push({
       category: chosen.category,
       inventoryId: chosen.inventoryId,
+      colorTint: avatar.equipped.find(e => e.inventoryId === chosen.inventoryId)?.colorTint ?? null,
       segments: clothingSegmentsForBody(
         chosen.segments, chosen.bodyVariants, selectedBodyName),
     });
