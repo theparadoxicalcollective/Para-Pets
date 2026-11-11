@@ -15,9 +15,10 @@ test("hair is recolorable for every existing style even without an old admin che
   }
   for (const category of PLAYER_CLOTHING_CATEGORIES) {
     if (category === "hair") continue;
-    assert.equal(playerClothingCanRecolor(category, false), false, category + " remains opt-in");
-    assert.equal(playerClothingCanRecolor(category), false, category + " remains off for legacy items");
-    assert.equal(playerClothingCanRecolor(category, true), true, category + " respects the admin toggle");
+    for (const oldFlag of [undefined, null, false, true]) {
+      assert.equal(playerClothingCanRecolor(category, oldFlag), false,
+        category + " always uses its original authored artwork");
+    }
   }
 });
 
@@ -57,7 +58,8 @@ test("creator always exposes hair color input and save/reset, also on first avat
   assert.match(server, /colorTint: playerClothingCanRecolor\(item\.category, item\.colorPickerEnabled\) \? entry\.colorTint : null/);
   assert.match(server, /playerClothingCanRecolor\(category, item\.colorPickerEnabled\)/);
   assert.match(server, /playerClothingCanRecolor\(slot, item\.colorPickerEnabled\)/);
-  assert.match(admin, /checked=\{playerClothingCanRecolor\(category, colorPickerEnabled\)\} disabled=\{busy \|\| category === "hair"\}/);
+  assert.doesNotMatch(admin, /data-testid="avatar-clothing-color-picker-enabled"/);
+  assert.match(admin, /colorPickerEnabled: category === "hair"/);
   assert.match(render, /layer\.colorTint && <span/);
   assert.match(render, /maskImage: `url\("\$\{layer\.segment\.imageUrl\}"\)`/);
   assert.match(render, /layer\.category === "hair" && isBackArtwork\(layer\)/);
