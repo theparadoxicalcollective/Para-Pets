@@ -43,9 +43,10 @@ const fit={xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,rotationDeg:0,
 const baseId="00000000-0000-4000-8000-000000000001";
 const publishedAt="2026-11-10T12:00:00.000Z";
 const mediaId=n=>"/api/media/00000000-0000-4000-8000-"+String(n).padStart(12,"0");
+// A complete admin-saved body has NO separate publication; clothing must work.
 const base={
-  id:baseId,name:"Fem",publishedAt,
-  publishedParts:partTypes.map((partType,index)=>({
+  id:baseId,name:"Fem",publishedAt:null,updatedAt:publishedAt,publishedParts:null,
+  draftParts:partTypes.map((partType,index)=>({
     partType,imageUrl:mediaId(index+1),
     xPct:50,yPct:50,widthPct:100,pivotXPct:50,pivotYPct:50,
     rotationDeg:0,zIndex:zIndex[partType],
