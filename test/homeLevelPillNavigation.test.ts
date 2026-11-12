@@ -21,8 +21,8 @@ test("Home player level gets its own forest-and-gold pill without changing XP ma
 });
 
 test("semicircular XP, level pill and curved pets retain short-phone clearance", () => {
-  assert.match(hudCss, /height: 94px/);
-  assert.match(hudCss, /height: 68px/);
+  assert.match(hudCss, /height: 66px/);
+  assert.match(hudCss, /height: 62px/);
   assert.match(hudCss, /\.home-player-hud__xp-arc-track/);
   assert.match(hudCss, /\.home-player-hud--avatar-home \.home-player-hud__party-panel/);
   assert.match(hudCss, /bottom: calc\(20px \+ env\(safe-area-inset-bottom/);
