@@ -48,7 +48,7 @@ test("link is per placed building, survives restart, and reuses legacy image wit
   assert.match(schema, /legacyLocationId: varchar\("legacy_location_id"\)\.references\(\(\) => worldLocations\.id, \{ onDelete: "set null" \}\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS legacy_location_id varchar/);
   assert.match(migration, /REFERENCES world_locations\(id\) ON DELETE SET NULL/);
-  assert.match(controls, /props\.selected\.legacyLocationId \?\? null/);
+  assert.match(controls, /props\.selected\?\.legacyLocationId \?\? null/);
   assert.match(controls, /patchLegacyPage\(id\)/);
   assert.match(controls, /legacyLocationId: id/);
   assert.match(controls, /setLegacyChoice\(\{ buildingId, pageId: id \}\)/);
