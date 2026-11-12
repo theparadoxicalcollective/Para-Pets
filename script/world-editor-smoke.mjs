@@ -331,14 +331,58 @@ try {
     for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
     const rect = await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
-    // World art uses the same select-then-double-tap-to-move gesture as Pet Park.
-    const centerX = rect.x + rect.width / 2, centerY = rect.y + rect.height / 2;
+    // The outer 26px of the source SVG are transparent. Its rectangular
+    // button must not select or move anything when touched there.
+    const transparentX = rect.x + rect.width * .03;
+    const transparentY = rect.y + rect.height * .03;
+    await page.mouse.click(transparentX, transparentY);
+    assert.equal(await page.getByTestId("world-scene-selected-controls").count(), 0,
+      name + ": transparent PNG padding never selects a World object");
+
+    // A swipe starting on initially unselected art is still a camera gesture.
+    // Only a stationary first tap may select, and only a subsequent gesture
+    // starting on the selected opaque art may move that object.
+    const writesBeforePan = apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length;
+    const firstX = rect.x + rect.width / 2, firstY = rect.y + rect.height / 2;
+    await page.mouse.move(firstX, firstY);
+    await page.mouse.down();
+    await page.mouse.move(firstX + 27, firstY + 24, { steps: 6 });
+    await page.mouse.up();
+    assert.equal(apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length,
+      writesBeforePan, name + ": unselected art swipes pan instead of moving decor");
+    assert.equal(await page.getByTestId("world-scene-selected-controls").count(), 0,
+      name + ": a drag is never mistaken for a first selection tap");
+
+    const rectAfterPan = await worldSprite.boundingBox();
+    assert.ok(rectAfterPan);
+    const centerX = rectAfterPan.x + rectAfterPan.width / 2;
+    const centerY = rectAfterPan.y + rectAfterPan.height / 2;
     await page.mouse.click(centerX, centerY);
     await page.getByTestId("world-scene-selected-controls").waitFor({ state: "visible" });
-    const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
-    await page.mouse.move(centerX, centerY);
+    assert.equal(apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length,
+      writesBeforePan, name + ": selection requires no movement/save/double tap");
+
+    // Background drag must keep the selected decor intact while panning.
+    const artTransformBefore = await page.locator("[data-world-editor-artwork]").getAttribute("style");
+    await page.mouse.move(26, height * .56);
     await page.mouse.down();
-    await page.mouse.move(rect.x + rect.width / 2 + 22, rect.y + rect.height / 2 + 28, { steps: 6 });
+    await page.mouse.move(66, height * .59, { steps: 7 });
+    await page.mouse.up();
+    await page.waitForFunction(previous =>
+      document.querySelector("[data-world-editor-artwork]")?.getAttribute("style") !== previous,
+      artTransformBefore);
+    assert.equal(apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length,
+      writesBeforePan, name + ": holding and dragging the background never moves selected decor");
+
+    // A gesture that BEGINS on the selected opaque pixels moves that object.
+    const rectBeforeMove = await worldSprite.boundingBox();
+    assert.ok(rectBeforeMove);
+    const moveX = rectBeforeMove.x + rectBeforeMove.width / 2;
+    const moveY = rectBeforeMove.y + rectBeforeMove.height / 2;
+    const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
+    await page.mouse.move(moveX, moveY);
+    await page.mouse.down();
+    await page.mouse.move(moveX + 22, moveY + 28, { steps: 6 });
     await page.mouse.up();
     await moveSaved;
     assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" && w.tail === "placements/" + ids.decor &&
