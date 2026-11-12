@@ -305,7 +305,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   return (
     <main className="player-avatar-page" data-testid="player-avatar-page" data-coordinate-owner="viewport">
       <div className="player-avatar-page__backdrop" aria-hidden="true" />
-      <div className="player-avatar-page__content">
+      <div className={`player-avatar-page__content ${avatar ? "player-avatar-page__content--editor" : ""}`}>
         <header className="player-avatar-page__header">
           <button type="button" className="player-avatar-page__back" aria-label={fromHome ? "Back to Home" : "Back to Bag"}
             onClick={() => navigate(fromHome ? "/" : "/bag")}>
