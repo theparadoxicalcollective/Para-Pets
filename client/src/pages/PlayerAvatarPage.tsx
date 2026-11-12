@@ -332,7 +332,7 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
           </section>
         ) : avatar ? (
           <>
-            <div className={`player-avatar-page__editor-layout ${wardrobeOpen || skinPickerOpen ? "player-avatar-page__editor-layout--panel-open" : ""}`}
+            <div className={`player-avatar-page__editor-layout ${wardrobeOpen || skinPickerOpen || avatarQuery.isError ? "player-avatar-page__editor-layout--panel-open" : ""}`}
               data-testid="avatar-editor-layout">
             <div className="player-avatar-page__editor-stage" data-testid="avatar-editor-stage">
             <div className="player-avatar-page__showcase" aria-label="Character viewer and wardrobe categories">
@@ -538,9 +538,12 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
                     <button type="button" data-testid="avatar-unequip-button"
                       className="player-avatar-page__remove"
                       disabled={busy || (!draftOutfit[category] && !unavailableEquipped)}
-                      onClick={() => setPreviewSelections(current => ({
-                        ...current, [category]: null,
-                      })); showSparkle(); }}>
+                      onClick={() => {
+                        setPreviewSelections(current => ({
+                          ...current, [category]: null,
+                        }));
+                        showSparkle();
+                      }}>
                       Remove
                     </button>
                   </div>
