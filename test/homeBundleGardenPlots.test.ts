@@ -81,4 +81,9 @@ test("Home plot art is shown under normal buildings without altering the garden 
   assert.match(art, /type === "garden_plot"/);
   assert.match(art, /polygon\(50% 0%, 100% 50%, 50% 100%, 0% 50%\)/);
   assert.doesNotMatch(home, /\/api\/pet-park\/garden\/plots.*homeBundleGardenPlots/);
+  const visitor = read("client/src/pages/VisitPetHousePage.tsx");
+  assert.match(visitor, /data-testid="visitor-home-garden-plot-layer"/);
+  assert.match(visitor, /homeBundleGardenPlots\.map\(plot =>/);
+  assert.match(visitor, /<PetParkTerrainDetail type="garden_plot"/);
+  assert.match(visitor, /style=\{\{ zIndex: 3 \}\}/);
 });
