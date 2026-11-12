@@ -3,6 +3,7 @@ import type { ParkShopPlacement } from "../petParkShopPlacements";
 import { isValidParkDecorEffects } from "../petParkDecorEffects";
 import { isParkEffect, type ParkEffectType } from "../petParkEffects";
 import { isPaintableParkTerrainDetail } from "../petParkTerrainDetails";
+import type { DecorSurface } from "../decorSurface";
 
 export type WorldAssetKind = "decor" | "building";
 export type WorldScenePlacementKind = WorldAssetKind | "effect" | "terrain" | "npc";
@@ -22,7 +23,7 @@ export type WorldScenePlacement = {
   interiorDarkness: number;
   interiorNightDarkness: number | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
-  decorEffects: ParkDecorEffect[]; isWaterSource: boolean;
+  decorEffects: ParkDecorEffect[]; isWaterSource: boolean; decorSurface: DecorSurface;
   isShop: boolean; legacyLocationId: string | null;
   shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
 };
