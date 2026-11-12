@@ -34,11 +34,12 @@ type Props = {
   onChange: (id: string | null) => void;
   disabled?: boolean;
   preview?: boolean;
+  compact?: boolean;
 };
 
 /** Shared by initial building creation and per-building edit controls. */
 export default function WorldLegacyPagePicker({
-  worldId, value, onChange, disabled, preview = false,
+  worldId, value, onChange, disabled, preview = false, compact = false,
 }: Props) {
   const pages = useWorldLegacyPages(worldId);
   const selected = pages.data?.find(page => page.id === value);
@@ -50,15 +51,16 @@ export default function WorldLegacyPagePicker({
     byWorld.set(key, group);
   }
 
-  return <div className="space-y-1" data-testid="world-legacy-page-picker">
+  return <div className={compact ? "min-w-[105px] flex-1" : "space-y-1"}
+    data-testid="world-legacy-page-picker">
     <label className="block text-xs font-semibold text-[#f3d890]">
-      Add Old World Page
+      <span className={compact ? "sr-only" : "block"}>Add Old World Page</span>
       <select aria-label="Add Old World Page"
         data-testid="select-world-legacy-page"
-        className="mt-1 min-h-11 w-full rounded-lg border border-[#aa8d54]/75 bg-[#173b2a] px-2 text-xs text-[#f7e5b6]"
+        className={`${compact ? "min-h-10" : "mt-1 min-h-11"} w-full min-w-0 rounded-lg border border-[#aa8d54]/75 bg-[#173b2a] px-2 text-xs text-[#f7e5b6]`}
         value={value ?? ""} disabled={disabled || pages.isLoading || pages.isError}
         onChange={event => onChange(event.target.value || null)}>
-        <option value="">No old page linked</option>
+        <option value="">{compact ? "Add Old World Page" : "No old page linked"}</option>
         {Array.from(byWorld, ([name, group]) => <optgroup key={name} label={name}>
           {group.map(page => <option key={page.id} value={page.id}>
             {page.name}{page.isShop ? " · Shop" : ""}
