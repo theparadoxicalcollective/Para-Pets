@@ -335,11 +335,6 @@
   box-shadow: none;
   pointer-events: none;
 }
-.home-player-hud--avatar-home .home-player-hud__team {
-  max-width: 480px;
-  gap: clamp(3px, 1vw, 8px);
-  pointer-events: none;
-}
 .home-player-hud__slot-portrait {
   position: absolute;
   inset: 3px;
@@ -349,12 +344,6 @@
   border-radius: 50%;
   opacity: 1;
   pointer-events: none;
-}
-.home-player-hud--avatar-home .home-player-hud__slot {
-  overflow: visible;
-  width: min(100%, clamp(56px, 17vw, 76px));
-  border-width: 2px;
-  pointer-events: auto;
 }
 .home-player-hud__slot-stars {
   position: absolute;
@@ -381,14 +370,6 @@
   margin: 0;
   min-height: 0;
   font-size: 10px;
-}
-@media (max-height: 690px) {
-  .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
-  }
-  .home-player-hud--avatar-home .home-player-hud__slot {
-    width: min(100%, clamp(58px, 17vw, 68px));
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__stars img,
@@ -456,15 +437,6 @@
   letter-spacing: .035em;
   filter: drop-shadow(0 0 3px rgba(243, 201, 108, .58));
 }
-.home-player-hud--avatar-home .home-player-hud__progress--moving {
-  pointer-events: auto;
-  touch-action: none;
-  cursor: grab;
-}
-.home-player-hud--avatar-home .home-player-hud__progress--moving:active { cursor: grabbing; }
-.home-player-hud--avatar-home .home-player-hud__progress--moving .home-player-hud__xp-arc {
-  filter: drop-shadow(0 0 5px rgba(251, 219, 132, .72));
-}
 .home-player-hud--avatar-home .home-player-hud__xp-admin-tools {
   position: absolute;
   right: 0;
@@ -481,9 +453,6 @@
   color: #f8e1a6;
   font-size: 10px;
   white-space: normal;
-}
-.home-player-hud--avatar-home .home-player-hud__progress--moving .home-player-hud__xp-admin-tools {
-  top: -79px;
 }
 .home-player-hud__xp-admin-tools button {
   padding: 5px 8px;
@@ -510,55 +479,109 @@
   padding: 4px;
   background: rgba(6, 28, 18, .87);
 }
-/* Five larger companions sit on small shadow ovals rather than circles.
-   Higher outer positions make a shallow curve around the main avatar. */
+/* The five portraits form a real depth carousel, not a 5-column grid.
+   Old 58/68/88px caps and short-phone shrink overrides were removed. Every
+   position has an explicit scene-relative width and bottom anchor so the
+   center pet is visibly larger on phones AND tablets. */
 .home-player-hud--avatar-home .home-player-hud__party-panel {
-  width: min(calc(100vw - 20px), 470px);
-  padding: 10px 2px 0;
+  bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+  width: min(calc(100% - 8px), 560px);
+  padding: 0;
 }
 .home-player-hud--avatar-home .home-player-hud__team {
-  max-width: 465px;
+  position: relative;
+  display: block;
   width: 100%;
-  gap: clamp(2px, .8vw, 6px);
-  align-items: end;
-  grid-auto-rows: clamp(68px, 19vw, 95px);
+  max-width: 540px;
+  height: clamp(169px, 23dvh, 232px);
+  margin-inline: auto;
+  overflow: visible;
+  pointer-events: auto;
+  touch-action: pan-y;
+  outline-offset: 2px;
+}
+.home-player-hud--avatar-home .home-player-hud__team:focus-visible {
+  outline: 2px solid #f4d58d;
+  border-radius: 12px;
 }
 .home-player-hud--avatar-home .home-player-hud__slot {
-  width: min(100%, clamp(65px, 19vw, 88px));
-  aspect-ratio: 1 / 1.08;
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  display: block;
+  box-sizing: border-box;
+  width: clamp(85px, 23vw, 112px);
+  height: auto;
+  aspect-ratio: 1 / 1.07;
+  transform: translateX(-50%);
   padding: 0;
   overflow: visible;
   border: 0;
   border-radius: 0;
-  background: none;
+  background: transparent;
   box-shadow: none;
   isolation: isolate;
+  touch-action: pan-y;
+  pointer-events: auto;
+  transition: left 270ms ease, bottom 270ms ease, width 270ms ease;
 }
-/* Five pet feet form one deliberate, symmetrical downward arc. */
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(1),
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-24px); }
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(2),
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(4) { transform: translateY(-9px); }
-.home-player-hud--avatar-home .home-player-hud__slot:nth-child(3) { transform: translateY(5px); }
+/* Each oval is at its pet's feet, not centered behind its body. */
 .home-player-hud--avatar-home .home-player-hud__slot::before {
   content: "";
   position: absolute;
   bottom: 0;
-  left: 7%;
-  width: 86%;
-  height: 17%;
-  border: 1px solid rgba(204, 181, 115, .32);
+  left: 8%;
+  width: 84%;
+  height: 12%;
+  border: 1px solid rgba(204, 181, 115, .35);
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(31, 75, 46, .68) 0%, rgba(8, 30, 17, .9) 66%, rgba(2, 13, 9, .35) 100%);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, .6), inset 0 1px 3px rgba(232, 212, 149, .13);
+  background: radial-gradient(ellipse, rgba(31, 75, 46, .7) 0%, rgba(8, 30, 17, .92) 72%, rgba(2, 13, 9, .3) 100%);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, .55), inset 0 1px 3px rgba(232, 212, 149, .14);
+  z-index: 0;
   pointer-events: none;
 }
+/* Outer pair: larger than the old thumbnails, but smaller and higher
+   than the near-center and frontmost pets. */
+.home-player-hud--avatar-home .home-player-hud__slot--position-0 {
+  left: 10%;
+  bottom: 49px;
+  width: clamp(85px, 23vw, 112px);
+  z-index: 1;
+}
+.home-player-hud--avatar-home .home-player-hud__slot--position-1 {
+  left: 30%;
+  bottom: 29px;
+  width: clamp(105px, 28vw, 141px);
+  z-index: 3;
+}
+.home-player-hud--avatar-home .home-player-hud__slot--position-2 {
+  left: 50%;
+  bottom: 0;
+  width: clamp(140px, 37vw, 187px);
+  z-index: 5;
+}
+.home-player-hud--avatar-home .home-player-hud__slot--position-3 {
+  left: 70%;
+  bottom: 29px;
+  width: clamp(105px, 28vw, 141px);
+  z-index: 4;
+}
+.home-player-hud--avatar-home .home-player-hud__slot--position-4 {
+  left: 90%;
+  bottom: 49px;
+  width: clamp(85px, 23vw, 112px);
+  z-index: 2;
+}
+/* The pet composites, accessories and mini companions share one scalable slot.
+   The renderer's 58px internal logical size no longer limits visible artwork. */
 .home-player-hud--avatar-home .home-player-hud__slot-portrait {
-  inset: -2px 2px 2px;
+  position: absolute;
+  inset: -4px -3px 4px;
   display: block;
-  overflow: visible;
   border: 0;
   border-radius: 0;
+  overflow: visible;
+  opacity: 1;
   z-index: 1;
 }
 .home-player-hud__fallback-pet,
@@ -577,15 +600,27 @@
 .home-player-hud__fallback-pet { object-fit: contain; }
 .home-player-hud__slot-portrait:has(.home-player-hud__pet-renderer [data-testid="pet-animator"] img)
   > .home-player-hud__fallback-pet { opacity: 0; }
+.home-player-hud--avatar-home .home-player-hud__pet-renderer {
+  display: grid;
+  place-items: center;
+  transform: translateY(6px) scale(1.17);
+  transform-origin: center bottom;
+}
+.home-player-hud--avatar-home .home-player-hud__pet-renderer > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+.home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__pet-renderer {
+  transform: translateY(6px) scale(1.24);
+}
 .home-player-hud__mini-companion {
   position: absolute;
-  right: -9%;
-  bottom: 6%;
-  width: 43%;
+  right: -12%;
+  bottom: 10%;
+  width: 48%;
   aspect-ratio: 1;
   z-index: 3;
   pointer-events: none;
-  /* Mini Pet PNG edges are already authored: no hard gold outline. */
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
 }
 .home-player-hud__slot-placeholder {
@@ -596,9 +631,9 @@
   z-index: 1;
   pointer-events: none;
 }
-.home-player-hud__slot-placeholder img {
-  width: 72%;
-  height: 72%;
+.home-player-hud--avatar-home .home-player-hud__slot-placeholder img {
+  width: 70%;
+  height: 70%;
   object-fit: contain;
   filter: grayscale(1) brightness(1.8) contrast(.78) drop-shadow(0 1px 3px #000);
   opacity: .62;
@@ -613,74 +648,37 @@
   opacity: 1;
   text-shadow: 0 2px 4px #001b10, 0 0 8px #001b10;
 }
-.home-player-hud--avatar-home .home-player-hud__slot-stars { top: -28px; }
+.home-player-hud--avatar-home .home-player-hud__slot-stars {
+  top: -38px;
+  z-index: 6;
+}
+.home-player-hud--avatar-home .home-player-hud__slot--position-2 .home-player-hud__slot-stars { top: -48px; }
+.home-player-hud--avatar-home .home-player-hud__slot--position-0 .home-player-hud__slot-stars,
+.home-player-hud--avatar-home .home-player-hud__slot--position-4 .home-player-hud__slot-stars { top: -30px; }
 .home-player-hud--avatar-home .home-player-hud__slot:disabled {
   opacity: 1;
   cursor: progress;
 }
-/* Saving/error status remains readable but never changes bottom-anchored row height. */
 .home-player-hud--avatar-home .home-player-hud__status {
   position: absolute;
-  top: 100%; left: 0; right: 0;
-  min-height: 0; margin: 0; pointer-events: none;
+  top: 100%;
+  left: 0;
+  right: 0;
+  min-height: 0;
+  margin: 0;
+  pointer-events: none;
 }
+/* Short viewports reduce arc *height*, never return pet artwork to thumbnail size. */
 @media (max-height: 690px) {
-  .home-player-hud--avatar-home .home-player-hud__progress {
-    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 12px));
+  .home-player-hud--avatar-home .home-player-hud__team {
+    height: clamp(143px, 21dvh, 178px);
   }
-  .home-player-hud--avatar-home .home-player-hud__slot {
-    width: min(100%, clamp(58px, 17.5vw, 69px));
-  }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-0,
+  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 34px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-1,
+  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 19px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .home-player-hud--avatar-home .home-player-hud__slot { transition: none; }
   .home-player-hud__xp-arc-fill { transition: none; }
-}
-
-/* The renderer's logical canvas is 58px, NOT the old default 200px.
-   Center it within a real pet slot to prevent oversized silhouettes and
-   visual overlap while retaining individual adornments and eye blinks. */
-.home-player-hud--avatar-home .home-player-hud__pet-renderer {
-  display: grid;
-  place-items: center;
-}
-.home-player-hud--avatar-home .home-player-hud__pet-renderer > * {
-  max-width: 100%;
-  max-height: 100%;
-}
-/* Pet size and ornament positions stay tied to their own slot, not to
-   the overall page height. Preserve the animator's House-mode blink. */
-.home-player-hud--avatar-home .home-player-hud__pet-renderer {
-  /* The composite shares its foot line with the oval, not the slot center. */
-  transform: translateY(6px) scale(1.16);
-  transform-origin: center bottom;
-}
-.home-player-hud--avatar-home .home-player-hud__slot-placeholder img {
-  width: 72%;
-  height: 72%;
-}
-@media (max-height: 690px) {
-  .home-player-hud--avatar-home .home-player-hud__party-panel {
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  }
-  /* Compress the visual arc on short phones, without shortening XP math
-     or taking touch area from the five pets. */
-  .home-player-hud--avatar-home .home-player-hud__progress {
-    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 12px));
-    width: min(calc(100vw - 28px), clamp(170px, var(--home-xp-art-width, 220px), 330px));
-  }
-  .home-player-hud--avatar-home .home-player-hud__xp-row,
-  .home-player-hud--avatar-home .home-player-hud__xp-track,
-  .home-player-hud--avatar-home .home-player-hud__xp-arc { height: auto; }
-  .home-player-hud--avatar-home .home-player-hud__slot:nth-child(1),
-  .home-player-hud--avatar-home .home-player-hud__slot:nth-child(5) { transform: translateY(-17px); }
-  .home-player-hud--avatar-home .home-player-hud__slot:nth-child(2),
-  .home-player-hud--avatar-home .home-player-hud__slot:nth-child(4) { transform: translateY(-7px); }
-}
-
-/* Smaller phone viewports keep companions above their ovals without clipping. */
-@media (max-height: 690px) {
-  .home-player-hud--avatar-home .home-player-hud__pet-renderer {
-    transform: translateY(4px) scale(1.09);
-  }
-  .home-player-hud--avatar-home .home-player-hud__slot-stars { top: -25px; }
 }
