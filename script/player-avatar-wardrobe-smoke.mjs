@@ -412,7 +412,6 @@ try {
     const wornBeforeReset=avatar.equipped.length;
     assert.ok(wornBeforeReset>0);
     const writesBeforeReset=writes.length;
-    const showcaseRect=await page.getByTestId("avatar-character-viewer").boundingBox();
     await page.getByTestId("avatar-reset-character").tap();
     assert.equal(writes.length,writesBeforeReset,name + ": reset does not write");
     assert.equal(await page.locator('[data-clothing-key]').count(),0,
@@ -426,6 +425,10 @@ try {
     assert.deepEqual(avatar.equipped,[]);
     assert.equal(avatar.ownedClothing.length,owned.length);
     await page.getByTestId("avatar-category-head").tap();
+    // Opening the wardrobe deliberately switches from a centered stage to
+    // a compact stage. Check that *scrolling inside the wardrobe* does not
+    // move the character, not that opening a new panel never resizes it.
+    const showcaseRect=await page.getByTestId("avatar-character-viewer").boundingBox();
     const details = page.getByTestId("avatar-scrollable-details");
     await details.evaluate(el => { el.scrollTop = el.scrollHeight; });
     const finalRect = await page.getByTestId("avatar-character-viewer").boundingBox();
