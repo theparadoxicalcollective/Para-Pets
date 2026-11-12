@@ -310,7 +310,7 @@ export default function WorldShopShelf({
     </div>
     {selected && selectedItem && !showPicker && <ViewportModalPortal blocking={false}>
       <div className="pointer-events-none absolute inset-x-2 z-[60] flex justify-center"
-        style={{ bottom: "max(175px, calc(env(safe-area-inset-bottom, 0px) + 162px))" }}>
+        style={{ bottom: "max(16px, env(safe-area-inset-bottom, 0px))" }}>
         <div aria-label="Edit shop item artwork" data-testid="world-shop-edit-toolbar"
           onPointerDown={event => event.stopPropagation()}
           className="pointer-events-auto flex w-full max-w-[380px] flex-wrap items-center justify-center gap-2 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl">
@@ -345,7 +345,7 @@ export default function WorldShopShelf({
       </div>
       {!draggingItem && <div data-testid="world-shop-price-preview"
         className="pointer-events-auto absolute right-2 z-[60] flex w-[174px] flex-col items-center gap-1.5 rounded-xl border border-[#d8b972]/85 bg-[#102d20]/95 p-2 text-[#f2d49b] shadow-xl"
-        style={{ bottom: "max(282px, calc(env(safe-area-inset-bottom, 0px) + 267px))" }}
+        style={{ bottom: "max(132px, calc(env(safe-area-inset-bottom, 0px) + 122px))" }}
         onPointerDown={event => event.stopPropagation()}>
         <strong className="text-[11px]">Position price tag</strong>
         <div ref={pricePreviewRef} data-testid="world-shop-price-preview-art"
