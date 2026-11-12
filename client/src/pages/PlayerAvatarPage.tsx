@@ -169,8 +169,6 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const skinTone = skinChoice === undefined ? avatar?.skinTone ?? null : skinChoice;
   const topTucked = tuckChoice?.accountId === userId
     ? tuckChoice.value : avatar?.topTucked ?? false;
-  const toneChanged = !!avatar?.created && skinTone !== (avatar.skinTone ?? null);
-  const appearanceChanged = switchingBody || toneChanged || resetPending;
   const canWearOnBody = (item: OwnedAvatarClothing): boolean => {
     if (item.isListed || item.quantity <= 0 || !selectedBody) return false;
     if (item.universal) return true;
@@ -182,10 +180,11 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
   // Reopening a wardrobe shows the saved item as selected. The user does not
   // need to select it a second time just to adjust its color.
-  const activePreviewId = previewSelections[category] ??
-    (avatar?.created && !resetPending
-      ? avatar.equipped.find(item => item.category === category)?.inventoryId
-      : null) ?? null;
+  const activePreviewId = previewSelections[category] !== undefined
+    ? previewSelections[category]
+    : avatar?.created && !resetPending
+      ? avatar.equipped.find(item => item.category === category)?.inventoryId ?? null
+      : null;
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
     item.inventoryId === activePreviewId && canWearOnBody(item)
   );
