@@ -120,6 +120,7 @@ async function readPlayerAvatar(db: Db, userId: string) {
       name: item.name, imageUrl: item.mainImageUrl || item.imageUrl, category: parsed.data.category,
       quantity: item.quantity, isListed: item.isListed,
       compatible, universal: item.universal, free: false,
+      designBaseId: item.baseId, designBasePublishedAt: item.basePublishedAt,
       colorPickerEnabled: playerClothingCanRecolor(parsed.data.category, item.colorPickerEnabled), segments: parsed.data.segments,
       bodyVariants: item.bodyVariants,
     }];
