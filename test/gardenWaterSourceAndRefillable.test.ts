@@ -124,10 +124,15 @@ test("Admin Realm toggles preserve existing item and decor positioning workflows
   const gardenAdmin = read("client/src/components/GardenAdminPanel.tsx");
   const schema = read("shared/schema.ts");
   const migration = read("server/startup/migrations/ensureGardenStorage.ts");
-  assert.match(parkAdmin, /aria-label="Water Source"/);
-  assert.match(parkAdmin, /isWaterSource: newWaterSource/);
-  assert.match(parkPage, /data-testid="park-decoration-water-source"/);
-  assert.match(parkPage, /items\/\$\{id\}\/water-source/);
+  const selector = read("client/src/components/DecorSurfaceSelector.tsx");
+  assert.match(selector, /aria-label=\{option.label\}/);
+  assert.match(selector, /value: "water", label: "Water Source"/);
+  assert.match(parkAdmin, /testId="park-new-decor-behavior"/);
+  assert.match(parkAdmin, /decorRoleUpdate\(newDecorRole\)/);
+  assert.match(parkPage, /testId="park-decoration-behavior"/);
+  assert.match(parkPage, /items\/\$\{id\}\/surface/);
+  assert.match(parkSource, /items\/:id\/water-source", isAdmin/,
+    "legacy Water Source API remains available");
   assert.match(gardenAdmin, /aria-label="Refillable"/);
   const itemEditor = read("client/src/components/ItemDatabaseSection.tsx");
   assert.match(itemEditor, /data-testid="admin-item-refillable-toggle"/);
