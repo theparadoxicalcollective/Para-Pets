@@ -242,6 +242,7 @@ try {
     const creationLegacy = page.getByTestId("world-building-legacy-picker")
       .getByTestId("select-world-legacy-page");
     await creationLegacy.waitFor({ state: "visible" });
+    await creationLegacy.locator("optgroup").first().waitFor({ state: "attached" });
     assert.equal(await creationLegacy.locator("optgroup").count(), 2,
       name + ": original world pages are grouped by their old world");
     await creationLegacy.selectOption(legacyPages[0].id);
