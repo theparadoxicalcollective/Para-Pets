@@ -96,7 +96,8 @@ test("skin tone persists on player profiles, uses original artwork opt-out and H
   assert.match(server, /if \(!sameBase\) \{/);
   assert.match(editor, /avatar-skin-tone-picker/);
   assert.match(editor, /avatar-custom-skin/);
-  assert.match(editor, /Save Appearance/);
+  assert.match(editor, /"Save Character"/);
+  assert.match(editor, /"avatar-save-character-button"/);
   assert.match(renderer, /player-character-renderer__skin-tint/);
   assert.match(home, /onClick=\{onOpen\}/);
   assert.match(home, /skinTone=\{avatar.data\?\.skinTone \?\? null\}/);
