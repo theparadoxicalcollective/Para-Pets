@@ -216,3 +216,27 @@ test("browser CI includes an actual world editor phone/tablet fixture", () => {
   assert.match(smoke, /petParkRequests/);
   assert.match(smoke, /publicWorldRequests/);
 });
+
+test("one tap selects only visible world artwork; dragging the scene never moves the selected object", () => {
+  const editor = readFileSync("client/src/pages/WorldSceneEditorPage.tsx", "utf8");
+  const controls = readFileSync("client/src/components/world-editor/WorldSceneControls.tsx", "utf8");
+  const picker = readFileSync("client/src/lib/petParkAdminSelection.ts", "utf8");
+  const hit = readFileSync("client/src/lib/petParkImageHit.ts", "utf8");
+  assert.match(editor, /const pendingObjectTap = useRef/);
+  assert.match(editor, /pickParkAdminArtwork\(art, event\.clientX, event\.clientY/);
+  assert.match(editor, /pendingObjectTap\.current = item \?/);
+  assert.match(editor, /Math\.hypot\(event\.clientX - tap\.x, event\.clientY - tap\.y\) < 7/);
+  assert.match(editor, /setSelectedId\(tap\.id\)/);
+  assert.match(editor, /kind === "outdoor" && selectedId !== item\.id\) return false/);
+  assert.match(editor, /startCamera\(event\)/);
+  assert.match(editor, /Math\.hypot\(event\.clientX - drag\.clientX, event\.clientY - drag\.clientY\) < 7/);
+  assert.match(editor, /if \(pinch\.current\) return/);
+  assert.doesNotMatch(editor, /doubleTap|lastObjectTap|moveArmedId/);
+  assert.match(controls, /Drag selected artwork to move · swipe background to pan/);
+  assert.doesNotMatch(controls, /Double-tap artwork to move/);
+  assert.match(picker, /!image \|\| !parkImageHitAt\(image, clientX, clientY, object\.flipped\)/);
+  assert.match(hit, /mask\[pixelY \* MASK_SIZE \+ pixelX\] > ALPHA_THRESHOLD/);
+  assert.match(editor, /if \(event\.detail === 0\) setSelectedId\(p\.id\)/);
+  assert.match(editor, /drop-shadow\(1px 0 0 #efca79\)/,
+    "selection outline follows the visible art rather than the PNG bounds");
+});
