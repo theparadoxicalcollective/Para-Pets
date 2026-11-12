@@ -545,13 +545,13 @@
    than the near-center and frontmost pets. */
 .home-player-hud--avatar-home .home-player-hud__slot--position-0 {
   left: 10%;
-  bottom: 49px;
+  bottom: 33px;
   width: clamp(85px, 23vw, 112px);
   z-index: 1;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-1 {
   left: 30%;
-  bottom: 29px;
+  bottom: 18px;
   width: clamp(105px, 28vw, 141px);
   z-index: 3;
 }
@@ -563,13 +563,13 @@
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-3 {
   left: 70%;
-  bottom: 29px;
+  bottom: 18px;
   width: clamp(105px, 28vw, 141px);
   z-index: 4;
 }
 .home-player-hud--avatar-home .home-player-hud__slot--position-4 {
   left: 90%;
-  bottom: 49px;
+  bottom: 33px;
   width: clamp(85px, 23vw, 112px);
   z-index: 2;
 }
@@ -675,9 +675,9 @@
     height: clamp(143px, 21dvh, 178px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot--position-0,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 34px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-4 { bottom: 24px; }
   .home-player-hud--avatar-home .home-player-hud__slot--position-1,
-  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 19px; }
+  .home-player-hud--avatar-home .home-player-hud__slot--position-3 { bottom: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-player-hud--avatar-home .home-player-hud__slot { transition: none; }
