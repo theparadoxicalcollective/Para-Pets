@@ -20,14 +20,19 @@ test("Home enlarges and raises the avatar's five Elevation stars, not the pet ra
 
 test("Home XP forms a more semicircular arc with accessible proportional progress", () => {
   assert.match(homeHud, /className="home-player-hud__xp-arc"/);
-  assert.match(homeHud, /d="M 26 8 Q 160 162 294 8"/);
+  assert.match(homeHud, /d="M 22 8 Q 160 112 298 8"/);
   assert.match(homeHud, /strokeDashoffset=\{100 - xpFillPct\}/);
+  assert.match(homeHud, /xpFillPct !== null && xpFillPct > 0/);
+  assert.match(homeHud, /className="home-player-hud__xp-arc-rim"/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-track \{\s*stroke: #122b1d/);
+  assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: rgba\(210, 181, 113, \.6\)/);
+  assert.match(homeHud, /xpEarnedThisLevel\.toLocaleString\(\)/);
   assert.match(homeHud, /pathLength=\{100\}/);
   assert.match(homeHud, /role="progressbar"/);
   assert.match(homeHud, /aria-valuenow=\{xpFillPct === null/);
   assert.match(homeHud, /totalXpRequiredForPlayerLevel\(player\.level\)/);
   assert.match(homeHud, /: <span aria-hidden="true" style=\{xpFillPct === null/);
-  assert.match(homeCss, /width: min\(calc\(100vw - 108px\), 285px\)/);
+  assert.match(homeCss, /width: min\(calc\(100vw - 108px\), 265px\)/);
 });
 
 test("pet team keeps five editable hit targets but no circular frames or helper copy", () => {
@@ -37,6 +42,10 @@ test("pet team keeps five editable hit targets but no circular frames or helper 
   assert.match(homeHud, /src=\{emptyPetIcon\}/);
   assert.match(homeHud, /\{id \? "!" : "\+"\}/);
   assert.match(homeCss, /home-player-hud__slot::before/);
+  assert.match(homeCss, /border: 1px solid rgba\(204, 181, 115, \.32\)/);
+  assert.match(homeCss, /translateY\(-24px\)/);
+  assert.match(homeCss, /translateY\(-9px\)/);
+  assert.match(homeCss, /translateY\(5px\)/);
   assert.match(homeCss, /border-radius: 50%/);
   assert.match(homeCss, /home-player-hud__slot:nth-child\(1\)/);
   assert.match(homeCss, /border: 0;\s*border-radius: 0;\s*background: none/);
