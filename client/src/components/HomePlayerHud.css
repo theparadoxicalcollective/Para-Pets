@@ -316,16 +316,8 @@
   border: 1.5px solid rgba(234, 199, 119, .72);
   box-shadow: 0 2px 7px rgba(0, 0, 0, .7);
 }
-/* Home XP numbers are drawn inside the left side of the SVG groove. */
-.home-player-hud--avatar-home svg .home-player-hud__xp-text {
-  fill: rgba(240, 222, 167, .84);
-  stroke: rgba(3, 23, 13, .92);
-  stroke-width: 2px;
-  paint-order: stroke fill;
-  font: 600 15px Georgia, serif;
-  letter-spacing: .02em;
-  font-variant-numeric: tabular-nums;
-}.home-player-hud--avatar-home .home-player-hud__party-panel {
+/* XP counts remain in the progressbar accessible label, hidden visually on Home. */
+.home-player-hud--avatar-home .home-player-hud__party-panel {
   position: absolute;
   left: 50%;
   bottom: calc(32px + env(safe-area-inset-bottom, 0px));
@@ -398,7 +390,10 @@
     top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 28px);
   }
   .home-player-hud--avatar-home .home-player-hud__slot {
-    width: min(100%, clamp(48px, 15vw, 63px));
+    width: min(100%, clamp(58px, 17vw, 68px));
+  }
+  .home-player-hud--avatar-home .home-player-hud__pet-renderer {
+    transform: scale(1.23);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -435,7 +430,7 @@
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 320 / 130;
+  /* The SVG viewBox follows the saved curve depth. */
   overflow: visible;
 }
 .home-player-hud__xp-arc path {
@@ -443,25 +438,19 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-/* Dark recessed channel with a *thin* metallic edge. At zero XP the
-   channel stays empty: no gold or green progress stroke is painted. */
-.home-player-hud__xp-arc-shadow {
-  stroke: rgba(0, 10, 6, .75);
-  stroke-width: 8px;
-}
+/* A thick glowing outer rim with a recessed forest-green channel.
+   At zero XP, no green earned fill is painted. */
+.home-player-hud__xp-arc-shadow { stroke: rgba(0, 12, 7, .88); stroke-width: 15px; }
 .home-player-hud__xp-arc-rim {
-  stroke: rgba(210, 181, 113, .72);
-  stroke-width: 5px;
-  filter: drop-shadow(0 0 3px rgba(238, 198, 101, .48));
+  stroke: #eed28e;
+  stroke-width: 10px;
+  filter: drop-shadow(0 0 5px rgba(255, 226, 140, .75))
+    drop-shadow(0 0 9px rgba(228, 181, 79, .4));
 }
-.home-player-hud__xp-arc-track {
-  stroke: #122b1d;
-  stroke-width: 3.5px;
-}
+.home-player-hud__xp-arc-track { stroke: #123b27; stroke-width: 6px; }
 .home-player-hud__xp-arc-fill {
-  stroke: #82b77b;
-  stroke-width: 3.5px;
-  filter: drop-shadow(0 0 2px rgba(137, 209, 118, .45));
+  stroke: #9ad38b; stroke-width: 6px;
+  filter: drop-shadow(0 0 4px rgba(139, 226, 126, .65));
   transition: stroke-dashoffset .3s ease-out;
 }
 .home-player-hud--avatar-home .home-player-hud__level-curved {
@@ -504,6 +493,18 @@
   color: #f8e1a6;
 }
 .home-player-hud__xp-admin-tools button:disabled { opacity: .5; }
+.home-player-hud__xp-curve-control {
+  display: flex; align-items: center; gap: 5px;
+  border: 1px solid rgba(231, 198, 121, .6);
+  border-radius: 16px; padding: 3px 7px;
+  background: rgba(10, 42, 28, .94); color: #ffe7ad;
+  font: 700 10px Georgia, serif;
+}
+.home-player-hud__xp-curve-control input {
+  width: clamp(64px, 20vw, 95px);
+  height: 27px; accent-color: #eacf83;
+  cursor: ew-resize; touch-action: none;
+}
 .home-player-hud__xp-admin-tools span {
   border-radius: 6px;
   padding: 4px;
@@ -517,11 +518,13 @@
 }
 .home-player-hud--avatar-home .home-player-hud__team {
   max-width: 465px;
-  gap: clamp(7px, 2.6vw, 13px);
+  width: 100%;
+  gap: clamp(2px, .8vw, 6px);
   align-items: end;
+  grid-auto-rows: clamp(68px, 19vw, 95px);
 }
 .home-player-hud--avatar-home .home-player-hud__slot {
-  width: min(100%, clamp(59px, 16.5vw, 78px));
+  width: min(100%, clamp(65px, 19vw, 88px));
   aspect-ratio: 1 / 1.08;
   padding: 0;
   overflow: visible;
@@ -611,13 +614,22 @@
   text-shadow: 0 2px 4px #001b10, 0 0 8px #001b10;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-stars { top: -9px; }
-.home-player-hud--avatar-home .home-player-hud__slot:disabled { opacity: .58; }
+.home-player-hud--avatar-home .home-player-hud__slot:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+/* Saving/error status remains readable but never changes bottom-anchored row height. */
+.home-player-hud--avatar-home .home-player-hud__status {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  min-height: 0; margin: 0; pointer-events: none;
+}
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__progress {
-    top: calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 3px);
+    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 3px));
   }
   .home-player-hud--avatar-home .home-player-hud__slot {
-    width: min(100%, clamp(48px, 14.5vw, 63px));
+    width: min(100%, clamp(58px, 17.5vw, 69px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -638,7 +650,7 @@
 /* Pet size and ornament positions stay tied to their own slot, not to
    the overall page height. Preserve the animator's House-mode blink. */
 .home-player-hud--avatar-home .home-player-hud__pet-renderer {
-  transform: scale(1.02);
+  transform: scale(1.31);
   transform-origin: center bottom;
 }
 .home-player-hud--avatar-home .home-player-hud__slot-placeholder img {

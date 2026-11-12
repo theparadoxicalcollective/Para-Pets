@@ -12,7 +12,7 @@ import PetAnimator from "@/components/PetAnimator";
 import MiniPetRenderer from "@/components/MiniPetRenderer";
 import cardStarImg from "@assets/uploads/CardStar.png";
 import { coverArtworkPoint, viewportPointToCoverArtwork, type ArtworkPoint, type BackdropRect, type ArtworkSize } from "@/lib/artworkCoverGeometry";
-import type { HomeXpAnchor } from "@shared/homeXpAnchor";
+import { HOME_XP_DEFAULT_CURVE, HOME_XP_MIN_CURVE, HOME_XP_MAX_CURVE, homeXpArcGeometry, type HomeXpAnchor } from "@shared/homeXpAnchor";
 import { homeAvatarPosition } from "@/lib/homeAvatarLayout";
 import "./HomePlayerHud.css";
 
@@ -73,6 +73,8 @@ export default function HomePlayerHud({
   const [anchorDraft, setAnchorDraft] = useState<HomeXpAnchor | null | undefined>(undefined);
   const [anchorSaving, setAnchorSaving] = useState(false);
   const [anchorError, setAnchorError] = useState<string | null>(null);
+  const [curvePreview, setCurvePreview] = useState<number | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
   const anchorDrag = useRef<{
     id: number; x: number; y: number; offsetX: number; offsetY: number;
     latest: HomeXpAnchor | null; moved: boolean;
@@ -111,6 +113,7 @@ export default function HomePlayerHud({
     setMovingXp(false);
     setAnchorDraft(undefined);
     setAnchorError(null);
+    setCurvePreview(null);
     anchorDrag.current = null;
   }, [userId]);
   useEffect(() => { if (!inventoryReady) setPickerSlot(null); }, [inventoryReady]);
@@ -125,6 +128,8 @@ export default function HomePlayerHud({
   const avatarPosition = avatarHome && avatarBackdrop
     ? homeAvatarPosition(avatarLandmark, avatarBackdrop) : null;
   const effectiveAnchor = anchorDraft === undefined ? anchorQuery.data?.anchor ?? null : anchorDraft;
+  const curveDepth = curvePreview ?? effectiveAnchor?.curveDepth ?? HOME_XP_DEFAULT_CURVE;
+  const xpArc = homeXpArcGeometry(curveDepth);
   // Project a saved admin position from the background's intrinsic image,
   // using the SAME cover geometry as the Home avatar's stone platform.
   const projectedAnchor = effectiveAnchor && avatarBackdrop && avatarArtworkSize
@@ -157,12 +162,32 @@ export default function HomePlayerHud({
       const saved = await response.json() as { anchor: HomeXpAnchor | null };
       cache.setQueryData(["/api/settings/home-xp-anchor"], saved);
       setAnchorDraft(undefined);
+      setCurvePreview(null);
     } catch {
       setAnchorDraft(undefined);
+      setCurvePreview(null);
       setAnchorError("Position not saved. Try again.");
     } finally {
       setAnchorSaving(false);
     }
+  };
+  const saveXpCurve = (depth: number) => {
+    if (!isAdmin || !avatarBackdrop || !avatarArtworkSize || anchorSaving) return;
+    // A first curve adjustment uses the exact on-screen bar position, then
+    // saves it using the same artwork-relative model as Move XP.
+    let base = effectiveAnchor;
+    if (!base) {
+      const rect = progressRef.current?.getBoundingClientRect();
+      const point = rect ? viewportPointToCoverArtwork(avatarArtworkSize, avatarBackdrop, {
+        x: rect.left + rect.width / 2, y: rect.top,
+      }) : null;
+      if (!point) return;
+      base = {
+        xPct: Math.max(0, Math.min(1, point.x / avatarArtworkSize.width)),
+        yPct: Math.max(0, Math.min(1, point.y / avatarArtworkSize.height)),
+      };
+    }
+    void saveXpAnchor({ ...base, curveDepth: depth });
   };
   const startXpDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!avatarHome || !isAdmin || !movingXp || anchorSaving ||
@@ -193,6 +218,7 @@ export default function HomePlayerHud({
     const next = {
       xPct: Math.max(0, Math.min(1, art.x / avatarArtworkSize.width)),
       yPct: Math.max(0, Math.min(1, art.y / avatarArtworkSize.height)),
+      ...(effectiveAnchor?.curveDepth !== undefined ? { curveDepth: effectiveAnchor.curveDepth } : {}),
     };
     drag.latest = next;
     drag.moved = true;
@@ -255,7 +281,7 @@ export default function HomePlayerHud({
         ))}
       </div>
       <div className={`home-player-hud__progress${movingXp ? " home-player-hud__progress--moving" : ""}`}
-        aria-label="Player level and experience"
+        aria-label="Player level and experience" ref={progressRef}
         onPointerDown={startXpDrag}
         onPointerMove={moveXpDrag}
         onPointerUp={event => finishXpDrag(event)}
@@ -269,8 +295,20 @@ export default function HomePlayerHud({
               {movingXp ? "Done" : "Move XP"}
             </button>
             {movingXp && <button type="button" data-testid="button-home-reset-xp"
-              disabled={anchorSaving} onClick={() => void saveXpAnchor(null)}>Reset</button>}
-            {movingXp && <span>{anchorSaving ? "Saving…" : anchorError ?? "Drag curve to move"}</span>}
+              disabled={anchorSaving} onClick={() => { setCurvePreview(null); void saveXpAnchor(null); }}>Reset</button>}
+            {movingXp && <label className="home-player-hud__xp-curve-control" htmlFor="home-xp-curve">
+              Curve
+              <input id="home-xp-curve" data-testid="input-home-xp-curve" type="range"
+                min={HOME_XP_MIN_CURVE} max={HOME_XP_MAX_CURVE} step={5}
+                value={curveDepth} disabled={anchorSaving}
+                onChange={event => setCurvePreview(Number(event.currentTarget.value))}
+                onPointerUp={event => saveXpCurve(Number(event.currentTarget.value))}
+                onKeyUp={event => {
+                  if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key))
+                    saveXpCurve(Number(event.currentTarget.value));
+                }} />
+            </label>}
+            {movingXp && <span>{anchorSaving ? "Saving…" : anchorError ?? "Drag bar to move"}</span>}
           </div>
         )}
         {!avatarHome && (
@@ -288,34 +326,20 @@ export default function HomePlayerHud({
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpFillPct === null ? undefined : Math.round(xpFillPct)}
             title={xpProgressLabel}>
             {avatarHome ? (
-              <svg className="home-player-hud__xp-arc" viewBox="0 0 320 130"
+              <svg className="home-player-hud__xp-arc"
+                viewBox={`0 0 320 ${xpArc.viewHeight}`}
                 preserveAspectRatio="xMidYMin meet" aria-hidden="true">
-                <defs>
-                  <path id="home-player-level-curve" d="M 102 98 Q 160 118 218 98" />
-                </defs>
-                {/* Match the platform rim: a deep, faintly glowing groove,
-                    with NO earned fill at zero XP. */}
-                <path className="home-player-hud__xp-arc-shadow"
-                  d="M 10 10 Q 160 154 310 10" />
-                <path className="home-player-hud__xp-arc-rim"
-                  d="M 10 10 Q 160 154 310 10" />
-                <path className="home-player-hud__xp-arc-track"
-                  d="M 10 10 Q 160 154 310 10" />
+                <defs><path id="home-player-level-curve" d={xpArc.levelPath} /></defs>
+                {/* One rounded groove shared by rim, channel and XP fill. */}
+                <path className="home-player-hud__xp-arc-shadow" d={xpArc.path} />
+                <path className="home-player-hud__xp-arc-rim" d={xpArc.path} />
+                <path className="home-player-hud__xp-arc-track" d={xpArc.path} />
                 {xpFillPct !== null && xpFillPct > 0 && (
                   <path className="home-player-hud__xp-arc-fill"
-                    data-testid="home-player-xp-fill"
-                    d="M 10 10 Q 160 154 310 10"
-                    pathLength={100}
-                    strokeDasharray="100 100"
+                    data-testid="home-player-xp-fill" d={xpArc.path}
+                    pathLength={100} strokeDasharray="100 100"
                     strokeDashoffset={100 - xpFillPct} />
                 )}
-                <text data-testid="home-player-total-xp" className="home-player-hud__xp-text"
-                  x="37" y="39" textAnchor="middle">
-                  {player && xpNeededThisLevel !== null
-                    ? `${xpEarnedThisLevel.toLocaleString()}/${xpNeededThisLevel.toLocaleString()}`
-                    : player ? `${(player.cycleXp ?? player.totalXp).toLocaleString()} XP`
-                    : progression.isError ? "XP unavailable" : "XP…"}
-                </text>
                 <text data-testid="home-player-level" className="home-player-hud__level-curved"
                   textAnchor="middle">
                   <textPath href="#home-player-level-curve" startOffset="50%">
