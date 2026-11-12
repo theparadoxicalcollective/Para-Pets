@@ -368,9 +368,11 @@ export function registerPlayerAvatarRoutes(
 
         // Retain the existing pinned body artwork when editing the same base,
         // even if Admin has published a newer revision since first creation.
-        const sameBase = profile.baseId === base.id;
-        const selectedPublishedAt = sameBase ? profile.basePublishedAt : available.publishedAt;
-        const selectedParts = sameBase ? profile.baseParts : available.parts;
+        // An unchanged base keeps its pinned art. Selecting the same base in
+        // a future revision should not silently republish the player's rig.
+        const selectedPublishedAt = profile.baseId === base.id
+          ? profile.basePublishedAt : available.publishedAt;
+        const selectedParts = profile.baseId === base.id ? profile.baseParts : available.parts;
         const prepared: Array<{
           category: PlayerClothingCategory;
           inventoryId: string | null;
