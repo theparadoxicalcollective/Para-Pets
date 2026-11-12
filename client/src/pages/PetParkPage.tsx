@@ -30,6 +30,8 @@ import { parkOutdoorEffectOpacity, parkSceneDarkness } from "@/lib/parkSceneLigh
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import PetParkDecorEffects from "@/components/PetParkDecorEffects";
 import PetParkDecorEffectEditor from "@/components/PetParkDecorEffectEditor";
+import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
+import { decorDrawDepth, decorRole, decorRoleUpdate, decorBlocksImagePoint, type DecorRole, type DecorSurface } from "@shared/decorSurface";
 import type { ParkEffectType } from "@shared/petParkEffects";
 import { X, Expand, LockKeyhole, Droplets, RotateCcw } from "lucide-react";
 import PetParkInteriorRoom from "@/components/PetParkInteriorRoom";
@@ -55,7 +57,7 @@ import PetParkCropArtwork from "@/components/PetParkCropArtwork";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import PetParkGardenMenu from "@/components/PetParkGardenMenu";
 
-type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
+type ParkItem = { id: string; kind: "decor" | "sleep_spot" | "effect" | "terrain"; isWaterSource?: boolean; decorSurface?: DecorSurface; tapImageUrl?: string | null; appearanceGroupId?: string | null; decorEffects?: ParkDecorEffect[]; effectType?: ParkEffectType | ParkTerrainDetailType | null; effectColor?: string | null; imageUrl: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number };
 type ParkBuilding = { id: string; name: string; imageUrl: string; interiorImageUrl: string | null; nightInteriorImageUrl?: string | null; xPct: number; yPct: number; size: number; flipped: boolean; layer: number; maxPets: number; isShop?: boolean; shopItemIds?: string[]; shopItemPlacements?: ParkShopPlacement[]; interiorDarkness?: number; interiorNightDarkness?: number | null; interiorEffects: ParkInteriorEffect[]; exteriorEffects?: ParkDecorEffect[] };
 type ParkDeposit = { id: string; slotNumber: number; petInventoryId: string; petName: string; petTemplateId: string | null; hatchedImageUrl: string | null; petNickname: string | null; petLevel: number; checkpointAt: string; pausedAt: string | null; pausedDurationMs: number; earnedDurationMs: number; buildingId: string | null; roomEffectId: string | null; showInPark: boolean; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
 type SharedParkPet = { petInventoryId: string; petTemplateId: string | null; hatchedImageUrl: string | null; petName: string; petNickname: string | null; petLevel: number; rarity: number | null; ownerName: string; ownerId: string; depositedAt: string; buildingId: string | null; roomEffectId: string | null; parkXPct: number | null; parkYPct: number | null; interiorXPct: number; interiorYPct: number; pose: "idle" | "sit" | "sleep" };
@@ -381,12 +383,12 @@ export default function PetParkPage() {
       title: "Unable to update lamp light", description: error.message, variant: "destructive",
     }),
   });
-  const waterSourceSave = useMutation({
-    mutationFn: async ({ id, isWaterSource }: { id: string; isWaterSource: boolean }) =>
-      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/water-source`, { isWaterSource }),
+  const decorRoleSave = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: DecorRole }) =>
+      apiRequest("PATCH", `/api/admin/pet-park/items/${id}/surface`, decorRoleUpdate(role)),
     onSuccess: invalidate,
     onError: (error: Error) => toast({
-      title: "Unable to update Water Source", description: error.message, variant: "destructive",
+      title: "Unable to update decoration behavior", description: error.message, variant: "destructive",
     }),
   });
   const placementDelete = useMutation({
@@ -979,9 +981,9 @@ export default function PetParkPage() {
             { ...position, effectType: item.effectType }, { width: viewportSize.width, height: viewportSize.height },
             { width: sceneWidth, height: sceneHeight, scale }, camera,
           )) return null;
-          return <div key={item.id} data-park-draggable data-park-object-kind="item" data-park-object-id={item.id}
+          return <div key={item.id} data-park-draggable data-park-object-kind="item" data-park-object-id={item.id} data-decor-role={item.kind === "decor" ? decorRole(item) : undefined}
             onPointerDown={e => startPlacement(e, "item", item)} onPointerMove={movePlacement} onPointerUp={endPlacement} onPointerCancel={cancelPlacement} onLostPointerCapture={cancelPlacement} className={`absolute ${scene.canEditPark && !paintMode && !showCreator ? "pointer-events-auto touch-none" : "pointer-events-none"} ${selectedPlacement?.kind === "item" && selectedPlacement.id === item.id && !item.imageUrl ? "outline outline-2 outline-amber-400 rounded-lg" : ""}`}
-          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "effect" || item.kind === "sleep_spot" ? 12_000_000 : item.kind === "terrain" ? 500 : parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: visibleDecorImage ? imageContacts[visibleDecorImage] : undefined }) }}>
+          style={{ left: `${shownPosition("item", item).xPct * 100}%`, top: `${shownPosition("item", item).yPct * 100}%`, width: shownPosition("item", item).size * scale, height: shownPosition("item", item).size * scale * (item.kind === "terrain" ? parkTerrainHeightRatio(item.effectType) : 1), transform: `translate(-50%, -50%) ${shownPosition("item", item).flipped ? "scaleX(-1)" : ""}`, zIndex: item.kind === "effect" || item.kind === "sleep_spot" ? 12_000_000 : item.kind === "terrain" ? 500 : decorDrawDepth(item, parkDepthIndex({ yPct: shownPosition("item", item).yPct, worldHeight: geometry.worldHeight, size: shownPosition("item", item).size, kind: "item", contact: visibleDecorImage ? imageContacts[visibleDecorImage] : undefined }), 650) }}>
           {item.kind === "terrain" && isParkConnectedPath(item.effectType) ? null : item.kind === "terrain" && isParkTerrainDetail(item.effectType) ? <PetParkTerrainDetail type={item.effectType} tilled={isGardenPlot && !!savedGardenPlot && savedGardenPlot.phase !== "empty" && savedGardenPlot.phase !== "picked"} /> : item.kind === "effect" && item.effectType && isParkEffect(item.effectType) ? <div
               data-testid={`park-standalone-effect-${item.id}`}
               className="pointer-events-none h-full w-full"
@@ -1380,19 +1382,11 @@ export default function PetParkPage() {
           })}
           className="h-9 w-14 rounded border border-[#b99a4c]/55 bg-transparent"/>
       </label>}
-      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <button
-        type="button" aria-label="Water Source" aria-pressed={Boolean((selectedObject as ParkItem).isWaterSource)}
-        data-testid="park-decoration-water-source"
-        disabled={waterSourceSave.isPending || placementSave.isPending || placementDelete.isPending}
-        onClick={() => waterSourceSave.mutate({
-          id: selectedPlacement.id, isWaterSource: !(selectedObject as ParkItem).isWaterSource,
-        })}
-        className="flex items-center justify-between rounded-lg border border-[#b99a4c]/60 bg-[#1c3c2c] px-3 py-2 text-left text-xs font-semibold disabled:opacity-50">
-        <span>Water Source <span className="font-normal text-amber-100/70">· Refill station</span></span>
-        <span className={`rounded-full px-2 py-1 ${(selectedObject as ParkItem).isWaterSource ? "bg-[#d9ba65] text-[#172d1e]" : "bg-[#17291e] text-[#c8bd95]"}`}>
-          {(selectedObject as ParkItem).isWaterSource ? "On" : "Off"}
-        </span>
-      </button>}
+      {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" &&
+        <DecorSurfaceSelector name={`park-decor-role-${selectedPlacement.id}`}
+          testId="park-decoration-behavior" value={decorRole(selectedObject as ParkItem)}
+          disabled={decorRoleSave.isPending || placementSave.isPending || placementDelete.isPending}
+          onChange={role => decorRoleSave.mutate({ id: selectedPlacement.id, role })} />}
       {selectedPlacement.kind === "item" && (selectedObject as ParkItem).kind === "decor" && <div
         className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
         data-testid="park-decoration-artwork-editor">
