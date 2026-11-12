@@ -13,8 +13,9 @@ import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
 import type { ParkEffectType } from "@shared/petParkEffects";
+import { WORLD_GROUND_THEMES, type WorldGroundTheme } from "@shared/worlds/worldGroundTheme";
 
-type Panel = "library" | "effects" | "selected" | "terrain" | "shop" | "interior" | "npc";
+type Panel = "library" | "effects" | "selected" | "shop" | "interior" | "npc" | "settings";
 const EFFECT_CHOICES: Array<{
   type: ParkEffectType; label: string; description: string; size: number; group: "outdoor" | "water";
 }> = [
@@ -45,8 +46,14 @@ type Props = {
   onSelect: (id: string | null) => void;
   onSelectInterior: (id: string | null) => void;
   onEnter: (id: string) => void;
-  onExit: () => void;
   onPaint: () => void;
+  groundTheme: WorldGroundTheme;
+  groundLevel: number;
+  zoom: number;
+  minZoom: number;
+  onZoom: (value: number) => void;
+  onResetZoom: () => void;
+  onSaveGroundTheme: (theme: WorldGroundTheme) => Promise<void>;
 };
 
 export default function WorldSceneControls(props: Props) {
@@ -54,6 +61,7 @@ export default function WorldSceneControls(props: Props) {
   const [panel, setPanel] = useState<Panel>("library");
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
+  const [themeDraft, setThemeDraft] = useState<WorldGroundTheme>(props.groundTheme);
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
   // Keep the new legacy page choice visible immediately while the admin
   // PATCH and React Query scene refresh complete. Roll back on a failed save.
@@ -65,6 +73,7 @@ export default function WorldSceneControls(props: Props) {
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
   const npcCatalog = useWorldNpcCatalog(!props.activeBuilding);
+  useEffect(() => { setThemeDraft(props.groundTheme); }, [props.groundTheme, props.worldId]);
 
   useEffect(() => {
     setPanel("library");
@@ -213,7 +222,22 @@ export default function WorldSceneControls(props: Props) {
   const clearTerrain = async () => {
     if (busy || !props.scene.placements.some(item => item.kind === "terrain")) return;
     const result = await mutate("DELETE", "/terrain");
-    if (result) toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
+    if (result) {
+      toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
+      setExpanded(false);
+    }
+  };
+  const saveTheme = async () => {
+    if (busy || themeDraft === props.groundTheme) return;
+    setBusy(true);
+    try {
+      await props.onSaveGroundTheme(themeDraft);
+      toast({ title: "World ground updated", description: "Only the private world draft was changed." });
+    } catch (error) {
+      toast({ title: "World ground could not be saved", description: String(error), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
   const selectedNpc = props.selected?.npcId ? npcCatalog.data?.find(n => n.id === props.selected?.npcId) : null;
   const selectedName = props.activeBuilding
@@ -260,8 +284,8 @@ export default function WorldSceneControls(props: Props) {
         </div>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
-        <button type="button" className={quickButton} onClick={() => openCreator("shop")}>Shop Setup</button>
-        <button type="button" className={quickAccent} onClick={props.onExit}>Exit Interior</button>
+        {props.activeBuilding.isShop &&
+          <button type="button" className={quickButton} onClick={() => openCreator("shop")}>Shop Setup</button>}
       </> : <>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "building")}>+ Building</button>
         <button type="button" className={quickButton} onClick={() => openCreator("npc")}>+ NPC</button>
@@ -269,9 +293,8 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
         <button type="button" className={quickAccent} aria-label="Paint terrain"
           onClick={props.onPaint}>Paint terrain</button>
-        <button type="button" className={quickDanger} aria-label="Clear all world terrain"
-          disabled={busy || !props.scene.placements.some(item => item.kind === "terrain")}
-          onClick={() => void clearTerrain()}>{busy ? "Saving…" : "Clear terrain"}</button>
+        <button type="button" className={quickAccent} data-testid="button-world-settings"
+          aria-label="World Settings" onClick={() => openCreator("settings")}>World Settings</button>
       </>}
     </div>}
     {!expanded && selectedItem && <section
@@ -313,18 +336,71 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        {!props.activeBuilding && props.selected?.kind === "building" &&
-          <WorldLegacyPagePicker compact worldId={props.worldId}
-            value={selectedLegacyPage}
-            onChange={id => { void patchLegacyPage(id); }}
-            disabled={busy} />}
         {props.selected?.kind !== "building" && <span className="ml-auto self-center text-[10px] text-amber-100/65">
           {props.activeBuilding ? "Drag selected artwork to move"
             : "Drag selected artwork to move · swipe background to pan"}
         </span>}
       </div>
     </section>}
-    {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
+    {expanded && panel === "settings" && !props.activeBuilding && <section
+      role="dialog" aria-label="World Settings"
+      data-testid="world-options-panel"
+      className="pointer-events-auto absolute bottom-[max(65px,env(safe-area-inset-bottom))] right-3 z-[90] w-[min(310px,calc(100vw-24px))] max-h-[min(67dvh,440px)] overflow-y-auto rounded-xl border border-[#c4a363]/70 bg-[#10291d]/95 p-3 font-fantasy text-[#f1ddb0] shadow-2xl"
+      onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
+      <div className="mb-3 flex items-center justify-between gap-2 border-b border-[#b99a4c]/40 pb-2">
+        <strong className="text-sm text-[#f5d77b]">World Settings</strong>
+        <button type="button" aria-label="Close World Settings" className={control}
+          onClick={() => setExpanded(false)}>Done</button>
+      </div>
+      <div className="space-y-3">
+        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523]/90 p-3">
+          <label htmlFor="world-editor-zoom" className="flex justify-between text-xs">
+            <span>World zoom</span>
+            <output className="tabular-nums text-[#f5d77b]">{Math.round(props.zoom * 100)}%</output>
+          </label>
+          <input id="world-editor-zoom" type="range" aria-label="World zoom"
+            data-testid="input-world-editor-zoom"
+            min={props.minZoom} max={1.6} step={0.01}
+            value={Math.max(props.minZoom, props.zoom)}
+            onChange={event => props.onZoom(Number(event.currentTarget.value))}
+            className="w-full min-h-9 accent-[#e6c575]"/>
+          <div className="grid grid-cols-4 gap-1.5">
+            <button type="button" data-testid="button-world-fit"
+              aria-label="Fit entire world" className={control}
+              disabled={props.zoom <= props.minZoom + .001}
+              onClick={() => props.onZoom(props.minZoom)}>Fit</button>
+            <button type="button" aria-label="Zoom out" className={control}
+              disabled={props.zoom <= props.minZoom + .001}
+              onClick={() => props.onZoom(props.zoom * .90)}>−</button>
+            <button type="button" aria-label="Zoom in" className={control}
+              disabled={props.zoom >= 1.6}
+              onClick={() => props.onZoom(props.zoom * 1.10)}>+</button>
+            <button type="button" aria-label="Reset world zoom" className={control}
+              onClick={props.onResetZoom}>100%</button>
+          </div>
+          <p className="text-[11px] text-[#d3bc8e]">Pinch the map to zoom; drag the background to pan. Fit shows the entire ground.</p>
+        </div>
+        <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523]/90 p-3">
+          <label htmlFor="world-ground-theme" className="block text-xs text-[#f4d69b]">Ground theme</label>
+          <select id="world-ground-theme" aria-label="Ground theme"
+            data-testid="select-world-draft-ground-theme" className={field}
+            value={themeDraft} disabled={busy} onChange={event => setThemeDraft(event.target.value as WorldGroundTheme)}>
+            {WORLD_GROUND_THEMES.map(theme => <option value={theme.type} key={theme.type}>{theme.label}</option>)}
+          </select>
+          <button type="button" className={quickAccent} data-testid="button-save-world-draft"
+            disabled={busy || themeDraft === props.groundTheme}
+            onClick={() => void saveTheme()}>{busy ? "Saving…" : "Save Ground Theme"}</button>
+        </div>
+        <details className={disclosure} data-testid="world-settings-clear-terrain">
+          <summary>Clear painted terrain (advanced)</summary>
+          <p className="pt-1 text-[11px] text-[#e8caa0]">Removes painted ground paths and garden plots from this private world only. Buildings and decorations remain.</p>
+          <button type="button" className={quickDanger} aria-label="Clear all world terrain"
+            disabled={busy || !props.scene.placements.some(item => item.kind === "terrain")}
+            onClick={() => void clearTerrain()}>{busy ? "Clearing…" : "Clear terrain"}</button>
+        </details>
+      </div>
+    </section>}
+    {expanded && panel !== "settings" && <div className="fixed inset-0 z-[90] flex items-end justify-center"
       role="dialog" aria-modal="true"
       aria-label={panel === "library" ? "Add world object" : panel === "effects" ? "Add world effects" : "Edit world object"}>
       <button type="button" aria-label="Close add object" className="absolute inset-0 bg-black/65"
@@ -381,12 +457,6 @@ export default function WorldSceneControls(props: Props) {
                 </button>)}
               </div>}
         </section>}
-
-        {panel === "terrain" && <div className="space-y-2">
-          <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
-          <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
-          <p className="text-[11px] text-[#d0c094]">Paint Garden Plot tiles here. Planting and harvesting are player-world features, not editor controls.</p>
-        </div>}
 
         {panel === "effects" && <section aria-label="World outdoor effects" className="space-y-3">
           <div className="text-center text-xs uppercase tracking-[0.2em] text-[#f5cf64]">
