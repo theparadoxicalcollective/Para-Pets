@@ -7,7 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import DecorSurfaceSelector from "@/components/DecorSurfaceSelector";
-import { decorRole, decorRoleUpdate } from "@shared/decorSurface";
+import { decorRole, decorRoleUpdate, type DecorRole } from "@shared/decorSurface";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
 import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
 import { useWorldNpcCatalog, type WorldNpcCatalogEntry } from "./WorldNpcCatalog";
@@ -61,6 +61,7 @@ export default function WorldSceneControls(props: Props) {
   const { toast } = useToast();
   const [panel, setPanel] = useState<Panel>("library");
   const [busy, setBusy] = useState(false);
+  const [pendingDecorRole, setPendingDecorRole] = useState<{ id: string; role: DecorRole } | null>(null);
   const [search, setSearch] = useState("");
   const [themeDraft, setThemeDraft] = useState<WorldGroundTheme>(props.groundTheme);
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
@@ -145,9 +146,24 @@ export default function WorldSceneControls(props: Props) {
     if (result) { props.onSelectInterior(result.id); setPanel("selected"); setExpanded(false); }
   };
   const patchSelected = async (values: Record<string, unknown>) => {
-    if (!props.selected) return;
-    await mutate("PATCH", `/placements/${props.selected.id}`, values);
+    if (!props.selected) return null;
+    return mutate("PATCH", `/placements/${props.selected.id}`, values);
   };
+  const changeDecorRole = async (role: DecorRole) => {
+    const selectedId = props.selected?.id;
+    if (!selectedId) return;
+    // React Query revalidates after the PATCH; keep the checked radio stable
+    // while the previous saved role is still in props.
+    setPendingDecorRole({ id: selectedId, role });
+    const updated = await patchSelected(decorRoleUpdate(role));
+    if (!updated) setPendingDecorRole(null);
+  };
+  useEffect(() => {
+    if (!pendingDecorRole) return;
+    if (props.selected?.id !== pendingDecorRole.id ||
+        decorRole(props.selected) === pendingDecorRole.role)
+      setPendingDecorRole(null);
+  }, [props.selected?.id, props.selected?.decorSurface, props.selected?.isWaterSource, pendingDecorRole]);
   const selectedLegacyPage = legacyChoice && legacyChoice.buildingId === props.selected?.id
     ? legacyChoice.pageId : props.selected?.legacyLocationId ?? null;
   useEffect(() => {
@@ -528,8 +544,9 @@ export default function WorldSceneControls(props: Props) {
             </p>
       {!props.activeBuilding && props.selected?.kind === "decor" && <>
         <DecorSurfaceSelector name={`world-decor-role-${props.selected.id}`}
-          testId="world-decoration-behavior" value={decorRole(props.selected)}
-          disabled={busy} onChange={role => void patchSelected(decorRoleUpdate(role))} />
+          testId="world-decoration-behavior"
+          value={pendingDecorRole?.id === props.selected.id ? pendingDecorRole.role : decorRole(props.selected)}
+          disabled={busy} onChange={role => void changeDecorRole(role)} />
         <div className="space-y-2 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2"
           data-testid="world-decoration-artwork-editor">
           <span className="block text-xs font-semibold">Artwork · all linked copies</span>
