@@ -380,9 +380,13 @@ try {
       name + ": decor upload uses its filename without extra naming steps");
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "decor" &&
       w.body.size === 100), name + ": decor is placed in one operation");
-    const duplicateSaved = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
-    await page.getByRole("button", { name: "Duplicate world decoration" }).click();
-    const secondDecor = await (await duplicateSaved).json();
+    const duplicateButton = page.getByRole("button", { name: "Duplicate world decoration" });
+    await duplicateButton.waitFor({ state: "visible" });
+    const [duplicateResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST"),
+      duplicateButton.click(),
+    ]);
+    const secondDecor = await duplicateResponse.json();
     assert.ok(apiWrites.filter(w => w.tail === "placements" && w.body.kind === "decor").length >= 2,
       name + ": linked decoration duplicates reuse one uploaded asset");
     assert.equal(firstDecor.assetId, secondDecor.assetId, name + ": linked copies share a decor type");
@@ -391,10 +395,11 @@ try {
     await page.getByRole("button", { name: "Edit selected object details" }).click();
     const rolePanel = page.getByTestId("world-decoration-behavior");
     await rolePanel.waitFor({ state: "visible" });
-    const sharedRoleSaved = page.waitForResponse(r => r.url().includes("/placements/" + secondDecor.id) &&
-      r.request().method() === "PATCH");
-    await rolePanel.getByRole("radio", { name: "Ground" }).check();
-    await sharedRoleSaved;
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes("/placements/" + secondDecor.id) &&
+        r.request().method() === "PATCH"),
+      rolePanel.getByRole("radio", { name: "Ground" }).check(),
+    ]);
     assert.ok(worlds.haunted_woods.scene.placements.filter(p =>
       p.kind === "decor" && p.assetId === firstDecor.assetId).every(p => p.decorSurface === "ground"),
       name + ": changing a decor type to Ground updates the original and every linked copy");
