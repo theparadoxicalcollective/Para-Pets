@@ -5,7 +5,7 @@ import { isParkEffect, type ParkEffectType } from "../petParkEffects";
 import { isPaintableParkTerrainDetail } from "../petParkTerrainDetails";
 
 export type WorldAssetKind = "decor" | "building";
-export type WorldScenePlacementKind = WorldAssetKind | "effect" | "terrain";
+export type WorldScenePlacementKind = WorldAssetKind | "effect" | "terrain" | "npc";
 export type WorldSceneInteriorKind = "decor" | "effect";
 
 export type WorldSceneAsset = {
@@ -16,13 +16,15 @@ export type WorldSceneAsset = {
 
 export type WorldScenePlacement = {
   id: string; worldId: string; kind: WorldScenePlacementKind;
+  npcId: string | null; // Existing shared catalog NPC; never copy its media or dialogue.
   assetId: string | null; effectType: string | null; effectColor: string | null; terrainKey: string | null;
   /** Per-placed-building room dimming, unaffected by the outdoor day/night clock. */
   interiorDarkness: number;
   interiorNightDarkness: number | null;
   xPct: number; yPct: number; size: number; flipped: boolean; layer: number;
   decorEffects: ParkDecorEffect[]; isWaterSource: boolean;
-  isShop: boolean; shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
+  isShop: boolean; legacyLocationId: string | null;
+  shopItemIds: string[]; shopItemPlacements: ParkShopPlacement[];
 };
 
 export type WorldSceneInteriorItem = {

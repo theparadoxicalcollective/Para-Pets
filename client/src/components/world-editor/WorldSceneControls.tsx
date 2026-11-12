@@ -7,12 +7,14 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
+import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
+import { useWorldNpcCatalog, type WorldNpcCatalogEntry } from "./WorldNpcCatalog";
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
 import type { ParkEffectType } from "@shared/petParkEffects";
 
-type Panel = "library" | "effects" | "selected" | "terrain" | "shop" | "interior";
+type Panel = "library" | "effects" | "selected" | "terrain" | "shop" | "interior" | "npc";
 const EFFECT_CHOICES: Array<{
   type: ParkEffectType; label: string; description: string; size: number; group: "outdoor" | "water";
 }> = [
@@ -33,7 +35,6 @@ type Props = {
   selectedInterior: WorldSceneInteriorItem | null;
   activeBuilding: WorldScenePlacement | null;
   placementPoint: { xPct: number; yPct: number };
-  moveArmedId: string | null;
   interiorDarkness: number;
   interiorPreviewClock: "live" | "day" | "night";
   onInteriorPreviewClockChange: (value: "live" | "day" | "night") => void;
@@ -54,10 +55,16 @@ export default function WorldSceneControls(props: Props) {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
+  // Keep the new legacy page choice visible immediately while the admin
+  // PATCH and React Query scene refresh complete. Roll back on a failed save.
+  const [legacyChoice, setLegacyChoice] = useState<{
+    buildingId: string; pageId: string | null;
+  } | null>(null);
   const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [expanded, setExpanded] = useState(false);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
   const root = `/api/admin/world-editor/${props.worldId}`;
+  const npcCatalog = useWorldNpcCatalog(!props.activeBuilding);
 
   useEffect(() => {
     setPanel("library");
@@ -110,6 +117,15 @@ export default function WorldSceneControls(props: Props) {
     }) as WorldScenePlacement | null;
     if (result) { props.onSelect(result.id); setPanel("selected"); setExpanded(false); }
   };
+  const addNpc = async (npc: WorldNpcCatalogEntry) => {
+    const result = await mutate("POST", "/placements", {
+      kind: "npc", npcId: npc.id, assetId: null, effectType: null,
+      xPct: props.placementPoint.xPct, yPct: props.placementPoint.yPct,
+      size: 130, flipped: false, layer: 0, decorEffects: [],
+      isWaterSource: false, isShop: false, shopItemIds: [],
+    }) as WorldScenePlacement | null;
+    if (result) { props.onSelect(result.id); setPanel("selected"); setExpanded(false); }
+  };
   const addInside = async (kind: "decor" | "effect", assetId: string | null, effectType: string | null, size: number) => {
     if (!props.activeBuilding) return;
     const result = await mutate("POST", "/interior-items", {
@@ -121,6 +137,23 @@ export default function WorldSceneControls(props: Props) {
   const patchSelected = async (values: Record<string, unknown>) => {
     if (!props.selected) return;
     await mutate("PATCH", `/placements/${props.selected.id}`, values);
+  };
+  const selectedLegacyPage = legacyChoice && legacyChoice.buildingId === props.selected?.id
+    ? legacyChoice.pageId : props.selected?.legacyLocationId ?? null;
+  useEffect(() => {
+    if (!legacyChoice) return;
+    if (props.selected?.id !== legacyChoice.buildingId ||
+        props.selected?.legacyLocationId === legacyChoice.pageId)
+      setLegacyChoice(null);
+  }, [props.selected?.id, props.selected?.legacyLocationId, legacyChoice]);
+  const patchLegacyPage = async (id: string | null) => {
+    if (!props.selected || props.selected.kind !== "building") return;
+    const buildingId = props.selected.id;
+    setLegacyChoice({ buildingId, pageId: id });
+    const changed = await mutate("PATCH", `/placements/${buildingId}`, {
+      legacyLocationId: id,
+    });
+    if (!changed) setLegacyChoice(null);
   };
   const patchInterior = async (values: Record<string, unknown>) => {
     if (!props.selectedInterior) return;
@@ -181,11 +214,12 @@ export default function WorldSceneControls(props: Props) {
     const result = await mutate("DELETE", "/terrain");
     if (result) toast({ title: "World terrain cleared", description: "Only this private world draft was changed." });
   };
+  const selectedNpc = props.selected?.npcId ? npcCatalog.data?.find(n => n.id === props.selected?.npcId) : null;
   const selectedName = props.activeBuilding
     ? props.scene.assets.find(asset => asset.id === props.selectedInterior?.assetId)?.name ??
       props.selectedInterior?.effectType?.replaceAll("_", " ") ?? "Interior object"
     : props.scene.assets.find(asset => asset.id === props.selected?.assetId)?.name ??
-      props.selected?.effectType?.replaceAll("_", " ") ?? "World object";
+      selectedNpc?.name ?? props.selected?.effectType?.replaceAll("_", " ") ?? "World object";
   const quickButton = "min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#10291d]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg disabled:opacity-40";
   const quickAccent = "min-h-12 rounded-xl border border-[#b99a4c]/65 bg-[#20442e]/95 px-2 py-2 text-xs font-semibold text-[#f5d77b] shadow-lg disabled:opacity-40";
   const quickDanger = "min-h-12 rounded-xl border border-[#be8d62]/65 bg-[#463028]/95 px-2 py-2 text-xs font-semibold text-[#f9d6a6] shadow-lg disabled:opacity-40";
@@ -193,7 +227,7 @@ export default function WorldSceneControls(props: Props) {
   return <>
     {!expanded && !selectedItem && <div
       data-testid="world-scene-controls" aria-label="World editing toolbar"
-      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg grid-cols-3 gap-1.5 sm:grid-cols-5"
+      className="pointer-events-auto absolute inset-x-3 z-30 mx-auto grid max-w-lg grid-cols-3 gap-1.5"
       style={{ bottom: "max(64px, env(safe-area-inset-bottom, 0px))" }}
       onPointerDown={event => event.stopPropagation()}>
       {props.activeBuilding ? <>
@@ -229,6 +263,7 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickAccent} onClick={props.onExit}>Exit Interior</button>
       </> : <>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "building")}>+ Building</button>
+        <button type="button" className={quickButton} onClick={() => openCreator("npc")}>+ NPC</button>
         <button type="button" className={quickButton} onClick={() => openCreator("library", "decor")}>+ Decor</button>
         <button type="button" className={quickButton} onClick={() => openCreator("effects")}>+ Effects</button>
         <button type="button" className={quickAccent} aria-label="Paint terrain"
@@ -267,7 +302,7 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickAccent}
           aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
       </div>
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {!props.activeBuilding && props.selected?.kind === "decor" &&
           <button type="button" aria-label="Duplicate world decoration"
             className={control} disabled={busy}
@@ -277,11 +312,15 @@ export default function WorldSceneControls(props: Props) {
             onClick={() => props.onEnter(props.selected!.id)}>Enter Building</button>}
         <button type="button" className={danger} disabled={busy}
           onClick={() => void (props.activeBuilding ? removeInterior() : removeSelected())}>Remove</button>
-        <span className="ml-auto self-center text-[10px] text-amber-100/65">
-          {props.activeBuilding ? "Drag artwork to move"
-            : props.moveArmedId === props.selected?.id
-              ? "Move armed · drag artwork" : "Double-tap artwork to move"}
-        </span>
+        {!props.activeBuilding && props.selected?.kind === "building" &&
+          <WorldLegacyPagePicker compact worldId={props.worldId}
+            value={selectedLegacyPage}
+            onChange={id => { void patchLegacyPage(id); }}
+            disabled={busy} />}
+        {props.selected?.kind !== "building" && <span className="ml-auto self-center text-[10px] text-amber-100/65">
+          {props.activeBuilding ? "Drag selected artwork to move"
+            : "Drag selected artwork to move · swipe background to pan"}
+        </span>}
       </div>
     </section>}
     {expanded && <div className="fixed inset-0 z-[90] flex items-end justify-center"
@@ -296,6 +335,7 @@ export default function WorldSceneControls(props: Props) {
           <h2 className="text-base font-semibold tracking-wide text-[#f5cf64]">
             {panel === "library" ? (props.activeBuilding || assetKindFilter === "decor" ? "Decor / Objects" : "Add Building")
               : panel === "effects" ? "World Effects"
+              : panel === "npc" ? "Add NPC"
               : panel === "selected" ? "Edit " + selectedName
               : panel === "shop" ? "Building Shop Setup"
               : panel === "interior" ? "Building Interior" : "World Tools"}
@@ -318,6 +358,29 @@ export default function WorldSceneControls(props: Props) {
             setExpanded(false);
           }}/>}
         
+        {panel === "npc" && !props.activeBuilding && <section
+          data-testid="world-editor-npc-picker" className="space-y-3">
+          <p className="text-xs text-amber-100/75">
+            Choose an NPC already created in Admin → NPCs. Artwork, dialogue,
+            and quest settings stay linked to the original NPC. This world
+            remains a private draft until published.
+          </p>
+          {npcCatalog.isLoading ? <p className="text-xs">Loading NPCs…</p>
+            : npcCatalog.isError ? <p className="text-xs text-red-200">Could not load saved NPCs.</p>
+            : !npcCatalog.data?.length
+              ? <p className="text-xs">No saved NPCs. Create one in Admin → NPCs first.</p>
+              : <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {npcCatalog.data.map(npc => <button type="button" key={npc.id}
+                  data-testid={`button-place-world-npc-${npc.id}`}
+                  aria-label={`Place NPC ${npc.name}`} disabled={busy}
+                  onClick={() => void addNpc(npc)}
+                  className="flex min-h-36 flex-col items-center gap-2 rounded-xl border border-[#b99a4c]/60 bg-[#173726] p-3 text-center text-xs disabled:opacity-40">
+                  <img src={npc.imageUrl!} alt="" className="h-24 w-full object-contain" draggable={false}/>
+                  <span className="break-words text-[#f5d77b]">{npc.name}</span>
+                </button>)}
+              </div>}
+        </section>}
+
         {panel === "terrain" && <div className="space-y-2">
           <p className="text-xs">Paint snapped 2.5D dirt, stone, water and garden plots. Tiles save when you lift your finger.</p>
           <button className={control} type="button" onClick={props.onPaint}>Open Terrain Brush</button>
@@ -368,11 +431,15 @@ export default function WorldSceneControls(props: Props) {
               </button>)}
           </div>
           <p className="text-center text-xs text-amber-100/60">
-            Tap to place. Double-tap its center to move.
+            Tap to place, then drag the selected effect to move it.
           </p>
         </section>}
 
         {panel === "selected" && <div className="space-y-3" data-testid="world-scene-details-panel">
+          {props.selected?.kind === "npc" && <p className="rounded-lg border border-[#b99a4c]/50 p-3 text-xs">
+            NPC: {selectedNpc?.name ?? "Loading NPC"} · Artwork and dialogue are shared with
+            Admin → NPCs. This placement has its own position, size and flip.
+          </p>}
           {props.selected?.kind === "effect" && (props.selected.effectType === "colored_light" || props.selected.effectType === "lamp_light") &&
             <label className="flex items-center justify-between gap-3 rounded-lg border border-[#b99a4c]/55 p-2 text-xs">
               Lamp Light color
@@ -433,6 +500,10 @@ export default function WorldSceneControls(props: Props) {
         </div>}
       </>}
       {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
+        <WorldLegacyPagePicker worldId={props.worldId}
+          value={selectedLegacyPage}
+          onChange={id => { void patchLegacyPage(id); }}
+          disabled={busy} preview />
         {currentAsset && <section className="space-y-2">
           <p className="text-xs font-semibold text-amber-200">Exterior building lights & effects</p>
           <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>

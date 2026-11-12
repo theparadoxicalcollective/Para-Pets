@@ -36,6 +36,20 @@ const server = await createServer({
 const art = "data:image/svg+xml;base64," + Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect x="26" y="26" width="188" height="188" fill="#927a55"/></svg>',
 ).toString("base64");
+const oldPageArt = "data:image/svg+xml;base64," + Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#284967"/></svg>',
+).toString("base64");
+const legacyPages = [
+  { id:"a0000000-0000-4000-8000-000000000001", worldId:"haunted_woods",
+    worldName:"Haunted Woods", name:"Old Manor Hall", type:"scenic", isShop:false, bgUrl:oldPageArt },
+  { id:"a0000000-0000-4000-8000-000000000002", worldId:"elysian_bayou",
+    worldName:"Elysian Bayou", name:"Janson's Market", type:"shop", isShop:true, bgUrl:oldPageArt },
+];
+const savedNpcs = [{
+  id: "90000000-0000-4000-8000-000000000001",
+  type: "npc", worldId: "__npc_catalog__", name: "Wisp Keeper",
+  imageUrl: art, specialSkill: '{"animation":"float","messages":["Hello"]}',
+}];
 const interior = "data:image/svg+xml;base64," + Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#62513b"/></svg>',
 ).toString("base64");
@@ -63,9 +77,10 @@ function makeScene(worldId) {
       tapImageUrl: null, interiorImageUrl: interior, nightInteriorImageUrl: interior },
   ];
   const common = {
-    worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
+    worldId, assetId: null, npcId: null, terrainKey: null, effectType: null, effectColor: null,
     interiorDarkness: 35, size: 120, flipped: false, layer: 0, decorEffects: [],
-    isWaterSource: false, isShop: false, shopItemIds: [], shopItemPlacements: [],
+    isWaterSource: false, isShop: false, legacyLocationId: null,
+    shopItemIds: [], shopItemPlacements: [],
   };
   const placements = [
     { ...common, id: ids.decor, kind: "decor", assetId: ids.decor, xPct: .38, yPct: .43,
@@ -132,6 +147,7 @@ try {
         petParkRequests.push(path);
       if (path.startsWith("/api/world/")) publicWorldRequests.push(path);
       if (path === "/api/inventory") return route.fulfill({ json: inventory });
+      if (path === "/api/shop/__npc_catalog__") return route.fulfill({ json: savedNpcs });
       const match = path.match(/^\/api\/admin\/world-editor\/(haunted_woods|swamp)\/(.*)$/);
       if (!match) return route.fulfill({ json: {} });
       const [, worldId, tail] = match;
@@ -140,6 +156,8 @@ try {
         return route.fulfill({ json: record.draft });
       if (req.method() === "GET" && tail === "scene")
         return route.fulfill({ json: record.scene });
+      if (req.method() === "GET" && tail === "legacy-pages")
+        return route.fulfill({ json: legacyPages });
       if (req.method() === "GET" && tail === "garden")
         return route.fulfill({ json: {
           serverNow: new Date().toISOString(),
@@ -162,7 +180,18 @@ try {
       }
       if (req.method() === "POST" && tail === "placements") {
         const id = `40000000-0000-4000-8000-${String(createdIndex++).padStart(12, "0")}`;
-        const created = { id, worldId, ...req.postDataJSON() };
+        // Model the actual DB-returned defaults, not just the POST request.
+        // Without shopItemPlacements the newly created shop crashes when
+        // entering its room, masking genuine gesture and legacy link tests.
+        const created = {
+          id, worldId, kind: "decor", assetId: null, npcId: null, effectType: null,
+          effectColor: null, terrainKey: null,
+          xPct: .5, yPct: .5, size: 100, flipped: false, layer: 0,
+          decorEffects: [], isWaterSource: false, isShop: false,
+          legacyLocationId: null, shopItemIds: [], shopItemPlacements: [],
+          interiorDarkness: 35, interiorNightDarkness: null,
+          ...req.postDataJSON(),
+        };
         record.scene.placements.push(created);
         return route.fulfill({ status: 201, json: created });
       }
@@ -227,6 +256,15 @@ try {
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
     await page.getByLabel("Building name").fill("Enchanted Cottage");
+    const creationLegacy = page.getByTestId("world-building-legacy-picker")
+      .getByTestId("select-world-legacy-page");
+    await creationLegacy.waitFor({ state: "visible" });
+    await creationLegacy.locator("optgroup").first().waitFor({ state: "attached" });
+    assert.equal(await creationLegacy.locator("optgroup").count(), 2,
+      name + ": original world pages are grouped by their old world");
+    await creationLegacy.selectOption(legacyPages[0].id);
+    assert.equal(await page.getByAltText("Old Manor Hall original world page").count(), 1,
+      name + ": creator previews original old-world page art");
     await page.getByRole("switch", { name: "Is Shop building" }).check();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64");
@@ -237,7 +275,46 @@ try {
     await page.getByTestId("button-create-world-building").click();
     await createdBuilding;
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "building" &&
-      w.body.size === 300 && w.body.isShop === true), name + ": building created in one step with Pet Park shop/size settings");
+      w.body.size === 300 && w.body.isShop === true &&
+      w.body.legacyLocationId === legacyPages[0].id),
+      name + ": building created with its original old-world page link");
+    const selectedLegacy = page.getByTestId("world-scene-selected-controls")
+      .getByTestId("select-world-legacy-page");
+    assert.equal(await selectedLegacy.inputValue(), legacyPages[0].id,
+      name + ": created building keeps legacy page selection");
+    const linkEdit = page.waitForResponse(r =>
+      r.request().method() === "PATCH" && r.url().includes("/placements/"));
+    await selectedLegacy.selectOption(legacyPages[1].id);
+    await linkEdit;
+    assert.equal(await selectedLegacy.inputValue(), legacyPages[1].id,
+      name + ": selected building can be linked to a different old world");
+    const linkReset = page.waitForResponse(r =>
+      r.request().method() === "PATCH" && r.url().includes("/placements/"));
+    await selectedLegacy.selectOption(legacyPages[0].id);
+    await linkReset;
+    await page.getByRole("button", { name: "Enter Building" }).click();
+    try {
+      await page.getByTestId("world-editor-interior").waitFor({ state: "visible", timeout: 9000 });
+    } catch (error) {
+      console.error("Old-world page interior diagnostics", {
+        name,
+        assets: worlds.haunted_woods.scene.assets.map(asset => ({
+          id: asset.id, kind: asset.kind, hasInterior: Boolean(asset.interiorImageUrl),
+        })),
+        buildings: worlds.haunted_woods.scene.placements.filter(p => p.kind === "building")
+          .map(p => ({ id: p.id, legacyLocationId: p.legacyLocationId, assetId: p.assetId })),
+        legacyPages: legacyPages.map(p => p.id),
+        roomCount: await page.getByTestId("world-editor-interior").count(),
+        controlsCount: await page.getByTestId("world-scene-selected-controls").count(),
+        noRoomText: await page.getByText("This building has no interior artwork yet.").count(),
+        pageErrors: errors,
+        screen: (await page.locator("body").innerText()).slice(-1500),
+      });
+      throw error;
+    }
+    assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
+      oldPageArt, name + ": building reuses exact original page image, not a copied asset");
+    await page.getByRole("button", { name: "Exit Room" }).click();
     await page.getByRole("button", { name: "Deselect world object" }).click();
 
     await page.getByRole("button", { name: "+ Decor" }).click();
@@ -331,14 +408,58 @@ try {
     for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
     const rect = await worldSprite.boundingBox();
     assert.ok(rect, name + ": decoration is in viewport");
-    // World art uses the same select-then-double-tap-to-move gesture as Pet Park.
-    const centerX = rect.x + rect.width / 2, centerY = rect.y + rect.height / 2;
+    // The outer 26px of the source SVG are transparent. Its rectangular
+    // button must not select or move anything when touched there.
+    const transparentX = rect.x + rect.width * .03;
+    const transparentY = rect.y + rect.height * .03;
+    await page.mouse.click(transparentX, transparentY);
+    assert.equal(await page.getByTestId("world-scene-selected-controls").count(), 0,
+      name + ": transparent PNG padding never selects a World object");
+
+    // A swipe starting on initially unselected art is still a camera gesture.
+    // Only a stationary first tap may select, and only a subsequent gesture
+    // starting on the selected opaque art may move that object.
+    const writesBeforePan = apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length;
+    const firstX = rect.x + rect.width / 2, firstY = rect.y + rect.height / 2;
+    await page.mouse.move(firstX, firstY);
+    await page.mouse.down();
+    await page.mouse.move(firstX + 27, firstY + 24, { steps: 6 });
+    await page.mouse.up();
+    assert.equal(apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length,
+      writesBeforePan, name + ": unselected art swipes pan instead of moving decor");
+    assert.equal(await page.getByTestId("world-scene-selected-controls").count(), 0,
+      name + ": a drag is never mistaken for a first selection tap");
+
+    const rectAfterPan = await worldSprite.boundingBox();
+    assert.ok(rectAfterPan);
+    const centerX = rectAfterPan.x + rectAfterPan.width / 2;
+    const centerY = rectAfterPan.y + rectAfterPan.height / 2;
     await page.mouse.click(centerX, centerY);
     await page.getByTestId("world-scene-selected-controls").waitFor({ state: "visible" });
-    const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
-    await page.mouse.move(centerX, centerY);
+    assert.equal(apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length,
+      writesBeforePan, name + ": selection requires no movement/save/double tap");
+
+    // Background drag must keep the selected decor intact while panning.
+    const artTransformBefore = await page.locator("[data-world-editor-artwork]").getAttribute("style");
+    await page.mouse.move(26, height * .56);
     await page.mouse.down();
-    await page.mouse.move(rect.x + rect.width / 2 + 22, rect.y + rect.height / 2 + 28, { steps: 6 });
+    await page.mouse.move(66, height * .59, { steps: 7 });
+    await page.mouse.up();
+    await page.waitForFunction(previous =>
+      document.querySelector("[data-world-editor-artwork]")?.getAttribute("style") !== previous,
+      artTransformBefore);
+    assert.equal(apiWrites.filter(w => w.tail === "placements/" + ids.decor && w.method === "PATCH").length,
+      writesBeforePan, name + ": holding and dragging the background never moves selected decor");
+
+    // A gesture that BEGINS on the selected opaque pixels moves that object.
+    const rectBeforeMove = await worldSprite.boundingBox();
+    assert.ok(rectBeforeMove);
+    const moveX = rectBeforeMove.x + rectBeforeMove.width / 2;
+    const moveY = rectBeforeMove.y + rectBeforeMove.height / 2;
+    const moveSaved = page.waitForResponse(r => r.url().includes("/placements/" + ids.decor) && r.request().method() === "PATCH");
+    await page.mouse.move(moveX, moveY);
+    await page.mouse.down();
+    await page.mouse.move(moveX + 22, moveY + 28, { steps: 6 });
     await page.mouse.up();
     await moveSaved;
     assert.ok(apiWrites.some(w => w.worldId === "haunted_woods" && w.tail === "placements/" + ids.decor &&
@@ -460,6 +581,28 @@ try {
     await cleared;
     assert.ok(apiWrites.some(write => write.worldId === "haunted_woods" && write.tail === "terrain" &&
       write.method === "DELETE"), name + ": one-tap terrain cleanup belongs only to the current world");
+
+    // The + NPC picker uses existing catalog assets and stores no duplicates.
+    await page.getByRole("button", { name: "+ NPC" }).click();
+    await page.getByRole("heading", { name: "Add NPC" }).waitFor({ state: "visible" });
+    const createdNpc = page.waitForResponse(r => r.url().endsWith("/placements") &&
+      r.request().method() === "POST");
+    await page.getByTestId("button-place-world-npc-" + savedNpcs[0].id).click();
+    await createdNpc;
+    const npcWrite = apiWrites.find(w => w.tail === "placements" &&
+      w.body.kind === "npc" && w.body.npcId === savedNpcs[0].id);
+    assert.ok(npcWrite && npcWrite.worldId === "haunted_woods" && npcWrite.body.assetId === null,
+      name + ": NPC picker saves the shared NPC reference in this private world only");
+    const npcPlaced = worlds.haunted_woods.scene.placements.find(p =>
+      p.kind === "npc" && p.npcId === savedNpcs[0].id);
+    assert.ok(npcPlaced);
+    const npcSprite = page.getByTestId("world-scene-placement-" + npcPlaced.id);
+    await npcSprite.waitFor({ state: "visible" });
+    assert.equal(await npcSprite.locator("img").getAttribute("src"), art,
+      name + ": NPC image is reused from the saved catalog");
+    assert.ok((await page.getByTestId("world-scene-selected-controls").innerText()).includes(savedNpcs[0].name),
+      name + ": NPC has selection, resize, flip, and edit controls");
+    await page.getByRole("button", { name: "Deselect world object" }).click();
 
     // Crossing to another draft cannot display or edit Haunted Woods assets.
     await page.goto("http://127.0.0.1:4194/fixture?world=swamp", { waitUntil: "commit" });

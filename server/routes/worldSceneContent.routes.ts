@@ -1,7 +1,7 @@
 import type { Express, Request, RequestHandler } from "express";
-import { and, asc, count, eq, ilike, inArray, ne } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, isNotNull, ne } from "drizzle-orm";
 import {
-  shopItems, worldSceneAssets, worldSceneDrafts, worldScenePlacements, worldSceneInteriorItems,
+  shopItems, worldLocations, worldSceneAssets, worldSceneDrafts, worldScenePlacements, worldSceneInteriorItems,
 } from "@shared/schema";
 import { defaultWorldSceneDraft, isEditableWorldSceneId } from "@shared/worlds/worldSceneDraft";
 import {
@@ -13,7 +13,7 @@ import { parkGroundSize } from "@shared/petParkGround";
 import { isValidParkLightColor } from "@shared/petParkEffects";
 import { HOUSE_INTERIOR_DARKNESS_MIN, HOUSE_INTERIOR_DARKNESS_MAX } from "@shared/housing";
 import { validParkShopPlacements, type ParkShopPlacement } from "@shared/petParkShopPlacements";
-import type { WorldId } from "@shared/worlds/worldRegistry";
+import { WORLD_DEFINITION_LIST, type WorldId } from "@shared/worlds/worldRegistry";
 import type { db as database } from "../db";
 
 type Store = typeof database;
@@ -51,6 +51,24 @@ async function validGlobalCatalogItems(db: Store, ids: string[]): Promise<boolea
     .where(and(inArray(shopItems.id, ids), ne(shopItems.type, "garden_fruit")));
   return existing.length === ids.length;
 }
+async function validLegacyLocationPage(db: Store, id: unknown): Promise<boolean> {
+  if (id === null) return true;
+  if (!validSceneId(id)) return false;
+  const [page] = await db.select({ id: worldLocations.id }).from(worldLocations)
+    .where(and(eq(worldLocations.id, id),
+      inArray(worldLocations.worldId, WORLD_DEFINITION_LIST.map(world => world.id)),
+      isNotNull(worldLocations.bgUrl), ne(worldLocations.bgUrl, ""))).limit(1);
+  return !!page;
+}
+async function validCatalogNpc(db: Store, id: unknown): Promise<boolean> {
+  if (!validSceneId(id)) return false;
+  const [npc] = await db.select({ id: shopItems.id }).from(shopItems).where(and(
+    eq(shopItems.id, id), eq(shopItems.type, "npc"),
+    eq(shopItems.worldId, "__npc_catalog__"),
+    isNotNull(shopItems.imageUrl), ne(shopItems.imageUrl, ""),
+  )).limit(1);
+  return !!npc;
+}
 async function withinLimit(db: Store, table: typeof worldSceneAssets | typeof worldScenePlacements, worldId: string, limit: number) {
   if (table === worldSceneAssets) {
     const [row] = await db.select({ total: count() }).from(worldSceneAssets)
@@ -85,6 +103,31 @@ export function registerWorldSceneContentRoutes(app: Express, {
     } catch (error) {
       console.error("[world-editor] scene read failed", error);
       return res.status(500).json({ message: "Could not read private world scene" });
+    }
+  });
+
+  // List live legacy location pages (with backgrounds) across registered
+  // worlds. New draft buildings reference these IDs; original pages, images,
+  // inventory, quests and links remain unchanged.
+  app.get("/api/admin/world-editor/:worldId/legacy-pages", isAdmin, async (req, res) => {
+    const worldId = worldFrom(req);
+    if (!worldId) return res.status(404).json({ message: "Unknown world" });
+    try {
+      const pages = await db.select({
+        id: worldLocations.id, worldId: worldLocations.worldId,
+        name: worldLocations.name, type: worldLocations.type,
+        bgUrl: worldLocations.bgUrl, isShop: worldLocations.isShop,
+      }).from(worldLocations).where(and(
+        inArray(worldLocations.worldId, WORLD_DEFINITION_LIST.map(world => world.id)),
+        isNotNull(worldLocations.bgUrl), ne(worldLocations.bgUrl, ""),
+      )).orderBy(asc(worldLocations.worldId), asc(worldLocations.name));
+      const names = new Map<string, string>(WORLD_DEFINITION_LIST.map(world => [world.id, world.defaultName]));
+      return res.json(pages.map(page => ({
+        ...page, worldName: names.get(page.worldId) ?? page.worldId,
+      })));
+    } catch (error) {
+      console.error("[world-editor] legacy page list failed", error);
+      return res.status(500).json({ message: "Could not load old world pages" });
     }
   });
 
@@ -228,8 +271,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     const body = req.body ?? {};
     const { kind, assetId, effectType = null, effectColor = null, decorEffects = [],
-      isWaterSource = false, isShop = false, shopItemIds = [] } = body;
-    if (!["decor", "building", "effect"].includes(kind) ||
+      isWaterSource = false, isShop = false, legacyLocationId = null, shopItemIds = [], npcId = null } = body;
+    if (!["decor", "building", "effect", "npc"].includes(kind) ||
       !validPlacementTransform(body) || !validDecorEffects(decorEffects) ||
       typeof isWaterSource !== "boolean" || typeof isShop !== "boolean" ||
       !validShopIds(shopItemIds)) {
@@ -241,29 +284,39 @@ export function registerWorldSceneContentRoutes(app: Express, {
         ? effectColor != null && !isValidParkLightColor(effectColor)
         : effectColor != null)
       return res.status(400).json({ message: "Invalid colored light orb color" });
-    if (((kind !== "decor" && isWaterSource) || (kind === "effect" && decorEffects.length)) ||
+    if (((kind !== "decor" && isWaterSource) ||
+      (kind !== "decor" && kind !== "building" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
-      (kind === "effect" ? !validEffect(effectType) || assetId != null : effectType != null)) {
+      (kind === "npc"
+        ? assetId != null || effectType != null || !validSceneId(npcId)
+        : npcId != null || (kind === "effect"
+          ? !validEffect(effectType) || assetId != null : effectType != null))) {
       return res.status(400).json({ message: "Invalid object-specific settings" });
     }
     try {
-      if (kind !== "effect") {
+      if (kind === "decor" || kind === "building") {
         const asset = await findAsset(db, worldId, assetId);
         if (!asset || asset.kind !== kind) return res.status(400).json({
           message: "Select a matching asset from this world's library",
         });
       }
+      if (kind === "npc" && !(await validCatalogNpc(db, npcId)))
+        return res.status(400).json({ message: "Choose an existing NPC from Admin NPCs" });
+      if (legacyLocationId !== null &&
+          (kind !== "building" || !(await validLegacyLocationPage(db, legacyLocationId))))
+        return res.status(400).json({ message: "Select an existing old-world page with a background" });
       if (!(await validGlobalCatalogItems(db, shopItemIds))) return res.status(400).json({
         message: "Select existing shared inventory items for the shop",
       });
       if (!(await withinLimit(db, worldScenePlacements, worldId, MAX_OBJECTS)))
         return res.status(409).json({ message: "World placement limit reached" });
       const [placed] = await db.insert(worldScenePlacements).values({
-        worldId, kind, assetId: kind === "effect" ? null : assetId, effectType,
+        worldId, kind, assetId: kind === "effect" || kind === "npc" ? null : assetId,
+        npcId: kind === "npc" ? npcId : null, effectType,
         effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,
-        decorEffects, isWaterSource, isShop, shopItemIds, shopItemPlacements: [],
+        decorEffects, isWaterSource, isShop, legacyLocationId, shopItemIds, shopItemPlacements: [],
       }).returning();
       return res.status(201).json(placed);
     } catch (error) {
@@ -325,6 +378,11 @@ export function registerWorldSceneContentRoutes(app: Express, {
         if (saved.kind !== "decor" || typeof body.isWaterSource !== "boolean")
           return res.status(400).json({ message: "Invalid water source" });
         changes.isWaterSource = body.isWaterSource;
+      }
+      if ("legacyLocationId" in body) {
+        if (saved.kind !== "building" || !(await validLegacyLocationPage(db, body.legacyLocationId)))
+          return res.status(400).json({ message: "Invalid old-world page link" });
+        changes.legacyLocationId = body.legacyLocationId;
       }
       if ("isShop" in body) {
         if (saved.kind !== "building" || typeof body.isShop !== "boolean")

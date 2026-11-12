@@ -1672,6 +1672,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   worldId: text("world_id").notNull(),
   kind: text("kind").notNull(),
   assetId: varchar("asset_id"),
+  npcId: varchar("npc_id").references(() => shopItems.id, { onDelete: "cascade" }),
   effectType: text("effect_type"),
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   interiorDarkness: integer("interior_darkness").notNull().default(35),
@@ -1685,6 +1686,8 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   decorEffects: jsonb("decor_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   isWaterSource: boolean("is_water_source").notNull().default(false),
   isShop: boolean("is_shop").notNull().default(false),
+  // Optional original world page reuse; never changes the original location.
+  legacyLocationId: varchar("legacy_location_id").references(() => worldLocations.id, { onDelete: "set null" }),
   shopItemIds: jsonb("shop_item_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   shopItemPlacements: jsonb("shop_item_placements").$type<import("./petParkShopPlacements").ParkShopPlacement[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

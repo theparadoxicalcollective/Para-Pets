@@ -53,6 +53,59 @@ export async function ensureWorldSceneContentStorage(): Promise<void> {
       ADD COLUMN IF NOT EXISTS interior_night_darkness integer;
     ALTER TABLE world_scene_placements
       ADD COLUMN IF NOT EXISTS shop_item_placements jsonb NOT NULL DEFAULT '[]'::jsonb;
+    -- Optional link to an original world-location page. No legacy data is
+    -- copied or changed; deletion of that page safely clears this link.
+    ALTER TABLE world_scene_placements
+      ADD COLUMN IF NOT EXISTS legacy_location_id varchar;
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'world_scene_placements_legacy_location_fk'
+      ) THEN
+        ALTER TABLE world_scene_placements
+          ADD CONSTRAINT world_scene_placements_legacy_location_fk
+          FOREIGN KEY (legacy_location_id)
+          REFERENCES world_locations(id) ON DELETE SET NULL;
+      END IF;
+    END $$;
+    -- NPC placements are private world-scoped references to the existing catalog.
+    ALTER TABLE world_scene_placements ADD COLUMN IF NOT EXISTS npc_id varchar;
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'world_scene_placements_npc_fk') THEN
+        ALTER TABLE world_scene_placements ADD CONSTRAINT world_scene_placements_npc_fk
+          FOREIGN KEY (npc_id) REFERENCES shop_items(id) ON DELETE CASCADE;
+      END IF;
+      -- Upgrade only old checks, preserving all existing placements.
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'world_scene_placements_kind_check'
+          AND position('npc' in pg_get_constraintdef(oid)) > 0
+      ) THEN
+        ALTER TABLE world_scene_placements DROP CONSTRAINT IF EXISTS world_scene_placements_kind_check;
+        ALTER TABLE world_scene_placements ADD CONSTRAINT world_scene_placements_kind_check
+          CHECK (kind IN ('decor', 'building', 'effect', 'terrain', 'npc'));
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'world_scene_placements_kind_asset_check'
+          AND position('npc' in pg_get_constraintdef(oid)) > 0
+      ) THEN
+        ALTER TABLE world_scene_placements DROP CONSTRAINT IF EXISTS world_scene_placements_kind_asset_check;
+        ALTER TABLE world_scene_placements ADD CONSTRAINT world_scene_placements_kind_asset_check CHECK (
+          (kind IN ('decor','building') AND asset_id IS NOT NULL
+            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NULL)
+          OR (kind IN ('effect','terrain') AND asset_id IS NULL
+            AND effect_type IS NOT NULL AND npc_id IS NULL)
+          OR (kind = 'npc' AND asset_id IS NULL
+            AND effect_type IS NULL AND terrain_key IS NULL AND npc_id IS NOT NULL)
+        );
+      END IF;
+    END $$;
+    CREATE INDEX IF NOT EXISTS world_scene_placements_npc_idx
+      ON world_scene_placements (npc_id) WHERE npc_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS world_scene_placements_legacy_location_idx
+      ON world_scene_placements (legacy_location_id)
+      WHERE legacy_location_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS world_scene_placements_world_idx ON world_scene_placements (world_id);
     CREATE UNIQUE INDEX IF NOT EXISTS world_scene_terrain_cell_unique
       ON world_scene_placements (world_id, terrain_key) WHERE terrain_key IS NOT NULL;

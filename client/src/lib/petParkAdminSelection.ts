@@ -44,8 +44,10 @@ export function pickParkAdminArtwork(
         clientY > rect.bottom || rect.width <= 0 || rect.height <= 0) continue;
 
     const image = node.querySelector<HTMLImageElement>("img");
-    if (image && (kind === "building" || object.kind === "decor")) {
-      if (!parkImageHitAt(image, clientX, clientY, object.flipped)) continue;
+    if (kind === "building" || object.kind === "decor" || object.kind === "npc") {
+      // No image means no visible object pixel: never allow an invisible
+      // rectangular placeholder to capture World/Pet Park scene gestures.
+      if (!image || !parkImageHitAt(image, clientX, clientY, object.flipped)) continue;
     } else if (object.kind === "terrain" &&
         (isParkConnectedPath(object.effectType) || object.effectType === "garden_plot")) {
       // Painted paths, water and garden plots use the actual isometric diamond.
