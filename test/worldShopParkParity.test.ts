@@ -46,6 +46,8 @@ test("World renders Pet Park-style coin-only wooden tags and dedicated positioni
   assert.match(world, /className="pointer-events-none relative inline-block shrink-0"/);
   assert.match(world, /width: "27%", height: "27%", left: "50%", top: "61%"/);
   assert.match(park, /width: "27%", height: "27%", left: "50%", top: "61%"/);
+  assert.match(world, /style=\{\{ bottom: "max\(16px, env\(safe-area-inset-bottom, 0px\)\)" \}\}/);
+  assert.match(world, /style=\{\{ bottom: "max\(132px, calc\(env\(safe-area-inset-bottom, 0px\) \+ 122px\)\)" \}\}/);
   assert.match(world, /onPointerMove=\{onTagMove\} onPointerUp=\{onTagUp\}/);
   assert.match(world, /onPointerCancel=\{onTagCancel\} onLostPointerCapture=\{onTagCancel\}/);
   const tag = world.slice(world.indexOf("function ShopPriceTag"), world.indexOf("/** Pet Park-equivalent authoring"));
