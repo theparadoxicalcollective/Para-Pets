@@ -256,6 +256,10 @@ try {
     await page.getByRole("heading", { name: "Add Building" }).waitFor({ state: "visible" });
     assert.equal(await page.getByLabel("Building starting size").inputValue(), "300");
     await page.getByLabel("Building name").fill("Enchanted Cottage");
+    // The form keeps optional page and shop tools, but hides them until needed.
+    assert.equal(await page.getByTestId("world-create-legacy-options").getAttribute("open"),null,
+      name+": optional old-world link does not crowd the main building form");
+    await page.getByTestId("world-create-legacy-options").locator("summary").click();
     const creationLegacy = page.getByTestId("world-building-legacy-picker")
       .getByTestId("select-world-legacy-page");
     await creationLegacy.waitFor({ state: "visible" });
@@ -265,6 +269,7 @@ try {
     await creationLegacy.selectOption(legacyPages[0].id);
     assert.equal(await page.getByAltText("Old Manor Hall original world page").count(), 1,
       name + ": creator previews original old-world page art");
+    await page.getByTestId("world-create-shop-options").locator("summary").click();
     await page.getByRole("switch", { name: "Is Shop building" }).check();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64");
@@ -322,6 +327,15 @@ try {
     assert.equal(await page.getByLabel("Decoration starting size").inputValue(), "100");
     assert.equal(await page.getByLabel("Water Source").count(), 1);
     assert.equal(await page.getByLabel("Decoration Tap Image").count(), 1);
+    assert.equal(await page.getByTestId("world-create-decor-tap-image").getAttribute("open"),null,
+      name+": alternate tap artwork is available without taking over the basic form");
+    await page.getByTestId("world-create-decor-tap-image").locator("summary").click();
+    await page.getByTestId("world-create-decor-effects").locator("summary").click();
+    assert.equal(await page.getByTestId("world-decor-add-effect").isVisible(), true,
+      name+": creating a decoration retains its attached-effect authoring controls");
+    await page.getByTestId("world-create-water-source").locator("summary").click();
+    assert.equal(await page.getByLabel("Water Source").isVisible(), true,
+      name+": water refill tools remain available after one disclosure tap");
     assert.equal(await page.getByText("Artwork Library").count(), 0,
       name + ": creating a decoration must not require a separate asset library");
     await page.getByLabel("Scene item artwork").setInputFiles({
@@ -477,6 +491,11 @@ try {
     await page.getByRole("button", { name: "Edit selected object details" }).click();
     await page.getByTestId("world-scene-details-panel").waitFor({ state: "visible" });
     await page.getByTestId("world-decoration-artwork-editor").waitFor({ state: "visible" });
+    assert.equal(await page.getByTestId("world-edit-decor-effects").count(),1,
+      name+": selected decor still offers all attached lights and effects");
+    await page.getByTestId("world-edit-decor-effects").locator("summary").click();
+    assert.equal(await page.getByTestId("world-decor-add-effect").isVisible(),true,
+      name+": attached decor effect editor remains usable");
     await page.getByRole("button", { name: "Close editor" }).click();
     await movementBar.waitFor({ state: "visible" });
 

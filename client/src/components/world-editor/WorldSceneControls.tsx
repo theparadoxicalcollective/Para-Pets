@@ -518,7 +518,7 @@ export default function WorldSceneControls(props: Props) {
         </details>
         {currentAsset && <details className={disclosure}
           defaultOpen={props.selected.decorEffects.length > 0} data-testid="world-edit-building-effects">
-          <summary>Exterior building lights &amp; effects ({props.selected.decorEffects.length})</summary>
+          <summary>{"Exterior building lights & effects"} ({props.selected.decorEffects.length})</summary>
           <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>
           <WorldDecorEffectEditor key={props.selected.id} imageUrl={currentAsset.imageUrl}
             effects={props.selected.decorEffects} disabled={busy}
@@ -543,7 +543,7 @@ export default function WorldSceneControls(props: Props) {
               void patchArtwork(currentAsset.id, "imageData", event.target.files?.[0]);
               event.target.value = "";
             }}/>
-        </label>}
+        </label>
         {currentAsset && <label className="block cursor-pointer rounded-lg border border-dashed border-[#b99a4c]/65 bg-[#245037] p-2 text-center text-xs">
           {currentAsset.interiorImageUrl ? "Replace Daytime Interior Background" : "Upload Daytime Interior Background"}
           <input type="file" aria-label="Edit building interior image" accept="image/png,image/jpeg"
