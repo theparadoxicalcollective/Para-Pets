@@ -60,8 +60,9 @@ test("admin publication and avatar saves store color metadata without altering c
   assert.match(wardrobe, /"avatar-save-character-button"/);
   assert.match(wardrobe, /const draftOutfit = PLAYER_CLOTHING_CATEGORIES\.reduce/);
   assert.doesNotMatch(wardrobe, /toast\(\{ title: "Wardrobe saved"/);
-  assert.match(renderer, /player-character-renderer__legacy-tint/);
-  assert.match(renderer, /player-character-renderer__canvas-tint/);
+  assert.match(renderer, /filter: tintFilter\(layer\.colorTint\)/);
+  assert.match(renderer, /playerCharacterColorMatrix\(color\)/);
+  assert.doesNotMatch(renderer, /player-character-renderer__legacy-tint|player-character-renderer__canvas-tint/);
   assert.match(renderer, /clothingLayerDepth\(/);
 });
 
