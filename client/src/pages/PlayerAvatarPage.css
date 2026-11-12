@@ -707,6 +707,21 @@ body:has(.player-avatar-page) { background: #071810; }
 
 /* Center the avatar and its ring on page entry; the wardrobe remains a
    separately scrolling panel, with Save Character pinned to the bottom. */
+/* Three explicit viewport rows prevent an open wardrobe's intrinsic content
+   from pushing Save Character below the iPhone screen. The middle row may
+   shrink to zero; only its wardrobe details scroll internally. */
+.player-avatar-page__content--editor {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.player-avatar-page__content--editor > .player-avatar-page__header,
+.player-avatar-page__content--editor > .player-avatar-page__save-footer {
+  min-height: 0;
+}
+.player-avatar-page__content--editor > .player-avatar-page__editor-layout {
+  min-height: 0;
+  overflow: hidden;
+}
 .player-avatar-page__editor-layout {
   flex: 1 1 auto;
   display: flex;
