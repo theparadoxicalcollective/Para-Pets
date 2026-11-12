@@ -112,7 +112,7 @@ export function registerWorldSceneContentRoutes(app: Express, {
         inArray(worldLocations.worldId, WORLD_DEFINITION_LIST.map(world => world.id)),
         isNotNull(worldLocations.bgUrl), ne(worldLocations.bgUrl, ""),
       )).orderBy(asc(worldLocations.worldId), asc(worldLocations.name));
-      const names = new Map(WORLD_DEFINITION_LIST.map(world => [world.id, world.defaultName]));
+      const names = new Map<string, string>(WORLD_DEFINITION_LIST.map(world => [world.id, world.defaultName]));
       return res.json(pages.map(page => ({
         ...page, worldName: names.get(page.worldId) ?? page.worldId,
       })));
