@@ -65,3 +65,31 @@ test("skin color is a softer hue overlay rather than a full darkening multiply l
   assert.match(css, /opacity: \.78/);
   assert.match(source, /data-testid="avatar-custom-skin"/);
 });
+
+test("editor centers the entire character stage on entry, then reveals only the option panel", () => {
+  const css = read("client/src/pages/PlayerAvatarPage.css");
+  assert.match(source, /data-testid="avatar-editor-stage"/);
+  assert.match(source, /data-testid="avatar-editor-layout"/);
+  assert.match(source, /player-avatar-page__editor-layout--panel-open/);
+  assert.match(css, /player-avatar-page__editor-stage \{[\s\S]*?justify-content: center/);
+  assert.match(css, /player-avatar-page__editor-layout:not\(\.player-avatar-page__editor-layout--panel-open\)/);
+  assert.match(css, /player-avatar-page__editor-layout--panel-open > \.player-avatar-page__details/);
+  assert.match(css, /player-avatar-page__editor-layout--panel-open \.player-avatar-page__showcase/);
+  assert.match(css, /player-avatar-page__save-footer/);
+});
+
+test("choices show a short gold tap sparkle; reduced motion removes animations and click targets remain clear", () => {
+  const css = read("client/src/pages/PlayerAvatarPage.css");
+  assert.match(source, /const \[sparkle, setSparkle\] = useState/);
+  assert.match(source, /const showSparkle = /);
+  assert.match(source, /key=\{sparkle.token\}/);
+  assert.match(source, /className=\{\`player-avatar-page__sparkle-burst/);
+  assert.match(source, /Array.from\(\{ length: 7 \}/);
+  assert.match(source, /showSparkle\("save"\)/);
+  assert.match(source, /onClick=\{\(\) => \{ setBodyChoiceId\(option.id\); showSparkle\(\); \}\}/);
+  assert.match(css, /player-avatar-page__sparkle-burst \{[\s\S]*?pointer-events: none/);
+  assert.match(css, /animation: avatar-choice-spark \.62s/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /\.player-avatar-page__sparkle-burst \{ display: none; \}/);
+  assert.doesNotMatch(source, /setInterval\(|setTimeout\(/);
+});
