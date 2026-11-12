@@ -48,7 +48,9 @@ test("link is per placed building, survives restart, and reuses legacy image wit
   assert.match(migration, /ADD COLUMN IF NOT EXISTS legacy_location_id varchar/);
   assert.match(migration, /REFERENCES world_locations\(id\) ON DELETE SET NULL/);
   assert.match(controls, /props\.selected\.legacyLocationId \?\? null/);
-  assert.match(controls, /patchSelected\(\{ legacyLocationId: id \}\)/);
+  assert.match(controls, /patchLegacyPage\(id\)/);
+  assert.match(controls, /legacyLocationId: id/);
+  assert.match(controls, /setLegacyChoice\(\{ buildingId, pageId: id \}\)/);
   assert.match(createForm, /legacyLocationId: isBuilding \? legacyLocationId : null/);
   assert.match(editor, /const interiorImageUrl = linkedLegacyPage\?\.bgUrl \?\? interiorAsset\?\.interiorImageUrl/);
   assert.match(editor, /!linkedLegacyPage && interiorAsset\?\.nightInteriorImageUrl/);
