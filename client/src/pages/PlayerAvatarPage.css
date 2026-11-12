@@ -704,3 +704,129 @@ body:has(.player-avatar-page) { background: #071810; }
   .player-avatar-page__save-footer { padding-top: 5px; padding-bottom: 5px; }
   .player-avatar-page__save-footer button { min-height: 44px; }
 }
+
+/* Center the avatar and its ring on page entry; the wardrobe remains a
+   separately scrolling panel, with Save Character pinned to the bottom. */
+.player-avatar-page__editor-layout {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+.player-avatar-page__editor-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: avatar-editor-enter .36s ease-out both;
+}
+.player-avatar-page__editor-stage .player-avatar-page__showcase {
+  flex: 0 1 auto;
+  margin: 0 auto 2px;
+}
+.player-avatar-page__editor-stage .player-avatar-page__body-controls,
+.player-avatar-page__editor-stage .player-avatar-page__body-divider {
+  flex: 0 0 auto;
+}
+.player-avatar-page__editor-layout:not(.player-avatar-page__editor-layout--panel-open)
+  > .player-avatar-page__details {
+  flex: 0 0 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.player-avatar-page__editor-layout--panel-open > .player-avatar-page__editor-stage {
+  flex: 0 0 auto;
+}
+.player-avatar-page__editor-layout--panel-open > .player-avatar-page__details {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.player-avatar-page__editor-layout--panel-open .player-avatar-page__showcase {
+  height: clamp(190px, min(73vw, 39dvh), 340px);
+}
+@keyframes avatar-editor-enter {
+  from { opacity: .5; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* One-shot golden particles on intentional customization actions.
+   No interval, external animation package, or ongoing rendering work. */
+.player-avatar-page__sparkle-burst {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: 0;
+  height: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.player-avatar-page__sparkle-burst > span {
+  --burst-x: 0px;
+  --burst-y: -85px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 245, 192, .8);
+  background: #f8d882;
+  box-shadow: 0 0 8px #f4cb71b3, 0 0 15px #f4cb7155;
+  opacity: 0;
+  animation: avatar-choice-spark .62s ease-out both;
+}
+.player-avatar-page__sparkle-burst > span:nth-child(1) { --burst-x: -75px; --burst-y: -105px; animation-delay: 0ms; }
+.player-avatar-page__sparkle-burst > span:nth-child(2) { --burst-x: 75px; --burst-y: -95px; animation-delay: 34ms; }
+.player-avatar-page__sparkle-burst > span:nth-child(3) { --burst-x: -105px; --burst-y: -10px; animation-delay: 66ms; }
+.player-avatar-page__sparkle-burst > span:nth-child(4) { --burst-x: 105px; --burst-y: 5px; animation-delay: 18ms; }
+.player-avatar-page__sparkle-burst > span:nth-child(5) { --burst-x: -60px; --burst-y: 90px; animation-delay: 45ms; }
+.player-avatar-page__sparkle-burst > span:nth-child(6) { --burst-x: 68px; --burst-y: 83px; animation-delay: 70ms; }
+.player-avatar-page__sparkle-burst > span:nth-child(7) { --burst-x: 0px; --burst-y: -125px; animation-delay: 22ms; }
+.player-avatar-page__sparkle-burst--save > span {
+  width: 9px;
+  height: 9px;
+  box-shadow: 0 0 13px #ffdfa4cc, 0 0 22px #efd47677;
+  animation-duration: .85s;
+}
+@keyframes avatar-choice-spark {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.25); }
+  22% { opacity: 1; }
+  45% { opacity: .95; transform: translate(-50%, -50%) scale(1); }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(.35);
+  }
+}
+@keyframes avatar-choice-pop {
+  0% { scale: .94; }
+  60% { scale: 1.045; }
+  100% { scale: 1; }
+}
+.player-avatar-page__category:active .player-avatar-page__category-icon,
+.player-avatar-page__item:active .player-avatar-page__item-art,
+.player-avatar-page__body-selector button:active,
+.player-avatar-page__skin-toggle:active {
+  animation: avatar-choice-pop .24s ease-out;
+}
+.player-avatar-page__category[aria-pressed="true"] .player-avatar-page__category-icon,
+.player-avatar-page__item[aria-pressed="true"] .player-avatar-page__item-art {
+  filter: drop-shadow(0 0 4px rgba(252, 214, 137, .32));
+}
+@media (max-height: 650px) {
+  .player-avatar-page__editor-layout--panel-open .player-avatar-page__showcase {
+    height: clamp(178px, min(69vw, 34dvh), 260px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-avatar-page__editor-stage,
+  .player-avatar-page__category:active .player-avatar-page__category-icon,
+  .player-avatar-page__item:active .player-avatar-page__item-art,
+  .player-avatar-page__body-selector button:active,
+  .player-avatar-page__skin-toggle:active { animation: none; }
+  .player-avatar-page__sparkle-burst { display: none; }
+}
