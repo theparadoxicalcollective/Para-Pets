@@ -328,10 +328,10 @@ try {
     });
     assert.equal(editorLayout.display, "grid",
       name + ": loaded editor uses viewport-constrained header, content and Save rows");
-    assert.ok(footerBounds && footerBounds.bottom <= height + 1,
+    assert.ok(footerBounds && footerBounds.y + footerBounds.height <= height + 1,
       name + ": Save Character stays visible above the phone bottom: " +
       JSON.stringify({ footerBounds, editorLayout }));
-    assert.ok(footerBounds && footerBounds.top >= 0,
+    assert.ok(footerBounds && footerBounds.y >= 0,
       name + ": Save Character stays accessible even while the wardrobe is open");
 
     // Trying items is reversible and local. Even body, tuck and hair color
