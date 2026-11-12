@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readPetParkImageData } from "@/lib/petParkImageData";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
+import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
 import type { ParkDecorEffect } from "@shared/petParkDecorEffects";
 import type { WorldSceneInteriorItem, WorldScenePlacement } from "@shared/worlds/worldSceneContent";
 
@@ -33,6 +34,7 @@ export default function WorldSceneCreateForm({
   const [name, setName] = useState("");
   const [size, setSize] = useState(kind === "building" ? 300 : 100);
   const [isShop, setIsShop] = useState(false);
+  const [legacyLocationId, setLegacyLocationId] = useState<string | null>(null);
   const [waterSource, setWaterSource] = useState(false);
   const [effects, setEffects] = useState<ParkDecorEffect[]>([]);
   const [saving, setSaving] = useState(false);
@@ -74,7 +76,8 @@ export default function WorldSceneCreateForm({
         xPct: creationPosition.xPct, yPct: creationPosition.yPct,
         size, flipped: false, layer: 0, decorEffects: effects,
         isWaterSource: isBuilding ? false : waterSource,
-        isShop: isBuilding ? isShop : false, shopItemIds: [],
+        isShop: isBuilding ? isShop : false,
+        legacyLocationId: isBuilding ? legacyLocationId : null, shopItemIds: [],
       };
       const placementResponse = await apiRequest("POST", root + (inside ? "/interior-items" : "/placements"), insidePayload);
       const placed = await placementResponse.json() as WorldScenePlacement | WorldSceneInteriorItem;
@@ -121,6 +124,10 @@ export default function WorldSceneCreateForm({
           maxLength={80} value={name} onChange={event => setName(event.target.value)}
           className={`w-full rounded-xl border bg-[#10291d] p-3 placeholder:text-amber-100/45 ${border}`}/>
       </label>
+      <div className={card} data-testid="world-building-legacy-picker">
+        <WorldLegacyPagePicker worldId={worldId} value={legacyLocationId}
+          onChange={setLegacyLocationId} disabled={saving} preview />
+      </div>
       <div className={card}>
         <label htmlFor="world-building-starting-size" className="flex justify-between gap-2 text-sm">
           <span>Starting building size</span><strong>{size} world units</strong>
