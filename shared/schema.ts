@@ -1591,6 +1591,8 @@ export const petParkBuildings = pgTable("pet_park_buildings", {
   exteriorEffects: jsonb("exterior_effects").$type<ParkDecorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   interiorEffects: jsonb("interior_effects").$type<ParkInteriorEffect[]>().notNull().default(sql`'[]'::jsonb`),
   isShop: boolean("is_shop").notNull().default(false),
+  // Link to a legacy location page; its original background and content remain untouched.
+  legacyLocationId: varchar("legacy_location_id").references(() => worldLocations.id, { onDelete: "set null" }),
   shopItemIds: jsonb("shop_item_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   shopItemPlacements: jsonb("shop_item_placements").$type<import("./petParkShopPlacements").ParkShopPlacement[]>().notNull().default(sql`'[]'::jsonb`),
   // Same ambience scale as Pet Home. Existing rooms receive soft darkness.
