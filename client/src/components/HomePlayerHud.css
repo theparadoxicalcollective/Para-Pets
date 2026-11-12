@@ -295,7 +295,7 @@
 .home-player-hud--avatar-home .home-player-hud__progress {
   position: absolute;
   left: var(--home-xp-x, var(--home-avatar-x, 50%));
-  top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 8px));
+  top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 8px));
   transform: translateX(-50%);
   box-sizing: border-box;
   width: min(calc(100vw - 28px), clamp(185px, var(--home-xp-art-width, 220px), 330px));
@@ -626,7 +626,7 @@
 }
 @media (max-height: 690px) {
   .home-player-hud--avatar-home .home-player-hud__progress {
-    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) + 3px));
+    top: var(--home-xp-y, calc(var(--home-avatar-standing-y, min(68dvh, calc(100dvh - 228px))) - 12px));
   }
   .home-player-hud--avatar-home .home-player-hud__slot {
     width: min(100%, clamp(58px, 17.5vw, 69px));
