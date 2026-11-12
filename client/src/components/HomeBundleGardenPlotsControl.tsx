@@ -186,8 +186,8 @@ export default function HomeBundleGardenPlotsControl({
         <h3 className="mb-2 text-base font-semibold">Add a Garden Plot</h3>
         <p className="mb-4 text-sm leading-relaxed text-[#f4dfad]">
           Add an isometric soil plot to this Home Bundle's outdoor scene.
-          Drag to position and use +/− to resize. Garden crops and harvesting
-          are managed separately.
+          Drag to position and use +/− to resize. Planting, watering and
+          harvesting inside Home are not enabled by this editor yet.
         </p>
         <div className="flex gap-2">
           <button type="button" className="min-h-11 flex-1 rounded-lg border px-3 text-sm"
