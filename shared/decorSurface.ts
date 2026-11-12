@@ -41,3 +41,25 @@ export function decorBlocksImagePoint(
 ): boolean {
   return !decorAllowsWalking(item) && alphaHit;
 }
+
+/**
+ * Convert an actor's world-relative feet point into the decoration's square
+ * artwork coordinates. Only a callback's opaque pixel can obstruct movement;
+ * transparent padding and internal transparent holes remain traversable.
+ * The callback can reuse parkImageHitAt's low-resolution cached alpha mask.
+ */
+export function decorBlocksWorldPoint(
+  item: { xPct: number; yPct: number; size: number; isWaterSource?: boolean | null; decorSurface?: DecorSurface | null },
+  point: { xPct: number; yPct: number },
+  world: { width: number; height: number; scale: number },
+  isOpaqueAt: (x: number, y: number) => boolean,
+): boolean {
+  if (decorAllowsWalking(item) || !Number.isFinite(item.size) || item.size <= 0 ||
+      !Number.isFinite(world.width) || !Number.isFinite(world.height) || !Number.isFinite(world.scale) ||
+      world.width <= 0 || world.height <= 0 || world.scale <= 0) return false;
+  const drawnSize = item.size * world.scale;
+  const x = 0.5 + (point.xPct - item.xPct) * world.width / drawnSize;
+  const y = 0.5 + (point.yPct - item.yPct) * world.height / drawnSize;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return false;
+  return decorBlocksImagePoint(item, isOpaqueAt(x, y));
+}
