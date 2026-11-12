@@ -5,7 +5,8 @@ import { ArrowLeft, Check, RefreshCw, Sparkles } from "lucide-react";
 import { PLAYER_CLOTHING_CATEGORIES, PLAYER_CLOTHING_CATEGORY_LABELS, clothingSegmentsForBody, playerClothingCanRecolor, type PlayerClothingCategory } from "@shared/playerCharacterClothing";
 import PlayerCharacterRenderer from "@/components/PlayerCharacterRenderer";
 import { PLAYER_SKIN_TONE_SWATCHES } from "@shared/playerSkinTone";
-import { REQUIRED_AVATAR_CREATION_CATEGORIES, type AvatarCreationOutfit } from "@shared/playerAvatarEquipment";
+import { REQUIRED_AVATAR_CREATION_CATEGORIES, type AvatarCreationOutfit,
+  type AvatarCharacterOutfit } from "@shared/playerAvatarEquipment";
 import { useToast } from "@/hooks/use-toast";
 import {
   playerAvatarQueryKey, fetchPlayerAvatar, wardrobeLayers, writePlayerAvatar,
@@ -34,6 +35,8 @@ const categoryIcons: Record<PlayerClothingCategory, string> = {
   back: backAccessoriesIcon,
 };
 
+type OutfitPreview = Partial<Record<PlayerClothingCategory, string | null>>;
+
 /** Player character and wardrobe only. Home HUD/pet cutover are separate stages. */
 export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [, navigate] = useLocation();
@@ -54,7 +57,20 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [skinPickerOpen, setSkinPickerOpen] = useState(false);
   const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
-  const [previewSelections, setPreviewSelections] = useState<Partial<Record<PlayerClothingCategory, string>>>({});
+  // Draft clothing never crosses authentication boundaries. Null means the
+  // player removed a garment locally; undefined means use the saved garment.
+  const [previewState, setPreviewState] = useState<{
+    accountId: string; selections: OutfitPreview;
+  }>({ accountId: userId, selections: {} });
+  const previewSelections = previewState.accountId === userId ? previewState.selections : {};
+  const setPreviewSelections = (
+    updater: OutfitPreview | ((current: OutfitPreview) => OutfitPreview),
+  ) => setPreviewState(current => ({
+    accountId: userId,
+    selections: typeof updater === "function"
+      ? updater(current.accountId === userId ? current.selections : {})
+      : updater,
+  }));
   // Unsaved color previews belong only to the current authenticated account.
   const [colorPreview, setColorPreview] = useState<{
     accountId: string; values: Record<string, string | null>;
@@ -109,98 +125,38 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     },
   });
 
-  const equipment = useMutation({
+  // No body, clothing, hair or tuck mutation runs while browsing. The entire
+  // preview is validated and committed once by Save Character.
+  const saveCharacter = useMutation({
     mutationFn: (input: {
-      category: PlayerClothingCategory;
-      inventoryId: string | null;
-      colorTint?: string | null;
-      expectedRevision: number;
-      accountId: string;
-    }) => writePlayerAvatar(
-      "PUT",
-      `/api/player-avatar/equipment/${input.category}`,
-      { inventoryId: input.inventoryId, colorTint: input.colorTint, expectedRevision: input.expectedRevision },
-    ),
+      baseId: string; skinTone: string | null; topTucked: boolean;
+      outfit: AvatarCharacterOutfit; expectedRevision: number; accountId: string;
+    }) => writePlayerAvatar("PUT", "/api/player-avatar/character", {
+      baseId: input.baseId, skinTone: input.skinTone,
+      topTucked: input.topTucked, outfit: input.outfit,
+      expectedRevision: input.expectedRevision,
+    }),
     onSuccess: (saved, input) => {
       cacheSavedAvatar(saved, input.accountId);
       if (input.accountId !== userId) return;
-      setPreviewSelections(current => {
-        const next = { ...current };
-        delete next[input.category];
-        return next;
-      });
-      setColorPreview(null);
-      // Tapping clothing is the confirmation: no success toast or dialog.
-    },
-    onError: (error: Error & { status?: number }, input) => {
-      if (input.accountId === userId) {
-        toast({ title: "Wardrobe not saved", description: error.message, variant: "destructive" });
-      }
-      // Never leave an unsaved preview looking equipped after a failed write.
-      if (input.accountId === userId) setPreviewSelections(current => {
-        const next = { ...current };
-        delete next[input.category];
-        return next;
-      });
-      void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
-    },
-  });
-
-  const changeBody = useMutation({
-    mutationFn: (input: {
-      baseId: string; skinTone: string | null; keepSnapshot: boolean;
-      clearClothing: boolean; topTucked: boolean;
-      expectedRevision: number; accountId: string;
-    }) =>
-      writePlayerAvatar("PATCH", "/api/player-avatar/base", {
-        baseId: input.baseId, skinTone: input.skinTone, keepSnapshot: input.keepSnapshot,
-        clearClothing: input.clearClothing, topTucked: input.topTucked,
-        expectedRevision: input.expectedRevision,
-      }),
-    onSuccess: (saved, input) => {
-      cacheSavedAvatar(saved, input.accountId);
-      if (input.accountId !== userId) return;
-      setBodyChoiceId(null);
-      setSkinChoice(undefined);
+      setPreviewSelections({});
       setColorPreview(null);
       setResetPending(false);
       setTuckChoice(null);
-      // Body changes can invalidate fitted clothing. Never leave unsaved
-      // previews looking equipped in the now-confirmed appearance.
-      setPreviewSelections({});
-      setWardrobeOpen(false);
+      setBodyChoiceId(null);
+      setSkinChoice(undefined);
       setSkinPickerOpen(false);
-      setSaveConfirmationOpen(true);
+      setWardrobeOpen(false);
+      // No intermediate confirmation popup; the Save button is the commit.
     },
-    onError: (error: Error & { status?: number }, input) => {
-      if (input.accountId === userId) {
-        toast({ title: "Could not change body", description: error.message, variant: "destructive" });
-      }
-      if (error.status === 409 || error.status === 404 || error.status === 422) {
-        void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
-      }
-    },
-  });
-  const tuck = useMutation({
-    mutationFn: (input: { topTucked: boolean; expectedRevision: number; accountId: string }) =>
-      writePlayerAvatar("PATCH", "/api/player-avatar/tuck", {
-        topTucked: input.topTucked, expectedRevision: input.expectedRevision,
-      }),
-    onSuccess: (saved, input) => {
-      cacheSavedAvatar(saved, input.accountId);
-      if (input.accountId === userId) setTuckChoice(null);
-    },
-    onError: (error: Error & { status?: number }, input) => {
-      if (input.accountId === userId) {
-        setTuckChoice(null);
-        toast({ title: "Tuck not saved", description: error.message, variant: "destructive" });
-      }
-      if (error.status === 409 || error.status === 404)
-        void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
+    onError: (error: Error, input) => {
+      if (input.accountId === userId)
+        toast({ title: "Character not saved", description: error.message,
+          variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: playerAvatarQueryKey(input.accountId) });
     },
   });
-  const busy = creation.isPending || equipment.isPending ||
-    changeBody.isPending || tuck.isPending;
+  const busy = creation.isPending || saveCharacter.isPending;
   const availableBodies = avatar?.availableBases ?? [];
   const selectedBody = availableBodies.find(base => base.id === bodyChoiceId)
     ?? (avatar?.created ? avatar.base :
@@ -215,6 +171,14 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     ? tuckChoice.value : avatar?.topTucked ?? false;
   const toneChanged = !!avatar?.created && skinTone !== (avatar.skinTone ?? null);
   const appearanceChanged = switchingBody || toneChanged || resetPending;
+  const canWearOnBody = (item: OwnedAvatarClothing): boolean => {
+    if (item.isListed || item.quantity <= 0 || !selectedBody) return false;
+    if (item.universal) return true;
+    if (!switchingBody) return item.compatible;
+    return item.designBaseId === selectedBody.id &&
+      new Date(item.designBasePublishedAt ?? 0).getTime() ===
+        new Date(selectedBody.publishedAt).getTime();
+  };
   const owned = avatar?.ownedClothing.filter(item => item.category === category) ?? [];
   // Reopening a wardrobe shows the saved item as selected. The user does not
   // need to select it a second time just to adjust its color.
@@ -223,17 +187,19 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       ? avatar.equipped.find(item => item.category === category)?.inventoryId
       : null) ?? null;
   const selected: OwnedAvatarClothing | undefined = owned.find(item =>
-    item.inventoryId === activePreviewId && item.compatible && !item.isListed && item.quantity > 0
+    item.inventoryId === activePreviewId && canWearOnBody(item)
   );
-  const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => previewSelections[slot]
-    ? [{ category: slot, inventoryId: previewSelections[slot]! }] : []);
+  const previews = PLAYER_CLOTHING_CATEGORIES.flatMap(slot => {
+    const inventoryId = previewSelections[slot];
+    return inventoryId ? [{ category: slot, inventoryId }] : [];
+  });
   // During initial creation every visible preview is saved together. Filter
   // stale/listed choices before enabling the first-save action.
   const firstOutfit = PLAYER_CLOTHING_CATEGORIES.reduce((choices, slot) => {
     const inventoryId = previewSelections[slot];
     const garment = avatar?.ownedClothing.find(item =>
       item.category === slot && item.inventoryId === inventoryId &&
-      item.compatible && !item.isListed && item.quantity > 0);
+      canWearOnBody(item));
     if (garment) choices[slot] = {
       inventoryId: garment.inventoryId,
       ...(playerClothingCanRecolor(garment.category, garment.colorPickerEnabled) &&
@@ -243,16 +209,35 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
     return choices;
   }, {} as Partial<AvatarCreationOutfit>);
   const missingFirstOutfit = REQUIRED_AVATAR_CREATION_CATEGORIES.filter(slot => !firstOutfit[slot]);
+  // Full draft for one atomic edit save. Existing selections survive body
+  // changes only when they still fit that body; nothing is committed yet.
+  const draftOutfit = PLAYER_CLOTHING_CATEGORIES.reduce((choices, slot) => {
+    const pending = previewSelections[slot];
+    const saved = !resetPending ? avatar?.equipped.find(item => item.category === slot) : undefined;
+    const inventoryId = pending === undefined ? saved?.inventoryId : pending;
+    const item = avatar?.ownedClothing.find(owned =>
+      owned.category === slot && owned.inventoryId === inventoryId && canWearOnBody(owned));
+    const tint = item && playerClothingCanRecolor(slot, item.colorPickerEnabled)
+      ? Object.prototype.hasOwnProperty.call(colorOverrides, item.inventoryId)
+        ? colorOverrides[item.inventoryId]
+        : saved?.inventoryId === item.inventoryId ? saved.colorTint ?? null : null
+      : null;
+    choices[slot] = item ? { inventoryId: item.inventoryId, colorTint: tint } : null;
+    return choices;
+  }, {} as AvatarCharacterOutfit);
   const clothingLayers = avatar
-    ? wardrobeLayers(avatar, previews, resetPending, selectedBody?.name).filter(layer =>
-        !switchingBody || previews.some(item => item.inventoryId === layer.inventoryId) ||
-          avatar.ownedClothing.some(item =>
-            item.inventoryId === layer.inventoryId && item.universal)).map(layer => {
-         const item = avatar.ownedClothing.find(owned => owned.inventoryId === layer.inventoryId);
-         return item && playerClothingCanRecolor(item.category, item.colorPickerEnabled) &&
-           Object.prototype.hasOwnProperty.call(colorOverrides, layer.inventoryId)
-             ? { ...layer, colorTint: colorOverrides[layer.inventoryId] } : layer;
-       })
+    ? wardrobeLayers(
+      avatar, previews, resetPending, selectedBody?.name, canWearOnBody,
+    ).filter(layer =>
+      previewSelections[layer.category] !== null &&
+      (avatar.ownedClothing.some(item =>
+        item.inventoryId === layer.inventoryId && canWearOnBody(item)))
+    ).map(layer => {
+      const item = avatar.ownedClothing.find(entry => entry.inventoryId === layer.inventoryId);
+      return item && playerClothingCanRecolor(item.category, item.colorPickerEnabled) &&
+        Object.prototype.hasOwnProperty.call(colorOverrides, layer.inventoryId)
+        ? { ...layer, colorTint: colorOverrides[layer.inventoryId] } : layer;
+    })
     : [];
   const equippedItem = resetPending ? undefined : avatar?.equipped.find(item => item.category === category);
   const selectedTint = selected
@@ -260,44 +245,15 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
       ? colorOverrides[selected.inventoryId]
       : equippedItem?.inventoryId === selected.inventoryId ? equippedItem.colorTint ?? null : null)
     : null;
-  const selectedTintChanged = !!selected && playerClothingCanRecolor(selected.category, selected.colorPickerEnabled) &&
-    equippedItem?.inventoryId === selected.inventoryId &&
-    selectedTint !== (equippedItem?.colorTint ?? null);
   const unavailableEquipped = !resetPending &&
     (avatar?.unavailableEquipmentSlots.includes(category) ?? false);
-
-  const saveEquipment = (inventoryId: string | null, colorTint?: string | null) => {
-    if (!avatar?.created || avatar.revision == null || busy || appearanceChanged) return;
-    equipment.mutate({ category, inventoryId, colorTint,
-      expectedRevision: avatar.revision, accountId: userId });
-  };
   const chooseClothing = (item: OwnedAvatarClothing) => {
-    if (busy || !item.compatible || item.isListed || item.quantity <= 0) return;
-    if (avatar?.created && appearanceChanged) return; // Save Appearance first.
-    // During first creation, select the preview; the required outfit is
-    // committed atomically by Create My Character.
-    if (!avatar?.created) {
-      setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
-      return;
-    }
-    // On existing characters one tap equips immediately. A tap on an already
-    // worn item is only a selection and must not increment the revision.
-    const saved = avatar.equipped.find(entry => entry.category === category);
-    if (saved?.inventoryId === item.inventoryId) {
-      setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
-      return;
-    }
+    if (busy || !canWearOnBody(item)) return;
     setPreviewSelections(current => ({ ...current, [category]: item.inventoryId }));
-    saveEquipment(item.inventoryId);
   };
-
   const toggleTuck = (checked: boolean) => {
     if (busy) return;
     setTuckChoice({ accountId: userId, value: checked });
-    if (avatar?.created && avatar.revision !== null)
-      tuck.mutate({
-        topTucked: checked, expectedRevision: avatar.revision, accountId: userId,
-      });
   };
   const selectCategory = (next: PlayerClothingCategory) => {
     setWardrobeOpen(open => next === category ? !open : true);
@@ -310,7 +266,9 @@ export default function PlayerAvatarPage({ userId }: { userId: string }) {
   };
   const resetCharacter = () => {
     if (busy) return;
-    setPreviewSelections({});
+    setPreviewSelections(Object.fromEntries(
+      PLAYER_CLOTHING_CATEGORIES.map(slot => [slot, null]),
+    ) as OutfitPreview);
     setColorPreview(null);
     setSkinChoice(null);
     setTuckChoice({ accountId: userId, value: false });
