@@ -346,7 +346,7 @@ try {
     await page.getByTestId("avatar-clothing-plain-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"true",
       name + ": tapping it again restores the previously saved garment");
-    await page.getByTestId("avatar-category-top").tap();
+    await page.getByTestId("avatar-category-head").tap();
     const editStartWrites = writes.length;
     const footer = page.getByTestId("avatar-save-character-button");
     await footer.waitFor({state:"visible"});
