@@ -67,21 +67,24 @@ interface QuestResponse {
   hasUnseenCompletion: boolean;
 }
 
-// Map, Quest and PvP live as persistent Home shortcuts, not menu entries.
-// Keep the other destinations in daily-use priority order across nav surfaces.
+// Preserve the existing fan and world quest pointers on non-Home pages.
+// Only Home promotes Map, Quest and PvP out of its opened navigation panel.
 const LEFT_ITEMS = [
-  { id: "inventory", label: "Pets",   icon: petsIcon },
-  { id: "badges",    label: "Badges", icon: badgesIcon },
+  { id: "badges",    label: "Badges",    icon: badgesIcon },
+  { id: "quest",     label: "Quest",     icon: questIcon  },
+  { id: "pvp",       label: "PvP",       icon: pvpIcon    },
+  { id: "inventory", label: "Pets",      icon: petsIcon   },
+  { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
 const RIGHT_ITEMS = [
-  { id: "home",     label: "Main",     icon: activePetIcon },
+  { id: "cards",    label: "Cards",    icon: cardsIcon },
   { id: "bag",      label: "Bag",      icon: bagNavIcon },
-  { id: "keepers",  label: "Pet Park", icon: globeIcon },
   { id: "pethouse", label: "House",    icon: petHouseIcon },
   { id: "market",   label: "Market",   icon: marketIcon },
   { id: "aquarium", label: "Aquarium", icon: fishbowlIcon },
-  { id: "cards",    label: "Cards",    icon: cardsIcon },
+  { id: "keepers",  label: "Pet Park", icon: globeIcon },
+  { id: "home",     label: "Main",     icon: activePetIcon },
 ];
 
 // Same icon assets and existing actions as before; no duplicate Quest state.
@@ -438,7 +441,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                   label={isSupport ? "Support" : item!.label}
                   testId={`nav-item-${id}`}
                   position={homeNavPosition(index)}
-                  showQuestReward={id === "quest" && questRewardReady}
+                  showQuestReward={false}
                   onClick={() => isSupport ? handleRight("support")
                     : leftItem ? handleLeft(id) : handleRight(id)}
                 />

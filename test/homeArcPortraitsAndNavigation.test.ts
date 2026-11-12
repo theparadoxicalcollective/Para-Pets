@@ -126,13 +126,17 @@ test("Home promotes Map, Quest and PvP outside the reordered navigation", () => 
   assert.match(navCss, /min-height: 44px/);
 });
 
-test("subpage navigation no longer duplicates Map, Quest or PvP shortcuts", () => {
+test("non-Home navigation keeps existing World Map and quest pointers", () => {
   const left = nav.split("const LEFT_ITEMS = [")[1].split("];")[0];
   const right = nav.split("const RIGHT_ITEMS = [")[1].split("];")[0];
   for (const id of ["map", "quest", "pvp"]) {
-    assert.doesNotMatch(left + right, new RegExp('id: "' + id + '"'));
+    assert.match(left + right, new RegExp('id: "' + id + '"'));
   }
+  assert.match(nav, /!isHome && LEFT_ITEMS\.map/);
   assert.match(nav, /if \(id === "map"\)/);
   assert.match(nav, /if \(id === "quest"\)/);
   assert.match(nav, /if \(id === "pvp"\)/);
+  const guide=readFileSync("client/src/components/LonelleQuestOverlay.tsx","utf8");
+  assert.match(guide, /home-shortcut-map/);
+  assert.match(guide, /mapTarget/);
 });
