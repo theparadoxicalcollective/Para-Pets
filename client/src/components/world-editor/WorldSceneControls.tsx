@@ -54,6 +54,11 @@ export default function WorldSceneControls(props: Props) {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [buildingNameDraft, setBuildingNameDraft] = useState("");
+  // Keep the new legacy page choice visible immediately while the admin
+  // PATCH and React Query scene refresh complete. Roll back on a failed save.
+  const [legacyChoice, setLegacyChoice] = useState<{
+    buildingId: string; pageId: string | null;
+  } | null>(null);
   const [lampLightColor, setColoredLightColor] = useState(DEFAULT_PARK_LIGHT_COLOR);
   const [expanded, setExpanded] = useState(false);
   const [assetKindFilter, setAssetKindFilter] = useState<"decor" | "building" | null>(null);
@@ -121,6 +126,22 @@ export default function WorldSceneControls(props: Props) {
   const patchSelected = async (values: Record<string, unknown>) => {
     if (!props.selected) return;
     await mutate("PATCH", `/placements/${props.selected.id}`, values);
+  };
+  const selectedLegacyPage = legacyChoice?.buildingId === props.selected?.id
+    ? legacyChoice.pageId : props.selected?.legacyLocationId ?? null;
+  useEffect(() => {
+    if (!legacyChoice || props.selected?.id !== legacyChoice.buildingId ||
+        props.selected.legacyLocationId === legacyChoice.pageId)
+      setLegacyChoice(null);
+  }, [props.selected?.id, props.selected?.legacyLocationId, legacyChoice]);
+  const patchLegacyPage = async (id: string | null) => {
+    if (!props.selected || props.selected.kind !== "building") return;
+    const buildingId = props.selected.id;
+    setLegacyChoice({ buildingId, pageId: id });
+    const changed = await mutate("PATCH", `/placements/${buildingId}`, {
+      legacyLocationId: id,
+    });
+    if (!changed) setLegacyChoice(null);
   };
   const patchInterior = async (values: Record<string, unknown>) => {
     if (!props.selectedInterior) return;
@@ -269,8 +290,8 @@ export default function WorldSceneControls(props: Props) {
       </div>
       {!props.activeBuilding && props.selected?.kind === "building" &&
         <WorldLegacyPagePicker worldId={props.worldId}
-          value={props.selected.legacyLocationId ?? null}
-          onChange={id => { void patchSelected({ legacyLocationId: id }); }}
+          value={selectedLegacyPage}
+          onChange={id => { void patchLegacyPage(id); }}
           disabled={busy} />}
       <div className="flex gap-1.5">
         {!props.activeBuilding && props.selected?.kind === "decor" &&
@@ -438,8 +459,8 @@ export default function WorldSceneControls(props: Props) {
       </>}
       {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
         <WorldLegacyPagePicker worldId={props.worldId}
-          value={props.selected.legacyLocationId ?? null}
-          onChange={id => { void patchSelected({ legacyLocationId: id }); }}
+          value={selectedLegacyPage}
+          onChange={id => { void patchLegacyPage(id); }}
           disabled={busy} preview />
         {currentAsset && <section className="space-y-2">
           <p className="text-xs font-semibold text-amber-200">Exterior building lights & effects</p>
