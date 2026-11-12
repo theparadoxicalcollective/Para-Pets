@@ -71,7 +71,7 @@ test("both editors expose single-choice legible controls and save their roles", 
   assert.match(world,/decorSurface: source\.decorSurface/);
 });
 
-test("backend preserves role per instance and validates one role at a time", () => {
+test("backend shares each decor type role across linked copies and validates one role at a time", () => {
   const schema=read("shared/schema.ts");
   const parkRoute=read("server/routes/petParkAdmin.routes.ts");
   const worldRoute=read("server/routes/worldSceneContent.routes.ts");
@@ -83,9 +83,25 @@ test("backend preserves role per instance and validates one role at a time", () 
   assert.match(parkRoute,/app\.patch\("\/api\/admin\/pet-park\/items\/:id\/surface", isAdmin/);
   assert.match(parkRoute,/isDecorSurface\(decorSurface\)/);
   assert.match(parkRoute,/decorSurface: original\.decorSurface/);
+  assert.match(parkRoute,/const groupId = original\.appearanceGroupId \?\? original\.id/);
+  assert.match(parkRoute,/set\(\{ appearanceGroupId: groupId \}\)/);
+  const surfaceRoute = parkRoute.split('app.patch("/api/admin/pet-park/items/:id/surface"')[1]
+    ?.split('app.patch("/api/admin/pet-park/items/:id/water-source"')[0] ?? "";
+  assert.match(surfaceRoute,/decorAppearanceWhere\(original\)/);
+  assert.match(surfaceRoute,/set\(\{ decorSurface, isWaterSource \}\)/);
+  const waterRoute = parkRoute.split('app.patch("/api/admin/pet-park/items/:id/water-source"')[1]
+    ?.split('app.patch("/api/admin/pet-park/items/:id/color"')[0] ?? "";
+  assert.match(waterRoute,/decorAppearanceWhere\(original\)/);
   assert.match(worldRoute,/isDecorSurface\(decorSurface\)/);
   assert.match(worldRoute,/decorEffects, isWaterSource, decorSurface, isShop/);
   assert.match(worldRoute,/changes\.decorSurface = body\.decorSurface/);
+  assert.match(worldRoute,/const \[sameType\] = kind === "decor"/);
+  assert.match(worldRoute,/isWaterSource: sameType\?\.isWaterSource \?\? isWaterSource/);
+  assert.match(worldRoute,/decorSurface: sameType\?\.decorSurface \?\? decorSurface/);
+  assert.match(worldRoute,/eq\(worldScenePlacements\.assetId, saved\.assetId\)/);
+  assert.match(worldRoute,/decorSurface: placed\.decorSurface, isWaterSource: placed\.isWaterSource/);
+  assert.match(worldRoute,/eq\(worldScenePlacements\.worldId, worldId\)/);
+  assert.match(read("client/src/components/DecorSurfaceSelector.tsx"),/All copies of the same decoration share this setting/);
   assert.match(parkRoute,/items\/:id\/water-source", isAdmin/);
   assert.match(worldRoute,/if \("isWaterSource" in body\)/);
 });
