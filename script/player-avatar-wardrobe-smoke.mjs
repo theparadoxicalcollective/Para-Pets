@@ -353,8 +353,12 @@ try {
     await page.getByTestId("avatar-clothing-plain-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"false",
       name + ": tapping the already-saved Top previews removing it");
-    assert.equal(await page.locator('[data-clothing-part="top"]').count(),1,
-      name + ": other garment layers still render while Top is removed");
+    // data-clothing-part is the character attachment (torso, head, etc.),
+    // not the wardrobe category. Face/Back pieces can also attach to torso.
+    assert.equal(await page.locator('[data-clothing-key^="top:"]').count(),0,
+      name + ": every segment of the selected Top disappears when deselected");
+    assert.ok(await page.locator('[data-clothing-key]').count()>0,
+      name + ": unrelated equipped Face, Bottoms and Back remain visible");
     assert.equal(writes.length,1,name + ": unselecting clothing makes no API writes");
     await page.getByTestId("avatar-clothing-plain-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"true",
