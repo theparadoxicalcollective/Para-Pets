@@ -78,7 +78,7 @@ const owned = [
   item("top", "plain-top", ["top"], { universal: true, colorPickerEnabled: true,
     segments: [{ partType: "top", slot: "piece_1", canvasAligned: true,
       imageUrl: art, fit, renderPlane: "with_part" }] }),
-  item("bottom", "canvas-pants", ["top"], { universal: true,
+  item("bottom", "canvas-pants", ["top"], { universal: true, colorPickerEnabled: true,
     segments: [{ partType: "top", slot: "piece_1", canvasAligned: true,
       imageUrl: art, fit, renderPlane: "with_part" }] }),
   item("back", "free-back", ["top"], { free: true, universal: true }),
@@ -126,7 +126,8 @@ try {
             return { category, inventoryId: chosen.inventoryId,
               shopItemId: garment.shopItemId, name: garment.name,
               imageUrl: garment.imageUrl, segments: garment.segments,
-              colorTint: chosen.colorTint ?? null };
+              colorTint: chosen.colorTint ?? null,
+              colorPickerEnabled: garment.colorPickerEnabled ?? false };
           }) };
         return route.fulfill({ json: avatar });
       }
@@ -148,6 +149,7 @@ try {
             shopItemId: garment.shopItemId, name: garment.name,
             imageUrl: garment.imageUrl, segments: garment.segments,
             colorTint: chosen.colorTint ?? null,
+            colorPickerEnabled: garment.colorPickerEnabled ?? false,
           }];
         });
         writes.push({ method, kind: "save-character", body });
@@ -252,8 +254,8 @@ try {
     assert.ok(await page.getByTestId("avatar-save-character-button").count() === 0,
       name + ": new character keeps its own single Save Character control");
     await page.getByTestId("avatar-skin-warm").tap();
-    assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 8,
-      name + ": color preview tints the eight body layers");
+    assert.equal(await page.locator('[data-testid="avatar-skin-tint"]').count(), 1,
+      name + ": color preview tints the assembled eight-part body exactly once");
     await page.getByTestId("avatar-category-top").tap();
     assert.equal(await page.getByTestId("avatar-top-tuck").isChecked(), false,
       name + ": untucked is the default");
@@ -273,15 +275,25 @@ try {
     await page.getByTestId("avatar-clothing-plain-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"true",
       name + ": first tap selects a Top without saving");
+    await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
+    assert.match(await page.getByTestId("avatar-clothing-color-controls").textContent(),/Clothing Color/,
+      name + ": admin-enabled Top offers an actual clothing color picker");
+    await page.getByTestId("avatar-clothing-custom-color").fill("#547e52");
+    assert.equal(await page.getByTestId("avatar-clothing-composite").count(), 1,
+      name + ": colored Top renders as one composited garment");
     await page.getByTestId("avatar-clothing-plain-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-plain-top").getAttribute("aria-pressed"),"false",
       name + ": second tap unselects the Top in the first-save preview");
     assert.equal(await page.getByTestId("avatar-clothing-color-controls").count(), 0,
-      name + ": ordinary Tops do not offer a clothing color picker");
+      name + ": removing a Top hides its color controls");
     assert.equal(await page.getByTestId("avatar-create-button").isDisabled(), true,
       name + ": selecting then removing Top still leaves Bottoms and Face required");
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
+    await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
+    await page.getByTestId("avatar-clothing-custom-color").fill("#4c7180");
+    assert.equal(await page.getByTestId("avatar-clothing-composite").count(), 1,
+      name + ": enabled Bottoms also use one garment color pass");
     assert.equal(await page.getByTestId("avatar-create-button").isDisabled(), true,
       name + ": Face remains required");
     await page.getByTestId("avatar-category-face").tap();
@@ -300,6 +312,8 @@ try {
     // existing outfits and Tuck persistence exactly as before.
     await page.getByTestId("avatar-category-top").tap();
     await page.getByTestId("avatar-clothing-plain-top").tap();
+    assert.equal(await page.getByTestId("avatar-clothing-composite").count(),2,
+      name + ": selected Top and Bottom each use an independent single-pass tint");
     await page.getByTestId("avatar-create-button").tap();
     const celebration=page.getByTestId("avatar-save-celebration");
     await celebration.waitFor({ state: "visible" });
@@ -332,6 +346,8 @@ try {
     assert.equal(writes[0].kind, "create", name + ": save is explicit");
     assert.equal(writes[0].body.topTucked, true,
       name + ": first-save tuck preference persisted");
+    assert.equal(writes[0].body.outfit.top.colorTint, "#547e52");
+    assert.equal(writes[0].body.outfit.bottom.colorTint, "#4c7180");
     await page.getByTestId("avatar-category-head").tap();
     await page.getByTestId("avatar-owned-inventory").waitFor({ state: "visible" });
     const shelfFitsOrScrolls = await page.getByTestId("avatar-owned-inventory").evaluate(el => {
@@ -414,16 +430,22 @@ try {
       el.dispatchEvent(new Event("input", {bubbles: true}));
       el.dispatchEvent(new Event("change", {bubbles: true}));
     });
-    await page.waitForFunction(() =>
-      document.querySelectorAll('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').length === 2);
-    assert.equal(await page.locator('[data-clothing-key^="hair:"] [data-testid="avatar-clothing-tint"]').count(), 2,
-      name + ": front and back hair share a live tint preview");
+    await page.waitForFunction(() => {
+      const hair = [...document.querySelectorAll('[data-clothing-key^="hair:"]')];
+      return hair.length === 2 && hair.every(el => getComputedStyle(el).filter.includes("url("));
+    });
+    assert.equal(await page.locator('[data-clothing-key^="hair:"]').count(), 2,
+      name + ": front and back hair remain separate artwork with active recoloring");
+    assert.equal(await page.getByTestId("avatar-clothing-tint").count(), 0,
+      name + ": neither hair segment has an extra translucent masked copy");
     await page.getByTestId("avatar-category-bottom").tap();
     await page.getByTestId("avatar-clothing-pants").tap();
     await page.getByTestId("avatar-unequip-button").tap();
     assert.equal(await page.locator('[data-clothing-part="left_leg"]').count(), 0,
       name + ": removing pending Bottoms immediately changes the preview");
     await page.getByTestId("avatar-clothing-canvas-pants").tap();
+    await page.getByTestId("avatar-clothing-color-controls").waitFor({state:"visible"});
+    await page.getByTestId("avatar-clothing-custom-color").fill("#7b5a3e");
     await page.getByTestId("avatar-category-top").tap();
     assert.equal(await page.getByTestId("avatar-clothing-listed-top").isDisabled(),true,
       name + ": listed Tops cannot be selected");
@@ -438,10 +460,12 @@ try {
     await page.getByTestId("avatar-skin-rich").tap();
     const skinBlend = await page.locator('[data-testid="avatar-skin-tint"]').first()
       .evaluate(el => ({mode:getComputedStyle(el).mixBlendMode,
-        opacity:getComputedStyle(el).opacity}));
-    assert.equal(skinBlend.mode,"color",name + ": skin color preserves painted shading");
-    assert.ok(Number(skinBlend.opacity) <= .8,
-      name + ": skin overlay is intentionally softer");
+        opacity:getComputedStyle(el).opacity,filter:getComputedStyle(el).filter}));
+    assert.equal(skinBlend.mode,"normal",name + ": no pale luminosity-preserving Color blend");
+    assert.equal(Number(skinBlend.opacity),1,
+      name + ": dark skin is never diluted by overlay opacity");
+    assert.match(skinBlend.filter,/url\(/,
+      name + ": one alpha-preserving SVG filter recolors the complete assembled body");
     await page.getByTestId("avatar-choose-fem").tap();
     assert.equal(avatar.base.id,"base-2",
       name + ": switching Fem/Masc never saves an intermediate appearance");
@@ -473,6 +497,8 @@ try {
     assert.equal(saved.body.outfit.hair.colorTint,"#7744bb");
     assert.equal(saved.body.outfit.head.inventoryId,"hat");
     assert.equal(saved.body.outfit.bottom.inventoryId,"canvas-pants");
+    assert.equal(saved.body.outfit.bottom.colorTint,"#7b5a3e");
+    assert.equal(saved.body.outfit.top.colorTint,"#547e52");
     assert.equal(avatar.base.id,"base-1",name + ": Fem body was committed");
     assert.equal(avatar.equipped.find(entry=>entry.category==="hair")?.colorTint,"#7744bb",
       name + ": hair color persisted with full outfit");

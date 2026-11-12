@@ -147,10 +147,11 @@ test("clothing admin uses shared full-canvas renderer and upload tiles, not drag
   assert.match(component, /avatar-save-clothing-item/);
   assert.match(component, /avatar-clothing-attach-/);
   assert.doesNotMatch(component, /setPointerCapture|pointerToCharacterPartLocal|Horizontal fit|Vertical fit|Rotation \(°\)|onPointerDown|onPointerMove|touchAction: "none"/);
-  assert.match(renderer, /fullCanvas\.map\(layer =>/);
-  assert.match(renderer, /oldPartLocal\.map\(layer =>/);
+  assert.match(renderer, /fullCanvas\.filter\(layer => !compositeKeys\.has\(layer\.itemKey\)\)\.map\(layer => renderCanvas\(layer\)\)/);
+  assert.match(renderer, /oldPartLocal\.filter\(layer => !compositeKeys\.has\(layer\.itemKey\)\)\.map\(layer => renderLegacy\(layer\)\)/);
   assert.match(renderer, /data-legacy-clothing-overlay="true"/);
-  assert.match(renderer, /zIndex: garmentDepth\(layer\)/);
+  assert.match(renderer, /zIndex: grouped \? 1 : garmentDepth\(layer\)/);
+  assert.match(renderer, /style=\{\{ zIndex: garment\.depth, filter: tintFilter\(garment\.color\) \}\}/);
   assert.match(renderer, /data-clothing-slot=\{layer.segment.slot \?\? layer.segment.partType\}/);
   assert.match(styles, /player-character-renderer__canvas-image/);
   assert.doesNotMatch(component, /PetAnimator|activePetId|390\s*[×x]\s*844/);

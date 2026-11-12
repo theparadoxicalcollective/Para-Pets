@@ -776,14 +776,14 @@ try {
       await page.getByTestId("home-avatar-character").waitFor({state:"visible",timeout:9000});
       assert.equal(await page.getByTestId("player-avatar-page").count(),0,
         sc.name+": successful first save closes editor after the celebration");
-      assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),8,
-        sc.name+": saved skin color renders on the Home avatar");
+      assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),1,
+        sc.name+": saved skin color recolors one composited Home body");
       assert.equal(await page.getByTestId("home-design-character").count(),0,
         sc.name+": confirmed save replaces gold prompt");
     }else{
       await page.getByTestId("home-avatar-character").waitFor({state:"visible"});
-      assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),8,
-        sc.name+": existing saved color displays on Home");
+      assert.equal(await page.locator('.home-avatar-stage [data-testid="avatar-skin-tint"]').count(),1,
+        sc.name+": existing saved color filters the complete Home body");
       assert.equal(await page.locator('[data-clothing-part="head"]').count(),1,
         sc.name+": equipped clothing displays over the shared rig");
       await page.getByTestId("home-avatar-character").tap();

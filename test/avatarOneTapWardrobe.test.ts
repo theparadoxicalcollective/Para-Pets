@@ -59,11 +59,13 @@ test("switching bodies does not lose the full outfit preview or leak account dra
   assert.match(source, /qc\.invalidateQueries\(\{ queryKey: playerAvatarQueryKey\(input\.accountId\) \}\)/);
 });
 
-test("skin color is a softer hue overlay rather than a full darkening multiply layer", () => {
+test("skin tint is applied once to the composited body, not as pale per-part overlays", () => {
   const css = read("client/src/components/PlayerCharacterRenderer.css");
+  const renderer = read("client/src/components/PlayerCharacterRenderer.tsx");
   assert.match(css, /player-character-renderer__skin-tint/);
-  assert.match(css, /mix-blend-mode: color/);
-  assert.match(css, /opacity: \.78/);
+  assert.match(renderer, /style=\{\{ filter: tintFilter\(skinTone\) \}\}/);
+  assert.match(renderer, /<feColorMatrix type="matrix"/);
+  assert.doesNotMatch(css, /mix-blend-mode: color|opacity: \.78/);
   assert.match(source, /data-testid="avatar-custom-skin"/);
 });
 

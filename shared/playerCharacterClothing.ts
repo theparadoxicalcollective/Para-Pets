@@ -12,13 +12,14 @@ export const PLAYER_CLOTHING_CATEGORIES = [
   "accessories", "head", "hair", "face", "top", "bottom", "shoes", "back",
 ] as const;
 export type PlayerClothingCategory = typeof PLAYER_CLOTHING_CATEGORIES[number];
-/** Only hair can be recolored. All clothing and face/accessory artwork
- * retains its authored colors, even for old records with the legacy flag. */
+/** Hair is always recolorable. Tops and Bottoms are opt-in PER saved
+ * clothing item. Old/null flags and every other category keep original art. */
 export function playerClothingCanRecolor(
   category: PlayerClothingCategory,
-  _legacyColorPickerEnabled?: boolean | null,
+  colorPickerEnabled?: boolean | null,
 ): boolean {
-  return category === "hair";
+  return category === "hair" ||
+    ((category === "top" || category === "bottom") && colorPickerEnabled === true);
 }
 
 export const PLAYER_CLOTHING_CATEGORY_LABELS: Record<PlayerClothingCategory,string> = {
