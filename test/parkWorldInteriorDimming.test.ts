@@ -48,7 +48,7 @@ test("one shared darkness mask and optional nighttime artwork in both editors", 
   assert.match(parkRoom, /<HomeInteriorDarknessLayer darkness=\{darkness\}/);
   assert.match(parkRoom, /nightImageUrl && <img/);
   assert.match(parkRoom, /display: nightArtworkActive \? "block" : "none"/);
-  assert.match(worldPage, /interiorAsset\.nightInteriorImageUrl && <img/);
+  assert.match(worldPage, /!linkedLegacyPage && interiorAsset\?\.nightInteriorImageUrl && <img/);
   assert.match(worldPage, /display: previewNightInteriorArtworkActive \? "block" : "none"/);
   assert.match(worldPage, /darkness=\{interiorDarkness\}/);
   assert.match(read("client/src/pages/PetParkPage.tsx"), /nightImageUrl=\{fullPageRoom \? null : activeBuilding\.nightInteriorImageUrl\}/);
