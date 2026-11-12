@@ -9,6 +9,7 @@ import {
   SIMPLE_AVATAR_BODY_ORDER,
   canvasAlignedAvatarBodyTransform,
   completePlayerCharacterParts,
+  requiredPlayerCharacterPartsForBody,
   resolvePlayerCharacterParts,
   type PlayerCharacterPart,
   type StoredPlayerCharacterPart,
@@ -138,7 +139,7 @@ export default function PlayerCharacterAdminPanel() {
       void qc.invalidateQueries({ queryKey: ["/api/admin/player-character/clothing"] });
       toast({
         title: bodyKind + " body saved",
-        description: completePlayerCharacterParts(base.draftParts)
+        description: completePlayerCharacterParts(base.draftParts, base.name)
           ? "Players can choose this body now."
           : "Save the remaining body parts before players can select it or create clothing.",
       });
@@ -236,6 +237,9 @@ export default function PlayerCharacterAdminPanel() {
                       ? <img src={image} alt="" draggable={false} className="h-10 w-12 object-contain" />
                       : <span aria-hidden="true" className="text-2xl leading-none">+</span>}
                     <span>{PLAYER_CHARACTER_PART_LABELS[type] === "Torso / Top" ? "Torso" : PLAYER_CHARACTER_PART_LABELS[type]}</span>
+                    {type === "top" && <span className="text-[10px] text-[#dcca91]">
+                      {bodyKind === "Masc" ? "Optional for Masc" : "Required for Fem"}
+                    </span>}
                     {pendingImages[type] && <span className="text-[10px] text-[#ffe58f]">New</span>}
                     <input type="file" accept="image/png,image/webp"
                       aria-label={"Upload " + (type === "top" ? "Torso" : PLAYER_CHARACTER_PART_LABELS[type])}
@@ -251,7 +255,7 @@ export default function PlayerCharacterAdminPanel() {
               })}
             </div>
             <p className="mt-2 text-center text-[11px] text-[#cbbb91]">
-              Transparent PNG or WebP · {previewParts.length}/8 parts
+              Transparent PNG or WebP · {previewParts.length}/8 slots · {requiredPlayerCharacterPartsForBody(bodyKind).length} required
             </p>
             <button type="button" data-testid="avatar-save-body"
               className={buttonClass + " mt-3 w-full"}
@@ -267,7 +271,7 @@ export default function PlayerCharacterAdminPanel() {
             )}
           </div>
 
-          {selected && completePlayerCharacterParts(selected.draftParts) && (
+          {selected && completePlayerCharacterParts(selected.draftParts, selected.name) && (
             <p role="status" className="text-center text-xs text-[#decb99]">
               Complete body saved. Players can choose this body; no publishing step needed.
             </p>

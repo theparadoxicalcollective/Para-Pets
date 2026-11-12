@@ -113,6 +113,8 @@ try{
     await page.goto("http://127.0.0.1:4297/admin",{waitUntil:"domcontentloaded"});
     await page.getByTestId("player-character-admin-panel").waitFor({state:"visible"});
     assert.equal(await page.getByTestId("avatar-body-fem").getAttribute("aria-pressed"),"true");
+    assert.equal(await page.getByTestId("avatar-body-upload-tile-top").getByText("Required for Fem").count(),1,
+      sc.name+": Fem torso is required");
     assert.equal(await page.locator('[data-testid^="avatar-body-upload-tile-"]').count(),8,
       sc.name+": eight clearly labeled image uploads");
     assert.equal(await page.getByText("Save Selected Part").count(),0);
@@ -204,6 +206,8 @@ try{
       sc.name+": corrected transforms persist in one draft update");
 
     await page.getByTestId("avatar-body-masc").click();
+    assert.equal(await page.getByTestId("avatar-body-upload-tile-top").getByText("Optional for Masc").count(),1,
+      sc.name+": Masc torso is clearly optional");
     assert.equal(await page.locator('[data-character-motion-part]').count(),0,
       sc.name+": Fem artwork must not leak into Masc");
     await page.getByTestId("avatar-upload-head").setInputFiles({
@@ -224,6 +228,26 @@ try{
     await retryResponse;
     await page.getByTestId("avatar-body-upload-tile-head").getByText("New").waitFor({state:"detached"});
     assert.equal(bases.find(b=>b.name==="Masc")?.draftParts.length,1);
+    assert.equal(await page.getByText("Complete body saved. Players can choose this body; no publishing step needed.").count(),0,
+      sc.name+": one part does not make Masc selectable");
+    for(const part of partOrder.filter(part => part!=="head" && part!=="top")){
+      await page.getByTestId("avatar-upload-"+part).setInputFiles({
+        name:"masc-"+part+".png",mimeType:"image/png",buffer:png,
+      });
+      await page.getByTestId("avatar-body-upload-tile-"+part).getByText("New").waitFor({state:"visible"});
+    }
+    assert.equal(await page.locator('[data-character-motion-part]').count(),7,
+      sc.name+": Masc body previews seven parts with no Torso image");
+    assert.equal(await page.getByTestId("avatar-body-upload-tile-top").locator("img").count(),0,
+      sc.name+": Masc torso is still unuploaded");
+    const mascComplete=page.waitForResponse(r=>r.url().endsWith("/body")&&r.status()===200);
+    await page.getByTestId("avatar-save-body").click();
+    await mascComplete;
+    assert.equal(requests.filter(x=>x.method==="PUT").at(-1).body.parts.length,6,
+      sc.name+": save only six new Masc parts, leaving Torso absent");
+    assert.equal(bases.find(b=>b.name==="Masc")?.draftParts.length,7,
+      sc.name+": saved Masc body has seven actual images");
+    await page.getByText("Complete body saved. Players can choose this body; no publishing step needed.").waitFor({state:"visible"});
     await page.getByTestId("avatar-body-fem").click();
     assert.equal(await page.locator('[data-character-motion-part]').count(),8,
       sc.name+": Fem saved artwork remains separate and reloaded");

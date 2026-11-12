@@ -163,7 +163,7 @@ export function registerPlayerCharacterRoutes(
       );
       const now = new Date();
       const isSelectableBody = ["masc", "fem"].includes(current.name.trim().toLowerCase());
-      const completeBody = isSelectableBody && completePlayerCharacterParts(orderedDraft);
+      const completeBody = isSelectableBody && completePlayerCharacterParts(orderedDraft, current.name);
       const [updated] = await db.update(playerCharacterBases).set({
         draftParts: orderedDraft,
         ...(completeBody ? {
@@ -218,8 +218,8 @@ export function registerPlayerCharacterRoutes(
         if (!base) return { status: 404 as const, message: "Avatar base not found" };
         if (base.revision !== revision.data.expectedRevision)
           return { status: 409 as const, message: "This avatar changed. Reload before publishing." };
-        if (!completePlayerCharacterParts(base.draftParts))
-          return { status: 422 as const, message: "Upload and save all eight avatar base parts before publishing" };
+        if (!completePlayerCharacterParts(base.draftParts, base.name))
+          return { status: 422 as const, message: "Upload the required body parts before publishing" };
 
         // A single transaction ensures one default and no partial publish.
         // Draft changes never alter publishedParts until this explicit action.

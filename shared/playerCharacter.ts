@@ -137,11 +137,13 @@ export function availablePlayerCharacterBody(base: {
   publishedAt: Date | null;
   updatedAt: Date;
 }): { parts: PlayerCharacterPart[]; publishedAt: Date } | null {
-  if (base.publishedAt && base.publishedParts && completePlayerCharacterParts(base.publishedParts)) {
+  if (base.publishedAt && base.publishedParts &&
+      completePlayerCharacterParts(base.publishedParts, base.name)) {
     return { parts: resolvePlayerCharacterParts(base.publishedParts), publishedAt: base.publishedAt };
   }
   const kind = base.name.trim().toLowerCase();
-  if ((kind === "masc" || kind === "fem") && completePlayerCharacterParts(base.draftParts)) {
+  if ((kind === "masc" || kind === "fem") &&
+      completePlayerCharacterParts(base.draftParts, base.name)) {
     return { parts: resolvePlayerCharacterParts(base.draftParts), publishedAt: base.updatedAt };
   }
   return null;
@@ -216,13 +218,26 @@ export function upsertPlayerCharacterPart(
   return parseStoredPlayerCharacterParts(result).sort((a, b) => a.zIndex - b.zIndex);
 }
 
+/** Masc bodies may omit the torso/top image; Fem still requires all eight.
+ * The upload slots, layering and saved artwork format remain unchanged.
+ * Unknown/legacy body names continue to use the strict eight-part contract. */
+export function requiredPlayerCharacterPartsForBody(
+  bodyName?: string,
+): readonly PlayerCharacterPartType[] {
+  return bodyName?.trim().toLowerCase() === "masc"
+    ? PLAYER_CHARACTER_PART_TYPES.filter(type => type !== "top")
+    : PLAYER_CHARACTER_PART_TYPES;
+}
+
 export function completePlayerCharacterParts(
   parts: readonly StoredPlayerCharacterPart[],
+  bodyName?: string,
 ): boolean {
   try {
     const resolved = resolvePlayerCharacterParts(parts);
-    return resolved.length === PLAYER_CHARACTER_PART_TYPES.length &&
-      PLAYER_CHARACTER_PART_TYPES.every(type => resolved.some(part => part.partType === type));
+    const required = requiredPlayerCharacterPartsForBody(bodyName);
+    // Do not reject a Masc body that DOES include the optional torso.
+    return required.every(type => resolved.some(part => part.partType === type));
   } catch {
     return false;
   }
