@@ -49,7 +49,7 @@ test("pet team keeps five editable hit targets but no circular frames or helper 
   assert.match(homeHud, /src=\{emptyPetIcon\}/);
   assert.match(homeHud, /\{id \? "!" : "\+"\}/);
   assert.match(homeCss, /home-player-hud__slot::before/);
-  assert.match(homeCss, /border: 1px solid rgba\(204, 181, 115, \.32\)/);
+  assert.match(homeCss, /border: 1px solid rgba\(204, 181, 115, \.35\)/);
   assert.match(homeCss, /home-player-hud__slot--position-0/);
   assert.match(homeCss, /home-player-hud__slot--position-1/);
   assert.match(homeCss, /home-player-hud__slot--position-2/);
