@@ -207,9 +207,11 @@ export function registerPlayerClothingAdminRoutes(
           draftSegments: segments, publishedSegments: segments,
           draftBodyVariants: bodyVariants, publishedBodyVariants: bodyVariants,
           publishedCategory: input.data.category, universal: true,
-          // Legacy checkbox data is accepted for compatibility but no longer
-          // determines player recoloring. Only hair uses a color picker.
-          colorPickerEnabled: input.data.category === "hair",
+          // Hair is always recolorable; admin opt-in is stored for each
+          // individual Top/Bottom SKU. All other categories remain original.
+          colorPickerEnabled: input.data.category === "hair" ||
+            ((input.data.category === "top" || input.data.category === "bottom") &&
+              (input.data.colorPickerEnabled ?? existing?.colorPickerEnabled ?? false)),
           shopImageUrl,
           shopItemId: itemId, publishedAt: now, updatedAt: now,
         };
