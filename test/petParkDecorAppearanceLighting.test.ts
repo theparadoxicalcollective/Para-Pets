@@ -80,7 +80,9 @@ test("decor appearance group persists and propagates only appearance fields, nev
   assert.match(migration, /ADD COLUMN IF NOT EXISTS appearance_group_id/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS decor_effects jsonb/);
   assert.match(migration, /WHERE item\.kind = 'decor' AND item\.image_url = source\.image_url/);
-  assert.match(route, /appearanceGroupId: original\.appearanceGroupId \?\? original\.id/);
+  assert.match(route, /const groupId = original\.appearanceGroupId \?\? original\.id/);
+  assert.match(route, /set\(\{ appearanceGroupId: groupId \}\)/);
+  assert.match(route, /appearanceGroupId: groupId/);
   assert.match(route, /decorEffects: original\.decorEffects/);
   assert.match(route, /app\.patch\("\/api\/admin\/pet-park\/items\/:id\/appearance"/);
   const appearanceRoute = route.split('app.patch("/api/admin/pet-park/items/:id/appearance"')[1]

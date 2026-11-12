@@ -11,6 +11,7 @@ import { isParkEffect, isValidParkLightColor } from "@shared/petParkEffects";
 import { isValidParkDecorEffects, type ParkDecorEffect } from "@shared/petParkDecorEffects";
 import { isPaintableParkTerrainDetail } from "@shared/petParkTerrainDetails";
 import type { db as database } from "../db";
+import { isDecorSurface } from "@shared/decorSurface";
 import { validParkShopPlacements } from "@shared/petParkShopPlacements";
 
 type ParkKind = "decor" | "sleep_spot" | "effect" | "terrain";
@@ -457,7 +458,7 @@ export function registerPetParkAdminRoutes(
   });
 
   app.post("/api/admin/pet-park/items", isAdmin, async (req, res) => {
-    const { kind, effectType, effectColor = null, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false } = req.body ?? {};
+    const { kind, effectType, effectColor = null, imageData, tapImageData = null, decorEffects = [], xPct, yPct, size, flipped, layer, isWaterSource = false, decorSurface = "barrier" } = req.body ?? {};
     if (!isKind(kind) || !validPosition(xPct) || !validPosition(yPct) ||
         !validSize(size) || typeof flipped !== "boolean" || !validLayer(layer) ||
         (imageData != null && (typeof imageData !== "string" || !imageData.startsWith("data:image/") || imageData.length > 8_000_000)) ||
@@ -466,6 +467,9 @@ export function registerPetParkAdminRoutes(
     }
     if (typeof isWaterSource !== "boolean" || (kind !== "decor" && isWaterSource))
       return res.status(400).json({ message: "Only decorations can be marked as water sources" });
+    if (!isDecorSurface(decorSurface) || (kind !== "decor" && decorSurface !== "barrier") ||
+        (isWaterSource && decorSurface !== "barrier"))
+      return res.status(400).json({ message: "Choose one valid decoration behavior" });
     if (kind === "decor" && !imageData) return res.status(400).json({ message: "Decor requires an image" });
     if (!isValidParkDecorEffects(decorEffects) || (kind !== "decor" && decorEffects.length))
       return res.status(400).json({ message: "Choose valid decorative effects" });
@@ -488,7 +492,8 @@ export function registerPetParkAdminRoutes(
           imageUrl, tapImageUrl,
           appearanceGroupId: kind === "decor" ? randomUUID() : null,
           decorEffects: kind === "decor" ? decorEffects : [],
-          xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer), isWaterSource }).returning();
+          xPct: Number(xPct), yPct: Number(yPct), size: Number(size), flipped, layer: Number(layer),
+          isWaterSource, decorSurface }).returning();
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] item create failed", error);
@@ -509,13 +514,22 @@ export function registerPetParkAdminRoutes(
       if (!original) return res.status(404).json({ message: "Decoration not found" });
       if (original.kind !== "decor" || !original.imageUrl)
         return res.status(422).json({ message: "Only uploaded decor objects can be duplicated" });
-      const [item] = await db.insert(petParkSceneItems)
-        .values({ kind: "decor", imageUrl: original.imageUrl, tapImageUrl: original.tapImageUrl, effectType: null,
-          appearanceGroupId: original.appearanceGroupId ?? original.id,
-          decorEffects: original.decorEffects,
-          isWaterSource: original.isWaterSource,
-          xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
-        .returning();
+      const [item] = await db.transaction(async tx => {
+        // Older standalone rows may lack a group ID. Give the original and
+        // its new copy one shared identity before saving the copy; behavior,
+        // artwork and effects can then be edited once for the entire type.
+        const groupId = original.appearanceGroupId ?? original.id;
+        if (!original.appearanceGroupId) {
+          await tx.update(petParkSceneItems).set({ appearanceGroupId: groupId })
+            .where(and(eq(petParkSceneItems.id, original.id), eq(petParkSceneItems.kind, "decor")));
+        }
+        return tx.insert(petParkSceneItems)
+          .values({ kind: "decor", imageUrl: original.imageUrl, tapImageUrl: original.tapImageUrl, effectType: null,
+            appearanceGroupId: groupId, decorEffects: original.decorEffects,
+            isWaterSource: original.isWaterSource, decorSurface: original.decorSurface,
+            xPct, yPct, size: original.size, flipped: original.flipped, layer: original.layer })
+          .returning();
+      });
       return res.status(201).json(item);
     } catch (error) {
       console.error("[pet-park] decor duplication failed", error);
@@ -524,8 +538,9 @@ export function registerPetParkAdminRoutes(
   });
 
   // Changes to a decoration's visual identity apply to all actual copies.
-  // Placement, size, flipped orientation, layer, and water-source designation
-  // deliberately do NOT appear in this endpoint and remain per instance.
+  // Placement, size, flipped orientation, layer, and behavior designation
+  // deliberately do NOT appear here. Positions stay per instance; behavior
+  // is edited through the shared-type /surface or /water-source route.
   app.patch("/api/admin/pet-park/items/:id/appearance", isAdmin, async (req, res) => {
     const body = req.body ?? {};
     const hasImage = Object.prototype.hasOwnProperty.call(body, "imageData");
@@ -581,18 +596,43 @@ export function registerPetParkAdminRoutes(
     }
   });
 
-  // An existing uploaded decoration may be designated a watering station
-  // independently of its size and placement. No other park object can become
-  // a source, and this never changes terrain, art or player water charges.
+  // A new single-choice editor uses this route; existing clients can continue
+  // using /water-source. Behavior follows the decor artwork type across copies,
+  // while location, size and orientation remain independent.
+  app.patch("/api/admin/pet-park/items/:id/surface", isAdmin, async (req, res) => {
+    const { decorSurface, isWaterSource } = req.body ?? {};
+    if (!isDecorSurface(decorSurface) || typeof isWaterSource !== "boolean" ||
+        (isWaterSource && decorSurface !== "barrier"))
+      return res.status(400).json({ message: "Choose one decoration behavior" });
+    try {
+      const [original] = await db.select().from(petParkSceneItems)
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")));
+      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      const updated = await db.update(petParkSceneItems).set({ decorSurface, isWaterSource })
+        .where(decorAppearanceWhere(original)).returning();
+      return res.json({ item: updated.find(item => item.id === original.id), updatedCount: updated.length });
+    } catch (error) {
+      console.error("[pet-park] decoration behavior update failed", error);
+      return res.status(500).json({ message: "Could not change decoration behavior" });
+    }
+  });
+
+  // Keep the legacy water-source endpoint valid and mutually exclusive with
+  // Grass/Ground. Apply to every copy of this decor type too; garden refills
+  // keep using the existing persisted water flag.
   app.patch("/api/admin/pet-park/items/:id/water-source", isAdmin, async (req, res) => {
     const isWaterSource = req.body?.isWaterSource;
     if (typeof isWaterSource !== "boolean")
       return res.status(400).json({ message: "Water Source must be on or off" });
     try {
-      const [item] = await db.update(petParkSceneItems).set({ isWaterSource })
-        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")))
-        .returning();
-      return item ? res.json(item) : res.status(404).json({ message: "Decoration not found" });
+      const [original] = await db.select().from(petParkSceneItems)
+        .where(and(eq(petParkSceneItems.id, String(req.params.id)), eq(petParkSceneItems.kind, "decor")));
+      if (!original) return res.status(404).json({ message: "Decoration not found" });
+      const updated = await db.update(petParkSceneItems).set(isWaterSource
+        ? { isWaterSource, decorSurface: "barrier" as const } : { isWaterSource })
+        .where(decorAppearanceWhere(original)).returning();
+      // Preserve this existing endpoint's response shape for older clients.
+      return res.json(updated.find(item => item.id === original.id));
     } catch (error) {
       console.error("[pet-park] water source update failed", error);
       return res.status(500).json({ message: "Could not change Water Source" });

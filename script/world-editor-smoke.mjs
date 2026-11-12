@@ -197,6 +197,12 @@ try {
           interiorDarkness: 35, interiorNightDarkness: null,
           ...req.postDataJSON(),
         };
+        const linkedType = created.kind === "decor" ? record.scene.placements.find(p =>
+          p.kind === "decor" && p.assetId === created.assetId) : null;
+        if (linkedType) {
+          created.isWaterSource = linkedType.isWaterSource;
+          created.decorSurface = linkedType.decorSurface ?? "barrier";
+        }
         record.scene.placements.push(created);
         return route.fulfill({ status: 201, json: created });
       }
@@ -206,7 +212,17 @@ try {
       }
       if (req.method() === "PATCH" && tail.startsWith("placements/")) {
         const id = tail.slice("placements/".length);
-        record.scene.placements = record.scene.placements.map(p => p.id === id ? { ...p, ...req.postDataJSON() } : p);
+        const changes = req.postDataJSON();
+        const original = record.scene.placements.find(p => p.id === id);
+        const roleEdited = original?.kind === "decor" &&
+          ("decorSurface" in changes || "isWaterSource" in changes);
+        const linked = roleEdited ? {
+          decorSurface: changes.decorSurface ?? original.decorSurface ?? "barrier",
+          isWaterSource: changes.isWaterSource ?? original.isWaterSource,
+        } : {};
+        record.scene.placements = record.scene.placements.map(p =>
+          p.id === id ? { ...p, ...changes, ...linked }
+            : roleEdited && p.kind === "decor" && p.assetId === original.assetId ? { ...p, ...linked } : p);
         return route.fulfill({ json: record.scene.placements.find(p => p.id === id) });
       }
       if (req.method() === "PATCH" && tail.startsWith("interior-items/")) {
@@ -345,9 +361,13 @@ try {
     await page.getByTestId("world-create-decor-effects").locator("summary").click();
     assert.equal(await page.getByTestId("world-decor-add-effect").isVisible(), true,
       name+": creating a decoration retains its attached-effect authoring controls");
-    await page.getByTestId("world-create-water-source").locator("summary").click();
-    assert.equal(await page.getByLabel("Water Source").isVisible(), true,
-      name+": water refill tools remain available after one disclosure tap");
+    assert.equal(await page.getByTestId("world-create-decor-behavior").isVisible(), true,
+      name+": all decor behavior options are legible without an extra disclosure");
+    assert.equal(await page.getByLabel("Water Source", { exact: true }).isVisible(), true,
+      name+": water refill source remains a visible option");
+    await page.getByLabel("Grass", { exact: true }).check();
+    assert.equal(await page.getByLabel("Grass", { exact: true }).isChecked(), true,
+      name+": Grass can be selected without losing the other editor controls");
     assert.equal(await page.getByText("Artwork Library").count(), 0,
       name + ": creating a decoration must not require a separate asset library");
     await page.getByLabel("Scene item artwork").setInputFiles({
@@ -355,16 +375,35 @@ try {
     });
     const createdDecor = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
     await page.getByTestId("button-create-world-decoration").click();
-    await createdDecor;
+    const firstDecor = await (await createdDecor).json();
     assert.ok(apiWrites.some(w => w.tail === "assets" && w.body.name === "Haunted Lantern"),
       name + ": decor upload uses its filename without extra naming steps");
     assert.ok(apiWrites.some(w => w.tail === "placements" && w.body.kind === "decor" &&
       w.body.size === 100), name + ": decor is placed in one operation");
-    const duplicateSaved = page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST");
-    await page.getByRole("button", { name: "Duplicate world decoration" }).click();
-    await duplicateSaved;
+    const duplicateButton = page.getByRole("button", { name: "Duplicate world decoration" });
+    await duplicateButton.waitFor({ state: "visible" });
+    const [duplicateResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith("/placements") && r.request().method() === "POST"),
+      duplicateButton.click(),
+    ]);
+    const secondDecor = await duplicateResponse.json();
     assert.ok(apiWrites.filter(w => w.tail === "placements" && w.body.kind === "decor").length >= 2,
       name + ": linked decoration duplicates reuse one uploaded asset");
+    assert.equal(firstDecor.assetId, secondDecor.assetId, name + ": linked copies share a decor type");
+    assert.equal(secondDecor.decorSurface, "grass",
+      name + ": copying a Grass decoration must inherit Grass automatically");
+    await page.getByRole("button", { name: "Edit selected object details" }).click();
+    const rolePanel = page.getByTestId("world-decoration-behavior");
+    await rolePanel.waitFor({ state: "visible" });
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes("/placements/" + secondDecor.id) &&
+        r.request().method() === "PATCH"),
+      rolePanel.getByRole("radio", { name: "Ground" }).check(),
+    ]);
+    assert.ok(worlds.haunted_woods.scene.placements.filter(p =>
+      p.kind === "decor" && p.assetId === firstDecor.assetId).every(p => p.decorSurface === "ground"),
+      name + ": changing a decor type to Ground updates the original and every linked copy");
+    await page.getByRole("button", { name: "Close editor" }).click();
     await page.getByRole("button", { name: "Deselect world object" }).click();
 
     await page.getByRole("button", { name: "+ Effects" }).click();

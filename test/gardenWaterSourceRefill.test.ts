@@ -22,8 +22,12 @@ test("water source and refillable are independent admin toggles, not item kinds"
   assert.match(decorAdmin, /app\.patch\("\/api\/admin\/pet-park\/items\/:id\/water-source", isAdmin/);
   assert.match(decorAdmin, /eq\(petParkSceneItems\.kind, "decor"\)/);
   assert.match(decorAdmin, /isWaterSource: original\.isWaterSource/);
-  assert.match(panel, /aria-label="Water Source" type="checkbox"/);
-  assert.match(page, /aria-label="Water Source" aria-pressed=/);
+  const behaviorSelector = readFileSync("client/src/components/DecorSurfaceSelector.tsx", "utf8");
+  assert.match(behaviorSelector, /value: "water", label: "Water Source"/);
+  assert.match(behaviorSelector, /type="radio"/,
+    "decor behavior is one exclusive choice rather than conflicting checkboxes");
+  assert.match(panel, /testId="park-new-decor-behavior"/);
+  assert.match(page, /testId="park-decoration-behavior"/);
   assert.match(shop, /aria-label="Refillable" checked=\{isRefillable\}/);
   assert.match(gardenAdmin, /aria-label="Refillable" checked=\{toolRefillable\}/);
   assert.match(gardenAdmin, /\/api\/admin\/garden\/tools\/\$\{item\.id\}\/refillable/);
