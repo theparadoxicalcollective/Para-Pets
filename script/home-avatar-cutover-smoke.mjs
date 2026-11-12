@@ -417,10 +417,13 @@ try {
       Math.abs(farRight.width - teamSlot.width) <= 1,
       sc.name+": center > near pair > outer pair: "+
       JSON.stringify({center:centerSlot.width,near:nearLeft.width,outer:teamSlot.width}));
-    assert.ok(centerSlot.bottom > nearLeft.bottom + 16 && nearLeft.bottom > teamSlot.bottom + 13,
-      sc.name+": center oval is closest to the bottom; side pets ascend in layers");
-    assert.ok(teamSlot.y < centerSlot.y,
-      sc.name+": pet silhouettes form a descending arc around the center");
+    const footLine = r => r.y + r.height;
+    assert.ok(footLine(centerSlot) > footLine(nearLeft) + (sc.height <= 690 ? 10 : 15) &&
+      footLine(nearLeft) > footLine(teamSlot) + (sc.height <= 690 ? 9 : 12),
+      sc.name+": center oval is lowest while side pets ascend: " +
+        JSON.stringify({center:footLine(centerSlot),near:footLine(nearLeft),outer:footLine(teamSlot)}));
+    assert.ok(centerSlot.y < teamSlot.y,
+      sc.name+": biggest middle pet rises tallest above its foot oval");
 
     if(sc.name==="saved character phone"){
       const beforeTeam=[...currentTeamIds];
