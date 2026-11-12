@@ -7,6 +7,7 @@ import { HOME_OUTDOOR_EFFECT_OPTIONS } from "@/components/HomeInteriorEffect";
 import { PARK_WATER_EFFECT_OPTIONS, PARK_FIREFLIES_OPTION, DEFAULT_PARK_LIGHT_COLOR } from "@shared/petParkEffects";
 import WorldDecorEffectEditor from "./WorldDecorEffectEditor";
 import WorldSceneCreateForm from "./WorldSceneCreateForm";
+import WorldLegacyPagePicker from "./WorldLegacyPagePicker";
 import type {
   WorldSceneContent, WorldSceneInteriorItem, WorldScenePlacement,
 } from "@shared/worlds/worldSceneContent";
@@ -266,6 +267,11 @@ export default function WorldSceneControls(props: Props) {
         <button type="button" className={quickAccent}
           aria-label="Edit selected object details" onClick={() => openCreator("selected")}>Edit</button>
       </div>
+      {!props.activeBuilding && props.selected?.kind === "building" &&
+        <WorldLegacyPagePicker worldId={props.worldId}
+          value={props.selected.legacyLocationId ?? null}
+          onChange={id => { void patchSelected({ legacyLocationId: id }); }}
+          disabled={busy} />}
       <div className="flex gap-1.5">
         {!props.activeBuilding && props.selected?.kind === "decor" &&
           <button type="button" aria-label="Duplicate world decoration"
@@ -431,6 +437,10 @@ export default function WorldSceneControls(props: Props) {
         </div>}
       </>}
       {!props.activeBuilding && props.selected?.kind === "building" && <div className="space-y-3 rounded-lg border border-[#b99a4c]/55 bg-[#153523] p-2">
+        <WorldLegacyPagePicker worldId={props.worldId}
+          value={props.selected.legacyLocationId ?? null}
+          onChange={id => { void patchSelected({ legacyLocationId: id }); }}
+          disabled={busy} preview />
         {currentAsset && <section className="space-y-2">
           <p className="text-xs font-semibold text-amber-200">Exterior building lights & effects</p>
           <p className="text-[11px] text-amber-100/65">Facade lamps follow the outdoor day/night cycle and move with the building.</p>
