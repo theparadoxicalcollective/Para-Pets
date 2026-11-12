@@ -266,9 +266,12 @@ try{
     await page.getByTestId("button-bag-tab-pets").tap();
     const renderedPetNames=await page.getByTestId("bag-full-pets")
       .locator('button[aria-label^="View "]').evaluateAll(nodes =>
-        nodes.slice(0,2).map(n=>n.getAttribute("aria-label")));
-    assert.deepEqual(renderedPetNames,["View Forest Cow details","View Moss Deer details"],
-      sc.name+": Bag pet tab matches the Pets view star-and-name order");
+        nodes.slice(0,3).map(n=>n.getAttribute("aria-label")));
+    // Bag's Pets category includes eggs AND hatched pets; the separate
+    // collection tabs intentionally split those two sets.
+    assert.deepEqual(renderedPetNames,
+      ["View Moon Egg details","View Forest Cow details","View Moss Deer details"],
+      sc.name+": Bag Pets keeps eggs and hatched pets in one rarity/name order");
     assert.equal(writes.length,1,
       sc.name+": switching inventory filters never changes saved inventory or pet state");
     assert.equal(errors.length,0,sc.name+": no browser page errors: "+errors.join("; "));
