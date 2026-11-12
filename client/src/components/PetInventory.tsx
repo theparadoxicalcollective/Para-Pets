@@ -1,5 +1,6 @@
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { fishBagItems, type FishBagRecord } from "@/lib/fishBagInventory";
+import { compareInventoryByRarityThenName } from "@/lib/inventorySort";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { playSpeedUp, playPowerUp } from "@/lib/sounds";
@@ -94,6 +95,7 @@ interface InventoryItem {
   imageUrl: string | null;
   worldId: string;
   rarity: number | null;
+  starRarity?: number | null;
   hatchTime: number | null;
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
@@ -406,7 +408,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
     item.fishingType !== "fish" &&
     (item.type !== "accessory" || !equippedAccessoryIdSet.has(item.inventoryId)),
   ), ...fishBagItems(fishInventory)];
-  const hatchTimeItems = bagItems.filter(i => i.type === "special" && i.specialType === "hatch_time");
+  const hatchTimeItems = bagItems.filter(i => i.type === "special" && i.specialType === "hatch_time")
+    .sort(compareInventoryByRarityThenName);
   const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
   const handlePetToggle = (inventoryId: string) => {
@@ -897,10 +900,9 @@ function PetView({
     },
   });
 
-  const sortedPets = [...pets].sort((a, b) => {
-    const rarityDiff = (b.rarity ?? 0) - (a.rarity ?? 0);
-    return rarityDiff || (b.petLevel ?? 0) - (a.petLevel ?? 0);
-  });
+  // Both hatched Pets and Eggs follow the same star-then-alphabet order.
+  // Level still appears in the card, but does not change browsing order.
+  const sortedPets = [...pets].sort(compareInventoryByRarityThenName);
   const hatchedPets = sortedPets.filter(pet => pet.isHatched);
   const petEggs = sortedPets.filter(pet => !pet.isHatched);
   // Start on Eggs for an eggs-only account, but allow players to switch
@@ -1373,12 +1375,14 @@ function BagView({
     : firstPopulatedCategory;
   const activeBagTabLabel = GAME_ITEM_CATEGORY_LABELS[activeBagCategory];
 
+  // Apply display sorting *inside* the selected category, after filtering.
+  // Mini Pets and any other starred category use rarity before A–Z.
   const displayInventoryEntries = inventoryEntries
     .filter(entry => entry.category === activeBagCategory)
-    .sort((a, b) => a.item.name.localeCompare(b.item.name));
+    .sort((a, b) => compareInventoryByRarityThenName(a.item, b.item));
   const displayHomeAssets = homeAssets
     .filter(entry => entry.category === activeBagCategory)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(compareInventoryByRarityThenName);
   const displayCount = displayInventoryEntries.length + displayHomeAssets.length + (activeBagCategory === "pets" ? pets.length : 0);
   const isEmpty = inventoryEntries.length === 0 && homeAssets.length === 0 && pets.length === 0;
 
@@ -1455,7 +1459,7 @@ function BagView({
 
       {activeBagCategory === "pets" && pets.length > 0 && (
         <div data-testid="bag-full-pets" className="grid grid-cols-2 gap-2 mb-3">
-          {[...pets].sort((a, b) => (b.rarity ?? 0) - (a.rarity ?? 0) || a.name.localeCompare(b.name)).map(pet => {
+          {[...pets].sort(compareInventoryByRarityThenName).map(pet => {
             const petName = pet.petNickname || pet.name;
             const portrait = !pet.isHatched ? (pet.eggImageUrl || pet.imageUrl) : (pet.hatchedImageUrl || pet.imageUrl);
             return (

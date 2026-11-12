@@ -9,6 +9,8 @@ import {
   SIMPLE_AVATAR_BODY_Z_INDEX,
   canvasAlignedAvatarBodyTransform,
   playerCharacterBodyWriteSchema,
+  completePlayerCharacterParts,
+  requiredPlayerCharacterPartsForBody,
   resolvePlayerCharacterParts,
   type PlayerCharacterPart,
 } from "../shared/playerCharacter";
@@ -91,7 +93,7 @@ test("one authenticated admin save makes complete Masc/Fem bodies usable without
   assert.match(bodyWrite, /draftParts: orderedDraft/);
   assert.match(bodyWrite, /eq\(playerCharacterBases.revision, current.revision\)/);
   assert.equal((bodyWrite.match(/db.update\(playerCharacterBases\)/g) ?? []).length, 1);
-  assert.match(bodyWrite, /completePlayerCharacterParts\(orderedDraft\)/);
+  assert.match(bodyWrite, /completePlayerCharacterParts\(orderedDraft, current\.name\)/);
   assert.match(bodyWrite, /publishedParts: resolvePlayerCharacterParts\(orderedDraft\)/);
   assert.match(bodyWrite, /publishedAt: now/);
   assert.doesNotMatch(bodyWrite, /isDefault: true/);
@@ -133,7 +135,19 @@ test("only complete saved Masc/Fem drafts are player-selectable, preserving publ
   const fem = { name: "Fem", draftParts: parts, publishedParts: null, publishedAt: null, updatedAt: t1 };
   assert.deepEqual(availablePlayerCharacterBody(fem), { parts: resolvePlayerCharacterParts(parts), publishedAt: t1 });
   assert.equal(availablePlayerCharacterBody({ ...fem, name: "Custom" }), null);
-  assert.equal(availablePlayerCharacterBody({ ...fem, draftParts: parts.slice(1) }), null);
+  const withoutTop = parts.filter(part => part.partType !== "top");
+  assert.deepEqual(requiredPlayerCharacterPartsForBody("Masc"), PLAYER_CHARACTER_PART_TYPES.filter(type => type !== "top"));
+  assert.deepEqual(requiredPlayerCharacterPartsForBody("Fem"), PLAYER_CHARACTER_PART_TYPES);
+  assert.deepEqual(requiredPlayerCharacterPartsForBody(undefined), PLAYER_CHARACTER_PART_TYPES);
+  assert.equal(completePlayerCharacterParts(withoutTop, "Fem"), false);
+  assert.equal(completePlayerCharacterParts(withoutTop, "Masc"), true);
+  assert.equal(completePlayerCharacterParts(parts, "Masc"), true);
+  assert.equal(completePlayerCharacterParts(withoutTop.slice(1), "Masc"), false);
+  assert.equal(availablePlayerCharacterBody({ ...fem, draftParts: withoutTop }), null);
+  assert.deepEqual(availablePlayerCharacterBody({ ...fem, name: "Masc", draftParts: withoutTop }),
+    { parts: resolvePlayerCharacterParts(withoutTop), publishedAt: t1 });
+  assert.deepEqual(availablePlayerCharacterBody({ ...fem, name: "Masc", publishedParts: withoutTop, publishedAt: t2 }),
+    { parts: resolvePlayerCharacterParts(withoutTop), publishedAt: t2 });
   assert.deepEqual(availablePlayerCharacterBody({ ...fem, name: "Masc", publishedParts: parts, publishedAt: t2 }),
     { parts: resolvePlayerCharacterParts(parts), publishedAt: t2 });
 });

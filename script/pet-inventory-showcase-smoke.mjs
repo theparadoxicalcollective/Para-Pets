@@ -16,7 +16,7 @@ const fixture=[
   'queryClient.setDefaultOptions({queries:{...queryClient.getDefaultOptions().queries,retry:false,refetchOnWindowFocus:false}});',
   'const user={id:"pet-spotlight-fixture",username:"Grove Keeper",coins:1500,activePetId:"pet-a",isAdmin:false};',
   'createRoot(document.getElementById("root")).render(<QueryClientProvider client={queryClient}><TooltipProvider>',
-  '<PetInventory user={user} onClose={()=>{}} onUserUpdate={()=>{}} defaultTab="pets" pageMode />',
+  '<PetInventory user={user} onClose={()=>{}} onUserUpdate={()=>{}} defaultTab={window.location.pathname === "/bag" ? "bag" : "pets"} pageMode />',
   '</TooltipProvider></QueryClientProvider>);',
 ].join("\n");
 
@@ -55,13 +55,27 @@ function ownedPet(inventoryId,name,rarity,isHatched,level=1){
     fishingType:null,specialSkill:null,skillType:null,skillAffects:null};
 }
 const pets=[
-  ownedPet("pet-a","Forest Cow",3,true,5),
+  ownedPet("pet-a","Forest Cow",4,true,5),
   ownedPet("pet-b","Moss Deer",4,true,7),
   ownedPet("pet-c","Small Mummy",1,true,1),
   ...Array.from({length:9},(_,i)=>ownedPet(`pet-extra-${i}`,`Companion ${i+1}`,1,true,2)),
   {...ownedPet("egg-ready","Dawn Egg",2,false),hatchStartedAt:"2020-01-01T00:00:00.000Z"},
   {...ownedPet("egg-wait","Moon Egg",5,false),hatchStartedAt:new Date(Date.now()).toISOString()},
 ];
+const bagItem=(type,id,name,rarity=null)=>({
+  ...ownedPet(id,name,rarity,false,1),type,quantity:1,
+  starRarity:rarity,
+});
+const bagItems=[
+  bagItem("mini_pet","mini-c","Blue Sprite",3),
+  bagItem("mini_pet","mini-z","Zebra Spirit",5),
+  bagItem("mini_pet","mini-a","Amber Spirit",5),
+  bagItem("mini_pet","mini-b","Clover Pixie",1),
+  bagItem("gift","gift-z","Zesty Gift"),
+  bagItem("gift","gift-a","Apple Gift"),
+  bagItem("gift","gift-m","Moon Gift"),
+];
+const allInventory=[...pets,...bagItems];
 
 await server.listen();
 const browser=await chromium.launch({headless:true});
@@ -80,7 +94,7 @@ try{
     await page.route("**/api/**",route=>{
       const url=new URL(route.request().url());
       const method=route.request().method();
-      if(url.pathname==="/api/inventory")return route.fulfill({json:pets});
+      if(url.pathname==="/api/inventory")return route.fulfill({json:allInventory});
       if(url.pathname==="/api/user/equipped-accessory-ids")return route.fulfill({json:[]});
       if(url.pathname==="/api/fishing/inventory")return route.fulfill({json:[]});
       if(method==="POST" && url.pathname==="/api/pet/egg-ready/hatch-check"){
@@ -99,6 +113,10 @@ try{
     assert.equal(await eggsTab.getAttribute("aria-selected"),"false");
     assert.equal(await page.getByTestId("inventory-hatched-pets").locator('[data-testid^="card-pet-"]').count(),12,
       sc.name+": all twelve hatched companions remain reachable");
+    const firstPetNames=await page.getByTestId("inventory-hatched-pets")
+      .locator(".pet-collection__tile-name").allInnerTexts();
+    assert.deepEqual(firstPetNames.slice(0,2),["Forest Cow","Moss Deer"],
+      sc.name+": same 4-star pets sort alphabetically, not by level");
     assert.equal(await page.getByTestId("inventory-pet-eggs").count(),0,
       sc.name+": egg cards are separated into their own tab");
     assert.equal(await page.getByTestId("inventory-pets-eggs-divider").count(),1,
@@ -205,6 +223,9 @@ try{
       sc.name+": pet cards are hidden on Eggs");
     assert.equal(await page.getByTestId("inventory-pet-eggs").locator('[data-testid^="card-pet-"]').count(),2,
       sc.name+": two eggs remain accessible");
+    assert.deepEqual(await page.getByTestId("inventory-pet-eggs")
+      .locator(".pet-collection__egg-name").allInnerTexts(),["Moon Egg","Dawn Egg"],
+      sc.name+": eggs sort highest-star rarity before name");
     assert.equal(await actionBar.locator('[data-pet-action]').count(),4,
       sc.name+": changing tabs never removes the selected pet actions");
     await page.getByTestId("card-pet-egg-wait").click();
@@ -227,6 +248,32 @@ try{
     await page.waitForFunction(() => window.location.pathname === "/pet-care/pet-extra-8");
     assert.equal(new URL(page.url()).searchParams.get("from"),"pets",
       sc.name+": visible Care action still routes by selected inventory ID and returns to Pets");
+    // Open the same production inventory component in Bag mode. Exercise
+    // category tabs as real touch targets; sorting must not change counts.
+    await page.goto("http://127.0.0.1:4215/bag",{waitUntil:"domcontentloaded"});
+    await page.getByTestId("bag-group-tabs").waitFor({state:"visible"});
+    await page.getByTestId("button-bag-group-pets").tap();
+    await page.getByTestId("button-bag-tab-mini_pets").tap();
+    assert.deepEqual(await page.locator('[data-testid^="text-bag-item-name-"]').allInnerTexts(),
+      ["Amber Spirit","Zebra Spirit","Blue Sprite","Clover Pixie"],
+      sc.name+": Mini Pets sort highest rarity, then A–Z within that star group");
+    await page.getByTestId("button-bag-group-items").tap();
+    await page.getByTestId("button-bag-tab-gifts").tap();
+    assert.deepEqual(await page.locator('[data-testid^="text-bag-item-name-"]').allInnerTexts(),
+      ["Apple Gift","Moon Gift","Zesty Gift"],
+      sc.name+": ordinary bag gifts are alphabetical in their selected tab");
+    await page.getByTestId("button-bag-group-pets").tap();
+    await page.getByTestId("button-bag-tab-pets").tap();
+    const renderedPetNames=await page.getByTestId("bag-full-pets")
+      .locator('button[aria-label^="View "]').evaluateAll(nodes =>
+        nodes.slice(0,3).map(n=>n.getAttribute("aria-label")));
+    // Bag's Pets category includes eggs AND hatched pets; the separate
+    // collection tabs intentionally split those two sets.
+    assert.deepEqual(renderedPetNames,
+      ["View Moon Egg details","View Forest Cow details","View Moss Deer details"],
+      sc.name+": Bag Pets keeps eggs and hatched pets in one rarity/name order");
+    assert.equal(writes.length,1,
+      sc.name+": switching inventory filters never changes saved inventory or pet state");
     assert.equal(errors.length,0,sc.name+": no browser page errors: "+errors.join("; "));
     await ctx.close();
   }

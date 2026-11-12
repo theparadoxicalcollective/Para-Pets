@@ -7,16 +7,22 @@ import { playerSkinToneSchema } from "./playerSkinTone";
  * authenticated first save creates the per-account record. Rendering Home's
  * "Design Character" prompt can therefore check created === false.
  */
-/** Only the first Create Character save requires these wardrobe categories.
- * Optional selections are included in the same transaction so nothing
- * previewed before creation is silently lost. */
+/** First-save requirements depend on the published body type:
+ * Fem requires a Top, Bottoms and Face; Masc needs Bottoms and Face only.
+ * Other clothing stays optional, and all selected items save together. */
 export const REQUIRED_AVATAR_CREATION_CATEGORIES = ["top", "bottom", "face"] as const;
+export function requiredAvatarCreationCategoriesForBody(bodyName: string | null | undefined):
+  readonly (typeof REQUIRED_AVATAR_CREATION_CATEGORIES)[number][] {
+  return bodyName?.trim().toLowerCase() === "masc"
+    ? ["bottom", "face"]
+    : REQUIRED_AVATAR_CREATION_CATEGORIES;
+}
 export const avatarCreationItemSchema = z.object({
   inventoryId: z.string().uuid(),
   colorTint: playerSkinToneSchema.optional(),
 }).strict();
 export const avatarCreationOutfitSchema = z.object({
-  top: avatarCreationItemSchema,
+  top: avatarCreationItemSchema.optional(),
   bottom: avatarCreationItemSchema,
   face: avatarCreationItemSchema,
   head: avatarCreationItemSchema.optional(),

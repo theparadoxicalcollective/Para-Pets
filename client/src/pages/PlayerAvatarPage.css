@@ -514,53 +514,6 @@
   .player-avatar-page__category { transition: none; }
 }
 
-/* The save confirmation is deliberately local to the avatar viewport,
-   independent of home HUD overlays or an old reference phone plane. */
-.player-avatar-page__saved-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: calc(18px + env(safe-area-inset-top, 0px)) 18px
-    calc(18px + env(safe-area-inset-bottom, 0px));
-  background: rgba(3, 15, 9, .76);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.player-avatar-page__saved-dialog {
-  box-sizing: border-box;
-  width: min(100%, 390px);
-  max-height: 90dvh;
-  overflow-y: auto;
-  padding: 24px 20px 21px;
-  border: 2px solid #d5b671;
-  border-radius: 25px;
-  background: radial-gradient(ellipse at 50% 0%, #355b3d, #143223 75%);
-  box-shadow: inset 0 0 22px #e9d4901c, 0 18px 70px #000b;
-  color: #f5e2b4;
-  text-align: center;
-}
-.player-avatar-page__saved-sparkle { color: #f3d58f; margin: 0 auto 7px; }
-.player-avatar-page__saved-dialog h2 {
-  margin: 0 0 11px;
-  font: 700 25px Georgia, serif;
-  color: #ffe6a5;
-  text-shadow: 0 2px 5px #0008;
-}
-.player-avatar-page__saved-dialog p { margin: 0 auto 19px; max-width: 300px; font: 13px/1.6 Georgia, serif; }
-.player-avatar-page__saved-dialog button {
-  min-width: 145px;
-  min-height: 46px;
-  padding: 9px 22px;
-  border: 1px solid #ebd28e;
-  border-radius: 24px;
-  color: #fff1c6;
-  background: linear-gradient(170deg,#688246,#294e30);
-  font: 700 15px Georgia, serif;
-  touch-action: manipulation;
-}
-
 /* Character creator mobile/tablet shelf refinements. Keep the header and
    preview fixed, while the lower controls scroll inside the usable viewport. */
 .player-avatar-page__details { display: flex; flex-direction: column; }
@@ -646,8 +599,8 @@ body:has(.player-avatar-page) { background: #071810; }
   background: linear-gradient(165deg,#193c29 0%,#112a1e 47%,#071810 100%) !important;
 }
 
-/* New character creation makes only Top, Bottoms and Face mandatory.
-   Small gold markers and an always-visible explanation avoid surprise saves. */
+/* New character creation requires a Top only for Fem bodies; Bottoms
+   and Face remain required on both. Gold markers match the active body. */
 .player-avatar-page__required-dot {
   position: absolute;
   top: -5px;
@@ -844,4 +797,144 @@ body:has(.player-avatar-page) { background: #071810; }
   .player-avatar-page__body-selector button:active,
   .player-avatar-page__skin-toggle:active { animation: none; }
   .player-avatar-page__sparkle-burst { display: none; }
+}
+
+
+/* Save confirmation: a short, celebratory game reward card, not a generic
+   toast or a second save step. Uses the existing viewport HUD modal layer. */
+.player-avatar-page__saved-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 18px
+    calc(16px + env(safe-area-inset-bottom, 0px));
+  background: rgba(3, 17, 11, .66);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.player-avatar-page__saved-celebration {
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, 365px);
+  max-height: min(86dvh, 440px);
+  overflow: auto;
+  padding: 27px 20px 23px;
+  border: 2px solid #e9c77d;
+  border-radius: 25px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(116, 139, 73, .4), transparent 58%),
+    linear-gradient(155deg, #28523a 0%, #143624 55%, #0b251a 100%);
+  box-shadow: 0 16px 54px rgba(0, 0, 0, .72),
+    inset 0 0 23px rgba(252, 221, 144, .13),
+    0 0 24px rgba(240, 199, 112, .18);
+  text-align: center;
+  color: #f8e7b9;
+  animation: avatar-saved-arrival .4s cubic-bezier(.2,.8,.2,1) both;
+}
+.player-avatar-page__saved-celebration::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(243, 207, 126, .43);
+  border-radius: 19px;
+  pointer-events: none;
+}
+.player-avatar-page__saved-star {
+  position: absolute;
+  top: 34px;
+  color: #ffe5a5;
+  font-size: 25px;
+  text-shadow: 0 0 10px rgba(255, 224, 130, .9);
+  pointer-events: none;
+  animation: avatar-saved-twinkle 1.2s ease-in-out infinite alternate;
+}
+.player-avatar-page__saved-star--left { left: 39px; }
+.player-avatar-page__saved-star--right { right: 39px; animation-delay: .35s; }
+.player-avatar-page__saved-emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 83px;
+  height: 83px;
+  margin: 1px auto 16px;
+  border: 2px solid #e7c77f;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #638747, #315b3a 57%, #163b29);
+  box-shadow: 0 0 0 5px rgba(240, 210, 139, .09),
+    inset 0 0 15px rgba(255, 239, 183, .25),
+    0 0 26px rgba(226, 192, 97, .37);
+  color: #ffe8ac;
+}
+.player-avatar-page__saved-emblem-sparkle {
+  position: absolute;
+  top: -11px;
+  right: -16px;
+  color: #ffe39a;
+  filter: drop-shadow(0 0 5px rgba(255, 219, 122, .9));
+}
+.player-avatar-page__saved-celebration h2 {
+  margin: 0 0 8px;
+  font: 700 clamp(23px, 5.2vw, 29px)/1.2 "Cinzel", Georgia, serif;
+  letter-spacing: .025em;
+  color: #ffe6a1;
+  text-shadow: 0 2px 3px #04150b, 0 0 14px rgba(238, 199, 98, .38);
+}
+.player-avatar-page__saved-celebration p {
+  margin: 0 auto 19px;
+  max-width: 260px;
+  font: 14px/1.5 Georgia, serif;
+  color: #e9ddb5;
+}
+.player-avatar-page__saved-celebration button {
+  position: relative;
+  min-width: 160px;
+  min-height: 46px;
+  padding: 10px 24px;
+  border: 1px solid #f2d699;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #61804b, #2c5735 65%, #1b3b29);
+  box-shadow: inset 0 1px 0 rgba(255, 242, 194, .29), 0 4px 12px #05180d99;
+  color: #fff0c8;
+  font: 700 16px Georgia, serif;
+  touch-action: manipulation;
+}
+.player-avatar-page__saved-celebration button:focus-visible {
+  outline: 2px solid #fff0b0;
+  outline-offset: 3px;
+}
+.player-avatar-page__saved-timer {
+  width: min(76%, 195px);
+  height: 3px;
+  margin: 15px auto 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(236, 204, 131, .18);
+}
+.player-avatar-page__saved-timer span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #dbb75b, #fff0b0);
+  transform-origin: left;
+  animation: avatar-saved-countdown 2.8s linear both;
+}
+@keyframes avatar-saved-arrival {
+  from { opacity: 0; transform: translateY(10px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes avatar-saved-twinkle {
+  from { opacity: .35; transform: scale(.75); }
+  to { opacity: 1; transform: scale(1.1); }
+}
+@keyframes avatar-saved-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-avatar-page__saved-celebration,
+  .player-avatar-page__saved-star,
+  .player-avatar-page__saved-timer span { animation: none; }
 }

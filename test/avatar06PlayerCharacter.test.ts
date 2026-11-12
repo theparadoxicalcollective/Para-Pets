@@ -83,7 +83,7 @@ test("backend separates private drafts and published snapshots with explicit aut
   assert.match(route, /"\/api\/player-character\/default", isAuthenticated/);
   assert.match(route, /\.for\("update"\)/);
   assert.match(route, /pg_advisory_xact_lock/);
-  assert.match(route, /completePlayerCharacterParts\(base\.draftParts\)/);
+  assert.match(route, /completePlayerCharacterParts\(base\.draftParts, base\.name\)/);
   assert.match(route, /publishedParts: resolvePlayerCharacterParts\(base\.draftParts\)\.map/);
   assert.match(route, /eq\(playerCharacterBases\.revision/);
   assert.match(route, /processImage\(payload\.data\.imageData, 1000\)/);
@@ -103,7 +103,7 @@ test("admin editor is isolated, lazy loaded and uses the same relative preview a
   assert.match(admin, /\{ key: "avatar", label: "Avatar" \}/);
   assert.match(admin, /<PlayerCharacterAdminPanel \/>/);
   assert.match(loader, /lazyWithRetry\(\(\) => import\("@\/components\/PlayerCharacterAdminPanel"\)\)/);
-  assert.match(panel, /completePlayerCharacterParts\(selected\.draftParts\)/);
+  assert.match(panel, /completePlayerCharacterParts\(selected\.draftParts, selected\.name\)/);
   assert.match(panel, /expectedRevision: base.revision, parts/);
   assert.doesNotMatch(panel, /data-testid="avatar-publish-default"/);
   assert.match(panel, /<PlayerCharacterPartsPreview/);
