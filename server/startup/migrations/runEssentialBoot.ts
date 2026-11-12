@@ -15,6 +15,15 @@ export async function runEssentialBoot(): Promise<void> {
   // Add the account preference before any auth route reads the user record.
   // Existing accounts retain their current device-local clock until updated.
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS time_zone TEXT`);
+  // Preserve existing email/verified status while awaiting confirmation.
+  await db.execute(sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_token_hash TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_expires TIMESTAMP;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_requested_at TIMESTAMP;
+    CREATE UNIQUE INDEX IF NOT EXISTS users_pending_email_token_hash_unique ON users(pending_email_token_hash)
+      WHERE pending_email_token_hash IS NOT NULL;
+  `);
   // Create disabled-by-default Pet Park tables before any park routes can register.
   await ensurePetParkStorage();
   await ensureGardenStorage();
