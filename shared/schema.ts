@@ -39,6 +39,11 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   emailVerificationToken: text("email_verification_token"),
   emailVerificationExpires: timestamp("email_verification_expires"),
+  // Verified email changes are staged; never replace the login address before verification.
+  pendingEmail: text("pending_email"),
+  pendingEmailTokenHash: text("pending_email_token_hash"),
+  pendingEmailExpires: timestamp("pending_email_expires"),
+  pendingEmailRequestedAt: timestamp("pending_email_requested_at"),
   marketExtraSlots: integer("market_extra_slots").notNull().default(0),
   accessoryExtraSlots: integer("accessory_extra_slots").notNull().default(0),
   welcomeV2Sent: boolean("welcome_v2_sent").notNull().default(false),

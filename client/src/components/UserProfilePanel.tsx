@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerTimeZoneSelect from "@/components/PlayerTimeZoneSelect";
+import { DEFAULT_PLAYER_PROFILE_IMAGE } from "@/lib/defaultPlayerProfileImage";
+import paraPetsHubButton from "@assets/uploads/ParaPetsHubButton.png";
 import { detectedPlayerTimeZone } from "@shared/playerTimeZone";
 import ViewportModalPortal from "@/components/ViewportModalPortal";
 
@@ -70,6 +72,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     return () => setNavHidden(false);
   }, []);
   const [newUsername, setNewUsername] = useState("");
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
   const [timeZone, setTimeZone] = useState(user.timeZone ?? detectedPlayerTimeZone);
   useEffect(() => {
     setTimeZone(user.timeZone ?? detectedPlayerTimeZone());
@@ -249,7 +254,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
     onSuccess: async (data: any) => {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.setQueryData(["/api/auth/me"], data);
       onUserUpdate(data);
+      setProfileImageData(null);
+      setProfilePreview(null);
       toast({ title: "Photo Updated", description: "Your profile picture has been updated" });
     },
     onError: (err: any) => {
@@ -259,6 +267,43 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
       toast({ title: "Update Failed", description: parsed.message || msg || "Failed to update photo", variant: "destructive" });
       setProfilePreview(null);
       setProfileImageData(null);
+    },
+  });
+
+  const removeProfilePicMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", "/api/user/profile-image", { profileImageData: null });
+      return response.json();
+    },
+    onSuccess: (updated: User) => {
+      setProfilePreview(null);
+      setProfileImageData(null);
+      queryClient.setQueryData(["/api/auth/me"], updated);
+      onUserUpdate(updated);
+      toast({ title: "Picture Removed", description: "Your default Para Pets portrait has been restored." });
+    },
+    onError: () => toast({
+      title: "Could Not Remove Picture", description: "Try again shortly.", variant: "destructive",
+    }),
+  });
+
+  const requestEmailChangeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/user/email-change/request", {
+        email: newEmail.trim(), currentPassword: emailPassword,
+      });
+      return response.json() as Promise<{ message: string }>;
+    },
+    onSuccess: data => {
+      setNewEmail("");
+      setEmailPassword("");
+      toast({ title: "Check Your New Email", description: data.message });
+    },
+    onError: (error: Error) => {
+      const text = error.message?.split(": ").slice(1).join(": ") || error.message;
+      let detail = text;
+      try { detail = JSON.parse(text).message || text; } catch {}
+      toast({ title: "Email Change Failed", description: detail, variant: "destructive" });
     },
   });
 
@@ -377,7 +422,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     onError: () => toast({ title: "Error", description: "Failed to delete reply.", variant: "destructive" }),
   });
 
-  const isPending = updateUsernameMutation.isPending || updateTimeZoneMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
+  const isPending = updateUsernameMutation.isPending || updateTimeZoneMutation.isPending ||
+    updateProfilePicMutation.isPending || removeProfilePicMutation.isPending ||
+    requestEmailChangeMutation.isPending || changePasswordMutation.isPending ||
+    logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
 
   return (
     <ViewportModalPortal>
@@ -422,82 +470,72 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               Adventurer Profile
             </h2>
 
-            {/* Profile Picture Section */}
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className="relative w-24 h-24 cursor-pointer transition-transform active:scale-95 rounded-lg overflow-hidden"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-profile-pic-change"
-                style={{
-                  border: "2.5px solid #c9a030",
-                  boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
-                }}
-              >
-                {profilePreview || user.profileImage ? (
-                  <img
-                    data-testid="img-profile-current"
-                    src={profilePreview || user.profileImage!}
-                    alt={user.username}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #153523 0%, #345e40 100%)" }}
-                  >
-                    <span className="font-fantasy text-[#d4a017] text-3xl font-bold">
-                      {(user.username ?? "?").charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="absolute bottom-1 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}
-                >
-                  <span className="text-black text-xs font-bold leading-none">+</span>
+            {/* Single portrait with clearly labeled actions rather than a '+' overlay. */}
+            <div className="space-y-3" data-testid="profile-portrait-controls">
+              <div className="flex justify-center items-center gap-3">
+                <button type="button" data-testid="button-profile-pic-change"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Update profile picture"
+                  disabled={isPending}
+                  className="relative h-24 w-24 shrink-0 rounded-xl overflow-hidden transition-transform active:scale-95 disabled:opacity-60"
+                  style={{ border: "2.5px solid #c9a030",
+                    boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5)" }}>
+                  <img data-testid="img-profile-current" className="h-full w-full object-cover"
+                    src={profilePreview || user.profileImage || DEFAULT_PLAYER_PROFILE_IMAGE}
+                    alt={user.profileImage || profilePreview ? user.username : "Default Para Pets mascot"} />
+                </button>
+                <div className="flex flex-col gap-2 min-w-0">
+                  <button type="button" data-testid="button-update-profile-picture"
+                    onClick={() => fileInputRef.current?.click()} disabled={isPending}
+                    className="min-h-10 rounded-lg border border-[#d5b573] bg-[#214631] px-3 py-2 font-fantasy text-xs text-[#ffe7ad] disabled:opacity-50">
+                    Update Picture
+                  </button>
+                  <button type="button" data-testid="button-remove-profile-picture"
+                    onClick={() => {
+                      if (!user.profileImage) {
+                        setProfilePreview(null);
+                        setProfileImageData(null);
+                      } else {
+                        removeProfilePicMutation.mutate();
+                      }
+                    }}
+                    disabled={isPending || (!user.profileImage && !profilePreview)}
+                    className="min-h-10 rounded-lg border border-[#ae8c56] bg-[#173225] px-3 py-2 font-fantasy text-xs text-[#f5d39b] disabled:opacity-45">
+                    {removeProfilePicMutation.isPending ? "Removing…" : "Remove Picture"}
+                  </button>
                 </div>
               </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                data-testid="input-profile-pic-file"
-              />
-
-              <div className="flex flex-col items-center gap-2 w-full">
-                {profileImageData && (
-                  <button
-                    data-testid="button-save-profile-pic"
-                    onClick={() => updateProfilePicMutation.mutate()}
-                    disabled={isPending}
-                    className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
-                      border: "1px solid rgba(45,154,100,0.6)",
-                      color: "#ffe2a0",
-                      boxShadow: "0 0 12px rgba(127,255,212,0.2)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}
-                  </button>
-                )}
-                {!profileImageData && (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="font-fantasy text-xs text-[#dec9a1] tracking-wider hover:text-[#d4a017] transition-colors"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    Tap portrait to change photo
-                  </button>
-                )}
-              </div>
+              <input ref={fileInputRef} type="file" accept="image/*"
+                onChange={handleFileChange} className="hidden"
+                data-testid="input-profile-pic-file" />
+              {profileImageData && (
+                <button type="button" data-testid="button-save-profile-pic"
+                  onClick={() => updateProfilePicMutation.mutate()} disabled={isPending}
+                  className="mx-auto block w-full max-w-[260px] min-h-10 rounded-lg border border-[#d5b573] bg-[#285438] px-3 py-2 font-fantasy text-sm text-[#ffe7ad] disabled:opacity-60">
+                  {updateProfilePicMutation.isPending ? "Saving…" : "Save New Photo"}
+                </button>
+              )}
             </div>
 
-            <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
+            {/* Exact same artwork asset as the Sign In page. */}
+            <button type="button" data-testid="button-para-pets-hub"
+              onClick={() => { onClose(); navigate("/hub"); }}
+              aria-label="Para Pets Hub"
+              className="mx-auto block w-full max-w-[310px] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ffe4a6]">
+              <img src={paraPetsHubButton} alt="Para Pets Hub"
+                className="mx-auto block w-full h-auto object-contain" draggable={false} />
+            </button>
 
+            <button type="button" data-testid="button-toggle-account-settings"
+              aria-expanded={showAccountSettings} aria-controls="profile-account-settings"
+              onClick={() => { setShowAccountSettings(open => !open); setShowFeedback(false); }}
+              className="w-full min-h-12 rounded-lg border border-[#d1ae67] bg-[#245338] px-4 py-3 font-fantasy text-sm tracking-wider text-[#ffe5a6]">
+              Settings
+            </button>
+            {showAccountSettings && (
+              <section id="profile-account-settings" data-testid="profile-account-settings"
+                aria-label="Account settings"
+                className="space-y-5 rounded-xl border border-[#c3a363]/40 bg-[#09251a]/45 p-3">
             {/* Username Section */}
             <div className="space-y-2">
               <label className="font-fantasy text-[#efdbb3] text-xs tracking-wider block">
@@ -556,6 +594,30 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                 </div>
               )}
             </div>
+
+            {/* Change email: do not replace the current login address until verified. */}
+            <section className="space-y-2 rounded-lg border border-[#a98c4c]/50 bg-[#10291b]/70 p-3"
+              data-testid="profile-email-settings">
+              <label htmlFor="profile-new-email"
+                className="font-fantasy text-[#ebd397] text-xs tracking-wider block">Email Address</label>
+              <p className="text-xs text-[#d9c8a7] break-all">Current: {user.email}</p>
+              <input id="profile-new-email" data-testid="input-new-email" type="email" autoComplete="email"
+                value={newEmail} onChange={event => setNewEmail(event.target.value)}
+                disabled={isPending} maxLength={254} placeholder="New email address"
+                className="w-full min-h-11 rounded-md border border-[#b99458] bg-[#153e2b] px-3 py-2 text-sm text-[#f7e9c1] placeholder-[#b4a483] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9cb85]" />
+              <input data-testid="input-email-change-password" type="password"
+                autoComplete="current-password" aria-label="Current password for email change"
+                value={emailPassword} onChange={event => setEmailPassword(event.target.value)}
+                disabled={isPending} placeholder="Current password"
+                className="w-full min-h-11 rounded-md border border-[#b99458] bg-[#153e2b] px-3 py-2 text-sm text-[#f7e9c1] placeholder-[#b4a483] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e9cb85]" />
+              <p className="text-[11px] text-[#ceb98d]">A confirmation link will be sent to your new address. Your current email remains active until confirmed.</p>
+              <button type="button" data-testid="button-request-email-change"
+                onClick={() => requestEmailChangeMutation.mutate()}
+                disabled={isPending || !emailPassword || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim()) || newEmail.trim().toLowerCase() === user.email.toLowerCase()}
+                className="w-full min-h-10 rounded-lg border border-[#d2ad63] bg-[#285438] px-3 py-2 font-fantasy text-sm text-[#f8e5b1] disabled:opacity-45">
+                {requestEmailChangeMutation.isPending ? "Sending…" : "Verify New Email"}
+              </button>
+            </section>
 
             <div className="space-y-2 rounded-lg border border-[#a98c4c]/50 bg-[#10291b]/70 p-3"
               data-testid="profile-time-zone-settings">
@@ -651,11 +713,155 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               )}
             </div>
 
+
+            {/* Delete Account */}
+            <div className="pt-1">
+              {!showDeleteConfirm ? (
+                <button
+                  data-testid="button-show-delete-account"
+                  onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); setDeleteError(""); }}
+                  disabled={isPending}
+                  className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(120,30,30,0.4)",
+                    color: "#8a4a4a",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete Account
+                </button>
+              ) : !showFinalConfirm ? (
+                /* Step 1: Enter password */
+                <div
+                  className="rounded-xl p-4 space-y-3"
+                  style={{
+                    background: "rgba(80,10,10,0.5)",
+                    border: "1px solid rgba(200,50,50,0.5)",
+                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
+                  }}
+                >
+                  <div className="flex items-start gap-2">
+                    <img src={warnRedPng} alt="!" style={{ width: 20, height: 20, objectFit: "contain", flexShrink: 0 }} />
+                    <div className="space-y-1.5">
+                      <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p>
+                      <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                        Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently erased</span>. This cannot be undone by anyone, including support.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONTINUE</label>
+                    <input
+                      data-testid="input-delete-password"
+                      type="password"
+                      value={deletePassword}
+                      onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }}
+                      placeholder="Your current password"
+                      className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none"
+                      style={{
+                        background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)",
+                        border: `2px solid ${deleteError ? "#ff4444" : "#9a4040"}`,
+                        boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
+                      }}
+                      onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) setShowFinalConfirm(true); }}
+                    />
+                    {deleteError && (
+                      <p data-testid="text-delete-error" className="font-sans text-[#ff8888] text-[11px] pt-0.5 flex items-center gap-1">
+                        <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {deleteError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-cancel-delete"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
+                      style={{
+                        background: "rgba(60,30,10,0.6)",
+                        border: "1px solid rgba(139,94,60,0.4)",
+                        color: "#c8b896",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      data-testid="button-next-delete"
+                      onClick={() => setShowFinalConfirm(true)}
+                      disabled={!deletePassword.trim()}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(160,20,20,0.8) 0%, rgba(100,10,10,0.8) 100%)",
+                        border: "1px solid rgba(220,60,60,0.6)",
+                        color: "#ffaaaa",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2: Final "Are you sure?" confirmation */
+                <div
+                  className="rounded-xl p-4 space-y-4"
+                  style={{
+                    background: "rgba(80,10,10,0.5)",
+                    border: "1px solid rgba(200,50,50,0.5)",
+                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
+                  }}
+                >
+                  <div className="text-center space-y-2">
+                    <p className="font-fantasy text-[#ff6b6b] text-sm tracking-wider">Are you sure?</p>
+                    <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                      Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this. You will not be able to register a new account with this email for <span style={{ color: "#ffaaaa", fontWeight: 600 }}>30 days</span>.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-no-delete"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "rgba(40,80,40,0.7)",
+                        border: "1px solid rgba(80,160,80,0.5)",
+                        color: "#a0e0a0",
+                        cursor: "pointer",
+                      }}
+                    >
+                      No
+                    </button>
+                    <button
+                      data-testid="button-yes-delete"
+                      onClick={() => deleteAccountMutation.mutate(deletePassword)}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(180,20,20,0.9) 0%, rgba(120,10,10,0.9) 100%)",
+                        border: "1px solid rgba(240,60,60,0.7)",
+                        color: "#ffcccc",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {deleteAccountMutation.isPending ? "Deleting..." : "Yes, Delete"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+              </section>
+            )}
+
             {/* Feedback Section */}
             <div>
               <button
                 data-testid="button-toggle-feedback"
-                onClick={() => { setShowFeedback(!showFeedback); setFeedbackSent(false); setFeedbackMessage(""); }}
+                onClick={() => { setShowFeedback(!showFeedback); setShowAccountSettings(false); setFeedbackSent(false); setFeedbackMessage(""); }}
                 disabled={isPending}
                 className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
                 style={{
@@ -665,7 +871,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   cursor: "pointer",
                 }}
               >
-                {showFeedback ? "Cancel" : "Contact Support"}
+                {showFeedback ? "Close Support" : "Support"}
               </button>
 
               {showFeedback && (
@@ -861,23 +1067,6 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             </div>
 
 
-            {/* Para Pets Hub */}
-            <button
-              data-testid="button-para-pets-hub"
-              onClick={() => { onClose(); navigate("/hub"); }}
-              className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all"
-              style={{
-                background: "linear-gradient(135deg, rgba(35,95,58,0.85) 0%, rgba(16,58,36,0.87) 100%)",
-                border: "1px solid rgba(231,195,109,0.64)",
-                color: "#ffe2a0",
-                cursor: "pointer",
-                boxShadow: "0 0 14px rgba(224,190,102,0.17), 0 2px 8px rgba(0,0,0,0.35)",
-                textShadow: "0 0 12px rgba(233,203,121,0.45)",
-              }}
-            >
-              ✦ Para Pets Hub ✦
-            </button>
-
             <button
               data-testid="button-logout"
               onClick={() => logoutMutation.mutate()}
@@ -894,146 +1083,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               {logoutMutation.isPending ? "Departing..." : "Leave Realm"}
             </button>
 
-            {/* Delete Account */}
-            <div className="pt-1">
-              {!showDeleteConfirm ? (
-                <button
-                  data-testid="button-show-delete-account"
-                  onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); setDeleteError(""); }}
-                  disabled={isPending}
-                  className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
-                  style={{
-                    background: "transparent",
-                    border: "1px solid rgba(120,30,30,0.4)",
-                    color: "#8a4a4a",
-                    cursor: "pointer",
-                  }}
-                >
-                  Delete Account
-                </button>
-              ) : !showFinalConfirm ? (
-                /* Step 1: Enter password */
-                <div
-                  className="rounded-xl p-4 space-y-3"
-                  style={{
-                    background: "rgba(80,10,10,0.5)",
-                    border: "1px solid rgba(200,50,50,0.5)",
-                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
-                  }}
-                >
-                  <div className="flex items-start gap-2">
-                    <img src={warnRedPng} alt="!" style={{ width: 20, height: 20, objectFit: "contain", flexShrink: 0 }} />
-                    <div className="space-y-1.5">
-                      <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p>
-                      <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
-                        Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently erased</span>. This cannot be undone by anyone, including support.
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONTINUE</label>
-                    <input
-                      data-testid="input-delete-password"
-                      type="password"
-                      value={deletePassword}
-                      onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }}
-                      placeholder="Your current password"
-                      className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none"
-                      style={{
-                        background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)",
-                        border: `2px solid ${deleteError ? "#ff4444" : "#9a4040"}`,
-                        boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
-                      }}
-                      onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) setShowFinalConfirm(true); }}
-                    />
-                    {deleteError && (
-                      <p data-testid="text-delete-error" className="font-sans text-[#ff8888] text-[11px] pt-0.5 flex items-center gap-1">
-                        <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {deleteError}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      data-testid="button-cancel-delete"
-                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
-                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
-                      style={{
-                        background: "rgba(60,30,10,0.6)",
-                        border: "1px solid rgba(139,94,60,0.4)",
-                        color: "#c8b896",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      data-testid="button-next-delete"
-                      onClick={() => setShowFinalConfirm(true)}
-                      disabled={!deletePassword.trim()}
-                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(160,20,20,0.8) 0%, rgba(100,10,10,0.8) 100%)",
-                        border: "1px solid rgba(220,60,60,0.6)",
-                        color: "#ffaaaa",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Continue
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Step 2: Final "Are you sure?" confirmation */
-                <div
-                  className="rounded-xl p-4 space-y-4"
-                  style={{
-                    background: "rgba(80,10,10,0.5)",
-                    border: "1px solid rgba(200,50,50,0.5)",
-                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
-                  }}
-                >
-                  <div className="text-center space-y-2">
-                    <p className="font-fantasy text-[#ff6b6b] text-sm tracking-wider">Are you sure?</p>
-                    <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
-                      Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this. You will not be able to register a new account with this email for <span style={{ color: "#ffaaaa", fontWeight: 600 }}>30 days</span>.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      data-testid="button-no-delete"
-                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
-                      disabled={deleteAccountMutation.isPending}
-                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
-                      style={{
-                        background: "rgba(40,80,40,0.7)",
-                        border: "1px solid rgba(80,160,80,0.5)",
-                        color: "#a0e0a0",
-                        cursor: "pointer",
-                      }}
-                    >
-                      No
-                    </button>
-                    <button
-                      data-testid="button-yes-delete"
-                      onClick={() => deleteAccountMutation.mutate(deletePassword)}
-                      disabled={deleteAccountMutation.isPending}
-                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(180,20,20,0.9) 0%, rgba(120,10,10,0.9) 100%)",
-                        border: "1px solid rgba(240,60,60,0.7)",
-                        color: "#ffcccc",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {deleteAccountMutation.isPending ? "Deleting..." : "Yes, Delete"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

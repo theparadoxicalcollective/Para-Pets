@@ -487,9 +487,39 @@ try {
         sc.name+": settings popup has forest green surfaces and gold trim: "+JSON.stringify(theme));
       assert.ok(theme.left>=-2 && theme.right<=sc.width+2,
         sc.name+": settings popup stays inside mobile/tablet viewport");
-      for(const id of ["button-save-username","profile-time-zone-settings",
-        "button-toggle-change-password","button-toggle-feedback","button-logout"])
-        assert.equal(await page.getByTestId(id).count(),1,sc.name+": settings keeps "+id);
+      // On entry show only portrait actions, Hub artwork, Settings,
+      // Support and Logout. Account fields are intentionally collapsed.
+      for(const id of ["button-update-profile-picture","button-remove-profile-picture",
+        "button-para-pets-hub","button-toggle-account-settings",
+        "button-toggle-feedback","button-logout"])
+        assert.equal(await page.getByTestId(id).count(),1,sc.name+": compact profile keeps "+id);
+      assert.equal(await page.getByTestId("profile-account-settings").count(),0,
+        sc.name+": account form is not always expanded on open");
+      const hubPicture=page.getByTestId("button-para-pets-hub").locator("img");
+      assert.match(await hubPicture.getAttribute("src"),/ParaPetsHubButton/,
+        sc.name+": Hub reuses exact Sign In artwork");
+      const defaultPortrait=await page.getByTestId("img-profile-current").getAttribute("src");
+      assert.match(defaultPortrait,/hub_mascot/,
+        sc.name+": new accounts show the game mascot instead of initials");
+      assert.equal(await page.getByTestId("button-remove-profile-picture").isDisabled(),true,
+        sc.name+": no custom profile image cannot be removed twice");
+      const topActions=await panel.evaluate(el=>[
+        "button-para-pets-hub","button-toggle-account-settings",
+        "button-toggle-feedback","button-logout",
+      ].map(id=>el.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect().top));
+      assert.ok(topActions.every((y,i)=>i===0||y>topActions[i-1]),
+        sc.name+": Hub, Settings, Support, Logout follow the requested order");
+      await page.getByTestId("button-toggle-account-settings").tap();
+      await page.getByTestId("profile-account-settings").waitFor({state:"visible"});
+      for(const id of ["button-save-username","profile-email-settings","profile-time-zone-settings",
+        "button-toggle-change-password","button-show-delete-account"])
+        assert.equal(await page.getByTestId(id).count(),1,sc.name+": Settings keeps "+id);
+      // Switching to Support collapses account controls; don't retain both
+      // forms as an unscrollable stack on small phones.
+      await page.getByTestId("button-toggle-feedback").tap();
+      assert.equal(await page.getByTestId("profile-account-settings").count(),0,
+        sc.name+": Support keeps the profile menu compact");
+      await page.getByTestId("button-toggle-feedback").tap();
       await page.getByTestId("button-close-profile").tap();
       await panel.waitFor({state:"detached"});
     }
