@@ -177,7 +177,7 @@ test("the player page uses authenticated avatar APIs and previews until Save Cha
   assert.match(page, /setResetPending\(!!avatar\?\.created\)/);
   assert.match(page, /const draftOutfit = PLAYER_CLOTHING_CATEGORIES\.reduce/);
   assert.match(page, /"Character not saved"/);
-  assert.match(page, /data-testid="avatar-create-button"/);
+  assert.match(page, /avatar.created \? "avatar-save-character-button" : "avatar-create-button"/);
   assert.match(page, /onClick=\{\(\) => chooseClothing\(item\)\}/);
   assert.match(page, /setPreviewSelections\(current => \(\{ \.\.\.current, \[category\]: item\.inventoryId \}\)\)/);
   assert.doesNotMatch(page, /data-testid="avatar-equip-button"/);
