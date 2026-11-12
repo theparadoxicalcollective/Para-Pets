@@ -52,8 +52,8 @@ test("Home CSS has five intentionally sized/lowered depths, not stale thumbnail 
   assert.match(p(2), /clamp\(140px, 37vw, 187px\)/);
   assert.match(p(1), /clamp\(105px, 28vw, 141px\)/);
   assert.match(p(0), /clamp\(85px, 23vw, 112px\)/);
-  assert.match(p(1), /bottom: 29px/);
-  assert.match(p(0), /bottom: 49px/);
+  assert.match(p(1), /bottom: 18px/);
+  assert.match(p(0), /bottom: 33px/);
   assert.match(p(3), /left: 70%/);
   assert.match(p(4), /left: 90%/);
   assert.match(css, /transition: left 270ms ease, bottom 270ms ease, width 270ms ease/);
