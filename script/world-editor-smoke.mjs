@@ -276,7 +276,25 @@ try {
     await selectedLegacy.selectOption(legacyPages[0].id);
     await linkReset;
     await page.getByRole("button", { name: "Enter Building" }).click();
-    await page.getByTestId("world-editor-interior").waitFor({ state: "visible" });
+    try {
+      await page.getByTestId("world-editor-interior").waitFor({ state: "visible", timeout: 9000 });
+    } catch (error) {
+      console.error("Old-world page interior diagnostics", {
+        name,
+        assets: worlds.haunted_woods.scene.assets.map(asset => ({
+          id: asset.id, kind: asset.kind, hasInterior: Boolean(asset.interiorImageUrl),
+        })),
+        buildings: worlds.haunted_woods.scene.placements.filter(p => p.kind === "building")
+          .map(p => ({ id: p.id, legacyLocationId: p.legacyLocationId, assetId: p.assetId })),
+        legacyPages: legacyPages.map(p => p.id),
+        roomCount: await page.getByTestId("world-editor-interior").count(),
+        controlsCount: await page.getByTestId("world-scene-selected-controls").count(),
+        noRoomText: await page.getByText("This building has no interior artwork yet.").count(),
+        pageErrors: errors,
+        screen: (await page.locator("body").innerText()).slice(-1500),
+      });
+      throw error;
+    }
     assert.equal(await page.getByTestId("world-editor-interior").locator("img").first().getAttribute("src"),
       oldPageArt, name + ": building reuses exact original page image, not a copied asset");
     await page.getByRole("button", { name: "Exit Room" }).click();
