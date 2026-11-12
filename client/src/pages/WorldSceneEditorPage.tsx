@@ -469,32 +469,51 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     <div ref={viewportRef} data-testid="world-scene-draft-viewport"
       className="absolute inset-0 overflow-hidden" style={{ touchAction: "none", cursor: "grab" }}
       onPointerDownCapture={event => {
-        if (paintMode || activeBuilding || !event.isPrimary) return;
+        if (paintMode || activeBuilding || !event.isPrimary ||
+            (event.button !== 0 && event.pointerType === "mouse")) return;
         const art = viewportRef.current?.querySelector("[data-world-editor-artwork]");
-        if (!art) return;
-        const hit = pickParkAdminArtwork(art, event.clientX, event.clientY, (_kind, id) =>
+        const hit = art && pickParkAdminArtwork(art, event.clientX, event.clientY, (_kind, id) =>
           content.placements.find(item => item.id === id) ?? null);
-        if (!hit) return;
-        const item = content.placements.find(placement => placement.id === hit.id);
-        if (!item) return;
-        const armed = startObject(event, item, "outdoor", hit.image);
-        if (!armed) startCamera(event);
-        // Reject transparent bounding boxes and selection on overlapping art;
-        // the scene's camera still receives the first touch.
+        const item = hit ? content.placements.find(placement => placement.id === hit.id) : null;
+        if (item && startObject(event, item, "outdoor", hit?.image)) {
+          pendingObjectTap.current = null;
+          return;
+        }
+        // A tap on visible art selects. A swipe beginning there pans, without
+        // accidentally editing or moving the underlying world placement.
+        pendingObjectTap.current = item ? {
+          pointerId: event.pointerId, id: item.id, x: event.clientX, y: event.clientY,
+        } : null;
+        startCamera(event);
         event.stopPropagation();
       }}
       onPointerMoveCapture={event => {
+        const pending = pendingObjectTap.current;
+        if (pending?.pointerId === event.pointerId &&
+            Math.hypot(event.clientX - pending.x, event.clientY - pending.y) >= 7)
+          pendingObjectTap.current = null;
         if (objectDrag.current?.id === event.pointerId) moveObject(event);
       }}
       onPointerUpCapture={event => {
-        if (objectDrag.current?.id !== event.pointerId) return;
-        finishObject(event);
+        if (objectDrag.current?.id === event.pointerId) {
+          finishObject(event);
+          endTouch(event);
+          event.stopPropagation();
+          return;
+        }
+        const tap = pendingObjectTap.current;
+        if (tap?.pointerId === event.pointerId) {
+          pendingObjectTap.current = null;
+          if (Math.hypot(event.clientX - tap.x, event.clientY - tap.y) < 7)
+            setSelectedId(tap.id);
+        }
         endTouch(event);
         event.stopPropagation();
       }}
       onPointerCancelCapture={event => {
-        if (objectDrag.current?.id !== event.pointerId) return;
-        cancelObject();
+        if (pendingObjectTap.current?.pointerId === event.pointerId)
+          pendingObjectTap.current = null;
+        if (objectDrag.current?.id === event.pointerId) cancelObject();
         endTouch(event);
         event.stopPropagation();
       }}
@@ -551,20 +570,21 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 }),
                 pointerEvents: p.kind === "terrain" ? "none" : undefined,
                 transform: "translate(-50%, -50%)",
-                outline: selectedId === p.id ? "2px solid #f6cf71" : undefined,
+
               }}
               aria-label={asset?.name ?? p.effectType ?? p.kind}
               onClick={event => {
+                // Pointer selection is handled at pointer-up on opaque art.
+                // Ignore rectangular button clicks in transparent PNG padding.
+                if (event.detail === 0) setSelectedId(p.id);
                 event.stopPropagation();
-                if (event.detail === 0) { setSelectedId(p.id); return; }
-                const art = viewportRef.current?.querySelector("[data-world-editor-artwork]");
-                const hit = art && pickParkAdminArtwork(art, event.clientX, event.clientY, (_kind, id) =>
-                  content.placements.find(item => item.id === id) ?? null);
-                if (hit?.id === p.id) setSelectedId(p.id);
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
                 {asset && <img src={asset.imageUrl} alt="" draggable={false}
-                  className="absolute inset-0 h-full w-full object-contain" />}
+                  className="absolute inset-0 h-full w-full object-contain"
+                  style={selectedId === p.id && (p.kind === "building" || p.kind === "decor")
+                    ? { filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)" }
+                    : undefined} />}
                 {(p.kind === "decor" || p.kind === "building") && asset &&
                   <WorldDecorEffects effects={p.decorEffects}
                     sunlightStrength={worldLighting.daylightStrength}
@@ -627,19 +647,21 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             style={{
               left: pos.xPct * interiorW, top: pos.yPct * interiorH, width: px, height: px,
               transform: "translate(-50%, -50%)", zIndex: Math.round(pos.yPct * 10000),
-              outline: item.id === selectedInteriorId ? "2px solid #efc967" : undefined,
+
             }}
             onPointerDown={event => startObject(event, item, "interior")}
             onPointerMove={moveObject} onPointerUp={finishObject}
             onPointerCancel={cancelObject} onLostPointerCapture={cancelObject}
             onClick={event => {
-              const artwork = event.currentTarget.querySelector("img");
-              if (artwork && !parkImageHitAt(artwork, event.clientX, event.clientY, item.flipped)) return;
-              event.stopPropagation(); setSelectedInteriorId(item.id);
+              if (event.detail === 0) setSelectedInteriorId(item.id);
+              event.stopPropagation();
             }}>
             <span className="pointer-events-none absolute inset-0"
               style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}>
-              {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain" draggable={false} />}
+              {asset && <img src={asset.imageUrl} alt="" className="h-full w-full object-contain"
+                style={selectedInteriorId === item.id ? {
+                  filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)",
+                } : undefined} draggable={false} />}
               {item.kind === "effect" && item.effectType &&
                 <span className="absolute inset-0" style={{
                   opacity: item.effectType === "warm_glow" ? worldLighting.daylightStrength : 1,
@@ -740,7 +762,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
         {draft.isError || scene.isError ? "World draft could not be loaded. Return to map and retry." : "Loading private world editor…"}
       </div> : !paintMode && <WorldSceneControls
         worldId={worldId} scene={content} selected={selected} selectedInterior={selectedInterior}
-        activeBuilding={activeBuilding} placementPoint={createPoint} moveArmedId={moveArmedId}
+        activeBuilding={activeBuilding} placementPoint={createPoint}
         interiorDarkness={interiorDarkness}
         interiorPreviewClock={interiorPreviewClock} onInteriorPreviewClockChange={setInteriorPreviewClock}
         darknessSaving={darknessSaving}
