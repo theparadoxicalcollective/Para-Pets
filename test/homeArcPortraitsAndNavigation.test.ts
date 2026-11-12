@@ -31,7 +31,7 @@ test("Home XP forms a more semicircular arc with accessible proportional progres
   assert.match(homeHud, /className="home-player-hud__xp-arc-rim"/);
   assert.match(homeCss, /\.home-player-hud__xp-arc-track \{ stroke: #123b27/);
   assert.match(homeCss, /\.home-player-hud__xp-arc-rim \{\s*stroke: #eed28e/);
-  assert.match(homeHud, /xpEarnedThisLevel\.toLocaleString\(\)/);
+  assert.match(homeHud, /xpEarnedThisLevel \/ xpNeededThisLevel/);
   assert.match(homeHud, /pathLength=\{100\}/);
   assert.match(homeHud, /role="progressbar"/);
   assert.match(homeHud, /aria-valuenow=\{xpFillPct === null/);

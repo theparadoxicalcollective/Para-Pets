@@ -46,7 +46,7 @@ test("coin and essence balance artwork is read-only; only shop icon navigates", 
   assert.match(topBar, /onClick=\{\(\) => navigate\("\/coins"\)\}/);
 });
 
-test("Home keeps curved level text beneath a left-labeled artwork-relative XP bar", () => {
+test("Home keeps curved level text on an artwork-relative XP bar with quantity hidden", () => {
   assert.match(hud, /\{!avatarHome && \(/);
   assert.match(hud, /className="home-player-hud__level-curved"/);
   assert.match(hud, /<textPath href="#home-player-level-curve" startOffset="50%">/);

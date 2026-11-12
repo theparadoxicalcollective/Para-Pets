@@ -275,8 +275,9 @@ try {
       sc.name+": compact companion uses layered body and blinking eye art");
     const animBounds=await composite.locator('[data-testid="pet-animator"]').first().boundingBox();
     const slotBounds=await page.getByTestId("home-player-team-slot-1").boundingBox();
-    assert.ok(animBounds && slotBounds && animBounds.width<=slotBounds.width+8,
-      sc.name+": pet renderer does not overgrow its slot: "+JSON.stringify({animBounds,slotBounds}));
+    assert.ok(animBounds && slotBounds && animBounds.width<=slotBounds.width*1.5,
+      sc.name+": enlarged pet art is allowed to extend beyond its shadow oval: "+
+        JSON.stringify({animBounds,slotBounds}));
     assert.equal(await page.getByTestId("equipped-mini-pet").getAttribute("data-mini-pet-motion"),"static",
       sc.name+": equipped Mini Pet is visible without introducing animations");
     assert.ok(homeLayout.actor && homeLayout.stars && homeLayout.progress && homeLayout.party && homeLayout.xp,
@@ -317,8 +318,8 @@ try {
     } else {
       assert.ok(xpArc.value>0 && xpArc.value<100,sc.name+": partial XP stays partially filled");
     }
-    assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-8,
-      sc.name+": team panel not overlapping player XP");
+    assert.ok(homeLayout.party.top >= homeLayout.progress.bottom-42,
+      sc.name+": the deeper curved rim stays near the pet row without covering its controls");
     if(sc.name==="saved character phone"){
       const adjust=page.getByTestId("button-home-adjust-xp");
       await adjust.click();
