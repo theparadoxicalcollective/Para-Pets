@@ -15,9 +15,10 @@ test("hair is recolorable for every existing style even without an old admin che
   }
   for (const category of PLAYER_CLOTHING_CATEGORIES) {
     if (category === "hair") continue;
-    for (const oldFlag of [undefined, null, false, true]) {
-      assert.equal(playerClothingCanRecolor(category, oldFlag), false,
-        category + " always uses its original authored artwork");
+    for (const flag of [undefined, null, false, true]) {
+      assert.equal(playerClothingCanRecolor(category, flag),
+        (category === "top" || category === "bottom") && flag === true,
+        category + " only accepts its admin-owned color permission");
     }
   }
 });
@@ -43,26 +44,28 @@ test("front and back hair pieces use one per-player color without merging their 
   assert.deepEqual(layers[0].segments.map(s => s.renderPlane), ["with_part", "behind_character"]);
 });
 
-test("previously saved garment tints are suppressed while hair and skin tones remain", () => {
+test("disabled tops and bottoms ignore old tints while enabled items persist per-player colors", () => {
   const avatar = {
     created: true, revision: 1, base: null, ownedClothing: [],
     unavailableEquipmentSlots: [], equipped: [
       { category: "hair", inventoryId: "hair", colorTint: "#775599",
         segments: [{ partType: "head", imageUrl: "/hair.png", fit }] },
-      { category: "top", inventoryId: "shirt", colorTint: "#ff0000",
+      { category: "top", inventoryId: "shirt", colorPickerEnabled: false, colorTint: "#ff0000",
         segments: [{ partType: "top", imageUrl: "/shirt.png", fit }] },
+      { category: "bottom", inventoryId: "pants", colorPickerEnabled: true, colorTint: "#4b7853",
+        segments: [{ partType: "left_leg", imageUrl: "/pants.png", fit }] },
     ],
   };
   const layers = wardrobeLayers(avatar as any);
   assert.equal(layers.find(x => x.category === "hair")?.colorTint, "#775599");
   assert.equal(layers.find(x => x.category === "top")?.colorTint, null);
+  assert.equal(layers.find(x => x.category === "bottom")?.colorTint, "#4b7853");
   const renderer = source("client/src/components/PlayerCharacterRenderer.tsx");
-  assert.match(renderer, /outfit.category === "hair" \? outfit.colorTint \?\? null : null/);
+  assert.match(renderer, /colorTint: outfit.colorTint \?\? null/);
   const creator = source("client/src/pages/PlayerAvatarPage.tsx");
   assert.match(creator, /data-testid="avatar-skin-tone-picker"/);
   assert.match(creator, /data-testid="avatar-custom-skin"/);
-  assert.match(creator, /<label htmlFor="avatar-clothing-color">Hair Color/);
-  assert.doesNotMatch(creator, /"Clothing Color"/);
+  assert.match(creator, /selected.category === "hair" \? "Hair Color" : "Clothing Color"/);
 });
 
 test("creator always exposes hair color input and save/reset, also on first avatar creation", () => {
@@ -81,9 +84,9 @@ test("creator always exposes hair color input and save/reset, also on first avat
   assert.match(server, /colorTint: playerClothingCanRecolor\(item\.category, item\.colorPickerEnabled\) \? entry\.colorTint : null/);
   assert.match(server, /playerClothingCanRecolor\(category, item\.colorPickerEnabled\)/);
   assert.match(server, /playerClothingCanRecolor\(slot, item\.colorPickerEnabled\)/);
-  assert.doesNotMatch(admin, /data-testid="avatar-clothing-color-picker-enabled"/);
+  assert.match(admin, /data-testid="avatar-clothing-color-picker-enabled"/);
   assert.match(admin, /colorPickerEnabled: category === "hair"/);
-  assert.match(render, /filter: tintFilter\(layer\.colorTint\)/);
+  assert.match(render, /filter: grouped \? undefined : tintFilter\(layer\.colorTint\)/);
   assert.match(render, /playerCharacterColorMatrix\(color\)/);
   assert.doesNotMatch(render, /layer\.colorTint && <span|maskImage:/);
   assert.match(render, /layer\.category === "hair" && isBackArtwork\(layer\)/);
