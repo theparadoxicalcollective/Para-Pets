@@ -161,8 +161,10 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
     setInteriorPreviewClock("live");
   }, [activeBuildingId]);
   useEffect(() => {
-
-    lastObjectTap.current = null;
+    pendingObjectTap.current = null;
+    objectDrag.current = null;
+    touchPoints.current.clear();
+    pinch.current = null;
   }, [activeBuildingId]);
   useEffect(() => {
     const element = viewportRef.current;
