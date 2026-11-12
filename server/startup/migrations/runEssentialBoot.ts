@@ -59,6 +59,19 @@ export async function runEssentialBoot(): Promise<void> {
     ALTER TABLE user_house_bundles ADD COLUMN IF NOT EXISTS off_interior_effect_ids JSONB NOT NULL DEFAULT '{}'::jsonb;
     ALTER TABLE player_market_listings ADD COLUMN IF NOT EXISTS asset_data JSONB;
 
+    -- Home garden plots are authored scene geometry, not inventory grants.
+    -- Keep them independent from Pet Park and shared garden crop economy.
+    CREATE TABLE IF NOT EXISTS house_bundle_garden_plots (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bundle_id varchar NOT NULL REFERENCES house_bundles(id) ON DELETE CASCADE,
+      x_pct real NOT NULL DEFAULT 0.5 CHECK (x_pct >= 0 AND x_pct <= 1),
+      y_pct real NOT NULL DEFAULT 0.5 CHECK (y_pct >= 0 AND y_pct <= 1),
+      size integer NOT NULL DEFAULT 180 CHECK (size >= 60 AND size <= 500),
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS house_bundle_garden_plots_bundle_idx
+      ON house_bundle_garden_plots(bundle_id);
+
     CREATE TABLE IF NOT EXISTS house_bundle_included_items (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       bundle_id varchar NOT NULL REFERENCES house_bundles(id) ON DELETE CASCADE,

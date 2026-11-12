@@ -170,6 +170,12 @@ const expected = [
   "POST /api/admin/house-bundles",
   "PATCH /api/admin/house-bundles/:id",
   "DELETE /api/admin/house-bundles/:id",
+  // Garden plot placement endpoints are additive; existing route order remains intact.
+  "GET /api/house-bundles/:bundleId/garden-plots",
+  "GET /api/admin/house-bundles/:bundleId/garden-plots",
+  "POST /api/admin/house-bundles/:bundleId/garden-plots",
+  "PATCH /api/admin/house-bundle-garden-plots/:id",
+  "DELETE /api/admin/house-bundle-garden-plots/:id",
   "GET /api/admin/house-bundles/:bundleId/included-items",
   "POST /api/admin/house-bundles/:bundleId/included-items",
   "PATCH /api/admin/house-bundle-included-items/:id",

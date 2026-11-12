@@ -26,6 +26,8 @@ import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import { HomeSceneAssetImage } from "@/components/HomeSceneAssetImage";
 import { HomeInteriorDarknessLayer, HomeInteriorEffectsLayer, HomeInteriorExitSparkle } from "@/components/HomeInteriorEffect";
 import HomeCapacityIndicator from "@/components/HomeCapacityIndicator";
+import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
+import type { HomeBundleGardenPlot } from "@shared/homeBundleGardenPlots";
 import { HomeDayNightToggle, HomeOutdoorAtmosphereLayer, useHomeOutdoorLighting } from "@/components/HomeOutdoorAtmosphere";
 import { broadenHomeAttachedLampIllumination, buildHomeLampItemEffects, buildHomeSleepDecorEffects, getHomeItemDisplayImage, isTapEffectHomeItem } from "@/lib/homeItemEffects";
 import { broadenHomeBundleLampIllumination } from "@/lib/homeBundleLighting";
@@ -1054,6 +1056,19 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       return res.json();
     },
     staleTime: 30000,
+  });
+
+  // Bundle-authored Garden Plots are scene soil tiles, never inventory grants.
+  // This separate read avoids changing existing Home bundle response contracts.
+  const { data: homeBundleGardenPlots = [] } = useQuery<HomeBundleGardenPlot[]>({
+    queryKey: ["/api/house-bundles", activeBundle?.id, "garden-plots"],
+    enabled: !!activeBundle?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/house-bundles/${activeBundle!.id}/garden-plots`, { credentials: "include" });
+      if (!res.ok) throw new Error("Could not load Home Garden Plots");
+      return res.json();
+    },
+    staleTime: 30_000,
   });
 
   const tutorialMailboxBuilding = useMemo(
@@ -2202,6 +2217,25 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           decorCount={outdoorDecorCount}
           decorLimit={outdoorDecorLimit}
         />
+      )}
+
+      {/* Garden soil belongs to the selected bundle and sits between the
+          background and buildings/objects. It isn't a player inventory item. */}
+      {!openInterior && imgWidth > 0 && homeBundleGardenPlots.length > 0 && (
+        <div aria-label="Home Bundle Garden Plots" data-testid="home-garden-plot-layer"
+          className="pointer-events-none absolute inset-0" style={{ zIndex: 3 }}>
+          {homeBundleGardenPlots.map(plot => (
+            <div key={plot.id} data-testid={`home-garden-plot-${plot.id}`}
+              className="pointer-events-none absolute"
+              style={{
+                left: panX + plot.xPct * imgWidth, top: plot.yPct * containerH,
+                width: plot.size, height: plot.size / 2,
+                transform: "translate(-50%, -50%)",
+              }}>
+              <PetParkTerrainDetail type="garden_plot" />
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Buildings layer */}
