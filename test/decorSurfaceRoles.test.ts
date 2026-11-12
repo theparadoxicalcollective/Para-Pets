@@ -93,7 +93,7 @@ test("backend shares each decor type role across linked copies and validates one
     ?.split('app.patch("/api/admin/pet-park/items/:id/color"')[0] ?? "";
   assert.match(waterRoute,/decorAppearanceWhere\(original\)/);
   assert.match(worldRoute,/isDecorSurface\(decorSurface\)/);
-  assert.match(worldRoute,/decorEffects, isWaterSource, decorSurface, isShop/);
+  assert.match(worldRoute,/decorEffects, isWaterSource: sameType\?\.isWaterSource \?\? isWaterSource/);
   assert.match(worldRoute,/changes\.decorSurface = body\.decorSurface/);
   assert.match(worldRoute,/const \[sameType\] = kind === "decor"/);
   assert.match(worldRoute,/isWaterSource: sameType\?\.isWaterSource \?\? isWaterSource/);
