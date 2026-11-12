@@ -389,6 +389,9 @@ try {
     await merchandise.click();
     const preview = page.getByTestId("world-shop-price-preview");
     await preview.waitFor({ state: "visible" });
+    // The shelf reports selection through an effect to its parent World
+    // controls. Wait for that second React commit rather than racing it.
+    await page.getByTestId("world-scene-controls").waitFor({ state: "detached" });
     assert.equal(await page.getByTestId("world-scene-controls").count(), 0,
       name + ": selecting merchandise hides overlapping World bottom controls");
     const beforeTag = worlds.haunted_woods.scene.placements.find(p =>
