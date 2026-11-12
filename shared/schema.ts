@@ -1672,6 +1672,7 @@ export const worldScenePlacements = pgTable("world_scene_placements", {
   worldId: text("world_id").notNull(),
   kind: text("kind").notNull(),
   assetId: varchar("asset_id"),
+  npcId: varchar("npc_id").references(() => shopItems.id, { onDelete: "cascade" }),
   effectType: text("effect_type"),
   effectColor: text("effect_color"), // Optional #RRGGBB for standalone colored lights
   interiorDarkness: integer("interior_darkness").notNull().default(35),

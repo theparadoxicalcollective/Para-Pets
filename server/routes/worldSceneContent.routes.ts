@@ -60,6 +60,15 @@ async function validLegacyLocationPage(db: Store, id: unknown): Promise<boolean>
       isNotNull(worldLocations.bgUrl), ne(worldLocations.bgUrl, ""))).limit(1);
   return !!page;
 }
+async function validCatalogNpc(db: Store, id: unknown): Promise<boolean> {
+  if (!validSceneId(id)) return false;
+  const [npc] = await db.select({ id: shopItems.id }).from(shopItems).where(and(
+    eq(shopItems.id, id), eq(shopItems.type, "npc"),
+    eq(shopItems.worldId, "__npc_catalog__"),
+    isNotNull(shopItems.imageUrl), ne(shopItems.imageUrl, ""),
+  )).limit(1);
+  return !!npc;
+}
 async function withinLimit(db: Store, table: typeof worldSceneAssets | typeof worldScenePlacements, worldId: string, limit: number) {
   if (table === worldSceneAssets) {
     const [row] = await db.select({ total: count() }).from(worldSceneAssets)
@@ -262,8 +271,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
     if (!worldId) return res.status(404).json({ message: "Unknown world" });
     const body = req.body ?? {};
     const { kind, assetId, effectType = null, effectColor = null, decorEffects = [],
-      isWaterSource = false, isShop = false, legacyLocationId = null, shopItemIds = [] } = body;
-    if (!["decor", "building", "effect"].includes(kind) ||
+      isWaterSource = false, isShop = false, legacyLocationId = null, shopItemIds = [], npcId = null } = body;
+    if (!["decor", "building", "effect", "npc"].includes(kind) ||
       !validPlacementTransform(body) || !validDecorEffects(decorEffects) ||
       typeof isWaterSource !== "boolean" || typeof isShop !== "boolean" ||
       !validShopIds(shopItemIds)) {
@@ -275,18 +284,24 @@ export function registerWorldSceneContentRoutes(app: Express, {
         ? effectColor != null && !isValidParkLightColor(effectColor)
         : effectColor != null)
       return res.status(400).json({ message: "Invalid colored light orb color" });
-    if (((kind !== "decor" && isWaterSource) || (kind === "effect" && decorEffects.length)) ||
+    if (((kind !== "decor" && isWaterSource) ||
+      (kind !== "decor" && kind !== "building" && decorEffects.length)) ||
       (kind !== "building" && (isShop || shopItemIds.length)) ||
-      (kind === "effect" ? !validEffect(effectType) || assetId != null : effectType != null)) {
+      (kind === "npc"
+        ? assetId != null || effectType != null || !validSceneId(npcId)
+        : npcId != null || (kind === "effect"
+          ? !validEffect(effectType) || assetId != null : effectType != null))) {
       return res.status(400).json({ message: "Invalid object-specific settings" });
     }
     try {
-      if (kind !== "effect") {
+      if (kind === "decor" || kind === "building") {
         const asset = await findAsset(db, worldId, assetId);
         if (!asset || asset.kind !== kind) return res.status(400).json({
           message: "Select a matching asset from this world's library",
         });
       }
+      if (kind === "npc" && !(await validCatalogNpc(db, npcId)))
+        return res.status(400).json({ message: "Choose an existing NPC from Admin NPCs" });
       if (legacyLocationId !== null &&
           (kind !== "building" || !(await validLegacyLocationPage(db, legacyLocationId))))
         return res.status(400).json({ message: "Select an existing old-world page with a background" });
@@ -296,7 +311,8 @@ export function registerWorldSceneContentRoutes(app: Express, {
       if (!(await withinLimit(db, worldScenePlacements, worldId, MAX_OBJECTS)))
         return res.status(409).json({ message: "World placement limit reached" });
       const [placed] = await db.insert(worldScenePlacements).values({
-        worldId, kind, assetId: kind === "effect" ? null : assetId, effectType,
+        worldId, kind, assetId: kind === "effect" || kind === "npc" ? null : assetId,
+        npcId: kind === "npc" ? npcId : null, effectType,
         effectColor: kind === "effect" && (effectType === "colored_light" || effectType === "lamp_light") ? effectColor : null,
         xPct: body.xPct, yPct: body.yPct, size: body.size,
         flipped: body.flipped, layer: body.layer,

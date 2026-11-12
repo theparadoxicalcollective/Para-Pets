@@ -8,6 +8,7 @@ import PetParkTerrainDetail from "@/components/PetParkTerrainDetail";
 import { ParkEffectVisual } from "@/components/ParkEffectVisual";
 import WorldSceneControls from "@/components/world-editor/WorldSceneControls";
 import { useWorldLegacyPages } from "@/components/world-editor/WorldLegacyPagePicker";
+import { useWorldNpcCatalog } from "@/components/world-editor/WorldNpcCatalog";
 import WorldTerrainBrush from "@/components/world-editor/WorldTerrainBrush";
 import WorldDecorEffects from "@/components/world-editor/WorldDecorEffects";
 import WorldShopShelf from "@/components/world-editor/WorldShopShelf";
@@ -111,6 +112,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
   const known = isEditableWorldSceneId(worldId);
   const world = getWorldDefinition(worldId);
   const legacyPages = useWorldLegacyPages(worldId, known && !!activeBuildingId);
+  const npcCatalog = useWorldNpcCatalog(known);
   const queryKey = ["/api/admin/world-editor", worldId, "draft"];
   const sceneQueryKey = ["/api/admin/world-editor", worldId, "scene"];
 
@@ -190,6 +192,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
       exteriorFireflies: parkOutdoorFireflyFields(items, shape, actualPan, size) };
   }, [content.placements, objectPreview, camera.sceneWidth, camera.sceneHeight, camera.scale, actualPan.x, actualPan.y, size.width, size.height]);
   const assetFor = (assetId: string | null) => content.assets.find(asset => asset.id === assetId);
+  const npcById = useMemo(() => new Map((npcCatalog.data ?? []).map(npc => [npc.id, npc])), [npcCatalog.data]);
   const activeBuilding = content.placements.find(p => p.id === activeBuildingId && p.kind === "building") ?? null;
   const interiorDarkness = activeBuilding && interiorDarknessDraft &&
     interiorDarknessDraft.buildingId === activeBuilding.id
@@ -562,6 +565,8 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
             if (left < -margin || left > size.width + margin ||
                 top < -margin || top > size.height + margin) return null;
             const asset = assetFor(p.assetId);
+            const npc = p.kind === "npc" && p.npcId ? npcById.get(p.npcId) : undefined;
+            const artworkUrl = asset?.imageUrl ?? npc?.imageUrl;
             const connected = p.kind === "terrain" && isParkConnectedPath(p.effectType);
             // Connected paths are painted on the camera canvas. Do not create
             // thousands of transparent hit targets that block panning.
@@ -586,7 +591,7 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 transform: "translate(-50%, -50%)",
 
               }}
-              aria-label={asset?.name ?? p.effectType ?? p.kind}
+              aria-label={asset?.name ?? npc?.name ?? p.effectType ?? p.kind}
               onClick={event => {
                 // Pointer selection is handled at pointer-up on opaque art.
                 // Ignore rectangular button clicks in transparent PNG padding.
@@ -594,9 +599,9 @@ export default function WorldSceneEditorPage({ worldId }: { worldId: string }) {
                 event.stopPropagation();
               }}>
               <span className="absolute inset-0 pointer-events-none" style={{ transform: p.flipped ? "scaleX(-1)" : undefined }}>
-                {asset && <img src={asset.imageUrl} alt="" draggable={false}
+                {artworkUrl && <img src={artworkUrl} alt="" draggable={false}
                   className="absolute inset-0 h-full w-full object-contain"
-                  style={selectedId === p.id && (p.kind === "building" || p.kind === "decor")
+                  style={selectedId === p.id && (p.kind === "building" || p.kind === "decor" || p.kind === "npc")
                     ? { filter: "drop-shadow(1px 0 0 #efca79) drop-shadow(-1px 0 0 #efca79) drop-shadow(0 0 4px #e7ba70)" }
                     : undefined} />}
                 {(p.kind === "decor" || p.kind === "building") && asset &&

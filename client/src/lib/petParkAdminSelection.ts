@@ -44,7 +44,7 @@ export function pickParkAdminArtwork(
         clientY > rect.bottom || rect.width <= 0 || rect.height <= 0) continue;
 
     const image = node.querySelector<HTMLImageElement>("img");
-    if (kind === "building" || object.kind === "decor") {
+    if (kind === "building" || object.kind === "decor" || object.kind === "npc") {
       // No image means no visible object pixel: never allow an invisible
       // rectangular placeholder to capture World/Pet Park scene gestures.
       if (!image || !parkImageHitAt(image, clientX, clientY, object.flipped)) continue;

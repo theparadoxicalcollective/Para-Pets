@@ -45,6 +45,11 @@ const legacyPages = [
   { id:"a0000000-0000-4000-8000-000000000002", worldId:"elysian_bayou",
     worldName:"Elysian Bayou", name:"Janson's Market", type:"shop", isShop:true, bgUrl:oldPageArt },
 ];
+const savedNpcs = [{
+  id: "90000000-0000-4000-8000-000000000001",
+  type: "npc", worldId: "__npc_catalog__", name: "Wisp Keeper",
+  imageUrl: art, specialSkill: '{"animation":"float","messages":["Hello"]}',
+}];
 const interior = "data:image/svg+xml;base64," + Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#62513b"/></svg>',
 ).toString("base64");
@@ -72,7 +77,7 @@ function makeScene(worldId) {
       tapImageUrl: null, interiorImageUrl: interior, nightInteriorImageUrl: interior },
   ];
   const common = {
-    worldId, assetId: null, terrainKey: null, effectType: null, effectColor: null,
+    worldId, assetId: null, npcId: null, terrainKey: null, effectType: null, effectColor: null,
     interiorDarkness: 35, size: 120, flipped: false, layer: 0, decorEffects: [],
     isWaterSource: false, isShop: false, legacyLocationId: null,
     shopItemIds: [], shopItemPlacements: [],
@@ -142,6 +147,7 @@ try {
         petParkRequests.push(path);
       if (path.startsWith("/api/world/")) publicWorldRequests.push(path);
       if (path === "/api/inventory") return route.fulfill({ json: inventory });
+      if (path === "/api/shop/__npc_catalog__") return route.fulfill({ json: savedNpcs });
       const match = path.match(/^\/api\/admin\/world-editor\/(haunted_woods|swamp)\/(.*)$/);
       if (!match) return route.fulfill({ json: {} });
       const [, worldId, tail] = match;
@@ -178,7 +184,7 @@ try {
         // Without shopItemPlacements the newly created shop crashes when
         // entering its room, masking genuine gesture and legacy link tests.
         const created = {
-          id, worldId, kind: "decor", assetId: null, effectType: null,
+          id, worldId, kind: "decor", assetId: null, npcId: null, effectType: null,
           effectColor: null, terrainKey: null,
           xPct: .5, yPct: .5, size: 100, flipped: false, layer: 0,
           decorEffects: [], isWaterSource: false, isShop: false,
@@ -575,6 +581,28 @@ try {
     await cleared;
     assert.ok(apiWrites.some(write => write.worldId === "haunted_woods" && write.tail === "terrain" &&
       write.method === "DELETE"), name + ": one-tap terrain cleanup belongs only to the current world");
+
+    // The + NPC picker uses existing catalog assets and stores no duplicates.
+    await page.getByRole("button", { name: "+ NPC" }).click();
+    await page.getByRole("heading", { name: "Add NPC" }).waitFor({ state: "visible" });
+    const createdNpc = page.waitForResponse(r => r.url().endsWith("/placements") &&
+      r.request().method() === "POST");
+    await page.getByTestId("button-place-world-npc-" + savedNpcs[0].id).click();
+    await createdNpc;
+    const npcWrite = apiWrites.find(w => w.tail === "placements" &&
+      w.body.kind === "npc" && w.body.npcId === savedNpcs[0].id);
+    assert.ok(npcWrite && npcWrite.worldId === "haunted_woods" && npcWrite.body.assetId === null,
+      name + ": NPC picker saves the shared NPC reference in this private world only");
+    const npcPlaced = worlds.haunted_woods.scene.placements.find(p =>
+      p.kind === "npc" && p.npcId === savedNpcs[0].id);
+    assert.ok(npcPlaced);
+    const npcSprite = page.getByTestId("world-scene-placement-" + npcPlaced.id);
+    await npcSprite.waitFor({ state: "visible" });
+    assert.equal(await npcSprite.locator("img").getAttribute("src"), art,
+      name + ": NPC image is reused from the saved catalog");
+    assert.ok((await page.getByTestId("world-scene-selected-controls").innerText()).includes(savedNpcs[0].name),
+      name + ": NPC has selection, resize, flip, and edit controls");
+    await page.getByRole("button", { name: "Deselect world object" }).click();
 
     // Crossing to another draft cannot display or edit Haunted Woods assets.
     await page.goto("http://127.0.0.1:4194/fixture?world=swamp", { waitUntil: "commit" });
